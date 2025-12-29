@@ -23,6 +23,7 @@ urlpatterns = [
     path('regime/', include('apps.regime.interface.urls')),
     path('macro/', include('apps.macro.interface.urls')),
     path('signal/', include('apps.signal.interface.urls')),
+    path('ai/', include('apps.ai_provider.interface.urls')),
 
     # API routes (to be added)
     # path('api/regime/', include('apps.regime.interface.urls')),

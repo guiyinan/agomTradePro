@@ -20,7 +20,8 @@
       "Bash(curl:*)",
       "Bash(agomsaaf/Scripts/pip list:*)",
       "WebSearch",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(timeout:*)"
     ]
   }
 }

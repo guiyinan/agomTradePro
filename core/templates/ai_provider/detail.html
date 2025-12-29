@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}{{ provider.name }} - 详情 - AgomSAAF{% endblock %}
+
+{% block content -->
+<div class="page-header">
+    <h1>{{ provider.name }}</h1>
+    <p class="subtitle">{{ provider.get_provider_type_display }} - {{ provider.description }}</p>
+</div>
+
+<!-- 基本信息 -->
+<div class="section">
+    <h2 class="section-title">基本信息</h2>
+    <div class="card">
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="padding: 8px; width: 150px;"><strong>名称:</strong></td>
+                <td style="padding: 8px;">{{ provider.name }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px;"><strong>类型:</strong></td>
+                <td style="padding: 8px;">{{ provider.get_provider_type_display }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px;"><strong>状态:</strong></td>
+                <td style="padding: 8px;">
+                    {% if provider.is_active %}
+                        <span class="tag tag-success">启用</span>
+                    {% else %}
+                        <span class="tag tag-error">禁用</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 8px;"><strong>优先级:</strong></td>
+                <td style="padding: 8px;">{{ provider.priority }}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px;"><strong>Base URL:</strong></td>
+                <td style="padding: 8px;"><code>{{ provider.base_url }}</code></td>
+            </tr>
+            <tr>
+                <td style="padding: 8px;"><strong>默认模型:</strong></td>
+                <td style="padding: 8px;"><code>{{ provider.default_model }}</code></td>
+            </tr>
+            <tr>
+                <td style="padding: 8px;"><strong>每日预算:</strong></td>
+                <td style="padding: 8px;">{% if provider.daily_budget_limit %}${{ provider.daily_budget_limit }}{% else %}无限制{% endif %}</td>
+            </tr>
+            <tr>
+                <td style="padding: 8px;"><strong>每月预算:</strong></td>
+                <td style="padding: 8px;">{% if provider.monthly_budget_limit %}${{ provider.monthly_budget_limit }}{% else %}无限制{% endif %}</td>
+            </tr>
+        </table>
+        <div style="margin-top: 16px;">
+            <a href="/admin/ai_provider/aiproviderconfig/{{ provider.id }}/change/" class="tag">编辑配置</a>
+            <a href="{% url 'ai_provider:manage' %}" class="tag">返回列表</a>
+        </div>
+    </div>
+</div>
+
+<!-- 统计信息 -->
+<div class="section">
+    <h2 class="section-title">使用统计</h2>
+
+    <!-- 今日统计 -->
+    <div class="card" style="margin-bottom: 16px;">
+        <h3 style="margin-bottom: 12px;">今日</h3>
+        <div class="status-grid">
+            <div>
+                <div class="status-label">请求数</div>
+                <div class="status-value">{{ today_usage.total_requests }}</div>
+            </div>
+            <div>
+                <div class="status-label">成功</div>
+                <div class="status-value" style="color: var(--color-success);">{{ today_usage.success_requests }}</div>
+            </div>
+            <div>
+                <div class="status-label">Tokens</div>
+                <div class="status-value">{{ today_usage.total_tokens }}</div>
+            </div>
+            <div>
+                <div class="status-label">成本</div>
+                <div class="status-value">${{ today_usage.total_cost|floatformat:4 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 本月统计 -->
+    <div class="card">
+        <h3 style="margin-bottom: 12px;">本月</h3>
+        <div class="status-grid">
+            <div>
+                <div class="status-label">请求数</div>
+                <div class="status-value">{{ month_usage.total_requests }}</div>
+            </div>
+            <div>
+                <div class="status-label">成功</div>
+                <div class="status-value" style="color: var(--color-success);">{{ month_usage.success_requests }}</div>
+            </div>
+            <div>
+                <div class="status-label">Tokens</div>
+                <div class="status-value">{{ month_usage.total_tokens }}</div>
+            </div>
+            <div>
+                <div class="status-label">成本</div>
+                <div class="status-value">${{ month_usage.total_cost|floatformat:2 }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 模型统计 -->
+{% if model_stats %}
+<div class="section">
+    <h2 class="section-title">按模型统计（最近30天）</h2>
+    <div class="card">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="border-bottom: 2px solid var(--color-border);">
+                    <th style="padding: 8px; text-align: left;">模型</th>
+                    <th style="padding: 8px; text-align: right;">请求数</th>
+                    <th style="padding: 8px; text-align: right;">Tokens</th>
+                    <th style="padding: 8px; text-align: right;">成本</th>
+                    <th style="padding: 8px; text-align: right;">平均耗时</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat in model_stats %}
+                <tr style="border-bottom: 1px solid var(--color-border-light);">
+                    <td style="padding: 8px;"><code>{{ stat.model }}</code></td>
+                    <td style="padding: 8px; text-align: right;">{{ stat.requests }}</td>
+                    <td style="padding: 8px; text-align: right;">{{ stat.tokens }}</td>
+                    <td style="padding: 8px; text-align: right;">${{ stat.cost|floatformat:4 }}</td>
+                    <td style="padding: 8px; text-align: right;">{{ stat.avg_response_time|floatformat:0 }}ms</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- 最近日志 -->
+{% if recent_logs %}
+<div class="section">
+    <h2 class="section-title">最近调用</h2>
+    <div style="margin-bottom: 16px;">
+        <a href="{% url 'ai_provider:logs' %}?provider={{ provider.id }}" class="tag">查看全部日志</a>
+    </div>
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="border-bottom: 2px solid var(--color-border);">
+                <th style="padding: 8px; text-align: left;">时间</th>
+                <th style="padding: 8px; text-align: left;">模型</th>
+                <th style="padding: 8px; text-align: right;">Tokens</th>
+                <th style="padding: 8px; text-align: right;">成本</th>
+                <th style="padding: 8px; text-align: right;">耗时</th>
+                <th style="padding: 8px; text-align: center;">状态</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in recent_logs %}
+            <tr style="border-bottom: 1px solid var(--color-border-light);">
+                <td style="padding: 8px;">{{ log.created_at|date="m-d H:i:s" }}</td>
+                <td style="padding: 8px;"><code>{{ log.model }}</code></td>
+                <td style="padding: 8px; text-align: right;">{{ log.total_tokens }}</td>
+                <td style="padding: 8px; text-align: right;">${{ log.estimated_cost|floatformat:6 }}</td>
+                <td style="padding: 8px; text-align: right;">{{ log.response_time_ms }}ms</td>
+                <td style="padding: 8px; text-align: center;">
+                    {% if log.status == 'success' %}
+                        <span class="tag tag-success">成功</span>
+                    {% else %}
+                        <span class="tag tag-error">失败</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% endblock %}

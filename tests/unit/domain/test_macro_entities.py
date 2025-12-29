@@ -17,7 +17,7 @@ class TestMacroIndicator:
         indicator = MacroIndicator(
             code="CN_PMI",
             value=50.1,
-            observed_at=date(2024, 1, 1)
+            reporting_period=date(2024, 1, 1)
         )
 
         assert indicator.code == "CN_PMI"
@@ -31,7 +31,7 @@ class TestMacroIndicator:
         indicator = MacroIndicator(
             code="CN_CPI",
             value=2.1,
-            observed_at=date(2024, 1, 1),
+            reporting_period=date(2024, 1, 1),
             published_at=date(2024, 1, 10),
             source="NBS"
         )
@@ -47,7 +47,7 @@ class TestMacroIndicator:
         indicator = MacroIndicator(
             code="CN_PMI",
             value=50.1,
-            observed_at=date(2024, 1, 1)
+            reporting_period=date(2024, 1, 1)
         )
 
         # Should raise FrozenInstanceError when trying to modify
@@ -59,17 +59,17 @@ class TestMacroIndicator:
         indicator1 = MacroIndicator(
             code="CN_PMI",
             value=50.1,
-            observed_at=date(2024, 1, 1)
+            reporting_period=date(2024, 1, 1)
         )
         indicator2 = MacroIndicator(
             code="CN_PMI",
             value=50.1,
-            observed_at=date(2024, 1, 1)
+            reporting_period=date(2024, 1, 1)
         )
         indicator3 = MacroIndicator(
             code="CN_PMI",
             value=50.2,  # Different value
-            observed_at=date(2024, 1, 1)
+            reporting_period=date(2024, 1, 1)
         )
 
         assert indicator1 == indicator2
@@ -80,7 +80,7 @@ class TestMacroIndicator:
         indicator = MacroIndicator(
             code="CN_PMI",
             value=50.1,
-            observed_at=date(2024, 1, 1)
+            reporting_period=date(2024, 1, 1)
         )
 
         # Should be able to create a set with it
@@ -92,7 +92,7 @@ class TestMacroIndicator:
         indicator = MacroIndicator(
             code="CN_GROWTH_RATE",
             value=-2.5,
-            observed_at=date(2024, 1, 1)
+            reporting_period=date(2024, 1, 1)
         )
 
         assert indicator.value == -2.5
@@ -102,7 +102,7 @@ class TestMacroIndicator:
         indicator = MacroIndicator(
             code="CN_SOME_INDICATOR",
             value=0.0,
-            observed_at=date(2024, 1, 1)
+            reporting_period=date(2024, 1, 1)
         )
 
         assert indicator.value == 0.0
@@ -112,7 +112,7 @@ class TestMacroIndicator:
         indicator = MacroIndicator(
             code="CN_PMI",
             value=50.1,
-            observed_at=date(2024, 1, 1)
+            reporting_period=date(2024, 1, 1)
         )
 
         assert indicator.source == "unknown"
@@ -122,7 +122,7 @@ class TestMacroIndicator:
         indicator = MacroIndicator(
             code="CN_PMI",
             value=50.1,
-            observed_at=date(2024, 1, 1),
+            reporting_period=date(2024, 1, 1),
             source="Tushare"
         )
 
@@ -133,7 +133,7 @@ class TestMacroIndicator:
         indicator = MacroIndicator(
             code="CN_PMI",
             value=50.1,
-            observed_at=date(2024, 1, 1),
+            reporting_period=date(2024, 1, 1),
             published_at=date(2024, 2, 1),  # Published 1 month later
             source="NBS"
         )
@@ -147,7 +147,7 @@ class TestMacroIndicator:
         indicator = MacroIndicator(
             code="CN_PMI",
             value=50.1,
-            observed_at=future_date
+            reporting_period=future_date
         )
 
         assert indicator.observed_at == future_date
@@ -166,7 +166,7 @@ class TestMacroIndicator:
             indicator = MacroIndicator(
                 code=code,
                 value=50.0,
-                observed_at=date(2024, 1, 1)
+                reporting_period=date(2024, 1, 1)
             )
             assert indicator.code == code
 
@@ -175,7 +175,7 @@ class TestMacroIndicator:
         indicator = MacroIndicator(
             code="CN_CPI",
             value=2.123456789,
-            observed_at=date(2024, 1, 1)
+            reporting_period=date(2024, 1, 1)
         )
 
         assert indicator.value == pytest.approx(2.123456789)
@@ -185,7 +185,7 @@ class TestMacroIndicator:
         indicator = MacroIndicator(
             code="CN_PMI",
             value=50.1,
-            observed_at=date(2024, 1, 1)
+            reporting_period=date(2024, 1, 1)
         )
 
         repr_str = repr(indicator)
@@ -201,7 +201,7 @@ class TestMacroIndicatorEdgeCases:
         indicator = MacroIndicator(
             code="CN_M2",
             value=1e15,  # Very large number (like money supply)
-            observed_at=date(2024, 1, 1)
+            reporting_period=date(2024, 1, 1)
         )
 
         assert indicator.value == 1e15
@@ -211,7 +211,7 @@ class TestMacroIndicatorEdgeCases:
         indicator = MacroIndicator(
             code="CN_RATE",
             value=1e-6,
-            observed_at=date(2024, 1, 1)
+            reporting_period=date(2024, 1, 1)
         )
 
         assert indicator.value == 1e-6
@@ -221,7 +221,7 @@ class TestMacroIndicatorEdgeCases:
         indicator = MacroIndicator(
             code="",
             value=50.1,
-            observed_at=date(2024, 1, 1)
+            reporting_period=date(2024, 1, 1)
         )
 
         assert indicator.code == ""
@@ -231,7 +231,7 @@ class TestMacroIndicatorEdgeCases:
         indicator = MacroIndicator(
             code="CN_PMI",
             value=50.1,
-            observed_at=date(1970, 1, 1)
+            reporting_period=date(1970, 1, 1)
         )
 
         assert indicator.observed_at == date(1970, 1, 1)
@@ -241,7 +241,7 @@ class TestMacroIndicatorEdgeCases:
         original = MacroIndicator(
             code="CN_PMI",
             value=50.1,
-            observed_at=date(2024, 1, 1),
+            reporting_period=date(2024, 1, 1),
             source="NBS"
         )
 
@@ -249,7 +249,7 @@ class TestMacroIndicatorEdgeCases:
         modified = MacroIndicator(
             code=original.code,
             value=51.0,  # Changed value
-            observed_at=original.observed_at,
+            reporting_period=original.reporting_period,
             published_at=original.published_at,
             source=original.source
         )

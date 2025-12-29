@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'apps.signal',
     'apps.backtest',
     'apps.audit',
+    'apps.ai_provider',
 ]
 
 MIDDLEWARE = [

@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}AI调用日志 - AgomSAAF{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>AI调用日志</h1>
+    <p class="subtitle">查看AI API调用记录和统计</p>
+</div>
+
+<!-- 过滤器 -->
+<div style="margin-bottom: 24px; padding: 16px; background: var(--color-bg-light); border-radius: 4px;">
+    <form method="get" style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
+        <div>
+            <label style="margin-right: 8px;">提供商:</label>
+            <select name="provider" onchange="this.form.submit()">
+                <option value="">全部</option>
+                {% for p in providers %}
+                    <option value="{{ p.id }}" {% if filter_provider == p.id|stringformat:"s" %}selected{% endif %}>
+                        {{ p.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label style="margin-right: 8px;">状态:</label>
+            <select name="status" onchange="this.form.submit()">
+                <option value="">全部</option>
+                {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if filter_status == value %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label style="margin-right: 8px;">显示:</label>
+            <select name="limit" onchange="this.form.submit()">
+                <option value="50" {% if filter_limit == 50 %}selected{% endif %}>50条</option>
+                <option value="100" {% if filter_limit == 100 %}selected{% endif %}>100条</option>
+                <option value="200" {% if filter_limit == 200 %}selected{% endif %}>200条</option>
+            </select>
+        </div>
+
+        <div>
+            <a href="{% url 'ai_provider:manage' %}" class="tag">返回管理</a>
+        </div>
+    </form>
+</div>
+
+<!-- 日志表格 -->
+<div class="section">
+    <h2 class="section-title">调用记录</h2>
+
+    {% if logs %}
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="border-bottom: 2px solid var(--color-border);">
+                    <th style="padding: 12px 8px; text-align: left;">时间</th>
+                    <th style="padding: 12px 8px; text-align: left;">提供商</th>
+                    <th style="padding: 12px 8px; text-align: left;">模型</th>
+                    <th style="padding: 12px 8px; text-align: right;">Tokens</th>
+                    <th style="padding: 12px 8px; text-align: right;">成本</th>
+                    <th style="padding: 12px 8px; text-align: right;">耗时</th>
+                    <th style="padding: 12px 8px; text-align: center;">状态</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr style="border-bottom: 1px solid var(--color-border-light);">
+                    <td style="padding: 8px;">{{ log.created_at|date:"m-d H:i" }}</td>
+                    <td style="padding: 8px;">{{ log.provider.name }}</td>
+                    <td style="padding: 8px;"><code>{{ log.model }}</code></td>
+                    <td style="padding: 8px; text-align: right;">{{ log.total_tokens|default:0 }}</td>
+                    <td style="padding: 8px; text-align: right;">${{ log.estimated_cost|floatformat:6 }}</td>
+                    <td style="padding: 8px; text-align: right;">{{ log.response_time_ms }}ms</td>
+                    <td style="padding: 8px; text-align: center;">
+                        {% if log.status == 'success' %}
+                            <span class="tag tag-success">成功</span>
+                        {% elif log.status == 'error' %}
+                            <span class="tag tag-error">错误</span>
+                        {% elif log.status == 'timeout' %}
+                            <span class="tag" style="background: #f0ad4e;">超时</span>
+                        {% else %}
+                            <span class="tag" style="background: #f0ad4e;">限流</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% if log.error_message %}
+                <tr style="background: var(--color-error-bg);">
+                    <td colspan="7" style="padding: 8px; color: var(--color-error); font-size: 12px;">
+                        错误: {{ log.error_message }}
+                    </td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="card" style="text-align: center; padding: 40px;">
+            <p style="color: var(--color-text-secondary);">暂无调用记录</p>
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}

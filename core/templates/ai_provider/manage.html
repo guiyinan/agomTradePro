@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}AI接口管理 - AgomSAAF{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>AI接口管理</h1>
+    <p class="subtitle">管理AI API提供商配置，追踪使用统计和成本</p>
+</div>
+
+<!-- 总体统计 -->
+<div class="status-grid" style="margin-bottom: 24px;">
+    <div class="status-item">
+        <div class="status-label">总提供商</div>
+        <div class="status-value">{{ overall_stats.total_providers }}</div>
+    </div>
+    <div class="status-item">
+        <div class="status-label">启用</div>
+        <div class="status-value" style="color: var(--color-success);">
+            {{ overall_stats.active_providers }}
+        </div>
+    </div>
+    <div class="status-item">
+        <div class="status-label">今日请求</div>
+        <div class="status-value">{{ overall_stats.total_requests_today }}</div>
+    </div>
+    <div class="status-item">
+        <div class="status-label">今日成本</div>
+        <div class="status-value">${{ overall_stats.total_cost_today|floatformat:4 }}</div>
+    </div>
+</div>
+
+<!-- 操作栏 -->
+<div style="margin-bottom: 24px; display: flex; gap: 16px; align-items: center;">
+    <a href="/admin/ai_provider/aiproviderconfig/add/" class="tag" style="text-decoration: none; background: var(--color-success); color: white;">+ 添加AI配置</a>
+    <a href="{% url 'ai_provider:logs' %}" class="tag">查看调用日志</a>
+</div>
+
+<!-- 提供商列表 -->
+<div class="section">
+    <h2 class="section-title">AI提供商列表</h2>
+
+    {% if providers_with_stats %}
+        {% for item in providers_with_stats %}
+        <div class="card" style="margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <div>
+                    <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">
+                        {{ item.provider.name }}
+                        {% if item.provider.is_active %}
+                            <span class="tag tag-success">启用</span>
+                        {% else %}
+                            <span class="tag tag-error">禁用</span>
+                        {% endif %}
+                        <span class="tag">{{ item.provider.get_provider_type_display }}</span>
+                    </h3>
+                    <p style="color: var(--color-text-secondary); margin-bottom: 4px;">
+                        <strong>模型:</strong> {{ item.provider.default_model }}
+                    </p>
+                    <p style="color: var(--color-text-secondary); margin-bottom: 4px;">
+                        <strong>Base URL:</strong> {{ item.provider.base_url }}
+                    </p>
+                    <p style="color: var(--color-text-secondary); margin-bottom: 4px;">
+                        <strong>优先级:</strong> {{ item.provider.priority }}
+                    </p>
+                    {% if item.provider.description %}
+                    <p style="color: var(--color-text-secondary); margin-bottom: 8px;">
+                        {{ item.provider.description }}
+                    </p>
+                    {% endif %}
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <a href="{% url 'ai_provider:detail' item.provider.id %}" class="tag">详情</a>
+                    <a href="/admin/ai_provider/aiproviderconfig/{{ item.provider.id }}/change/" class="tag">编辑</a>
+                </div>
+            </div>
+
+            <!-- 使用统计 -->
+            <div class="status-grid" style="margin-top: 16px;">
+                <div>
+                    <div class="status-label">今日请求</div>
+                    <div class="status-value">{{ item.today_requests }}</div>
+                </div>
+                <div>
+                    <div class="status-label">今日成本</div>
+                    <div class="status-value">${{ item.today_cost|floatformat:4 }}</div>
+                </div>
+                <div>
+                    <div class="status-label">本月请求</div>
+                    <div class="status-value">{{ item.month_requests }}</div>
+                </div>
+                <div>
+                    <div class="status-label">本月成本</div>
+                    <div class="status-value">${{ item.month_cost|floatformat:2 }}</div>
+                </div>
+            </div>
+
+            <!-- 预算提示 -->
+            {% if item.provider.daily_budget_limit %}
+                {% if item.today_cost >= item.provider.daily_budget_limit %}
+                    <div style="margin-top: 12px; padding: 8px; background: var(--color-error-bg); border-left: 3px solid var(--color-error); color: var(--color-error);">
+                        ⚠️ 已达到每日预算限制 (${{ item.provider.daily_budget_limit }})
+                    </div>
+                {% endif %}
+            {% endif %}
+            {% if item.provider.monthly_budget_limit %}
+                {% if item.month_cost >= item.provider.monthly_budget_limit %}
+                    <div style="margin-top: 12px; padding: 8px; background: var(--color-error-bg); border-left: 3px solid var(--color-error); color: var(--color-error);">
+                        ⚠️ 已达到每月预算限制 (${{ item.provider.monthly_budget_limit }})
+                    </div>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="card" style="text-align: center; padding: 40px;">
+            <p style="color: var(--color-text-secondary);">暂无AI提供商配置</p>
+            <a href="/admin/ai_provider/aiproviderconfig/add/" class="tag" style="display: inline-block; margin-top: 16px;">+ 添加第一个配置</a>
+        </div>
+    {% endif %}
+</div>
+
+<!-- 预设配置提示 -->
+<div class="section" style="margin-top: 24px;">
+    <h2 class="section-title">预设配置参考</h2>
+    <div class="card">
+        <p style="margin-bottom: 12px;">常用AI提供商的Base URL参考：</p>
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--color-border);">
+                    <th style="padding: 8px; text-align: left;">提供商</th>
+                    <th style="padding: 8px; text-align: left;">类型</th>
+                    <th style="padding: 8px; text-align: left;">Base URL</th>
+                    <th style="padding: 8px; text-align: left;">默认模型</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="border-bottom: 1px solid var(--color-border-light);">
+                    <td style="padding: 8px;">OpenAI</td>
+                    <td style="padding: 8px;"><code>openai</code></td>
+                    <td style="padding: 8px;"><code>https://api.openai.com/v1</code></td>
+                    <td style="padding: 8px;"><code>gpt-3.5-turbo</code></td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--color-border-light);">
+                    <td style="padding: 8px;">DeepSeek</td>
+                    <td style="padding: 8px;"><code>deepseek</code></td>
+                    <td style="padding: 8px;"><code>https://api.deepseek.com/v1</code></td>
+                    <td style="padding: 8px;"><code>deepseek-chat</code></td>
+                </tr>
+                <tr style="border-bottom: 1px solid var(--color-border-light);">
+                    <td style="padding: 8px;">通义千问</td>
+                    <td style="padding: 8px;"><code>qwen</code></td>
+                    <td style="padding: 8px;"><code>https://dashscope.aliyuncs.com/compatible-mode/v1</code></td>
+                    <td style="padding: 8px;"><code>qwen-turbo</code></td>
+                </tr>
+                <tr>
+                    <td style="padding: 8px;">Moonshot</td>
+                    <td style="padding: 8px;"><code>moonshot</code></td>
+                    <td style="padding: 8px;"><code>https://api.moonshot.cn/v1</code></td>
+                    <td style="padding: 8px;"><code>moonshot-v1-8k</code></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
