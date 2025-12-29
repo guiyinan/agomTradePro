@@ -17,26 +17,16 @@ if (-not (Test-Path "D:\githv\bak")) {
 $tempDir = New-Item -ItemType Directory -Path "$env:TEMP\$backupName" -Force
 
 try {
-    # 复制所有文件，排除xml、log和log.*文件
-    Get-ChildItem -Path . -Recurse -File | 
-    Where-Object { 
-        $_.Extension -notin @('.xml','.log') -and 
-        -not ($_.Name -like "*.log.*")
-    } |
-    ForEach-Object {
-        # 计算相对路径
-        $relativePath = $_.FullName.Substring((Get-Location).Path.Length + 1)
-        $destination = Join-Path $tempDir $relativePath
-        
-        # 确保目标目录存在
-        $destinationFolder = Split-Path $destination -Parent
-        if (-not (Test-Path $destinationFolder)) {
-            New-Item -ItemType Directory -Path $destinationFolder -Force | Out-Null
-        }
-        
-        # 复制文件
-        Copy-Item $_.FullName -Destination $destination -Force
-    }
+    # 使用 robocopy 高效复制文件，它比 PowerShell 的 Copy-Item 更快
+    # /E :: 复制子目录，包括空的子目录。
+    # /XF <FileName>[...] :: 排除与指定名称/路径/通配符匹配的文件。
+    # /NDL :: 不记录目录名称。
+    # /NFL :: 不记录文件名称。
+    # /NP :: 无进度 - 不显示已复制的百分比。
+    # /NJH :: 无作业标头。
+    # /NJS :: 无作业摘要。
+    robocopy . $tempDir /E /XF *.xml *.log *.log.* /NDL /NFL /NP /NJH /NJS
+
 
     # 使用Compress-Archive创建ZIP文件
     Compress-Archive -Path "$tempDir\*" -DestinationPath $destinationPath -CompressionLevel NoCompression -Force

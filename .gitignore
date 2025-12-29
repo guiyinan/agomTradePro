@@ -55,8 +55,9 @@ Thumbs.db
 *.log
 
 # Django
-staticfiles/
 media/
+# static/ - 开发源代码目录，需要提交
+# staticfiles/ - 生产部署目录，通过 collectstatic 生成，也提交（4.7MB）
 
 # Jupyter
 .ipynb_checkpoints/

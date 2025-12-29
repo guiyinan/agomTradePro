@@ -21,7 +21,11 @@
       "Bash(agomsaaf/Scripts/pip list:*)",
       "WebSearch",
       "Bash(find:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(done:*)",
+      "Bash(dir:*)",
+      "Bash(del:*)",
+      "Bash(cat:*)"
     ]
   }
 }
