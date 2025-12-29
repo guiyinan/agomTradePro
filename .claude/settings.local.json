@@ -3,7 +3,11 @@
     "allow": [
       "Bash(python:*)",
       "Bash(agomsaaf/Scripts/pip install:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(agomsaaf/Scripts/python manage.py makemigrations:*)",
+      "Bash(agomsaaf/Scripts/python manage.py migrate:*)",
+      "Bash(agomsaaf/Scripts/python:*)"
     ]
   }
 }
