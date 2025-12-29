@@ -1,0 +1,101 @@
+[project]
+name = "agomsaaf"
+version = "0.1.0"
+description = "Agom Strategic Asset Allocation Framework"
+requires-python = ">=3.11"
+dependencies = [
+    "django>=5.0,<6.0",
+    "djangorestframework",
+    "django-environ",
+    "celery[redis]",
+    "redis",
+    "django-celery-beat",
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "statsmodels",
+    "tushare",
+    "akshare",
+    "drf-spectacular",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-django",
+    "pytest-cov",
+    "pytest-mock",
+    "black",
+    "isort",
+    "ruff",
+    "mypy",
+    "ipython",
+    "ipdb",
+]
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 100
+skip_gitignore = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+follow_imports = "normal"
+ignore_missing_imports = false
+
+[[tool.mypy.overrides]]
+module = [
+    "tushare.*",
+    "akshare.*",
+    "celery.*",
+    "rest_framework.*",
+    "drf_spectacular.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "core.settings.development"
+python_files = ["test_*.py", "*_test.py"]
+testpaths = ["tests"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--cov=apps",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]

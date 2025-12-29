@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(agomsaaf/Scripts/pip install:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

@@ -64,5 +64,3 @@ media/
 
 # Distribution
 .Pear
-*
-!.gitignore

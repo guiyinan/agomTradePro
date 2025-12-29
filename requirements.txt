@@ -1,0 +1,38 @@
+# Django
+Django>=5.0,<6.0
+djangorestframework
+django-environ
+django-cors-headers
+
+# Celery
+celery[redis]
+redis
+django-celery-beat
+
+# Data Processing
+pandas>=2.0
+numpy>=1.24
+statsmodels
+
+# Data Sources
+tushare
+akshare
+
+# API Documentation
+drf-spectacular
+
+# Testing
+pytest
+pytest-django
+pytest-cov
+pytest-mock
+
+# Code Quality
+black
+isort
+ruff
+mypy
+
+# Development
+ipython
+ipdb
