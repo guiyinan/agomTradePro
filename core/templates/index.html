@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <h1>AgomSAAF</h1>
+    <p class="subtitle">Agom Strategic Asset Allocation Framework</p>
+    <p class="description">宏观环境准入系统 - 确保投资者"不在错误的世界里，用正确的逻辑下重注"</p>
+</div>
+
+<div class="cards-grid">
+    <div class="card" id="regime">
+        <div class="card-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <line x1="12" y1="2" x2="12" y2="22"/>
+            </svg>
+        </div>
+        <div class="card-title">Regime 判定</div>
+        <div class="card-desc">基于增长/通胀动量，判定宏观环境象限</div>
+        <div class="card-tags">
+            <span class="tag tag-recovery">复苏</span>
+            <span class="tag tag-overheat">过热</span>
+            <span class="tag tag-stagflation">滞胀</span>
+            <span class="tag tag-deflation">通缩</span>
+        </div>
+    </div>
+
+    <div class="card" id="macro">
+        <div class="card-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="20" x2="12" y2="10"/>
+                <line x1="18" y1="20" x2="18" y2="4"/>
+                <line x1="6" y1="20" x2="6" y2="16"/>
+            </svg>
+        </div>
+        <div class="card-title">宏观数据</div>
+        <div class="card-desc">采集 PMI、CPI、M2 等核心指标</div>
+        <div class="card-meta">
+            <span class="meta-item">Tushare</span>
+            <span class="meta-item">AKShare</span>
+            <span class="meta-item">FRED</span>
+        </div>
+    </div>
+
+    <div class="card" id="signals">
+        <div class="card-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+        </div>
+        <div class="card-title">投资信号</div>
+        <div class="card-desc">基于 Regime 的资产准入过滤</div>
+        <div class="card-meta">
+            <span class="meta-item">证伪逻辑</span>
+            <span class="meta-item">准入矩阵</span>
+        </div>
+    </div>
+
+    <div class="card" id="policy">
+        <div class="card-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+        </div>
+        <div class="card-title">政策事件</div>
+        <div class="card-desc">P0-P3 档位的人工标注与响应</div>
+        <div class="card-tags">
+            <span class="tag tag-info">P0 常态</span>
+            <span class="tag tag-warning">P1 预警</span>
+            <span class="tag tag-error">P2 干预</span>
+        </div>
+    </div>
+
+    <div class="card" id="backtest">
+        <div class="card-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+            </svg>
+        </div>
+        <div class="card-title">回测引擎</div>
+        <div class="card-desc">历史验证策略有效性</div>
+        <div class="card-meta">
+            <span class="meta-item">月度再平衡</span>
+            <span class="meta-item">归因分析</span>
+        </div>
+    </div>
+
+    <div class="card" id="audit">
+        <div class="card-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+            </svg>
+        </div>
+        <div class="card-title">事后审计</div>
+        <div class="card-desc">损失归因与教训总结</div>
+        <div class="card-meta">
+            <span class="meta-item">择时收益</span>
+            <span class="meta-item">选资产收益</span>
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <h2 class="section-title">系统架构</h2>
+    <div class="architecture-diagram">
+        <div class="arch-layer arch-interface">
+            <div class="arch-label">Interface Layer</div>
+            <div class="arch-items">DRF API | Django Admin | CLI Tools</div>
+        </div>
+        <div class="arch-layer arch-application">
+            <div class="arch-label">Application Layer</div>
+            <div class="arch-items">Use Cases | Workflow | Celery Tasks</div>
+        </div>
+        <div class="arch-layer arch-domain">
+            <div class="arch-label">Domain Layer</div>
+            <div class="arch-items">Entities | Rules | Services | Validators</div>
+        </div>
+        <div class="arch-layer arch-infra">
+            <div class="arch-label">Infrastructure Layer</div>
+            <div class="arch-items">ORM Models | Repositories | API Adapters | Cache</div>
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <h2 class="section-title">快速开始</h2>
+    <div class="code-block">
+        <pre><code># 1. 激活虚拟环境
+agomsaaf\Scripts\activate
+
+# 2. 创建管理员
+python manage.py createsuperuser
+
+# 3. 启动服务器
+python manage.py runserver
+
+# 4. 访问系统
+# 首页: http://127.0.0.1:8000/
+# 管理后台: http://127.0.0.1:8000/admin/
+# API文档: http://127.0.0.1:8000/api/docs/</code></pre>
+    </div>
+</div>
+
+<div class="section">
+    <h2 class="section-title">项目文档</h2>
+    <div class="doc-links">
+        <a href="https://github.com/your-repo/agomsaaf/blob/main/doc/AgomSAAF_V3.4.md" class="doc-link" target="_blank">
+            <div class="doc-icon">📖</div>
+            <div class="doc-info">
+                <div class="doc-title">需求文档 V3.4</div>
+                <div class="doc-desc">完整的需求与系统架构说明</div>
+            </div>
+        </a>
+        <a href="https://github.com/your-repo/agomsaaf/blob/main/doc/implementation_tasks.md" class="doc-link" target="_blank">
+            <div class="doc-icon">✅</div>
+            <div class="doc-info">
+                <div class="doc-title">实施任务分解</div>
+                <div class="doc-desc">详细的开发任务清单</div>
+            </div>
+        </a>
+        <a href="https://github.com/your-repo/agomsaaf/blob/main/doc/frontend_design_guide.md" class="doc-link" target="_blank">
+            <div class="doc-icon">🎨</div>
+            <div class="doc-info">
+                <div class="doc-title">前端设计指南</div>
+                <div class="doc-desc">配色方案与组件样式</div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<div class="section">
+    <h2 class="section-title">当前状态</h2>
+    <div class="status-grid">
+        <div class="status-item">
+            <div class="status-label">开发阶段</div>
+            <div class="status-value">Phase 1 完成</div>
+        </div>
+        <div class="status-item">
+            <div class="status-label">Python 版本</div>
+            <div class="status-value">3.11+</div>
+        </div>
+        <div class="status-item">
+            <div class="status-label">Django 版本</div>
+            <div class="status-value">5.2</div>
+        </div>
+        <div class="status-item">
+            <div class="status-label">数据库</div>
+            <div class="status-value">SQLite (开发)</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

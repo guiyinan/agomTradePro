@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AgomSAAF - 宏观环境准入系统{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-container">
+            <div class="header-logo">AgomSAAF</div>
+            <nav class="header-nav">
+                <a href="/">首页</a>
+                <a href="/admin/">管理</a>
+                <a href="/api/docs/">API文档</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">核心功能</div>
+                <a href="#regime" class="sidebar-item">Regime 判定</a>
+                <a href="#macro" class="sidebar-item">宏观数据</a>
+                <a href="#signals" class="sidebar-item">投资信号</a>
+                <a href="#policy" class="sidebar-item">政策事件</a>
+                <a href="#backtest" class="sidebar-item">回测引擎</a>
+                <a href="#audit" class="sidebar-item">事后审计</a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <p>&copy; 2024 AgomSAAF. 宏观环境准入系统</p>
+        </div>
+    </footer>
+</body>
+</html>
