@@ -66,3 +66,8 @@ class RegimeSnapshot:
 
     def is_high_confidence(self, threshold: float = 0.3) -> bool:
         return self.confidence >= threshold
+
+    @property
+    def confidence_percent(self) -> float:
+        """置信度百分比 (0-100)"""
+        return self.confidence * 100

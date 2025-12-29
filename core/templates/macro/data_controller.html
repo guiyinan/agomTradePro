@@ -1,0 +1,1406 @@
+{% extends "base.html" %}
+
+{% block title %}数据管理器 - AgomSAAF{% endblock %}
+
+{% block content %}
+<div class="data-manager-page">
+    <!-- 页面头部 -->
+    <div class="page-header">
+        <div class="header-left">
+            <h1>数据管理器</h1>
+            <p class="subtitle">集中管理宏观数据的抓取、查看和编辑</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn-primary" onclick="openCreateModal()">
+                <span class="icon">+</span> 新增数据
+            </button>
+            <button class="btn-secondary" onclick="openFetchModal()">
+                <span class="icon">⟳</span> 抓取数据
+            </button>
+        </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="stats-bar">
+        <div class="stat-item">
+            <span class="stat-label">总记录数</span>
+            <span class="stat-value" id="total-records">-</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">指标种类</span>
+            <span class="stat-value" id="total-indicators">-</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">已选择</span>
+            <span class="stat-value" id="selected-count">0</span>
+        </div>
+    </div>
+
+    <!-- 筛选工具栏 -->
+    <div class="filter-toolbar">
+        <div class="filter-group">
+            <input type="text" id="filter-code" placeholder="搜索指标代码..." class="filter-input">
+            <select id="filter-source" class="filter-select">
+                <option value="">全部数据源</option>
+            </select>
+            <select id="filter-period-type" class="filter-select">
+                <option value="">全部类型</option>
+                <option value="D">日度 (时点数据)</option>
+                <option value="W">周度</option>
+                <option value="M">月度</option>
+                <option value="Q">季度</option>
+                <option value="H">半年度</option>
+                <option value="Y">年度</option>
+                <option value="">──────────</option>
+                <option value="3M">3月期</option>
+                <option value="6M">6月期</option>
+                <option value="1Y">1年期</option>
+                <option value="5Y">5年期</option>
+                <option value="10Y">10年期</option>
+                <option value="custom" id="custom-period-option">其他(自定义...)</option>
+            </select>
+            <input type="text" id="filter-period-type-custom" class="filter-input" style="display:none; width: 100px;" placeholder="如 3M,10Y">
+            <input type="date" id="filter-start-date" class="filter-input">
+            <input type="date" id="filter-end-date" class="filter-input">
+            <button class="btn-filter" onclick="applyFilters()">筛选</button>
+            <button class="btn-reset" onclick="resetFilters()">重置</button>
+        </div>
+        <div class="action-group" id="batch-actions" style="display:none;">
+            <button class="btn-danger" onclick="batchDelete()">
+                <span class="icon">🗑</span> 删除选中
+            </button>
+        </div>
+    </div>
+
+    <!-- 数据表格 -->
+    <div class="table-container">
+        <table class="data-table" id="main-table">
+            <thead>
+                <tr>
+                    <th class="checkbox-column">
+                        <input type="checkbox" id="select-all" onchange="toggleSelectAll()">
+                    </th>
+                    <th class="sortable" onclick="sortTable('code')">
+                        指标代码 <span class="sort-icon">↕</span>
+                    </th>
+                    <th class="sortable" onclick="sortTable('value')">
+                        指标值 <span class="sort-icon">↕</span>
+                    </th>
+                    <th class="sortable" onclick="sortTable('reporting_period')">
+                        报告期 <span class="sort-icon">↕</span>
+                    </th>
+                    <th class="sortable" onclick="sortTable('period_type')">
+                        类型 <span class="sort-icon">↕</span>
+                    </th>
+                    <th class="sortable" onclick="sortTable('published_at')">
+                        发布日期 <span class="sort-icon">↕</span>
+                    </th>
+                    <th class="sortable" onclick="sortTable('source')">
+                        数据源 <span class="sort-icon">↕</span>
+                    </th>
+                    <th>版本</th>
+                    <th>延迟</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                <!-- 数据由 JS 填充 -->
+            </tbody>
+        </table>
+
+        <!-- 加载状态 -->
+        <div class="loading-state" id="loading-state">
+            <div class="spinner"></div>
+            <p>加载数据中...</p>
+        </div>
+
+        <!-- 空状态 -->
+        <div class="empty-state" id="empty-state" style="display:none;">
+            <div class="empty-icon">📊</div>
+            <div class="empty-title">暂无数据</div>
+            <div class="empty-desc">
+                请调整筛选条件或
+                <a href="#" onclick="openFetchModal(); return false;">抓取新数据</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分页 -->
+    <div class="pagination-bar" id="pagination-bar">
+        <div class="pagination-info">
+            显示 <span id="page-start">0</span> - <span id="page-end">0</span>
+            共 <span id="page-total">0</span> 条
+        </div>
+        <div class="pagination-controls">
+            <button class="page-btn" onclick="goToPage(1)" id="btn-first">首页</button>
+            <button class="page-btn" onclick="goToPage(currentPage - 1)" id="btn-prev">上一页</button>
+            <div class="page-numbers" id="page-numbers"></div>
+            <button class="page-btn" onclick="goToPage(currentPage + 1)" id="btn-next">下一页</button>
+            <button class="page-btn" onclick="goToPage(totalPages)" id="btn-last">末页</button>
+            <select class="page-size-select" onchange="changePageSize(this.value)" id="page-size-select">
+                <option value="20">20条/页</option>
+                <option value="50" selected>50条/页</option>
+                <option value="100">100条/页</option>
+                <option value="200">200条/页</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- 新增/编辑弹窗 -->
+<div class="modal" id="record-modal">
+    <div class="modal-overlay" onclick="closeModal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-title">新增数据</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="record-form" onsubmit="saveRecord(event)">
+                <input type="hidden" id="form-record-id">
+
+                <div class="form-group">
+                    <label for="form-code">指标代码 *</label>
+                    <input type="text" id="form-code" required class="form-input"
+                           placeholder="如: CN_PMI, SHIBOR">
+                    <select id="form-code-suggestions" class="form-input" style="display:none;">
+                        <option value="">-- 选择常用指标 --</option>
+                        <option value="CN_PMI">CN_PMI - PMI (月度)</option>
+                        <option value="CN_CPI">CN_CPI - CPI (月度)</option>
+                        <option value="CN_PPI">CN_PPI - PPI (月度)</option>
+                        <option value="SHIBOR">SHIBOR - SHIBOR利率 (日度)</option>
+                        <option value="M2">M2 - M2货币供应 (月度)</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="form-value">指标值 *</label>
+                        <input type="number" step="any" id="form-value" required class="form-input"
+                               placeholder="如: 50.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="form-period-type">数据类型 *</label>
+                        <select id="form-period-type" class="form-input" required onchange="handlePeriodTypeChange(this.value)">
+                            <option value="D">日度 (时点数据)</option>
+                            <option value="W">周度</option>
+                            <option value="M">月度</option>
+                            <option value="Q">季度</option>
+                            <option value="H">半年度</option>
+                            <option value="Y">年度</option>
+                            <option value="">──────────</option>
+                            <option value="3M">3月期</option>
+                            <option value="6M">6月期</option>
+                            <option value="1Y">1年期</option>
+                            <option value="5Y">5年期</option>
+                            <option value="10Y">10年期</option>
+                            <option value="20Y">20年期</option>
+                            <option value="30Y">30年期</option>
+                            <option value="custom">其他(自定义...)</option>
+                        </select>
+                        <input type="text" id="form-period-type-custom" class="form-input" style="display:none; margin-top: 4px;" placeholder="如: 3M, 6M, 10Y, 2W, 10D">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="form-observed-at">报告期 *</label>
+                        <input type="date" id="form-observed-at" required class="form-input">
+                        <small style="color:var(--color-text-muted); margin-top:4px; display:block;">
+                            时点数据=观测日，期间数据=期末日
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label for="form-source">数据源</label>
+                        <input type="text" id="form-source" class="form-input" value="manual"
+                               placeholder="如: akshare, tushare">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="form-published-at">发布日期</label>
+                        <input type="date" id="form-published-at" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="form-revision">版本号</label>
+                        <input type="number" id="form-revision" class="form-input" value="1" min="1">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">保存</button>
+                    <button type="button" class="btn-secondary" onclick="closeModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 抓取数据弹窗 -->
+<div class="modal" id="fetch-modal">
+    <div class="modal-overlay" onclick="closeFetchModal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>抓取数据</h3>
+            <button class="modal-close" onclick="closeFetchModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>选择指标</label>
+                <select id="fetch-indicators" multiple size="6" class="form-input">
+                    <option value="">-- 全部指标 --</option>
+                </select>
+                <small>按住 Ctrl 多选，不选择则抓取全部</small>
+            </div>
+
+            <div class="form-group">
+                <label>数据源</label>
+                <select id="fetch-source" class="form-input">
+                    <option value="">全部数据源</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>起始日期</label>
+                    <input type="date" id="fetch-start-date" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label>结束日期</label>
+                    <input type="date" id="fetch-end-date" class="form-input">
+                </div>
+            </div>
+
+            <div class="result-panel" id="fetch-result" style="display:none;"></div>
+
+            <div class="form-actions">
+                <button type="button" class="btn-primary" onclick="fetchData()" id="btn-fetch-start">
+                    开始抓取
+                </button>
+                <button type="button" class="btn-secondary" onclick="closeFetchModal()">取消</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* 页面布局 */
+.data-manager-page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.header-left h1 {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 4px 0;
+}
+
+.subtitle {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+.header-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-primary, .btn-secondary, .btn-danger, .btn-filter, .btn-reset {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: var(--color-primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--color-primary-hover);
+}
+
+.btn-secondary {
+    background: white;
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+}
+
+.btn-secondary:hover {
+    background: var(--color-surface);
+}
+
+.btn-danger {
+    background: var(--color-error);
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c41e3a;
+}
+
+.btn-filter {
+    background: var(--color-primary);
+    color: white;
+}
+
+.btn-reset {
+    background: white;
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+}
+
+/* 统计栏 */
+.stats-bar {
+    display: flex;
+    gap: 24px;
+    padding: 16px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--color-primary);
+}
+
+/* 筛选工具栏 */
+.filter-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.filter-group {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.filter-input, .filter-select {
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-size: 14px;
+    min-width: 150px;
+}
+
+.filter-input:focus, .filter-select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+/* 表格容器 */
+.table-container {
+    background: white;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th {
+    background: var(--color-surface);
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    border-bottom: 2px solid var(--color-border);
+    white-space: nowrap;
+}
+
+.data-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.data-table th.sortable:hover {
+    background: #e8e8e8;
+}
+
+.sort-icon {
+    font-size: 10px;
+    margin-left: 4px;
+    opacity: 0.5;
+}
+
+.checkbox-column {
+    width: 50px;
+    text-align: center;
+}
+
+.data-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 14px;
+}
+
+.data-table tbody tr:hover {
+    background: var(--color-surface);
+}
+
+.data-table tbody tr.selected {
+    background: #E3F2FD;
+}
+
+.code-cell {
+    font-family: 'Consolas', monospace;
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+.value-cell {
+    font-weight: 600;
+    font-family: 'Consolas', monospace;
+}
+
+.source-tag {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    background: #E3F2FD;
+    color: #1976D2;
+}
+
+.version-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+}
+
+.period-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.period-badge.period-d {
+    background: #E8F5E9;
+    color: #2E7D32;
+}
+
+.period-badge.period-w {
+    background: #E3F2FD;
+    color: #1565C0;
+}
+
+.period-badge.period-m {
+    background: #FFF3E0;
+    color: #E65100;
+}
+
+.period-badge.period-q {
+    background: #F3E5F5;
+    color: #7B1FA2;
+}
+
+.period-badge.period-h {
+    background: #E1F5FE;
+    color: #0277BD;
+}
+
+.period-badge.period-y {
+    background: #FFEBEE;
+    color: #C62828;
+}
+
+.lag-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.lag-low {
+    background: #E8F5E9;
+    color: #2E7D32;
+}
+
+.lag-medium {
+    background: #FFF3E0;
+    color: #F57C00;
+}
+
+.lag-high {
+    background: #FFEBEE;
+    color: #C62828;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.action-btn {
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    border: 1px solid var(--color-border);
+    background: white;
+}
+
+.action-btn:hover {
+    background: var(--color-surface);
+}
+
+.action-btn.delete:hover {
+    background: #FFEBEE;
+    color: var(--color-error);
+    border-color: #FFCDD2;
+}
+
+/* 加载和空状态 */
+.loading-state, .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.empty-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 8px;
+}
+
+.empty-desc {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+}
+
+.empty-desc a {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.empty-desc a:hover {
+    text-decoration: underline;
+}
+
+/* 分页 */
+.pagination-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+}
+
+.pagination-info {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+}
+
+.pagination-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.page-btn {
+    padding: 8px 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.page-btn:hover:not(:disabled) {
+    background: var(--color-surface);
+}
+
+.page-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.page-numbers {
+    display: flex;
+    gap: 4px;
+}
+
+.page-number {
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.page-number.active {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+}
+
+.page-size-select {
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+/* 弹窗 */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+}
+
+.modal.active {
+    display: block;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    position: relative;
+    width: 500px;
+    max-width: 90%;
+    margin: 100px auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    padding: 0;
+    width: 32px;
+    height: 32px;
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    margin-bottom: 6px;
+}
+
+.form-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.form-row {
+    display: flex;
+    gap: 12px;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 24px;
+}
+
+.result-panel {
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    margin-top: 16px;
+}
+
+.result-panel.success {
+    background: #E8F5E9;
+    color: #2E7D32;
+    border: 1px solid #A5D6A7;
+}
+
+.result-panel.error {
+    background: #FFEBEE;
+    color: #C62828;
+    border: 1px solid #FFCDD2;
+}
+</style>
+
+<script>
+// 全局状态
+let currentPage = 1;
+let pageSize = 50;
+let totalPages = 1;
+let totalRecords = 0;
+let currentSort = '-reporting_period';
+let selectedIds = new Set();
+let allData = [];
+
+// API 基础路径
+const API_BASE = '/macro/api';
+
+// 期间类型显示映射
+const PERIOD_TYPE_LABELS = {
+    'D': '日度',
+    'W': '周度',
+    'M': '月度',
+    'Q': '季度',
+    'H': '半年度',
+    'Y': '年度',
+    '3M': '3月期',
+    '6M': '6月期',
+    '1Y': '1年期',
+    '5Y': '5年期',
+    '10Y': '10年期',
+    '20Y': '20年期',
+    '30Y': '30年期',
+};
+
+// 获取期间类型显示文本
+function getPeriodTypeLabel(periodType) {
+    return PERIOD_TYPE_LABELS[periodType] || periodType;
+}
+
+// 处理筛选中的自定义期间类型
+document.addEventListener('DOMContentLoaded', function() {
+    const filterSelect = document.getElementById('filter-period-type');
+    const filterCustom = document.getElementById('filter-period-type-custom');
+
+    filterSelect.addEventListener('change', function() {
+        if (this.value === 'custom') {
+            filterCustom.style.display = 'inline-block';
+            filterCustom.focus();
+        } else {
+            filterCustom.style.display = 'none';
+            filterCustom.value = '';
+        }
+    });
+
+    loadData();
+    loadFilters();
+
+    // 设置默认日期
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('form-observed-at').value = today;
+});
+
+// 加载数据
+async function loadData() {
+    showLoading(true);
+
+    // 获取期间类型筛选值
+    let periodTypeFilter = document.getElementById('filter-period-type').value;
+    if (periodTypeFilter === 'custom') {
+        periodTypeFilter = document.getElementById('filter-period-type-custom').value;
+    }
+
+    const params = new URLSearchParams({
+        page: currentPage,
+        page_size: pageSize,
+        sort_field: currentSort,
+        code: document.getElementById('filter-code').value,
+        source: document.getElementById('filter-source').value,
+        period_type: periodTypeFilter || '',
+        start_date: document.getElementById('filter-start-date').value,
+        end_date: document.getElementById('filter-end-date').value,
+    });
+
+    try {
+        const response = await fetch(`${API_BASE}/table/?${params}`);
+        const result = await response.json();
+
+        if (result.success) {
+            allData = result.data;
+            totalRecords = result.total;
+            totalPages = result.total_pages;
+            renderTable(result.data);
+            updatePagination();
+            updateStats();
+        }
+    } catch (error) {
+        console.error('加载数据失败:', error);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// 渲染表格
+function renderTable(data) {
+    const tbody = document.getElementById('table-body');
+    const emptyState = document.getElementById('empty-state');
+
+    if (data.length === 0) {
+        tbody.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
+    }
+
+    emptyState.style.display = 'none';
+
+    tbody.innerHTML = data.map(row => {
+        // 获取期间类型显示文本和样式类
+        const periodLabel = row.period_type_display || getPeriodTypeLabel(row.period_type);
+        const periodClass = row.period_type ? 'period-' + row.period_type.toLowerCase() : 'period-d';
+
+        return `
+        <tr class="${selectedIds.has(row.id) ? 'selected' : ''}" data-id="${row.id}">
+            <td class="checkbox-column">
+                <input type="checkbox" class="row-checkbox"
+                       ${selectedIds.has(row.id) ? 'checked' : ''}
+                       onchange="toggleRowSelection(${row.id}, this.checked)">
+            </td>
+            <td class="code-cell">${escapeHtml(row.code)}</td>
+            <td class="value-cell">${formatNumber(row.value)}</td>
+            <td>${formatDate(row.reporting_period)}</td>
+            <td>
+                <span class="period-badge ${periodClass}">${escapeHtml(periodLabel)}</span>
+            </td>
+            <td>${row.published_at ? formatDate(row.published_at) : '-'}</td>
+            <td><span class="source-tag">${escapeHtml(row.source)}</span></td>
+            <td><span class="version-badge">v${row.revision_number}</span></td>
+            <td>
+                <span class="lag-badge ${getLagClass(row.publication_lag_days)}">
+                    ${row.publication_lag_days}天
+                </span>
+            </td>
+            <td>
+                <div class="action-buttons">
+                    <button class="action-btn" onclick="openEditModal(${row.id})">编辑</button>
+                    <button class="action-btn delete" onclick="deleteRecord(${row.id})">删除</button>
+                </div>
+            </td>
+        </tr>
+    `;
+    }).join('');
+
+    updateSelectAllState();
+}
+
+// 更新分页
+function updatePagination() {
+    const start = (currentPage - 1) * pageSize + 1;
+    const end = Math.min(currentPage * pageSize, totalRecords);
+
+    document.getElementById('page-start').textContent = start;
+    document.getElementById('page-end').textContent = end;
+    document.getElementById('page-total').textContent = totalRecords;
+
+    document.getElementById('btn-first').disabled = currentPage === 1;
+    document.getElementById('btn-prev').disabled = currentPage === 1;
+    document.getElementById('btn-next').disabled = currentPage === totalPages;
+    document.getElementById('btn-last').disabled = currentPage === totalPages;
+
+    renderPageNumbers();
+}
+
+// 渲染页码
+function renderPageNumbers() {
+    const container = document.getElementById('page-numbers');
+    const pages = [];
+
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, currentPage + 2);
+
+    if (startPage > 1) {
+        pages.push(1);
+        if (startPage > 2) pages.push('...');
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+        pages.push(i);
+    }
+
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) pages.push('...');
+        pages.push(totalPages);
+    }
+
+    container.innerHTML = pages.map(p => {
+        if (p === '...') {
+            return '<span class="page-number" style="border:none;cursor:default;">...</span>';
+        }
+        return `<button class="page-number ${p === currentPage ? 'active' : ''}"
+                        onclick="goToPage(${p})">${p}</button>`;
+    }).join('');
+}
+
+// 翻页
+function goToPage(page) {
+    if (page < 1 || page > totalPages) return;
+    currentPage = page;
+    loadData();
+}
+
+// 改变每页大小
+function changePageSize(size) {
+    pageSize = parseInt(size);
+    currentPage = 1;
+    document.getElementById('page-size-select').value = size;
+    loadData();
+}
+
+// 排序
+function sortTable(field) {
+    if (currentSort === field) {
+        currentSort = '-' + field;
+    } else if (currentSort === '-' + field) {
+        currentSort = field;
+    } else {
+        currentSort = '-' + field;
+    }
+    currentPage = 1;
+    loadData();
+}
+
+// 选择相关
+function toggleRowSelection(id, checked) {
+    if (checked) {
+        selectedIds.add(id);
+    } else {
+        selectedIds.delete(id);
+    }
+    updateSelectionUI();
+}
+
+function toggleSelectAll() {
+    const checkbox = document.getElementById('select-all');
+    const rows = document.querySelectorAll('#table-body tr');
+
+    rows.forEach(row => {
+        const id = parseInt(row.dataset.id);
+        const rowCheckbox = row.querySelector('.row-checkbox');
+        rowCheckbox.checked = checkbox.checked;
+        if (checkbox.checked) {
+            selectedIds.add(id);
+            row.classList.add('selected');
+        } else {
+            selectedIds.delete(id);
+            row.classList.remove('selected');
+        }
+    });
+
+    updateSelectionUI();
+}
+
+function updateSelectAllState() {
+    const checkbox = document.getElementById('select-all');
+    const rows = document.querySelectorAll('#table-body tr');
+    const allChecked = rows.length > 0 && Array.from(rows).every(row => {
+        return selectedIds.has(parseInt(row.dataset.id));
+    });
+    checkbox.checked = allChecked;
+}
+
+function updateSelectionUI() {
+    document.getElementById('selected-count').textContent = selectedIds.size;
+    document.getElementById('batch-actions').style.display = selectedIds.size > 0 ? 'block' : 'none';
+
+    const rows = document.querySelectorAll('#table-body tr');
+    rows.forEach(row => {
+        const id = parseInt(row.dataset.id);
+        if (selectedIds.has(id)) {
+            row.classList.add('selected');
+        } else {
+            row.classList.remove('selected');
+        }
+    });
+
+    updateSelectAllState();
+}
+
+// 删除记录
+async function deleteRecord(id) {
+    if (!confirm('确定要删除这条记录吗？')) return;
+
+    try {
+        const response = await fetch(`${API_BASE}/record/${id}/`, { method: 'DELETE' });
+        const result = await response.json();
+
+        if (result.success) {
+            selectedIds.delete(id);
+            loadData();
+        } else {
+            alert('删除失败: ' + result.message);
+        }
+    } catch (error) {
+        alert('删除失败: ' + error.message);
+    }
+}
+
+// 批量删除
+async function batchDelete() {
+    if (selectedIds.size === 0) return;
+
+    if (!confirm(`确定要删除选中的 ${selectedIds.size} 条记录吗？`)) return;
+
+    try {
+        const response = await fetch(`${API_BASE}/batch-delete/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: Array.from(selectedIds) })
+        });
+        const result = await response.json();
+
+        if (result.success) {
+            selectedIds.clear();
+            updateSelectionUI();
+            loadData();
+        } else {
+            alert('删除失败: ' + result.message);
+        }
+    } catch (error) {
+        alert('删除失败: ' + error.message);
+    }
+}
+
+// 打开新增弹窗
+function openCreateModal() {
+    document.getElementById('modal-title').textContent = '新增数据';
+    document.getElementById('form-record-id').value = '';
+    document.getElementById('record-form').reset();
+    document.getElementById('form-source').value = 'manual';
+    document.getElementById('form-observed-at').value = new Date().toISOString().split('T')[0];
+    document.getElementById('form-period-type-custom').style.display = 'none';
+    document.getElementById('record-modal').classList.add('active');
+}
+
+// 处理期间类型选择变化
+function handlePeriodTypeChange(value) {
+    const customInput = document.getElementById('form-period-type-custom');
+    if (value === 'custom') {
+        customInput.style.display = 'inline-block';
+        customInput.focus();
+    } else {
+        customInput.style.display = 'none';
+        customInput.value = '';
+    }
+}
+
+// 打开编辑弹窗
+async function openEditModal(id) {
+    const record = allData.find(r => r.id === id);
+    if (!record) return;
+
+    document.getElementById('modal-title').textContent = '编辑数据';
+    document.getElementById('form-record-id').value = record.id;
+    document.getElementById('form-code').value = record.code;
+    document.getElementById('form-value').value = record.value;
+
+    // 处理期间类型
+    const periodTypeSelect = document.getElementById('form-period-type');
+    const periodTypeCustom = document.getElementById('form-period-type-custom');
+    const standardTypes = ['D', 'W', 'M', 'Q', 'H', 'Y', '3M', '6M', '1Y', '5Y', '10Y', '20Y', '30Y'];
+
+    if (standardTypes.includes(record.period_type)) {
+        periodTypeSelect.value = record.period_type;
+        periodTypeCustom.style.display = 'none';
+        periodTypeCustom.value = '';
+    } else {
+        periodTypeSelect.value = 'custom';
+        periodTypeCustom.style.display = 'inline-block';
+        periodTypeCustom.value = record.period_type;
+    }
+
+    document.getElementById('form-source').value = record.source;
+    document.getElementById('form-observed-at').value = (record.reporting_period || record.observed_at).split('T')[0];
+    document.getElementById('form-published-at').value = record.published_at ? record.published_at.split('T')[0] : '';
+    document.getElementById('form-revision').value = record.revision_number;
+
+    document.getElementById('record-modal').classList.add('active');
+}
+
+// 关闭弹窗
+function closeModal() {
+    document.getElementById('record-modal').classList.remove('active');
+}
+
+// 保存记录
+async function saveRecord(event) {
+    event.preventDefault();
+
+    const id = document.getElementById('form-record-id').value;
+
+    // 获取期间类型
+    let periodType = document.getElementById('form-period-type').value;
+    if (periodType === 'custom') {
+        periodType = document.getElementById('form-period-type-custom').value.trim();
+        if (!periodType) {
+            alert('请输入自定义期间类型');
+            return;
+        }
+    }
+
+    const data = {
+        code: document.getElementById('form-code').value,
+        value: parseFloat(document.getElementById('form-value').value),
+        period_type: periodType,
+        observed_at: document.getElementById('form-observed-at').value,
+        published_at: document.getElementById('form-published-at').value || null,
+        source: document.getElementById('form-source').value,
+        revision_number: parseInt(document.getElementById('form-revision').value) || 1,
+    };
+
+    try {
+        const url = id ? `${API_BASE}/record/${id}/update/` : `${API_BASE}/record/create/`;
+        const method = id ? 'PUT' : 'POST';
+
+        const response = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await response.json();
+
+        if (result.success) {
+            closeModal();
+            loadData();
+        } else {
+            alert('保存失败: ' + result.message);
+        }
+    } catch (error) {
+        alert('保存失败: ' + error.message);
+    }
+}
+
+// 打开抓取弹窗
+function openFetchModal() {
+    document.getElementById('fetch-result').style.display = 'none';
+    document.getElementById('fetch-modal').classList.add('active');
+
+    // 设置默认日期
+    const today = new Date().toISOString().split('T')[0];
+    const threeMonthsAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    document.getElementById('fetch-start-date').value = threeMonthsAgo;
+    document.getElementById('fetch-end-date').value = today;
+}
+
+function closeFetchModal() {
+    document.getElementById('fetch-modal').classList.remove('active');
+}
+
+// 抓取数据
+async function fetchData() {
+    const select = document.getElementById('fetch-indicators');
+    const selectedOptions = Array.from(select.selectedOptions).map(opt => opt.value);
+
+    const requestData = {
+        indicators: selectedOptions.length > 0 && !selectedOptions.includes('') ? selectedOptions : null,
+        source: document.getElementById('fetch-source').value || null,
+        start_date: document.getElementById('fetch-start-date').value || null,
+        end_date: document.getElementById('fetch-end-date').value || null,
+    };
+
+    const btn = document.getElementById('btn-fetch-start');
+    btn.disabled = true;
+    btn.textContent = '抓取中...';
+
+    try {
+        const response = await fetch(`${API_BASE}/fetch/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestData)
+        });
+        const result = await response.json();
+
+        const panel = document.getElementById('fetch-result');
+        panel.style.display = 'block';
+        panel.className = 'result-panel ' + (result.success ? 'success' : 'error');
+        panel.textContent = result.message;
+
+        if (result.success) {
+            setTimeout(() => {
+                closeFetchModal();
+                loadData();
+            }, 1500);
+        }
+    } catch (error) {
+        document.getElementById('fetch-result').textContent = '抓取失败: ' + error.message;
+        document.getElementById('fetch-result').style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '开始抓取';
+    }
+}
+
+// 筛选
+function applyFilters() {
+    currentPage = 1;
+    loadData();
+}
+
+function resetFilters() {
+    document.getElementById('filter-code').value = '';
+    document.getElementById('filter-source').value = '';
+    document.getElementById('filter-period-type').value = '';
+    document.getElementById('filter-period-type-custom').value = '';
+    document.getElementById('filter-period-type-custom').style.display = 'none';
+    document.getElementById('filter-start-date').value = '';
+    document.getElementById('filter-end-date').value = '';
+    currentPage = 1;
+    currentSort = '-reporting_period';
+    loadData();
+}
+
+// 加载筛选选项
+async function loadFilters() {
+    try {
+        const response = await fetch(`${API_BASE}/table/?page=1&page_size=1`);
+        const result = await response.json();
+
+        if (result.success) {
+            const sources = [...new Set(result.data.map(d => d.source))];
+            const sourceSelect = document.getElementById('filter-source');
+            const fetchSourceSelect = document.getElementById('fetch-source');
+
+            sources.forEach(source => {
+                sourceSelect.innerHTML += `<option value="${source}">${source}</option>`;
+                fetchSourceSelect.innerHTML += `<option value="${source}">${source}</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('加载筛选选项失败:', error);
+    }
+}
+
+// 更新统计
+function updateStats() {
+    document.getElementById('total-records').textContent = totalRecords;
+    document.getElementById('total-indicators').textContent = [...new Set(allData.map(d => d.code))].length;
+}
+
+// 工具函数
+function showLoading(show) {
+    document.getElementById('loading-state').style.display = show ? 'block' : 'none';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatDate(dateStr) {
+    return dateStr ? dateStr.split('T')[0] : '-';
+}
+
+function formatNumber(num) {
+    return parseFloat(num).toFixed(2);
+}
+
+function getLagClass(days) {
+    if (days <= 3) return 'lag-low';
+    if (days <= 10) return 'lag-medium';
+    return 'lag-high';
+}
+</script>
+{% endblock %}

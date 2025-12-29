@@ -7,7 +7,18 @@
       "Bash(git commit:*)",
       "Bash(agomsaaf/Scripts/python manage.py makemigrations:*)",
       "Bash(agomsaaf/Scripts/python manage.py migrate:*)",
-      "Bash(agomsaaf/Scripts/python:*)"
+      "Bash(agomsaaf/Scripts/python:*)",
+      "Bash(D:\\\\githv\\\\agomSAAF\\\\agomsaaf\\\\Scripts\\\\pip.exe:*)",
+      "Bash(findstr:*)",
+      "Bash(D:\\\\githv\\\\agomSAAF\\\\agomsaaf\\\\Scripts\\\\python.exe -m pytest:*)",
+      "Bash(agomsaaf/Scripts/python.exe -m pytest:*)",
+      "Bash(agomsaaf/Scripts/pip.exe install:*)",
+      "Bash(agomsaaf/Scripts/python.exe:*)",
+      "Bash(D:\\\\githv\\\\agomSAAF\\\\agomsaaf\\\\Scripts\\\\python.exe:*)",
+      "Bash(cd:*)",
+      "Bash(agomsaafScriptspython.exe manage.py check)",
+      "Bash(curl:*)",
+      "Bash(agomsaaf/Scripts/pip list:*)"
     ]
   }
 }

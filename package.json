@@ -1,0 +1,27 @@
+{
+  "dependencies": {
+    "playwright": "^1.57.0"
+  },
+  "name": "agomsaaf",
+  "version": "1.0.0",
+  "main": "index.js",
+  "directories": {
+    "doc": "doc",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/guiyinan/agomSAAF.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/guiyinan/agomSAAF/issues"
+  },
+  "homepage": "https://github.com/guiyinan/agomSAAF#readme",
+  "description": ""
+}

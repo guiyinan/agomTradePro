@@ -126,3 +126,67 @@ class LocalLinearTrendFilter:
             filtered_slopes=filtered_slopes,
             final_state=final_state
         )
+
+    def update_single(
+        self,
+        new_observation: float,
+        current_state: KalmanState
+    ) -> KalmanState:
+        """
+        增量更新单个新观测值
+
+        用于实时场景，当获得新的数据点时更新滤波器状态，
+        而不需要重新处理整个历史序列。
+
+        Args:
+            new_observation: 新的观测值
+            current_state: 当前滤波器状态
+
+        Returns:
+            KalmanState: 更新后的状态
+        """
+        # 从状态恢复向量和协方差矩阵
+        x = np.array([current_state.level, current_state.slope])
+        P = np.array([
+            [current_state.level_variance, current_state.level_slope_cov],
+            [current_state.level_slope_cov, current_state.slope_variance]
+        ])
+
+        # 预测步骤
+        x_pred = self.F @ x
+        P_pred = self.F @ P @ self.F.T + self.Q
+
+        # 更新步骤
+        S = self.H @ P_pred @ self.H.T + self.R
+        K = P_pred @ self.H.T @ np.linalg.inv(S)
+
+        innovation = new_observation - (self.H @ x_pred)[0]
+        x_new = x_pred + (K @ np.array([[innovation]])).flatten()
+        P_new = (np.eye(2) - K @ self.H) @ P_pred
+
+        return KalmanState(
+            level=x_new[0],
+            slope=x_new[1],
+            level_variance=P_new[0, 0],
+            slope_variance=P_new[1, 1],
+            level_slope_cov=P_new[0, 1]
+        )
+
+    def predict_next(self, current_state: KalmanState, steps: int = 1) -> float:
+        """
+        基于当前状态预测未来值
+
+        Args:
+            current_state: 当前滤波器状态
+            steps: 预测步数（默认 1 步）
+
+        Returns:
+            float: 预测值
+        """
+        x = np.array([current_state.level, current_state.slope])
+        x_pred = x
+
+        for _ in range(steps):
+            x_pred = self.F @ x_pred
+
+        return float(x_pred[0])

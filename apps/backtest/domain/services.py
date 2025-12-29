@@ -1,0 +1,487 @@
+"""
+Domain Services for Backtesting Engine.
+
+Pure business logic for backtesting strategy performance.
+Only uses Python standard library (no pandas/numpy).
+"""
+
+import math
+from dataclasses import dataclass, field
+from datetime import date, timedelta
+from typing import List, Dict, Optional, Tuple, Callable
+from enum import Enum
+
+
+class RebalanceFrequency(Enum):
+    """再平衡频率"""
+    MONTHLY = "monthly"
+    QUARTERLY = "quarterly"
+    YEARLY = "yearly"
+
+
+class AssetClass(Enum):
+    """资产类别"""
+    A_SHARE_GROWTH = "a_share_growth"
+    A_SHARE_VALUE = "a_share_value"
+    CHINA_BOND = "china_bond"
+    GOLD = "gold"
+    COMMODITY = "commodity"
+    CASH = "cash"
+
+
+@dataclass(frozen=True)
+class BacktestConfig:
+    """回测配置"""
+    start_date: date
+    end_date: date
+    initial_capital: float
+    rebalance_frequency: str  # "monthly", "quarterly", "yearly"
+    use_pit_data: bool  # 是否使用 Point-in-Time 数据
+    transaction_cost_bps: float = 10  # 交易成本（基点）
+
+    def __post_init__(self):
+        """验证配置"""
+        if self.initial_capital <= 0:
+            raise ValueError("initial_capital must be positive")
+        if self.start_date >= self.end_date:
+            raise ValueError("start_date must be before end_date")
+        if self.transaction_cost_bps < 0:
+            raise ValueError("transaction_cost_bps must be non-negative")
+        valid_frequencies = ["monthly", "quarterly", "yearly"]
+        if self.rebalance_frequency not in valid_frequencies:
+            raise ValueError(f"rebalance_frequency must be one of {valid_frequencies}")
+
+
+@dataclass
+class Trade:
+    """交易记录"""
+    trade_date: date
+    asset_class: str
+    action: str  # "buy" or "sell"
+    shares: float
+    price: float
+    notional: float
+    cost: float
+
+
+@dataclass
+class PortfolioState:
+    """组合状态"""
+    as_of_date: date
+    cash: float
+    positions: Dict[str, float]  # asset_class -> shares
+    total_value: float
+
+    def get_position_value(self, asset_class: str, price: float) -> float:
+        """获取指定资产市值"""
+        shares = self.positions.get(asset_class, 0)
+        return shares * price
+
+
+@dataclass
+class BacktestResult:
+    """回测结果"""
+    config: BacktestConfig
+    final_value: float
+    total_return: float
+    annualized_return: float
+    sharpe_ratio: Optional[float]
+    max_drawdown: float
+    trades: List[Trade]
+    equity_curve: List[Tuple[date, float]]  # (date, portfolio_value)
+    regime_history: List[Dict]  # 每个再平衡点的 Regime 状态
+
+
+@dataclass
+class RebalanceResult:
+    """再平衡结果"""
+    date: date
+    regime: str
+    regime_confidence: float
+    old_weights: Dict[str, float]
+    new_weights: Dict[str, float]
+    trades: List[Trade]
+    portfolio_value: float
+
+
+class PITDataProcessor:
+    """
+    Point-in-Time 数据处理器
+
+    确保回测时只使用当时已经发布的数据，避免未来函数。
+    """
+
+    def __init__(self, publication_lags: Dict[str, timedelta]):
+        """
+        Args:
+            publication_lags: {indicator_code: lag_timedelta}
+        """
+        self.publication_lags = publication_lags
+
+    def get_available_as_of_date(
+        self,
+        observed_at: date,
+        indicator_code: str
+    ) -> Optional[date]:
+        """
+        获取指定观测日期在某个参考日期是否可用
+
+        Args:
+            observed_at: 数据观测日期
+            indicator_code: 指标代码
+            reference_date: 参考日期（回测当前日期）
+
+        Returns:
+            Optional[date]: 如果数据可用，返回发布日期；否则返回 None
+        """
+        lag = self.publication_lags.get(indicator_code, timedelta(days=0))
+        published_at = observed_at + lag
+        return published_at
+
+    def is_data_available(
+        self,
+        observed_at: date,
+        indicator_code: str,
+        as_of_date: date
+    ) -> bool:
+        """
+        检查数据在指定日期是否可用
+
+        Args:
+            observed_at: 数据观测日期
+            indicator_code: 指标代码
+            as_of_date: 查询日期（回测当前日期）
+
+        Returns:
+            bool: 数据是否可用
+        """
+        published_at = self.get_available_as_of_date(observed_at, indicator_code)
+        return published_at is not None and published_at <= as_of_date
+
+
+class BacktestEngine:
+    """
+    回测引擎
+
+    职责：
+    1. 按时间步进模拟交易
+    2. 在每个再平衡点计算目标权重
+    3. 应用准入规则过滤
+    4. 计算交易成本和收益
+    """
+
+    def __init__(
+        self,
+        config: BacktestConfig,
+        get_regime_func: Callable[[date], Optional[Dict]],
+        get_asset_price_func: Callable[[str, date], Optional[float]],
+        pit_processor: Optional[PITDataProcessor] = None
+    ):
+        """
+        Args:
+            config: 回测配置
+            get_regime_func: 获取 Regime 的函数 (date) -> Dict
+            get_asset_price_func: 获取资产价格的函数 (asset_class, date) -> float
+            pit_processor: Point-in-Time 数据处理器
+        """
+        self.config = config
+        self.get_regime = get_regime_func
+        self.get_price = get_asset_price_func
+        self.pit_processor = pit_processor
+
+        # 内部状态
+        self._cash = config.initial_capital
+        self._positions: Dict[str, float] = {}  # asset_class -> shares
+        self._trades: List[Trade] = []
+        self._equity_curve: List[Tuple[date, float]] = []
+        self._regime_history: List[Dict] = []
+
+    def run(self) -> BacktestResult:
+        """
+        运行回测
+
+        Returns:
+            BacktestResult: 回测结果
+        """
+        # 生成再平衡日期
+        rebalance_dates = self._generate_rebalance_dates()
+
+        # 初始状态
+        current_date = self.config.start_date
+        self._equity_curve.append((current_date, self.config.initial_capital))
+
+        # 按时间步进
+        for rebalance_date in rebalance_dates:
+            # 执行再平衡
+            result = self._rebalance(rebalance_date)
+            if result:
+                self._regime_history.append({
+                    "date": rebalance_date,
+                    "regime": result.regime,
+                    "confidence": result.regime_confidence,
+                    "portfolio_value": result.portfolio_value
+                })
+
+            # 记录权益曲线
+            portfolio_value = self._calculate_portfolio_value(rebalance_date)
+            self._equity_curve.append((rebalance_date, portfolio_value))
+
+        # 计算最终结果
+        final_value = self._equity_curve[-1][1] if self._equity_curve else self.config.initial_capital
+        total_return = (final_value / self.config.initial_capital) - 1
+
+        return BacktestResult(
+            config=self.config,
+            final_value=final_value,
+            total_return=total_return,
+            annualized_return=self._calculate_annual_return(total_return),
+            sharpe_ratio=self._calculate_sharpe_ratio(),
+            max_drawdown=self._calculate_max_drawdown(),
+            trades=self._trades,
+            equity_curve=self._equity_curve,
+            regime_history=self._regime_history
+        )
+
+    def _generate_rebalance_dates(self) -> List[date]:
+        """生成再平衡日期"""
+        dates = []
+        current = self.config.start_date
+
+        while current <= self.config.end_date:
+            dates.append(current)
+
+            # 计算下一个再平衡日期
+            if self.config.rebalance_frequency == "monthly":
+                # 下个月第一天
+                year = current.year + ((current.month + 1) // 12)
+                month = (current.month + 1) % 12
+                if month == 0:
+                    month = 12
+                    year -= 1
+                current = date(year, month, 1)
+            elif self.config.rebalance_frequency == "quarterly":
+                # 下季度第一天
+                year = current.year + ((current.month + 3) // 12)
+                month = ((current.month - 1 + 3) % 12) + 1
+                current = date(year, month, 1)
+            else:  # yearly
+                # 下一年第一天
+                current = date(current.year + 1, 1, 1)
+
+        return dates
+
+    def _rebalance(self, as_of_date: date) -> Optional[RebalanceResult]:
+        """
+        执行再平衡
+
+        Args:
+            as_of_date: 再平衡日期
+
+        Returns:
+            Optional[RebalanceResult]: 再平衡结果
+        """
+        # 1. 获取当前 Regime
+        regime_data = self.get_regime(as_of_date)
+        if not regime_data:
+            return None
+
+        regime = regime_data.get("dominant_regime")
+        confidence = regime_data.get("confidence", 0.0)
+
+        # 2. 计算目标权重（根据准入规则）
+        target_weights = self._calculate_target_weights(regime, confidence)
+
+        # 3. 获取当前组合价值
+        current_portfolio_value = self._calculate_portfolio_value(as_of_date)
+
+        # 4. 计算目标持仓
+        trades = []
+        new_positions = {}
+
+        for asset_class, target_weight in target_weights.items():
+            target_value = current_portfolio_value * target_weight
+            price = self.get_price(asset_class, as_of_date)
+
+            if price is None or price <= 0:
+                continue
+
+            target_shares = target_value / price
+            current_shares = self._positions.get(asset_class, 0)
+
+            # 计算交易
+            shares_diff = target_shares - current_shares
+            if abs(shares_diff) > 0.0001:  # 避免微小交易
+                action = "buy" if shares_diff > 0 else "sell"
+                notional = abs(shares_diff) * price
+                cost = self._calculate_transaction_cost(notional)
+
+                trade = Trade(
+                    trade_date=as_of_date,
+                    asset_class=asset_class,
+                    action=action,
+                    shares=abs(shares_diff),
+                    price=price,
+                    notional=notional,
+                    cost=cost
+                )
+                trades.append(trade)
+
+                # 更新现金和持仓
+                if shares_diff > 0:
+                    self._cash -= (notional + cost)
+                else:
+                    self._cash += (notional - cost)
+
+                new_positions[asset_class] = target_shares
+            else:
+                new_positions[asset_class] = current_shares
+
+        # 处理不再持有的资产
+        for asset_class in list(self._positions.keys()):
+            if asset_class not in target_weights:
+                price = self.get_price(asset_class, as_of_date)
+                if price and price > 0:
+                    shares = self._positions[asset_class]
+                    notional = shares * price
+                    cost = self._calculate_transaction_cost(notional)
+
+                    trade = Trade(
+                        trade_date=as_of_date,
+                        asset_class=asset_class,
+                        action="sell",
+                        shares=shares,
+                        price=price,
+                        notional=notional,
+                        cost=cost
+                    )
+                    trades.append(trade)
+
+                    self._cash += (notional - cost)
+
+        self._positions = new_positions
+        self._trades.extend(trades)
+
+        return RebalanceResult(
+            date=as_of_date,
+            regime=regime,
+            regime_confidence=confidence,
+            old_weights={},  # TODO: 计算旧权重
+            new_weights=target_weights,
+            trades=trades,
+            portfolio_value=current_portfolio_value
+        )
+
+    def _calculate_target_weights(
+        self,
+        regime: str,
+        confidence: float
+    ) -> Dict[str, float]:
+        """
+        计算目标权重（应用准入规则）
+
+        Args:
+            regime: 当前 Regime
+            confidence: 置信度
+
+        Returns:
+            Dict[str, float]: 目标权重 {asset_class: weight}
+        """
+        # 基础配置：等权分配给 PREFERRED 资产
+        from apps.signal.domain.rules import (
+            check_eligibility,
+            Eligibility,
+            ELIGIBILITY_MATRIX
+        )
+
+        eligible_assets = []
+        for asset_class in ELIGIBILITY_MATRIX.keys():
+            eligibility = check_eligibility(asset_class, regime)
+            if eligibility == Eligibility.PREFERRED:
+                eligible_assets.append(asset_class)
+            elif eligibility == Eligibility.HOSTILE:
+                # 敌对环境，不持有
+                continue
+            elif eligibility == Eligibility.NEUTRAL:
+                # 低置信度时，中性资产也不持有
+                if confidence < 0.3:
+                    continue
+                eligible_assets.append(asset_class)
+
+        # 等权分配
+        if not eligible_assets:
+            # 没有合适资产，全部持有现金
+            return {"CASH": 1.0}
+
+        weight = 1.0 / len(eligible_assets)
+        return {asset: weight for asset in eligible_assets}
+
+    def _calculate_transaction_cost(self, notional: float) -> float:
+        """计算交易成本"""
+        return notional * (self.config.transaction_cost_bps / 10000)
+
+    def _calculate_portfolio_value(self, as_of_date: date) -> float:
+        """计算组合总价值"""
+        total = self._cash
+        for asset_class, shares in self._positions.items():
+            price = self.get_price(asset_class, as_of_date)
+            if price and price > 0:
+                total += shares * price
+        return total
+
+    def _calculate_annual_return(self, total_return: float) -> float:
+        """计算年化收益"""
+        days = (self.config.end_date - self.config.start_date).days
+        years = days / 365.25
+        if years <= 0:
+            return 0.0
+        return (1 + total_return) ** (1 / years) - 1
+
+    def _calculate_sharpe_ratio(self) -> Optional[float]:
+        """计算夏普比率"""
+        if len(self._equity_curve) < 2:
+            return None
+
+        # 计算日收益率
+        returns = []
+        for i in range(1, len(self._equity_curve)):
+            prev_value = self._equity_curve[i - 1][1]
+            curr_value = self._equity_curve[i][1]
+            if prev_value > 0:
+                daily_return = (curr_value - prev_value) / prev_value
+                returns.append(daily_return)
+
+        if not returns:
+            return None
+
+        # 计算均值和标准差
+        mean_return = sum(returns) / len(returns)
+        variance = sum((r - mean_return) ** 2 for r in returns) / len(returns)
+        std_return = math.sqrt(variance)
+
+        # 年化（假设 252 个交易日）
+        annualized_mean = mean_return * 252
+        annualized_std = std_return * math.sqrt(252)
+
+        if annualized_std == 0:
+            return None
+
+        # 假设无风险利率为 3%
+        risk_free_rate = 0.03
+        return (annualized_mean - risk_free_rate) / annualized_std
+
+    def _calculate_max_drawdown(self) -> float:
+        """计算最大回撤"""
+        if not self._equity_curve:
+            return 0.0
+
+        peak = self._equity_curve[0][1]
+        max_drawdown = 0.0
+
+        for _, value in self._equity_curve:
+            if value > peak:
+                peak = value
+            drawdown = (peak - value) / peak
+            if drawdown > max_drawdown:
+                max_drawdown = drawdown
+
+        return max_drawdown

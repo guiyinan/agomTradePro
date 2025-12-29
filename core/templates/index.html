@@ -8,6 +8,7 @@
 </div>
 
 <div class="cards-grid">
+    <a href="/regime/dashboard/" class="card-link">
     <div class="card" id="regime">
         <div class="card-icon">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -18,14 +19,24 @@
         </div>
         <div class="card-title">Regime 判定</div>
         <div class="card-desc">基于增长/通胀动量，判定宏观环境象限</div>
+        <div class="card-status status-done">已完成</div>
         <div class="card-tags">
             <span class="tag tag-recovery">复苏</span>
             <span class="tag tag-overheat">过热</span>
             <span class="tag tag-stagflation">滞胀</span>
             <span class="tag tag-deflation">通缩</span>
         </div>
+        <div class="card-features">
+            <ul>
+                <li>动量计算（3个月变化率）</li>
+                <li>Z-score 标准化（60个月窗口）</li>
+                <li>模糊权重分布（Sigmoid）</li>
+            </ul>
+        </div>
     </div>
+    </a>
 
+    <a href="/macro/data/" class="card-link">
     <div class="card" id="macro">
         <div class="card-icon">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -36,13 +47,22 @@
         </div>
         <div class="card-title">宏观数据</div>
         <div class="card-desc">采集 PMI、CPI、M2 等核心指标</div>
+        <div class="card-status status-done">已完成</div>
         <div class="card-meta">
-            <span class="meta-item">Tushare</span>
+            <span class="meta-item">Tushare Pro</span>
             <span class="meta-item">AKShare</span>
-            <span class="meta-item">FRED</span>
+        </div>
+        <div class="card-features">
+            <ul>
+                <li>多数据源容错切换</li>
+                <li>数据一致性校验</li>
+                <li>发布延迟处理（PIT）</li>
+            </ul>
         </div>
     </div>
+    </a>
 
+    <a href="/signal/manage/" class="card-link">
     <div class="card" id="signals">
         <div class="card-icon">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -51,27 +71,69 @@
         </div>
         <div class="card-title">投资信号</div>
         <div class="card-desc">基于 Regime 的资产准入过滤</div>
+        <div class="card-status status-done">已完成</div>
         <div class="card-meta">
-            <span class="meta-item">证伪逻辑</span>
+            <span class="meta-item">证伪逻辑验证</span>
             <span class="meta-item">准入矩阵</span>
         </div>
+        <div class="card-features">
+            <ul>
+                <li>6类资产×4象限配置</li>
+                <li>强制证伪逻辑</li>
+                <li>政策档位（P0-P3）拒绝</li>
+            </ul>
+        </div>
     </div>
+    </a>
 
-    <div class="card" id="policy">
+    <a href="/filter/dashboard/" class="card-link">
+    <div class="card" id="filters">
         <div class="card-icon">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12 22 3"/>
             </svg>
         </div>
-        <div class="card-title">政策事件</div>
-        <div class="card-desc">P0-P3 档位的人工标注与响应</div>
-        <div class="card-tags">
-            <span class="tag tag-info">P0 常态</span>
-            <span class="tag tag-warning">P1 预警</span>
-            <span class="tag tag-error">P2 干预</span>
+        <div class="card-title">趋势滤波器</div>
+        <div class="card-desc">HP 滤波与 Kalman 滤波</div>
+        <div class="card-status status-done">已完成</div>
+        <div class="card-meta">
+            <span class="meta-item">扩张窗口 HP</span>
+            <span class="meta-item">Kalman 实时</span>
+        </div>
+        <div class="card-features">
+            <ul>
+                <li>HP 滤波（避免后视偏差）</li>
+                <li>Kalman 滤波（增量更新）</li>
+                <li>状态持久化支持</li>
+            </ul>
         </div>
     </div>
+    </a>
 
+    <a href="/macro/datasources/" class="card-link">
+    <div class="card" id="data-source">
+        <div class="card-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <ellipse cx="12" cy="5" ry="3"/>
+                <path d="M12 8v4"/>
+                <path d="M12 12l4 4"/>
+                <circle cx="12" cy="12" r="10"/>
+            </svg>
+        </div>
+        <div class="card-title">数据源管理</div>
+        <div class="card-desc">Web 界面配置 API 密钥</div>
+        <div class="card-status status-done">已完成</div>
+        <div class="card-features">
+            <ul>
+                <li>Admin 后台配置</li>
+                <li>优先级排序</li>
+                <li>主备自动切换</li>
+            </ul>
+        </div>
+    </div>
+    </a>
+
+    <a href="#" class="card-link">
     <div class="card" id="backtest">
         <div class="card-icon">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -81,12 +143,15 @@
         </div>
         <div class="card-title">回测引擎</div>
         <div class="card-desc">历史验证策略有效性</div>
+        <div class="card-status status-pending">待开发</div>
         <div class="card-meta">
             <span class="meta-item">月度再平衡</span>
             <span class="meta-item">归因分析</span>
         </div>
     </div>
+    </a>
 
+    <a href="#" class="card-link">
     <div class="card" id="audit">
         <div class="card-icon">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -94,14 +159,32 @@
                 <polyline points="14 2 14 8 20 8"/>
                 <line x1="16" y1="13" x2="8" y2="13"/>
                 <line x1="16" y1="17" x2="8" y2="17"/>
-                <polyline points="10 9 9 9 8 9"/>
             </svg>
         </div>
         <div class="card-title">事后审计</div>
         <div class="card-desc">损失归因与教训总结</div>
+        <div class="card-status status-pending">待开发</div>
         <div class="card-meta">
             <span class="meta-item">择时收益</span>
             <span class="meta-item">选资产收益</span>
+        </div>
+    </div>
+    </a>
+
+    <a href="#" class="card-link">
+    <div class="card" id="policy">
+        <div class="card-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+        </div>
+        <div class="card-title">政策事件</div>
+        <div class="card-desc">P0-P3 档位的人工标注与响应</div>
+        <div class="card-status status-pending">待开发</div>
+        <div class="card-tags">
+            <span class="tag tag-info">P0 常态</span>
+            <span class="tag tag-warning">P1 预警</span>
+            <span class="tag tag-error">P2/P3 强制</span>
         </div>
     </div>
 </div>
@@ -130,69 +213,157 @@
 
 <div class="section">
     <h2 class="section-title">快速开始</h2>
-    <div class="code-block">
-        <pre><code># 1. 激活虚拟环境
-agomsaaf\Scripts\activate
-
-# 2. 创建管理员
-python manage.py createsuperuser
-
-# 3. 启动服务器
-python manage.py runserver
-
-# 4. 访问系统
-# 首页: http://127.0.0.1:8000/
-# 管理后台: http://127.0.0.1:8000/admin/
-# API文档: http://127.0.0.1:8000/api/docs/</code></pre>
+    <div class="quick-start-grid">
+        <div class="qs-card">
+            <div class="qs-title">1. 启动服务</div>
+            <div class="qs-code">run.bat</div>
+            <div class="qs-desc">双击启动开发服务器</div>
+        </div>
+        <div class="qs-card">
+            <div class="qs-title">2. 访问后台</div>
+            <div class="qs-code">/admin/</div>
+            <div class="qs-desc">配置数据源 API 密钥</div>
+        </div>
+        <div class="qs-card">
+            <div class="qs-title">3. 同步数据</div>
+            <div class="qs-code">python manage.py shell</div>
+            <div class="qs-desc">在 Admin 中添加数据源后同步</div>
+        </div>
     </div>
 </div>
 
 <div class="section">
-    <h2 class="section-title">项目文档</h2>
-    <div class="doc-links">
-        <a href="https://github.com/your-repo/agomsaaf/blob/main/doc/AgomSAAF_V3.4.md" class="doc-link" target="_blank">
-            <div class="doc-icon">📖</div>
-            <div class="doc-info">
-                <div class="doc-title">需求文档 V3.4</div>
-                <div class="doc-desc">完整的需求与系统架构说明</div>
+    <h2 class="section-title">开发进度</h2>
+    <div class="progress-container">
+        <div class="progress-item">
+            <div class="progress-header">
+                <span class="progress-label">Phase 1: 基础搭建</span>
+                <span class="progress-percent">100%</span>
             </div>
-        </a>
-        <a href="https://github.com/your-repo/agomsaaf/blob/main/doc/implementation_tasks.md" class="doc-link" target="_blank">
-            <div class="doc-icon">✅</div>
-            <div class="doc-info">
-                <div class="doc-title">实施任务分解</div>
-                <div class="doc-desc">详细的开发任务清单</div>
+            <div class="progress-bar">
+                <div class="progress-fill progress-complete"></div>
             </div>
-        </a>
-        <a href="https://github.com/your-repo/agomsaaf/blob/main/doc/frontend_design_guide.md" class="doc-link" target="_blank">
-            <div class="doc-icon">🎨</div>
-            <div class="doc-info">
-                <div class="doc-title">前端设计指南</div>
-                <div class="doc-desc">配色方案与组件样式</div>
+            <div class="progress-details">
+                <span class="check-mark">✓</span> Django 项目骨架
+                <span class="check-mark">✓</span> Domain 层 Entities
+                <span class="check-mark">✓</span> 数据源适配器（Tushare/AKShare）
+                <span class="check-mark">✓</span> 数据源管理页面
             </div>
-        </a>
+        </div>
+        <div class="progress-item">
+            <div class="progress-header">
+                <span class="progress-label">Phase 2: 核心引擎</span>
+                <span class="progress-percent">100%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill progress-complete"></div>
+            </div>
+            <div class="progress-details">
+                <span class="check-mark">✓</span> HP 滤波器（扩张窗口）
+                <span class="check-mark">✓</span> Kalman 滤波器
+                <span class="check-mark">✓</span> Regime 计算服务
+                <span class="check-mark">✓</span> 准入规则引擎
+                <span class="check-mark">✓</span> Repositories & Use Cases
+            </div>
+        </div>
+        <div class="progress-item">
+            <div class="progress-header">
+                <span class="progress-label">Phase 3: 回测验证</span>
+                <span class="progress-percent">0%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill progress-empty"></div>
+            </div>
+        </div>
+        <div class="progress-item">
+            <div class="progress-header">
+                <span class="progress-label">Phase 4: 产品化部署</span>
+                <span class="progress-percent">0%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill progress-empty"></div>
+            </div>
+        </div>
     </div>
 </div>
 
 <div class="section">
-    <h2 class="section-title">当前状态</h2>
-    <div class="status-grid">
-        <div class="status-item">
-            <div class="status-label">开发阶段</div>
-            <div class="status-value">Phase 1 完成</div>
+    <h2 class="section-title">关键功能</h2>
+    <div class="features-grid">
+        <div class="feature-item">
+            <div class="feature-title">避免后视偏差</div>
+            <div class="feature-desc">HP 滤波采用扩张窗口模式，每个时刻只用历史数据计算</div>
         </div>
-        <div class="status-item">
-            <div class="status-label">Python 版本</div>
-            <div class="status-value">3.11+</div>
+        <div class="feature-item">
+            <div class="feature-title">强制证伪逻辑</div>
+            <div class="feature-desc">每个投资信号必须包含可量化的退出条件</div>
         </div>
-        <div class="status-item">
-            <div class="status-label">Django 版本</div>
-            <div class="status-value">5.2</div>
+        <div class="feature-item">
+            <div class="feature-title">准入矩阵</div>
+            <div class="feature-desc">6类资产在4象限下的适配性配置（PREFERRED/NEUTRAL/HOSTILE）</div>
         </div>
-        <div class="status-item">
-            <div class="status-label">数据库</div>
-            <div class="status-value">SQLite (开发)</div>
+        <div class="feature-item">
+            <div class="feature-title">多源容错</div>
+            <div class="feature-desc">主数据源失败自动切换备用源，数据一致性校验</div>
         </div>
+        <div class="feature-item">
+            <div class="feature-title">Point-in-Time</div>
+            <div class="feature-desc">考虑宏观数据发布延迟，回测时模拟真实信息状态</div>
+        </div>
+        <div class="feature-item">
+            <div class="feature-title">四层架构</div>
+            <div class="feature-desc">严格的分层架构，Domain 层零外部依赖</div>
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <h2 class="section-title">技术栈</h2>
+    <div class="tech-grid">
+        <div class="tech-item">
+            <div class="tech-label">后端框架</div>
+            <div class="tech-value">Django 5.2 + DRF</div>
+        </div>
+        <div class="tech-item">
+            <div class="tech-label">数据处理</div>
+            <div class="tech-value">Pandas + NumPy + Statsmodels</div>
+        </div>
+        <div class="tech-item">
+            <div class="tech-label">数据源</div>
+            <div class="tech-value">Tushare Pro + AKShare</div>
+        </div>
+        <div class="tech-item">
+            <div class="tech-label">任务队列</div>
+            <div class="tech-value">Celery + Redis</div>
+        </div>
+        <div class="tech-item">
+            <div class="tech-label">数据库</div>
+            <div class="tech-value">SQLite (开发) / PostgreSQL (生产)</div>
+        </div>
+        <div class="tech-item">
+            <div class="tech-label">Python 版本</div>
+            <div class="tech-value">3.11+</div>
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <h2 class="section-title">管理入口</h2>
+    <div class="admin-links">
+        <a href="/admin/" class="admin-link">
+            <div class="admin-icon">⚙️</div>
+            <div class="admin-info">
+                <div class="admin-title">Admin 后台</div>
+                <div class="admin-desc">数据源配置、宏观数据管理</div>
+            </div>
+        </a>
+        <a href="/api/docs/" class="admin-link">
+            <div class="admin-icon">📚</div>
+            <div class="admin-info">
+                <div class="admin-title">API 文档</div>
+                <div class="admin-desc">Swagger UI 交互式文档</div>
+            </div>
+        </a>
     </div>
 </div>
 {% endblock %}

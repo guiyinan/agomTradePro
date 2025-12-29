@@ -64,3 +64,8 @@ media/
 
 # Distribution
 .Pear
+
+# Security - DO NOT COMMIT CREDENTIALS
+doc/admin_credentials.md
+doc/secrets.md
+doc/passwords.md

@@ -1,0 +1,903 @@
+{% extends "base.html" %}
+
+{% block title %}数据源配置 - AgomSAAF{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>数据源配置</h1>
+    <p class="subtitle">Data Source Configuration</p>
+    <p class="description">管理 Tushare、AKShare 等数据源的 API 密钥和配置</p>
+</div>
+
+<!-- 快速开始指南 -->
+<div class="quick-start-section">
+    <h2 class="section-title">快速开始 (3 步配置)</h2>
+    <div class="steps-container">
+        <div class="step-item">
+            <div class="step-number">1</div>
+            <div class="step-content">
+                <h3>注册数据源账号</h3>
+                <p>前往数据源官网注册账号并获取 API Token</p>
+                <div class="step-links">
+                    <a href="https://tushare.pro/register" target="_blank">Tushare Pro 注册</a>
+                </div>
+            </div>
+        </div>
+        <div class="step-item">
+            <div class="step-number">2</div>
+            <div class="step-content">
+                <h3>添加数据源配置</h3>
+                <p>点击下方"添加数据源"按钮，填写配置信息</p>
+                <a href="/admin/macro/datasourceconfig/add/" class="btn-step">添加数据源</a>
+            </div>
+        </div>
+        <div class="step-item">
+            <div class="step-number">3</div>
+            <div class="step-content">
+                <h3>同步数据</h3>
+                <p>配置完成后，在 Admin 后台手动同步或设置定时任务</p>
+                <a href="/admin/" class="btn-step">前往 Admin</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 统计卡片 -->
+<div class="ds-stats-grid">
+    <div class="ds-stat-card">
+        <div class="stat-label">数据源总数</div>
+        <div class="stat-value">{{ stats.total }}</div>
+    </div>
+    <div class="ds-stat-card">
+        <div class="stat-label">已启用</div>
+        <div class="stat-value stat-active">{{ stats.active }}</div>
+    </div>
+    <div class="ds-stat-card">
+        <div class="stat-label">已停用</div>
+        <div class="stat-value stat-inactive">{{ stats.total|add:stats.active|add:"-" }}</div>
+    </div>
+</div>
+
+<!-- 数据源类型分布 -->
+{% if stats.by_type %}
+<div class="type-distribution">
+    <h2 class="section-title">数据源类型分布</h2>
+    <div class="type-tags">
+        {% for type, count in stats.by_type.items %}
+        <span class="type-badge type-{{ type }}">
+            {% for type_choice, label in source_type_choices %}
+                {% if type_choice == type %}{{ label }}{% endif %}
+            {% endfor %}: {{ count }}
+        </span>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- 数据源列表 -->
+<div class="datasources-section">
+    <div class="section-header">
+        <h2>已配置的数据源</h2>
+        <a href="/admin/macro/datasourceconfig/add/" class="btn-add">添加数据源</a>
+    </div>
+
+    {% if data_sources %}
+    <div class="datasource-list">
+        {% for ds in data_sources %}
+        <div class="ds-item ds-status-{% if ds.is_active %}active{% else %}inactive{% endif %}">
+            <div class="ds-main">
+                <div class="ds-header-info">
+                    <div class="ds-name-row">
+                        <h3 class="ds-name">{{ ds.name }}</h3>
+                        <span class="ds-priority-badge">优先级: {{ ds.priority }}</span>
+                        <span class="ds-status-badge {% if ds.is_active %}status-on{% else %}status-off{% endif %}">
+                            {% if ds.is_active %}启用{% else %}停用{% endif %}
+                        </span>
+                    </div>
+                    <div class="ds-meta">
+                        <span class="ds-type-badge type-{{ ds.source_type }}">{{ ds.get_source_type_display }}</span>
+                        {% if ds.api_endpoint %}
+                        <span class="ds-endpoint">{{ ds.api_endpoint }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="ds-config">
+                    <div class="config-row">
+                        <span class="config-label">API Key:</span>
+                        <span class="config-value">{% if ds.api_key %}{{ ds.api_key|slice:":8" }}...{% else %}<span class="empty-value">未配置</span>{% endif %}</span>
+                    </div>
+                    {% if ds.api_secret %}
+                    <div class="config-row">
+                        <span class="config-label">API Secret:</span>
+                        <span class="config-value">{{ ds.api_secret|slice:":8" }}...</span>
+                    </div>
+                    {% endif %}
+                    {% if ds.description %}
+                    <div class="config-desc">{{ ds.description }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="ds-actions">
+                <a href="/admin/macro/datasourceconfig/{{ ds.id }}/change/" class="btn-edit">编辑</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">🔌</div>
+        <div class="empty-title">暂无数据源配置</div>
+        <div class="empty-desc">
+            请先添加数据源配置以同步宏观数据
+        </div>
+        <a href="/admin/macro/datasourceconfig/add/" class="btn-add-large">添加第一个数据源</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- 详细配置说明 -->
+<div class="guide-section">
+    <h2 class="section-title">数据源配置说明</h2>
+
+    <!-- Tushare Pro -->
+    <div class="guide-item-full">
+        <div class="guide-header">
+            <h3 class="guide-title-large">Tushare Pro</h3>
+            <span class="guide-badge guide-recommended">推荐</span>
+        </div>
+        <div class="guide-body">
+            <p class="guide-intro">Tushare Pro 是一个专业的财经数据接口平台，提供股票、基金、期货、宏观经济等多种数据。</p>
+
+            <div class="guide-subsection">
+                <h4>获取 API Token 步骤：</h4>
+                <ol class="guide-steps">
+                    <li>访问 <a href="https://tushare.pro/register" target="_blank">https://tushare.pro/register</a> 注册账号</li>
+                    <li>登录后点击右上角头像 → 个人中心</li>
+                    <li>在"用户信息"页面找到"接口TOKEN"</li>
+                    <li>点击"复制TOKEN"按钮</li>
+                </ol>
+            </div>
+
+            <div class="guide-subsection">
+                <h4>配置参数：</h4>
+                <table class="guide-table">
+                    <tr>
+                        <th>参数</th>
+                        <th>值</th>
+                        <th>说明</th>
+                    </tr>
+                    <tr>
+                        <td>数据源名称</td>
+                        <td>Tushare Pro (主)</td>
+                        <td>自定义名称，建议标注主/备</td>
+                    </tr>
+                    <tr>
+                        <td>数据源类型</td>
+                        <td>Tushare Pro</td>
+                        <td>下拉选择</td>
+                    </tr>
+                    <tr>
+                        <td>是否启用</td>
+                        <td>✓ 是</td>
+                        <td>勾选启用</td>
+                    </tr>
+                    <tr>
+                        <td>优先级</td>
+                        <td>1</td>
+                        <td>数字越小越优先，主源设为 1</td>
+                    </tr>
+                    <tr>
+                        <td>API Key</td>
+                        <td>你的 Token</td>
+                        <td>粘贴从 Tushare 复制的 Token</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="guide-subsection">
+                <h4>可用数据指标：</h4>
+                <div class="tag-list">
+                    <span class="indicator-tag">SHIBOR - 银行间拆借利率</span>
+                    <span class="indicator-tag">指数日线数据</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AKShare -->
+    <div class="guide-item-full">
+        <div class="guide-header">
+            <h3 class="guide-title-large">AKShare</h3>
+            <span class="guide-badge guide-free">免费</span>
+        </div>
+        <div class="guide-body">
+            <p class="guide-intro">AKShare 是基于 Python 的财经数据接口库，开源免费，无需注册即可使用。</p>
+
+            <div class="guide-subsection">
+                <h4>配置参数：</h4>
+                <table class="guide-table">
+                    <tr>
+                        <th>参数</th>
+                        <th>值</th>
+                        <th>说明</th>
+                    </tr>
+                    <tr>
+                        <td>数据源名称</td>
+                        <td>AKShare (备)</td>
+                        <td>作为备用数据源</td>
+                    </tr>
+                    <tr>
+                        <td>数据源类型</td>
+                        <td>AKShare</td>
+                        <td>下拉选择</td>
+                    </tr>
+                    <tr>
+                        <td>是否启用</td>
+                        <td>✓ 是</td>
+                        <td>勾选启用</td>
+                    </tr>
+                    <tr>
+                        <td>优先级</td>
+                        <td>2</td>
+                        <td>作为备用源，优先级设为 2</td>
+                    </tr>
+                    <tr>
+                        <td>API Key</td>
+                        <td>留空</td>
+                        <td>AKShare 不需要 API Key</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="guide-subsection">
+                <h4>可用数据指标：</h4>
+                <div class="tag-list">
+                    <span class="indicator-tag">PMI - 采购经理指数</span>
+                    <span class="indicator-tag">CPI - 居民消费价格指数</span>
+                    <span class="indicator-tag">PPI - 工业生产者出厂价格指数</span>
+                    <span class="indicator-tag">M2 - 广义货币供应量</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- FAQ -->
+<div class="faq-section">
+    <h2 class="section-title">常见问题 FAQ</h2>
+    <div class="faq-list">
+        <div class="faq-item">
+            <div class="faq-question">Q: 为什么要配置多个数据源？</div>
+            <div class="faq-answer">
+                A: 系统支持主备数据源自动切换。当主数据源失败时，会自动尝试备用数据源，确保数据获取的稳定性。同时可以通过多个数据源进行数据一致性校验。
+            </div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-question">Q: 优先级数字越小越优先吗？</div>
+            <div class="faq-answer">
+                A: 是的。系统会按照优先级从低到高的顺序尝试数据源。建议将 Tushare Pro 设为优先级 1（主），AKShare 设为优先级 2（备）。
+            </div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-question">Q: 如何知道数据源是否正常工作？</div>
+            <div class="faq-answer">
+                A: 可以在"宏观数据管理"页面查看数据同步情况。如果某个数据源一直失败，系统会自动切换到备用源。建议定期检查 Admin 后台的数据记录。
+            </div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-question">Q: Tushare Pro 有积分限制怎么办？</div>
+            <div class="faq-answer">
+                A: Tushare Pro 采用积分制，普通用户每日有一定的调用次数限制。建议将 AKShare 配置为备用源，可以分担部分请求。如需更高额度，可以考虑升级会员。
+            </div>
+        </div>
+        <div class="faq-item">
+            <div class="faq-question">Q: 配置后如何同步数据？</div>
+            <div class="faq-answer">
+                A: 目前需要手动在 Admin 后台执行数据同步脚本，或配置 Celery 定时任务自动同步。后续版本会提供一键同步按钮。
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 联系支持 -->
+<div class="support-section">
+    <div class="support-card">
+        <div class="support-icon">💬</div>
+        <div class="support-content">
+            <h3>需要帮助？</h3>
+            <p>如果配置过程中遇到问题，请查看项目文档或提交 Issue</p>
+            <div class="support-links">
+                <a href="https://github.com/your-repo/agomSAAF" target="_blank">查看文档</a>
+                <a href="https://github.com/your-repo/agomSAAF/issues" target="_blank">提交问题</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Quick Start Section */
+.quick-start-section {
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4e9f2 100%);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
+}
+
+.steps-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.step-item {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: flex-start;
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    background: var(--color-primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.step-content {
+    flex: 1;
+}
+
+.step-content h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.step-content p {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.step-links {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.step-links a {
+    color: var(--color-primary);
+    font-size: 13px;
+    text-decoration: none;
+}
+
+.step-links a:hover {
+    text-decoration: underline;
+}
+
+.btn-step {
+    display: inline-block;
+    padding: 8px 16px;
+    background: var(--color-primary);
+    color: white;
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+}
+
+.btn-step:hover {
+    background: var(--color-primary-hover);
+}
+
+/* Stats Grid */
+.ds-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xl);
+}
+
+.ds-stat-card {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    text-align: center;
+}
+
+.stat-label {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--color-primary);
+}
+
+.stat-active {
+    color: var(--color-success);
+}
+
+.stat-inactive {
+    color: var(--color-text-muted);
+}
+
+/* Type Distribution */
+.type-distribution {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.type-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+}
+
+.type-badge {
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.type-tushare { background: #D5E9FF; color: var(--color-info); }
+.type-akshare { background: #F4C2C2; color: var(--color-error); }
+.type-fred { background: #C8D8B8; color: var(--color-success); }
+.type-wind { background: #FEF7E2; color: var(--color-warning); }
+.type-choice { background: #F0F8FF; color: #4682B4; }
+
+/* Datasources Section */
+.datasources-section {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.section-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.btn-add,
+.btn-add-large {
+    padding: 8px 16px;
+    background: var(--color-primary);
+    color: white;
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+}
+
+.btn-add-large {
+    padding: 12px 24px;
+    font-size: 14px;
+    display: inline-block;
+    margin-top: var(--spacing-md);
+}
+
+.btn-add:hover,
+.btn-add-large:hover {
+    background: var(--color-primary-hover);
+}
+
+.datasource-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.ds-item {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--spacing-lg);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    border-left: 4px solid;
+}
+
+.ds-status-active {
+    border-left-color: var(--color-success);
+}
+
+.ds-status-inactive {
+    border-left-color: var(--color-text-muted);
+    opacity: 0.7;
+}
+
+.ds-main {
+    flex: 1;
+}
+
+.ds-header-info {
+    margin-bottom: var(--spacing-md);
+}
+
+.ds-name-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+}
+
+.ds-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.ds-priority-badge {
+    padding: 4px 10px;
+    background: var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+.ds-status-badge {
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-on {
+    background: #D5FBDD;
+    color: var(--color-success);
+}
+
+.status-off {
+    background: var(--color-border);
+    color: var(--color-text-muted);
+}
+
+.ds-meta {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: center;
+}
+
+.ds-type-badge {
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.type-tushare { background: #D5E9FF; color: var(--color-info); }
+.type-akshare { background: #F4C2C2; color: var(--color-error); }
+.type-fred { background: #C8D8B8; color: var(--color-success); }
+.type-wind { background: #FEF7E2; color: var(--color-warning); }
+.type-choice { background: #F0F8FF; color: #4682B4; }
+
+.ds-endpoint {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    font-family: 'Consolas', monospace;
+}
+
+.ds-config {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-md);
+}
+
+.config-row {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
+}
+
+.config-label {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    min-width: 100px;
+}
+
+.config-value {
+    font-size: 13px;
+    color: var(--color-text-primary);
+    font-family: 'Consolas', monospace;
+}
+
+.empty-value {
+    color: var(--color-text-muted);
+    font-style: italic;
+}
+
+.config-desc {
+    margin-top: var(--spacing-sm);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--color-border);
+    font-size: 13px;
+    color: var(--color-text-secondary);
+}
+
+.ds-actions {
+    display: flex;
+    align-items: center;
+    margin-left: var(--spacing-lg);
+}
+
+.btn-edit {
+    padding: 8px 16px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-primary);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+}
+
+.btn-edit:hover {
+    background: var(--color-border);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-xxl);
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: var(--spacing-md);
+}
+
+.empty-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.empty-desc {
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-lg);
+}
+
+/* Guide Section */
+.guide-section {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
+}
+
+.guide-item-full {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+}
+
+.guide-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.guide-title-large {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.guide-badge {
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.guide-recommended {
+    background: #D5FBDD;
+    color: var(--color-success);
+}
+
+.guide-free {
+    background: #D5E9FF;
+    color: var(--color-info);
+}
+
+.guide-body {
+    flex: 1;
+}
+
+.guide-intro {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    margin-bottom: var(--spacing-md);
+}
+
+.guide-subsection {
+    margin-bottom: var(--spacing-md);
+}
+
+.guide-subsection h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.guide-steps {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    line-height: 1.8;
+}
+
+.guide-steps a {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.guide-steps a:hover {
+    text-decoration: underline;
+}
+
+.guide-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.guide-table th {
+    background: var(--color-bg);
+    padding: 10px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    border-bottom: 2px solid var(--color-border);
+}
+
+.guide-table td {
+    padding: 10px;
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+}
+
+.guide-table tr:last-child td {
+    border-bottom: none;
+}
+
+.tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+}
+
+.indicator-tag {
+    padding: 6px 12px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+/* FAQ Section */
+.faq-section {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
+}
+
+.faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.faq-item {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-md);
+}
+
+.faq-question {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-primary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.faq-answer {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+}
+
+/* Support Section */
+.support-section {
+    margin-bottom: var(--spacing-xl);
+}
+
+.support-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-xl);
+    display: flex;
+    gap: var(--spacing-lg);
+    align-items: center;
+}
+
+.support-icon {
+    font-size: 48px;
+}
+
+.support-content {
+    flex: 1;
+    color: white;
+}
+
+.support-content h3 {
+    font-size: 18px;
+    margin-bottom: var(--spacing-xs);
+}
+
+.support-content p {
+    font-size: 14px;
+    opacity: 0.9;
+    margin-bottom: var(--spacing-md);
+}
+
+.support-links {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.support-links a {
+    padding: 8px 16px;
+    background: white;
+    color: #667eea;
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.support-links a:hover {
+    opacity: 0.9;
+}
+</style>
+{% endblock %}

@@ -197,3 +197,5 @@ Phase 1: 基础搭建（本地开发）
 2. **先写 Domain 层**，再写其他层
 3. **先写测试**，再写实现（TDD 友好）
 4. 遇到不确定的金融逻辑，参考 `docs/AgomSAAF_V3.4.md`
+
+python的虚拟环境为agomsaaf
