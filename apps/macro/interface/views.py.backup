@@ -4,9 +4,10 @@ Page Views for Macro Data Management.
 
 from django.shortcuts import render, redirect
 from django.db.models import Q, Count, Max
-from django.http import JsonResponse
+from django.http import JsonResponse, StreamingHttpResponse
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 from django.core.management import call_command
 from apps.macro.infrastructure.models import MacroIndicator, DataSourceConfig
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
@@ -19,10 +20,12 @@ from apps.macro.application.data_management import (
     FetchDataRequest,
     DeleteDataRequest,
 )
+from apps.macro.infrastructure.adapters import AKShareAdapter, create_default_adapter
 from datetime import datetime, timedelta, date
 from io import StringIO
 import json
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +38,15 @@ def get_repository():
 def get_sync_use_case():
     """获取同步用例实例"""
     repo = get_repository()
-    # 这里可以注入适配器
-    return SyncMacroDataUseCase(repository=repo, adapters={})
+    # 初始化 AKShare 适配器
+    try:
+        akshare_adapter = AKShareAdapter()
+        adapters = {"akshare": akshare_adapter}
+        logger.info("AKShare 适配器初始化成功")
+    except Exception as e:
+        logger.error(f"AKShare 适配器初始化失败: {e}")
+        adapters = {}
+    return SyncMacroDataUseCase(repository=repo, adapters=adapters)
 
 
 def macro_data_view(request):
@@ -163,6 +173,181 @@ def data_controller_view(request):
     return render(request, 'macro/data_controller.html', context)
 
 
+@csrf_exempt
+def api_fetch_data_stream(request):
+    """
+    API: 手动触发数据抓取（带进度推送）
+
+    使用 Server-Sent Events (SSE) 实时推送抓取进度
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': '仅支持 POST 请求'}, status=405)
+
+    # 先读取请求体（request.body只能读取一次）
+    try:
+        request_data = json.loads(request.body)
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'无效的请求数据: {e}'}, status=400)
+
+    indicators = request_data.get('indicators')
+    start_date_str = request_data.get('start_date')
+    end_date_str = request_data.get('end_date')
+
+    # 转换日期
+    if start_date_str:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+    else:
+        start_date = None
+    if end_date_str:
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    else:
+        end_date = None
+
+    def generate_progress():
+        """生成SSE进度事件流"""
+        nonlocal indicators, start_date, end_date
+        try:
+            # 获取要抓取的指标列表
+            sync_use_case = get_sync_use_case()
+
+            if indicators:
+                indicator_list = indicators
+            else:
+                # 获取默认指标列表
+                indicator_list = sync_use_case._get_default_indicators()
+
+            total_indicators = len(indicator_list)
+
+            # 发送开始事件
+            start_data = json.dumps({'total': total_indicators, 'indicators': indicator_list})
+            yield f"event: start\ndata: {start_data}\n\n"
+
+            # 逐个抓取指标
+            synced_count = 0
+            errors = []
+
+            for i, indicator_code in enumerate(indicator_list, 1):
+                try:
+                    # 发送进度事件
+                    progress_data = json.dumps({
+                        'current': i,
+                        'total': total_indicators,
+                        'indicator': indicator_code,
+                        'status': 'fetching'
+                    })
+                    yield f"event: progress\ndata: {progress_data}\n\n"
+                    logger.info(f"正在抓取 {indicator_code} ({i}/{total_indicators})")
+
+                    # 抓取单个指标
+                    from apps.macro.application.use_cases import SyncMacroDataRequest
+                    sync_request = SyncMacroDataRequest(
+                        start_date=start_date or date.today() - timedelta(days=90),
+                        end_date=end_date or date.today(),
+                        indicators=[indicator_code],
+                        force_refresh=True
+                    )
+
+                    response = sync_use_case.execute(sync_request)
+
+                    if response.success:
+                        synced_count += response.synced_count
+                        success_data = json.dumps({
+                            'current': i,
+                            'total': total_indicators,
+                            'indicator': indicator_code,
+                            'status': 'success',
+                            'count': response.synced_count
+                        })
+                        yield f"event: progress\ndata: {success_data}\n\n"
+                        logger.info(f"✓ {indicator_code} 抓取成功: {response.synced_count} 条数据")
+                    else:
+                        error_msg = str(response.errors)[:100] if response.errors else '未知错误'
+                        error_data = json.dumps({
+                            'current': i,
+                            'total': total_indicators,
+                            'indicator': indicator_code,
+                            'status': 'error',
+                            'error': error_msg
+                        })
+                        yield f"event: progress\ndata: {error_data}\n\n"
+                        logger.warning(f"✗ {indicator_code} 抓取失败: {response.errors}")
+                        errors.extend(response.errors)
+
+                except Exception as e:
+                    error_msg = str(e)[:100]
+                    error_data = json.dumps({
+                        'current': i,
+                        'total': total_indicators,
+                        'indicator': indicator_code,
+                        'status': 'error',
+                        'error': error_msg
+                    })
+                    yield f"event: progress\ndata: {error_data}\n\n"
+                    logger.error(f"✗ {indicator_code} 抓取异常: {e}")
+                    errors.append(f"{indicator_code}: {str(e)}")
+
+            # 发送完成事件
+            success = len(errors) == 0
+            complete_data = json.dumps({
+                'success': success,
+                'synced_count': synced_count,
+                'total': total_indicators,
+                'errors': errors
+            })
+            yield f"event: complete\ndata: {complete_data}\n\n"
+            logger.info(f"抓取完成: 共 {total_indicators} 个指标，成功 {synced_count} 条数据，{len(errors)} 个错误")
+
+        except Exception as e:
+            logger.exception("数据抓取流式 API 错误")
+            error_data = json.dumps({'message': str(e)})
+            yield f"event: error\ndata: {error_data}\n\n"
+
+    return StreamingHttpResponse(
+        generate_progress(),
+        content_type='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no',
+        }
+    )
+
+
+def api_get_supported_indicators(request):
+    """
+    API: 获取支持的指标列表
+    """
+    if request.method != 'GET':
+        return JsonResponse({'success': False, 'message': '仅支持 GET 请求'}, status=405)
+
+    try:
+        # 从适配器获取支持的指标列表
+        try:
+            adapter = AKShareAdapter()
+            indicators = [
+                {'code': code, 'name': name}
+                for code, name in adapter.SUPPORTED_INDICATORS.items()
+            ]
+            # 按代码排序
+            indicators.sort(key=lambda x: x['code'])
+        except Exception as e:
+            logger.error(f"获取适配器指标列表失败: {e}")
+            indicators = []
+
+        return JsonResponse({
+            'success': True,
+            'indicators': indicators,
+            'count': len(indicators)
+        })
+
+    except Exception as e:
+        logger.exception("获取支持指标列表 API 错误")
+        return JsonResponse({
+            'success': False,
+            'message': f'获取失败: {str(e)}'
+        }, status=500)
+
+
+@csrf_exempt
 def api_fetch_data(request):
     """
     API: 手动触发数据抓取
@@ -211,6 +396,7 @@ def api_fetch_data(request):
         }, status=500)
 
 
+@csrf_exempt
 def api_delete_data(request):
     """
     API: 删除数据
@@ -289,6 +475,7 @@ def api_get_due_indicators(request):
         }, status=500)
 
 
+@csrf_exempt
 def api_sync_due_indicators(request):
     """
     API: 同步所有到期指标
@@ -455,6 +642,7 @@ def api_table_data(request):
         }, status=500)
 
 
+@csrf_exempt
 def api_delete_record(request, record_id):
     """
     API: 删除单条记录
@@ -485,6 +673,7 @@ def api_delete_record(request, record_id):
         }, status=500)
 
 
+@csrf_exempt
 def api_batch_delete(request):
     """
     API: 批量删除记录
@@ -518,6 +707,7 @@ def api_batch_delete(request):
         }, status=500)
 
 
+@csrf_exempt
 def api_create_record(request):
     """
     API: 新增记录
@@ -563,6 +753,7 @@ def api_create_record(request):
         }, status=500)
 
 
+@csrf_exempt
 def api_update_record(request, record_id):
     """
     API: 更新记录
@@ -625,6 +816,7 @@ def api_update_record(request, record_id):
         }, status=500)
 
 
+@csrf_exempt
 @require_http_methods(["POST"])
 def api_quick_sync(request):
     """

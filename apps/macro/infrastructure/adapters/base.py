@@ -31,14 +31,49 @@ class PublicationLag:
 PUBLICATION_LAGS: dict[str, PublicationLag] = {
     # 中国宏观数据
     "CN_PMI": PublicationLag(days=1, description="PMI 次月1日发布"),
+    "CN_NON_MAN_PMI": PublicationLag(days=1, description="非制造业PMI 次月1日发布"),
     "CN_CPI": PublicationLag(days=10, description="CPI 月后10日左右发布"),
+    "CN_CPI_NATIONAL_YOY": PublicationLag(days=10, description="全国CPI同比 月后10日左右发布"),
+    "CN_CPI_NATIONAL_MOM": PublicationLag(days=10, description="全国CPI环比 月后10日左右发布"),
+    "CN_CPI_URBAN_YOY": PublicationLag(days=10, description="城市CPI同比 月后10日左右发布"),
+    "CN_CPI_URBAN_MOM": PublicationLag(days=10, description="城市CPI环比 月后10日左右发布"),
+    "CN_CPI_RURAL_YOY": PublicationLag(days=10, description="农村CPI同比 月后10日左右发布"),
+    "CN_CPI_RURAL_MOM": PublicationLag(days=10, description="农村CPI环比 月后10日左右发布"),
     "CN_PPI": PublicationLag(days=10, description="PPI 月后10日左右发布"),
+    "CN_PPI_YOY": PublicationLag(days=10, description="PPI同比 月后10日左右发布"),
     "CN_M2": PublicationLag(days=15, description="M2 月后10-15日发布"),
     "CN_GDP": PublicationLag(days=20, description="GDP 季后20日左右发布"),
     "CN_VALUE_ADDED": PublicationLag(days=10, description="工业增加值 月后10日左右"),
     "CN_RETAIL_SALES": PublicationLag(days=10, description="社零 月后10日左右"),
 
+    # 贸易数据
+    "CN_EXPORTS": PublicationLag(days=10, description="出口数据 月后10日左右发布"),
+    "CN_IMPORTS": PublicationLag(days=10, description="进口数据 月后10日左右发布"),
+    "CN_TRADE_BALANCE": PublicationLag(days=10, description="贸易差额 月后10日左右发布"),
+
+    # 房产数据
+    "CN_NEW_HOUSE_PRICE": PublicationLag(days=15, description="新房价格指数 月后15日左右发布"),
+
+    # 价格数据
+    "CN_OIL_PRICE": PublicationLag(days=0, description="成品油价格 不定期调整"),
+
+    # 就业数据
+    "CN_UNEMPLOYMENT": PublicationLag(days=15, description="城镇调查失业率 月后15日左右发布"),
+
+    # 金融数据
+    "CN_FX_RESERVES": PublicationLag(days=10, description="外汇储备 月后10日左右发布"),
+
     # 利率数据
+    "CN_SHIBOR": PublicationLag(days=0, description="SHIBOR 每日发布"),
+    "CN_LPR": PublicationLag(days=1, description="LPR 每月20日发布"),
+    "CN_RRR": PublicationLag(days=0, description="存款准备金率 不定期调整"),
+
+    # 信贷数据
+    "CN_NEW_CREDIT": PublicationLag(days=15, description="新增信贷 月后10-15日发布"),
+    "CN_RMB_DEPOSIT": PublicationLag(days=15, description="人民币存款 月后10-15日发布"),
+    "CN_RMB_LOAN": PublicationLag(days=15, description="人民币贷款 月后10-15日发布"),
+
+    # 兼容旧代码
     "SHIBOR": PublicationLag(days=0, description="SHIBOR 每日发布"),
     "LPR": PublicationLag(days=1, description="LPR 每月20日发布"),
 

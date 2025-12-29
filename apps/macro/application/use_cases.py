@@ -96,14 +96,15 @@ class SyncMacroDataUseCase:
                 # 2. 去重处理
                 new_points = self._deduplicate_data(indicator_code, data_points)
 
-                # 3. 批量保存
+                # 3. 批量保存 (映射 MacroDataPoint 到 ORM MacroIndicator)
                 indicators_to_save = [
                     MacroIndicator(
                         code=dp.code,
                         value=dp.value,
-                        observed_at=dp.observed_at,
+                        reporting_period=dp.observed_at,  # MacroDataPoint.observed_at -> MacroIndicator.reporting_period
                         published_at=dp.published_at,
-                        source=dp.source
+                        source=dp.source,
+                        period_type='M'  # 默认月度，可以根据指标代码优化
                     )
                     for dp in new_points
                 ]
@@ -207,10 +208,40 @@ class SyncMacroDataUseCase:
             List[str]: 指标代码列表
         """
         return [
-            "CN_PMI",      # PMI
-            "CN_CPI",      # CPI
-            "CN_PPI",      # PPI
-            "SHIBOR",      # SHIBOR 利率
+            # 基础指标
+            "CN_PMI",               # PMI (制造业采购经理指数)
+            "CN_NON_MAN_PMI",       # 非制造业PMI
+            "CN_CPI",               # CPI (居民消费价格指数)
+            "CN_CPI_NATIONAL_YOY",  # 全国CPI同比
+            "CN_CPI_NATIONAL_MOM",  # 全国CPI环比
+            "CN_PPI",               # PPI (工业生产者出厂价格指数)
+            "CN_PPI_YOY",           # PPI同比
+            "CN_M2",                # M2 (货币供应量)
+            "CN_VALUE_ADDED",       # 工业增加值
+            "CN_RETAIL_SALES",      # 社会消费品零售总额
+            "CN_GDP",               # GDP (国内生产总值)
+
+            # 贸易数据
+            "CN_EXPORTS",           # 出口同比增长
+            "CN_IMPORTS",           # 进口同比增长
+            "CN_TRADE_BALANCE",     # 贸易差额
+
+            # 房产数据
+            "CN_NEW_HOUSE_PRICE",   # 新房价格指数
+
+            # 金融数据
+            "CN_SHIBOR",            # SHIBOR 利率
+            "CN_LPR",               # LPR (贷款市场报价利率)
+            "CN_RRR",               # 存款准备金率
+
+            # 信贷数据
+            "CN_NEW_CREDIT",        # 新增信贷
+            "CN_RMB_DEPOSIT",        # 人民币存款
+            "CN_RMB_LOAN",          # 人民币贷款
+
+            # 其他数据
+            "CN_UNEMPLOYMENT",      # 城镇调查失业率
+            "CN_FX_RESERVES",       # 外汇储备
         ]
 
 

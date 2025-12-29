@@ -271,12 +271,33 @@ class ScheduleDataFetchUseCase:
     # 支持的指标及其建议抓取频率
     INDICATOR_SCHEDULES = {
         "CN_PMI": {"frequency": "monthly", "day_of_month": 1},
+        "CN_NON_MAN_PMI": {"frequency": "monthly", "day_of_month": 1},
         "CN_CPI": {"frequency": "monthly", "day_of_month": 10},
+        "CN_CPI_NATIONAL_YOY": {"frequency": "monthly", "day_of_month": 10},
+        "CN_CPI_NATIONAL_MOM": {"frequency": "monthly", "day_of_month": 10},
+        "CN_CPI_URBAN_YOY": {"frequency": "monthly", "day_of_month": 10},
+        "CN_CPI_URBAN_MOM": {"frequency": "monthly", "day_of_month": 10},
+        "CN_CPI_RURAL_YOY": {"frequency": "monthly", "day_of_month": 10},
+        "CN_CPI_RURAL_MOM": {"frequency": "monthly", "day_of_month": 10},
         "CN_PPI": {"frequency": "monthly", "day_of_month": 10},
-        "SHIBOR": {"frequency": "daily"},
-        "M2": {"frequency": "monthly", "day_of_month": 15},
-        "INDUSTRIAL_VALUE_ADDED": {"frequency": "monthly", "day_of_month": 15},
-        "RETAIL_SALES": {"frequency": "monthly", "day_of_month": 15},
+        "CN_PPI_YOY": {"frequency": "monthly", "day_of_month": 10},
+        "CN_M2": {"frequency": "monthly", "day_of_month": 15},
+        "CN_VALUE_ADDED": {"frequency": "monthly", "day_of_month": 15},
+        "CN_RETAIL_SALES": {"frequency": "monthly", "day_of_month": 15},
+        "CN_GDP": {"frequency": "quarterly", "day_of_month": 20},
+        "CN_SHIBOR": {"frequency": "daily"},
+        "CN_EXPORTS": {"frequency": "monthly", "day_of_month": 10},
+        "CN_IMPORTS": {"frequency": "monthly", "day_of_month": 10},
+        "CN_TRADE_BALANCE": {"frequency": "monthly", "day_of_month": 10},
+        "CN_UNEMPLOYMENT": {"frequency": "monthly", "day_of_month": 15},
+        "CN_FX_RESERVES": {"frequency": "monthly", "day_of_month": 10},
+        "CN_LPR": {"frequency": "monthly", "day_of_month": 20},
+        "CN_RRR": {"frequency": "daily"},  # 不定期调整，每日检查
+        "CN_NEW_HOUSE_PRICE": {"frequency": "monthly", "day_of_month": 15},
+        "CN_OIL_PRICE": {"frequency": "daily"},  # 不定期调整，每日检查
+        "CN_NEW_CREDIT": {"frequency": "monthly", "day_of_month": 15},
+        "CN_RMB_DEPOSIT": {"frequency": "monthly", "day_of_month": 15},
+        "CN_RMB_LOAN": {"frequency": "monthly", "day_of_month": 15},
     }
 
     def __init__(self, repository):

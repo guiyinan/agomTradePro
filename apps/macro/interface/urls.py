@@ -16,6 +16,8 @@ urlpatterns = [
     path('controller/', views.data_controller_view, name='data_controller'),
 
     # API 接口 - 数据抓取
+    path('api/supported-indicators/', views.api_get_supported_indicators, name='api_get_supported_indicators'),
+    path('api/fetch/stream/', views.api_fetch_data_stream, name='api_fetch_data_stream'),
     path('api/fetch/', views.api_fetch_data, name='api_fetch_data'),
     path('api/delete/', views.api_delete_data, name='api_delete_data'),
     path('api/due-indicators/', views.api_get_due_indicators, name='api_get_due_indicators'),

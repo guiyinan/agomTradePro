@@ -274,6 +274,28 @@
 
             <div class="result-panel" id="fetch-result" style="display:none;"></div>
 
+            <!-- 进度条 -->
+            <div class="progress-container" id="fetch-progress-container" style="display:none;">
+                <div class="progress-info">
+                    <span id="progress-text">正在抓取...</span>
+                    <span id="progress-count">0/0</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="progress-bar-fill"></div>
+                </div>
+                <!-- 当前指标 -->
+                <div class="current-indicator" id="current-indicator"></div>
+            </div>
+
+            <!-- 日志输出 -->
+            <div class="log-container" id="fetch-log-container" style="display:none;">
+                <div class="log-header">
+                    <span>抓取日志</span>
+                    <button class="log-clear-btn" onclick="clearLog()">清空</button>
+                </div>
+                <div class="log-content" id="log-content"></div>
+            </div>
+
             <div class="form-actions">
                 <button type="button" class="btn-primary" onclick="fetchData()" id="btn-fetch-start">
                     开始抓取
@@ -834,6 +856,111 @@
     color: #C62828;
     border: 1px solid #FFCDD2;
 }
+
+/* 进度条样式 */
+.progress-container {
+    margin-top: 16px;
+    padding: 16px;
+    background: #F5F5F5;
+    border-radius: 8px;
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.progress-bar-bg {
+    height: 8px;
+    background: #E0E0E0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50, #8BC34A);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.current-indicator {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+}
+
+/* 日志样式 */
+.log-container {
+    margin-top: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.log-clear-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+    border: 1px solid var(--color-border);
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.log-clear-btn:hover {
+    background: var(--color-surface);
+}
+
+.log-content {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 12px;
+    background: #1E1E1E;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.log-entry {
+    margin-bottom: 4px;
+    word-break: break-all;
+}
+
+.log-entry.success {
+    color: #4CAF50;
+}
+
+.log-entry.error {
+    color: #FF5252;
+}
+
+.log-entry.info {
+    color: #2196F3;
+}
+
+.log-entry.warning {
+    color: #FF9800;
+}
+
+.log-time {
+    color: #757575;
+    margin-right: 8px;
+}
 </style>
 
 <script>
@@ -1275,6 +1402,9 @@ async function saveRecord(event) {
 // 打开抓取弹窗
 function openFetchModal() {
     document.getElementById('fetch-result').style.display = 'none';
+    document.getElementById('fetch-progress-container').style.display = 'none';
+    document.getElementById('fetch-log-container').style.display = 'none';
+    document.getElementById('log-content').innerHTML = '';
     document.getElementById('fetch-modal').classList.add('active');
 
     // 设置默认日期
@@ -1285,10 +1415,56 @@ function openFetchModal() {
 }
 
 function closeFetchModal() {
+    // 关闭时停止可能正在运行的EventSource
+    if (window.fetchEventSource) {
+        window.fetchEventSource.close();
+        window.fetchEventSource = null;
+    }
     document.getElementById('fetch-modal').classList.remove('active');
 }
 
-// 抓取数据
+// 获取CSRF token
+function getCSRFToken() {
+    const csrfCookie = document.cookie.split('; ').find(row => row.startsWith('csrftoken='));
+    return csrfCookie ? csrfCookie.split('=')[1] : '';
+}
+
+// 添加日志
+function addLog(message, type = 'info') {
+    const logContent = document.getElementById('log-content');
+    const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+
+    const logEntry = document.createElement('div');
+    logEntry.className = `log-entry ${type}`;
+    logEntry.innerHTML = `<span class="log-time">[${time}]</span>${escapeHtml(message)}`;
+
+    logContent.appendChild(logEntry);
+    logContent.scrollTop = logContent.scrollHeight;
+}
+
+// 清空日志
+function clearLog() {
+    document.getElementById('log-content').innerHTML = '';
+}
+
+// 更新进度条
+function updateProgress(current, total, indicator, status) {
+    const percentage = Math.round((current / total) * 100);
+
+    document.getElementById('progress-bar-fill').style.width = percentage + '%';
+    document.getElementById('progress-count').textContent = `${current}/${total}`;
+
+    const statusText = {
+        'fetching': `正在抓取 ${indicator}...`,
+        'success': `${indicator} 抓取成功`,
+        'error': `${indicator} 抓取失败`
+    };
+
+    document.getElementById('progress-text').textContent = statusText[status] || '正在抓取...';
+    document.getElementById('current-indicator').textContent = `当前: ${indicator}`;
+}
+
+// 抓取数据（带进度）
 async function fetchData() {
     const select = document.getElementById('fetch-indicators');
     const selectedOptions = Array.from(select.selectedOptions).map(opt => opt.value);
@@ -1304,32 +1480,114 @@ async function fetchData() {
     btn.disabled = true;
     btn.textContent = '抓取中...';
 
+    // 显示进度和日志区域
+    document.getElementById('fetch-progress-container').style.display = 'block';
+    document.getElementById('fetch-log-container').style.display = 'block';
+    document.getElementById('fetch-result').style.display = 'none';
+
+    // 重置进度条
+    document.getElementById('progress-bar-fill').style.width = '0%';
+    document.getElementById('progress-count').textContent = '0/0';
+
+    addLog('开始抓取数据...', 'info');
+
     try {
-        const response = await fetch(`${API_BASE}/fetch/`, {
+        // 使用 fetch 发送 POST 请求，获取 ReadableStream
+        const headers = { 'Content-Type': 'application/json' };
+        const csrfToken = getCSRFToken();
+        if (csrfToken) {
+            headers['X-CSRFToken'] = csrfToken;
+        }
+
+        const response = await fetch(`${API_BASE}/fetch/stream/`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify(requestData)
         });
-        const result = await response.json();
 
-        const panel = document.getElementById('fetch-result');
-        panel.style.display = 'block';
-        panel.className = 'result-panel ' + (result.success ? 'success' : 'error');
-        panel.textContent = result.message;
-
-        if (result.success) {
-            setTimeout(() => {
-                closeFetchModal();
-                loadData();
-            }, 1500);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+
+            // 处理 SSE 格式的事件
+            const lines = buffer.split('\n\n');
+            buffer = lines.pop() || ''; // 保留不完整的行
+
+            for (const line of lines) {
+                if (!line.trim()) continue;
+
+                // 解析 SSE 事件
+                const eventMatch = line.match(/^event:\s*(\w+)\s*$/m);
+                const dataMatch = line.match(/^data:\s*(.+)\s*$/m);
+
+                if (dataMatch) {
+                    try {
+                        const data = JSON.parse(dataMatch[1]);
+
+                        if (eventMatch && eventMatch[1] === 'start') {
+                            addLog(`开始抓取，共 ${data.total} 个指标`, 'info');
+                            for (const ind of data.indicators) {
+                                addLog(`  - ${ind}`, 'info');
+                            }
+                        } else if (eventMatch && eventMatch[1] === 'progress') {
+                            updateProgress(data.current, data.total, data.indicator, data.status);
+                            if (data.status === 'fetching') {
+                                addLog(`[${data.current}/${data.total}] 正在抓取 ${data.indicator}...`, 'info');
+                            } else if (data.status === 'success') {
+                                addLog(`✓ ${data.indicator} 抓取成功: ${data.count} 条数据`, 'success');
+                            } else if (data.status === 'error') {
+                                addLog(`✗ ${data.indicator} 抓取失败: ${data.error || '未知错误'}`, 'error');
+                            }
+                        } else if (eventMatch && eventMatch[1] === 'complete') {
+                            if (data.success) {
+                                addLog(`抓取完成！共同步 ${data.synced_count} 条数据`, 'success');
+                                showResultPanel(true, `抓取完成！共同步 ${data.synced_count} 条数据`);
+                            } else {
+                                addLog(`抓取完成，但有 ${data.errors.length} 个错误`, 'warning');
+                                showResultPanel(false, `抓取完成，但有 ${data.errors.length} 个错误`);
+                            }
+
+                            setTimeout(() => {
+                                closeFetchModal();
+                                loadData();
+                            }, 2000);
+                        } else if (eventMatch && eventMatch[1] === 'error') {
+                            addLog(`抓取失败: ${data.message}`, 'error');
+                            showResultPanel(false, `抓取失败: ${data.message}`);
+                        }
+                    } catch (e) {
+                        console.error('解析SSE数据失败:', e, dataMatch[1]);
+                    }
+                }
+            }
+        }
+
     } catch (error) {
-        document.getElementById('fetch-result').textContent = '抓取失败: ' + error.message;
-        document.getElementById('fetch-result').style.display = 'block';
+        addLog(`请求失败: ${error.message}`, 'error');
+        showResultPanel(false, `抓取失败: ${error.message}`);
     } finally {
         btn.disabled = false;
         btn.textContent = '开始抓取';
     }
+}
+
+// 显示结果面板
+function showResultPanel(success, message) {
+    const panel = document.getElementById('fetch-result');
+    panel.style.display = 'block';
+    panel.className = 'result-panel ' + (success ? 'success' : 'error');
+    panel.textContent = message;
 }
 
 // 筛选
@@ -1354,11 +1612,18 @@ function resetFilters() {
 // 加载筛选选项
 async function loadFilters() {
     try {
-        const response = await fetch(`${API_BASE}/table/?page=1&page_size=1`);
-        const result = await response.json();
+        // 并行获取数据源和支持的指标列表
+        const [tableResponse, indicatorsResponse] = await Promise.all([
+            fetch(`${API_BASE}/table/?page=1&page_size=1`),
+            fetch(`${API_BASE}/supported-indicators/`)
+        ]);
 
-        if (result.success) {
-            const sources = [...new Set(result.data.map(d => d.source))];
+        const tableResult = await tableResponse.json();
+        const indicatorsResult = await indicatorsResponse.json();
+
+        // 填充数据源选择器
+        if (tableResult.success) {
+            const sources = [...new Set(tableResult.data.map(d => d.source))];
             const sourceSelect = document.getElementById('filter-source');
             const fetchSourceSelect = document.getElementById('fetch-source');
 
@@ -1367,6 +1632,23 @@ async function loadFilters() {
                 fetchSourceSelect.innerHTML += `<option value="${source}">${source}</option>`;
             });
         }
+
+        // 从API获取并填充指标选择器
+        const indicatorSelect = document.getElementById('fetch-indicators');
+        indicatorSelect.innerHTML = '<option value="">-- 全部指标 --</option>';
+
+        if (indicatorsResult.success && indicatorsResult.indicators) {
+            indicatorsResult.indicators.forEach(indicator => {
+                const option = document.createElement('option');
+                option.value = indicator.code;
+                option.textContent = `${indicator.code} - ${indicator.name}`;
+                indicatorSelect.appendChild(option);
+            });
+            console.log(`加载了 ${indicatorsResult.count} 个支持的指标`);
+        } else {
+            console.warn('获取支持指标列表失败，使用空列表');
+        }
+
     } catch (error) {
         console.error('加载筛选选项失败:', error);
     }
