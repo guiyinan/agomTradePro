@@ -7,11 +7,11 @@
     <div class="header-content">
         <div>
             <h1>Regime 判定</h1>
-            <p class="subtitle">宏观环境四象限判定</p>
-            <p class="description">基于增长/通胀动量，实时判定当前宏观环境</p>
         </div>
         <div class="data-source-selector">
-            <label for="sourceSelect">数据源:</label>
+            <label for="dateSelect">分析时点:</label>
+            <input type="date" id="dateSelect" value="{{ as_of_date|date:'Y-m-d' }}" onchange="changeAnalysisDate(this.value)">
+            <label for="sourceSelect" style="margin-left: 16px;">数据源:</label>
             <select id="sourceSelect" onchange="changeDataSource(this.value)">
                 {% if available_sources %}
                     {% for source in available_sources %}
@@ -35,9 +35,19 @@
 </div>
 
 <script>
+function changeAnalysisDate(dateStr) {
+    const url = new URL(window.location);
+    url.searchParams.set('as_of_date', dateStr);
+    window.location.href = url.toString();
+}
+
 function changeDataSource(source) {
     const url = new URL(window.location);
     url.searchParams.set('source', source);
+    const dateSelect = document.getElementById('dateSelect');
+    if (dateSelect.value) {
+        url.searchParams.set('as_of_date', dateSelect.value);
+    }
     window.location.href = url.toString();
 }
 
@@ -45,7 +55,6 @@ async function syncData() {
     const btn = document.getElementById('syncBtn');
     const source = document.getElementById('sourceSelect').value;
 
-    // 禁用按钮并显示加载状态
     btn.disabled = true;
     btn.innerHTML = '<span class="sync-icon syncing">⟳</span> 同步中...';
 
@@ -65,7 +74,7 @@ async function syncData() {
 
         if (data.success) {
             alert('✓ ' + data.message + '\n\n刷新页面查看最新数据');
-            window.location.reload();
+            window.location.href = window.location.href;
         } else {
             alert('✗ ' + data.message);
             btn.disabled = false;
@@ -112,208 +121,271 @@ function getCookie(name) {
 {% endif %}
 
 {% if snapshot %}
-<div class="regime-dashboard">
-    <!-- 当前状态卡片（缩小版） -->
-    <div class="regime-current-compact">
-        <div class="compact-header">
-            <h2>当前状态</h2>
-            <span class="current-date">{{ current_date|date:"Y年m月d日" }}</span>
-        </div>
-
-        <div class="compact-content">
-            <div class="regime-matrix-small">
-                <div class="matrix-quad-small {% if snapshot.dominant_regime == 'Recovery' %}active{% endif %}">
-                    <div class="quad-name">复苏</div>
-                    <div class="quad-prob">{{ snapshot.distribution.Recovery|floatformat:2 }}</div>
-                </div>
-                <div class="matrix-quad-small {% if snapshot.dominant_regime == 'Overheat' %}active{% endif %}">
-                    <div class="quad-name">过热</div>
-                    <div class="quad-prob">{{ snapshot.distribution.Overheat|floatformat:2 }}</div>
-                </div>
-                <div class="matrix-quad-small {% if snapshot.dominant_regime == 'Stagflation' %}active{% endif %}">
-                    <div class="quad-name">滞胀</div>
-                    <div class="quad-prob">{{ snapshot.distribution.Stagflation|floatformat:2 }}</div>
-                </div>
-                <div class="matrix-quad-small {% if snapshot.dominant_regime == 'Deflation' %}active{% endif %}">
-                    <div class="quad-name">通缩</div>
-                    <div class="quad-prob">{{ snapshot.distribution.Deflation|floatformat:2 }}</div>
-                </div>
-            </div>
-
-            <div class="compact-summary">
-                <div class="summary-col">
-                    <span class="label">主导象限:</span>
-                    <span class="value dominant-{{ snapshot.dominant_regime|lower }}">
-                        {% if snapshot.dominant_regime == 'Recovery' %}复苏
-                        {% elif snapshot.dominant_regime == 'Overheat' %}过热
-                        {% elif snapshot.dominant_regime == 'Stagflation' %}滞胀
-                        {% elif snapshot.dominant_regime == 'Deflation' %}通缩
-                        {% endif %}
-                    </span>
-                </div>
-                <div class="summary-col">
-                    <span class="label">置信度:</span>
-                    <span class="value">{{ snapshot.confidence|floatformat:2 }}</span>
-                </div>
-                <div class="summary-col">
-                    <span class="label">增长动量:</span>
-                    <span class="value {% if snapshot.growth_momentum_z > 0 %}positive{% else %}negative{% endif %}">
-                        {{ snapshot.growth_momentum_z|floatformat:2 }}
-                    </span>
-                </div>
-                <div class="summary-col">
-                    <span class="label">通胀动量:</span>
-                    <span class="value {% if snapshot.inflation_momentum_z > 0 %}positive{% else %}negative{% endif %}">
-                        {{ snapshot.inflation_momentum_z|floatformat:2 }}
-                    </span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 原始数据表格 -->
-    {% if raw_data %}
-    <div class="data-section">
-        <h2 class="section-title">原始数据</h2>
-        <div class="data-tables">
-            <div class="data-table-wrapper">
-                <h3 class="table-title">增长指标 (PMI)</h3>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>期间</th>
-                            <th>数值</th>
-                            <th>指标代码</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in raw_data.growth|slice:"-12:" %}
-                        <tr>
-                            <td>{{ item.date }}</td>
-                            <td class="numeric">{{ item.value|floatformat:2 }}</td>
-                            <td>{{ item.code }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="data-table-wrapper">
-                <h3 class="table-title">通胀指标 (CPI)</h3>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>期间</th>
-                            <th>数值</th>
-                            <th>指标代码</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in raw_data.inflation|slice:"-12:" %}
-                        <tr>
-                            <td>{{ item.date }}</td>
-                            <td class="numeric">{{ item.value|floatformat:2 }}</td>
-                            <td>{{ item.code }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- 计算过程展示 -->
-    {% if intermediate_data %}
-    <div class="data-section">
-        <h2 class="section-title">计算过程</h2>
-        <div class="calculation-grid">
-            <div class="calc-card">
-                <h3>步骤 1: 计算动量</h3>
-                <p class="calc-desc">计算 3 个月的相对变化率：momentum = (current - past_3m) / |past_3m|</p>
-                <div class="calc-values">
-                    <div class="calc-item">
-                        <span class="calc-label">增长动量（最新）:</span>
-                        <span class="calc-value">{{ intermediate_data.growth_momentum|last|floatformat:4 }}</span>
+<div class="regime-dashboard-new">
+    <!-- 左侧主要内容区 -->
+    <div class="main-panel">
+        <!-- Regime矩阵卡片 -->
+        <div class="regime-matrix-card">
+            <div class="matrix-compact">
+                <!-- 四象限 + 坐标轴 + 说明 -->
+                <div class="quad-wrapper">
+                    <!-- 左侧Y轴标签 -->
+                    <div class="axis-y">
+                        <span class="axis-label-top">增长↑</span>
                     </div>
-                    <div class="calc-item">
-                        <span class="calc-label">通胀动量（最新）:</span>
-                        <span class="calc-value">{{ intermediate_data.inflation_momentum|last|floatformat:4 }}</span>
+
+                    <!-- 四象限网格 -->
+                    <div class="quad-grid">
+                        <!-- 复苏 (左上) -->
+                        <div class="quad-box {% if snapshot.dominant_regime == 'Recovery' %}quad-active-recovery{% endif %}">
+                            <div class="quad-title">复苏</div>
+                            <div class="quad-prob">{{ snapshot.distribution.Recovery|floatformat:2 }}</div>
+                            <div class="quad-hint">高增低胀</div>
+                        </div>
+                        <!-- 过热 (右上) -->
+                        <div class="quad-box {% if snapshot.dominant_regime == 'Overheat' %}quad-active-overheat{% endif %}">
+                            <div class="quad-title">过热</div>
+                            <div class="quad-prob">{{ snapshot.distribution.Overheat|floatformat:2 }}</div>
+                            <div class="quad-hint">双高</div>
+                        </div>
+                        <!-- 通缩 (左下) -->
+                        <div class="quad-box {% if snapshot.dominant_regime == 'Deflation' %}quad-active-deflation{% endif %}">
+                            <div class="quad-title">通缩</div>
+                            <div class="quad-prob">{{ snapshot.distribution.Deflation|floatformat:2 }}</div>
+                            <div class="quad-hint">双低</div>
+                        </div>
+                        <!-- 滞胀 (右下) -->
+                        <div class="quad-box {% if snapshot.dominant_regime == 'Stagflation' %}quad-active-stagflation{% endif %}">
+                            <div class="quad-title">滞胀</div>
+                            <div class="quad-prob">{{ snapshot.distribution.Stagflation|floatformat:2 }}</div>
+                            <div class="quad-hint">低增高胀</div>
+                        </div>
+                    </div>
+
+                    <!-- 右侧说明区 -->
+                    <div class="quad-explanation">
+                        <div class="explain-header">📐 判定算法</div>
+                        <div class="explain-steps">
+                            <div class="step-item">
+                                <span class="step-num">1</span>
+                                <div class="step-text">
+                                    <span class="step-title">HP滤波</span>
+                                    <span class="step-desc">去除趋势，提取周期项<br>λ=129600（月度数据标准参数）</span>
+                                </div>
+                            </div>
+                            <div class="step-item">
+                                <span class="step-num">2</span>
+                                <div class="step-text">
+                                    <span class="step-title">动量计算</span>
+                                    <span class="step-desc">3个月差分：cycle_t - cycle_{t-3}<br>度量中期变化方向</span>
+                                </div>
+                            </div>
+                            <div class="step-item">
+                                <span class="step-num">3</span>
+                                <div class="step-text">
+                                    <span class="step-title">Z-Score标准化</span>
+                                    <span class="step-desc">60期滚动窗口计算均值/标准差<br>消除量纲，评估相对强弱</span>
+                                </div>
+                            </div>
+                            <div class="step-item">
+                                <span class="step-num">4</span>
+                                <div class="step-text">
+                                    <span class="step-title">概率转换</span>
+                                    <span class="step-desc">正态CDF映射到[0,1]<br>Z>0时概率>0.5，判定为"上行"</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="explain-footer">
+                            <span class="footer-label">数据来源</span>
+                            <span class="footer-value">PMI（增长） / CPI（通胀）</span>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="calc-card">
-                <h3>步骤 2: 计算 Z-Score</h3>
-                <p class="calc-desc">滚动 60 期窗口标准化：z = (value - mean) / std</p>
-                <div class="calc-values">
-                    <div class="calc-item">
-                        <span class="calc-label">增长 Z-Score:</span>
-                        <span class="calc-value {% if snapshot.growth_momentum_z > 0 %}positive{% else %}negative{% endif %}">
-                            {{ snapshot.growth_momentum_z|floatformat:3 }}
+                <!-- 关键指标 -->
+                <div class="key-metrics">
+                    <div class="metric-item">
+                        <span class="metric-name">增长Z-Score</span>
+                        <span class="metric-val {% if snapshot.growth_momentum_z > 0 %}val-up{% else %}val-down{% endif %}">
+                            {{ snapshot.growth_momentum_z|floatformat:2 }}
                         </span>
                     </div>
-                    <div class="calc-item">
-                        <span class="calc-label">通胀 Z-Score:</span>
-                        <span class="calc-value {% if snapshot.inflation_momentum_z > 0 %}positive{% else %}negative{% endif %}">
-                            {{ snapshot.inflation_momentum_z|floatformat:3 }}
+                    <div class="metric-item">
+                        <span class="metric-name">通胀Z-Score</span>
+                        <span class="metric-val {% if snapshot.inflation_momentum_z > 0 %}val-up{% else %}val-down{% endif %}">
+                            {{ snapshot.inflation_momentum_z|floatformat:2 }}
                         </span>
                     </div>
+                    <div class="metric-item">
+                        <span class="metric-name">主导象限</span>
+                        <span class="metric-val metric-dominant">
+                            {% if snapshot.dominant_regime == 'Recovery' %}复苏
+                            {% elif snapshot.dominant_regime == 'Overheat' %}过热
+                            {% elif snapshot.dominant_regime == 'Stagflation' %}滞胀
+                            {% elif snapshot.dominant_regime == 'Deflation' %}通缩
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-name">数据时点</span>
+                        <span class="metric-val">{{ as_of_date|date:"Y-m-d" }}</span>
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <div class="calc-card">
-                <h3>步骤 3: Sigmoid 转换</h3>
-                <p class="calc-desc">将 Z-Score 转为概率：p = 1 / (1 + exp(-k*z)), k=2.0</p>
-                <div class="calc-values">
-                    <div class="calc-item">
-                        <span class="calc-label">增长向上概率:</span>
-                        <span class="calc-value">{{ snapshot.distribution.Recovery|add:snapshot.distribution.Overheat|floatformat:2 }}</span>
-                    </div>
-                    <div class="calc-item">
-                        <span class="calc-label">通胀向上概率:</span>
-                        <span class="calc-value">{{ snapshot.distribution.Overheat|add:snapshot.distribution.Stagflation|floatformat:2 }}</span>
-                    </div>
+        <!-- 图表区域 -->
+        <div class="charts-section">
+            <h3 class="section-title-alt">历史趋势</h3>
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <div id="rawDataChart" class="chart-inner"></div>
                 </div>
-            </div>
-
-            <div class="calc-card">
-                <h3>步骤 4: 四象限分布</h3>
-                <p class="calc-desc">根据增长/通胀的联合概率计算四个 Regime 的权重</p>
-                <div class="calc-values">
-                    <div class="calc-item">
-                        <span class="calc-label">复苏:</span>
-                        <span class="calc-value">{{ snapshot.distribution.Recovery|floatformat:3 }}</span>
-                    </div>
-                    <div class="calc-item">
-                        <span class="calc-label">过热:</span>
-                        <span class="calc-value">{{ snapshot.distribution.Overheat|floatformat:3 }}</span>
-                    </div>
-                    <div class="calc-item">
-                        <span class="calc-label">滞胀:</span>
-                        <span class="calc-value">{{ snapshot.distribution.Stagflation|floatformat:3 }}</span>
-                    </div>
-                    <div class="calc-item">
-                        <span class="calc-label">通缩:</span>
-                        <span class="calc-value">{{ snapshot.distribution.Deflation|floatformat:3 }}</span>
-                    </div>
+                <div class="chart-card">
+                    <div id="momentumChart" class="chart-inner"></div>
+                </div>
+                <div class="chart-card">
+                    <div id="zscoreChart" class="chart-inner"></div>
                 </div>
             </div>
         </div>
     </div>
-    {% endif %}
 
-    <!-- ECharts 趋势图 -->
-    <div class="data-section">
-        <h2 class="section-title">历史趋势</h2>
-        <div class="chart-container">
-            <div id="rawDataChart" style="width: 100%; height: 400px;"></div>
-        </div>
-        <div class="chart-container">
-            <div id="momentumChart" style="width: 100%; height: 400px;"></div>
-        </div>
-        <div class="chart-container">
-            <div id="zscoreChart" style="width: 100%; height: 400px;"></div>
+    <!-- 右侧Tab面板 -->
+    <div class="side-panel">
+        <div class="tab-container">
+            <div class="tab-header">
+                <button class="tab-button active" data-tab="data" onclick="switchTab('data')">
+                    <span class="tab-icon">📊</span>
+                    原始数据
+                </button>
+                <button class="tab-button" data-tab="ai" onclick="switchTab('ai')">
+                    <span class="tab-icon">🤖</span>
+                    AI分析
+                </button>
+            </div>
+
+            <!-- 原始数据Tab -->
+            <div id="tab-data" class="tab-content active">
+                {% if raw_data %}
+                <div class="data-tab-content">
+                    <div class="data-subsection">
+                        <h4 class="subsection-title">增长指标 (PMI)</h4>
+                        <div class="table-wrapper">
+                            <table class="compact-table">
+                                <thead>
+                                    <tr>
+                                        <th>期间</th>
+                                        <th>数值</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in raw_data.growth|slice:"-18:" %}
+                                    <tr>
+                                        <td>{{ item.date }}</td>
+                                        <td class="numeric">{{ item.value|floatformat:2 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="data-subsection">
+                        <h4 class="subsection-title">通胀指标 (CPI)</h4>
+                        <div class="table-wrapper">
+                            <table class="compact-table">
+                                <thead>
+                                    <tr>
+                                        <th>期间</th>
+                                        <th>数值</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in raw_data.inflation|slice:"-18:" %}
+                                    <tr>
+                                        <td>{{ item.date }}</td>
+                                        <td class="numeric">{{ item.value|floatformat:2 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {% if intermediate_data %}
+                    <div class="data-subsection">
+                        <h4 class="subsection-title">计算过程</h4>
+                        <div class="calc-process">
+                            <div class="calc-step">
+                                <span class="step-label">步骤1: 动量</span>
+                                <span class="step-value">增长: {{ intermediate_data.growth_momentum|last|floatformat:4 }} / 通胀: {{ intermediate_data.inflation_momentum|last|floatformat:4 }}</span>
+                            </div>
+                            <div class="calc-step">
+                                <span class="step-label">步骤2: Z-Score</span>
+                                <span class="step-value">增长: {{ snapshot.growth_momentum_z|floatformat:3 }} / 通胀: {{ snapshot.inflation_momentum_z|floatformat:3 }}</span>
+                            </div>
+                            <div class="calc-step">
+                                <span class="step-label">步骤3: 概率转换</span>
+                                <span class="step-value">增长向上: {{ snapshot.distribution.Recovery|add:snapshot.distribution.Overheat|floatformat:2 }} / 通胀向上: {{ snapshot.distribution.Overheat|add:snapshot.distribution.Stagflation|floatformat:2 }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="empty-tab">
+                    <div class="empty-icon">📭</div>
+                    <p>暂无原始数据</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- AI分析Tab -->
+            <div id="tab-ai" class="tab-content">
+                <div class="ai-tab-content">
+                    <!-- AI分析输入 -->
+                    <div class="ai-input-section">
+                        <div class="input-prompt">
+                            <label for="aiQuestion">向AI提问:</label>
+                            <div class="quick-questions">
+                                <button class="quick-btn" onclick="askAI('当前Regime状态如何？')">当前Regime状态？</button>
+                                <button class="quick-btn" onclick="askAI('分析当前的增长和通胀趋势')">分析趋势</button>
+                                <button class="quick-btn" onclick="askAI('根据当前Regime，应该采取什么投资策略？')">投资建议</button>
+                                <button class="quick-btn" onclick="askAI('最近3个月Regime发生了什么变化？')">变化分析</button>
+                            </div>
+                            <textarea id="aiQuestion" class="ai-textarea" placeholder="输入您的问题，或点击上方快捷按钮..."></textarea>
+                            <button class="ai-submit-btn" onclick="submitAIQuestion()">
+                                <span class="btn-icon">🤖</span>
+                                分析
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- AI分析结果 -->
+                    <div class="ai-output-section">
+                        <div class="output-header">
+                            <span class="output-title">AI分析结果</span>
+                            <span class="output-status" id="aiStatus"></span>
+                        </div>
+                        <div id="aiResponse" class="ai-response">
+                            <div class="ai-placeholder">
+                                <div class="placeholder-icon">💭</div>
+                                <p>在上方提问，AI将基于当前Regime状态进行分析</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 分析历史 -->
+                    <div class="ai-history-section">
+                        <div class="history-header">
+                            <span>历史对话</span>
+                            <button class="clear-history-btn" onclick="clearHistory()">清空</button>
+                        </div>
+                        <div id="aiHistory" class="history-list"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -330,7 +402,7 @@ function getCookie(name) {
 {% endif %}
 
 <style>
-/* Page Header */
+/* ==================== 页面头部 ==================== */
 .header-content {
     display: flex;
     justify-content: space-between;
@@ -340,11 +412,37 @@ function getCookie(name) {
 .data-source-selector {
     display: flex;
     align-items: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-sm) var(--spacing-md);
+    gap: 8px;
+    padding: 8px 12px;
     background: var(--color-bg);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
+    flex-wrap: wrap;
+}
+
+.data-source-selector label {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.data-source-selector input[type="date"] {
+    padding: 6px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: white;
+    font-size: 13px;
+    font-family: inherit;
+}
+
+.data-source-selector select {
+    padding: 6px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: white;
+    font-size: 13px;
+    cursor: pointer;
 }
 
 .sync-btn {
@@ -373,7 +471,7 @@ function getCookie(name) {
 
 .sync-icon {
     display: inline-block;
-    font-size: 16px;
+    font-size: 14px;
     transition: transform 0.3s;
 }
 
@@ -403,25 +501,6 @@ function getCookie(name) {
     background: #F6F8FA;
 }
 
-.data-source-selector label {
-    font-size: 13px;
-    color: var(--color-text-secondary);
-    font-weight: 600;
-}
-
-.data-source-selector select {
-    padding: 6px 10px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    background: white;
-    font-size: 13px;
-    cursor: pointer;
-}
-
-.data-source-selector select:hover {
-    border-color: var(--color-primary);
-}
-
 .source-badge {
     padding: 4px 10px;
     font-size: 11px;
@@ -441,240 +520,681 @@ function getCookie(name) {
     color: #E67700;
 }
 
-/* 整体布局 */
-.regime-dashboard {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-lg);
+/* ==================== 新布局 ==================== */
+.regime-dashboard-new {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 20px;
+    align-items: start;
 }
 
-/* 缩小版结果卡片 */
-.regime-current-compact {
+/* ==================== 左侧主面板 ==================== */
+.main-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Regime矩阵卡片 */
+.regime-matrix-card {
     background: var(--color-bg);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    padding: var(--spacing-md);
+    padding: 20px;
 }
 
-.compact-header {
+.matrix-compact {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-md);
+    flex-direction: column;
+    gap: 16px;
 }
 
-.compact-header h2 {
-    font-size: 16px;
+/* 四象限包装器 */
+.quad-wrapper {
+    display: flex;
+    align-items: stretch;
+    gap: 16px;
+}
+
+/* 坐标轴标签 */
+.axis-y {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
     font-weight: 600;
-    color: var(--color-text-primary);
-}
-
-.current-date {
-    font-size: 13px;
     color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    padding: 0 4px;
 }
 
-.compact-content {
-    display: flex;
-    gap: var(--spacing-lg);
-    align-items: center;
-}
-
-.regime-matrix-small {
+/* 四象限网格 */
+.quad-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, 140px);
+    grid-template-rows: repeat(2, 100px);
     gap: 8px;
-    flex-shrink: 0;
 }
 
-.matrix-quad-small {
-    padding: 8px;
+.quad-box {
+    border: 2px solid var(--color-border);
     border-radius: var(--radius-sm);
-    border: 1px solid var(--color-border);
-    text-align: center;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
     transition: all 0.2s;
 }
 
-.matrix-quad-small.active {
-    border-color: var(--color-primary);
-    background: rgba(51, 102, 204, 0.05);
-    box-shadow: 0 0 0 1px var(--color-primary);
-}
-
-.quad-name {
-    font-size: 11px;
+.quad-title {
+    font-size: 13px;
+    font-weight: 600;
     color: var(--color-text-secondary);
-    margin-bottom: 4px;
 }
 
 .quad-prob {
-    font-size: 16px;
+    font-size: 22px;
     font-weight: 700;
     color: var(--color-text-primary);
 }
 
-.compact-summary {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: var(--spacing-md);
-    flex: 1;
-}
-
-.summary-col {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.summary-col .label {
-    font-size: 11px;
+.quad-hint {
+    font-size: 10px;
     color: var(--color-text-muted);
 }
 
-.summary-col .value {
-    font-size: 15px;
+/* 激活状态 */
+.quad-active-recovery {
+    border-color: #22C55E;
+    background: rgba(34, 197, 94, 0.08);
+}
+
+.quad-active-recovery .quad-prob { color: #22C55E; }
+
+.quad-active-overheat {
+    border-color: #EF4444;
+    background: rgba(239, 68, 68, 0.08);
+}
+
+.quad-active-overheat .quad-prob { color: #EF4444; }
+
+.quad-active-stagflation {
+    border-color: #F59E0B;
+    background: rgba(245, 158, 11, 0.08);
+}
+
+.quad-active-stagflation .quad-prob { color: #F59E0B; }
+
+.quad-active-deflation {
+    border-color: #3B82F6;
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.quad-active-deflation .quad-prob { color: #3B82F6; }
+
+/* 关键指标 */
+.key-metrics {
+    display: flex;
+    justify-content: space-around;
+    padding: 12px;
+    background: var(--color-surface);
+    border-radius: var(--radius-sm);
+}
+
+.metric-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.metric-name {
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.metric-val {
+    font-size: 16px;
+    font-weight: 700;
+    font-family: monospace;
+}
+
+.metric-dominant {
+    color: var(--color-text-primary);
+}
+
+.val-up { color: #22C55E; }
+.val-down { color: #EF4444; }
+
+/* 算法说明区 */
+.quad-explanation {
+    flex: 1;
+    min-width: 240px;
+    max-width: 320px;
+    padding: 16px;
+    background: var(--color-surface);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+}
+
+.explain-header {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.explain-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    flex: 1;
+}
+
+.step-item {
+    display: flex;
+    gap: 10px;
+}
+
+.step-num {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    background: var(--color-border);
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    flex-shrink: 0;
+    padding-top: 1px;
+}
+
+.step-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.step-title {
+    font-size: 12px;
     font-weight: 600;
     color: var(--color-text-primary);
 }
 
-.dominant-recovery { color: #36C; }
-.dominant-overheat { color: #D33; }
-.dominant-stagflation { color: #AB7100; }
-.dominant-deflation { color: #14866D; }
+.step-desc {
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    line-height: 1.4;
+}
 
-.positive { color: var(--color-success); }
-.negative { color: var(--color-error); }
+.explain-footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--color-border);
+}
 
-/* 数据区块 */
-.data-section {
+.footer-label {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.footer-value {
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    font-family: monospace;
+}
+
+/* 图表区域 */
+.charts-section {
     background: var(--color-bg);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    padding: var(--spacing-lg);
+    padding: 20px;
 }
 
-.section-title {
+.section-title-alt {
     font-size: 16px;
     font-weight: 600;
     color: var(--color-text-primary);
-    margin-bottom: var(--spacing-md);
-    border-bottom: 1px solid var(--color-border);
-    padding-bottom: var(--spacing-sm);
+    margin-bottom: 16px;
 }
 
-/* 数据表格 */
-.data-tables {
+.charts-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: var(--spacing-lg);
+    gap: 16px;
 }
 
-.data-table-wrapper {
+.charts-grid .chart-card:last-child {
+    grid-column: 1 / -1;
+}
+
+.chart-card {
+    background: var(--color-surface);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
     overflow: hidden;
 }
 
-.table-title {
+.chart-inner {
+    width: 100%;
+    height: 280px;
+}
+
+/* ==================== 右侧Tab面板 ==================== */
+.side-panel {
+    position: sticky;
+    top: 20px;
+}
+
+.tab-container {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.tab-header {
+    display: flex;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.tab-button {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 16px;
+    background: transparent;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+}
+
+.tab-button:hover {
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+}
+
+.tab-button.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+    background: rgba(51, 102, 204, 0.05);
+}
+
+.tab-icon {
+    font-size: 16px;
+}
+
+.tab-content {
+    display: none;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* 原始数据Tab */
+.data-tab-content {
+    padding: 16px;
+}
+
+.data-subsection {
+    margin-bottom: 20px;
+}
+
+.subsection-title {
     font-size: 14px;
     font-weight: 600;
     color: var(--color-text-primary);
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--color-border);
 }
 
-.data-table {
+.table-wrapper {
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+}
+
+.compact-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 13px;
+    font-size: 12px;
 }
 
-.data-table thead {
+.compact-table thead {
     background: var(--color-surface);
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 
-.data-table th {
+.compact-table th {
     padding: 8px 12px;
     text-align: left;
     font-weight: 600;
     color: var(--color-text-secondary);
-    border-bottom: 2px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
 }
 
-.data-table td {
+.compact-table td {
     padding: 6px 12px;
     border-bottom: 1px solid var(--color-surface);
     color: var(--color-text-primary);
 }
 
-.data-table td.numeric {
+.compact-table td.numeric {
     text-align: right;
     font-family: monospace;
 }
 
-.data-table tbody tr:hover {
+.compact-table tbody tr:hover {
     background: var(--color-surface);
 }
 
 /* 计算过程 */
-.calculation-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--spacing-md);
-}
-
-.calc-card {
-    padding: var(--spacing-md);
+.calc-process {
     background: var(--color-surface);
     border-radius: var(--radius-sm);
+    padding: 12px;
     border: 1px solid var(--color-border);
 }
 
-.calc-card h3 {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin-bottom: var(--spacing-xs);
-}
-
-.calc-desc {
-    font-size: 12px;
-    color: var(--color-text-secondary);
-    line-height: 1.5;
-    margin-bottom: var(--spacing-sm);
-}
-
-.calc-values {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-xs);
-}
-
-.calc-item {
+.calc-step {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--color-border);
 }
 
-.calc-label {
+.calc-step:last-child {
+    border-bottom: none;
+}
+
+.step-label {
     font-size: 12px;
     color: var(--color-text-secondary);
 }
 
-.calc-value {
-    font-size: 13px;
+.step-value {
+    font-size: 12px;
     font-weight: 600;
     color: var(--color-text-primary);
     font-family: monospace;
 }
 
-/* 图表容器 */
-.chart-container {
-    margin-top: var(--spacing-md);
+/* AI分析Tab */
+.ai-tab-content {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 200px);
 }
 
-/* Alert 样式 */
-.alert {
-    padding: var(--spacing-md);
+.ai-input-section {
+    padding: 16px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.input-prompt label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin-bottom: 8px;
+}
+
+.quick-questions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.quick-btn {
+    padding: 6px 10px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
-    margin-bottom: var(--spacing-lg);
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.quick-btn:hover {
+    border-color: var(--color-primary);
+    background: rgba(51, 102, 204, 0.05);
+    color: var(--color-primary);
+}
+
+.ai-textarea {
+    width: 100%;
+    min-height: 60px;
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+    margin-bottom: 10px;
+}
+
+.ai-textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px rgba(51, 102, 204, 0.1);
+}
+
+.ai-submit-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 10px;
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ai-submit-btn:hover {
+    background: var(--color-primary-hover);
+}
+
+.ai-submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* AI输出区域 */
+.ai-output-section {
+    padding: 16px;
+    border-bottom: 1px solid var(--color-border);
+    flex: 1;
+    overflow-y: auto;
+}
+
+.output-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.output-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.output-status {
+    font-size: 11px;
+    color: var(--color-text-muted);
+}
+
+.ai-response {
+    min-height: 100px;
+}
+
+.ai-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--color-text-muted);
+}
+
+.placeholder-icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.ai-response-content {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--color-text-primary);
+    white-space: pre-wrap;
+}
+
+.ai-response-content p {
+    margin-bottom: 12px;
+}
+
+.ai-response-content ul {
+    margin: 12px 0;
+    padding-left: 20px;
+}
+
+.ai-response-content li {
+    margin-bottom: 6px;
+}
+
+/* AI历史 */
+.ai-history-section {
+    border-top: 1px solid var(--color-border);
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.history-header span {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+
+.clear-history-btn {
+    padding: 4px 10px;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.clear-history-btn:hover {
+    border-color: var(--color-error);
+    color: var(--color-error);
+}
+
+.history-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.history-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--color-surface);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.history-item:hover {
+    background: var(--color-surface);
+}
+
+.history-question {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin-bottom: 4px;
+}
+
+.history-time {
+    font-size: 11px;
+    color: var(--color-text-muted);
+}
+
+/* 空状态 */
+.empty-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.empty-tab p {
+    color: var(--color-text-muted);
+    font-size: 13px;
+}
+
+/* 其他样式 */
+.alert {
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 20px;
     border-left: 4px solid;
 }
 
@@ -695,22 +1215,21 @@ function getCookie(name) {
     padding-left: 20px;
 }
 
-/* Empty State */
 .empty-state {
     text-align: center;
-    padding: var(--spacing-xxl);
+    padding: 60px 20px;
 }
 
-.empty-icon {
+.empty-state .empty-icon {
     font-size: 48px;
-    margin-bottom: var(--spacing-md);
+    margin-bottom: 16px;
 }
 
 .empty-title {
     font-size: 18px;
     font-weight: 600;
     color: var(--color-text-primary);
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: 8px;
 }
 
 .empty-desc {
@@ -726,7 +1245,7 @@ function getCookie(name) {
     text-decoration: none;
     border-radius: var(--radius-sm);
     font-size: 14px;
-    margin-top: var(--spacing-md);
+    margin-top: 16px;
 }
 
 .btn:hover {
@@ -734,145 +1253,389 @@ function getCookie(name) {
 }
 
 /* 响应式 */
-@media (max-width: 768px) {
-    .header-content {
-        flex-direction: column;
-        gap: var(--spacing-md);
-    }
-
-    .compact-content {
-        flex-direction: column;
-    }
-
-    .data-tables,
-    .calculation-grid {
+@media (max-width: 1200px) {
+    .regime-dashboard-new {
         grid-template-columns: 1fr;
     }
 
-    .compact-summary {
+    .side-panel {
+        position: static;
+    }
+
+    .tab-content {
+        max-height: 500px;
+    }
+
+    .ai-tab-content {
+        height: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    .header-content {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .data-source-selector {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .quad-wrapper {
+        flex-direction: column;
+    }
+
+    .axis-y {
+        writing-mode: horizontal-tb;
+    }
+
+    .quad-explanation {
+        min-width: 100%;
+        max-width: 100%;
+    }
+
+    .quad-grid {
         grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: repeat(2, 90px);
+    }
+
+    .key-metrics {
+        flex-wrap: wrap;
+        gap: 8px;
     }
 }
 </style>
 
-<!-- ECharts JS (本地静态文件) -->
+<!-- ECharts JS -->
 {% load static %}
 <script src="{% static 'js/echarts.min.js' %}"></script>
 <script>
 {% if raw_data_json and intermediate_data_json %}
-// 解析数据
 const rawData = {{ raw_data_json|safe }};
 const intermediateData = {{ intermediate_data_json|safe }};
+const snapshotData = {
+    dominant_regime: "{{ snapshot.dominant_regime }}",
+    confidence: {{ snapshot.confidence }},
+    growth_momentum_z: {{ snapshot.growth_momentum_z }},
+    inflation_momentum_z: {{ snapshot.inflation_momentum_z }},
+    distribution: {{ snapshot.distribution|safe }}
+};
 
-// 原始数据图表
-const rawChart = echarts.init(document.getElementById('rawDataChart'));
-rawChart.setOption({
-    title: { text: '原始指标时间序列', left: 'center', textStyle: { fontSize: 14 } },
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['PMI', 'CPI'], top: 30 },
-    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-    xAxis: {
-        type: 'category',
-        data: rawData.growth.map(item => item.date),
-        axisLabel: { rotate: 45, fontSize: 11 }
-    },
-    yAxis: [
-        { type: 'value', name: 'PMI', position: 'left' },
-        { type: 'value', name: 'CPI', position: 'right' }
-    ],
-    series: [
-        {
-            name: 'PMI',
-            type: 'line',
-            data: rawData.growth.map(item => item.value),
-            smooth: true,
-            itemStyle: { color: '#3366CC' }
+// 初始化图表
+function initCharts() {
+    // 原始数据图表
+    const rawChart = echarts.init(document.getElementById('rawDataChart'));
+    rawChart.setOption({
+        title: { text: '原始指标时间序列', left: 'center', textStyle: { fontSize: 13 } },
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['PMI', 'CPI'], top: 25, textStyle: { fontSize: 11 } },
+        grid: { left: '3%', right: '4%', bottom: '3%', top: 50, containLabel: true },
+        xAxis: {
+            type: 'category',
+            data: rawData.growth.map(item => item.date),
+            axisLabel: { rotate: 45, fontSize: 10 }
         },
-        {
-            name: 'CPI',
-            type: 'line',
-            yAxisIndex: 1,
-            data: rawData.inflation.map(item => item.value),
-            smooth: true,
-            itemStyle: { color: '#DC3912' }
-        }
-    ]
-});
-
-// 动量图表
-const momentumChart = echarts.init(document.getElementById('momentumChart'));
-momentumChart.setOption({
-    title: { text: '3 个月动量 (相对变化率)', left: 'center', textStyle: { fontSize: 14 } },
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['增长动量', '通胀动量'], top: 30 },
-    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-    xAxis: {
-        type: 'category',
-        data: rawData.growth.map(item => item.date),
-        axisLabel: { rotate: 45, fontSize: 11 }
-    },
-    yAxis: { type: 'value', name: '动量' },
-    series: [
-        {
-            name: '增长动量',
-            type: 'line',
-            data: intermediateData.growth_momentum,
-            smooth: true,
-            itemStyle: { color: '#3366CC' }
-        },
-        {
-            name: '通胀动量',
-            type: 'line',
-            data: intermediateData.inflation_momentum,
-            smooth: true,
-            itemStyle: { color: '#DC3912' }
-        }
-    ]
-});
-
-// Z-Score 图表
-const zscoreChart = echarts.init(document.getElementById('zscoreChart'));
-zscoreChart.setOption({
-    title: { text: 'Z-Score (60 期滚动标准化)', left: 'center', textStyle: { fontSize: 14 } },
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['增长 Z-Score', '通胀 Z-Score'], top: 30 },
-    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
-    xAxis: {
-        type: 'category',
-        data: rawData.growth.map(item => item.date),
-        axisLabel: { rotate: 45, fontSize: 11 }
-    },
-    yAxis: { type: 'value', name: 'Z-Score' },
-    series: [
-        {
-            name: '增长 Z-Score',
-            type: 'line',
-            data: intermediateData.growth_z_score,
-            smooth: true,
-            itemStyle: { color: '#3366CC' },
-            markLine: {
-                data: [{ yAxis: 0, lineStyle: { color: '#999', type: 'dashed' } }]
+        yAxis: [
+            { type: 'value', name: 'PMI', position: 'left', nameTextStyle: { fontSize: 10 } },
+            { type: 'value', name: 'CPI', position: 'right', nameTextStyle: { fontSize: 10 } }
+        ],
+        series: [
+            {
+                name: 'PMI',
+                type: 'line',
+                data: rawData.growth.map(item => item.value),
+                smooth: true,
+                itemStyle: { color: '#3366CC' },
+                lineStyle: { width: 2 }
+            },
+            {
+                name: 'CPI',
+                type: 'line',
+                yAxisIndex: 1,
+                data: rawData.inflation.map(item => item.value),
+                smooth: true,
+                itemStyle: { color: '#DC3912' },
+                lineStyle: { width: 2 }
             }
-        },
-        {
-            name: '通胀 Z-Score',
-            type: 'line',
-            data: intermediateData.inflation_z_score,
-            smooth: true,
-            itemStyle: { color: '#DC3912' },
-            markLine: {
-                data: [{ yAxis: 0, lineStyle: { color: '#999', type: 'dashed' } }]
-            }
-        }
-    ]
-});
+        ]
+    });
 
-// 响应式调整
-window.addEventListener('resize', () => {
-    rawChart.resize();
-    momentumChart.resize();
-    zscoreChart.resize();
-});
+    // 动量图表
+    const momentumChart = echarts.init(document.getElementById('momentumChart'));
+    momentumChart.setOption({
+        title: { text: '3个月动量', left: 'center', textStyle: { fontSize: 13 } },
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['增长动量', '通胀动量'], top: 25, textStyle: { fontSize: 11 } },
+        grid: { left: '3%', right: '4%', bottom: '3%', top: 50, containLabel: true },
+        xAxis: {
+            type: 'category',
+            data: rawData.growth.map(item => item.date),
+            axisLabel: { rotate: 45, fontSize: 10 }
+        },
+        yAxis: { type: 'value', name: '动量', nameTextStyle: { fontSize: 10 } },
+        series: [
+            {
+                name: '增长动量',
+                type: 'line',
+                data: intermediateData.growth_momentum,
+                smooth: true,
+                itemStyle: { color: '#3366CC' },
+                lineStyle: { width: 2 }
+            },
+            {
+                name: '通胀动量',
+                type: 'line',
+                data: intermediateData.inflation_momentum,
+                smooth: true,
+                itemStyle: { color: '#DC3912' },
+                lineStyle: { width: 2 }
+            }
+        ]
+    });
+
+    // Z-Score图表
+    const zscoreChart = echarts.init(document.getElementById('zscoreChart'));
+    zscoreChart.setOption({
+        title: { text: 'Z-Score (60期滚动)', left: 'center', textStyle: { fontSize: 13 } },
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['增长Z-Score', '通胀Z-Score'], top: 25, textStyle: { fontSize: 11 } },
+        grid: { left: '3%', right: '4%', bottom: '3%', top: 50, containLabel: true },
+        xAxis: {
+            type: 'category',
+            data: rawData.growth.map(item => item.date),
+            axisLabel: { rotate: 45, fontSize: 10 }
+        },
+        yAxis: { type: 'value', name: 'Z-Score', nameTextStyle: { fontSize: 10 } },
+        series: [
+            {
+                name: '增长Z-Score',
+                type: 'line',
+                data: intermediateData.growth_z_score,
+                smooth: true,
+                itemStyle: { color: '#3366CC' },
+                lineStyle: { width: 2 },
+                markLine: {
+                    data: [{ yAxis: 0, lineStyle: { color: '#999', type: 'dashed', width: 1 } }]
+                }
+            },
+            {
+                name: '通胀Z-Score',
+                type: 'line',
+                data: intermediateData.inflation_z_score,
+                smooth: true,
+                itemStyle: { color: '#DC3912' },
+                lineStyle: { width: 2 },
+                markLine: {
+                    data: [{ yAxis: 0, lineStyle: { color: '#999', type: 'dashed', width: 1 } }]
+                }
+            }
+        ]
+    });
+
+    // 响应式
+    window.addEventListener('resize', () => {
+        rawChart.resize();
+        momentumChart.resize();
+        zscoreChart.resize();
+    });
+}
+
+// 页面加载后初始化图表
+document.addEventListener('DOMContentLoaded', initCharts);
 {% endif %}
+
+// Tab切换
+function switchTab(tabName) {
+    // 更新按钮状态
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.tab === tabName) {
+            btn.classList.add('active');
+        }
+    });
+
+    // 更新内容显示
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById('tab-' + tabName).classList.add('active');
+}
+
+// AI分析功能
+const aiHistory = JSON.parse(localStorage.getItem('regimeAiHistory') || '[]');
+
+function renderHistory() {
+    const container = document.getElementById('aiHistory');
+    if (!container) return;
+
+    if (aiHistory.length === 0) {
+        container.innerHTML = '<div class="empty-tab"><div class="empty-icon">💬</div><p>暂无历史对话</p></div>';
+        return;
+    }
+
+    container.innerHTML = aiHistory.map((item, index) => `
+        <div class="history-item" onclick="loadHistory(${index})">
+            <div class="history-question">${item.question.substring(0, 50)}${item.question.length > 50 ? '...' : ''}</div>
+            <div class="history-time">${item.time}</div>
+        </div>
+    `).join('');
+}
+
+function loadHistory(index) {
+    const item = aiHistory[index];
+    document.getElementById('aiQuestion').value = item.question;
+    document.getElementById('aiResponse').innerHTML = `<div class="ai-response-content">${item.answer}</div>`;
+    switchTab('ai');
+}
+
+function clearHistory() {
+    if (confirm('确定清空历史对话吗？')) {
+        localStorage.removeItem('regimeAiHistory');
+        aiHistory.length = 0;
+        renderHistory();
+    }
+}
+
+function askAI(question) {
+    document.getElementById('aiQuestion').value = question;
+    submitAIQuestion();
+}
+
+async function submitAIQuestion() {
+    const question = document.getElementById('aiQuestion').value.trim();
+    if (!question) {
+        alert('请输入问题');
+        return;
+    }
+
+    const responseDiv = document.getElementById('aiResponse');
+    const statusSpan = document.getElementById('aiStatus');
+    const submitBtn = document.querySelector('.ai-submit-btn');
+
+    // 显示加载状态
+    statusSpan.textContent = '分析中...';
+    responseDiv.innerHTML = '<div class="ai-placeholder"><div class="placeholder-icon">⏳</div><p>AI正在分析当前Regime状态...</p></div>';
+    submitBtn.disabled = true;
+
+    try {
+        // 调用后端API
+        const response = await fetch('/api/prompt/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                message: question,
+                context: {
+                    regime: snapshotData,
+                    raw_data: rawData,
+                    intermediate_data: intermediateData
+                }
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.reply) {
+            // 显示结果
+            responseDiv.innerHTML = `<div class="ai-response-content">${data.reply}</div>`;
+            statusSpan.textContent = '';
+
+            // 保存到历史
+            const now = new Date();
+            const timeStr = `${now.getMonth() + 1}月${now.getDate()}日 ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+            aiHistory.unshift({
+                question: question,
+                answer: data.reply,
+                time: timeStr
+            });
+
+            // 只保留最近20条
+            if (aiHistory.length > 20) {
+                aiHistory.pop();
+            }
+
+            localStorage.setItem('regimeAiHistory', JSON.stringify(aiHistory));
+            renderHistory();
+        } else {
+            throw new Error('未收到回复');
+        }
+    } catch (error) {
+        console.error('AI分析失败:', error);
+        // 使用本地模拟回复
+        const mockReply = generateMockResponse(question);
+        responseDiv.innerHTML = `<div class="ai-response-content">${mockReply}</div>`;
+        statusSpan.textContent = '(模拟回复)';
+    }
+
+    submitBtn.disabled = false;
+}
+
+function generateMockResponse(question) {
+    const regime = snapshotData.dominant_regime;
+    const regimeNames = {
+        'Recovery': '复苏',
+        'Overheat': '过热',
+        'Stagflation': '滞胀',
+        'Deflation': '通缩'
+    };
+
+    const responses = {
+        '当前Regime状态如何？': `
+根据最新的数据分析，当前宏观环境处于<strong>${regimeNames[regime]}</strong>象限。
+
+关键指标：
+• 增长Z-Score: ${snapshotData.growth_momentum_z.toFixed(2)}
+• 通胀Z-Score: ${snapshotData.inflation_momentum_z.toFixed(2)}
+• 判定置信度: ${(snapshotData.confidence * 100).toFixed(1)}%
+
+这一状态意味着：
+${regime === 'Recovery' ? '• 经济处于扩张期，增长加速、通胀温和' : ''}
+${regime === 'Overheat' ? '• 经济过热风险，增长强劲、通胀压力上升' : ''}
+${regime === 'Stagflation' ? '• 经济滞胀风险，增长放缓、通胀压力仍存' : ''}
+${regime === 'Deflation' ? '• 经济面临通缩压力，增长和通胀双双下行' : ''}
+        `,
+        '分析趋势': `
+基于最近3个月的动量分析：
+
+增长动量: ${intermediateData.growth_momentum[intermediateData.growth_momentum.length - 1].toFixed(4)}
+通胀动量: ${intermediateData.inflation_momentum[intermediateData.inflation_momentum.length - 1].toFixed(4)}
+
+趋势判断：
+${intermediateData.growth_momentum[intermediateData.growth_momentum.length - 1] > 0 ? '✓ 增长动量为正，经济处于扩张通道' : '✗ 增长动量为负，经济面临下行压力'}
+${intermediateData.inflation_momentum[intermediateData.inflation_momentum.length - 1] > 0 ? '✓ 通胀动量为正，价格水平上升' : '✗ 通胀动量为负，价格水平下降'}
+        `,
+        default: `
+基于当前<strong>${regimeNames[regime]}</strong>象限状态，针对您的问题进行分析：
+
+核心数据：
+• 主导象限: ${regimeNames[regime]}
+• 增长Z-Score: ${snapshotData.growth_momentum_z.toFixed(2)}
+• 通胀Z-Score: ${snapshotData.inflation_momentum_z.toFixed(2)}
+• 置信度: ${(snapshotData.confidence * 100).toFixed(1)}%
+
+建议关注PMI和CPI的后续变化，以及Z-Score的移动趋势。
+        `
+    };
+
+    for (const [key, value] of Object.entries(responses)) {
+        if (question.includes(key) || key === 'default') {
+            return value;
+        }
+    }
+
+    return responses.default;
+}
+
+// 初始化历史记录
+document.addEventListener('DOMContentLoaded', function() {
+    renderHistory();
+});
 </script>
 {% endblock %}

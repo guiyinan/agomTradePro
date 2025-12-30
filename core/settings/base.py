@@ -37,11 +37,13 @@ INSTALLED_APPS = [
     # Local apps
     'apps.macro',
     'apps.regime',
+    'apps.filter',
     'apps.policy',
     'apps.signal',
     'apps.backtest',
     'apps.audit',
     'apps.ai_provider',
+    'apps.prompt',
 ]
 
 MIDDLEWARE = [
@@ -76,6 +78,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'core', 'static'),
     os.path.join(BASE_DIR, 'static'),
 ]
 
@@ -104,10 +107,15 @@ REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
     ],
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
     ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
 }
 
 # Spectacular settings

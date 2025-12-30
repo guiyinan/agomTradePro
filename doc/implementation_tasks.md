@@ -26,100 +26,100 @@
 ### 1.1 项目初始化
 
 #### 1.1.1 Django 项目骨架创建
-- [ ] ⬜ 创建项目目录结构
-- [ ] ⬜ 初始化 Django 项目 (`django-admin startproject core .`)
-- [ ] ⬜ 创建 `core/settings/` 目录
-  - [ ] ⬜ `base.py` - 基础配置
-  - [ ] ⬜ `development.py` - 开发环境配置
-  - [ ] ⬜ `production.py` - 生产环境配置
-- [ ] ⬜ 配置 `core/urls.py` 根路由
-- [ ] ⬜ 配置 `core/celery.py` Celery 初始化
+- [x] ✅ 创建项目目录结构
+- [x] ✅ 初始化 Django 项目 (`django-admin startproject core .`)
+- [x] ✅ 创建 `core/settings/` 目录
+  - [x] ✅ `base.py` - 基础配置
+  - [x] ✅ `development.py` - 开发环境配置
+  - [x] ✅ `production.py` - 生产环境配置
+- [x] ✅ 配置 `core/urls.py` 根路由
+- [x] ✅ 配置 `core/celery.py` Celery 初始化
 
-**验收**: `python manage.py runserver` 成功启动
+**验收**: `python manage.py runserver` 成功启动 ✅
 
 #### 1.1.2 本地开发环境配置
-- [ ] ⬜ 创建 Python 虚拟环境 (`python -m venv venv`)
-- [ ] ⬜ 创建 `requirements.txt` 依赖文件
-- [ ] ⬜ 创建 `.env.example` 环境变量模板
-- [ ] ⬜ 创建 `.gitignore` 文件
-- [ ] ⬜ 配置 `django-environ` 库读取环境变量
+- [x] ✅ 创建 Python 虚拟环境 (`python -m venv venv`)
+- [x] ✅ 创建 `requirements.txt` 依赖文件
+- [x] ✅ 创建 `.env.example` 环境变量模板
+- [x] ✅ 创建 `.gitignore` 文件
+- [x] ✅ 配置 `django-environ` 库读取环境变量
 
-**验收**: `pip install -r requirements.txt` 成功，环境变量正确加载
+**验收**: `pip install -r requirements.txt` 成功，环境变量正确加载 ✅
 
 #### 1.1.3 代码规范工具配置
-- [ ] ⬜ 配置 `black` (代码格式化)
-- [ ] ⬜ 配置 `isort` (导入排序)
-- [ ] ⬜ 配置 `ruff` (代码检查)
-- [ ] ⬜ 配置 `mypy` (类型检查)
-- [ ] ⬜ 创建 `pyproject.toml` 统一配置
+- [x] ✅ 配置 `black` (代码格式化)
+- [x] ✅ 配置 `isort` (导入排序)
+- [x] ✅ 配置 `ruff` (代码检查)
+- [x] ✅ 配置 `mypy` (类型检查)
+- [x] ✅ 创建 `pyproject.toml` 统一配置
 
-**验收**: `black .`, `mypy apps/ --strict` 正常运行
+**验收**: `black .`, `mypy apps/ --strict` 正常运行 ✅
 
 ### 1.2 Apps 骨架创建
 
 #### 1.2.1 创建 macro App (宏观数据)
-- [ ] ⬜ `python manage.py startapp macro apps/macro`
-- [ ] ⬜ 创建四层目录结构
-  - [ ] ⬜ `domain/` - entities.py, services.py
-  - [ ] ⬜ `application/` - use_cases.py, tasks.py
-  - [ ] ⬜ `infrastructure/` - models.py, repositories.py, adapters/
-  - [ ] ⬜ `interface/` - views.py, serializers.py, admin.py
-- [ ] ⬜ 注册到 `INSTALLED_APPS`
+- [x] ✅ `python manage.py startapp macro apps/macro`
+- [x] ✅ 创建四层目录结构
+  - [x] ✅ `domain/` - entities.py, services.py
+  - [x] ✅ `application/` - use_cases.py, tasks.py
+  - [x] ✅ `infrastructure/` - models.py, repositories.py, adapters/
+  - [x] ✅ `interface/` - views.py, serializers.py, admin.py
+- [x] ✅ 注册到 `INSTALLED_APPS`
 
 #### 1.2.2 创建 regime App (Regime 判定)
-- [ ] ⬜ `python manage.py startapp regime apps/regime`
-- [ ] ⬜ 创建四层目录结构 (同上)
-- [ ] ⬜ 注册到 `INSTALLED_APPS`
+- [x] ✅ `python manage.py startapp regime apps/regime`
+- [x] ✅ 创建四层目录结构 (同上)
+- [x] ✅ 注册到 `INSTALLED_APPS`
 
 #### 1.2.3 创建 policy App (政策事件)
-- [ ] ⬜ `python manage.py startapp policy apps/policy`
-- [ ] ⬜ 创建四层目录结构 (同上)
-- [ ] ⬜ 注册到 `INSTALLED_APPS`
+- [x] ✅ `python manage.py startapp policy apps/policy`
+- [x] ✅ 创建四层目录结构 (同上)
+- [x] ✅ 注册到 `INSTALLED_APPS`
 
 #### 1.2.4 创建 signal App (投资信号)
-- [ ] ⬜ `python manage.py startapp signal apps/signal`
-- [ ] ⬜ 创建四层目录结构 (同上)
-- [ ] ⬜ 注册到 `INSTALLED_APPS`
+- [x] ✅ `python manage.py startapp signal apps/signal`
+- [x] ✅ 创建四层目录结构 (同上)
+- [x] ✅ 注册到 `INSTALLED_APPS`
 
 #### 1.2.5 创建 backtest App (回测引擎)
-- [ ] ⬜ `python manage.py startapp backtest apps/backtest`
-- [ ] ⬜ 创建四层目录结构 (同上)
-- [ ] ⬜ 注册到 `INSTALLED_APPS`
+- [x] ✅ `python manage.py startapp backtest apps/backtest`
+- [x] ✅ 创建四层目录结构 (同上)
+- [x] ✅ 注册到 `INSTALLED_APPS`
 
 #### 1.2.6 创建 audit App (事后审计)
-- [ ] ⬜ `python manage.py startapp audit apps/audit`
-- [ ] ⬜ 创建四层目录结构 (同上)
-- [ ] ⬜ 注册到 `INSTALLED_APPS`
+- [x] ✅ `python manage.py startapp audit apps/audit`
+- [x] ✅ 创建四层目录结构 (同上)
+- [x] ✅ 注册到 `INSTALLED_APPS`
 
 ### 1.3 Shared 模块创建
 
 #### 1.3.1 共享 Domain 层
-- [ ] ⬜ 创建 `shared/domain/interfaces.py`
-  - [ ] ⬜ 定义 `TrendCalculatorProtocol` (趋势计算协议)
-  - [ ] ⬜ 定义 `RepositoryProtocol` 基类
-- [ ] ⬜ 创建 `shared/domain/value_objects.py`
-  - [ ] ⬜ 定义 `DateRange`, `Percentage`, `ZScore` 值对象
+- [x] ✅ 创建 `shared/domain/interfaces.py`
+  - [x] ✅ 定义 `TrendCalculatorProtocol` (趋势计算协议)
+  - [x] ✅ 定义 `RepositoryProtocol` 基类
+- [x] ✅ 创建 `shared/domain/value_objects.py`
+  - [x] ✅ 定义 `DateRange`, `Percentage`, `ZScore` 值对象
 
 #### 1.3.2 共享 Infrastructure 层
-- [ ] ⬜ 创建 `shared/infrastructure/calculators.py`
-  - [ ] ⬜ 实现 `PandasTrendCalculator` (HP 滤波)
-  - [ ] ⬜ 实现 Z-score 计算
-- [ ] ⬜ 创建 `shared/infrastructure/kalman_filter.py`
-  - [ ] ⬜ 实现 `LocalLinearTrendFilter`
-  - [ ] ⬜ 实现 `KalmanFilterResult`, `KalmanState`
+- [x] ✅ 创建 `shared/infrastructure/calculators.py`
+  - [x] ✅ 实现 `PandasTrendCalculator` (HP 滤波)
+  - [x] ✅ 实现 Z-score 计算
+- [x] ✅ 创建 `shared/infrastructure/kalman_filter.py`
+  - [x] ✅ 实现 `LocalLinearTrendFilter`
+  - [x] ✅ 实现 `KalmanFilterResult`, `KalmanState`
 
 #### 1.3.3 密钥管理模块
-- [ ] ⬜ 创建 `shared/config/secrets.py`
-  - [ ] ⬜ 定义 `DataSourceSecrets` dataclass
-  - [ ] ⬜ 定义 `AppSecrets` dataclass
-  - [ ] ⬜ 实现 `get_secrets()` 函数 (带启动验证)
+- [x] ✅ 创建 `shared/config/secrets.py`
+  - [x] ✅ 定义 `DataSourceSecrets` dataclass
+  - [x] ✅ 定义 `AppSecrets` dataclass
+  - [x] ✅ 实现 `get_secrets()` 函数 (带启动验证)
 
-**验收**: 启动时缺失 TUSHARE_TOKEN 会抛出 EnvironmentError
+**验收**: 启动时缺失 TUSHARE_TOKEN 会抛出 EnvironmentError ✅
 
 ### 1.4 Domain 层 Entities 定义
 
 #### 1.4.1 macro/domain/entities.py
-- [ ] ⬜ 定义 `MacroIndicator` 值对象
+- [x] ✅ 定义 `MacroIndicator` 值对象
   ```python
   @dataclass(frozen=True)
   class MacroIndicator:
@@ -131,8 +131,8 @@
   ```
 
 #### 1.4.2 regime/domain/entities.py
-- [ ] ⬜ 定义 `RegimeSnapshot` 值对象
-- [ ] ⬜ 定义 `KalmanFilterParams` 值对象
+- [x] ✅ 定义 `RegimeSnapshot` 值对象
+- [x] ✅ 定义 `KalmanFilterParams` 值对象
   ```python
   @dataclass(frozen=True)
   class KalmanFilterParams:
@@ -141,16 +141,16 @@
       observation_variance: float = 1.0
       ...
   ```
-- [ ] ⬜ 定义 `KalmanState` 值对象
+- [x] ✅ 定义 `KalmanState` 值对象
 
 #### 1.4.3 policy/domain/entities.py
-- [ ] ⬜ 定义 `PolicyLevel` 枚举 (P0-P3)
-- [ ] ⬜ 定义 `PolicyEvent` 实体
+- [x] ✅ 定义 `PolicyLevel` 枚举 (P0-P3)
+- [x] ✅ 定义 `PolicyEvent` 实体
 
 #### 1.4.4 signal/domain/entities.py
-- [ ] ⬜ 定义 `SignalStatus` 枚举
-- [ ] ⬜ 定义 `Eligibility` 枚举
-- [ ] ⬜ 定义 `InvestmentSignal` 实体
+- [x] ✅ 定义 `SignalStatus` 枚举
+- [x] ✅ 定义 `Eligibility` 枚举
+- [x] ✅ 定义 `InvestmentSignal` 实体
   ```python
   @dataclass
   class InvestmentSignal:
@@ -161,12 +161,12 @@
       ...
   ```
 
-**验收**: `mypy apps/ --strict` 通过，无任何外部依赖
+**验收**: `mypy apps/ --strict` 通过，无任何外部依赖 ✅
 
 ### 1.5 Infrastructure 层 ORM Models
 
 #### 1.5.1 macro/infrastructure/models.py
-- [ ] ⬜ 定义 `MacroIndicator` Model
+- [x] ✅ 定义 `MacroIndicator` Model
   ```python
   class MacroIndicator(models.Model):
       code = models.CharField(max_length=50)
@@ -180,40 +180,40 @@
   ```
 
 #### 1.5.2 其他 App 的 Models
-- [ ] ⬜ regime: `RegimeLog`
-- [ ] ⬜ policy: `PolicyLog`
-- [ ] ⬜ signal: `InvestmentSignal`
-- [ ] ⬜ backtest: `BacktestResult`, `TradeLog`
-- [ ] ⬜ audit: `AuditReport`
+- [x] ✅ regime: `RegimeLog`
+- [x] ✅ policy: `PolicyLog`
+- [x] ✅ signal: `InvestmentSignal`
+- [x] ✅ backtest: `BacktestResult`, `TradeLog`
+- [x] ✅ audit: `AuditReport`
 
-**验收**: `python manage.py makemigrations` && `python manage.py migrate` 成功
+**验收**: `python manage.py makemigrations` && `python manage.py migrate` 成功 ✅
 
 ### 1.6 数据源适配器开发
 
 #### 1.6.1 Tushare Adapter
-- [ ] ⬜ 创建 `apps/macro/infrastructure/adapters/tushare_adapter.py`
-- [ ] ⬜ 实现 `TushareAdapter` 类
-  - [ ] ⬜ `fetch_shibor()` - 获取 SHIBOR 利率
-  - [ ] ⬜ `fetch_index_daily()` - 获取指数日线
-- [ ] ⬜ 使用 `get_secrets()` 获取 token
+- [x] ✅ 创建 `apps/macro/infrastructure/adapters/tushare_adapter.py`
+- [x] ✅ 实现 `TushareAdapter` 类
+  - [x] ✅ `fetch_shibor()` - 获取 SHIBOR 利率
+  - [x] ✅ `fetch_index_daily()` - 获取指数日线
+- [x] ✅ 使用 `get_secrets()` 获取 token
 
 #### 1.6.2 AKShare Adapter
-- [ ] ⬜ 创建 `apps/macro/infrastructure/adapters/akshare_adapter.py`
-- [ ] ⬜ 实现 `AKShareAdapter` 类
-  - [ ] ⬜ `fetch_china_pmi()` - 获取 PMI
-  - [ ] ⬜ `fetch_china_cpi()` - 获取 CPI
-  - [ ] ⬜ `fetch_china_money_supply()` - 获取 M2
-  - [ ] ⬜ 配置 `PUBLICATION_LAGS` 字典
+- [x] ✅ 创建 `apps/macro/infrastructure/adapters/akshare_adapter.py`
+- [x] ✅ 实现 `AKShareAdapter` 类
+  - [x] ✅ `fetch_china_pmi()` - 获取 PMI
+  - [x] ✅ `fetch_china_cpi()` - 获取 CPI
+  - [x] ✅ `fetch_china_money_supply()` - 获取 M2
+  - [x] ✅ 配置 `PUBLICATION_LAGS` 字典
 
 #### 1.6.3 Failover Adapter
-- [ ] ⬜ 创建 `apps/macro/infrastructure/adapters/base.py`
-  - [ ] ⬜ 定义 `MacroAdapterProtocol`
-  - [ ] ⬜ 定义 `DataSourceUnavailableError`
-- [ ] ⬜ 实现 `FailoverAdapter` 类
-  - [ ] ⬜ 按优先级尝试多个数据源
-  - [ ] ⬜ 记录失败日志
+- [x] ✅ 创建 `apps/macro/infrastructure/adapters/base.py`
+  - [x] ✅ 定义 `MacroAdapterProtocol`
+  - [x] ✅ 定义 `DataSourceUnavailableError`
+- [x] ✅ 实现 `FailoverAdapter` 类
+  - [x] ✅ 按优先级尝试多个数据源
+  - [x] ✅ 记录失败日志
 
-**验收**: 单元测试通过，可获取真实数据
+**验收**: 单元测试通过，可获取真实数据 ✅
 
 ### 1.7 测试框架搭建
 
@@ -245,8 +245,8 @@
 ### 2.1 趋势滤波器实现
 
 #### 2.1.1 HP 滤波 (回测用)
-- [ ] ⬜ 实现 `PandasTrendCalculator.calculate_hp_trend()`
-- [ ] ⬜ **关键**: 扩张窗口模式
+- [x] ✅ 实现 `PandasTrendCalculator.calculate_hp_trend()`
+- [x] ✅ **关键**: 扩张窗口模式
   ```python
   def calculate_trend_at(series, t):
       # 只用 [0, t] 的数据，避免后视偏差
@@ -256,27 +256,27 @@
   ```
 
 #### 2.1.2 Kalman 滤波 (实时用)
-- [ ] ⬜ 实现 `LocalLinearTrendFilter.filter()`
-  - [ ] ⬜ 预测步骤: `x_pred = F @ x`
-  - [ ] ⬜ 更新步骤: 计算卡尔曼增益 K
-  - [ ] ⬜ 返回 `KalmanFilterResult`
-- [ ] ⬜ 实现 `LocalLinearTrendFilter.update_single()`
-  - [ ] ⬜ 增量更新单个新观测值
-  - [ ] ⬜ 返回新状态 (可持久化)
+- [x] ✅ 实现 `LocalLinearTrendFilter.filter()`
+  - [x] ✅ 预测步骤: `x_pred = F @ x`
+  - [x] ✅ 更新步骤: 计算卡尔曼增益 K
+  - [x] ✅ 返回 `KalmanFilterResult`
+- [x] ✅ 实现 `LocalLinearTrendFilter.update_single()`
+  - [x] ✅ 增量更新单个新观测值
+  - [x] ✅ 返回新状态 (可持久化)
 
-**验收**: 输入测试序列，输出趋势值合理
+**验收**: 输入测试序列，输出趋势值合理 ✅
 
 ### 2.2 Regime 计算服务
 
 #### 2.2.1 regime/domain/services.py
-- [ ] ⬜ 实现 `RegimeCalculator` 类
-  - [ ] ⬜ `calculate()` - 主计算方法
-  - [ ] ⬜ `_calculate_momentum()` - 动量计算 (3个月变化)
-  - [ ] ⬜ `_to_zscore()` - Z-score 标准化 (60个月窗口)
-  - [ ] ⬜ `_calculate_distribution()` - 模糊权重
+- [x] ✅ 实现 `RegimeCalculator` 类
+  - [x] ✅ `calculate()` - 主计算方法
+  - [x] ✅ `_calculate_momentum()` - 动量计算 (3个月变化)
+  - [x] ✅ `_to_zscore()` - Z-score 标准化 (60个月窗口)
+  - [x] ✅ `_calculate_distribution()` - 模糊权重
 
 #### 2.2.2 模糊权重计算
-- [ ] ⬜ 实现 `calculate_regime_distribution()`
+- [x] ✅ 实现 `calculate_regime_distribution()`
   ```python
   def sigmoid(x, k=2):
       return 1 / (1 + exp(-k * x))
@@ -292,12 +292,12 @@
   }
   ```
 
-**验收**: 输入增长/通胀动量，输出四象限概率和为 1
+**验收**: 输入增长/通胀动量，输出四象限概率和为 1 ✅
 
 ### 2.3 准入规则引擎
 
 #### 2.3.1 signal/domain/rules.py
-- [ ] ⬜ 定义 `ELIGIBILITY_MATRIX` 配置
+- [x] ✅ 定义 `ELIGIBILITY_MATRIX` 配置
   ```python
   ELIGIBILITY_MATRIX: Dict[str, Dict[str, Eligibility]] = {
       "a_share_growth": {
@@ -310,54 +310,54 @@
   }
   ```
 
-- [ ] ⬜ 实现 `check_eligibility()` 函数
-- [ ] ⬜ 实现 `should_reject_signal()` 函数
-- [ ] ⬜ 实现 `validate_invalidation_logic()` 函数
-  - [ ] ⬜ 检查证伪逻辑长度 ≥ 10 字符
-  - [ ] ⬜ 检查包含可量化关键词 ("跌破", "突破", "<", ">" 等)
+- [x] ✅ 实现 `check_eligibility()` 函数
+- [x] ✅ 实现 `should_reject_signal()` 函数
+- [x] ✅ 实现 `validate_invalidation_logic()` 函数
+  - [x] ✅ 检查证伪逻辑长度 ≥ 10 字符
+  - [x] ✅ 检查包含可量化关键词 ("跌破", "突破", "<", ">" 等)
 
-**验收**: Domain 层单元测试覆盖率 ≥ 90%
+**验收**: Domain 层单元测试覆盖率 ≥ 90% ✅
 
 ### 2.4 Repositories 实现
 
 #### 2.4.1 MacroRepository
-- [ ] ⬜ 创建 `apps/macro/infrastructure/repositories.py`
-- [ ] ⬜ 实现 `DjangoMacroRepository`
-  - [ ] ⬜ `get_growth_series()` - 获取增长指标序列
-  - [ ] ⬜ `get_inflation_series()` - 获取通胀指标序列
-  - [ ] ⬜ `save_indicator()` - 保存单个指标
-  - [ ] ⬜ `get_by_code_and_date()` - 按代码和日期查询
+- [x] ✅ 创建 `apps/macro/infrastructure/repositories.py`
+- [x] ✅ 实现 `DjangoMacroRepository`
+  - [x] ✅ `get_growth_series()` - 获取增长指标序列
+  - [x] ✅ `get_inflation_series()` - 获取通胀指标序列
+  - [x] ✅ `save_indicator()` - 保存单个指标
+  - [x] ✅ `get_by_code_and_date()` - 按代码和日期查询
 
 #### 2.4.2 其他 Repositories
-- [ ] ⬜ regime: `RegimeRepository`
-- [ ] ⬜ policy: `PolicyRepository`
-- [ ] ⬜ signal: `SignalRepository`
+- [x] ✅ regime: `RegimeRepository`
+- [x] ✅ policy: `PolicyRepository`
+- [x] ✅ signal: `SignalRepository`
 
-**验收**: 可从数据库存取数据
+**验收**: 可从数据库存取数据 ✅
 
 ### 2.5 Application 层 Use Cases
 
 #### 2.5.1 SyncMacroDataUseCase
-- [ ] ⬜ 创建 `apps/macro/application/use_cases.py`
-- [ ] ⬜ 实现 `SyncMacroDataUseCase`
-  - [ ] ⬜ 调用适配器获取数据
-  - [ ] ⬜ 去重处理 (检查 observed_at + source)
-  - [ ] ⬜ 批量保存到数据库
+- [x] ✅ 创建 `apps/macro/application/use_cases.py`
+- [x] ✅ 实现 `SyncMacroDataUseCase`
+  - [x] ✅ 调用适配器获取数据
+  - [x] ✅ 去重处理 (检查 observed_at + source)
+  - [x] ✅ 批量保存到数据库
 
 #### 2.5.2 CalculateRegimeUseCase
-- [ ] ⬜ 实现 `CalculateRegimeUseCase`
-  - [ ] ⬜ 输入: `as_of_date`, `use_pit`
-  - [ ] ⬜ 调用 `MacroRepository` 获取数据
-  - [ ] ⬜ 调用 `RegimeCalculator` 计算
-  - [ ] ⬜ 输出: `RegimeSnapshot` + warnings
+- [x] ✅ 实现 `CalculateRegimeUseCase`
+  - [x] ✅ 输入: `as_of_date`, `use_pit`
+  - [x] ✅ 调用 `MacroRepository` 获取数据
+  - [x] ✅ 调用 `RegimeCalculator` 计算
+  - [x] ✅ 输出: `RegimeSnapshot` + warnings
 
 #### 2.5.3 ValidateSignalUseCase
-- [ ] ⬜ 实现 `ValidateSignalUseCase`
-  - [ ] ⬜ 检查证伪逻辑完整性
-  - [ ] ⬜ 调用准入规则检查
-  - [ ] ⬜ 生成 `RejectionRecord` (如被拦截)
+- [x] ✅ 实现 `ValidateSignalUseCase`
+  - [x] ✅ 检查证伪逻辑完整性
+  - [x] ✅ 调用准入规则检查
+  - [x] ✅ 生成 `RejectionRecord` (如被拦截)
 
-**验收**: Use Case 测试通过，可手动调用完成工作流
+**验收**: Use Case 测试通过，可手动调用完成工作流 ✅
 
 ### 2.6 Celery 任务 (可选)
 
@@ -476,49 +476,51 @@
 ### 4.1 Admin 后台
 
 #### 4.1.1 macro/interface/admin.py
-- [ ] ⬜ 注册 `MacroIndicatorAdmin`
-  - [ ] ⬜ 列表显示: code, value, observed_at, source
-  - [ ] ⬜ 搜索字段: code, observed_at
-  - [ ] ⬜ 日期过滤: observed_at 范围
+- [x] ✅ 注册 `MacroIndicatorAdmin`
+  - [x] ✅ 列表显示: code, value, observed_at, source
+  - [x] ✅ 搜索字段: code, observed_at
+  - [x] ✅ 日期过滤: observed_at 范围
 
 #### 4.1.2 policy/interface/admin.py
-- [ ] ⬜ 注册 `PolicyLogAdmin`
-  - [ ] ⬜ 手动标注 P0-P3 档位
-  - [ ] ⬜ 关联证据 URL 输入
-  - [ ] ⬜ P2/P3 自动告警标记
+- [x] ✅ 注册 `PolicyLogAdmin`
+  - [x] ✅ 手动标注 P0-P3 档位
+  - [x] ✅ 关联证据 URL 输入
+  - [x] ✅ P2/P3 自动告警标记
 
 #### 4.1.3 signal/interface/admin.py
-- [ ] ⬜ 注册 `InvestmentSignalAdmin`
-  - [ ] ⬜ 信号录入表单
-  - [ ] ⬜ 证伪逻辑必填验证
-  - [ ] ⬜ 自动准入检查按钮
-  - [ ] ⬜ 拒绝原因显示
+- [x] ✅ 注册 `InvestmentSignalAdmin`
+  - [x] ✅ 信号录入表单
+  - [x] ✅ 证伪逻辑必填验证
+  - [x] ✅ 自动准入检查按钮
+  - [x] ✅ 拒绝原因显示
 
-**验收**: 可通过 Admin 完成完整工作流
+**验收**: 可通过 Admin 完成完整工作流 ✅
 
 ### 4.2 DRF API 接口
 
-#### 4.2.1 regime/interface/views.py
-- [ ] ⬜ 实现 `RegimeListView` (历史查询)
-- [ ] ⬜ 实现 `RegimeCurrentView` (当前状态)
-- [ ] ⬜ 实现 `RegimeCalculateView` (手动触发计算)
+#### 4.2.1 regime/interface/api_views.py
+- [x] ✅ 实现 `RegimeViewSet` (历史查询)
+- [x] ✅ 实现 `RegimeViewSet.current` (当前状态)
+- [x] ✅ 实现 `RegimeViewSet.calculate` (手动触发计算)
+- [x] ✅ 实现 `RegimeHealthView` (健康检查)
 
-#### 4.2.2 signal/interface/views.py
-- [ ] ⬜ 实现 `SignalCreateView` (创建信号)
-- [ ] ⬜ 实现 `SignalListView` (信号列表)
-- [ ] ⬜ 实现 `SignalValidateView` (验证准入)
+#### 4.2.2 signal/interface/api_views.py
+- [x] ✅ 实现 `SignalViewSet` (创建信号)
+- [x] ✅ 实现 `SignalViewSet.list` (信号列表)
+- [x] ✅ 实现 `SignalViewSet.validate` (验证准入)
+- [x] ✅ 实现 `SignalHealthView` (健康检查)
 
 #### 4.2.3 OpenAPI 文档
-- [ ] ⬜ 配置 drf-spectacular
-- [ ] ⬜ 生成 API 文档
-- [ ] ⬜ 配置 Swagger UI
+- [x] ✅ 配置 drf-spectacular
+- [x] ✅ 生成 API 文档
+- [x] ✅ 配置 Swagger UI
 
-**验收**: API 可通过 Swagger 测试
+**验收**: API 可通过 Swagger 测试 ✅
 
 ### 4.3 Docker 部署
 
 #### 4.3.1 Dockerfile
-- [ ] ⬜ 创建 `Dockerfile`
+- [x] ✅ 创建 `Dockerfile`
   ```dockerfile
   FROM python:3.11-slim
   WORKDIR /app
@@ -532,46 +534,50 @@
   ```
 
 #### 4.3.2 docker-compose.yml
-- [ ] ⬜ 创建 `docker-compose.yml`
-  - [ ] ⬜ web 服务 (Django)
-  - [ ] ⬜ redis 服务
-  - [ ] ⬜ celery 服务
-  - [ ] ⬜ celery-beat 服务
-  - [ ] ⬜ 数据卷配置
+- [x] ✅ 创建 `docker-compose.yml`
+  - [x] ✅ web 服务 (Django)
+  - [x] ✅ redis 服务
+  - [x] ✅ celery 服务
+  - [x] ✅ celery-beat 服务
+  - [x] ✅ 数据卷配置
 
 #### 4.3.3 生产环境配置
-- [ ] ⬜ 创建 `core/settings/production.py`
-  - [ ] ⬜ `DEBUG=False`
-  - [ ] ⬜ `ALLOWED_HOSTS` 配置
-  - [ ] ⬜ HTTPS/SSL 配置 (可选)
+- [x] ✅ 创建 `core/settings/production.py`
+  - [x] ✅ `DEBUG=False`
+  - [x] ✅ `ALLOWED_HOSTS` 配置
+  - [x] ✅ HTTPS/SSL 配置 (可选)
 
-**验收**: `docker-compose up` 一键启动
+**验收**: `docker-compose up` 一键启动 ✅
 
 ### 4.4 Celery 定时任务
 
 #### 4.4.1 Celery Beat 配置
-- [ ] ⬜ 配置 `celery beat` 调度器
-- [ ] ⬜ 定义定时任务
-  - [ ] ⬜ 每日 00:00 同步宏观数据
-  - [ ] ⬜ 每日 00:30 计算 Regime
-  - [ ] ⬜ 每小时检查政策事件
+- [x] ✅ 配置 `celery beat` 调度器
+- [x] ✅ 创建 `apps/macro/application/tasks.py`
+- [x] ✅ 定义定时任务
+  - [x] ✅ 每日 00:00 同步宏观数据
+  - [x] ✅ 每日 00:30 计算 Regime
+  - [x] ✅ 每 6 小时检查数据新鲜度
+- [x] ✅ 创建 `scripts/setup_celery_beat.py` 自动配置脚本
 
-**验收**: 定时任务稳定运行
+**验收**: 定时任务稳定运行 ✅
 
 ### 4.5 告警系统
 
 #### 4.5.1 告警服务
-- [ ] ⬜ 创建 `shared/infrastructure/alerts.py`
-- [ ] ⬜ 实现 `AlertService`
-  - [ ] ⬜ `send_email()` - 邮件告警
-  - [ ] ⬜ `send_slack()` - Slack 告警 (可选)
+- [x] ✅ 创建 `shared/infrastructure/alerts.py`
+- [x] ✅ 实现 `AlertService`
+  - [x] ✅ `EmailAlertChannel` - 邮件告警
+  - [x] ✅ `SlackAlertChannel` - Slack 告警
+  - [x] ✅ `DingTalkAlertChannel` - 钉钉告警
+  - [x] ✅ `WeChatWorkAlertChannel` - 企业微信告警
 
 #### 4.5.2 告警触发
-- [ ] ⬜ P2 状态触发告警
-- [ ] ⬜ P3 状态触发紧急告警
-- [ ] ⬜ 数据源失败触发告警
+- [x] ✅ P2 状态触发告警
+- [x] ✅ P3 状态触发紧急告警
+- [x] ✅ 数据源失败触发告警
 
-**验收**: 告警正常发送
+**验收**: 告警正常发送 ✅
 
 ---
 

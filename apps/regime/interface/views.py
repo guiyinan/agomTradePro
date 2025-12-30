@@ -19,20 +19,25 @@ def regime_dashboard_view(request):
         # 获取可用的数据源列表
         available_sources = DataSourceConfig.objects.filter(is_active=True).order_by('priority')
 
-        # 获取查询参数，默认使用优先级最高的数据源
+        # 获取查询参数
         default_source = available_sources.first().source_type if available_sources.exists() else 'akshare'
         data_source = request.GET.get('source', default_source)
+
+        # 获取分析时点参数
+        as_of_date_str = request.GET.get('as_of_date')
+        if as_of_date_str:
+            from datetime import datetime
+            as_of_date = datetime.strptime(as_of_date_str, '%Y-%m-%d').date()
+        else:
+            as_of_date = date.today()
 
         repository = DjangoMacroRepository()
         use_case = CalculateRegimeUseCase(repository)
 
-        # 获取今天的日期
-        today = date.today()
-
-        # 计算当前 Regime
+        # 计算指定时点的 Regime
         request_obj = CalculateRegimeRequest(
-            as_of_date=today,
-            use_pit=False,
+            as_of_date=as_of_date,
+            use_pit=True,  # 使用Point-in-Time查询
             growth_indicator="PMI",
             inflation_indicator="CPI",
             data_source=data_source
@@ -48,7 +53,8 @@ def regime_dashboard_view(request):
             'snapshot': response.snapshot if response.success else None,
             'warnings': response.warnings if response.success else [],
             'error': response.error if not response.success else None,
-            'current_date': today,
+            'current_date': date.today(),
+            'as_of_date': as_of_date,
             'raw_data': response.raw_data if response.success else None,
             'intermediate_data': response.intermediate_data if response.success else None,
             'raw_data_json': raw_data_json,
@@ -61,12 +67,19 @@ def regime_dashboard_view(request):
         available_sources = DataSourceConfig.objects.filter(is_active=True).order_by('priority')
         default_source = available_sources.first().source_type if available_sources.exists() else 'akshare'
         data_source = request.GET.get('source', default_source)
+        as_of_date_str = request.GET.get('as_of_date')
+        if as_of_date_str:
+            from datetime import datetime
+            as_of_date = datetime.strptime(as_of_date_str, '%Y-%m-%d').date()
+        else:
+            as_of_date = date.today()
 
         context = {
             'snapshot': None,
             'warnings': [],
             'error': str(e),
             'current_date': date.today(),
+            'as_of_date': as_of_date,
             'raw_data': None,
             'intermediate_data': None,
             'raw_data_json': None,

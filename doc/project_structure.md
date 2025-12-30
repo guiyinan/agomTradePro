@@ -62,25 +62,43 @@ AgomSAAF/
 ├── apps/                        # 应用程序目录
 │   ├── ai_provider/             # AI服务提供商管理
 │   │   ├── domain/              #   领域层：实体和业务规则
-│   │   ├── infrastructure/      #   基础设施层：ORM和适配器
+│   │   ├── infrastructure/      #   基础设施层
+│   │   │   ├── models.py        #     Django ORM 模型
+│   │   │   └── repositories.py  #     数据仓储
 │   │   └── interface/           #   接口层：视图和序列化器
+│   │
+│   ├── prompt/                  # AI Prompt管理系统
+│   │   ├── domain/              #   领域层：模板实体、链配置实体
+│   │   ├── application/         #   应用层：用例编排（执行Prompt、执行链）
+│   │   ├── infrastructure/      #   基础设施层
+│   │   │   ├── models.py        #     Django ORM 模型
+│   │   │   ├── repositories.py  #     数据仓储
+│   │   │   └── adapters/        #     数据适配器
+│   │   │       ├── macro_adapter.py    # 宏观数据适配器
+│   │   │       ├── regime_adapter.py   # Regime数据适配器
+│   │   │       └── function_registry.py # 工具函数注册表
+│   │   └── interface/           #   接口层：DRF视图和序列化器
 │   │
 │   ├── audit/                   # 事后审计模块
 │   │   ├── domain/
 │   │   ├── application/
 │   │   ├── infrastructure/
+│   │   │   └── models.py        #     Django ORM 模型
 │   │   └── interface/
 │   │
 │   ├── backtest/                # 回测引擎
 │   │   ├── domain/
 │   │   ├── application/
 │   │   ├── infrastructure/
+│   │   │   └── models.py        #     Django ORM 模型
 │   │   └── interface/
 │   │
 │   ├── macro/                   # 宏观数据采集（最复杂）
 │   │   ├── domain/              #   指标实体定义
 │   │   ├── application/         #   数据同步用例
 │   │   ├── infrastructure/      #   数据仓储和适配器
+│   │   │   ├── models.py        #     Django ORM 模型
+│   │   │   ├── repositories.py  #     数据仓储
 │   │   │   └── adapters/        #     AKShare/Tushare 适配器
 │   │   │       ├── base.py      #       基础适配器
 │   │   │       ├── akshare_adapter.py  #       AKShare主适配器
@@ -93,8 +111,22 @@ AgomSAAF/
 │   │   └── interface/           #   Django admin 和 API
 │   │
 │   ├── policy/                  # 政策事件管理
+│   │   ├── domain/
+│   │   ├── infrastructure/
+│   │   │   └── models.py        #     Django ORM 模型
+│   │   └── interface/
+│   │
 │   ├── regime/                  # Regime 判定引擎
+│   │   ├── domain/
+│   │   ├── infrastructure/
+│   │   │   └── models.py        #     Django ORM 模型
+│   │   └── interface/
+│   │
 │   └── signal/                  # 投资信号管理
+│       ├── domain/
+│       ├── infrastructure/
+│       │   └── models.py        #     Django ORM 模型
+│       └── interface/
 │
 ├── core/                        # Django 核心配置
 │   ├── settings/                #   分环境配置
@@ -164,12 +196,12 @@ AgomSAAF/
 └─────────────────┬───────────────────────────────────┘
                   ▼
         ┌─────────────────────┐
-        │   Django 开发服务器  │
+        │   Django 开发服务器 │
         └─────────┬───────────┘
                   │
                   ▼
         ┌─────────────────────────────────────┐
-        │  实时查找源文件                      │
+        │  实时查找源文件                     │
         │  1. apps/*/static/                  │
         │  2. STATICFILES_DIRS (static/)      │
         └─────────────────────────────────────┘
@@ -282,9 +314,49 @@ apps/macro/
 
 分析回测结果，归因收益来源。
 
+### 6.5 prompt 应用 - AI Prompt管理系统
+
+统一的AI Prompt模板管理和链式调用系统。
+
+**核心功能：**
+- Prompt模板管理：支持占位符、版本控制
+- 链式调用配置：串行、并行、工具调用、混合模式
+- 占位符解析：支持简单替换、复杂数据、函数调用、条件逻辑
+- 数据适配器：自动获取宏观数据、Regime状态
+- 执行日志：记录所有AI调用和成本
+
+**支持的占位符类型：**
+| 类型 | 语法 | 示例 |
+|------|------|------|
+| 简单替换 | `{{FIELD}}` | `{{PMI}}` → 50.8 |
+| 复杂数据 | `{{STRUCT}}` | `{{MACRO_DATA}}` → JSON表格 |
+| 函数调用 | `{{FUNC(params)}}` | `{{TREND(PMI,6m)}}` → 趋势值 |
+| 条件逻辑 | `{%if%}...{%endif%}` | Jinja2模板语法 |
+
+**链式执行模式：**
+- **SERIAL（串行）**：Step1 → Step2 → Step3
+- **PARALLEL（并行）**：多步骤同时执行 → 汇总
+- **TOOL_CALLING（工具调用）**：AI主动调用数据获取函数
+- **HYBRID（混合）**：以上组合
+
 ## 7. 数据模型
 
-### 7.1 宏观数据表 (macro_macroindicator)
+### 7.1 数据模型概览
+
+项目中共有 8 个 Django ORM 模型文件，位于各应用的 `infrastructure/models.py`：
+
+| 应用 | 模型文件 | 主要表 |
+|------|----------|--------|
+| `macro` | models.py | MacroIndicator (宏观数据) |
+| `regime` | models.py | RegimeHistory (Regime历史) |
+| `policy` | models.py | PolicyEvent (政策事件) |
+| `signal` | models.py | InvestmentSignal (投资信号) |
+| `backtest` | models.py | BacktestResult (回测结果) |
+| `audit` | models.py | AuditRecord (审计记录) |
+| `ai_provider` | models.py | AIProviderConfig, AIUsageLog (AI配置) |
+| `prompt` | models.py | PromptTemplate, ChainConfig, PromptExecutionLog, ChatSession (AI Prompt) |
+
+### 7.2 宏观数据表 (macro_macroindicator)
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -296,7 +368,7 @@ apps/macro/
 | source | String | 数据源（akshare/tushare） |
 | revision_number | Int | 修订版本号 |
 
-### 7.2 Regime 历史表 (regime_regimehistory)
+### 7.3 Regime 历史表 (regime_regimehistory)
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -304,6 +376,55 @@ apps/macro/
 | dominant_regime | String | 主导象限 |
 | confidence | Decimal | 置信度 |
 | distribution | JSON | 象限分布 |
+
+### 7.4 投资信号表 (signal_investmentsignal)
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| asset_code | String | 资产代码 |
+| signal_type | String | 信号类型（BUY/SELL） |
+| regime_requirement | String | 要求的 Regime |
+| logic_desc | Text | 逻辑描述 |
+| invalidation_logic | Text | 证伪逻辑 |
+| created_at | DateTime | 创建时间 |
+
+### 7.5 Prompt模板表 (prompt_prompttemplate)
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| name | String | 模板名称（唯一） |
+| category | String | 分类（report/signal/analysis/chat） |
+| version | String | 版本号 |
+| template_content | Text | 模板内容（支持Jinja2语法） |
+| system_prompt | Text | 系统提示词 |
+| placeholders | JSON | 占位符定义列表 |
+| temperature | Float | 温度参数（0.0-2.0） |
+| max_tokens | Int | 最大token数 |
+| is_active | Boolean | 是否激活 |
+
+### 7.6 链配置表 (prompt_chainconfig)
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| name | String | 链名称（唯一） |
+| category | String | 分类 |
+| steps | JSON | 步骤定义列表 |
+| execution_mode | String | 执行模式（serial/parallel/tool/hybrid） |
+| aggregate_step | JSON | 汇总步骤配置 |
+
+### 7.7 执行日志表 (prompt_promptexecutionlog)
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| execution_id | String | 执行ID |
+| template_id | Int | 关联的模板ID |
+| chain_id | Int | 关联的链ID |
+| rendered_prompt | Text | 渲染后的Prompt |
+| ai_response | Text | AI响应内容 |
+| status | String | 状态（success/error/timeout） |
+| total_tokens | Int | 总token数 |
+| estimated_cost | Decimal | 预估成本 |
+| response_time_ms | Int | 响应时间（毫秒） |
 
 ## 8. 外部依赖
 
@@ -491,3 +612,4 @@ agomsaaf/Scripts/pip install -r requirements.txt
 - [业务需求文档](doc/AgomSAAF_V3.4.md)
 - [前端设计指南](doc/frontend_design_guide.md)
 - [项目开发规则](CLAUDE.md)
+- [AI Prompt系统使用文档](doc/ai_prompt_system.md)

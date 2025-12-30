@@ -1,663 +1,965 @@
 {% extends "base.html" %}
 
-{% block title %}宏观数据 - AgomSAAF{% endblock %}
+{% block title %}宏观数据中心 - AgomSAAF{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>宏观数据中心</h1>
-    <p class="subtitle">中国宏观经济数据可视化</p>
-    <p class="description">PMI、CPI、PPI、M2 等核心指标的历史数据与趋势分析</p>
+    <div class="header-content">
+        <div>
+            <h1>宏观数据中心</h1>
+            <p class="subtitle">中国宏观经济指标全景展示</p>
+            <p class="description">PMI、CPI、M2 等核心指标的历史数据与趋势分析</p>
+        </div>
+        <div class="header-controls">
+            <button class="control-btn" onclick="window.location.href='/macro/controller/'">
+                <span class="btn-icon">⚙️</span> 数据管理
+            </button>
+        </div>
+    </div>
 </div>
+
+<script>
+// 从服务器端数据构建指标名称映射
+const indicatorNamesMap = {};
+{% for category in indicator_categories %}
+    {% for ind in category.indicators %}
+        indicatorNamesMap['{{ ind.code }}'] = '{{ ind.name }}';
+    {% endfor %}
+{% endfor %}
+
+// 初始选中的指标数据
+const initialIndicator = '{{ selected_indicator|escapejs }}';
+const initialChartData = {
+    dates: {{ chart_dates|safe }},
+    values: {{ chart_values|safe }}
+};
+
+let currentIndicatorCode = initialIndicator;
+let currentChart = null;
+
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    if (initialIndicator && initialChartData.dates.length > 0) {
+        // 设置初始选中状态
+        const initialItem = document.querySelector(`.ind-item[data-code="${initialIndicator}"]`);
+        if (initialItem) {
+            initialItem.classList.add('active');
+        }
+        // 显示指标信息栏并渲染图表
+        showIndicatorInfoBar();
+        renderMainChart(initialIndicator, initialChartData.dates, initialChartData.values);
+        updateIndicatorInfoFromServer();
+    }
+});
+
+// 显示指标信息栏
+function showIndicatorInfoBar() {
+    document.getElementById('indicatorInfoBar').style.display = 'flex';
+    document.getElementById('chartPlaceholder').style.display = 'none';
+}
+
+// 从服务器数据更新指标信息
+function updateIndicatorInfoFromServer() {
+    {% if selected_indicator_data %}
+    document.getElementById('currentIndicatorCode').textContent = '{{ selected_indicator }}';
+    document.getElementById('currentIndicatorName').textContent = '{{ selected_indicator_data.name|escapejs }}';
+    document.getElementById('currentIndicatorValue').textContent = '{{ selected_indicator_data.latest_value }}';
+    document.getElementById('currentIndicatorPeriod').textContent = '{{ selected_indicator_data.latest_period }}';
+    document.getElementById('currentIndicatorRecords').textContent = {{ chart_values|length }} + ' 条';
+    {% endif %}
+}
+
+// 选择指标
+async function selectIndicator(code) {
+    currentIndicatorCode = code;
+
+    // 更新 UI 选中状态
+    document.querySelectorAll('.ind-item').forEach(el => {
+        el.classList.remove('active');
+        if (el.dataset.code === code) {
+            el.classList.add('active');
+        }
+    });
+
+    // 折叠所有分类
+    collapseAllCategories();
+    // 展开当前选中指标所在的分类
+    const currentItem = document.querySelector(`.ind-item[data-code="${code}"]`);
+    if (currentItem) {
+        const catContent = currentItem.closest('.cat-content');
+        if (catContent) {
+            catContent.style.display = 'block';
+            const catId = catContent.id.replace('cat-content-', '');
+            const icon = document.getElementById('cat-icon-' + catId);
+            if (icon) icon.textContent = '▼';
+        }
+    }
+
+    // 显示信息栏
+    showIndicatorInfoBar();
+
+    // 获取数据并渲染图表
+    const response = await fetch(`/macro/api/indicator-data/?code=${code}`);
+    const result = await response.json();
+
+    if (result.success && result.data) {
+        const dates = result.data.map(d => d.observed_at);
+        const values = result.data.map(d => d.value);
+        renderMainChart(code, dates, values);
+        updateIndicatorInfo(code, result.data);
+    }
+}
+
+// 渲染主图表
+function renderMainChart(code, dates, values) {
+    const chartDom = document.getElementById('mainChart');
+    if (currentChart) {
+        currentChart.dispose();
+    }
+
+    currentChart = echarts.init(chartDom);
+
+    currentChart.setOption({
+        title: {
+            text: indicatorNamesMap[code] || code,
+            left: 'center',
+            textStyle: { fontSize: 14 }
+        },
+        tooltip: {
+            trigger: 'axis',
+            formatter: function(params) {
+                return `${params[0].axisValue}<br/>数值: ${params[0].value.toFixed(2)}`;
+            }
+        },
+        grid: { left: '3%', right: '4%', bottom: '3%', top: 50, containLabel: true },
+        xAxis: {
+            type: 'category',
+            data: dates,
+            axisLabel: { rotate: 45, fontSize: 10 }
+        },
+        yAxis: { type: 'value' },
+        series: [{
+            type: 'line',
+            data: values,
+            smooth: true,
+            itemStyle: { color: '#2563EB' },
+            lineStyle: { width: 2.5 },
+            areaStyle: {
+                color: {
+                    type: 'linear',
+                    x: 0, y: 0, x2: 0, y2: 1,
+                    colorStops: [
+                        { offset: 0, color: 'rgba(37, 99, 235, 0.3)' },
+                        { offset: 1, color: 'rgba(37, 99, 235, 0.05)' }
+                    ]
+                }
+            }
+        }]
+    });
+
+    window.addEventListener('resize', () => currentChart.resize());
+}
+
+// 更新指标信息
+function updateIndicatorInfo(code, data) {
+    const latest = data[data.length - 1];
+    document.getElementById('currentIndicatorCode').textContent = code;
+    document.getElementById('currentIndicatorName').textContent = indicatorNamesMap[code] || code;
+    document.getElementById('currentIndicatorValue').textContent = latest.value.toFixed(2);
+    document.getElementById('currentIndicatorSource').textContent = latest.source || '-';
+    document.getElementById('currentIndicatorPeriod').textContent = latest.observed_at;
+    document.getElementById('currentIndicatorRecords').textContent = data.length + ' 条';
+}
+
+// 折叠/展开分类
+function toggleCategory(catId) {
+    const content = document.getElementById('cat-content-' + catId);
+    const icon = document.getElementById('cat-icon-' + catId);
+
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.textContent = '▼';
+    } else {
+        content.style.display = 'none';
+        icon.textContent = '▶';
+    }
+}
+
+// 折叠所有分类
+function collapseAllCategories() {
+    document.querySelectorAll('.cat-content').forEach(el => {
+        el.style.display = 'none';
+    });
+    document.querySelectorAll('.cat-toggle-icon').forEach(el => {
+        el.textContent = '▶';
+    });
+}
+
+// 搜索指标
+function filterIndicators() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+    document.querySelectorAll('.cat-content').forEach(content => {
+        const items = content.querySelectorAll('.ind-item');
+        let hasMatch = false;
+
+        items.forEach(item => {
+            const code = item.dataset.code.toLowerCase();
+            const name = item.dataset.name.toLowerCase();
+
+            if (code.includes(searchTerm) || name.includes(searchTerm)) {
+                item.style.display = 'flex';
+                hasMatch = true;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+}
+
+// 切换 Tab
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.tab === tabName) {
+            btn.classList.add('active');
+        }
+    });
+
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById('tab-' + tabName).classList.add('active');
+}
+
+// AI 分析
+async function askAI(question) {
+    document.getElementById('aiQuestion').value = question;
+    submitAIQuestion();
+}
+
+async function submitAIQuestion() {
+    const question = document.getElementById('aiQuestion').value.trim();
+    if (!question) return;
+
+    const responseDiv = document.getElementById('aiResponse');
+    const statusSpan = document.getElementById('aiStatus');
+    const submitBtn = document.querySelector('.ai-submit-btn');
+
+    statusSpan.textContent = '分析中...';
+    responseDiv.innerHTML = '<div class="ai-placeholder"><div class="placeholder-icon">⏳</div><p>AI 正在分析...</p></div>';
+    submitBtn.disabled = true;
+
+    // 如果有选中的指标，添加到上下文
+    const context = {
+        has_indicator: !!currentIndicatorCode,
+    };
+    if (currentIndicatorCode) {
+        context.indicator_code = currentIndicatorCode;
+        context.indicator_name = indicatorNamesMap[currentIndicatorCode] || currentIndicatorCode;
+        context.indicator_value = document.getElementById('currentIndicatorValue').textContent;
+    }
+
+    try {
+        const response = await fetch('/api/prompt/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                message: question,
+                context: context
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.reply) {
+            responseDiv.innerHTML = `<div class="ai-response-content">${data.reply}</div>`;
+            statusSpan.textContent = '';
+        } else {
+            throw new Error('未收到回复');
+        }
+    } catch (error) {
+        responseDiv.innerHTML = `<div class="ai-response-content">AI 暂时不可用，请稍后重试。</div>`;
+        statusSpan.textContent = '(离线)';
+    }
+
+    submitBtn.disabled = false;
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
 
 <!-- 统计卡片 -->
-<div class="stats-grid">
+<div class="stats-row">
     <div class="stat-card">
-        <div class="stat-label">指标种类</div>
-        <div class="stat-value">{{ stats.total_indicators }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-label">数据记录</div>
-        <div class="stat-value">{{ stats.total_records }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-label">最新更新</div>
-        <div class="stat-value stat-date">
-            {% if stats.latest_date != '-' %}
-                {{ stats.latest_date|date:"m-d" }}
-            {% else %}
-                -
-            {% endif %}
+        <div class="stat-icon">📊</div>
+        <div class="stat-info">
+            <div class="stat-label">指标种类</div>
+            <div class="stat-value">{{ stats.total_indicators }}</div>
         </div>
     </div>
     <div class="stat-card">
-        <div class="stat-label">数据源</div>
-        <div class="stat-value">{{ stats.sources|length }}</div>
+        <div class="stat-icon">📈</div>
+        <div class="stat-info">
+            <div class="stat-label">数据记录</div>
+            <div class="stat-value">{{ stats.total_records }}</div>
+        </div>
     </div>
-</div>
-
-<!-- 指标分类导航 -->
-<div class="category-section">
-    <h2 class="section-title">指标分类</h2>
-    <div class="category-nav">
-        <button class="category-btn active" onclick="showCategory('growth')">
-            <span class="category-icon">📈</span>
-            <span class="category-name">增长类</span>
-        </button>
-        <button class="category-btn" onclick="showCategory('inflation')">
-            <span class="category-icon">💰</span>
-            <span class="category-name">通胀类</span>
-        </button>
-        <button class="category-btn" onclick="showCategory('money')">
-            <span class="category-icon">💵</span>
-            <span class="category-name">货币类</span>
-        </button>
-        <button class="category-btn" onclick="showCategory('all')">
-            <span class="category-icon">📊</span>
-            <span class="category-name">全部指标</span>
-        </button>
-    </div>
-</div>
-
-<!-- 常用指标快捷卡片 -->
-<div class="indicators-section">
-    <!-- 增长类指标 -->
-    <div id="category-growth" class="indicator-category">
-        <h3 class="category-title">增长类指标</h3>
-        <div class="indicator-grid">
-            <div class="indicator-card" onclick="loadIndicatorData('CN_PMI', 'PMI 制造业采购经理指数')">
-                <div class="indicator-header">
-                    <div class="indicator-icon" style="background: #E3F2FD;">📊</div>
-                    <div class="indicator-badge badge-growth">增长</div>
-                </div>
-                <div class="indicator-name">PMI</div>
-                <div class="indicator-desc">制造业采购经理指数</div>
-                <div class="indicator-hint">点击查看趋势</div>
-            </div>
-
-            <div class="indicator-card" onclick="loadIndicatorData('CN_VALUE_ADDED', '工业增加值')">
-                <div class="indicator-header">
-                    <div class="indicator-icon" style="background: #E8F5E9;">🏭</div>
-                    <div class="indicator-badge badge-growth">增长</div>
-                </div>
-                <div class="indicator-name">工业增加值</div>
-                <div class="indicator-desc">规模以上工业增加值同比</div>
-                <div class="indicator-hint">点击查看趋势</div>
-            </div>
-
-            <div class="indicator-card" onclick="loadIndicatorData('CN_RETAIL_SALES', '社会消费品零售总额')">
-                <div class="indicator-header">
-                    <div class="indicator-icon" style="background: #FFF3E0;">🛒</div>
-                    <div class="indicator-badge badge-growth">增长</div>
-                </div>
-                <div class="indicator-name">社零总额</div>
-                <div class="indicator-desc">社会消费品零售总额同比</div>
-                <div class="indicator-hint">点击查看趋势</div>
+    <div class="stat-card">
+        <div class="stat-icon">📅</div>
+        <div class="stat-info">
+            <div class="stat-label">最新更新</div>
+            <div class="stat-value stat-date">
+                {% if stats.latest_date != '-' %}
+                    {{ stats.latest_date|date:"Y-m-d" }}
+                {% else %}
+                    -
+                {% endif %}
             </div>
         </div>
     </div>
-
-    <!-- 通胀类指标 -->
-    <div id="category-inflation" class="indicator-category" style="display: none;">
-        <h3 class="category-title">通胀类指标</h3>
-        <div class="indicator-grid">
-            <div class="indicator-card" onclick="loadIndicatorData('CN_CPI', 'CPI 居民消费价格指数')">
-                <div class="indicator-header">
-                    <div class="indicator-icon" style="background: #FCE4EC;">💹</div>
-                    <div class="indicator-badge badge-inflation">通胀</div>
-                </div>
-                <div class="indicator-name">CPI</div>
-                <div class="indicator-desc">居民消费价格指数同比</div>
-                <div class="indicator-hint">点击查看趋势</div>
-            </div>
-
-            <div class="indicator-card" onclick="loadIndicatorData('CN_PPI', 'PPI 工业生产者出厂价格指数')">
-                <div class="indicator-header">
-                    <div class="indicator-icon" style="background: #F3E5F5;">🏷️</div>
-                    <div class="indicator-badge badge-inflation">通胀</div>
-                </div>
-                <div class="indicator-name">PPI</div>
-                <div class="indicator-desc">工业生产者出厂价格指数</div>
-                <div class="indicator-hint">点击查看趋势</div>
-            </div>
-        </div>
     </div>
 
-    <!-- 货币类指标 -->
-    <div id="category-money" class="indicator-category" style="display: none;">
-        <h3 class="category-title">货币类指标</h3>
-        <div class="indicator-grid">
-            <div class="indicator-card" onclick="loadIndicatorData('CN_M2', 'M2 广义货币供应量')">
-                <div class="indicator-header">
-                    <div class="indicator-icon" style="background: #E1F5FE;">💸</div>
-                    <div class="indicator-badge badge-money">货币</div>
-                </div>
-                <div class="indicator-name">M2</div>
-                <div class="indicator-desc">广义货币供应量（万亿元）</div>
-                <div class="indicator-hint">点击查看趋势</div>
+<div class="macro-dashboard">
+    <!-- 左侧边栏 -->
+    <div class="left-sidebar">
+        <div class="sidebar-card">
+            <div class="search-section">
+                <input type="text" id="searchInput" value="{{ filter_search }}"
+                       placeholder="搜索指标名称或代码..."
+                       class="search-input"
+                       oninput="filterIndicators()">
             </div>
         </div>
-    </div>
 
-    <!-- 全部指标 -->
-    <div id="category-all" class="indicator-category" style="display: none;">
-        <h3 class="category-title">全部指标</h3>
-        {% if indicators %}
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>指标代码</th>
-                    <th>最新值</th>
-                    <th>所属期间</th>
-                    <th>数据源</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for ind in indicators %}
-                <tr>
-                    <td class="code-cell">
-                        <span class="indicator-code">{{ ind.code }}</span>
-                    </td>
-                    <td class="value-cell">
-                        <span class="indicator-value">{{ ind.value|floatformat:2 }}</span>
-                    </td>
-                    <td>{{ ind.observed_at|date:"Y-m-d" }}</td>
-                    <td><span class="source-tag">{{ ind.source }}</span></td>
-                    <td>
-                        <button class="btn-view" onclick="loadIndicatorData('{{ ind.code }}', '{{ ind.code }}')">查看图表</button>
-                    </td>
-                </tr>
+        <div class="sidebar-card">
+            <div class="sidebar-header">
+                <h3>指标列表</h3>
+            </div>
+            <div class="categories-container">
+                {% for category in indicator_categories %}
+                <div class="category-block">
+                    <div class="category-header" onclick="toggleCategory('{{ category.id }}')">
+                        <span class="cat-toggle-icon" id="cat-icon-{{ category.id }}">▶</span>
+                        <span class="cat-icon">{{ category.icon }}</span>
+                        <span class="cat-name">{{ category.name }}</span>
+                        <span class="cat-count">({{ category.indicators|length }})</span>
+                    </div>
+                    <div class="cat-content" id="cat-content-{{ category.id }}" {% if forloop.first %}style="display:block;"{% else %}style="display:none;"{% endif %}>
+                        {% for ind in category.indicators %}
+                        <div class="ind-item {% if forloop.first and forloop.first and forloop.parentloop.first %}active{% endif %}"
+                             data-code="{{ ind.code }}"
+                             data-name="{{ ind.name }}"
+                             onclick="selectIndicator('{{ ind.code }}')">
+                            <span class="ind-code">{{ ind.code }}</span>
+                            <span class="ind-name">{{ ind.name }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
                 {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <div class="empty-state">
-            <div class="empty-icon">📊</div>
-            <div class="empty-title">暂无数据</div>
-            <div class="empty-desc">请先同步宏观数据</div>
+            </div>
         </div>
-        {% endif %}
     </div>
-</div>
 
-<!-- 图表展示区域 -->
-<div id="chart-section" class="chart-section" style="display: none;">
-    <div class="chart-header">
-        <h2 id="chart-title">指标趋势图</h2>
-        <button class="btn-close" onclick="closeChart()">✕</button>
+    <!-- 中间：图表区域 -->
+    <div class="main-panel">
+        <!-- 当前指标信息 -->
+        <div id="indicatorInfoBar" class="indicator-info-bar" style="display: none;">
+            <div class="info-bar-section">
+                <span class="info-label">指标:</span>
+                <span class="info-value" id="currentIndicatorCode">-</span>
+            </div>
+            <div class="info-bar-section">
+                <span class="info-label">名称:</span>
+                <span class="info-value" id="currentIndicatorName">-</span>
+            </div>
+            <div class="info-bar-section">
+                <span class="info-label">最新值:</span>
+                <span class="info-value highlight" id="currentIndicatorValue">-</span>
+            </div>
+            <div class="info-bar-section">
+                <span class="info-label">日期:</span>
+                <span class="info-value" id="currentIndicatorPeriod">-</span>
+            </div>
+            <div class="info-bar-section">
+                <span class="info-label">数据源:</span>
+                <span class="info-value" id="currentIndicatorSource">-</span>
+            </div>
+            <div class="info-bar-section">
+                <span class="info-label">记录数:</span>
+                <span class="info-value" id="currentIndicatorRecords">-</span>
+            </div>
+        </div>
+
+        <!-- 主图表 -->
+        <div class="main-chart-container">
+            <div id="mainChart" class="main-chart"></div>
+        </div>
+
+        <!-- 数据提示 -->
+        <div id="chartPlaceholder" class="chart-placeholder">
+            <div class="placeholder-icon">📈</div>
+            <div class="placeholder-title">选择一个指标查看趋势</div>
+            <div class="placeholder-desc">从左侧列表点击指标名称</div>
+        </div>
     </div>
-    <div id="indicatorChart" style="width: 100%; height: 500px;"></div>
-    <div class="chart-info">
-        <div class="info-item">
-            <span class="info-label">数据源:</span>
-            <span id="chart-source" class="info-value">-</span>
-        </div>
-        <div class="info-item">
-            <span class="info-label">数据点数:</span>
-            <span id="chart-count" class="info-value">-</span>
-        </div>
-        <div class="info-item">
-            <span class="info-label">时间范围:</span>
-            <span id="chart-range" class="info-value">-</span>
+
+    <!-- 右侧：AI 分析 -->
+    <div class="right-sidebar">
+        <div class="ai-panel">
+            <div class="panel-header">
+                <h3>🤖 AI 分析与解读</h3>
+            </div>
+
+            <div class="ai-content">
+                <div class="ai-input-section">
+                    <div class="quick-questions">
+                        <button class="quick-btn" onclick="askAI('解释当前指标的趋势变化特征')">趋势特征</button>
+                        <button class="quick-btn" onclick="askAI('分析这个指标的周期性波动')">周期分析</button>
+                        <button class="quick-btn" onclick="askAI('当前处于上升还是下降趋势？')">趋势判断</button>
+                        <button class="quick-btn" onclick="askAI('这个指标的异常波动有哪些？')">异常分析</button>
+                    </div>
+                    <textarea id="aiQuestion" class="ai-textarea" placeholder="输入您的问题，或点击上方快捷按钮..."></textarea>
+                    <button class="ai-submit-btn" onclick="submitAIQuestion()">
+                        <span class="btn-icon">🤖</span>
+                        分析
+                    </button>
+                </div>
+
+                <div class="ai-output-section">
+                    <div class="output-header">
+                        <span class="output-title">分析结果</span>
+                        <span class="output-status" id="aiStatus"></span>
+                    </div>
+                    <div id="aiResponse" class="ai-response">
+                        <div class="ai-placeholder">
+                            <div class="placeholder-icon">💭</div>
+                            <p>选择指标后，可让 AI 分析趋势特征</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <style>
-/* 统计卡片 */
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-xl);
-}
-
-.stat-card {
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-lg);
-    text-align: center;
-}
-
-.stat-label {
-    font-size: 13px;
-    color: var(--color-text-secondary);
-    margin-bottom: var(--spacing-sm);
-}
-
-.stat-value {
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--color-primary);
-}
-
-.stat-date {
-    font-size: 20px;
-}
-
-/* 分类导航 */
-.category-section {
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-xl);
-}
-
-.category-nav {
+/* 页面头部 */
+.header-content {
     display: flex;
-    gap: var(--spacing-sm);
-    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
 }
 
-.category-btn {
+.header-controls {
     display: flex;
     align-items: center;
-    gap: var(--spacing-xs);
-    padding: 12px 20px;
+    gap: 12px;
+}
+
+.control-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
     background: white;
-    border: 2px solid var(--color-border);
-    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
+    font-size: 14px;
     cursor: pointer;
     transition: all 0.2s;
 }
 
-.category-btn:hover {
-    border-color: var(--color-primary);
+.control-btn:hover {
+    border-color: #2563EB;
     background: #F6F8FA;
 }
 
-.category-btn.active {
-    border-color: var(--color-primary);
-    background: var(--color-primary);
-    color: white;
+/* 统计卡片 */
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
 }
 
-.category-icon {
-    font-size: 20px;
-}
-
-.category-name {
-    font-size: 14px;
-    font-weight: 600;
-}
-
-/* 指标区域 */
-.indicators-section {
-    margin-bottom: var(--spacing-xl);
-}
-
-.indicator-category {
+.stat-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
     background: var(--color-bg);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    padding: var(--spacing-lg);
 }
 
-.category-title {
-    font-size: 16px;
+.stat-icon {
+    font-size: 32px;
+    opacity: 0.8;
+}
+
+.stat-info {
+    flex: 1;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #2563EB;
+}
+
+.stat-value.stat-date {
+    font-size: 14px;
+}
+
+/* 主布局 */
+.macro-dashboard {
+    display: grid;
+    grid-template-columns: 260px 1fr 360px;
+    gap: 20px;
+    align-items: start;
+}
+
+/* 左侧边栏 */
+.left-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: sticky;
+    top: 20px;
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;
+}
+
+.sidebar-card {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.search-section {
+    padding: 12px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    box-sizing: border-box;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #2563EB;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.sidebar-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-surface);
+}
+
+.sidebar-header h3 {
+    font-size: 13px;
     font-weight: 600;
     color: var(--color-text-primary);
-    margin-bottom: var(--spacing-lg);
-    padding-bottom: var(--spacing-sm);
-    border-bottom: 2px solid var(--color-border);
+    margin: 0;
 }
 
-.indicator-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: var(--spacing-md);
+.categories-container {
+    max-height: 500px;
+    overflow-y: auto;
 }
 
-.indicator-card {
-    background: white;
-    border: 2px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-lg);
+.category-block {
+    border-bottom: 1px solid var(--color-surface);
+}
+
+.category-block:last-child {
+    border-bottom: none;
+}
+
+.category-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: background 0.2s;
+    user-select: none;
 }
 
-.indicator-card:hover {
-    border-color: var(--color-primary);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    transform: translateY(-2px);
+.category-header:hover {
+    background: var(--color-surface);
 }
 
-.indicator-header {
+.cat-toggle-icon {
+    font-size: 10px;
+    color: var(--color-text-muted);
+    width: 14px;
+}
+
+.cat-icon {
+    font-size: 14px;
+}
+
+.cat-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.cat-count {
+    font-size: 11px;
+    color: var(--color-text-muted);
+}
+
+.cat-content {
+    max-height: 300px;
+    overflow-y: auto;
+    background: #fafafa;
+}
+
+.ind-item {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--spacing-md);
+    gap: 10px;
+    padding: 8px 16px 8px 26px;
+    cursor: pointer;
+    transition: background 0.2s;
+    border-left: 2px solid transparent;
 }
 
-.indicator-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
+.ind-item:hover {
+    background: white;
 }
 
-.indicator-badge {
-    padding: 4px 10px;
-    border-radius: var(--radius-sm);
+.ind-item.active {
+    background: #EFF6FF;
+    border-left-color: #2563EB;
+}
+
+.ind-code {
     font-size: 11px;
     font-weight: 600;
+    font-family: monospace;
+    color: #2563EB;
+    min-width: 80px;
 }
 
-.badge-growth {
-    background: #E3F2FD;
-    color: #1976D2;
-}
-
-.badge-inflation {
-    background: #FCE4EC;
-    color: #C2185B;
-}
-
-.badge-money {
-    background: #E1F5FE;
-    color: #0277BD;
-}
-
-.indicator-name {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--color-text-primary);
-    margin-bottom: var(--spacing-xs);
-}
-
-.indicator-desc {
-    font-size: 13px;
-    color: var(--color-text-secondary);
-    margin-bottom: var(--spacing-sm);
-    line-height: 1.5;
-}
-
-.indicator-hint {
+.ind-name {
+    flex: 1;
     font-size: 12px;
-    color: var(--color-primary);
-    margin-top: var(--spacing-sm);
+    color: var(--color-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-/* 图表区域 */
-.chart-section {
+/* 中间面板 */
+.main-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.indicator-info-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 24px;
+    padding: 16px;
     background: var(--color-bg);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-xl);
-    animation: fadeIn 0.3s;
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.chart-header {
+.info-bar-section {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-lg);
-}
-
-.chart-header h2 {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-}
-
-.btn-close {
-    width: 32px;
-    height: 32px;
-    border: 1px solid var(--color-border);
-    background: white;
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 18px;
-    color: var(--color-text-secondary);
-}
-
-.btn-close:hover {
-    background: #FFE5E5;
-    color: var(--color-error);
-    border-color: var(--color-error);
-}
-
-.chart-info {
-    display: flex;
-    gap: var(--spacing-xl);
-    margin-top: var(--spacing-md);
-    padding: var(--spacing-md);
-    background: var(--color-surface);
-    border-radius: var(--radius-sm);
-}
-
-.info-item {
-    display: flex;
-    gap: var(--spacing-xs);
+    flex-direction: column;
+    gap: 4px;
 }
 
 .info-label {
-    font-size: 13px;
+    font-size: 11px;
     color: var(--color-text-secondary);
+    font-weight: 500;
 }
 
 .info-value {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-}
-
-/* 表格 */
-.data-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.data-table th {
-    text-align: left;
-    padding: 12px;
-    font-size: 13px;
-    color: var(--color-text-secondary);
-    border-bottom: 2px solid var(--color-border);
-    background: var(--color-surface);
-}
-
-.data-table td {
-    padding: 12px;
-    border-bottom: 1px solid var(--color-border);
     font-size: 14px;
+    color: var(--color-text-primary);
+    font-weight: 500;
 }
 
-.data-table tr:hover {
-    background: var(--color-surface);
+.info-value.highlight {
+    font-size: 18px;
+    font-weight: 700;
+    color: #2563EB;
 }
 
-.code-cell {
-    font-family: 'Consolas', monospace;
+.main-chart-container {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    min-height: 500px;
 }
 
-.indicator-code {
-    color: var(--color-primary);
-    font-weight: 600;
+.main-chart {
+    width: 100%;
+    height: 480px;
 }
 
-.value-cell {
-    font-weight: 600;
-}
-
-.source-tag {
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: var(--radius-sm);
-    font-size: 12px;
-    background: #D5E9FF;
-    color: var(--color-info);
-}
-
-.btn-view {
-    padding: 6px 12px;
-    background: var(--color-primary);
-    color: white;
-    border: none;
-    border-radius: var(--radius-sm);
-    font-size: 12px;
-    cursor: pointer;
-}
-
-.btn-view:hover {
-    opacity: 0.9;
-}
-
-/* Empty State */
-.empty-state {
+.chart-placeholder {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 60px 20px;
+    min-height: 500px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     text-align: center;
-    padding: var(--spacing-xxl);
 }
 
-.empty-icon {
-    font-size: 48px;
-    margin-bottom: var(--spacing-md);
+.placeholder-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.5;
 }
 
-.empty-title {
+.placeholder-title {
     font-size: 18px;
     font-weight: 600;
     color: var(--color-text-primary);
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: 8px;
 }
 
-.empty-desc {
+.placeholder-desc {
+    font-size: 14px;
+    color: var(--color-text-muted);
+}
+
+/* 右侧边栏 */
+.right-sidebar {
+    position: sticky;
+    top: 20px;
+}
+
+.ai-panel {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    max-height: calc(100vh - 140px);
+}
+
+.panel-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-surface);
+}
+
+.panel-header h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+}
+
+.ai-content {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 180px);
+}
+
+.ai-input-section {
+    padding: 16px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.quick-questions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.quick-btn {
+    padding: 6px 10px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
     color: var(--color-text-secondary);
-}
-</style>
-
-<!-- ECharts JS -->
-{% load static %}
-<script src="{% static 'js/echarts.min.js' %}"></script>
-<script>
-// 分类切换
-function showCategory(category) {
-    // 更新按钮状态
-    document.querySelectorAll('.category-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    event.target.closest('.category-btn').classList.add('active');
-
-    // 隐藏所有分类
-    document.querySelectorAll('.indicator-category').forEach(cat => {
-        cat.style.display = 'none';
-    });
-
-    // 显示选中分类
-    document.getElementById('category-' + category).style.display = 'block';
+    cursor: pointer;
+    transition: all 0.2s;
 }
 
-// 加载指标数据并显示图表
-async function loadIndicatorData(code, name) {
-    try {
-        const response = await fetch(`/macro/api/indicator-data/?code=${code}&limit=120`);
-        const result = await response.json();
+.quick-btn:hover {
+    border-color: #2563EB;
+    background: rgba(37, 99, 235, 0.05);
+    color: #2563EB;
+}
 
-        if (!result.success || result.data.length === 0) {
-            alert('暂无该指标的数据');
-            return;
-        }
+.ai-textarea {
+    width: 100%;
+    min-height: 60px;
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
 
-        // 显示图表区域
-        const chartSection = document.getElementById('chart-section');
-        chartSection.style.display = 'block';
-        chartSection.scrollIntoView({ behavior: 'smooth' });
+.ai-textarea:focus {
+    outline: none;
+    border-color: #2563EB;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
 
-        // 更新标题
-        document.getElementById('chart-title').textContent = name;
+.ai-submit-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 10px;
+    background: #2563EB;
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
 
-        // 准备数据
-        const data = result.data.reverse(); // 按时间正序
-        const dates = data.map(d => d.observed_at);
-        const values = data.map(d => d.value);
+.ai-submit-btn:hover {
+    background: #1D4ED8;
+}
 
-        // 更新信息
-        document.getElementById('chart-source').textContent = data[0].source;
-        document.getElementById('chart-count').textContent = data.length;
-        document.getElementById('chart-range').textContent =
-            `${dates[0]} 至 ${dates[dates.length - 1]}`;
+.ai-submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
 
-        // 渲染图表
-        const chart = echarts.init(document.getElementById('indicatorChart'));
-        chart.setOption({
-            title: {
-                text: name,
-                left: 'center',
-                textStyle: { fontSize: 16 }
-            },
-            tooltip: {
-                trigger: 'axis',
-                formatter: function(params) {
-                    const param = params[0];
-                    return `${param.name}<br/>${param.seriesName}: ${param.value}`;
-                }
-            },
-            grid: {
-                left: '3%',
-                right: '4%',
-                bottom: '3%',
-                containLabel: true
-            },
-            xAxis: {
-                type: 'category',
-                data: dates,
-                axisLabel: {
-                    rotate: 45,
-                    fontSize: 11
-                }
-            },
-            yAxis: {
-                type: 'value',
-                name: '数值'
-            },
-            series: [{
-                name: name,
-                type: 'line',
-                data: values,
-                smooth: true,
-                itemStyle: { color: '#3366CC' },
-                areaStyle: {
-                    color: {
-                        type: 'linear',
-                        x: 0,
-                        y: 0,
-                        x2: 0,
-                        y2: 1,
-                        colorStops: [
-                            { offset: 0, color: 'rgba(51, 102, 204, 0.3)' },
-                            { offset: 1, color: 'rgba(51, 102, 204, 0.05)' }
-                        ]
-                    }
-                }
-            }]
-        });
+.ai-output-section {
+    padding: 16px;
+    flex: 1;
+    overflow-y: auto;
+}
 
-        // 响应式调整
-        window.addEventListener('resize', () => {
-            chart.resize();
-        });
+.output-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
 
-    } catch (error) {
-        console.error('加载数据失败:', error);
-        alert('加载数据失败: ' + error.message);
+.output-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.output-status {
+    font-size: 11px;
+    color: var(--color-text-muted);
+}
+
+.ai-response {
+    min-height: 100px;
+}
+
+.ai-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--color-text-muted);
+}
+
+.ai-response-content {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--color-text-primary);
+    white-space: pre-wrap;
+}
+
+/* 响应式 */
+@media (max-width: 1400px) {
+    .macro-dashboard {
+        grid-template-columns: 240px 1fr 320px;
     }
 }
 
-// 关闭图表
-function closeChart() {
-    document.getElementById('chart-section').style.display = 'none';
+@media (max-width: 1200px) {
+    .macro-dashboard {
+        grid-template-columns: 1fr;
+    }
+
+    .left-sidebar, .right-sidebar {
+        position: static;
+        max-height: none;
+    }
+
+    .stats-row {
+        grid-template-columns: 1fr;
+    }
 }
-</script>
+
+@media (max-width: 768px) {
+    .indicator-info-bar {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .main-chart {
+        height: 300px;
+    }
+
+    .chart-placeholder {
+        min-height: 300px;
+    }
+}
+</style>
+
+{% load static %}
+<script src="{% static 'js/echarts.min.js' %}"></script>
 {% endblock %}

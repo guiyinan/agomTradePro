@@ -17,13 +17,16 @@ logger = logging.getLogger(__name__)
 def api_get_indicator_data(request):
     """
     API: 获取指标数据详情
+    支持参数: code, limit, start_date, end_date
     """
     if request.method != 'GET':
         return JsonResponse({'success': False, 'message': '仅支持 GET 请求'}, status=405)
 
     try:
         code = request.GET.get('code')
-        limit = int(request.GET.get('limit', 20))
+        limit = int(request.GET.get('limit', 500))  # 增加默认值
+        start_date = request.GET.get('start_date', '')
+        end_date = request.GET.get('end_date', '')
 
         if not code:
             return JsonResponse({
@@ -31,9 +34,17 @@ def api_get_indicator_data(request):
                 'message': '请指定指标代码'
             }, status=400)
 
-        queryset = MacroIndicator.objects.filter(
-            code=code
-        ).order_by('-reporting_period', '-revision_number')[:limit]
+        # 构建查询
+        queryset = MacroIndicator.objects.filter(code=code)
+
+        # 时间范围过滤
+        if start_date:
+            queryset = queryset.filter(reporting_period__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(reporting_period__lte=end_date)
+
+        # 排序并限制数量
+        queryset = queryset.order_by('reporting_period', 'revision_number')[:limit]
 
         data = [
             {
@@ -43,6 +54,8 @@ def api_get_indicator_data(request):
                 'observed_at': item.observed_at.isoformat(),
                 'published_at': item.published_at.isoformat() if item.published_at else None,
                 'source': item.source,
+                'period_type': item.period_type,
+                'period_type_display': item.get_period_type_display(),
                 'revision_number': item.revision_number,
             }
             for item in queryset

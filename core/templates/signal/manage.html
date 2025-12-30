@@ -9,6 +9,34 @@
     <p class="description">基于 Regime 的资产准入过滤与证伪逻辑管理</p>
 </div>
 
+<!-- 当前 Regime 显示 -->
+{% if current_regime %}
+<div class="regime-info-bar">
+    <div class="regime-current">
+        <span class="regime-label">当前 Regime:</span>
+        <span class="regime-value regime-{{ current_regime.dominant_regime|lower }}">
+            {{ current_regime.dominant_regime }}
+        </span>
+        <span class="regime-confidence">置信度: {{ current_regime.confidence|floatformat:2 }}</span>
+        {% if current_regime.observed_at %}
+        <span class="regime-date">{{ current_regime.observed_at|date:"Y-m-d" }}</span>
+        {% endif %}
+    </div>
+    <div class="regime-recommendation">
+        <span class="recommendation-label">推荐资产:</span>
+        {% if recommended_assets.recommended %}
+        <span class="recommendation-tags">
+            {% for asset in recommended_assets.recommended %}
+            <span class="tag tag-preferred">{{ asset }}</span>
+            {% endfor %}
+        </span>
+        {% else %}
+        <span class="no-recommendation">暂无推荐资产</span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 <!-- 统计卡片 -->
 <div class="signal-stats-grid">
     <div class="signal-stat-card stat-total">
@@ -46,6 +74,19 @@
             <div class="stat-value">{{ stats.invalidated }}</div>
         </div>
     </div>
+</div>
+
+<!-- 操作按钮栏 -->
+<div class="action-bar">
+    <button class="btn btn-primary" onclick="openCreateModal()">
+        <span class="btn-icon">+</span> 创建新信号
+    </button>
+    <a href="/admin/signal/investmentsignalmodel/" class="btn btn-secondary">
+        Admin 后台
+    </a>
+    <button class="btn btn-refresh" onclick="location.reload()">
+        <span class="btn-icon">↻</span> 刷新
+    </button>
 </div>
 
 <!-- 筛选表单 -->
@@ -95,13 +136,13 @@
 <div class="signals-section">
     <div class="section-header">
         <h2>信号列表</h2>
-        <a href="/admin/signal/investmentsignalmodel/" class="btn-admin">Admin 后台管理</a>
+        <span class="signal-count">{{ signals|length }} 条记录</span>
     </div>
 
     {% if signals %}
     <div class="signals-grid">
         {% for signal in signals %}
-        <div class="signal-card signal-status-{{ signal.status }}">
+        <div class="signal-card signal-status-{{ signal.status }}" data-signal-id="{{ signal.id }}">
             <div class="signal-header">
                 <div class="signal-asset">
                     <span class="asset-code">{{ signal.asset_code }}</span>
@@ -147,6 +188,28 @@
                 <strong>拒绝原因:</strong> {{ signal.rejection_reason }}
             </div>
             {% endif %}
+
+            <!-- 操作按钮 -->
+            <div class="signal-actions">
+                {% if signal.status == 'pending' or signal.status == 'rejected' %}
+                <button class="action-btn btn-approve" onclick="approveSignal({{ signal.id }})" title="批准">
+                    ✓
+                </button>
+                {% endif %}
+                {% if signal.status == 'pending' or signal.status == 'approved' %}
+                <button class="action-btn btn-reject" onclick="rejectSignal({{ signal.id }})" title="拒绝">
+                    ✕
+                </button>
+                {% endif %}
+                {% if signal.status == 'approved' %}
+                <button class="action-btn btn-invalidate" onclick="invalidateSignal({{ signal.id }})" title="证伪">
+                    ⚠
+                </button>
+                {% endif %}
+                <button class="action-btn btn-delete" onclick="deleteSignal({{ signal.id }}, '{{ signal.asset_code }}')" title="删除">
+                    🗑
+                </button>
+            </div>
         </div>
         {% endfor %}
     </div>
@@ -155,296 +218,665 @@
         <div class="empty-icon">📈</div>
         <div class="empty-title">暂无投资信号</div>
         <div class="empty-desc">
-            请在 <a href="/admin/signal/" class="link-primary">Admin 后台</a> 创建投资信号
+            点击上方 <strong>"创建新信号"</strong> 按钮添加投资信号
         </div>
     </div>
     {% endif %}
 </div>
 
+<!-- 创建信号模态框 -->
+<div id="createModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>创建新投资信号</h2>
+            <button class="modal-close" onclick="closeCreateModal()">&times;</button>
+        </div>
+        <form id="createForm" class="modal-body">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="asset_code">资产代码 *</label>
+                    <input type="text" id="asset_code" name="asset_code" required placeholder="如: 000001.SH">
+                </div>
+                <div class="form-group">
+                    <label for="asset_class">资产类别 *</label>
+                    <select id="asset_class" name="asset_class" required onchange="updateEligibilityHint()">
+                        <option value="">选择资产类别</option>
+                        {% for ac in all_asset_classes %}
+                        <option value="{{ ac }}">{{ ac }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="direction">方向</label>
+                    <select id="direction" name="direction">
+                        <option value="LONG">做多</option>
+                        <option value="SHORT">做空</option>
+                        <option value="NEUTRAL">中性</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="target_regime">目标象限</label>
+                    <select id="target_regime" name="target_regime" onchange="updateEligibilityHint()">
+                        {% for r in all_regimes %}
+                        <option value="{{ r }}">{{ r }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="logic_desc">投资逻辑描述 *</label>
+                <textarea id="logic_desc" name="logic_desc" required rows="3"
+                    placeholder="如: PMI 连续回升，经济复苏预期增强，利好成长股"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="invalidation_logic">证伪逻辑描述 *</label>
+                <textarea id="invalidation_logic" name="invalidation_logic" required rows="3"
+                    placeholder="如: PMI 跌破 50 且连续 2 月低于前值"></textarea>
+                <small class="form-hint">必须包含可量化条件，如 "跌破 50"、"突破前值" 等</small>
+            </div>
+            <div class="form-group">
+                <label for="invalidation_threshold">证伪阈值</label>
+                <input type="number" id="invalidation_threshold" name="invalidation_threshold"
+                    step="0.01" placeholder="如: 50">
+            </div>
+
+            <!-- 准入提示 -->
+            <div id="eligibilityHint" class="eligibility-hint" style="display: none;">
+                <div class="hint-header">准入检查预览</div>
+                <div class="hint-content" id="eligibilityContent"></div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeCreateModal()">取消</button>
+                <button type="submit" class="btn btn-primary">创建并检查</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 拒绝原因模态框 -->
+<div id="rejectModal" class="modal">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h2>拒绝信号</h2>
+            <button class="modal-close" onclick="closeRejectModal()">&times;</button>
+        </div>
+        <form id="rejectForm" class="modal-body">
+            <input type="hidden" id="reject_signal_id" name="signal_id">
+            <div class="form-group">
+                <label for="reject_reason">拒绝原因</label>
+                <textarea id="reject_reason" name="reason" rows="3" placeholder="请输入拒绝原因..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeRejectModal()">取消</button>
+                <button type="submit" class="btn btn-danger">确认拒绝</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 结果提示 -->
+<div id="toast" class="toast"></div>
+
 <style>
-.signal-stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-xl);
-}
-
-.signal-stat-card {
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-md);
-    display: flex;
-    gap: var(--spacing-md);
-    align-items: center;
-}
-
-.stat-icon {
-    font-size: 28px;
-}
-
-.stat-info {
-    flex: 1;
-}
-
-.stat-label {
-    font-size: 12px;
-    color: var(--color-text-secondary);
-}
-
-.stat-value {
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--color-text-primary);
-}
-
-.stat-total { border-left: 4px solid var(--color-primary); }
-.stat-pending { border-left: 4px solid var(--color-warning); }
-.stat-approved { border-left: 4px solid var(--color-success); }
-.stat-rejected { border-left: 4px solid var(--color-error); }
-.stat-invalidated { border-left: 4px solid var(--color-text-muted); }
-
-.filter-section {
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
+/* Regime 信息栏 */
+.regime-info-bar {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border-radius: var(--radius-md);
     padding: var(--spacing-lg);
     margin-bottom: var(--spacing-xl);
-}
-
-.filter-form {
+    color: white;
     display: flex;
-    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
     gap: var(--spacing-md);
 }
 
-.filter-row {
+.regime-current {
     display: flex;
     gap: var(--spacing-md);
-    align-items: flex-end;
+    align-items: center;
     flex-wrap: wrap;
 }
 
-.filter-field {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-xs);
-}
-
-.filter-field label {
-    font-size: 13px;
-    color: var(--color-text-secondary);
-}
-
-.filter-field input,
-.filter-field select {
-    padding: 8px 12px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    font-size: 14px;
-    min-width: 150px;
-}
-
-.btn-filter,
-.btn-reset {
-    padding: 8px 16px;
-    border-radius: var(--radius-sm);
-    font-size: 14px;
-    text-decoration: none;
-    cursor: pointer;
-    border: none;
-}
-
-.btn-filter {
-    background: var(--color-primary);
-    color: white;
-}
-
-.btn-filter:hover {
-    background: var(--color-primary-hover);
-}
-
-.btn-reset {
-    background: var(--color-surface);
-    color: var(--color-text-secondary);
-    border: 1px solid var(--color-border);
-}
-
-.signals-section {
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-lg);
-}
-
-.section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-lg);
-}
-
-.section-header h2 {
-    font-size: 18px;
+.regime-label {
     font-weight: 600;
-    color: var(--color-text-primary);
-}
-
-.btn-admin {
-    padding: 8px 16px;
-    background: var(--color-success);
-    color: white;
-    text-decoration: none;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-}
-
-.btn-admin:hover {
     opacity: 0.9;
 }
 
-.signals-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-    gap: var(--spacing-md);
+.regime-value {
+    padding: 6px 16px;
+    background: rgba(255,255,255,0.2);
+    border-radius: var(--radius-sm);
+    font-weight: 700;
+    font-size: 18px;
 }
 
-.signal-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-md);
-    border-left: 4px solid;
+.regime-confidence {
+    font-size: 13px;
+    opacity: 0.8;
 }
 
-.signal-status-pending { border-left-color: var(--color-warning); }
-.signal-status-approved { border-left-color: var(--color-success); }
-.signal-status-rejected { border-left-color: var(--color-error); }
-.signal-status-invalidated { border-left-color: var(--color-text-muted); }
-.signal-status-expired { border-left-color: var(--color-text-muted); }
-
-.signal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: var(--spacing-md);
-    padding-bottom: var(--spacing-sm);
-    border-bottom: 1px solid var(--color-border);
+.regime-date {
+    font-size: 12px;
+    opacity: 0.7;
 }
 
-.signal-asset {
+.regime-recommendation {
     display: flex;
     gap: var(--spacing-sm);
     align-items: center;
 }
 
-.asset-code {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--color-primary);
-}
-
-.asset-class {
-    padding: 4px 8px;
-    background: var(--color-border);
-    border-radius: var(--radius-sm);
-    font-size: 12px;
-    color: var(--color-text-secondary);
-}
-
-.signal-direction {
-    padding: 6px 12px;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
+.recommendation-label {
     font-weight: 600;
+    opacity: 0.9;
 }
 
-.direction-LONG { background: #D5FBDD; color: var(--color-success); }
-.direction-SHORT { background: #FEE7E7; color: var(--color-error); }
-.direction-NEUTRAL { background: var(--color-surface); color: var(--color-text-secondary); }
-
-.signal-body {
-    margin-bottom: var(--spacing-md);
-}
-
-.signal-logic,
-.signal-invalidation {
-    margin-bottom: var(--spacing-sm);
-}
-
-.logic-label {
-    font-size: 12px;
-    color: var(--color-text-muted);
-    margin-bottom: var(--spacing-xs);
-}
-
-.logic-content {
-    font-size: 14px;
-    color: var(--color-text-primary);
-    line-height: 1.5;
-}
-
-.logic-content.invalidation {
-    color: var(--color-text-secondary);
-}
-
-.threshold-badge {
-    display: inline-block;
-    padding: 4px 8px;
-    background: #FEF7E2;
-    color: var(--color-warning);
-    border-radius: var(--radius-sm);
-    font-size: 12px;
-    margin-top: var(--spacing-xs);
-}
-
-.signal-footer {
+.recommendation-tags {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-top: var(--spacing-sm);
-    border-top: 1px solid var(--color-border);
+    gap: var(--spacing-xs);
 }
 
-.signal-meta {
-    display: flex;
-    gap: var(--spacing-md);
-}
-
-.meta-item {
-    font-size: 12px;
-    color: var(--color-text-muted);
-}
-
-.signal-status-badge {
+.tag {
     padding: 4px 10px;
     border-radius: var(--radius-sm);
     font-size: 12px;
     font-weight: 600;
 }
 
-.status-pending { background: #FEF7E2; color: var(--color-warning); }
-.status-approved { background: #D5FBDD; color: var(--color-success); }
-.status-rejected { background: #FEE7E7; color: var(--color-error); }
-.status-invalidated { background: var(--color-surface); color: var(--color-text-muted); }
-.status-expired { background: var(--color-surface); color: var(--color-text-muted); }
-
-.rejection-reason {
-    margin-top: var(--spacing-sm);
-    padding: var(--spacing-sm);
-    background: #FEE7E7;
-    color: var(--color-error);
-    border-radius: var(--radius-sm);
-    font-size: 13px;
+.tag-preferred {
+    background: #D5FBDD;
+    color: #1B5E20;
 }
 
-.link-primary {
-    color: var(--color-primary);
+/* 操作栏 */
+.action-bar {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
     text-decoration: none;
 }
 
-.link-primary:hover {
-    text-decoration: underline;
+.btn-primary {
+    background: var(--color-primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--color-primary-hover);
+}
+
+.btn-secondary {
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+}
+
+.btn-refresh {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    margin-left: auto;
+}
+
+.btn-icon {
+    font-size: 16px;
+}
+
+/* 信号卡片操作按钮 */
+.signal-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--color-border);
+    margin-top: var(--spacing-sm);
+}
+
+.action-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.btn-approve {
+    background: #D5FBDD;
+    color: #1B5E20;
+}
+
+.btn-approve:hover {
+    background: #B9E6C3;
+}
+
+.btn-reject {
+    background: #FEE7E7;
+    color: #C62828;
+}
+
+.btn-reject:hover {
+    background: #FFCDD2;
+}
+
+.btn-invalidate {
+    background: #FEF7E2;
+    color: #F57F17;
+}
+
+.btn-invalidate:hover {
+    background: #FFF9C4;
+}
+
+.btn-delete {
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    margin-left: auto;
+}
+
+.btn-delete:hover {
+    background: #FEE7E7;
+    color: #C62828;
+}
+
+/* 模态框 */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: var(--color-bg);
+    border-radius: var(--radius-lg);
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: modalSlideIn 0.3s ease;
+}
+
+.modal-sm {
+    max-width: 400px;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-lg);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.modal-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--color-text-muted);
+}
+
+.modal-close:hover {
+    color: var(--color-text-primary);
+}
+
+.modal-body {
+    padding: var(--spacing-lg);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.form-group label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.form-group textarea {
+    resize: vertical;
+}
+
+.form-hint {
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+/* 准入提示 */
+.eligibility-hint {
+    background: #F3F4F6;
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.hint-header {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: var(--spacing-sm);
+}
+
+.hint-content {
+    font-size: 13px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-sm);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--color-border);
+}
+
+.btn-danger {
+    background: var(--color-error);
+    color: white;
+}
+
+/* Toast 提示 */
+.toast {
+    position: fixed;
+    bottom: var(--spacing-xl);
+    right: var(--spacing-xl);
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: #333;
+    color: white;
+    border-radius: var(--radius-sm);
+    z-index: 2000;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.toast.success {
+    background: #1B5E20;
+}
+
+.toast.error {
+    background: #C62828;
+}
+
+/* 其他样式 */
+.signal-count {
+    font-size: 13px;
+    color: var(--color-text-muted);
+}
+
+.no-recommendation {
+    font-size: 13px;
+    opacity: 0.7;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .regime-info-bar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
 }
 </style>
+
+<script>
+const currentRegime = '{{ current_regime.dominant_regime|default:"Recovery" }}';
+
+function openCreateModal() {
+    document.getElementById('createModal').classList.add('active');
+}
+
+function closeCreateModal() {
+    document.getElementById('createModal').classList.remove('active');
+    document.getElementById('createForm').reset();
+    document.getElementById('eligibilityHint').style.display = 'none';
+}
+
+function updateEligibilityHint() {
+    const assetClass = document.getElementById('asset_class').value;
+    const targetRegime = document.getElementById('target_regime').value;
+    const hintDiv = document.getElementById('eligibilityHint');
+    const contentDiv = document.getElementById('eligibilityContent');
+
+    if (!assetClass || !targetRegime) {
+        hintDiv.style.display = 'none';
+        return;
+    }
+
+    fetch(`/signal/eligibility/?asset_class=${assetClass}&regime=${targetRegime}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.eligible) {
+                contentDiv.innerHTML = `
+                    <span style="color: #1B5E20;">✓</span>
+                    ${assetClass} 在 ${targetRegime} 象限下适配性为 <strong>${data.eligibility}</strong>
+                `;
+            } else {
+                contentDiv.innerHTML = `
+                    <span style="color: #C62828;">⚠</span>
+                    ${assetClass} 在 ${targetRegime} 象限下为 <strong>HOSTILE</strong>，信号可能会被拒绝
+                `;
+            }
+            hintDiv.style.display = 'block';
+        })
+        .catch(err => console.error(err));
+}
+
+function openRejectModal(signalId) {
+    document.getElementById('reject_signal_id').value = signalId;
+    document.getElementById('rejectModal').classList.add('active');
+}
+
+function closeRejectModal() {
+    document.getElementById('rejectModal').classList.remove('active');
+    document.getElementById('rejectForm').reset();
+}
+
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = `toast ${type} show`;
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
+}
+
+async function approveSignal(signalId) {
+    if (!confirm('确认批准此信号？')) return;
+
+    const formData = new FormData();
+    formData.append('signal_id', signalId);
+
+    try {
+        const res = await fetch('/signal/approve/', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message, 'success');
+            location.reload();
+        }
+    } catch (err) {
+        showToast('操作失败', 'error');
+    }
+}
+
+function rejectSignal(signalId) {
+    openRejectModal(signalId);
+}
+
+async function invalidateSignal(signalId) {
+    if (!confirm('确认证伪此信号？')) return;
+
+    const formData = new FormData();
+    formData.append('signal_id', signalId);
+    formData.append('reason', '信号已证伪');
+
+    try {
+        const res = await fetch('/signal/invalidate/', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message, 'success');
+            location.reload();
+        }
+    } catch (err) {
+        showToast('操作失败', 'error');
+    }
+}
+
+async function deleteSignal(signalId, assetCode) {
+    if (!confirm(`确认删除信号 ${assetCode}？`)) return;
+
+    try {
+        const res = await fetch(`/signal/delete/${signalId}/`, {
+            method: 'DELETE'
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message, 'success');
+            document.querySelector(`[data-signal-id="${signalId}"]`).remove();
+        }
+    } catch (err) {
+        showToast('删除失败', 'error');
+    }
+}
+
+// 创建表单提交
+document.getElementById('createForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+
+    try {
+        const res = await fetch('/signal/create/', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            if (data.is_approved) {
+                let msg = '信号创建成功并已通过准入检查';
+                if (data.warnings && data.warnings.length > 0) {
+                    msg += ' (警告: ' + data.warnings.join(', ') + ')';
+                }
+                showToast(msg, 'success');
+            } else {
+                showToast('信号已创建但未通过准入检查: ' + (data.rejection_reason || '未知原因'), 'error');
+            }
+            closeCreateModal();
+            location.reload();
+        } else {
+            showToast(data.error || '创建失败', 'error');
+        }
+    } catch (err) {
+        showToast('网络错误', 'error');
+    }
+});
+
+// 拒绝表单提交
+document.getElementById('rejectForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+
+    try {
+        const res = await fetch('/signal/reject/', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast(data.message, 'success');
+            closeRejectModal();
+            location.reload();
+        }
+    } catch (err) {
+        showToast('操作失败', 'error');
+    }
+});
+
+// 点击模态框外部关闭
+document.querySelectorAll('.modal').forEach(modal => {
+    modal.addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.classList.remove('active');
+        }
+    });
+});
+</script>
 {% endblock %}

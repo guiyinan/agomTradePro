@@ -1,0 +1,1311 @@
+{% extends "base.html" %}
+
+{% block title %}Prompt 模板管理 - AgomSAAF{% endblock %}
+
+{% block content %}
+<div class="prompt-manage-page">
+    <!-- 页面头部 -->
+    <div class="page-header">
+        <div class="header-content">
+            <div>
+                <h1>Prompt 模板管理</h1>
+                <p class="subtitle">AI 提示词模板与链式执行配置</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="showCreateModal()">
+                    <span class="btn-icon">+</span> 新建模板
+                </button>
+                <button class="btn btn-secondary" onclick="showChainModal()">
+                    <span class="btn-icon">🔗</span> 新建链配置
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab导航 -->
+    <div class="tab-navigation">
+        <button class="tab-nav-btn active" data-tab="templates" onclick="switchMainTab('templates')">
+            <span class="tab-icon">📄</span> 模板管理
+        </button>
+        <button class="tab-nav-btn" data-tab="chains" onclick="switchMainTab('chains')">
+            <span class="tab-icon">🔗</span> 链配置
+        </button>
+        <button class="tab-nav-btn" data-tab="execution" onclick="switchMainTab('execution')">
+            <span class="tab-icon">📊</span> 执行日志
+        </button>
+        <button class="tab-nav-btn" data-tab="test" onclick="switchMainTab('test')">
+            <span class="tab-icon">🧪</span> 测试执行
+        </button>
+    </div>
+
+    <!-- 模板管理Tab -->
+    <div id="tab-templates" class="tab-content active">
+        <div class="content-section">
+            <!-- 筛选栏 -->
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <label>分类:</label>
+                    <select id="categoryFilter" onchange="loadTemplates()">
+                        <option value="">全部</option>
+                        <option value="report">报告分析</option>
+                        <option value="signal">信号生成</option>
+                        <option value="analysis">数据分析</option>
+                        <option value="chat">聊天</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>状态:</label>
+                    <select id="statusFilter" onchange="loadTemplates()">
+                        <option value="">全部</option>
+                        <option value="active">激活</option>
+                        <option value="inactive">未激活</option>
+                    </select>
+                </div>
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="搜索模板名称..." onkeyup="loadTemplates()">
+                </div>
+            </div>
+
+            <!-- 模板列表 -->
+            <div class="templates-grid" id="templatesGrid">
+                <!-- 动态加载 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 链配置Tab -->
+    <div id="tab-chains" class="tab-content">
+        <div class="content-section">
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <label>执行模式:</label>
+                    <select id="modeFilter" onchange="loadChains()">
+                        <option value="">全部</option>
+                        <option value="serial">串行</option>
+                        <option value="parallel">并行</option>
+                        <option value="tool">工具调用</option>
+                        <option value="hybrid">混合</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="chains-grid" id="chainsGrid">
+                <!-- 动态加载 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 执行日志Tab -->
+    <div id="tab-execution" class="tab-content">
+        <div class="content-section">
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <label>状态:</label>
+                    <select id="logStatusFilter" onchange="loadLogs()">
+                        <option value="">全部</option>
+                        <option value="success">成功</option>
+                        <option value="error">错误</option>
+                        <option value="timeout">超时</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>显示:</label>
+                    <select id="logLimitFilter" onchange="loadLogs()">
+                        <option value="20">最近20条</option>
+                        <option value="50">最近50条</option>
+                        <option value="100">最近100条</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="logs-table-wrapper">
+                <table class="logs-table">
+                    <thead>
+                        <tr>
+                            <th>执行时间</th>
+                            <th>模板/链</th>
+                            <th>状态</th>
+                            <th>响应时间</th>
+                            <th>Token</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTableBody">
+                        <!-- 动态加载 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 测试执行Tab -->
+    <div id="tab-test" class="tab-content">
+        <div class="content-section">
+            <div class="test-container">
+                <div class="test-panel">
+                    <h3>测试执行</h3>
+
+                    <div class="test-form-group">
+                        <label>选择模板:</label>
+                        <select id="testTemplate" onchange="loadTemplatePlaceholders()">
+                            <option value="">-- 请选择 --</option>
+                        </select>
+                    </div>
+
+                    <div id="placeholderInputs" class="placeholder-inputs">
+                        <!-- 动态生成占位符输入框 -->
+                    </div>
+
+                    <div class="test-form-group">
+                        <label>AI参数:</label>
+                        <div class="ai-params-row">
+                            <div>
+                                <label>Temperature:</label>
+                                <input type="number" id="testTemperature" min="0" max="2" step="0.1" value="0.7">
+                            </div>
+                            <div>
+                                <label>Max Tokens:</label>
+                                <input type="number" id="testMaxTokens" min="1" max="4000" value="1000">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="test-actions">
+                        <button class="btn btn-primary" onclick="executeTest()">
+                            <span class="btn-icon">▶</span> 执行测试
+                        </button>
+                        <button class="btn btn-secondary" onclick="clearTestResult()">
+                            清空结果
+                        </button>
+                    </div>
+                </div>
+
+                <div class="result-panel">
+                    <h3>执行结果</h3>
+                    <div id="testResult" class="test-result">
+                        <div class="result-placeholder">
+                            <div class="placeholder-icon">📤</div>
+                            <p>选择模板并填写参数后执行测试</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 模板编辑弹窗 -->
+<div id="templateModal" class="modal">
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h3 id="templateModalTitle">新建模板</h3>
+            <button class="modal-close" onclick="closeTemplateModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="templateForm" onsubmit="saveTemplate(event)">
+                <input type="hidden" id="templateId">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>模板名称 <span class="required">*</span></label>
+                        <input type="text" id="templateName" required placeholder="如: weekly_market_report">
+                    </div>
+                    <div class="form-group">
+                        <label>版本</label>
+                        <input type="text" id="templateVersion" value="1.0" placeholder="1.0">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>分类 <span class="required">*</span></label>
+                        <select id="templateCategory" required>
+                            <option value="">请选择</option>
+                            <option value="report">报告分析</option>
+                            <option value="signal">信号生成</option>
+                            <option value="analysis">数据分析</option>
+                            <option value="chat">聊天</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>状态</label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="templateActive" checked>
+                            <span>激活</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>描述</label>
+                    <textarea id="templateDescription" rows="2" placeholder="模板用途描述..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>系统提示词 (System Prompt)</label>
+                    <textarea id="templateSystemPrompt" rows="4" placeholder="设置AI的角色和行为准则..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>模板内容 <span class="required">*</span></label>
+                    <textarea id="templateContent" rows="10" required placeholder="使用 {{placeholder}} 语法定义占位符..."></textarea>
+                    <div class="form-hint">支持Jinja2语法，使用 {{变量名}} 定义占位符</div>
+                </div>
+
+                <div class="form-group">
+                    <label>占位符定义 (JSON)</label>
+                    <textarea id="templatePlaceholders" rows="4" placeholder='[{"name": "period", "type": "string", "description": "分析周期", "default": "本周"}]'></textarea>
+                    <div class="form-hint">定义模板中使用的占位符及其类型、默认值</div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Temperature</label>
+                        <input type="number" id="templateTemperature" min="0" max="2" step="0.1" value="0.7">
+                    </div>
+                    <div class="form-group">
+                        <label>Max Tokens</label>
+                        <input type="number" id="templateMaxTokens" min="1" value="1000">
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeTemplateModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 链配置弹窗 -->
+<div id="chainModal" class="modal">
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h3 id="chainModalTitle">新建链配置</h3>
+            <button class="modal-close" onclick="closeChainModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="chainForm" onsubmit="saveChain(event)">
+                <input type="hidden" id="chainId">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>链名称 <span class="required">*</span></label>
+                        <input type="text" id="chainName" required placeholder="如: multi_step_analysis">
+                    </div>
+                    <div class="form-group">
+                        <label>分类 <span class="required">*</span></label>
+                        <select id="chainCategory" required>
+                            <option value="">请选择</option>
+                            <option value="report">报告分析</option>
+                            <option value="signal">信号生成</option>
+                            <option value="analysis">数据分析</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>执行模式</label>
+                        <select id="chainExecutionMode">
+                            <option value="serial">串行 (Serial)</option>
+                            <option value="parallel">并行 (Parallel)</option>
+                            <option value="tool">工具调用 (Tool Calling)</option>
+                            <option value="hybrid">混合 (Hybrid)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>状态</label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="chainActive" checked>
+                            <span>激活</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>描述</label>
+                    <textarea id="chainDescription" rows="2" placeholder="链配置用途描述..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>步骤定义 (JSON) <span class="required">*</span></label>
+                    <textarea id="chainSteps" rows="8" required placeholder='[
+  {
+    "step_id": "step1",
+    "template_name": "data_analysis",
+    "order": 1,
+    "placeholder_values": {"period": "本周"}
+  }
+]'></textarea>
+                    <div class="form-hint">定义链中各个步骤的执行顺序和参数</div>
+                </div>
+
+                <div class="form-group">
+                    <label>汇总步骤 (可选)</label>
+                    <textarea id="chainAggregateStep" rows="4" placeholder='{
+  "template_name": "summary",
+  "aggregate_from": ["step1", "step2"]
+}'></textarea>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeChainModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+/* ==================== 页面布局 ==================== */
+.prompt-manage-page {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.page-header .header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: var(--color-primary, #3366cc);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--color-primary-hover, #2654b3);
+}
+
+.btn-secondary {
+    background: var(--color-surface, #f6f8fa);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border, #d0d7de);
+}
+
+.btn-secondary:hover {
+    background: #f3f4f6;
+}
+
+.btn-icon {
+    font-size: 16px;
+}
+
+/* ==================== Tab导航 ==================== */
+.tab-navigation {
+    display: flex;
+    gap: 4px;
+    background: var(--color-surface, #f6f8fa);
+    padding: 4px;
+    border-radius: 6px;
+}
+
+.tab-nav-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border: none;
+    background: transparent;
+    color: var(--color-text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.tab-nav-btn:hover {
+    color: var(--color-text-primary);
+    background: rgba(51, 102, 204, 0.05);
+}
+
+.tab-nav-btn.active {
+    background: white;
+    color: var(--color-primary, #3366cc);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.tab-icon {
+    font-size: 16px;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* ==================== 内容区域 ==================== */
+.content-section {
+    background: var(--color-bg, #ffffff);
+    border: 1px solid var(--color-border, #d0d7de);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+/* ==================== 筛选栏 ==================== */
+.filter-bar {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--color-surface, #f6f8fa);
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-group label {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+}
+
+.filter-group select {
+    padding: 6px 10px;
+    border: 1px solid var(--color-border, #d0d7de);
+    border-radius: 4px;
+    background: white;
+    font-size: 13px;
+}
+
+.search-box input {
+    padding: 6px 12px;
+    border: 1px solid var(--color-border, #d0d7de);
+    border-radius: 4px;
+    width: 200px;
+    font-size: 13px;
+}
+
+/* ==================== 模板卡片 ==================== */
+.templates-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+}
+
+.template-card {
+    background: white;
+    border: 1px solid var(--color-border, #d0d7de);
+    border-radius: 8px;
+    padding: 16px;
+    transition: all 0.2s;
+}
+
+.template-card:hover {
+    border-color: var(--color-primary, #3366cc);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.template-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 12px;
+}
+
+.template-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.template-category-badge {
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.category-report { background: #e8f4f8; color: #0969da; }
+.category-signal { background: #fff4e6; color: #e67700; }
+.category-analysis { background: #f6f8fa; color: #656d76; }
+.category-chat { background: #dcfce7; color: #16a34a; }
+
+.template-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-bottom: 12px;
+}
+
+.template-preview {
+    background: var(--color-surface, #f6f8fa);
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    margin-bottom: 12px;
+    max-height: 80px;
+    overflow: hidden;
+}
+
+.template-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.template-actions button {
+    flex: 1;
+    padding: 6px;
+    font-size: 12px;
+}
+
+/* ==================== 链配置卡片 ==================== */
+.chains-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 16px;
+}
+
+.chain-card {
+    background: white;
+    border: 1px solid var(--color-border, #d0d7de);
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.chain-mode-badge {
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 4px;
+    background: #f6f8fa;
+    color: var(--color-text-secondary);
+}
+
+.chain-steps-preview {
+    background: var(--color-surface, #f6f8fa);
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin: 12px 0;
+}
+
+.chain-step-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.chain-step-num {
+    width: 20px;
+    height: 20px;
+    background: var(--color-primary, #3366cc);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+/* ==================== 日志表格 ==================== */
+.logs-table-wrapper {
+    overflow-x: auto;
+}
+
+.logs-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.logs-table th {
+    text-align: left;
+    padding: 12px;
+    background: var(--color-surface, #f6f8fa);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    border-bottom: 1px solid var(--color-border, #d0d7de);
+}
+
+.logs-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--color-surface, #f6f8fa);
+}
+
+.logs-table tbody tr:hover {
+    background: var(--color-surface, #f6f8fa);
+}
+
+.status-badge {
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 4px;
+}
+
+.status-success { background: #dcfce7; color: #16a34a; }
+.status-error { background: #fee7e7; color: #dc2626; }
+.status-timeout { background: #fef3c7; color: #d97706; }
+
+/* ==================== 测试面板 ==================== */
+.test-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.test-panel, .result-panel {
+    background: var(--color-surface, #f6f8fa);
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.test-panel h3, .result-panel h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.test-form-group {
+    margin-bottom: 16px;
+}
+
+.test-form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin-bottom: 6px;
+}
+
+.test-form-group select, .test-form-group input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border, #d0d7de);
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.ai-params-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.ai-params-row > div label {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+.test-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.test-result {
+    min-height: 300px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.result-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 300px;
+    color: var(--color-text-muted);
+    text-align: center;
+}
+
+.placeholder-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+/* ==================== 弹窗 ==================== */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-large {
+    max-width: 700px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--color-border, #d0d7de);
+}
+
+.modal-header h3 {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--color-text-muted);
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin-bottom: 6px;
+}
+
+.required {
+    color: var(--color-error, #dc2626);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border, #d0d7de);
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+}
+
+.form-group textarea {
+    resize: vertical;
+    font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.form-hint {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    margin-top: 4px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-surface, #f6f8fa);
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .page-header .header-content {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .templates-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .test-container {
+        grid-template-columns: 1fr;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+// ==================== Tab切换 ====================
+function switchMainTab(tabName) {
+    document.querySelectorAll('.tab-nav-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabName);
+    });
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.toggle('active', content.id === 'tab-' + tabName);
+    });
+
+    // 加载对应数据
+    if (tabName === 'templates') loadTemplates();
+    if (tabName === 'chains') loadChains();
+    if (tabName === 'execution') loadLogs();
+    if (tabName === 'test') loadTestTemplates();
+}
+
+// ==================== 模板管理 ====================
+async function loadTemplates() {
+    const category = document.getElementById('categoryFilter').value;
+    const status = document.getElementById('statusFilter').value;
+    const search = document.getElementById('searchInput').value;
+
+    try {
+        const params = new URLSearchParams();
+        if (category) params.append('category', category);
+        if (status === 'active') params.append('is_active', 'true');
+        if (search) params.append('search', search);
+
+        const response = await fetch(`/prompt/api/templates/?${params}`);
+        const data = await response.json();
+
+        const grid = document.getElementById('templatesGrid');
+        // 处理分页和非分页两种格式
+        const templates = data.results || data;
+
+        if (templates && templates.length > 0) {
+            grid.innerHTML = templates.map(t => `
+                <div class="template-card">
+                    <div class="template-card-header">
+                        <div>
+                            <div class="template-title">${t.name}</div>
+                            <span class="template-category-badge category-${t.category}">${getCategoryLabel(t.category)}</span>
+                        </div>
+                        <span class="template-meta">v${t.version}</span>
+                    </div>
+                    <div class="template-meta">
+                        <span>🌡️ ${t.temperature}</span>
+                        <span>📝 ${t.max_tokens || '∞'}</span>
+                        <span>${t.is_active ? '✓ 激活' : '✗ 未激活'}</span>
+                    </div>
+                    <div class="template-preview">
+                        ${escapeHtml((t.template_content || '').substring(0, 100))}...
+                    </div>
+                    <div class="template-actions">
+                        <button class="btn btn-secondary" onclick="executeTemplate(${t.id})">执行</button>
+                        <button class="btn btn-secondary" onclick="editTemplate(${t.id})">编辑</button>
+                        <button class="btn btn-secondary" onclick="deleteTemplate(${t.id})">删除</button>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--color-text-muted);">暂无模板</div>';
+        }
+    } catch (error) {
+        console.error('加载模板失败:', error);
+        document.getElementById('templatesGrid').innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--color-error);">加载失败</div>';
+    }
+}
+
+function getCategoryLabel(category) {
+    const labels = { report: '报告', signal: '信号', analysis: '分析', chat: '聊天' };
+    return labels[category] || category;
+}
+
+// ==================== 弹窗管理 ====================
+function showCreateModal() {
+    document.getElementById('templateModalTitle').textContent = '新建模板';
+    document.getElementById('templateForm').reset();
+    document.getElementById('templateId').value = '';
+    document.getElementById('templateActive').checked = true;
+    document.getElementById('templateTemperature').value = '0.7';
+    document.getElementById('templateMaxTokens').value = '1000';
+    document.getElementById('templateModal').classList.add('active');
+}
+
+function closeTemplateModal() {
+    document.getElementById('templateModal').classList.remove('active');
+}
+
+async function editTemplate(id) {
+    try {
+        const response = await fetch(`/prompt/api/templates/${id}/`);
+        const t = await response.json();
+
+        document.getElementById('templateModalTitle').textContent = '编辑模板';
+        document.getElementById('templateId').value = t.id;
+        document.getElementById('templateName').value = t.name;
+        document.getElementById('templateCategory').value = t.category;
+        document.getElementById('templateVersion').value = t.version;
+        document.getElementById('templateDescription').value = t.description || '';
+        document.getElementById('templateSystemPrompt').value = t.system_prompt || '';
+        document.getElementById('templateContent').value = t.template_content;
+        document.getElementById('templatePlaceholders').value = JSON.stringify(t.placeholders || [], null, 2);
+        document.getElementById('templateTemperature').value = t.temperature;
+        document.getElementById('templateMaxTokens').value = t.max_tokens || '';
+        document.getElementById('templateActive').checked = t.is_active;
+
+        document.getElementById('templateModal').classList.add('active');
+    } catch (error) {
+        console.error('加载模板详情失败:', error);
+        alert('加载模板详情失败');
+    }
+}
+
+async function saveTemplate(event) {
+    event.preventDefault();
+
+    const formData = {
+        name: document.getElementById('templateName').value,
+        category: document.getElementById('templateCategory').value,
+        version: document.getElementById('templateVersion').value,
+        description: document.getElementById('templateDescription').value,
+        system_prompt: document.getElementById('templateSystemPrompt').value,
+        template_content: document.getElementById('templateContent').value,
+        placeholders: JSON.parse(document.getElementById('templatePlaceholders').value || '[]'),
+        temperature: parseFloat(document.getElementById('templateTemperature').value),
+        max_tokens: document.getElementById('templateMaxTokens').value ? parseInt(document.getElementById('templateMaxTokens').value) : null,
+        is_active: document.getElementById('templateActive').checked
+    };
+
+    const id = document.getElementById('templateId').value;
+    const url = id ? `/prompt/api/templates/${id}/` : '/prompt/api/templates/';
+    const method = id ? 'PUT' : 'POST';
+
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+            closeTemplateModal();
+            loadTemplates();
+            alert('保存成功');
+        } else {
+            const error = await response.json();
+            alert('保存失败: ' + JSON.stringify(error));
+        }
+    } catch (error) {
+        console.error('保存失败:', error);
+        alert('保存失败: ' + error.message);
+    }
+}
+
+async function deleteTemplate(id) {
+    if (!confirm('确定删除此模板吗？')) return;
+
+    try {
+        const response = await fetch(`/prompt/api/templates/${id}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        });
+
+        if (response.ok) {
+            loadTemplates();
+            alert('删除成功');
+        } else {
+            alert('删除失败');
+        }
+    } catch (error) {
+        console.error('删除失败:', error);
+        alert('删除失败: ' + error.message);
+    }
+}
+
+// ==================== 链配置管理 ====================
+function showChainModal() {
+    document.getElementById('chainModalTitle').textContent = '新建链配置';
+    document.getElementById('chainForm').reset();
+    document.getElementById('chainId').value = '';
+    document.getElementById('chainActive').checked = true;
+    document.getElementById('chainModal').classList.add('active');
+}
+
+function closeChainModal() {
+    document.getElementById('chainModal').classList.remove('active');
+}
+
+async function loadChains() {
+    // 简化实现
+    document.getElementById('chainsGrid').innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--color-text-muted);">暂无链配置</div>';
+}
+
+async function saveChain(event) {
+    event.preventDefault();
+    alert('链配置保存功能待实现');
+    closeChainModal();
+}
+
+// ==================== 执行日志 ====================
+async function loadLogs() {
+    const limit = document.getElementById('logLimitFilter')?.value || 20;
+
+    try {
+        const response = await fetch(`/prompt/api/logs/recent/?limit=${limit}`);
+        const data = await response.json();
+
+        const tbody = document.getElementById('logsTableBody');
+        if (data && data.length > 0) {
+            tbody.innerHTML = data.map(log => `
+                <tr>
+                    <td>${formatDateTime(log.created_at)}</td>
+                    <td>${log.template_name || log.chain_name || '-'}</td>
+                    <td><span class="status-badge status-${log.status}">${getStatusLabel(log.status)}</span></td>
+                    <td>${log.response_time_ms}ms</td>
+                    <td>${log.total_tokens || 0}</td>
+                    <td>
+                        <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="viewLog(${log.id})">查看</button>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--color-text-muted);">暂无执行日志</td></tr>';
+        }
+    } catch (error) {
+        console.error('加载日志失败:', error);
+    }
+}
+
+function getStatusLabel(status) {
+    const labels = { success: '成功', error: '错误', timeout: '超时' };
+    return labels[status] || status;
+}
+
+function formatDateTime(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleString('zh-CN');
+}
+
+function viewLog(id) {
+    alert('查看日志详情功能待实现');
+}
+
+// ==================== 测试执行 ====================
+async function loadTestTemplates() {
+    try {
+        const response = await fetch('/prompt/api/templates/');
+        const data = await response.json();
+
+        const select = document.getElementById('testTemplate');
+        select.innerHTML = '<option value="">-- 请选择 --</option>';
+        // 处理分页和非分页两种格式
+        const templates = data.results || data;
+        if (templates) {
+            templates.forEach(t => {
+                select.innerHTML += `<option value="${t.id}">${t.name} (${getCategoryLabel(t.category)})</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('加载模板列表失败:', error);
+    }
+}
+
+async function loadTemplatePlaceholders() {
+    const templateId = document.getElementById('testTemplate').value;
+    const container = document.getElementById('placeholderInputs');
+
+    if (!templateId) {
+        container.innerHTML = '';
+        return;
+    }
+
+    try {
+        const response = await fetch(`/prompt/api/templates/${templateId}/`);
+        const t = await response.json();
+
+        if (t.placeholders && t.placeholders.length > 0) {
+            container.innerHTML = '<h4 style="font-size: 13px; margin: 12px 0 8px; color: var(--color-text-primary);">占位符参数:</h4>' +
+                t.placeholders.map(p => `
+                    <div class="test-form-group">
+                        <label>${p.name} ${p.description ? `(${p.description})` : ''}</label>
+                        <input type="text" class="placeholder-input" data-name="${p.name}" value="${p.default || ''}" placeholder="${p.description || p.name}">
+                    </div>
+                `).join('');
+        } else {
+            container.innerHTML = '<p style="font-size: 12px; color: var(--color-text-muted); margin: 12px 0;">此模板没有占位符</p>';
+        }
+    } catch (error) {
+        console.error('加载模板占位符失败:', error);
+    }
+}
+
+async function executeTest() {
+    const templateId = document.getElementById('testTemplate').value;
+    if (!templateId) {
+        alert('请选择模板');
+        return;
+    }
+
+    const placeholderValues = {};
+    document.querySelectorAll('.placeholder-input').forEach(input => {
+        placeholderValues[input.dataset.name] = input.value;
+    });
+
+    const resultDiv = document.getElementById('testResult');
+    resultDiv.innerHTML = '<div class="result-placeholder"><div class="placeholder-icon">⏳</div><p>执行中...</p></div>';
+
+    try {
+        const response = await fetch(`/prompt/api/templates/${templateId}/execute/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                placeholder_values: placeholderValues,
+                temperature: parseFloat(document.getElementById('testTemperature').value),
+                max_tokens: parseInt(document.getElementById('testMaxTokens').value)
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            resultDiv.innerHTML = `
+                <div style="padding: 16px;">
+                    <div style="margin-bottom: 16px; padding: 12px; background: #dcfce7; border-radius: 4px;">
+                        <strong>✓ 执行成功</strong>
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <strong>AI 响应:</strong>
+                        <div style="margin-top: 8px; padding: 12px; background: #f6f8fa; border-radius: 4px; white-space: pre-wrap;">${escapeHtml(data.ai_response || '无')}</div>
+                    </div>
+                    ${data.parsed_output ? `
+                    <div>
+                        <strong>解析输出:</strong>
+                        <pre style="margin-top: 8px; padding: 12px; background: #f6f8fa; border-radius: 4px; overflow-x: auto;">${JSON.stringify(data.parsed_output, null, 2)}</pre>
+                    </div>
+                    ` : ''}
+                    <div style="margin-top: 12px; font-size: 12px; color: var(--color-text-muted);">
+                        响应时间: ${data.response_time_ms}ms | Token: ${data.total_tokens} | 成本: $${data.estimated_cost}
+                    </div>
+                </div>
+            `;
+        } else {
+            resultDiv.innerHTML = `
+                <div style="padding: 16px;">
+                    <div style="padding: 12px; background: #fee7e7; border-radius: 4px;">
+                        <strong>✗ 执行失败</strong>
+                        <p style="margin-top: 8px;">${data.error_message || '未知错误'}</p>
+                    </div>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('执行测试失败:', error);
+        resultDiv.innerHTML = `
+            <div style="padding: 16px;">
+                <div style="padding: 12px; background: #fee7e7; border-radius: 4px;">
+                    <strong>✗ 执行失败</strong>
+                    <p style="margin-top: 8px;">${error.message}</p>
+                </div>
+            </div>
+        `;
+    }
+}
+
+async function executeTemplate(id) {
+    // 简化实现 - 跳转到测试tab并选择模板
+    switchMainTab('test');
+    document.getElementById('testTemplate').value = id;
+    await loadTemplatePlaceholders();
+}
+
+function clearTestResult() {
+    document.getElementById('testResult').innerHTML = '<div class="result-placeholder"><div class="placeholder-icon">📤</div><p>选择模板并填写参数后执行测试</p></div>';
+}
+
+// ==================== 工具函数 ====================
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// ==================== 初始化 ====================
+document.addEventListener('DOMContentLoaded', function() {
+    loadTemplates();
+});
+</script>
+{% endblock %}

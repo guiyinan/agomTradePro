@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+
+{% block title %}AI聊天组件示例 - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/components/chat-widget.css">
+<style>
+.example-page {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.example-header {
+    margin-bottom: 24px;
+}
+
+.example-header h1 {
+    font-size: 24px;
+    margin-bottom: 8px;
+}
+
+.example-header p {
+    color: #6b7280;
+}
+
+.example-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+.example-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.example-card h3 {
+    font-size: 16px;
+    margin-bottom: 8px;
+}
+
+.example-card p {
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 12px;
+}
+
+.example-card .chat-container {
+    margin-top: 12px;
+}
+
+.code-block {
+    background: #1f2937;
+    color: #f9fafb;
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.code-block code {
+    color: #e5e7eb;
+}
+
+/* 不同场景的样式变体 */
+.scenario-section {
+    margin-top: 32px;
+}
+
+.scenario-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.regime-chat {
+    --chat-theme: #10b981;
+}
+
+.signal-chat {
+    --chat-theme: #f59e0b;
+}
+
+.macro-chat {
+    --chat-theme: #3b82f6;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="example-page">
+    <div class="example-header">
+        <h1>🤖 AI聊天组件集成示例</h1>
+        <p>展示 AgomChatWidget 组件在不同场景下的使用方法</p>
+    </div>
+
+    <!-- 基础示例 -->
+    <div class="scenario-section">
+        <h2 class="scenario-title">基础用法</h2>
+        <div class="example-grid">
+            <div class="example-card">
+                <h3>1. 标准聊天窗口</h3>
+                <p>默认配置，包含完整的头部、模型选择器和输入区域</p>
+                <div id="chat-standard"></div>
+            </div>
+
+            <div class="example-card">
+                <h3>2. 紧凑模式</h3>
+                <p>适合嵌入到页面侧边栏等小空间场景</p>
+                <div id="chat-compact" style="height: 350px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 业务场景示例 -->
+    <div class="scenario-section">
+        <h2 class="scenario-title">业务场景集成</h2>
+        <div class="example-grid">
+            <div class="example-card">
+                <h3>📊 Regime判定助手</h3>
+                <p>帮助分析宏观经济环境和Regime判定</p>
+                <div id="chat-regime"></div>
+            </div>
+
+            <div class="example-card">
+                <h3>📈 投资信号助手</h3>
+                <p>辅助生成和分析投资信号</p>
+                <div id="chat-signal"></div>
+            </div>
+
+            <div class="example-card">
+                <h3>🔍 宏观数据助手</h3>
+                <p>查询和分析宏观数据指标</p>
+                <div id="chat-macro"></div>
+            </div>
+
+            <div class="example-card">
+                <h3>📝 报告生成助手</h3>
+                <p>辅助生成各类分析报告</p>
+                <div id="chat-report"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 代码示例 -->
+    <div class="scenario-section">
+        <h2 class="scenario-title">集成代码示例</h2>
+
+        <div class="example-card" style="margin-bottom: 16px;">
+            <h3>HTML模板</h3>
+            <div class="code-block"><code>&lt;!-- 引入样式和脚本 --&gt;
+&lt;link rel="stylesheet" href="/static/css/components/chat-widget.css"&gt;
+&lt;script src="/static/js/components/chat-widget.js"&gt;&lt;/script&gt;
+
+&lt;!-- 创建容器 --&gt;
+&lt;div id="my-chat-widget"&gt;&lt;/div&gt;</code></div>
+        </div>
+
+        <div class="example-card" style="margin-bottom: 16px;">
+            <h3>JavaScript初始化</h3>
+            <div class="code-block"><code>// 基础用法
+const chat = new AgomChatWidget({
+    containerId: 'my-chat-widget',
+    title: 'AI 助手',
+    height: '500px'
+});
+
+// 带配置的用法
+const chat = new AgomChatWidget({
+    containerId: 'my-chat-widget',
+    title: 'Regime判定助手',
+    placeholder: '请输入关于宏观经济环境的问题...',
+    defaultProvider: 'openai',
+    defaultModel: 'gpt-4',
+    height: '450px',
+    showHeader: true,
+    showModelSelector: true,
+    showProviderSelector: true,
+    enableHistory: true,
+    maxHistoryLength: 50,
+    onMessageSent: (data) => {
+        console.log('发送消息:', data);
+    },
+    onMessageReceived: (data) => {
+        console.log('收到回复:', data);
+    },
+    onError: (error) => {
+        console.error('出错:', error);
+    }
+});</code></div>
+        </div>
+
+        <div class="example-card">
+            <h3>API方法</h3>
+            <div class="code-block"><code>// 清空聊天历史
+chat.clearHistory();
+
+// 设置系统提示词
+chat.setSystemPrompt('你是一个专业的宏观经济分析师...');
+
+// 销毁组件
+chat.destroy();
+
+// 获取/设置状态
+chat.state.currentProvider = 'deepseek';
+chat.state.currentModel = 'deepseek-chat';</code></div>
+        </div>
+    </div>
+
+    <!-- 嵌入现有页面示例 -->
+    <div class="scenario-section">
+        <h2 class="scenario-title">嵌入现有页面</h2>
+        <div class="example-card">
+            <h3>在Regime仪表盘中添加AI助手</h3>
+            <p>编辑 <code>core/templates/regime/dashboard.html</code>，在侧边栏添加聊天组件：</p>
+            <div class="code-block"><code>{# 在 regime/dashboard.html 中添加 #}
+
+{% block extra_css %}
+    {{ block.super }}
+    &lt;link rel="stylesheet" href="/static/css/components/chat-widget.css"&gt;
+{% endblock %}
+
+{% block content %}
+    &lt;div class="dashboard-layout"&gt;
+        &lt;div class="main-content"&gt;
+            &lt;!-- 现有仪表盘内容 --&gt;
+        &lt;/div&gt;
+        &lt;div class="sidebar"&gt;
+            &lt;!-- AI聊天助手 --&gt;
+            &lt;div id="regime-chat-assistant"&gt;&lt;/div&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+{% endblock %}
+
+{% block extra_js %}
+    {{ block.super }}
+    &lt;script src="/static/js/components/chat-widget.js"&gt;&lt;/script&gt;
+    &lt;script&gt;
+        const regimeChat = new AgomChatWidget({
+            containerId: 'regime-chat-assistant',
+            title: 'Regime分析助手',
+            placeholder: '请输入关于Regime判定的问题...',
+            height: '400px',
+            defaultModel: 'gpt-4'
+        });
+    &lt;/script&gt;
+{% endblock %}</code></div>
+        </div>
+    </div>
+
+    <!-- 配置说明 -->
+    <div class="scenario-section">
+        <h2 class="scenario-title">配置参数说明</h2>
+        <div class="example-grid">
+            <div class="example-card">
+                <h3>显示配置</h3>
+                <ul style="font-size: 13px; line-height: 2;">
+                    <li><code>title</code> - 窗口标题</li>
+                    <li><code>height</code> - 高度（如: '500px'）</li>
+                    <li><code>width</code> - 宽度（如: '100%'）</li>
+                    <li><code>showHeader</code> - 是否显示头部</li>
+                    <li><code>showModelSelector</code> - 显示模型选择器</li>
+                    <li><code>showProviderSelector</code> - 显示提供商选择器</li>
+                </ul>
+            </div>
+
+            <div class="example-card">
+                <h3>功能配置</h3>
+                <ul style="font-size: 13px; line-height: 2;">
+                    <li><code>placeholder</code> - 输入框占位符</li>
+                    <li><code>defaultProvider</code> - 默认提供商</li>
+                    <li><code>defaultModel</code> - 默认模型</li>
+                    <li><code>enableHistory</code> - 启用历史记录</li>
+                    <li><code>maxHistoryLength</code> - 最大历史条数</li>
+                    <li><code>apiBaseUrl</code> - API基础路径</li>
+                </ul>
+            </div>
+
+            <div class="example-card">
+                <h3>回调函数</h3>
+                <ul style="font-size: 13px; line-height: 2;">
+                    <li><code>onMessageSent</code> - 消息发送时</li>
+                    <li><code>onMessageReceived</code> - 收到回复时</li>
+                    <li><code>onError</code> - 发生错误时</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/components/chat-widget.js"></script>
+<script>
+// 1. 标准聊天窗口
+new AgomChatWidget({
+    containerId: 'chat-standard',
+    title: 'AI 助手',
+    height: '450px'
+});
+
+// 2. 紧凑模式
+new AgomChatWidget({
+    containerId: 'chat-compact',
+    title: '助手',
+    height: '100%',
+    showHeader: true,
+    showModelSelector: true,
+    showProviderSelector: false
+});
+
+// 3. Regime判定助手
+new AgomChatWidget({
+    containerId: 'chat-regime',
+    title: 'Regime判定助手',
+    placeholder: '请输入关于宏观经济环境的问题...',
+    height: '400px',
+    onMessageReceived: (data) => {
+        console.log('[Regime助手]', data);
+    }
+});
+
+// 4. 投资信号助手
+new AgomChatWidget({
+    containerId: 'chat-signal',
+    title: '投资信号助手',
+    placeholder: '请输入关于投资信号的问题...',
+    height: '400px'
+});
+
+// 5. 宏观数据助手
+new AgomChatWidget({
+    containerId: 'chat-macro',
+    title: '宏观数据助手',
+    placeholder: '请输入关于宏观数据的查询...',
+    height: '400px'
+});
+
+// 6. 报告生成助手
+new AgomChatWidget({
+    containerId: 'chat-report',
+    title: '报告生成助手',
+    placeholder: '请描述需要生成的报告类型和内容...',
+    height: '400px'
+});
+</script>
+{% endblock %}

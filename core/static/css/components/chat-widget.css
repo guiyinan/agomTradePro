@@ -1,0 +1,424 @@
+/**
+ * AgomChatWidget - 可复用的AI聊天窗口组件样式
+ *
+ * 与 chat-widget.js 配合使用
+ */
+
+/* ==================== 容器 ==================== */
+.agom-chat-widget {
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border: 1px solid #d0d7de;
+    border-radius: 8px;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* ==================== 头部 ==================== */
+.agom-chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.agom-chat-header .header-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.agom-chat-header .title-icon {
+    font-size: 18px;
+}
+
+.agom-chat-header .header-info {
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+/* ==================== 消息区域 ==================== */
+.agom-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    background: #f9fafb;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.agom-chat-messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+.agom-chat-messages::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.agom-chat-messages::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 3px;
+}
+
+.agom-chat-messages::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* ==================== 欢迎消息 ==================== */
+.agom-chat-welcome {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    color: #6b7280;
+}
+
+.agom-chat-welcome .welcome-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.8;
+}
+
+.agom-chat-welcome p {
+    font-size: 14px;
+    max-width: 300px;
+    line-height: 1.6;
+}
+
+/* ==================== 消息气泡 ==================== */
+.agom-chat-message {
+    display: flex;
+    flex-direction: column;
+    max-width: 85%;
+    animation: messageSlideIn 0.3s ease-out;
+}
+
+@keyframes messageSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.agom-chat-message-user {
+    align-self: flex-end;
+}
+
+.agom-chat-message-assistant {
+    align-self: flex-start;
+}
+
+.agom-chat-message .message-content {
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.5;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+.agom-chat-message-user .message-content {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+
+.agom-chat-message-assistant .message-content {
+    background: white;
+    color: #1f2937;
+    border: 1px solid #e5e7eb;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* ==================== 消息元数据 ==================== */
+.message-metadata {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+    font-size: 11px;
+    color: #9ca3af;
+}
+
+.agom-chat-message-user .message-metadata {
+    justify-content: flex-end;
+}
+
+.metadata-provider,
+.metadata-model,
+.metadata-tokens {
+    padding: 2px 6px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+}
+
+.agom-chat-message-assistant .message-metadata {
+    margin-left: 4px;
+}
+
+/* ==================== 输入指示器 ==================== */
+.agom-chat-typing .typing-dots {
+    display: flex;
+    gap: 4px;
+    padding: 12px 16px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    border-bottom-left-radius: 4px;
+}
+
+.agom-chat-typing .typing-dots span {
+    width: 8px;
+    height: 8px;
+    background: #9ca3af;
+    border-radius: 50%;
+    animation: typingBounce 1.4s infinite ease-in-out;
+}
+
+.agom-chat-typing .typing-dots span:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.agom-chat-typing .typing-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.agom-chat-typing .typing-dots span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typingBounce {
+    0%, 80%, 100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* ==================== 错误消息 ==================== */
+.agom-chat-error {
+    align-self: center;
+    padding: 10px 16px;
+    background: #fee7e7;
+    color: #dc2626;
+    border-radius: 8px;
+    font-size: 13px;
+    text-align: center;
+}
+
+/* ==================== 输入区域 ==================== */
+.agom-chat-input-area {
+    border-top: 1px solid #e5e7eb;
+    background: white;
+}
+
+.agom-chat-selectors {
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.agom-chat-selector {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 13px;
+    background: white;
+    color: #374151;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.agom-chat-selector:hover {
+    border-color: #9ca3af;
+}
+
+.agom-chat-selector:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.agom-chat-input-row {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+}
+
+.agom-chat-input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: none;
+    min-height: 20px;
+    max-height: 120px;
+    line-height: 1.5;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.agom-chat-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.agom-chat-input::placeholder {
+    color: #9ca3af;
+}
+
+.agom-chat-send-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.agom-chat-send-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.agom-chat-send-btn:active {
+    transform: scale(0.95);
+}
+
+.agom-chat-send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.agom-chat-send-btn .send-icon {
+    font-size: 16px;
+}
+
+/* ==================== 深色主题支持 ==================== */
+@media (prefers-color-scheme: dark) {
+    .agom-chat-widget {
+        background: #1f2937;
+        border-color: #374151;
+    }
+
+    .agom-chat-messages {
+        background: #111827;
+    }
+
+    .agom-chat-message-assistant .message-content {
+        background: #374151;
+        color: #f9fafb;
+        border-color: #4b5563;
+    }
+
+    .agom-chat-input-area {
+        background: #1f2937;
+        border-top-color: #374151;
+    }
+
+    .agom-chat-input {
+        background: #374151;
+        border-color: #4b5563;
+        color: #f9fafb;
+    }
+
+    .agom-chat-input::placeholder {
+        color: #6b7280;
+    }
+
+    .agom-chat-selector {
+        background: #374151;
+        border-color: #4b5563;
+        color: #f9fafb;
+    }
+
+    .agom-chat-welcome {
+        color: #9ca3af;
+    }
+}
+
+/* ==================== 响应式 ==================== */
+@media (max-width: 640px) {
+    .agom-chat-message {
+        max-width: 95%;
+    }
+
+    .agom-chat-selectors {
+        flex-direction: column;
+    }
+
+    .agom-chat-header .header-info {
+        display: none;
+    }
+}
+
+/* ==================== 内嵌模式样式 ==================== */
+.agom-chat-widget.embedded {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.agom-chat-widget.embedded .agom-chat-header {
+    background: #f3f4f6;
+    color: #1f2937;
+}
+
+.agom-chat-widget.embedded .agom-chat-message-user .message-content {
+    background: #667eea;
+}
+
+/* ==================== 紧凑模式样式 ==================== */
+.agom-chat-widget.compact {
+    font-size: 13px;
+}
+
+.agom-chat-widget.compact .agom-chat-header {
+    padding: 8px 12px;
+}
+
+.agom-chat-widget.compact .agom-chat-messages {
+    padding: 12px;
+}
+
+.agom-chat-widget.compact .agom-chat-message .message-content {
+    padding: 8px 12px;
+    font-size: 13px;
+}
+
+.agom-chat-widget.compact .agom-chat-input-row {
+    padding: 8px;
+}
+
+.agom-chat-widget.compact .agom-chat-send-btn {
+    width: 36px;
+    height: 36px;
+}

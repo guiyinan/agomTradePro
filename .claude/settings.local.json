@@ -25,7 +25,8 @@
       "Bash(done:*)",
       "Bash(dir:*)",
       "Bash(del:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(D:\\\\githv\\\\agomSAAF\\\\agomsaaf\\\\Scripts\\\\python.exe manage.py check:*)"
     ]
   }
 }

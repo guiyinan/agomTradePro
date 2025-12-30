@@ -4,46 +4,60 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}AgomSAAF - 宏观环境准入系统{% endblock %}</title>
-    <link rel="stylesheet" href="/static/css/main.css">
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    {% block extra_css %}{% endblock %}
 </head>
 <body>
+    <!-- 顶部导航栏 - 系统级导航 -->
     <header class="header">
         <div class="header-container">
-            <div class="header-logo">AgomSAAF</div>
-            <nav class="header-nav">
-                <a href="/">首页</a>
-                <a href="/admin/">管理</a>
-                <a href="/api/docs/">API文档</a>
+            <a href="/" class="header-logo">AgomSAAF</a>
+
+            <nav class="top-nav">
+                <a href="/" class="top-nav-item">首页</a>
+                <a href="/regime/dashboard/" class="top-nav-item">Regime判定</a>
+                <a href="/macro/data/" class="top-nav-item">宏观数据</a>
+                <a href="/filter/dashboard/" class="top-nav-item">趋势滤波</a>
+                <a href="/signal/manage/" class="top-nav-item">投资信号</a>
+
+                <!-- 配置管理：下拉菜单 -->
+                <div class="dropdown">
+                    <span class="top-nav-item">系统</span>
+                    <div class="dropdown-menu">
+                        <a href="/admin/" class="dropdown-item">管理后台</a>
+                        <a href="/macro/datasources/" class="dropdown-item">数据源配置</a>
+                        <a href="/macro/controller/" class="dropdown-item">数据管理器</a>
+                    </div>
+                </div>
+
+                <div class="dropdown">
+                    <span class="top-nav-item">AI服务</span>
+                    <div class="dropdown-menu">
+                        <a href="/ai/" class="dropdown-item">AI接口管理</a>
+                        <a href="/prompt/manage/" class="dropdown-item">Prompt模板管理</a>
+                    </div>
+                </div>
             </nav>
+
+            <div class="header-actions">
+                <a href="/api/docs/" class="top-nav-item">API文档</a>
+            </div>
         </div>
     </header>
 
-    <div class="layout">
-        <aside class="sidebar">
-            <div class="sidebar-section">
-                <div class="sidebar-title">核心功能</div>
-                <a href="/regime/dashboard/" class="sidebar-item">Regime 判定</a>
-                <a href="/macro/data/" class="sidebar-item">宏观数据</a>
-                <a href="/macro/controller/" class="sidebar-item">数据管理器</a>
-                <a href="/signal/manage/" class="sidebar-item">投资信号</a>
-                <a href="/admin/" class="sidebar-item">管理后台</a>
-                <a href="/macro/datasources/" class="sidebar-item">数据源配置</a>
-            </div>
-            <div class="sidebar-section">
-                <div class="sidebar-title">AI服务</div>
-                <a href="/ai/" class="sidebar-item">AI接口管理</a>
-            </div>
-        </aside>
+    <!-- 主内容区域 -->
+    <main class="main-content-full">
+        {% block content %}{% endblock %}
+    </main>
 
-        <main class="main-content">
-            {% block content %}{% endblock %}
-        </main>
-    </div>
-
-    <footer class="footer">
+    <!-- 页脚 -->
+    <footer class="footer-full">
         <div class="footer-content">
-            <p>&copy; 2024 AgomSAAF. 宏观环境准入系统</p>
+            <p>&copy; 2024 AgomSAAF. 宏观环境准入系统 - 基于增长/通胀象限的环境准入判定框架</p>
         </div>
     </footer>
+
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

@@ -1,0 +1,1044 @@
+{% extends "base.html" %}
+
+{% block title %}趋势滤波器 - AgomSAAF{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="header-content">
+        <div>
+            <h1>趋势滤波器</h1>
+            <p class="subtitle">HP 滤波与 Kalman 滤波</p>
+            <p class="description">提取宏观数据的长期趋势，避免后视偏差</p>
+        </div>
+        <div class="header-controls">
+            <label for="filterTypeSelect">滤波器:</label>
+            <select id="filterTypeSelect" onchange="changeFilterType()">
+                <option value="hp" {% if current_filter_type == 'hp' %}selected{% endif %}>HP 滤波</option>
+                <option value="kalman" {% if current_filter_type == 'kalman' %}selected{% endif %}>Kalman 滤波</option>
+            </select>
+
+            <button id="applyBtn" class="apply-btn" onclick="applyFilter()">
+                <span class="btn-icon">▶</span> 应用
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentIndicator = '{{ current_indicator }}';
+let currentFilterType = '{{ current_filter_type }}';
+
+function changeFilterType() {
+    window.location.href = `/filter/dashboard/?indicator=${currentIndicator}&filter_type=${document.getElementById('filterTypeSelect').value}`;
+}
+
+async function applyFilter() {
+    const btn = document.getElementById('applyBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="btn-icon syncing">⟳</span> 计算中...';
+
+    try {
+        const response = await fetch('/filter/api/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                indicator_code: currentIndicator,
+                filter_type: currentFilterType.toUpperCase(),
+                save_results: true
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert('滤波失败: ' + (data.error || '未知错误'));
+            btn.disabled = false;
+            btn.innerHTML = '<span class="btn-icon">▶</span> 应用';
+        }
+    } catch (error) {
+        alert('请求失败: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = '<span class="btn-icon">▶</span> 应用';
+    }
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function selectIndicator(code, name) {
+    currentIndicator = code;
+    window.location.href = `/filter/dashboard/?indicator=${code}&filter_type=${currentFilterType}`;
+}
+
+function filterIndicators() {
+    const searchTerm = document.getElementById('indicatorSearch').value.toLowerCase();
+    const items = document.querySelectorAll('.indicator-item');
+
+    for (let item of items) {
+        const code = item.getAttribute('data-code').toLowerCase();
+        const name = item.getAttribute('data-name').toLowerCase();
+
+        if (code.includes(searchTerm) || name.includes(searchTerm)) {
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    }
+}
+
+function askAI(question) {
+    document.getElementById('aiQuestion').value = question;
+    submitAIQuestion();
+}
+
+async function submitAIQuestion() {
+    const question = document.getElementById('aiQuestion').value.trim();
+    if (!question) {
+        alert('请输入问题');
+        return;
+    }
+
+    const responseDiv = document.getElementById('aiResponse');
+    const statusSpan = document.getElementById('aiStatus');
+    const submitBtn = document.querySelector('.ai-submit-btn');
+
+    statusSpan.textContent = '分析中...';
+    responseDiv.innerHTML = '<div class="ai-placeholder"><div class="placeholder-icon">⏳</div><p>AI 正在分析滤波结果...</p></div>';
+    submitBtn.disabled = true;
+
+    try {
+        const response = await fetch('/api/prompt/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                message: question,
+                context: {
+                    indicator: currentIndicator,
+                    filter_type: currentFilterType,
+                    chart_data: {% if chart_data %}{{ chart_data.dates_json|safe }}{% else %}[]{% endif %}
+                }
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.reply) {
+            responseDiv.innerHTML = `<div class="ai-response-content">${data.reply}</div>`;
+            statusSpan.textContent = '';
+        } else {
+            throw new Error('未收到回复');
+        }
+    } catch (error) {
+        console.error('AI 分析失败:', error);
+        responseDiv.innerHTML = `<div class="ai-response-content">AI 暂时不可用，请稍后重试。</div>`;
+        statusSpan.textContent = '(离线)';
+    }
+
+    submitBtn.disabled = false;
+}
+
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.tab === tabName) {
+            btn.classList.add('active');
+        }
+    });
+
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById('tab-' + tabName).classList.add('active');
+}
+</script>
+
+{% if error %}
+<div class="alert alert-error">
+    <strong>错误:</strong> {{ error }}
+</div>
+{% endif %}
+
+{% if chart_data %}
+<div class="filter-dashboard">
+    <!-- 左侧边栏：指标选择 -->
+    <div class="left-sidebar">
+        <div class="sidebar-card">
+            <div class="sidebar-header">
+                <h3>指标选择</h3>
+            </div>
+            <div class="sidebar-search">
+                <input
+                    type="text"
+                    id="indicatorSearch"
+                    class="search-input"
+                    placeholder="搜索指标..."
+                    autocomplete="off"
+                    oninput="filterIndicators()"
+                >
+            </div>
+            <div class="indicator-list">
+                {% for ind in available_indicators %}
+                <div
+                    class="indicator-item {% if ind.code == current_indicator %}active{% endif %}"
+                    data-code="{{ ind.code }}"
+                    data-name="{{ ind.name }}"
+                    onclick="selectIndicator('{{ ind.code }}', '{{ ind.name }}')"
+                >
+                    <span class="ind-code">{{ ind.code }}</span>
+                    <span class="ind-name">{{ ind.name }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="sidebar-card">
+            <div class="sidebar-header">
+                <h3>数据摘要</h3>
+            </div>
+            <div class="summary-list">
+                <div class="summary-row">
+                    <span class="summary-label">数据点数</span>
+                    <span class="summary-value">{{ chart_data.dates|length }}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">起始日期</span>
+                    <span class="summary-value">{{ chart_data.dates.0 }}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">结束日期</span>
+                    <span class="summary-value">{{ chart_data.dates.last }}</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">滤波器</span>
+                    <span class="summary-value">{{ current_filter_type|upper }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 中间：图表区域 -->
+    <div class="main-panel">
+        <div class="chart-card-large">
+            <div class="card-header">
+                <h2>{{ current_indicator }} - {% if current_filter_type == 'hp' %}HP 滤波{% else %}Kalman 滤波{% endif %}</h2>
+                <span class="chart-badge">{{ current_filter_type|upper }}</span>
+            </div>
+            <div id="mainChart" class="chart-large"></div>
+        </div>
+
+        <div class="charts-row">
+            <div class="chart-card-small">
+                <div class="card-header-small">
+                    <h3>周期分量</h3>
+                </div>
+                <div id="cycleChart" class="chart-small"></div>
+            </div>
+
+            {% if current_filter_type == 'kalman' %}
+            <div class="chart-card-small">
+                <div class="card-header-small">
+                    <h3>趋势斜率</h3>
+                </div>
+                <div id="slopeChart" class="chart-small"></div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 右侧：AI 分析 -->
+    <div class="right-sidebar">
+        <div class="tab-container">
+            <div class="tab-header">
+                <button class="tab-button active" data-tab="info" onclick="switchTab('info')">
+                    <span class="tab-icon">📖</span>
+                    说明
+                </button>
+                <button class="tab-button" data-tab="ai" onclick="switchTab('ai')">
+                    <span class="tab-icon">🤖</span>
+                    AI 分析
+                </button>
+            </div>
+
+            <!-- 说明 Tab -->
+            <div id="tab-info" class="tab-content active">
+                <div class="info-content">
+                    {% if current_filter_type == 'hp' %}
+                    <div class="info-section">
+                        <h4>HP 滤波 (Hodrick-Prescott)</h4>
+                        <ul>
+                            <li><strong>原理:</strong> 将时间序列分解为趋势分量和周期分量</li>
+                            <li><strong>参数:</strong> Lambda = 129600 (月度数据标准)</li>
+                            <li><strong>特点:</strong> 扩张窗口模式，每个时点只用历史数据</li>
+                            <li><strong>适用:</strong> 宏观经济趋势分析、周期识别</li>
+                        </ul>
+                    </div>
+                    {% else %}
+                    <div class="info-section">
+                        <h4>Kalman 滤波 (局部线性趋势)</h4>
+                        <ul>
+                            <li><strong>原理:</strong> 状态空间模型，递归估计水平值和斜率</li>
+                            <li><strong>特点:</strong> 单向滤波，支持增量更新</li>
+                            <li><strong>输出:</strong> 趋势 + 斜率（变化率）</li>
+                            <li><strong>适用:</strong> 实时数据更新、动态趋势跟踪</li>
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <div class="info-section">
+                        <h4>核心概念</h4>
+                        <ul>
+                            <li><strong>原始值:</strong> 宏观数据的实际观测值</li>
+                            <li><strong>趋势分量:</strong> 滤波后的长期趋势</li>
+                            <li><strong>周期分量:</strong> 原始值 - 趋势分量</li>
+                            {% if current_filter_type == 'kalman' %}
+                            <li><strong>斜率:</strong> 趋势的变化率</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI 分析 Tab -->
+            <div id="tab-ai" class="tab-content">
+                <div class="ai-content">
+                    <div class="ai-input-section">
+                        <div class="quick-questions">
+                            <button class="quick-btn" onclick="askAI('解释当前的趋势变化特征')">趋势特征</button>
+                            <button class="quick-btn" onclick="askAI('分析最近的周期拐点')">周期拐点</button>
+                            <button class="quick-btn" onclick="askAI('当前处于上升还是下降趋势？')">趋势判断</button>
+                            <button class="quick-btn" onclick="askAI('比较 HP 和 Kalman 滤波的差异')">滤波对比</button>
+                        </div>
+                        <textarea id="aiQuestion" class="ai-textarea" placeholder="输入您的问题，或点击上方快捷按钮..."></textarea>
+                        <button class="ai-submit-btn" onclick="submitAIQuestion()">
+                            <span class="btn-icon">🤖</span>
+                            分析
+                        </button>
+                    </div>
+
+                    <div class="ai-output-section">
+                        <div class="output-header">
+                            <span class="output-title">AI 分析结果</span>
+                            <span class="output-status" id="aiStatus"></span>
+                        </div>
+                        <div id="aiResponse" class="ai-response">
+                            <div class="ai-placeholder">
+                                <div class="placeholder-icon">💭</div>
+                                <p>向 AI 提问，分析滤波结果</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">📈</div>
+    <div class="empty-title">暂无滤波数据</div>
+    <div class="empty-desc">
+        点击"应用"按钮计算滤波结果
+    </div>
+</div>
+{% endif %}
+
+<style>
+/* 页面头部 */
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+}
+
+.header-controls label {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+}
+
+.header-controls select {
+    padding: 6px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: white;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.apply-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: #2563EB;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.apply-btn:hover:not(:disabled) {
+    background: #1D4ED8;
+}
+
+.apply-btn:active:not(:disabled) {
+    background: #1E40AF;
+}
+
+.apply-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-icon {
+    display: inline-block;
+    font-size: 14px;
+}
+
+.btn-icon.syncing {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* 主布局 */
+.filter-dashboard {
+    display: grid;
+    grid-template-columns: 280px 1fr 360px;
+    gap: 20px;
+    align-items: start;
+}
+
+/* 左侧边栏 */
+.left-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: sticky;
+    top: 20px;
+}
+
+.sidebar-card {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.sidebar-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-surface);
+}
+
+.sidebar-header h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+}
+
+.sidebar-search {
+    padding: 12px;
+    border-bottom: 1px solid var(--color-surface);
+}
+
+.search-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    box-sizing: border-box;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #2563EB;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.indicator-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.indicator-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--color-surface);
+    transition: background 0.2s;
+}
+
+.indicator-item:hover {
+    background: var(--color-surface);
+}
+
+.indicator-item.active {
+    background: #EFF6FF;
+    border-left: 3px solid #2563EB;
+}
+
+.ind-code {
+    font-family: monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: #2563EB;
+    min-width: 80px;
+}
+
+.ind-name {
+    font-size: 12px;
+    color: var(--color-text-primary);
+    flex: 1;
+}
+
+.summary-list {
+    padding: 16px;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--color-surface);
+}
+
+.summary-row:last-child {
+    border-bottom: none;
+}
+
+.summary-label {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+.summary-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+/* 中间主面板 */
+.main-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.chart-card-large {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 20px;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.card-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0;
+}
+
+.chart-badge {
+    padding: 4px 12px;
+    background: #2563EB;
+    color: white;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.chart-large {
+    width: 100%;
+    height: 400px;
+}
+
+.charts-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.chart-card-small {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 16px;
+}
+
+.card-header-small h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 12px 0;
+}
+
+.chart-small {
+    width: 100%;
+    height: 250px;
+}
+
+/* 右侧边栏 */
+.right-sidebar {
+    position: sticky;
+    top: 20px;
+}
+
+.tab-container {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.tab-header {
+    display: flex;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.tab-button {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 16px;
+    background: transparent;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+}
+
+.tab-button:hover {
+    background: var(--color-surface);
+}
+
+.tab-button.active {
+    color: #2563EB;
+    border-bottom-color: #2563EB;
+    background: rgba(37, 99, 235, 0.05);
+}
+
+.tab-content {
+    display: none;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.info-content {
+    padding: 16px;
+}
+
+.info-section {
+    margin-bottom: 20px;
+}
+
+.info-section:last-child {
+    margin-bottom: 0;
+}
+
+.info-section h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 12px;
+}
+
+.info-section ul {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    line-height: 1.8;
+}
+
+.info-section li strong {
+    color: var(--color-text-primary);
+}
+
+/* AI 内容 */
+.ai-content {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 200px);
+}
+
+.ai-input-section {
+    padding: 16px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.quick-questions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.quick-btn {
+    padding: 6px 10px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.quick-btn:hover {
+    border-color: #2563EB;
+    background: rgba(37, 99, 235, 0.05);
+    color: #2563EB;
+}
+
+.ai-textarea {
+    width: 100%;
+    min-height: 60px;
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-family: inherit;
+    resize: vertical;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
+
+.ai-textarea:focus {
+    outline: none;
+    border-color: #2563EB;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.ai-submit-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 10px;
+    background: #2563EB;
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ai-submit-btn:hover {
+    background: #1D4ED8;
+}
+
+.ai-submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.ai-output-section {
+    padding: 16px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.output-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.output-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.output-status {
+    font-size: 11px;
+    color: var(--color-text-muted);
+}
+
+.ai-response {
+    min-height: 100px;
+}
+
+.ai-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--color-text-muted);
+}
+
+.placeholder-icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.ai-response-content {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--color-text-primary);
+    white-space: pre-wrap;
+}
+
+.ai-response-content p {
+    margin-bottom: 12px;
+}
+
+.ai-response-content ul {
+    margin: 12px 0;
+    padding-left: 20px;
+}
+
+.ai-response-content li {
+    margin-bottom: 6px;
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.empty-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 8px;
+}
+
+.empty-desc {
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+}
+
+.alert {
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 20px;
+    border-left: 4px solid;
+}
+
+.alert-error {
+    background: #FEE7E7;
+    border-color: #DC2626;
+    color: #991B1B;
+}
+
+/* 响应式 */
+@media (max-width: 1400px) {
+    .filter-dashboard {
+        grid-template-columns: 260px 1fr 320px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .filter-dashboard {
+        grid-template-columns: 1fr;
+    }
+
+    .left-sidebar, .right-sidebar {
+        position: static;
+    }
+
+    .indicator-list {
+        max-height: 200px;
+    }
+}
+</style>
+
+{% load static %}
+<script src="{% static 'js/echarts.min.js' %}"></script>
+<script>
+{% if chart_data %}
+const chartData = {
+    dates: {{ chart_data.dates_json|safe }},
+    originalValues: {{ chart_data.original_values_json|safe }},
+    filteredValues: {{ chart_data.filtered_values_json|safe }},
+    slopes: {{ chart_data.slopes_json|safe }},
+};
+
+const cycleValues = chartData.originalValues.map((v, i) =>
+    v - chartData.filteredValues[i]
+);
+
+function initCharts() {
+    const mainChart = echarts.init(document.getElementById('mainChart'));
+    mainChart.setOption({
+        title: { text: '原始数据 vs 趋势', left: 'center', textStyle: { fontSize: 14 } },
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['原始值', '趋势'], top: 30, textStyle: { fontSize: 11 } },
+        grid: { left: '3%', right: '4%', bottom: '3%', top: 55, containLabel: true },
+        xAxis: {
+            type: 'category',
+            data: chartData.dates,
+            axisLabel: { rotate: 45, fontSize: 10 }
+        },
+        yAxis: { type: 'value', nameTextStyle: { fontSize: 10 } },
+        series: [
+            {
+                name: '原始值',
+                type: 'line',
+                data: chartData.originalValues,
+                smooth: true,
+                itemStyle: { color: '#999' },
+                lineStyle: { width: 1, type: 'dashed' },
+                symbol: 'none'
+            },
+            {
+                name: '趋势',
+                type: 'line',
+                data: chartData.filteredValues,
+                smooth: true,
+                itemStyle: { color: '#2563EB' },
+                lineStyle: { width: 2.5 },
+                symbol: 'none'
+            }
+        ]
+    });
+
+    const cycleChart = echarts.init(document.getElementById('cycleChart'));
+    cycleChart.setOption({
+        title: { text: '周期分量', left: 'center', textStyle: { fontSize: 13 } },
+        tooltip: { trigger: 'axis' },
+        grid: { left: '3%', right: '4%', bottom: '3%', top: 40, containLabel: true },
+        xAxis: {
+            type: 'category',
+            data: chartData.dates,
+            axisLabel: { rotate: 45, fontSize: 9 }
+        },
+        yAxis: { type: 'value' },
+        series: [
+            {
+                name: '周期分量',
+                type: 'bar',
+                data: cycleValues.map((v, i) => ({
+                    value: v,
+                    itemStyle: { color: v >= 0 ? '#22C55E' : '#EF4444' }
+                })),
+                barWidth: '60%'
+            }
+        ]
+    });
+
+    {% if current_filter_type == 'kalman' %}
+    const slopeChart = echarts.init(document.getElementById('slopeChart'));
+    slopeChart.setOption({
+        title: { text: '趋势斜率', left: 'center', textStyle: { fontSize: 13 } },
+        tooltip: { trigger: 'axis' },
+        grid: { left: '3%', right: '4%', bottom: '3%', top: 40, containLabel: true },
+        xAxis: {
+            type: 'category',
+            data: chartData.dates,
+            axisLabel: { rotate: 45, fontSize: 9 }
+        },
+        yAxis: { type: 'value' },
+        series: [
+            {
+                name: '斜率',
+                type: 'line',
+                data: chartData.slopes,
+                smooth: true,
+                itemStyle: { color: '#F59E0B' },
+                lineStyle: { width: 2 },
+                areaStyle: {
+                    color: {
+                        type: 'linear',
+                        x: 0, y: 0, x2: 0, y2: 1,
+                        colorStops: [
+                            { offset: 0, color: 'rgba(245, 158, 11, 0.3)' },
+                            { offset: 1, color: 'rgba(245, 158, 11, 0.05)' }
+                        ]
+                    }
+                },
+                markLine: {
+                    data: [{ yAxis: 0, lineStyle: { color: '#999', type: 'dashed', width: 1 } }]
+                },
+                symbol: 'none'
+            }
+        ]
+    });
+    {% endif %}
+
+    window.addEventListener('resize', () => {
+        mainChart.resize();
+        cycleChart.resize();
+        {% if current_filter_type == 'kalman' %}
+        slopeChart.resize();
+        {% endif %}
+    });
+}
+
+document.addEventListener('DOMContentLoaded', initCharts);
+{% endif %}
+</script>
+{% endblock %}

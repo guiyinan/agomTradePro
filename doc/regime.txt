@@ -1,0 +1,69 @@
+  1. HP滤波
+
+  from statsmodels.tsa.filters.hp_filter import hpfilter
+  cycle, trend = hpfilter(series, lamb=129600)
+
+  数学含义：将时间序列分解为 趋势项 + 周期项
+
+  - PMI、CPI 原始数据有长期趋势（比如经济自然增长、通胀目标制）
+  - 直接看原始值会误判：PMI=51 可能是"差"（从55跌下来），也可能是"好"（从48涨上来）
+  - HP滤波后，只看偏离趋势的部分（cycle），这才是真正的"周期波动"
+  - λ=129600 是月度数据的常用参数（平滑度权重）
+
+  ---
+  2. 动量计算
+
+  momentum_t = cycle_t - cycle_{t-3}  # 3个月差分
+
+  数学含义：一阶差分，度量变化率
+
+  - 不是看"绝对水平"，而是看"方向和加速度"
+  - momentum > 0：指标在上升（扩张）
+  - momentum < 0：指标在下降（收缩）
+  - 3个月窗口：过滤短期噪音，捕捉中期趋势
+
+  ---
+  3. Z-Score 标准化
+
+  z_t = (momentum_t - μ_t) / σ_t
+  # μ_t, σ_t 是过去60期的滚动均值和标准差
+
+  数学含义：标准化，消除量纲和季节性
+
+  - PMI动量和CPI动量单位不同、波动率不同，无法直接比较
+  - Z-Score 后变成"标准差倍数"，可比了
+  - Z=+1.5 表示"比过去5年平均水平高1.5个标准差"
+  - 滚动窗口：让"正常值"随经济结构变化而调整（比如金融危机前后）
+
+  ---
+  4. 概率转换
+
+  # 假设 Z-score 服从标准正态分布
+  P_growth_up = 1 - Φ(-z_growth)  # 增长向上的概率
+  P_inflation_up = 1 - Φ(-z_inflation)  # 通胀向上的概率
+
+  # 四象限概率
+  P_Recovery = P_growth_up × (1 - P_inflation_up)
+  P_Overheat = P_growth_up × P_inflation_up
+  P_Stagflation = (1 - P_growth_up) × P_inflation_up
+  P_Deflation = (1 - P_growth_up) × (1 - P_inflation_up)
+
+  数学含义：将连续的 Z-score 转换为离散的四象限概率分布
+
+  - Z-score 是连续值，但投资决策需要"非此即彼"的判断
+  - 用正态分布 CDF（Φ）把 Z 映射到 [0,1] 概率
+  - 四象限概率独立相乘：假设增长和通胀独立（简化假设）
+  - 取概率最大的象限作为"主导 Regime"
+
+  ---
+  整体逻辑链
+
+  原始数据 → HP滤波 → 去趋势周期值
+                  ↓
+              3月差分 → 动量（变化方向）
+                  ↓
+              滚动标准化 → Z-Score（相对强弱）
+                  ↓
+              正态CDF转换 → 概率分布 → 四象限判定
+
+  核心思想：不看"绝对值"，看"相对历史趋势的变化方向和强度"。
