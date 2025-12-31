@@ -287,6 +287,7 @@ a {
 /* 全宽内容区域（无左侧导航） */
 .main-content-full {
     padding: var(--spacing-xl);
+    padding-top: calc(var(--header-height) + var(--spacing-xl));
     max-width: 1920px;
     margin: 0 auto;
     width: 100%;

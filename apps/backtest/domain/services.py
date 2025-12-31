@@ -11,97 +11,14 @@ from datetime import date, timedelta
 from typing import List, Dict, Optional, Tuple, Callable
 from enum import Enum
 
-
-class RebalanceFrequency(Enum):
-    """再平衡频率"""
-    MONTHLY = "monthly"
-    QUARTERLY = "quarterly"
-    YEARLY = "yearly"
-
-
-class AssetClass(Enum):
-    """资产类别"""
-    A_SHARE_GROWTH = "a_share_growth"
-    A_SHARE_VALUE = "a_share_value"
-    CHINA_BOND = "china_bond"
-    GOLD = "gold"
-    COMMODITY = "commodity"
-    CASH = "cash"
-
-
-@dataclass(frozen=True)
-class BacktestConfig:
-    """回测配置"""
-    start_date: date
-    end_date: date
-    initial_capital: float
-    rebalance_frequency: str  # "monthly", "quarterly", "yearly"
-    use_pit_data: bool  # 是否使用 Point-in-Time 数据
-    transaction_cost_bps: float = 10  # 交易成本（基点）
-
-    def __post_init__(self):
-        """验证配置"""
-        if self.initial_capital <= 0:
-            raise ValueError("initial_capital must be positive")
-        if self.start_date >= self.end_date:
-            raise ValueError("start_date must be before end_date")
-        if self.transaction_cost_bps < 0:
-            raise ValueError("transaction_cost_bps must be non-negative")
-        valid_frequencies = ["monthly", "quarterly", "yearly"]
-        if self.rebalance_frequency not in valid_frequencies:
-            raise ValueError(f"rebalance_frequency must be one of {valid_frequencies}")
-
-
-@dataclass
-class Trade:
-    """交易记录"""
-    trade_date: date
-    asset_class: str
-    action: str  # "buy" or "sell"
-    shares: float
-    price: float
-    notional: float
-    cost: float
-
-
-@dataclass
-class PortfolioState:
-    """组合状态"""
-    as_of_date: date
-    cash: float
-    positions: Dict[str, float]  # asset_class -> shares
-    total_value: float
-
-    def get_position_value(self, asset_class: str, price: float) -> float:
-        """获取指定资产市值"""
-        shares = self.positions.get(asset_class, 0)
-        return shares * price
-
-
-@dataclass
-class BacktestResult:
-    """回测结果"""
-    config: BacktestConfig
-    final_value: float
-    total_return: float
-    annualized_return: float
-    sharpe_ratio: Optional[float]
-    max_drawdown: float
-    trades: List[Trade]
-    equity_curve: List[Tuple[date, float]]  # (date, portfolio_value)
-    regime_history: List[Dict]  # 每个再平衡点的 Regime 状态
-
-
-@dataclass
-class RebalanceResult:
-    """再平衡结果"""
-    date: date
-    regime: str
-    regime_confidence: float
-    old_weights: Dict[str, float]
-    new_weights: Dict[str, float]
-    trades: List[Trade]
-    portfolio_value: float
+# 从 entities 导入数据类
+from .entities import (
+    BacktestConfig,
+    Trade,
+    PortfolioState,
+    BacktestResult,
+    RebalanceResult,
+)
 
 
 class PITDataProcessor:

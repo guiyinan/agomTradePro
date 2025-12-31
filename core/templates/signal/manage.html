@@ -3,880 +3,487 @@
 {% block title %}投资信号管理 - AgomSAAF{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <h1>投资信号管理</h1>
-    <p class="subtitle">Investment Signal Management</p>
-    <p class="description">基于 Regime 的资产准入过滤与证伪逻辑管理</p>
-</div>
+<style>
+.signal-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+.signal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.signal-header h1 { font-size: 24px; margin: 0; }
+.regime-badge { padding: 8px 16px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 20px; font-size: 14px; }
+.stats-row { display: flex; gap: 12px; margin-bottom: 20px; }
+.stat-card { flex: 1; padding: 16px; background: #f8fafc; border-radius: 8px; text-align: center; }
+.stat-value { font-size: 24px; font-weight: 700; }
+.stat-label { font-size: 12px; color: #64748b; }
+.batch-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 12px 16px; background: #eff6ff; border-radius: 8px; }
 
-<!-- 当前 Regime 显示 -->
-{% if current_regime %}
-<div class="regime-info-bar">
-    <div class="regime-current">
-        <span class="regime-label">当前 Regime:</span>
-        <span class="regime-value regime-{{ current_regime.dominant_regime|lower }}">
-            {{ current_regime.dominant_regime }}
-        </span>
-        <span class="regime-confidence">置信度: {{ current_regime.confidence|floatformat:2 }}</span>
-        {% if current_regime.observed_at %}
-        <span class="regime-date">{{ current_regime.observed_at|date:"Y-m-d" }}</span>
+/* 创建表单 */
+.condition-builder { background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+.builder-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.builder-header h3 { margin: 0; font-size: 16px; }
+.builder-body { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.form-input, .form-select { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
+.form-input:focus, .form-select:focus { outline: none; border-color: #667eea; }
+
+/* 条件列表 */
+.conditions-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.condition-item { display: flex; align-items: center; gap: 8px; padding: 12px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; }
+.condition-text { flex: 1; font-size: 13px; }
+
+/* AI 助手 */
+.ai-assistant { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-radius: 12px; padding: 20px; margin-bottom: 24px; border: 1px solid #bae6fd; }
+.ai-header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.ai-header h3 { margin: 0; font-size: 16px; color: #0369a1; }
+.ai-input-area { margin-bottom: 16px; }
+.ai-input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; resize: vertical; min-height: 60px; }
+.ai-input:focus { outline: none; border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1); }
+.ai-actions { display: flex; gap: 8px; }
+.btn-ai { padding: 10px 20px; background: #0ea5e9; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+.btn-ai:hover { background: #0284c7; }
+.btn-clear { padding: 10px 20px; background: white; color: #64748b; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 14px; }
+.ai-result { background: white; padding: 12px; border-radius: 6px; margin-top: 16px; display: none; }
+.ai-result.show { display: block; }
+.ai-result-title { font-weight: 600; color: #0369a1; margin-bottom: 8px; }
+.ai-suggestions { background: #fef3c7; padding: 10px; border-radius: 6px; margin-top: 12px; font-size: 13px; }
+.ai-suggestions-title { font-weight: 600; margin-bottom: 4px; }
+
+/* 信号列表 */
+.signal-list { display: flex; flex-direction: column; gap: 12px; }
+.signal-card { display: flex; align-items: flex-start; gap: 16px; padding: 16px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; border-left: 4px solid #cbd5e1; }
+.signal-card.status-approved { border-left-color: #10b981; }
+.signal-card.status-rejected { border-left-color: #ef4444; }
+.signal-card.status-pending { border-left-color: #f59e0b; }
+.signal-card.status-invalidated { border-left-color: #9ca3af; opacity: 0.7; }
+.signal-main { flex: 1; }
+.signal-title { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.signal-code { font-size: 16px; font-weight: 600; }
+.signal-tag { padding: 2px 8px; background: #e2e8f0; border-radius: 4px; font-size: 11px; }
+.signal-desc { font-size: 13px; color: #64748b; margin-bottom: 8px; }
+.signal-rules { background: #f1f5f9; padding: 10px; border-radius: 6px; font-size: 12px; margin-bottom: 8px; }
+.signal-rules .label { color: #94a3b8; font-weight: 500; }
+.signal-meta { display: flex; gap: 12px; font-size: 12px; color: #94a3b8; }
+.signal-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.action-btn { padding: 6px 12px; border: 1px solid #e2e8f0; background: white; border-radius: 4px; font-size: 12px; cursor: pointer; }
+.action-btn.approve:hover { background: #10b981; border-color: #10b981; color: white; }
+.action-btn.reject:hover { background: #ef4444; border-color: #ef4444; color: white; }
+.action-btn.check:hover { background: #3b82f6; border-color: #3b82f6; color: white; }
+.action-btn.delete:hover { background: #64748b; border-color: #64748b; color: white; }
+.status-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+.status-approved { background: #d1fae5; color: #065f46; }
+.status-rejected { background: #fee2e2; color: #991b1b; }
+.status-pending { background: #fef3c7; color: #92400e; }
+.status-invalidated { background: #f3f4f6; color: #6b7280; }
+
+/* Toast & 按钮通用 */
+.toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; background: #1e293b; color: white; border-radius: 6px; font-size: 14px; opacity: 0; transform: translateY(10px); transition: all 0.3s; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { background: #10b981; }
+.toast.error { background: #ef4444; }
+.btn-add { padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.btn-remove { padding: 4px 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.rules-preview { background: #fef3c7; padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; }
+.btn-batch { padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.btn-batch:hover { background: #2563eb; }
+.empty-state { text-align: center; padding: 60px 20px; color: #94a3b8; }
+</style>
+
+<div class="signal-container">
+    <!-- 头部 -->
+    <div class="signal-header">
+        <h1>投资信号</h1>
+        {% if current_regime %}
+        <div class="regime-badge">当前: {{ current_regime.dominant_regime }}</div>
         {% endif %}
     </div>
-    <div class="regime-recommendation">
-        <span class="recommendation-label">推荐资产:</span>
-        {% if recommended_assets.recommended %}
-        <span class="recommendation-tags">
-            {% for asset in recommended_assets.recommended %}
-            <span class="tag tag-preferred">{{ asset }}</span>
-            {% endfor %}
-        </span>
-        {% else %}
-        <span class="no-recommendation">暂无推荐资产</span>
-        {% endif %}
-    </div>
-</div>
-{% endif %}
 
-<!-- 统计卡片 -->
-<div class="signal-stats-grid">
-    <div class="signal-stat-card stat-total">
-        <div class="stat-icon">📊</div>
-        <div class="stat-info">
-            <div class="stat-label">总信号数</div>
-            <div class="stat-value">{{ stats.total }}</div>
-        </div>
+    <!-- 统计 -->
+    <div class="stats-row">
+        <div class="stat-card"><div class="stat-value">{{ stats.total }}</div><div class="stat-label">总计</div></div>
+        <div class="stat-card"><div class="stat-value" style="color: #10b981;">{{ stats.approved }}</div><div class="stat-label">已通过</div></div>
+        <div class="stat-card"><div class="stat-value" style="color: #f59e0b;">{{ stats.pending }}</div><div class="stat-label">待审核</div></div>
+        <div class="stat-card"><div class="stat-value" style="color: #ef4444;">{{ stats.rejected }}</div><div class="stat-label">已拒绝</div></div>
+        <div class="stat-card"><div class="stat-value" style="color: #9ca3af;">{{ stats.invalidated }}</div><div class="stat-label">已证伪</div></div>
     </div>
-    <div class="signal-stat-card stat-pending">
-        <div class="stat-icon">⏳</div>
-        <div class="stat-info">
-            <div class="stat-label">待审核</div>
-            <div class="stat-value">{{ stats.pending }}</div>
-        </div>
-    </div>
-    <div class="signal-stat-card stat-approved">
-        <div class="stat-icon">✅</div>
-        <div class="stat-info">
-            <div class="stat-label">已通过</div>
-            <div class="stat-value">{{ stats.approved }}</div>
-        </div>
-    </div>
-    <div class="signal-stat-card stat-rejected">
-        <div class="stat-icon">❌</div>
-        <div class="stat-info">
-            <div class="stat-label">已拒绝</div>
-            <div class="stat-value">{{ stats.rejected }}</div>
-        </div>
-    </div>
-    <div class="signal-stat-card stat-invalidated">
-        <div class="stat-icon">⚠️</div>
-        <div class="stat-info">
-            <div class="stat-label">已失效</div>
-            <div class="stat-value">{{ stats.invalidated }}</div>
-        </div>
-    </div>
-</div>
 
-<!-- 操作按钮栏 -->
-<div class="action-bar">
-    <button class="btn btn-primary" onclick="openCreateModal()">
-        <span class="btn-icon">+</span> 创建新信号
-    </button>
-    <a href="/admin/signal/investmentsignalmodel/" class="btn btn-secondary">
-        Admin 后台
-    </a>
-    <button class="btn btn-refresh" onclick="location.reload()">
-        <span class="btn-icon">↻</span> 刷新
-    </button>
-</div>
+    <!-- 批量操作 -->
+    <div class="batch-actions">
+        <span style="font-size: 13px;">💡 系统会自动检查已批准信号是否满足证伪条件</span>
+        <button class="btn-batch" onclick="batchCheck()">🔄 立即检查所有信号</button>
+    </div>
 
-<!-- 筛选表单 -->
-<div class="filter-section">
-    <form method="get" class="filter-form">
-        <div class="filter-row">
-            <div class="filter-field">
-                <label>搜索</label>
-                <input type="text" name="search" value="{{ filter_search }}" placeholder="资产代码或逻辑描述">
-            </div>
-            <div class="filter-field">
-                <label>状态</label>
-                <select name="status">
-                    <option value="">全部</option>
-                    <option value="pending" {% if filter_status == 'pending' %}selected{% endif %}>待审核</option>
-                    <option value="approved" {% if filter_status == 'approved' %}selected{% endif %}>已通过</option>
-                    <option value="rejected" {% if filter_status == 'rejected' %}selected{% endif %}>已拒绝</option>
-                    <option value="invalidated" {% if filter_status == 'invalidated' %}selected{% endif %}>已失效</option>
-                    <option value="expired" {% if filter_status == 'expired' %}selected{% endif %}>已过期</option>
-                </select>
-            </div>
-            <div class="filter-field">
-                <label>资产类别</label>
-                <select name="asset_class">
-                    <option value="">全部</option>
-                    {% for ac in asset_classes %}
-                    <option value="{{ ac }}" {% if ac == filter_asset_class %}selected{% endif %}>{{ ac }}</option>
+    <!-- AI 助手 -->
+    <div class="ai-assistant">
+        <div class="ai-header">
+            <span style="font-size: 20px;">🤖</span>
+            <h3>AI 证伪助手</h3>
+        </div>
+        <div class="ai-input-area">
+            <textarea id="aiInput" class="ai-input" placeholder="用自然语言描述证伪条件，AI会帮你生成规则&#10;&#10;例如：&#10;- PMI跌破50且连续2个月&#10;- CPI超过3%或者M2低于8%&#10;- 当制造业PMI小于荣枯线时证伪"></textarea>
+        </div>
+        <div class="ai-actions">
+            <button class="btn-ai" onclick="aiGenerate()">✨ AI 生成规则</button>
+            <button class="btn-clear" onclick="clearAiResult()">清除</button>
+        </div>
+        <div id="aiResult" class="ai-result"></div>
+        <div id="aiSuggestions" class="ai-suggestions" style="display: none;"></div>
+    </div>
+
+    <!-- 创建表单 -->
+    <div class="condition-builder">
+        <div class="builder-header">
+            <h3>新建投资信号</h3>
+        </div>
+
+        <form id="createForm">
+            <div class="builder-body">
+                <input type="text" name="asset_code" class="form-input" placeholder="资产代码 (如 000001.SH)" required>
+                <select name="asset_class" class="form-select" required>
+                    <option value="">资产类别</option>
+                    {% for ac in all_asset_classes %}
+                    <option value="{{ ac }}">{{ ac }}</option>
                     {% endfor %}
                 </select>
-            </div>
-            <div class="filter-field">
-                <label>方向</label>
-                <select name="direction">
-                    <option value="">全部</option>
-                    <option value="LONG" {% if filter_direction == 'LONG' %}selected{% endif %}>做多</option>
-                    <option value="SHORT" {% if filter_direction == 'SHORT' %}selected{% endif %}>做空</option>
-                    <option value="NEUTRAL" {% if filter_direction == 'NEUTRAL' %}selected{% endif %}>中性</option>
+                <select name="direction" class="form-select">
+                    <option value="LONG">做多</option>
+                    <option value="SHORT">做空</option>
+                    <option value="NEUTRAL">中性</option>
+                </select>
+                <select name="target_regime" class="form-select">
+                    <option value="Recovery">Recovery (复苏)</option>
+                    <option value="Overheat">Overheat (过热)</option>
+                    <option value="Stagflation">Stagflation (滞胀)</option>
+                    <option value="Deflation">Deflation (通缩)</option>
                 </select>
             </div>
-            <button type="submit" class="btn-filter">查询</button>
-            <a href="/signal/manage/" class="btn-reset">重置</a>
-        </div>
-    </form>
-</div>
 
-<!-- 信号列表 -->
-<div class="signals-section">
-    <div class="section-header">
-        <h2>信号列表</h2>
-        <span class="signal-count">{{ signals|length }} 条记录</span>
+            <input type="text" name="logic_desc" class="form-input" style="width:100%;margin-bottom:12px;" placeholder="投资逻辑描述 (必填)" required>
+
+            <h4 style="margin: 0 0 12px 0; font-size: 14px;">证伪条件</h4>
+
+            <div id="conditionsList" class="conditions-list"></div>
+
+            <div class="builder-body" style="margin-bottom: 12px;">
+                <select id="indicatorSelect" class="form-select">
+                    <option value="">选择指标</option>
+                    {% for ind in available_indicators %}
+                    <option value="{{ ind.code }}" data-threshold="{{ ind.suggested_threshold }}">
+                        {{ ind.name }} (最新: {{ ind.latest }})
+                    </option>
+                    {% endfor %}
+                </select>
+                <select id="conditionSelect" class="form-select">
+                    <option value="lt">&lt; 小于</option>
+                    <option value="lte">&le; 小于等于</option>
+                    <option value="gt">&gt; 大于</option>
+                    <option value="gte">&ge; 大于等于</option>
+                    <option value="eq">= 等于</option>
+                </select>
+                <input type="number" id="thresholdInput" class="form-input" placeholder="阈值" step="0.01">
+                <button type="button" class="btn-add" onclick="addCondition()">+ 添加条件</button>
+            </div>
+
+            <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                <label style="font-size: 13px;">
+                    <input type="radio" name="logic" value="AND" checked> 所有条件都满足 (AND)
+                </label>
+                <label style="font-size: 13px;">
+                    <input type="radio" name="logic" value="OR"> 任一条件满足 (OR)
+                </label>
+            </div>
+
+            <div id="rulesPreview" class="rules-preview" style="display: none;"></div>
+
+            <input type="hidden" name="invalidation_rules" id="invalidationRulesInput">
+
+            <button type="submit" class="btn-add" style="width: 100%;">创建信号</button>
+        </form>
     </div>
 
-    {% if signals %}
-    <div class="signals-grid">
+    <!-- 信号列表 -->
+    <div class="signal-list">
         {% for signal in signals %}
-        <div class="signal-card signal-status-{{ signal.status }}" data-signal-id="{{ signal.id }}">
-            <div class="signal-header">
-                <div class="signal-asset">
-                    <span class="asset-code">{{ signal.asset_code }}</span>
-                    <span class="asset-class">{{ signal.asset_class }}</span>
+        <div class="signal-card status-{{ signal.status }}" data-id="{{ signal.id }}">
+            <div class="signal-main">
+                <div class="signal-title">
+                    <span class="signal-code">{{ signal.asset_code }}</span>
+                    <span class="signal-tag">{{ signal.asset_class }}</span>
+                    <span class="status-badge status-{{ signal.status }}">
+                        {% if signal.status == 'pending' %}待审核
+                        {% elif signal.status == 'approved' %}已通过
+                        {% elif signal.status == 'rejected' %}已拒绝
+                        {% elif signal.status == 'invalidated' %}已证伪{% endif %}
+                    </span>
                 </div>
-                <div class="signal-direction direction-{{ signal.direction }}">
-                    {% if signal.direction == 'LONG' %}做多
-                    {% elif signal.direction == 'SHORT' %}做空
-                    {% else %}中性{% endif %}
+                <div class="signal-desc">{{ signal.logic_desc }}</div>
+                <div class="signal-rules">
+                    <span class="label">证伪:</span> {{ signal.invalidation_logic }}
                 </div>
-            </div>
-
-            <div class="signal-body">
-                <div class="signal-logic">
-                    <div class="logic-label">投资逻辑</div>
-                    <div class="logic-content">{{ signal.logic_desc }}</div>
-                </div>
-                <div class="signal-invalidation">
-                    <div class="logic-label">证伪逻辑</div>
-                    <div class="logic-content invalidation">{{ signal.invalidation_logic }}</div>
-                    {% if signal.invalidation_threshold %}
-                    <div class="threshold-badge">阈值: {{ signal.invalidation_threshold }}</div>
+                <div class="signal-meta">
+                    <span>📅 {{ signal.created_at|date:"Y-m-d" }}</span>
+                    <span>🎯 目标: {{ signal.target_regime }}</span>
+                    {% if signal.invalidated_at %}
+                    <span style="color: #ef4444;">⚠️ 证伪于 {{ signal.invalidated_at|date:"Y-m-d H:i" }}</span>
                     {% endif %}
                 </div>
+                {% if signal.rejection_reason %}
+                <div style="font-size: 12px; color: #ef4444; margin-top: 8px;">🚫 {{ signal.rejection_reason }}</div>
+                {% endif %}
             </div>
-
-            <div class="signal-footer">
-                <div class="signal-meta">
-                    <span class="meta-item">目标象限: {{ signal.target_regime }}</span>
-                    <span class="meta-item">创建于: {{ signal.created_at|date:"Y-m-d" }}</span>
-                </div>
-                <div class="signal-status-badge status-{{ signal.status }}">
-                    {% if signal.status == 'pending' %}待审核
-                    {% elif signal.status == 'approved' %}已通过
-                    {% elif signal.status == 'rejected' %}已拒绝
-                    {% elif signal.status == 'invalidated' %}已失效
-                    {% elif signal.status == 'expired' %}已过期{% endif %}
-                </div>
-            </div>
-
-            {% if signal.rejection_reason %}
-            <div class="rejection-reason">
-                <strong>拒绝原因:</strong> {{ signal.rejection_reason }}
-            </div>
-            {% endif %}
-
-            <!-- 操作按钮 -->
             <div class="signal-actions">
                 {% if signal.status == 'pending' or signal.status == 'rejected' %}
-                <button class="action-btn btn-approve" onclick="approveSignal({{ signal.id }})" title="批准">
-                    ✓
-                </button>
+                <button class="action-btn approve" onclick="approveSignal({{ signal.id }})">✓</button>
                 {% endif %}
                 {% if signal.status == 'pending' or signal.status == 'approved' %}
-                <button class="action-btn btn-reject" onclick="rejectSignal({{ signal.id }})" title="拒绝">
-                    ✕
-                </button>
+                <button class="action-btn reject" onclick="rejectSignal({{ signal.id }})">✕</button>
                 {% endif %}
                 {% if signal.status == 'approved' %}
-                <button class="action-btn btn-invalidate" onclick="invalidateSignal({{ signal.id }})" title="证伪">
-                    ⚠
-                </button>
+                <button class="action-btn check" onclick="checkSignal({{ signal.id }})">🔍</button>
                 {% endif %}
-                <button class="action-btn btn-delete" onclick="deleteSignal({{ signal.id }}, '{{ signal.asset_code }}')" title="删除">
-                    🗑
-                </button>
+                <button class="action-btn delete" onclick="deleteSignal({{ signal.id }})">🗑</button>
             </div>
         </div>
         {% endfor %}
     </div>
-    {% else %}
+
+    {% if not signals %}
     <div class="empty-state">
-        <div class="empty-icon">📈</div>
-        <div class="empty-title">暂无投资信号</div>
-        <div class="empty-desc">
-            点击上方 <strong>"创建新信号"</strong> 按钮添加投资信号
-        </div>
+        <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
+        <div>暂无信号，在上方创建第一个信号</div>
     </div>
     {% endif %}
 </div>
 
-<!-- 创建信号模态框 -->
-<div id="createModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2>创建新投资信号</h2>
-            <button class="modal-close" onclick="closeCreateModal()">&times;</button>
-        </div>
-        <form id="createForm" class="modal-body">
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="asset_code">资产代码 *</label>
-                    <input type="text" id="asset_code" name="asset_code" required placeholder="如: 000001.SH">
-                </div>
-                <div class="form-group">
-                    <label for="asset_class">资产类别 *</label>
-                    <select id="asset_class" name="asset_class" required onchange="updateEligibilityHint()">
-                        <option value="">选择资产类别</option>
-                        {% for ac in all_asset_classes %}
-                        <option value="{{ ac }}">{{ ac }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="direction">方向</label>
-                    <select id="direction" name="direction">
-                        <option value="LONG">做多</option>
-                        <option value="SHORT">做空</option>
-                        <option value="NEUTRAL">中性</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="target_regime">目标象限</label>
-                    <select id="target_regime" name="target_regime" onchange="updateEligibilityHint()">
-                        {% for r in all_regimes %}
-                        <option value="{{ r }}">{{ r }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="logic_desc">投资逻辑描述 *</label>
-                <textarea id="logic_desc" name="logic_desc" required rows="3"
-                    placeholder="如: PMI 连续回升，经济复苏预期增强，利好成长股"></textarea>
-            </div>
-            <div class="form-group">
-                <label for="invalidation_logic">证伪逻辑描述 *</label>
-                <textarea id="invalidation_logic" name="invalidation_logic" required rows="3"
-                    placeholder="如: PMI 跌破 50 且连续 2 月低于前值"></textarea>
-                <small class="form-hint">必须包含可量化条件，如 "跌破 50"、"突破前值" 等</small>
-            </div>
-            <div class="form-group">
-                <label for="invalidation_threshold">证伪阈值</label>
-                <input type="number" id="invalidation_threshold" name="invalidation_threshold"
-                    step="0.01" placeholder="如: 50">
-            </div>
-
-            <!-- 准入提示 -->
-            <div id="eligibilityHint" class="eligibility-hint" style="display: none;">
-                <div class="hint-header">准入检查预览</div>
-                <div class="hint-content" id="eligibilityContent"></div>
-            </div>
-
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeCreateModal()">取消</button>
-                <button type="submit" class="btn btn-primary">创建并检查</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- 拒绝原因模态框 -->
-<div id="rejectModal" class="modal">
-    <div class="modal-content modal-sm">
-        <div class="modal-header">
-            <h2>拒绝信号</h2>
-            <button class="modal-close" onclick="closeRejectModal()">&times;</button>
-        </div>
-        <form id="rejectForm" class="modal-body">
-            <input type="hidden" id="reject_signal_id" name="signal_id">
-            <div class="form-group">
-                <label for="reject_reason">拒绝原因</label>
-                <textarea id="reject_reason" name="reason" rows="3" placeholder="请输入拒绝原因..."></textarea>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeRejectModal()">取消</button>
-                <button type="submit" class="btn btn-danger">确认拒绝</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- 结果提示 -->
+<!-- Toast -->
 <div id="toast" class="toast"></div>
 
-<style>
-/* Regime 信息栏 */
-.regime-info-bar {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-lg);
-    margin-bottom: var(--spacing-xl);
-    color: white;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--spacing-md);
-}
-
-.regime-current {
-    display: flex;
-    gap: var(--spacing-md);
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.regime-label {
-    font-weight: 600;
-    opacity: 0.9;
-}
-
-.regime-value {
-    padding: 6px 16px;
-    background: rgba(255,255,255,0.2);
-    border-radius: var(--radius-sm);
-    font-weight: 700;
-    font-size: 18px;
-}
-
-.regime-confidence {
-    font-size: 13px;
-    opacity: 0.8;
-}
-
-.regime-date {
-    font-size: 12px;
-    opacity: 0.7;
-}
-
-.regime-recommendation {
-    display: flex;
-    gap: var(--spacing-sm);
-    align-items: center;
-}
-
-.recommendation-label {
-    font-weight: 600;
-    opacity: 0.9;
-}
-
-.recommendation-tags {
-    display: flex;
-    gap: var(--spacing-xs);
-}
-
-.tag {
-    padding: 4px 10px;
-    border-radius: var(--radius-sm);
-    font-size: 12px;
-    font-weight: 600;
-}
-
-.tag-preferred {
-    background: #D5FBDD;
-    color: #1B5E20;
-}
-
-/* 操作栏 */
-.action-bar {
-    display: flex;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-lg);
-}
-
-.btn {
-    padding: 10px 20px;
-    border: none;
-    border-radius: var(--radius-sm);
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-    text-decoration: none;
-}
-
-.btn-primary {
-    background: var(--color-primary);
-    color: white;
-}
-
-.btn-primary:hover {
-    background: var(--color-primary-hover);
-}
-
-.btn-secondary {
-    background: var(--color-surface);
-    color: var(--color-text-primary);
-    border: 1px solid var(--color-border);
-}
-
-.btn-refresh {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    color: var(--color-text-secondary);
-    margin-left: auto;
-}
-
-.btn-icon {
-    font-size: 16px;
-}
-
-/* 信号卡片操作按钮 */
-.signal-actions {
-    display: flex;
-    gap: var(--spacing-xs);
-    padding-top: var(--spacing-sm);
-    border-top: 1px solid var(--color-border);
-    margin-top: var(--spacing-sm);
-}
-
-.action-btn {
-    width: 32px;
-    height: 32px;
-    border: none;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.2s;
-}
-
-.btn-approve {
-    background: #D5FBDD;
-    color: #1B5E20;
-}
-
-.btn-approve:hover {
-    background: #B9E6C3;
-}
-
-.btn-reject {
-    background: #FEE7E7;
-    color: #C62828;
-}
-
-.btn-reject:hover {
-    background: #FFCDD2;
-}
-
-.btn-invalidate {
-    background: #FEF7E2;
-    color: #F57F17;
-}
-
-.btn-invalidate:hover {
-    background: #FFF9C4;
-}
-
-.btn-delete {
-    background: var(--color-surface);
-    color: var(--color-text-muted);
-    margin-left: auto;
-}
-
-.btn-delete:hover {
-    background: #FEE7E7;
-    color: #C62828;
-}
-
-/* 模态框 */
-.modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.5);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
-}
-
-.modal.active {
-    display: flex;
-}
-
-.modal-content {
-    background: var(--color-bg);
-    border-radius: var(--radius-lg);
-    width: 90%;
-    max-width: 600px;
-    max-height: 90vh;
-    overflow-y: auto;
-    animation: modalSlideIn 0.3s ease;
-}
-
-.modal-sm {
-    max-width: 400px;
-}
-
-@keyframes modalSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: var(--spacing-lg);
-    border-bottom: 1px solid var(--color-border);
-}
-
-.modal-header h2 {
-    font-size: 18px;
-    font-weight: 600;
-}
-
-.modal-close {
-    background: none;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
-    color: var(--color-text-muted);
-}
-
-.modal-close:hover {
-    color: var(--color-text-primary);
-}
-
-.modal-body {
-    padding: var(--spacing-lg);
-}
-
-.form-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-md);
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-xs);
-}
-
-.form-group label {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--color-text-secondary);
-}
-
-.form-group input,
-.form-group select,
-.form-group textarea {
-    padding: 10px 12px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    font-size: 14px;
-    font-family: inherit;
-}
-
-.form-group textarea {
-    resize: vertical;
-}
-
-.form-hint {
-    font-size: 12px;
-    color: var(--color-text-muted);
-}
-
-/* 准入提示 */
-.eligibility-hint {
-    background: #F3F4F6;
-    border-radius: var(--radius-sm);
-    padding: var(--spacing-md);
-    margin-bottom: var(--spacing-md);
-}
-
-.hint-header {
-    font-weight: 600;
-    font-size: 13px;
-    margin-bottom: var(--spacing-sm);
-}
-
-.hint-content {
-    font-size: 13px;
-}
-
-.modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--spacing-sm);
-    padding-top: var(--spacing-md);
-    border-top: 1px solid var(--color-border);
-}
-
-.btn-danger {
-    background: var(--color-error);
-    color: white;
-}
-
-/* Toast 提示 */
-.toast {
-    position: fixed;
-    bottom: var(--spacing-xl);
-    right: var(--spacing-xl);
-    padding: var(--spacing-md) var(--spacing-lg);
-    background: #333;
-    color: white;
-    border-radius: var(--radius-sm);
-    z-index: 2000;
-    opacity: 0;
-    transform: translateY(20px);
-    transition: all 0.3s ease;
-}
-
-.toast.show {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-.toast.success {
-    background: #1B5E20;
-}
-
-.toast.error {
-    background: #C62828;
-}
-
-/* 其他样式 */
-.signal-count {
-    font-size: 13px;
-    color: var(--color-text-muted);
-}
-
-.no-recommendation {
-    font-size: 13px;
-    opacity: 0.7;
-}
-
-/* 响应式 */
-@media (max-width: 768px) {
-    .form-row {
-        grid-template-columns: 1fr;
-    }
-
-    .regime-info-bar {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-}
-</style>
-
 <script>
-const currentRegime = '{{ current_regime.dominant_regime|default:"Recovery" }}';
+// 条件数据
+let conditions = [];
 
-function openCreateModal() {
-    document.getElementById('createModal').classList.add('active');
-}
-
-function closeCreateModal() {
-    document.getElementById('createModal').classList.remove('active');
-    document.getElementById('createForm').reset();
-    document.getElementById('eligibilityHint').style.display = 'none';
-}
-
-function updateEligibilityHint() {
-    const assetClass = document.getElementById('asset_class').value;
-    const targetRegime = document.getElementById('target_regime').value;
-    const hintDiv = document.getElementById('eligibilityHint');
-    const contentDiv = document.getElementById('eligibilityContent');
-
-    if (!assetClass || !targetRegime) {
-        hintDiv.style.display = 'none';
+// AI 生成规则
+async function aiGenerate() {
+    const input = document.getElementById('aiInput').value.trim();
+    if (!input) {
+        alert('请输入证伪条件描述');
         return;
     }
 
-    fetch(`/signal/eligibility/?asset_class=${assetClass}&regime=${targetRegime}`)
-        .then(r => r.json())
-        .then(data => {
-            if (data.eligible) {
-                contentDiv.innerHTML = `
-                    <span style="color: #1B5E20;">✓</span>
-                    ${assetClass} 在 ${targetRegime} 象限下适配性为 <strong>${data.eligibility}</strong>
+    try {
+        const res = await fetch('/signal/ai/parse-logic/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: input })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            // 清空现有条件
+            conditions = data.conditions;
+
+            // 设置逻辑
+            const logicRadio = document.querySelector(`input[name="logic"][value="${data.logic}"]`);
+            if (logicRadio) logicRadio.checked = true;
+
+            renderConditions();
+            updatePreview();
+
+            // 显示结果
+            const resultDiv = document.getElementById('aiResult');
+            resultDiv.innerHTML = `
+                <div class="ai-result-title">✅ AI 解析成功 (置信度: ${Math.round(data.confidence * 100)}%)</div>
+                <div style="font-size: 13px; color: #64748b;">${data.explanation}</div>
+                <div style="margin-top: 8px; font-size: 12px; color: #10b981;">
+                    👇 条件已添加到下方列表，可以继续编辑或直接创建信号
+                </div>
+            `;
+            resultDiv.classList.add('show');
+            document.getElementById('aiSuggestions').style.display = 'none';
+        } else {
+            // 显示错误和建议
+            const resultDiv = document.getElementById('aiResult');
+            resultDiv.innerHTML = `<div style="color: #ef4444;">❌ ${data.error}</div>`;
+            resultDiv.classList.add('show');
+
+            if (data.suggestions && data.suggestions.length > 0) {
+                const suggestDiv = document.getElementById('aiSuggestions');
+                suggestDiv.innerHTML = `
+                    <div class="ai-suggestions-title">💡 建议:</div>
+                    <ul style="margin: 4px 0; padding-left: 16px;">
+                        ${data.suggestions.map(s => `<li>${s}</li>`).join('')}
+                    </ul>
                 `;
-            } else {
-                contentDiv.innerHTML = `
-                    <span style="color: #C62828;">⚠</span>
-                    ${assetClass} 在 ${targetRegime} 象限下为 <strong>HOSTILE</strong>，信号可能会被拒绝
-                `;
+                suggestDiv.style.display = 'block';
             }
-            hintDiv.style.display = 'block';
-        })
-        .catch(err => console.error(err));
-}
-
-function openRejectModal(signalId) {
-    document.getElementById('reject_signal_id').value = signalId;
-    document.getElementById('rejectModal').classList.add('active');
-}
-
-function closeRejectModal() {
-    document.getElementById('rejectModal').classList.remove('active');
-    document.getElementById('rejectForm').reset();
-}
-
-function showToast(message, type = 'success') {
-    const toast = document.getElementById('toast');
-    toast.textContent = message;
-    toast.className = `toast ${type} show`;
-    setTimeout(() => {
-        toast.classList.remove('show');
-    }, 3000);
-}
-
-async function approveSignal(signalId) {
-    if (!confirm('确认批准此信号？')) return;
-
-    const formData = new FormData();
-    formData.append('signal_id', signalId);
-
-    try {
-        const res = await fetch('/signal/approve/', {
-            method: 'POST',
-            body: formData
-        });
-        const data = await res.json();
-        if (data.success) {
-            showToast(data.message, 'success');
-            location.reload();
         }
-    } catch (err) {
-        showToast('操作失败', 'error');
+    } catch (e) {
+        showToast('AI 服务异常: ' + e.message, 'error');
     }
 }
 
-function rejectSignal(signalId) {
-    openRejectModal(signalId);
+function clearAiResult() {
+    document.getElementById('aiInput').value = '';
+    document.getElementById('aiResult').classList.remove('show');
+    document.getElementById('aiSuggestions').style.display = 'none';
 }
 
-async function invalidateSignal(signalId) {
-    if (!confirm('确认证伪此信号？')) return;
+// 添加条件
+function addCondition() {
+    const indicator = document.getElementById('indicatorSelect').value;
+    const condition = document.getElementById('conditionSelect').value;
+    const threshold = document.getElementById('thresholdInput').value;
 
-    const formData = new FormData();
-    formData.append('signal_id', signalId);
-    formData.append('reason', '信号已证伪');
-
-    try {
-        const res = await fetch('/signal/invalidate/', {
-            method: 'POST',
-            body: formData
-        });
-        const data = await res.json();
-        if (data.success) {
-            showToast(data.message, 'success');
-            location.reload();
-        }
-    } catch (err) {
-        showToast('操作失败', 'error');
+    if (!indicator || !threshold) {
+        alert('请选择指标并输入阈值');
+        return;
     }
+
+    conditions.push({ indicator, condition, threshold: parseFloat(threshold) });
+    renderConditions();
+    updatePreview();
+
+    document.getElementById('indicatorSelect').value = '';
+    document.getElementById('thresholdInput').value = '';
 }
 
-async function deleteSignal(signalId, assetCode) {
-    if (!confirm(`确认删除信号 ${assetCode}？`)) return;
+// 渲染条件列表
+function renderConditions() {
+    const list = document.getElementById('conditionsList');
+    const opMap = { lt: '<', lte: '≤', gt: '>', gte: '≥', eq: '=' };
 
-    try {
-        const res = await fetch(`/signal/delete/${signalId}/`, {
-            method: 'DELETE'
-        });
-        const data = await res.json();
-        if (data.success) {
-            showToast(data.message, 'success');
-            document.querySelector(`[data-signal-id="${signalId}"]`).remove();
-        }
-    } catch (err) {
-        showToast('删除失败', 'error');
+    list.innerHTML = conditions.map((c, i) => `
+        <div class="condition-item">
+            <span class="condition-text">${c.indicator} ${opMap[c.condition]} ${c.threshold}</span>
+            <button type="button" class="btn-remove" onclick="removeCondition(${i})">删除</button>
+        </div>
+    `).join('');
+}
+
+function removeCondition(index) {
+    conditions.splice(index, 1);
+    renderConditions();
+    updatePreview();
+}
+
+function updatePreview() {
+    const preview = document.getElementById('rulesPreview');
+    const logic = document.querySelector('input[name="logic"]:checked').value;
+
+    if (conditions.length === 0) {
+        preview.style.display = 'none';
+        return;
     }
+
+    const opMap = { lt: '<', lte: '≤', gt: '>', gte: '≥', eq: '=' };
+    const logicText = logic === 'AND' ? ' 且 ' : ' 或 ';
+    const text = conditions.map(c => `${c.indicator} ${opMap[c.condition]} ${c.threshold}`).join(logicText);
+
+    preview.textContent = `📋 证伪规则: 当 ${text} 时自动证伪`;
+    preview.style.display = 'block';
 }
 
-// 创建表单提交
+// 指标选择时自动填充阈值
+document.getElementById('indicatorSelect').addEventListener('change', function() {
+    const option = this.selectedOptions[0];
+    const threshold = option.dataset.threshold;
+    if (threshold) {
+        document.getElementById('thresholdInput').value = threshold;
+    }
+});
+
+// 表单提交
 document.getElementById('createForm').addEventListener('submit', async function(e) {
     e.preventDefault();
 
+    if (conditions.length === 0) {
+        alert('请至少添加一个证伪条件');
+        return;
+    }
+
     const formData = new FormData(this);
+    const logic = document.querySelector('input[name="logic"]:checked').value;
 
-    try {
-        const res = await fetch('/signal/create/', {
-            method: 'POST',
-            body: formData
-        });
-        const data = await res.json();
+    formData.set('invalidation_rules', JSON.stringify({ conditions, logic }));
 
-        if (data.success) {
-            if (data.is_approved) {
-                let msg = '信号创建成功并已通过准入检查';
-                if (data.warnings && data.warnings.length > 0) {
-                    msg += ' (警告: ' + data.warnings.join(', ') + ')';
-                }
-                showToast(msg, 'success');
-            } else {
-                showToast('信号已创建但未通过准入检查: ' + (data.rejection_reason || '未知原因'), 'error');
-            }
-            closeCreateModal();
+    const res = await fetch('/signal/create/', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (data.success) {
+        showToast(data.is_approved ? '✓ 创建成功' : '⚠️ 创建但未通过准入');
+        this.reset();
+        conditions = [];
+        renderConditions();
+        updatePreview();
+        clearAiResult();
+        location.reload();
+    } else {
+        showToast('❌ ' + (data.error || '创建失败'), 'error');
+    }
+});
+
+function showToast(msg, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.className = `toast ${type} show`;
+    setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+async function approveSignal(id) {
+    const formData = new FormData();
+    formData.append('signal_id', id);
+    const res = await fetch('/signal/approve/', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.success) {
+        showToast('✓ 已批准');
+        location.reload();
+    }
+}
+
+async function rejectSignal(id) {
+    const reason = prompt('拒绝原因:');
+    if (!reason) return;
+    const formData = new FormData();
+    formData.append('signal_id', id);
+    formData.append('reason', reason);
+    const res = await fetch('/signal/reject/', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.success) {
+        showToast('✕ 已拒绝');
+        location.reload();
+    }
+}
+
+async function checkSignal(id) {
+    const res = await fetch(`/signal/check/${id}/`, { method: 'POST' });
+    const data = await res.json();
+
+    if (data.success) {
+        if (data.is_invalidated) {
+            alert(`⚠️ 信号已证伪!\n原因: ${data.reason}`);
             location.reload();
         } else {
-            showToast(data.error || '创建失败', 'error');
+            alert(`✓ 检查完成\n${data.reason}`);
         }
-    } catch (err) {
-        showToast('网络错误', 'error');
     }
-});
+}
 
-// 拒绝表单提交
-document.getElementById('rejectForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
+async function deleteSignal(id) {
+    if (!confirm('确认删除?')) return;
+    const res = await fetch(`/signal/delete/${id}/`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+        showToast('🗑 已删除');
+        document.querySelector(`[data-id="${id}"]`).remove();
+    }
+}
 
-    const formData = new FormData(this);
+async function batchCheck() {
+    const res = await fetch('/signal/batch-check/', { method: 'POST' });
+    const data = await res.json();
 
-    try {
-        const res = await fetch('/signal/reject/', {
-            method: 'POST',
-            body: formData
-        });
-        const data = await res.json();
-        if (data.success) {
-            showToast(data.message, 'success');
-            closeRejectModal();
+    if (data.success) {
+        showToast(`🔄 检查完成: ${data.checked} 个信号，${data.invalidated} 个被证伪`);
+        if (data.invalidated > 0) {
             location.reload();
         }
-    } catch (err) {
-        showToast('操作失败', 'error');
     }
-});
-
-// 点击模态框外部关闭
-document.querySelectorAll('.modal').forEach(modal => {
-    modal.addEventListener('click', function(e) {
-        if (e.target === this) {
-            this.classList.remove('active');
-        }
-    });
-});
+}
 </script>
 {% endblock %}

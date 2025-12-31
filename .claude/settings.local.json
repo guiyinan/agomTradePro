@@ -26,7 +26,10 @@
       "Bash(dir:*)",
       "Bash(del:*)",
       "Bash(cat:*)",
-      "Bash(D:\\\\githv\\\\agomSAAF\\\\agomsaaf\\\\Scripts\\\\python.exe manage.py check:*)"
+      "Bash(D:\\\\githv\\\\agomSAAF\\\\agomsaaf\\\\Scripts\\\\python.exe manage.py check:*)",
+      "Bash(tree:*)",
+      "Bash(D:\\\\githv\\\\agomSAAF\\\\agomsaaf\\\\Scripts\\\\python.exe manage.py makemigrations:*)",
+      "Bash(agomsaafScriptspython.exe manage.py makemigrations backtest)"
     ]
   }
 }
