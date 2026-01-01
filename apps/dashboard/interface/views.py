@@ -55,6 +55,8 @@ def dashboard_view(request):
         "regime_distribution": data.regime_distribution,
         "pmi_value": data.pmi_value,
         "cpi_value": data.cpi_value,
+        # 政策档位
+        "policy_level": data.current_policy_level,
         # 资产总览
         "total_assets": data.total_assets,
         "initial_capital": data.initial_capital,

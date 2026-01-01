@@ -1,180 +1,92 @@
 """
-Mapper Layer for Domain-ORM Transformation
+Entity-ORM Mapper Base Classes
 
-提供 Domain 实体与 ORM 模型之间的双向转换。
+提供 Domain Entity 与 Infrastructure ORM Model 之间的双向转换。
+遵循四层架构约束：Domain 层不依赖 Django ORM。
 """
 
-from typing import TypeVar, Generic, Protocol
+from typing import TypeVar, Generic, Type, Optional, List
 from abc import ABC, abstractmethod
-from dataclasses import replace
-
-# Domain Entities
-from apps.macro.domain.entities import MacroIndicator, PeriodType
-from apps.regime.domain.entities import RegimeSnapshot, KalmanState
-from apps.signal.domain.entities import InvestmentSignal, SignalStatus
-from apps.policy.domain.entities import PolicyEvent, PolicyLevel
-
-# ORM Models
-from apps.macro.infrastructure.models import MacroIndicator as MacroIndicatorORM
-from apps.regime.infrastructure.models import RegimeLog
-from apps.signal.infrastructure.models import InvestmentSignalModel
-from apps.policy.infrastructure.models import PolicyLog as PolicyLogORM
+from decimal import Decimal
 
 
-DomainEntity = TypeVar('DomainEntity')
-OrmModel = TypeVar('OrmModel')
+TEntity = TypeVar('TEntity')
+TModel = TypeVar('TModel')
 
 
-class BaseMapper(ABC, Generic[DomainEntity, OrmModel]):
-    """基础映射器（Mapper 模式）"""
+class EntityMapper(Generic[TEntity, TModel], ABC):
+    """
+    Entity-ORM Mapper 基类
+
+    职责：
+    1. to_entity: ORM Model → Domain Entity
+    2. to_model: Domain Entity → ORM Model
+    3. batch_to_entities: 批量转换
+    4. batch_to_models: 批量转换
+
+    约束：
+    - Domain 层不导入此模块
+    - 只在 Infrastructure 层使用
+    """
 
     @abstractmethod
-    def to_domain(self, orm_obj: OrmModel) -> DomainEntity:
-        """ORM → Domain"""
+    def to_entity(self, model: TModel) -> TEntity:
+        """将 ORM Model 转换为 Domain Entity"""
         pass
 
     @abstractmethod
-    def to_orm(self, entity: DomainEntity) -> OrmModel:
-        """Domain → ORM"""
+    def to_model(self, entity: TEntity, model: Optional[TModel] = None) -> TModel:
+        """将 Domain Entity 转换为 ORM Model"""
         pass
 
+    def batch_to_entities(self, models: List[TModel]) -> List[TEntity]:
+        """批量转换为 Entities"""
+        return [self.to_entity(m) for m in models]
 
-class MacroIndicatorMapper(BaseMapper[MacroIndicator, MacroIndicatorORM]):
-    """宏观指标映射器"""
-
-    def to_domain(self, orm_obj: MacroIndicatorORM) -> MacroIndicator:
-        """ORM → Domain"""
-        return MacroIndicator(
-            code=orm_obj.code,
-            value=float(orm_obj.value),
-            reporting_period=orm_obj.reporting_period,
-            period_type=PeriodType(orm_obj.period_type) if orm_obj.period_type else PeriodType.DAY,
-            published_at=orm_obj.published_at,
-            source=orm_obj.source
-        )
-
-    def to_orm(self, entity: MacroIndicator) -> MacroIndicatorORM:
-        """Domain → ORM"""
-        return MacroIndicatorORM(
-            code=entity.code,
-            value=entity.value,
-            reporting_period=entity.reporting_period,
-            period_type=entity.period_type.value,
-            published_at=entity.published_at,
-            source=entity.source
-        )
+    def batch_to_models(self, entities: List[TEntity]) -> List[TModel]:
+        """批量转换为 Models"""
+        return [self.to_model(e) for e in entities]
 
 
-class RegimeSnapshotMapper(BaseMapper[RegimeSnapshot, RegimeLog]):
-    """Regime 快照映射器"""
-
-    def to_domain(self, orm_obj: RegimeLog) -> RegimeSnapshot:
-        """ORM → Domain"""
-        return RegimeSnapshot(
-            growth_momentum_z=orm_obj.growth_momentum_z,
-            inflation_momentum_z=orm_obj.inflation_momentum_z,
-            distribution=orm_obj.distribution,
-            dominant_regime=orm_obj.dominant_regime,
-            confidence=orm_obj.confidence,
-            observed_at=orm_obj.observed_at
-        )
-
-    def to_orm(self, entity: RegimeSnapshot) -> RegimeLog:
-        """Domain → ORM"""
-        return RegimeLog(
-            observed_at=entity.observed_at,
-            growth_momentum_z=entity.growth_momentum_z,
-            inflation_momentum_z=entity.inflation_momentum_z,
-            distribution=entity.distribution,
-            dominant_regime=entity.dominant_regime,
-            confidence=entity.confidence
-        )
-
-
-class InvestmentSignalMapper(BaseMapper[InvestmentSignal, InvestmentSignalModel]):
-    """投资信号映射器"""
-
-    def to_domain(self, orm_obj: InvestmentSignalModel) -> InvestmentSignal:
-        """ORM → Domain"""
-        return InvestmentSignal(
-            id=str(orm_obj.id),
-            asset_code=orm_obj.asset_code,
-            asset_class=orm_obj.asset_class,
-            direction=orm_obj.direction,
-            logic_desc=orm_obj.logic_desc,
-            invalidation_logic=orm_obj.invalidation_logic,
-            invalidation_threshold=orm_obj.invalidation_threshold,
-            target_regime=orm_obj.target_regime,
-            created_at=orm_obj.created_at.date(),
-            status=SignalStatus(orm_obj.status),
-            rejection_reason=orm_obj.rejection_reason
-        )
-
-    def to_orm(self, entity: InvestmentSignal) -> InvestmentSignalModel:
-        """Domain → ORM"""
-        return InvestmentSignalModel(
-            id=int(entity.id) if entity.id else None,
-            asset_code=entity.asset_code,
-            asset_class=entity.asset_class,
-            direction=entity.direction,
-            logic_desc=entity.logic_desc,
-            invalidation_logic=entity.invalidation_logic,
-            invalidation_threshold=entity.invalidation_threshold,
-            target_regime=entity.target_regime,
-            status=entity.status.value if isinstance(entity.status, SignalStatus) else entity.status,
-            rejection_reason=entity.rejection_reason
-        )
-
-
-class PolicyEventMapper(BaseMapper[PolicyEvent, PolicyLogORM]):
-    """政策事件映射器"""
-
-    def to_domain(self, orm_obj: PolicyLogORM) -> PolicyEvent:
-        """ORM → Domain"""
-        return PolicyEvent(
-            id=str(orm_obj.id),
-            event_date=orm_obj.event_date,
-            level=PolicyLevel(orm_obj.level),
-            title=orm_obj.title,
-            description=orm_obj.description,
-            evidence_url=orm_obj.evidence_url
-        )
-
-    def to_orm(self, entity: PolicyEvent) -> PolicyLogORM:
-        """Domain → ORM"""
-        return PolicyLogORM(
-            id=int(entity.id) if entity.id else None,
-            event_date=entity.event_date,
-            level=entity.level.value,
-            title=entity.title,
-            description=entity.description,
-            evidence_url=entity.evidence_url
-        )
-
-
-# Mapper 工厂函数
-def get_mapper(domain_type: type) -> BaseMapper:
+class DataclassMapper(EntityMapper[TEntity, TModel], ABC):
     """
-    根据 Domain 类型获取对应的 Mapper
+    基于 dataclass 的 Mapper 实现
 
-    Args:
-        domain_type: Domain 实体类
-
-    Returns:
-        对应的 Mapper 实例
-
-    Raises:
-        ValueError: 未知的 Domain 类型
+    适用于 Domain Entity 是 dataclass 的场景。
     """
-    mappers = {
-        MacroIndicator: MacroIndicatorMapper(),
-        RegimeSnapshot: RegimeSnapshotMapper(),
-        InvestmentSignal: InvestmentSignalMapper(),
-        PolicyEvent: PolicyEventMapper(),
-    }
 
-    mapper = mappers.get(domain_type)
-    if mapper is None:
-        raise ValueError(f"No mapper found for domain type: {domain_type}")
+    def _convert_value(self, value, target_type):
+        """转换值类型"""
+        if value is None:
+            return None
 
-    return mapper
+        if isinstance(value, target_type):
+            return value
+
+        if hasattr(target_type, '__origin__'):
+            return value
+
+        if target_type == float and isinstance(value, (int, str, Decimal)):
+            return float(value)
+        if target_type == int and isinstance(value, (str, float)):
+            return int(value)
+        if target_type == str and not isinstance(value, str):
+            return str(value)
+        if target_type == Decimal and isinstance(value, (int, float, str)):
+            return Decimal(str(value))
+
+        return value
+
+
+# Mapper 注册表
+_mapper_registry: dict = {}
+
+
+def register_mapper(entity_class: Type, mapper_class: Type[EntityMapper]):
+    """注册 Mapper"""
+    _mapper_registry[entity_class] = mapper_class
+
+
+def get_mapper(entity_class: Type) -> Optional[Type[EntityMapper]]:
+    """获取 Entity 对应的 Mapper 类"""
+    return _mapper_registry.get(entity_class)

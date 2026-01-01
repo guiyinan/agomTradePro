@@ -436,7 +436,7 @@ class GetDashboardDataUseCase:
     def _get_policy_environment(self, user_id: int) -> tuple:
         """获取政策环境信息"""
         from apps.policy.infrastructure.repositories import DjangoPolicyRepository
-        from apps.policy.infrastructure.models import PolicyLogModel, PolicyAuditQueue
+        from apps.policy.infrastructure.models import PolicyLog, PolicyAuditQueue
         from django.utils import timezone
         from datetime import timedelta
 
@@ -466,7 +466,7 @@ class GetDashboardDataUseCase:
         # 获取最近政策（7天内已审核通过的）
         recent_policies = []
         try:
-            recent_logs = PolicyLogModel.objects.filter(
+            recent_logs = PolicyLog.objects.filter(
                 created_at__gte=timezone.now() - timedelta(days=7),
                 audit_status__in=['auto_approved', 'manual_approved']
             ).order_by('-created_at')[:5]

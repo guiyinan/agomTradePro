@@ -14,7 +14,8 @@ from .models import (
     DocumentationModel, UserProfile,
     CurrencyModel, AssetCategoryModel, ExchangeRateModel,
     PortfolioModel, PositionModel, TransactionModel,
-    CapitalFlowModel, AssetMetadataModel, AccountProfileModel
+    CapitalFlowModel, AssetMetadataModel, AccountProfileModel,
+    StopLossConfigModel, StopLossTriggerModel, TakeProfitConfigModel,
 )
 
 
@@ -378,3 +379,117 @@ class AssetMetadataAdmin(admin.ModelAdmin):
     )
 
     readonly_fields = ['created_at', 'updated_at']
+
+
+# ============================================================
+# Phase 6: 风控体系 - 止损止盈管理
+# ============================================================
+
+@admin.register(StopLossConfigModel)
+class StopLossConfigAdmin(admin.ModelAdmin):
+    """止损配置管理"""
+
+    list_display = ['position', 'stop_loss_type', 'stop_loss_pct_display', 'status', 'highest_price', 'triggered_at']
+    list_filter = ['stop_loss_type', 'status', 'activated_at', 'triggered_at']
+    search_fields = ['position__asset_code', 'position__portfolio__name']
+    list_editable = ['status']
+    ordering = ['-activated_at']
+
+    fieldsets = (
+        ('关联持仓', {
+            'fields': ('position',)
+        }),
+        ('止损配置', {
+            'fields': ('stop_loss_type', 'stop_loss_pct', 'trailing_stop_pct', 'max_holding_days')
+        }),
+        ('移动止损', {
+            'fields': ('highest_price', 'highest_price_updated_at'),
+            'classes': ('collapse',)
+        }),
+        ('状态', {
+            'fields': ('status', 'activated_at', 'triggered_at')
+        }),
+        ('备注', {
+            'fields': ('notes',)
+        }),
+    )
+
+    readonly_fields = ['activated_at', 'triggered_at', 'highest_price_updated_at']
+
+    def stop_loss_pct_display(self, obj):
+        color = 'red' if obj.stop_loss_pct < 0 else 'green'
+        return format_html('<span style="color:{}">{:.2f}%</span>', color, obj.stop_loss_pct * 100)
+    stop_loss_pct_display.short_description = '止损比例'
+
+
+@admin.register(StopLossTriggerModel)
+class StopLossTriggerAdmin(admin.ModelAdmin):
+    """止损触发记录管理"""
+
+    list_display = ['position', 'trigger_type', 'trigger_price', 'trigger_time', 'pnl', 'pnl_pct_display']
+    list_filter = ['trigger_type', 'trigger_time']
+    search_fields = ['position__asset_code', 'trigger_reason']
+    date_hierarchy = 'trigger_time'
+    ordering = ['-trigger_time']
+
+    fieldsets = (
+        ('关联持仓', {
+            'fields': ('position',)
+        }),
+        ('触发信息', {
+            'fields': ('trigger_type', 'trigger_price', 'trigger_time', 'trigger_reason')
+        }),
+        ('盈亏', {
+            'fields': ('pnl', 'pnl_pct')
+        }),
+        ('备注', {
+            'fields': ('notes',)
+        }),
+    )
+
+    readonly_fields = ['trigger_time']
+
+    def pnl_pct_display(self, obj):
+        color = 'green' if obj.pnl_pct >= 0 else 'red'
+        return format_html('<span style="color:{}">{:.2f}%</span>', color, obj.pnl_pct * 100)
+    pnl_pct_display.short_description = '盈亏比例'
+
+
+@admin.register(TakeProfitConfigModel)
+class TakeProfitConfigAdmin(admin.ModelAdmin):
+    """止盈配置管理"""
+
+    list_display = ['position', 'take_profit_pct_display', 'partial_profit_levels_display', 'is_active', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['position__asset_code', 'position__portfolio__name']
+    list_editable = ['is_active']
+    ordering = ['-created_at']
+
+    fieldsets = (
+        ('关联持仓', {
+            'fields': ('position',)
+        }),
+        ('止盈配置', {
+            'fields': ('take_profit_pct', 'partial_profit_levels')
+        }),
+        ('状态', {
+            'fields': ('is_active',)
+        }),
+        ('备注', {
+            'fields': ('notes',)
+        }),
+    )
+
+    readonly_fields = ['created_at', 'updated_at']
+
+    def take_profit_pct_display(self, obj):
+        color = 'green'
+        return format_html('<span style="color:{}">{:.2f}%</span>', color, obj.take_profit_pct * 100)
+    take_profit_pct_display.short_description = '止盈比例'
+
+    def partial_profit_levels_display(self, obj):
+        if obj.partial_profit_levels:
+            levels = ', '.join(f'{p:.1%}' for p in obj.partial_profit_levels)
+            return levels
+        return '全部止盈'
+    partial_profit_levels_display.short_description = '分批止盈点位'

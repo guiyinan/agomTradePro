@@ -4,6 +4,7 @@ Configuration Models for AgomSAAF
 存储可在后台配置的参数，替代硬编码。
 """
 
+from decimal import Decimal
 from django.db import models
 
 
@@ -392,7 +393,7 @@ class TransactionCostConfigModel(models.Model):
     min_commission = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=Decimal('5.00'),
+        default=5.00,
         verbose_name="最低佣金",
         help_text="单笔交易最低佣金（元）"
     )

@@ -6,7 +6,7 @@ Account Domain Services
 """
 
 from decimal import Decimal
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Any, Union
 from dataclasses import dataclass
 from datetime import datetime, date
 
@@ -319,7 +319,7 @@ class PositionService:
             return []
 
         # 按维度分组
-        groups: Dict[str, Dict[str, float]] = {}
+        groups: Dict[str, Dict[str, Any]] = {}
 
         for pos in positions:
             # 获取维度值
@@ -335,23 +335,25 @@ class PositionService:
             if dim_value not in groups:
                 groups[dim_value] = {"value": 0.0, "count": 0, "codes": []}
 
-            groups[dim_value]["value"] += float(pos.market_value)
-            groups[dim_value]["count"] += 1
-            groups[dim_value]["codes"].append(pos.asset_code)
+            groups[dim_value]["value"] = float(groups[dim_value]["value"]) + float(pos.market_value)
+            groups[dim_value]["count"] = int(groups[dim_value]["count"]) + 1
+            codes_list = list(groups[dim_value]["codes"])
+            codes_list.append(pos.asset_code)
+            groups[dim_value]["codes"] = codes_list
 
         # 计算总市值
-        total_value = sum(g["value"] for g in groups.values())
+        total_value = sum(float(g["value"]) for g in groups.values())
 
         # 转换为AssetAllocation列表
         allocations = []
-        for dim_value, data in sorted(groups.items(), key=lambda x: -x[1]["value"]):
+        for dim_value, data in sorted(groups.items(), key=lambda x: -float(x[1]["value"])):
             allocations.append(AssetAllocation(
                 dimension=dimension,
                 dimension_value=dim_value,
-                count=data["count"],
+                count=int(data["count"]),
                 market_value=Decimal(str(data["value"])),
-                percentage=(data["value"] / total_value * 100) if total_value > 0 else 0,
-                asset_codes=data["codes"],
+                percentage=(float(data["value"]) / total_value * 100) if total_value > 0 else 0,
+                asset_codes=list(data["codes"]),
             ))
 
         return allocations
@@ -360,7 +362,7 @@ class PositionService:
     def assess_portfolio_risk(
         positions: List[Position],
         account_capital: Decimal,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         评估组合风险
 
@@ -837,7 +839,7 @@ class LimitCheckService:
     def check_style_limit(
         positions: List[Position],
         new_position_style: str,
-        limits: MultiDimensionLimits = None,
+        limits: Optional[MultiDimensionLimits] = None,
     ) -> LimitCheckResult:
         """
         检查投资风格限额
@@ -884,7 +886,7 @@ class LimitCheckService:
     def check_sector_limit(
         positions: List[Position],
         new_position_sector: str,
-        limits: MultiDimensionLimits = None,
+        limits: Optional[MultiDimensionLimits] = None,
     ) -> LimitCheckResult:
         """
         检查行业板块限额
@@ -931,7 +933,7 @@ class LimitCheckService:
         positions: List[Position],
         new_position_currency: str,
         base_currency: str = "CNY",
-        limits: MultiDimensionLimits = None,
+        limits: Optional[MultiDimensionLimits] = None,
     ) -> LimitCheckResult:
         """
         检查币种限额
@@ -991,7 +993,7 @@ class LimitCheckService:
         new_style: str,
         new_sector: str,
         new_currency: str,
-        limits: MultiDimensionLimits = None,
+        limits: Optional[MultiDimensionLimits] = None,
     ) -> List[LimitCheckResult]:
         """
         检查所有限额

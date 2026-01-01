@@ -38,6 +38,7 @@ INSTALLED_APPS = [
 
     # Shared infrastructure
     'shared',
+    'core',  # For templatetags
 
     # Local apps
     'apps.macro',

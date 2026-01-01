@@ -197,7 +197,7 @@ class Position:
         Returns:
             (盈亏金额, 盈亏百分比)
         """
-        pnl = (self.current_price - self.avg_cost) * self.shares
+        pnl = (self.current_price - self.avg_cost) * Decimal(str(self.shares))
         pnl_pct = float((self.current_price / self.avg_cost - 1) * 100)
         return pnl, pnl_pct
 
