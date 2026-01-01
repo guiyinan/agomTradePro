@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+
+{% block title %}关键词规则管理 - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+<style>
+    .keywords-page {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+
+    .page-header h1 {
+        margin: 0;
+        font-size: 24px;
+    }
+
+    .filter-bar {
+        background: white;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .filter-bar select {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary { background: #007bff; color: white; }
+    .btn-primary:hover { background: #0056b3; }
+    .btn-secondary { background: #6c757d; color: white; }
+    .btn-secondary:hover { background: #545b62; }
+    .btn-sm { padding: 4px 8px; font-size: 12px; }
+
+    .data-table-wrapper {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+
+    .data-table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+        font-size: 13px;
+        text-transform: uppercase;
+    }
+
+    .data-table tr:hover {
+        background: #f8f9fa;
+    }
+
+    .level-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        color: white;
+    }
+
+    .level-p0 { background: #6c757d; }
+    .level-p1 { background: #ffc107; color: #000; }
+    .level-p2 { background: #fd7e14; }
+    .level-p3 { background: #dc3545; }
+
+    .keywords-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .keyword-tag {
+        display: inline-block;
+        padding: 2px 8px;
+        background: #e7f3ff;
+        border-radius: 4px;
+        font-size: 12px;
+        color: #0066cc;
+    }
+
+    .status-badge {
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .status-active {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-inactive {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        padding: 20px;
+    }
+
+    .pagination a,
+    .pagination span {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        text-decoration: none;
+        color: #007bff;
+    }
+
+    .pagination .current {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #999;
+    }
+
+    .info-box {
+        background: #e7f3ff;
+        border-left: 4px solid #007bff;
+        padding: 12px 16px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .info-box code {
+        background: rgba(0,0,0,0.05);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: monospace;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="keywords-page">
+    <div class="page-header">
+        <h1>关键词规则管理</h1>
+        <div>
+            <a href="{% url 'policy:rss-manage' %}" class="btn btn-secondary">RSS源管理</a>
+            <a href="{% url 'policy:rss-logs' %}" class="btn btn-secondary">抓取日志</a>
+            <a href="/admin/policy/policylevelkeywordmodel/add/" class="btn btn-primary">+ 添加规则</a>
+        </div>
+    </div>
+
+    <div class="info-box">
+        <strong>说明：</strong>关键词规则用于自动判断政策档位。当 RSS 文章标题或内容匹配到某档位的关键词时，系统将自动标注为对应档位。匹配按<strong>权重</strong>从高到低进行。
+    </div>
+
+    <!-- 筛选栏 -->
+    <form method="get" class="filter-bar">
+        <label>档位:
+            <select name="level">
+                <option value="">全部档位</option>
+                {% for value, label in levels %}
+                <option value="{{ value }}" {% if value == selected_level %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>状态:
+            <select name="is_active">
+                <option value="">全部</option>
+                <option value="true" {% if selected_active == 'true' %}selected{% endif %}>启用</option>
+                <option value="false" {% if selected_active == 'false' %}selected{% endif %}>禁用</option>
+            </select>
+        </label>
+
+        <button type="submit" class="btn btn-primary">筛选</button>
+        <a href="/policy/rss/keywords/" class="btn btn-secondary">重置</a>
+    </form>
+
+    <!-- 数据表格 -->
+    <div class="data-table-wrapper">
+        {% if keywords %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>档位</th>
+                    <th>关键词</th>
+                    <th>权重</th>
+                    <th>适用分类</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for kw in keywords %}
+                <tr>
+                    <td><span class="level-badge level-{{ kw.level|lower }}">{{ kw.get_level_display }}</span></td>
+                    <td>
+                        <div class="keywords-list">
+                            {% for word in kw.keywords %}
+                            <span class="keyword-tag">{{ word }}</span>
+                            {% endfor %}
+                        </div>
+                    </td>
+                    <td>{{ kw.weight }}</td>
+                    <td>
+                        {% if kw.category %}
+                        <span style="font-size:12px;">{{ kw.category }}</span>
+                        {% else %}
+                        <span style="color:#999;font-size:12px;">全部</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if kw.is_active %}
+                        <span class="status-badge status-active">启用</span>
+                        {% else %}
+                        <span class="status-badge status-inactive">禁用</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="/admin/policy/policylevelkeywordmodel/{{ kw.id }}/change/" class="btn btn-sm btn-secondary">编辑</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- 分页 -->
+        {% if is_paginated %}
+        <div class="pagination">
+            {% if page_obj.has_previous %}
+            <a href="?page=1{% if selected_level %}&level={{ selected_level }}{% endif %}{% if selected_active %}&is_active={{ selected_active }}{% endif %}">&laquo;</a>
+            <a href="?page={{ page_obj.previous_page_number }}{% if selected_level %}&level={{ selected_level }}{% endif %}{% if selected_active %}&is_active={{ selected_active }}{% endif %}">&lsaquo;</a>
+            {% endif %}
+
+            <span class="current">第 {{ page_obj.number }} 页，共 {{ page_obj.paginator.num_pages }} 页</span>
+
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if selected_level %}&level={{ selected_level }}{% endif %}{% if selected_active %}&is_active={{ selected_active }}{% endif %}">&rsaquo;</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}{% if selected_level %}&level={{ selected_level }}{% endif %}{% if selected_active %}&is_active={{ selected_active }}{% endif %}">&raquo;</a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="empty-state">
+            <h3>暂无关键词规则</h3>
+            <p>点击右上角"添加规则"按钮添加第一个关键词规则</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

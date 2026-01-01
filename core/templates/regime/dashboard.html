@@ -25,9 +25,15 @@
             </select>
             <span class="source-badge source-{{ current_source }}">{{ current_source }}</span>
             <button id="syncBtn" class="sync-btn" onclick="syncData()" title="同步宏观数据">
-                <span class="sync-icon">⟳</span> 同步数据
+                <span class="sync-icon">⟳</span> <span id="syncBtnText">同步数据</span>
             </button>
-            <a href="/macro/datasources/" class="config-link" title="配置数据源">
+            <div id="syncProgress" class="sync-progress" style="display: none;">
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+                <div id="progressText" class="progress-text">正在同步...</div>
+            </div>
+            <a href="{% url 'macro:datasources' %}" class="config-link" title="配置数据源">
                 <span>⚙️</span>
             </a>
         </div>
@@ -35,6 +41,11 @@
 </div>
 
 <script>
+// URL 配置
+const API_URLS = {
+    macroQuickSync: "{% url 'macro:api_quick_sync' %}"
+};
+
 function changeAnalysisDate(dateStr) {
     const url = new URL(window.location);
     url.searchParams.set('as_of_date', dateStr);
@@ -53,53 +64,70 @@ function changeDataSource(source) {
 
 async function syncData() {
     const btn = document.getElementById('syncBtn');
+    const btnText = document.getElementById('syncBtnText');
+    const progressDiv = document.getElementById('syncProgress');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
     const source = document.getElementById('sourceSelect').value;
 
     btn.disabled = true;
-    btn.innerHTML = '<span class="sync-icon syncing">⟳</span> 同步中...';
+    btnText.textContent = '同步中...';
+    progressDiv.style.display = 'block';
+    progressFill.style.width = '10%';
+    progressText.textContent = '正在连接数据源...';
 
     try {
         const formData = new FormData();
         formData.append('source', source);
 
-        const response = await fetch('/macro/api/quick-sync/', {
+        // 模拟进度更新
+        let progress = 10;
+        const progressInterval = setInterval(() => {
+            if (progress < 70) {
+                progress += 10;
+                progressFill.style.width = progress + '%';
+                if (progress < 30) {
+                    progressText.textContent = '正在抓取数据...';
+                } else if (progress < 60) {
+                    progressText.textContent = '正在处理数据...';
+                } else {
+                    progressText.textContent = '即将完成...';
+                }
+            }
+        }, 500);
+
+        const response = await fetch(API_URLS.macroQuickSync, {
             method: 'POST',
             body: formData,
             headers: {
-                'X-CSRFToken': getCookie('csrftoken')
+                'X-CSRFToken': window.csrfToken
             }
         });
+
+        clearInterval(progressInterval);
 
         const data = await response.json();
 
         if (data.success) {
-            alert('✓ ' + data.message + '\n\n刷新页面查看最新数据');
-            window.location.href = window.location.href;
+            progressFill.style.width = '100%';
+            progressText.textContent = '同步完成！';
+            showToast('✓ ' + data.message + '，页面即将刷新...', 'success');
+
+            setTimeout(() => {
+                window.location.href = window.location.href;
+            }, 1500);
         } else {
-            alert('✗ ' + data.message);
+            progressDiv.style.display = 'none';
             btn.disabled = false;
-            btn.innerHTML = '<span class="sync-icon">⟳</span> 同步数据';
+            btnText.textContent = '同步数据';
+            showToast('✗ ' + data.message, 'error');
         }
     } catch (error) {
-        alert('同步失败: ' + error.message);
+        progressDiv.style.display = 'none';
         btn.disabled = false;
-        btn.innerHTML = '<span class="sync-icon">⟳</span> 同步数据';
+        btnText.textContent = '同步数据';
+        showToast('同步失败: ' + error.message, 'error');
     }
-}
-
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
 }
 </script>
 

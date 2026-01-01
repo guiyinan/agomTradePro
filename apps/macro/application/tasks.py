@@ -4,7 +4,7 @@ Celery Tasks for Macro Data Synchronization.
 异步任务：宏观数据同步、Regime 计算、数据更新检查等。
 """
 
-from celery import shared_task
+from celery import shared_task, chain
 from celery.utils.log import get_task_logger
 from typing import Optional
 from datetime import date, timedelta
@@ -12,6 +12,7 @@ from datetime import date, timedelta
 from apps.macro.application.use_cases import SyncMacroDataUseCase
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from apps.regime.application.use_cases import CalculateRegimeUseCase, CalculateRegimeRequest
+from apps.regime.application.tasks import calculate_regime_task, notify_regime_change
 from shared.config.secrets import get_secrets
 
 logger = get_task_logger(__name__)
@@ -300,3 +301,68 @@ def cleanup_old_data(days_to_keep: int = 365 * 10) -> dict:
 # 4. cleanup_old_data:
 #    - Crontab: 每月 1 日 02:00
 #    - Args: {"days_to_keep": 3650}
+#
+# 5. sync_and_calculate_regime (推荐使用):
+#    - Crontab: 每日 00:00
+#    - Args: {"source": "akshare", "use_pit": true}
+#    - 说明：这个编排任务会自动依次执行 sync -> calculate -> notify
+
+
+@shared_task
+def sync_and_calculate_regime(
+    source: str = 'akshare',
+    indicator: Optional[str] = None,
+    days_back: int = 30,
+    use_pit: bool = True,
+    as_of_date: Optional[str] = None
+) -> dict:
+    """
+    编排任务：宏观数据同步 + Regime 计算 + 通知
+
+    使用 Celery chain 编排完整的任务流：
+    1. sync_macro_data - 同步宏观数据
+    2. calculate_regime_task - 计算 Regime（接收 sync 结果）
+    3. notify_regime_change - 发送变化通知
+
+    Args:
+        source: 数据源 ('akshare' 或 'tushare')
+        indicator: 指标代码 (None 表示同步所有)
+        days_back: 回溯天数（用于数据同步）
+        use_pit: 是否使用 Point-in-Time 数据
+        as_of_date: 分析时点 (YYYY-MM-DD，None 表示今天)
+
+    Returns:
+        dict: 编排任务的结果
+    """
+    try:
+        logger.info(
+            f"Starting orchestrated workflow: sync -> calculate -> notify, "
+            f"source={source}, use_pit={use_pit}"
+        )
+
+        # 计算日期范围
+        target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
+
+        # 创建任务链
+        workflow = chain(
+            sync_macro_data.s(source=source, indicator=indicator, days_back=days_back),
+            calculate_regime_task.s(as_of_date=as_of_date or target_date.isoformat(), use_pit=use_pit),
+            notify_regime_change.s()
+        )
+
+        # 异步执行任务链
+        result = workflow.apply_async()
+
+        logger.info(f"Orchestrated workflow started, task ID: {result.id}")
+
+        return {
+            'status': 'started',
+            'task_id': result.id,
+            'workflow': 'sync_macro_data -> calculate_regime_task -> notify_regime_change',
+            'source': source,
+            'as_of_date': as_of_date or target_date.isoformat()
+        }
+
+    except Exception as exc:
+        logger.error(f"Failed to start orchestrated workflow: {exc}")
+        raise

@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+
+{% block title %}我的账户 - AgomSAAF{% endblock %}
+
+{% block content %}
+<div class="account-container">
+    <div class="account-header">
+        <h1>我的账户</h1>
+        <p class="subtitle">管理您的投资组合和持仓</p>
+    </div>
+
+    <!-- 账户概览 -->
+    <section class="account-section">
+        <h2 class="section-title">账户概览</h2>
+        <div class="account-stats">
+            <div class="stat-card">
+                <span class="stat-label">用户名</span>
+                <span class="stat-value">{{ profile.display_name|default:user.username }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">初始资金</span>
+                <span class="stat-value">¥{{ profile.initial_capital|floatformat:2 }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">风险偏好</span>
+                <span class="stat-value">{{ profile.get_risk_tolerance_display }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">组合数量</span>
+                <span class="stat-value">{{ portfolios.count }}</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- 我的持仓 -->
+    <section id="positions" class="account-section">
+        <h2 class="section-title">我的持仓</h2>
+        {% for portfolio in portfolios %}
+        {% regroup portfolio.positions.all by is_closed as closed_groups %}
+        {% for group in closed_groups %}
+        {% if group.grouper == False %}
+        <h3 class="subsection-title">{{ portfolio.name }}</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>资产代码</th>
+                    <th>资产名称</th>
+                    <th>数量</th>
+                    <th>成本价</th>
+                    <th>现价</th>
+                    <th>市值</th>
+                    <th>盈亏</th>
+                    <th>盈亏%</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for position in group.list %}
+                <tr>
+                    <td><strong>{{ position.asset_code }}</strong></td>
+                    <td>-</td>
+                    <td>{{ position.shares|floatformat:2 }}</td>
+                    <td>¥{{ position.avg_cost|floatformat:2 }}</td>
+                    <td>{% if position.current_price %}¥{{ position.current_price|floatformat:2 }}{% else %}-{% endif %}</td>
+                    <td>¥{{ position.market_value|floatformat:2 }}</td>
+                    <td class="{% if position.unrealized_pnl >= 0 %}positive{% else %}negative{% endif %}">
+                        ¥{{ position.unrealized_pnl|floatformat:2 }}
+                    </td>
+                    <td class="{% if position.unrealized_pnl_pct >= 0 %}positive{% else %}negative{% endif %}">
+                        {{ position.unrealized_pnl_pct|floatformat:2 }}%
+                    </td>
+                    <td>
+                        <a href="#" class="btn btn-sm btn-secondary">平仓</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <br>
+        {% endif %}
+        {% endfor %}
+        {% endfor %}
+
+        {% if portfolios.0.positions.count == 0 %}
+        <div class="empty-state">
+            <p>暂无持仓</p>
+            <p class="empty-hint">通过<a href="/signal/manage/">创建投资信号</a>或<a href="/backtest/">回测引擎</a>开始投资</p>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- 我的投资组合 -->
+    <section class="account-section">
+        <h2 class="section-title">我的投资组合</h2>
+        {% if portfolios %}
+        <div class="portfolio-list">
+            {% for portfolio in portfolios %}
+            <div class="portfolio-card {% if portfolio.is_active %}active{% endif %}">
+                <div class="portfolio-header">
+                    <h3>{{ portfolio.name }}</h3>
+                    {% if portfolio.is_active %}
+                    <span class="badge badge-success">活跃</span>
+                    {% else %}
+                    <span class="badge badge-secondary">已归档</span>
+                    {% endif %}
+                </div>
+                <div class="portfolio-stats">
+                    <span>持仓数: {{ portfolio.positions.count }}</span>
+                    <span>市值: ¥{{ portfolio.total_value|floatformat:2|default:"0.00" }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-state">暂无投资组合</p>
+        {% endif %}
+    </section>
+
+    <!-- 快捷操作 -->
+    <section class="account-section">
+        <h2 class="section-title">快捷操作</h2>
+        <div class="action-buttons">
+            <a href="/signal/create/" class="btn btn-primary">创建投资信号</a>
+            <a href="/backtest/create/" class="btn btn-secondary">新建回测</a>
+            <a href="/account/settings/" class="btn btn-secondary">账户设置</a>
+        </div>
+    </section>
+</div>
+
+<style>
+.account-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.account-header {
+    margin-bottom: 24px;
+}
+
+.account-header h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.subtitle {
+    color: #54595D;
+    font-size: 14px;
+}
+
+.account-section {
+    background: #FFFFFF;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.subsection-title {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 12px;
+    margin-top: 16px;
+    color: #54595D;
+}
+
+.account-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+.stat-card {
+    background: #F8F9FA;
+    padding: 16px;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.stat-label {
+    display: block;
+    font-size: 12px;
+    color: #54595D;
+    margin-bottom: 8px;
+}
+
+.stat-value {
+    display: block;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table thead {
+    background: #F8F9FA;
+}
+
+.table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.table td {
+    padding: 12px;
+    font-size: 14px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.positive { color: #14866D; }
+.negative { color: #D33; }
+
+.portfolio-list {
+    display: grid;
+    gap: 12px;
+}
+
+.portfolio-card {
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    padding: 16px;
+    transition: all 0.2s;
+}
+
+.portfolio-card.active {
+    border-color: #36C;
+    background: #F8F9FA;
+}
+
+.portfolio-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.portfolio-header h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.badge {
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.badge-success { background: #D5FBDD; color: #14866D; }
+.badge-secondary { background: #E0E0E0; color: #54595D; }
+
+.portfolio-stats {
+    display: flex;
+    gap: 16px;
+    font-size: 14px;
+    color: #54595D;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-primary {
+    background: #36C;
+    color: white;
+    border: none;
+}
+
+.btn-secondary {
+    background: #F8F9FA;
+    color: #202122;
+    border: 1px solid #E0E0E0;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #54595D;
+}
+
+.empty-state a {
+    color: #36C;
+    text-decoration: none;
+}
+
+.empty-state a:hover {
+    text-decoration: underline;
+}
+</style>
+{% endblock %}

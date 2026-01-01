@@ -14,7 +14,7 @@ from apps.signal.application.use_cases import (
     ValidateSignalRequest,
 )
 from apps.signal.application.invalidation_checker import SignalInvalidationService
-from apps.signal.domain.rules import ELIGIBILITY_MATRIX, Eligibility
+from apps.signal.domain.rules import Eligibility, get_eligibility_matrix
 from django.db.models import Count, Q
 from datetime import date
 
@@ -79,7 +79,7 @@ def signal_manage_view(request):
         'filter_search': search,
         'current_regime': current_regime,
         'recommended_assets': recommended_assets,
-        'all_asset_classes': list(ELIGIBILITY_MATRIX.keys()),
+        'all_asset_classes': list(get_eligibility_matrix().keys()),
         'all_regimes': ['Recovery', 'Overheat', 'Stagflation', 'Deflation'],
         'available_indicators': available_indicators,
     }
@@ -335,7 +335,7 @@ def signal_eligibility_info_view(request):
         return JsonResponse({'error': '缺少参数'}, status=400)
 
     try:
-        eligibility = ELIGIBILITY_MATRIX.get(asset_class, {}).get(regime, Eligibility.NEUTRAL)
+        eligibility = get_eligibility_matrix().get(asset_class, {}).get(regime, Eligibility.NEUTRAL)
 
         return JsonResponse({
             'asset_class': asset_class,

@@ -254,6 +254,17 @@
 <div id="toast" class="toast"></div>
 
 <script>
+// URL 配置
+const API_URLS = {
+    signalAiParseLogic: "{% url 'signal:ai_parse_logic' %}",
+    signalCreate: "{% url 'signal:create' %}",
+    signalApprove: "{% url 'signal:approve' %}",
+    signalReject: "{% url 'signal:reject' %}",
+    signalCheck: (id) => `{% url 'signal:check' 0 %}`.replace('0', id),
+    signalDelete: (id) => `{% url 'signal:delete' 0 %}`.replace('0', id),
+    signalBatchCheck: "{% url 'signal:batch_check' %}"
+};
+
 // 条件数据
 let conditions = [];
 
@@ -266,7 +277,7 @@ async function aiGenerate() {
     }
 
     try {
-        const res = await fetch('/signal/ai/parse-logic/', {
+        const res = await fetch(API_URLS.signalAiParseLogic, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: input })
@@ -402,7 +413,7 @@ document.getElementById('createForm').addEventListener('submit', async function(
 
     formData.set('invalidation_rules', JSON.stringify({ conditions, logic }));
 
-    const res = await fetch('/signal/create/', { method: 'POST', body: formData });
+    const res = await fetch(API_URLS.signalCreate, { method: 'POST', body: formData });
     const data = await res.json();
 
     if (data.success) {
@@ -428,7 +439,7 @@ function showToast(msg, type = 'success') {
 async function approveSignal(id) {
     const formData = new FormData();
     formData.append('signal_id', id);
-    const res = await fetch('/signal/approve/', { method: 'POST', body: formData });
+    const res = await fetch(API_URLS.signalApprove, { method: 'POST', body: formData });
     const data = await res.json();
     if (data.success) {
         showToast('✓ 已批准');
@@ -442,7 +453,7 @@ async function rejectSignal(id) {
     const formData = new FormData();
     formData.append('signal_id', id);
     formData.append('reason', reason);
-    const res = await fetch('/signal/reject/', { method: 'POST', body: formData });
+    const res = await fetch(API_URLS.signalReject, { method: 'POST', body: formData });
     const data = await res.json();
     if (data.success) {
         showToast('✕ 已拒绝');
@@ -451,7 +462,7 @@ async function rejectSignal(id) {
 }
 
 async function checkSignal(id) {
-    const res = await fetch(`/signal/check/${id}/`, { method: 'POST' });
+    const res = await fetch(API_URLS.signalCheck(id), { method: 'POST' });
     const data = await res.json();
 
     if (data.success) {
@@ -466,7 +477,7 @@ async function checkSignal(id) {
 
 async function deleteSignal(id) {
     if (!confirm('确认删除?')) return;
-    const res = await fetch(`/signal/delete/${id}/`, { method: 'DELETE' });
+    const res = await fetch(API_URLS.signalDelete(id), { method: 'DELETE' });
     const data = await res.json();
     if (data.success) {
         showToast('🗑 已删除');
@@ -475,7 +486,7 @@ async function deleteSignal(id) {
 }
 
 async function batchCheck() {
-    const res = await fetch('/signal/batch-check/', { method: 'POST' });
+    const res = await fetch(API_URLS.signalBatchCheck, { method: 'POST' });
     const data = await res.json();
 
     if (data.success) {

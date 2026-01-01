@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}注册 - AgomSAAF{% endblock %}
+
+{% block content %}
+<div class="login-page">
+    <div class="login-card">
+        <h1 class="login-title">注册 AgomSAAF</h1>
+        <p class="login-subtitle">开启您的量化投资之旅</p>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post" class="login-form">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="username">用户名</label>
+                <input type="text" id="username" name="username" class="form-control" required autofocus>
+            </div>
+            <div class="form-group">
+                <label for="email">邮箱</label>
+                <input type="email" id="email" name="email" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="display_name">显示名称</label>
+                <input type="text" id="display_name" name="display_name" class="form-control" placeholder="留空则使用用户名">
+            </div>
+            <div class="form-group">
+                <label for="password">密码</label>
+                <input type="password" id="password" name="password" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label for="password_confirm">确认密码</label>
+                <input type="password" id="password_confirm" name="password_confirm" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">注册</button>
+        </form>
+
+        <div class="login-footer">
+            <p>已有账号？ <a href="/account/login/">立即登录</a></p>
+        </div>
+    </div>
+</div>
+
+<style>
+.login-page {
+    min-height: calc(100vh - 56px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-surface);
+}
+
+.login-card {
+    width: 400px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 40px;
+    box-shadow: var(--shadow-lg);
+}
+
+.login-title {
+    font-size: 28px;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 8px;
+    color: var(--color-text-primary);
+}
+
+.login-subtitle {
+    text-align: center;
+    color: var(--color-text-secondary);
+    margin-bottom: 32px;
+}
+
+.alert {
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+}
+
+.alert-error {
+    background: #FEE7E7;
+    color: #D33;
+    border: 1px solid #F8B4B4;
+}
+
+.alert-success {
+    background: #D5FBDD;
+    color: #14866D;
+    border: 1px solid #9FE5B8;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--color-text-primary);
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(51, 102, 204, 0.1);
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: var(--color-primary);
+    color: var(--color-bg);
+}
+
+.btn-primary:hover {
+    background: var(--color-primary-hover);
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.login-footer {
+    margin-top: 24px;
+    text-align: center;
+    font-size: 14px;
+    color: var(--color-text-secondary);
+}
+
+.login-footer a {
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.login-footer a:hover {
+    text-decoration: underline;
+}
+</style>
+{% endblock %}

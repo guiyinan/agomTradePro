@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}文档中心 - AgomSAAF{% endblock %}
+
+{% block content %}
+<style>
+.docs-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.docs-header {
+    margin-bottom: 32px;
+}
+
+.docs-header h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.docs-header p {
+    color: #54595D;
+    font-size: 14px;
+}
+
+.doc-category {
+    margin-bottom: 32px;
+}
+
+.category-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #E0E0E0;
+}
+
+.doc-list {
+    display: grid;
+    gap: 12px;
+}
+
+.doc-item {
+    background: #FFFFFF;
+    border: 1px solid #E0E0E0;
+    border-radius: 8px;
+    padding: 16px;
+    transition: box-shadow 0.2s, border-color 0.2s;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.doc-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border-color: #36C;
+}
+
+.doc-item-title {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    color: #202122;
+}
+
+.doc-item-summary {
+    font-size: 13px;
+    color: #54595D;
+    line-height: 1.5;
+}
+
+.doc-meta {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #72777D;
+}
+
+.empty-category {
+    color: #72777D;
+    font-size: 14px;
+    padding: 16px 0;
+}
+</style>
+
+<div class="docs-container">
+    <div class="docs-header">
+        <h1>文档中心</h1>
+        <p>探索 AgomSAAF 的功能和使用指南</p>
+    </div>
+
+    {% for category_key, category_info in categories.items %}
+    {% if category_info.docs %}
+    <section class="doc-category">
+        <h2 class="category-title">{{ category_info.name }}</h2>
+        <div class="doc-list">
+            {% for doc in category_info.docs %}
+            <a href="/docs/{{ doc.slug }}/" class="doc-item">
+                <div class="doc-item-title">{{ doc.title }}</div>
+                <div class="doc-item-summary">{{ doc.summary|default:"暂无摘要" }}</div>
+                <div class="doc-meta">
+                    更新于 {{ doc.updated_at|date:"Y-m-d" }}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+    {% endfor %}
+
+    {% if not categories.user_guide.docs and not categories.concept.docs and not categories.api.docs %}
+    <div class="empty-category">
+        <p>暂无文档</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

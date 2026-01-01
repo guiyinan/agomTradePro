@@ -33,7 +33,7 @@ class SignalViewSet(viewsets.ModelViewSet):
     - PUT /api/signal/{id}/ - 更新信号
     - DELETE /api/signal/{id}/ - 删除信号
     - POST /api/signal/{id}/validate/ - 验证信号准入
-    - POST /api/signal/validate/ - 验证信号准入（无 ID）
+    - POST /api/signal/check_eligibility/ - 检查信号准入
     """
 
     queryset = InvestmentSignalModel.objects.all()
@@ -44,51 +44,6 @@ class SignalViewSet(viewsets.ModelViewSet):
         if self.action == 'create':
             return InvestmentSignalCreateSerializer
         return InvestmentSignalSerializer
-
-    def list(self, request, *args, **kwargs):
-        """获取信号列表（带筛选）"""
-        try:
-            # 验证查询参数
-            query_serializer = SignalListQuerySerializer(data=request.query_params)
-            query_serializer.is_valid(raise_exception=True)
-            params = query_serializer.validated_data
-
-            # 构建查询
-            queryset = self.queryset
-
-            if params.get('status'):
-                queryset = queryset.filter(status=params['status'])
-            if params.get('asset_class'):
-                queryset = queryset.filter(asset_class=params['asset_class'])
-            if params.get('direction'):
-                queryset = queryset.filter(direction=params['direction'])
-            if params.get('search'):
-                queryset = queryset.filter(
-                    Q(asset_code__icontains=params['search']) |
-                    Q(logic_desc__icontains=params['search'])
-                )
-
-            # 排序和限制
-            queryset = queryset.order_by('-created_at')[:params.get('limit', 50)]
-
-            # 序列化结果
-            serializer = self.get_serializer(queryset, many=True)
-
-            # 获取统计信息
-            stats = self._get_stats()
-
-            return Response({
-                'success': True,
-                'count': len(serializer.data),
-                'stats': stats,
-                'data': serializer.data
-            })
-
-        except Exception as e:
-            return Response({
-                'success': False,
-                'error': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=['post'])
     def validate(self, request, pk=None):
@@ -144,7 +99,7 @@ class SignalViewSet(viewsets.ModelViewSet):
                 return Response({
                     'success': False,
                     'error': 'No regime data available'
-                }, status=status.HTTP_400_BAD_REQUEST_REQUEST)
+                }, status=status.HTTP_400_BAD_REQUEST)
 
             # 检查准入
             eligibility = check_eligibility(

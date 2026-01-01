@@ -1,0 +1,951 @@
+{% extends "base.html" %}
+
+{% block title %}投资指挥中心 - AgomSAAF{% endblock %}
+
+{% block content %}
+<div class="dashboard-layout">
+    <!-- 左侧主要内容区 -->
+    <div class="dashboard-main">
+        <!-- 欢迎横幅 -->
+        <div class="welcome-banner">
+            <h1>欢迎回来，{{ display_name|default:user.username }}</h1>
+            <p class="subtitle">您的个性化投资指挥中心</p>
+        </div>
+
+        <!-- 宏观环境快照区 -->
+        <section class="dashboard-section">
+            <h2 class="section-title">
+                宏观环境快照
+                <span class="section-subtitle">数据日期: {{ regime_date|date:"Y-m-d" }}</span>
+            </h2>
+
+            <div class="regime-matrix-card">
+                <div class="matrix-compact">
+                    <div class="quad-wrapper">
+                        <div class="quad-grid">
+                            <div class="quad-box {% if current_regime == 'Recovery' %}quad-active-recovery{% endif %}">
+                                <div class="quad-title">复苏</div>
+                                <div class="quad-prob">{{ regime_distribution.Recovery|floatformat:3|default:"0.000" }}</div>
+                                <div class="quad-hint">高增低胀</div>
+                            </div>
+                            <div class="quad-box {% if current_regime == 'Overheat' %}quad-active-overheat{% endif %}">
+                                <div class="quad-title">过热</div>
+                                <div class="quad-prob">{{ regime_distribution.Overheat|floatformat:3|default:"0.000" }}</div>
+                                <div class="quad-hint">双高</div>
+                            </div>
+                            <div class="quad-box {% if current_regime == 'Deflation' %}quad-active-deflation{% endif %}">
+                                <div class="quad-title">通缩</div>
+                                <div class="quad-prob">{{ regime_distribution.Deflation|floatformat:3|default:"0.000" }}</div>
+                                <div class="quad-hint">双低</div>
+                            </div>
+                            <div class="quad-box {% if current_regime == 'Stagflation' %}quad-active-stagflation{% endif %}">
+                                <div class="quad-title">滞胀</div>
+                                <div class="quad-prob">{{ regime_distribution.Stagflation|floatformat:3|default:"0.000" }}</div>
+                                <div class="quad-hint">低增高胀</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="key-metrics">
+                    <div class="metric-item">
+                        <span class="metric-name">增长Z-Score</span>
+                        <span class="metric-val {% if growth_momentum_z > 0 %}val-up{% else %}val-down{% endif %}">
+                            {{ growth_momentum_z|floatformat:2 }}
+                        </span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-name">通胀Z-Score</span>
+                        <span class="metric-val {% if inflation_momentum_z > 0 %}val-up{% else %}val-down{% endif %}">
+                            {{ inflation_momentum_z|floatformat:2 }}
+                        </span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-name">当前判定</span>
+                        <span class="metric-val metric-regime">{{ current_regime }}</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-name">置信度</span>
+                        <span class="metric-val">{{ regime_confidence_pct|floatformat:0 }}%</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 我的资产总览 -->
+        <section class="dashboard-section">
+            <h2 class="section-title">我的资产总览</h2>
+            <div class="assets-overview">
+                <div class="asset-card">
+                    <span class="asset-label">时点总资产</span>
+                    <span class="asset-value">¥{{ total_assets|floatformat:2 }}</span>
+                    <span class="asset-change {% if total_return_pct >= 0 %}positive{% else %}negative{% endif %}">
+                        年收益率: {{ total_return_pct|floatformat:2 }}% (回溯1年)
+                    </span>
+                </div>
+                <div class="asset-card">
+                    <span class="asset-label">投资仓位</span>
+                    <span class="asset-value">{{ invested_ratio|floatformat:1 }}%</span>
+                    <span class="asset-change">市值: ¥{{ invested_value|floatformat:2 }}</span>
+                </div>
+                <div class="asset-card">
+                    <span class="asset-label">现金余额</span>
+                    <span class="asset-value">¥{{ cash_balance|floatformat:2 }}</span>
+                    <span class="asset-change">现金仓位: {% widthratio cash_balance total_assets 100 %}%</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Regime匹配度分析 -->
+        {% if regime_recommendations %}
+        <section class="dashboard-section regime-analysis">
+            <h2 class="section-title">
+                Regime匹配度分析
+                <span class="score-badge score-{% if regime_match_score >= 70 %}high{% elif regime_match_score >= 50 %}medium{% else %}low{% endif %}">{{ regime_match_score|floatformat:0 }}分</span>
+            </h2>
+            <div class="regime-recommendations">
+                {% for rec in regime_recommendations %}
+                <p class="recommendation-item">• {{ rec }}</p>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- 当前持仓列表 -->
+        <section class="dashboard-section">
+            <h2 class="section-title">当前持仓 ({{ position_count }})</h2>
+            {% if positions %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>资产代码</th>
+                        <th>大类</th>
+                        <th>地区</th>
+                        <th>数量</th>
+                        <th>市值</th>
+                        <th>盈亏</th>
+                        <th>盈亏%</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pos in positions %}
+                    <tr>
+                        <td><strong>{{ pos.asset_code }}</strong></td>
+                        <td>{{ pos.asset_class_display }}</td>
+                        <td>{{ pos.region_display }}</td>
+                        <td>{{ pos.shares|floatformat:2 }}</td>
+                        <td>¥{{ pos.market_value|floatformat:2 }}</td>
+                        <td class="{% if pos.unrealized_pnl >= 0 %}positive{% else %}negative{% endif %}">
+                            ¥{{ pos.unrealized_pnl|floatformat:2 }}
+                        </td>
+                        <td class="{% if pos.unrealized_pnl_pct >= 0 %}positive{% else %}negative{% endif %}">
+                            {{ pos.unrealized_pnl_pct|floatformat:2 }}%
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="empty-state">暂无持仓，<a href="/account/profile/#positions">添加持仓</a> 记录您的资产</p>
+            {% endif %}
+        </section>
+
+        <!-- 资产配置分布 -->
+        {% if asset_allocation %}
+        <section class="dashboard-section">
+            <h2 class="section-title">资产配置分布</h2>
+            <div class="allocation-bars">
+                {% for alloc in asset_allocation %}
+                <div class="allocation-item">
+                    <span class="allocation-label">{{ alloc.dimension_display }}</span>
+                    <div class="allocation-bar">
+                        <div class="allocation-fill" style="width: {{ alloc.percentage }}%;"></div>
+                    </div>
+                    <span class="allocation-value">{{ alloc.percentage }}%</span>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- 我的投资信号 -->
+        <section class="dashboard-section">
+            <h2 class="section-title">
+                我的投资信号
+                <span class="signal-stats">共 {{ signal_stats.total }} 个 · 活跃 {{ signal_stats.approved }} 个</span>
+            </h2>
+            {% if active_signals %}
+            <div class="signal-list">
+                {% for signal in active_signals %}
+                <div class="signal-item">
+                    <div class="signal-header">
+                        <span class="signal-asset">{{ signal.asset_code }}</span>
+                        <span class="signal-direction tag-{{ signal.direction|lower }}">{{ signal.direction }}</span>
+                        <span class="signal-status tag-success">活跃</span>
+                    </div>
+                    <p class="signal-logic">{{ signal.logic_desc }}</p>
+                    <div class="signal-meta">
+                        <span class="signal-date">{{ signal.created_at }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="empty-state">暂无活跃信号，<a href="/signal/manage/">创建信号</a></p>
+            {% endif %}
+        </section>
+    </div>
+
+    <!-- 右侧边栏：AI 聊天 + 投资建议 -->
+    <div class="dashboard-sidebar">
+        <!-- 工作流程说明 -->
+        <section class="sidebar-section workflow-section">
+            <h2 class="section-title">工作流程</h2>
+            <div class="workflow-steps">
+                <div class="workflow-step">
+                    <span class="step-number">1</span>
+                    <div class="step-content">
+                        <span class="step-title">系统分析</span>
+                        <span class="step-desc">宏观环境 → Regime判定 → 生成信号</span>
+                    </div>
+                </div>
+                <div class="workflow-arrow">↓</div>
+                <div class="workflow-step">
+                    <span class="step-number">2</span>
+                    <div class="step-content">
+                        <span class="step-title">您的决策</span>
+                        <span class="step-desc">审核信号 → 采纳/拒绝</span>
+                    </div>
+                </div>
+                <div class="workflow-arrow">↓</div>
+                <div class="workflow-step">
+                    <span class="step-number">3</span>
+                    <div class="step-content">
+                        <span class="step-title">手动交易</span>
+                        <span class="step-desc">在券商APP执行交易</span>
+                    </div>
+                </div>
+                <div class="workflow-arrow">↓</div>
+                <div class="workflow-step">
+                    <span class="step-number">4</span>
+                    <div class="step-content">
+                        <span class="step-title">录入持仓</span>
+                        <span class="step-desc">记录持仓信息到系统</span>
+                    </div>
+                </div>
+            </div>
+            <div class="workflow-note">
+                <a href="/docs/signal_and_position/" target="_blank">📖 查看完整说明</a>
+            </div>
+        </section>
+
+        <!-- AI 聊天窗口 -->
+        <section class="sidebar-section chat-section">
+            <h2 class="section-title">AI 助手</h2>
+            <div class="chat-container" id="chatContainer">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="chat-message chat-message-system">
+                        <div class="message-content">
+                            <p>你好！我是 AgomSAAF AI 助手。我可以帮你：</p>
+                            <ul>
+                                <li>分析当前宏观环境</li>
+                                <li>评估投资组合配置</li>
+                                <li>回答投资相关问题</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-input-area">
+                    <textarea id="chatInput" class="chat-input" placeholder="输入您的问题..." rows="2"></textarea>
+                    <button id="chatSendBtn" class="chat-send-btn">发送</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 投资建议 -->
+        <section class="sidebar-section advice-section">
+            <h2 class="section-title">投资建议</h2>
+            <div class="advice-list">
+                {% for insight in ai_insights %}
+                <div class="advice-item">
+                    <p class="advice-text">{{ insight }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- 快捷操作 -->
+        <section class="sidebar-section actions-section">
+            <h2 class="section-title">快捷操作</h2>
+            <div class="action-buttons">
+                <a href="/signal/manage/" class="action-btn action-btn-primary">查看信号</a>
+                <a href="/account/profile/#positions" class="action-btn action-btn-secondary">管理持仓</a>
+                <a href="/regime/dashboard/" class="action-btn action-btn-secondary">Regime判定</a>
+            </div>
+        </section>
+    </div>
+</div>
+
+<style>
+/* ==================== 宽屏布局 ==================== */
+.dashboard-layout {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 20px;
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+@media (max-width: 1200px) {
+    .dashboard-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 左侧主内容 */
+.dashboard-main {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* 右侧边栏 */
+.dashboard-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: sticky;
+    top: 20px;
+    height: fit-content;
+}
+
+.sidebar-section {
+    background: #FFFFFF;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    padding: 16px;
+}
+
+/* ==================== AI 聊天窗口 ==================== */
+.chat-container {
+    display: flex;
+    flex-direction: column;
+    height: 400px;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    background: #F8F9FA;
+    border-radius: 4px;
+    margin-bottom: 12px;
+}
+
+.chat-message {
+    margin-bottom: 12px;
+    display: flex;
+    gap: 8px;
+}
+
+.chat-message-system {
+    justify-content: center;
+}
+
+.message-content {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.chat-message-system .message-content {
+    background: #E8F4F8;
+    color: #54595D;
+    text-align: center;
+}
+
+.chat-input-area {
+    display: flex;
+    gap: 8px;
+}
+
+.chat-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    resize: none;
+    font-family: inherit;
+}
+
+.chat-send-btn {
+    padding: 8px 16px;
+    background: #36C;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.chat-send-btn:hover {
+    background: #255;
+}
+
+/* ==================== 投资建议 ==================== */
+.advice-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.advice-item {
+    padding: 12px;
+    background: #F8F9FA;
+    border-radius: 4px;
+    border-left: 3px solid #36C;
+}
+
+.advice-text {
+    font-size: 13px;
+    color: #202122;
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* ==================== 工作流程 ==================== */
+.workflow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.workflow-step {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.step-number {
+    width: 22px;
+    height: 22px;
+    background: #36C;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.step-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.step-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #202122;
+}
+
+.step-desc {
+    font-size: 11px;
+    color: #54595D;
+}
+
+.workflow-arrow {
+    text-align: center;
+    color: #54595D;
+    font-size: 12px;
+    line-height: 1;
+    margin: -4px 0 4px 11px;
+}
+
+.workflow-note {
+    margin-top: 12px;
+    text-align: center;
+}
+
+.workflow-note a {
+    font-size: 12px;
+    color: #36C;
+    text-decoration: none;
+}
+
+.workflow-note a:hover {
+    text-decoration: underline;
+}
+
+/* ==================== 快捷操作 ==================== */
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.action-btn {
+    padding: 10px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    text-decoration: none;
+    text-align: center;
+    display: block;
+}
+
+.action-btn-primary {
+    background: #36C;
+    color: white;
+}
+
+.action-btn-secondary {
+    background: #F8F9FA;
+    color: #202122;
+    border: 1px solid #E0E0E0;
+}
+
+/* ==================== 保留原有样式 ==================== */
+.welcome-banner {
+    margin-bottom: 8px;
+}
+
+.welcome-banner h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.subtitle {
+    color: #54595D;
+    font-size: 14px;
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.section-subtitle {
+    font-size: 12px;
+    font-weight: 400;
+    color: #54595D;
+}
+
+.dashboard-section {
+    background: #FFFFFF;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    padding: 16px;
+}
+
+/* Regime Matrix Styles */
+.regime-matrix-card {
+    background: #F8F9FA;
+    border: none;
+    padding: 16px;
+    margin-bottom: 0;
+}
+
+.matrix-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.quad-wrapper {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+}
+
+.quad-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 120px);
+    grid-template-rows: repeat(2, 90px);
+    gap: 6px;
+}
+
+.quad-box {
+    border: 2px solid #E0E0E0;
+    border-radius: 4px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+}
+
+.quad-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #54595D;
+}
+
+.quad-prob {
+    font-size: 18px;
+    font-weight: 700;
+    color: #202122;
+}
+
+.quad-hint {
+    font-size: 9px;
+    color: #54595D;
+}
+
+.quad-active-recovery {
+    border-color: #22C55E;
+    background: rgba(34, 197, 94, 0.08);
+}
+.quad-active-recovery .quad-prob { color: #22C55E; }
+
+.quad-active-overheat {
+    border-color: #EF4444;
+    background: rgba(239, 68, 68, 0.08);
+}
+.quad-active-overheat .quad-prob { color: #EF4444; }
+
+.quad-active-stagflation {
+    border-color: #F59E0B;
+    background: rgba(245, 158, 11, 0.08);
+}
+.quad-active-stagflation .quad-prob { color: #F59E0B; }
+
+.quad-active-deflation {
+    border-color: #3B82F6;
+    background: rgba(59, 130, 246, 0.08);
+}
+.quad-active-deflation .quad-prob { color: #3B82F6; }
+
+.key-metrics {
+    display: flex;
+    justify-content: space-around;
+    padding: 10px;
+    background: #FFFFFF;
+    border-radius: 4px;
+}
+
+.metric-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.metric-name {
+    font-size: 10px;
+    color: #54595D;
+    text-transform: uppercase;
+}
+
+.metric-val {
+    font-size: 14px;
+    font-weight: 700;
+    font-family: monospace;
+}
+
+.val-up { color: #22C55E; }
+.val-down { color: #EF4444; }
+
+/* Assets Overview */
+.assets-overview {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.asset-card {
+    background: #F8F9FA;
+    padding: 12px;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.asset-label {
+    display: block;
+    font-size: 11px;
+    color: #54595D;
+    margin-bottom: 6px;
+}
+
+.asset-value {
+    display: block;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.asset-change {
+    font-size: 11px;
+    color: #54595D;
+}
+
+.positive { color: #14866D; }
+.negative { color: #D33; }
+
+/* Table */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table thead {
+    background: #F8F9FA;
+}
+
+.table th {
+    padding: 10px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.table td {
+    padding: 10px;
+    font-size: 13px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+/* Regime Analysis */
+.regime-analysis {
+    background: linear-gradient(135deg, #F8F9FA 0%, #E8F4F8 100%);
+}
+
+.recommendation-item {
+    padding: 6px 0;
+    font-size: 13px;
+    color: #202122;
+}
+
+.score-badge {
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-size: 11px;
+}
+
+.score-high { background: #D5FBDD; color: #14866D; }
+.score-medium { background: #FEF7E2; color: #AB7100; }
+.score-low { background: #FEE7E7; color: #D33; }
+
+/* Signal List */
+.signal-stats {
+    font-size: 11px;
+    color: #54595D;
+}
+
+.signal-list {
+    display: grid;
+    gap: 10px;
+}
+
+.signal-item {
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    padding: 10px;
+}
+
+.signal-header {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.signal-asset {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.tag {
+    padding: 2px 6px;
+    border-radius: 2px;
+    font-size: 10px;
+}
+
+.tag-success { background: #D5FBDD; color: #14866D; }
+.tag-long { background: #D5E9FF; color: #36C; }
+.tag-short { background: #FEE7E7; color: #D33; }
+
+.signal-logic {
+    font-size: 12px;
+    color: #54595D;
+    margin: 6px 0;
+}
+
+.signal-meta {
+    font-size: 11px;
+    color: #54595D;
+}
+
+/* Allocation */
+.allocation-bars {
+    display: grid;
+    gap: 10px;
+}
+
+.allocation-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.allocation-label {
+    width: 60px;
+    font-size: 12px;
+}
+
+.allocation-bar {
+    flex: 1;
+    height: 16px;
+    background: #F8F9FA;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.allocation-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary), #447FF5);
+}
+
+.allocation-value {
+    width: 40px;
+    text-align: right;
+    font-size: 12px;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 24px;
+    color: #54595D;
+    font-size: 13px;
+}
+
+.empty-state a {
+    color: #36C;
+    text-decoration: none;
+}
+</style>
+
+<script>
+// URL 配置
+const API_URLS = {
+    promptChat: "{% url 'prompt:chat' %}",
+    aiProviderManage: "{% url 'ai_provider:manage' %}"
+};
+
+// AI 聊天功能
+const chatInput = document.getElementById('chatInput');
+const chatSendBtn = document.getElementById('chatSendBtn');
+const chatMessages = document.getElementById('chatMessages');
+let chatSessionId = null;
+let chatHistory = [];
+
+function addMessage(content, isSystem = false) {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'chat-message' + (isSystem ? ' chat-message-system' : '');
+
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+    contentDiv.innerHTML = `<p>${content}</p>`;
+
+    msgDiv.appendChild(contentDiv);
+    chatMessages.appendChild(msgDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+async function sendMessage() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+
+    // 禁用输入
+    chatInput.disabled = true;
+    chatSendBtn.disabled = true;
+
+    // 添加用户消息
+    addMessage(text);
+    chatInput.value = '';
+
+    // 添加到历史记录
+    chatHistory.push({ role: 'user', content: text });
+
+    try {
+        const response = await fetch(API_URLS.promptChat, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                message: text,
+                session_id: chatSessionId,
+                context: {
+                    history: chatHistory
+                }
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.reply) {
+            // 保存会话 ID
+            chatSessionId = data.session_id;
+
+            // 添加 AI 响应
+            addMessage(data.reply, true);
+
+            // 添加到历史记录
+            chatHistory.push({ role: 'assistant', content: data.reply });
+        } else {
+            // 错误处理
+            const errorMsg = data.error || 'AI 服务暂时不可用';
+            addMessage(`⚠️ ${errorMsg}<br><br>请前往 <a href="${API_URLS.aiProviderManage}">AI 接口管理</a> 配置 AI 提供商。`, true);
+        }
+    } catch (error) {
+        addMessage(`❌ 网络错误: ${error.message}<br><br>请检查网络连接或稍后再试。`, true);
+    } finally {
+        // 恢复输入
+        chatInput.disabled = false;
+        chatSendBtn.disabled = false;
+        chatInput.focus();
+    }
+}
+
+// CSRF Token 获取函数
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+chatSendBtn.addEventListener('click', sendMessage);
+chatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+</script>
+{% endblock %}

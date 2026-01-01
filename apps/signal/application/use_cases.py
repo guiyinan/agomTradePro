@@ -292,3 +292,88 @@ class GetRecommendedAssetsUseCase:
             neutral=neutral,
             hostile=hostile
         )
+
+
+@dataclass
+class ReevaluateSignalsRequest:
+    """重评信号的请求 DTO"""
+    policy_level: int
+    current_regime: Optional[str] = None
+    regime_confidence: float = 0.0
+
+
+@dataclass
+class ReevaluateSignalsResponse:
+    """重评信号的响应 DTO"""
+    total_count: int
+    rejected_count: int
+    rejected_signal_ids: List[str]
+
+
+class ReevaluateSignalsUseCase:
+    """
+    重评所有活跃信号的用例
+
+    当政策档位变化时，重新评估所有活跃的信号是否应该被拒绝。
+    """
+
+    def __init__(self, signal_repository):
+        """
+        Args:
+            signal_repository: SignalRepository 实例
+        """
+        self.signal_repository = signal_repository
+
+    def execute(self, request: ReevaluateSignalsRequest) -> ReevaluateSignalsResponse:
+        """
+        执行信号重评
+
+        Args:
+            request: 重评请求
+
+        Returns:
+            ReevaluateSignalsResponse: 重评结果
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # 获取所有活跃信号
+        active_signals = self.signal_repository.get_active_signals()
+
+        rejected_count = 0
+        rejected_signal_ids = []
+
+        for signal in active_signals:
+            # 根据新的 policy_level 重评
+            current_regime = request.current_regime or signal.target_regime
+
+            should_reject, reason, _ = should_reject_signal(
+                asset_class=signal.asset_class,
+                current_regime=current_regime,
+                policy_level=request.policy_level,
+                confidence=request.regime_confidence
+            )
+
+            if should_reject:
+                # 更新信号状态
+                self.signal_repository.update_signal_status(
+                    signal_id=signal.id,
+                    new_status=SignalStatus.REJECTED,
+                    rejection_reason=reason
+                )
+                rejected_count += 1
+                rejected_signal_ids.append(signal.id)
+
+                logger.info(
+                    f"Signal {signal.id} ({signal.asset_code}) rejected due to policy level change: {reason}"
+                )
+
+        logger.info(
+            f"Signal reevaluation completed: {rejected_count}/{len(active_signals)} signals rejected"
+        )
+
+        return ReevaluateSignalsResponse(
+            total_count=len(active_signals),
+            rejected_count=rejected_count,
+            rejected_signal_ids=rejected_signal_ids
+        )

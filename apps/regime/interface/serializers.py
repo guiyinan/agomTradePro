@@ -51,7 +51,7 @@ class RegimeLogSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'observed_at', 'dominant_regime', 'confidence',
             'growth_momentum_z', 'inflation_momentum_z',
-            'regime_distribution', 'data_source', 'created_at'
+            'distribution', 'created_at'
         ]
         read_only_fields = ['created_at']
 

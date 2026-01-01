@@ -190,6 +190,47 @@ class DjangoRegimeRepository:
         """
         return self._model.objects.count()
 
+    def get_earliest_date(self) -> Optional[date]:
+        """
+        获取最早的快照日期
+
+        Returns:
+            Optional[date]: 最早日期，无数据则返回 None
+        """
+        from django.db.models import Min
+
+        result = self._model.objects.aggregate(
+            earliest_date=Min('observed_at')
+        )
+        return result.get('earliest_date')
+
+    def get_latest_date(self) -> Optional[date]:
+        """
+        获取最新的快照日期
+
+        Returns:
+            Optional[date]: 最新日期，无数据则返回 None
+        """
+        from django.db.models import Max
+
+        result = self._model.objects.aggregate(
+            latest_date=Max('observed_at')
+        )
+        return result.get('latest_date')
+
+    # 别名方法，用于兼容 backtest 模块的调用
+    def get_regime_by_date(self, observed_at: date) -> Optional[RegimeSnapshot]:
+        """
+        按日期获取 Regime 快照（别名方法）
+
+        Args:
+            observed_at: 观测日期
+
+        Returns:
+            Optional[RegimeSnapshot]: 快照实体，不存在则返回 None
+        """
+        return self.get_snapshot_by_date(observed_at)
+
     def get_regime_distribution_stats(
         self,
         start_date: Optional[date] = None,

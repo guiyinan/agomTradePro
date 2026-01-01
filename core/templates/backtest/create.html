@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+
+{% block title %}创建回测{% endblock %}
+
+{% block content %}
+<div class="backtest-create-container">
+    <div class="create-header">
+        <h1>创建回测</h1>
+        <a href="{% url 'backtest:list' %}" class="btn-secondary">返回列表</a>
+    </div>
+
+    <form id="backtest-form" class="backtest-form">
+        <!-- 基本信息 -->
+        <section class="form-section">
+            <h2 class="section-title">基本信息</h2>
+            <div class="form-group">
+                <label for="name" class="form-label required">回测名称</label>
+                <input type="text" id="name" name="name" class="form-input"
+                       placeholder="例如：月度再平衡策略 2020-2024"
+                       maxlength="200" required>
+                <span class="form-hint">给回测起一个易于识别的名称</span>
+            </div>
+        </section>
+
+        <!-- 时间范围 -->
+        <section class="form-section">
+            <h2 class="section-title">时间范围</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="start_date" class="form-label required">起始日期</label>
+                    <input type="date" id="start_date" name="start_date" class="form-input"
+                           min="{{ earliest_date }}" max="{{ latest_date }}" required>
+                    <span class="form-hint">
+                        最早可用：{{ earliest_date|default:"-" }}
+                    </span>
+                </div>
+                <div class="form-group">
+                    <label for="end_date" class="form-label required">结束日期</label>
+                    <input type="date" id="end_date" name="end_date" class="form-input"
+                           min="{{ earliest_date }}" max="{{ latest_date }}" required>
+                    <span class="form-hint">
+                        最晚可用：{{ latest_date|default:"-" }}
+                    </span>
+                </div>
+            </div>
+            <div class="form-group">
+                <button type="button" class="btn-link" onclick="setPresetDates('1year')">最近1年</button>
+                <button type="button" class="btn-link" onclick="setPresetDates('3years')">最近3年</button>
+                <button type="button" class="btn-link" onclick="setPresetDates('max')">全部可用数据</button>
+            </div>
+        </section>
+
+        <!-- 资金配置 -->
+        <section class="form-section">
+            <h2 class="section-title">资金配置</h2>
+            <div class="form-group">
+                <label for="initial_capital" class="form-label required">初始资金</label>
+                <div class="input-with-unit">
+                    <input type="number" id="initial_capital" name="initial_capital" class="form-input"
+                           min="1000" step="1000" value="100000" required>
+                    <span class="input-unit">元</span>
+                </div>
+                <span class="form-hint">回测起始时的投资金额</span>
+            </div>
+        </section>
+
+        <!-- 策略配置 -->
+        <section class="form-section">
+            <h2 class="section-title">策略配置</h2>
+            <div class="form-group">
+                <label for="rebalance_frequency" class="form-label required">再平衡频率</label>
+                <select id="rebalance_frequency" name="rebalance_frequency" class="form-select" required>
+                    {% for value, label in frequencies %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <span class="form-hint">决定多久调整一次投资组合权重</span>
+            </div>
+
+            <div class="form-group">
+                <label for="transaction_cost_bps" class="form-label required">交易成本</label>
+                <div class="input-with-unit">
+                    <input type="number" id="transaction_cost_bps" name="transaction_cost_bps"
+                           class="form-input" min="0" max="100" step="1" value="10" required>
+                    <span class="input-unit">bp (基点)</span>
+                </div>
+                <span class="form-hint">双边交易成本，10bp = 0.1%</span>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="use_pit_data" name="use_pit_data">
+                    <span class="checkbox-text">使用 Point-in-Time 数据</span>
+                </label>
+                <span class="form-hint block-hint">
+                    启用后，回测将使用历史发布日期的数据（更真实但计算量更大）。
+                    例如：PMI 通常次月发布，回测时会在次月才能使用该数据。
+                </span>
+            </div>
+        </section>
+
+        <!-- 提交按钮 -->
+        <div class="form-actions">
+            <button type="submit" class="btn-primary btn-large" id="submit-btn">
+                <span class="btn-text">运行回测</span>
+                <span class="btn-loading" style="display:none;">运行中...</span>
+            </button>
+            <button type="button" class="btn-secondary" onclick="history.back()">取消</button>
+        </div>
+    </form>
+</div>
+
+<script>
+// 设置预设日期范围
+function setPresetDates(preset) {
+    const today = new Date();
+    const earliest = "{{ earliest_date }}";
+    const latest = "{{ latest_date }}";
+
+    let startDate, endDate;
+
+    switch(preset) {
+        case '1year':
+            endDate = new Date(today);
+            startDate = new Date(today);
+            startDate.setFullYear(startDate.getFullYear() - 1);
+            break;
+        case '3years':
+            endDate = new Date(today);
+            startDate = new Date(today);
+            startDate.setFullYear(startDate.getFullYear() - 3);
+            break;
+        case 'max':
+            if (earliest && latest) {
+                startDate = new Date(earliest);
+                endDate = new Date(latest);
+            }
+            break;
+    }
+
+    if (startDate && endDate) {
+        document.getElementById('start_date').value = formatDate(startDate);
+        document.getElementById('end_date').value = formatDate(endDate);
+    }
+}
+
+// 格式化日期为 YYYY-MM-DD
+function formatDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// 获取 CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// 表单提交
+document.getElementById('backtest-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const btn = document.getElementById('submit-btn');
+    const btnText = btn.querySelector('.btn-text');
+    const btnLoading = btn.querySelector('.btn-loading');
+
+    // 收集表单数据
+    const formData = {
+        name: document.getElementById('name').value,
+        start_date: document.getElementById('start_date').value,
+        end_date: document.getElementById('end_date').value,
+        initial_capital: parseFloat(document.getElementById('initial_capital').value),
+        rebalance_frequency: document.getElementById('rebalance_frequency').value,
+        transaction_cost_bps: parseFloat(document.getElementById('transaction_cost_bps').value),
+        use_pit_data: document.getElementById('use_pit_data').checked,
+        run_async: true  // 使用异步执行
+    };
+
+    // 客户端验证
+    if (formData.start_date >= formData.end_date) {
+        alert('起始日期必须早于结束日期');
+        return;
+    }
+
+    // 显示加载状态
+    btn.disabled = true;
+    btnText.style.display = 'none';
+    btnLoading.style.display = 'inline';
+
+    try {
+        const response = await fetch('/api/backtests/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('回测已创建，正在后台运行...');
+            // 跳转到回测详情页
+            window.location.href = `/backtest/${data.backtest_id}/`;
+        } else {
+            const errorMsg = data.errors ? JSON.stringify(data.errors, null, 2) : data.error || '未知错误';
+            alert('创建失败：' + errorMsg);
+        }
+    } catch (error) {
+        alert('请求失败：' + error.message);
+    } finally {
+        btn.disabled = false;
+        btnText.style.display = 'inline';
+        btnLoading.style.display = 'none';
+    }
+});
+
+// 初始化：设置默认日期范围
+window.addEventListener('DOMContentLoaded', function() {
+    setPresetDates('3years');
+});
+</script>
+
+<style>
+.backtest-create-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.create-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.create-header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--color-text-primary);
+}
+
+.form-section {
+    background: #FFFFFF;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--color-text-primary);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.form-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+    margin-bottom: 8px;
+}
+
+.form-label.required::after {
+    content: ' *';
+    color: #D33;
+}
+
+.form-input, .form-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: #36C;
+}
+
+.form-hint {
+    display: block;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    margin-top: 6px;
+}
+
+.block-hint {
+    margin-top: 8px;
+    line-height: 1.5;
+}
+
+.input-with-unit {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+}
+
+.input-with-unit .form-input {
+    padding-right: 50px;
+}
+
+.input-unit {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    pointer-events: none;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    margin-right: 10px;
+    cursor: pointer;
+}
+
+.checkbox-text {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: #36C;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 0;
+    margin-right: 16px;
+    text-decoration: underline;
+}
+
+.btn-link:hover {
+    color: #255;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 32px;
+}
+
+.btn-primary, .btn-secondary {
+    padding: 12px 32px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: #36C;
+    color: white;
+    border: none;
+}
+
+.btn-primary:hover {
+    background: #255;
+}
+
+.btn-primary:disabled {
+    background: #AAB;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: #F8F9FA;
+    color: var(--color-text-primary);
+    border: 1px solid #E0E0E0;
+}
+
+.btn-secondary:hover {
+    background: #E8E8E8;
+}
+
+@media (max-width: 600px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .btn-primary, .btn-secondary {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}

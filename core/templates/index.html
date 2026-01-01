@@ -133,7 +133,7 @@
     </div>
     </a>
 
-    <a href="#" class="card-link">
+    <a href="/backtest/" class="card-link">
     <div class="card" id="backtest">
         <div class="card-icon">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -143,15 +143,22 @@
         </div>
         <div class="card-title">回测引擎</div>
         <div class="card-desc">历史验证策略有效性</div>
-        <div class="card-status status-pending">待开发</div>
+        <div class="card-status status-done">已完成</div>
         <div class="card-meta">
             <span class="meta-item">月度再平衡</span>
             <span class="meta-item">归因分析</span>
         </div>
+        <div class="card-features">
+            <ul>
+                <li>Point-in-Time 数据处理</li>
+                <li>多种再平衡策略</li>
+                <li>详细归因分析</li>
+            </ul>
+        </div>
     </div>
     </a>
 
-    <a href="#" class="card-link">
+    <a href="/account/profile/" class="card-link">
     <div class="card" id="audit">
         <div class="card-icon">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -161,30 +168,45 @@
                 <line x1="16" y1="17" x2="8" y2="17"/>
             </svg>
         </div>
-        <div class="card-title">事后审计</div>
-        <div class="card-desc">损失归因与教训总结</div>
-        <div class="card-status status-pending">待开发</div>
+        <div class="card-title">投资组合</div>
+        <div class="card-desc">持仓管理与收益跟踪</div>
+        <div class="card-status status-done">已完成</div>
         <div class="card-meta">
-            <span class="meta-item">择时收益</span>
-            <span class="meta-item">选资产收益</span>
+            <span class="meta-item">持仓管理</span>
+            <span class="meta-item">收益归因</span>
+        </div>
+        <div class="card-features">
+            <ul>
+                <li>多组合管理</li>
+                <li>实时收益计算</li>
+                <li>历史交易记录</li>
+            </ul>
         </div>
     </div>
     </a>
 
-    <a href="#" class="card-link">
+    <a href="/policy/dashboard/" class="card-link">
     <div class="card" id="policy">
         <div class="card-icon">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
             </svg>
         </div>
-        <div class="card-title">政策事件</div>
+        <div class="card-title">政策跟踪</div>
         <div class="card-desc">P0-P3 档位的人工标注与响应</div>
-        <div class="card-status status-pending">待开发</div>
+        <div class="card-status status-done">已完成</div>
         <div class="card-tags">
             <span class="tag tag-info">P0 常态</span>
             <span class="tag tag-warning">P1 预警</span>
             <span class="tag tag-error">P2/P3 强制</span>
+        </div>
+        <div class="card-features">
+            <ul>
+                <li>政策事件管理（CRUD）</li>
+                <li>响应规则引擎（P0-P3）</li>
+                <li>自动告警（Slack/邮件）</li>
+                <li>Celery 定时监控任务</li>
+            </ul>
         </div>
     </div>
 </div>

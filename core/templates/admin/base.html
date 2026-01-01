@@ -1,0 +1,15 @@
+{% extends "admin/base.html" %}
+
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'css/admin.css' %}">
+{% endblock %}
+
+{% block branding %}
+<h1 id="site-name"><a href="{% url 'admin:index' %}">AgomSAAF</a></h1>
+{% endblock %}
+
+{% block nav-global %}
+{% endblock %}

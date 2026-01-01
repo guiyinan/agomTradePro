@@ -1,0 +1,466 @@
+{% extends "base.html" %}
+
+{% block title %}账户设置 - AgomSAAF{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <div class="settings-header">
+        <h1>账户设置</h1>
+        <p class="subtitle">管理您的账户偏好和资金流水</p>
+    </div>
+
+    <!-- 资金流水 -->
+    <section class="settings-section">
+        <h2 class="section-title">资金流水</h2>
+
+        <div class="capital-summary">
+            <div class="summary-item">
+                <span class="summary-label">累计入金</span>
+                <span class="summary-value summary-deposit">¥{{ total_deposit|floatformat:2|default:"0.00" }}</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">累计出金</span>
+                <span class="summary-value summary-withdraw">¥{{ total_withdraw|floatformat:2|default:"0.00" }}</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">净投入</span>
+                <span class="summary-value summary-net">¥{{ net_capital|floatformat:2|default:"0.00" }}</span>
+            </div>
+        </div>
+
+        <div class="flow-actions">
+            <button type="button" class="btn btn-primary" onclick="showFlowModal('deposit')">
+                + 入金
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="showFlowModal('withdraw')">
+                - 出金
+            </button>
+        </div>
+
+        <!-- 流水记录 -->
+        {% if capital_flows %}
+        <div class="flow-list">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>类型</th>
+                        <th>金额</th>
+                        <th>备注</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for flow in capital_flows %}
+                    <tr>
+                        <td>{{ flow.flow_date|date:"Y-m-d" }}</td>
+                        <td>
+                            <span class="tag-{% if flow.flow_type == 'deposit' %}deposit{% else %}withdraw{% endif %}">
+                                {{ flow.get_flow_type_display }}
+                            </span>
+                        </td>
+                        <td class="{% if flow.flow_type == 'deposit' %}positive{% else %}negative{% endif %}">
+                            ¥{{ flow.amount|floatformat:2 }}
+                        </td>
+                        <td>{{ flow.notes|default:"-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="empty-state">暂无资金流水，点击上方按钮添加入金记录</p>
+        {% endif %}
+    </section>
+
+    <!-- 基本信息 -->
+    <form method="post" class="settings-form">
+        {% csrf_token %}
+
+        <section class="settings-section">
+            <h2 class="section-title">基本信息</h2>
+            <div class="form-group">
+                <label for="display_name">显示名称</label>
+                <input type="text" id="display_name" name="display_name"
+                       value="{{ profile.display_name|default:user.username }}"
+                       class="form-control" required>
+                <small class="form-hint">在系统中显示的名称</small>
+            </div>
+            <div class="form-group">
+                <label for="username">用户名</label>
+                <input type="text" id="username" name="username"
+                       value="{{ user.username }}"
+                       class="form-control" readonly disabled>
+                <small class="form-hint">用户名不可修改</small>
+            </div>
+            <div class="form-group">
+                <label for="email">邮箱</label>
+                <input type="email" id="email" name="email"
+                       value="{{ user.email|default:"" }}"
+                       class="form-control">
+            </div>
+        </section>
+
+        <!-- 投资偏好 -->
+        <section class="settings-section">
+            <h2 class="section-title">投资偏好</h2>
+            <div class="form-group">
+                <label for="risk_tolerance">风险偏好</label>
+                <select id="risk_tolerance" name="risk_tolerance" class="form-control" required>
+                    <option value="conservative" {% if profile.risk_tolerance == 'conservative' %}selected{% endif %}>
+                        保守型 - 追求稳健收益，可接受较低波动
+                    </option>
+                    <option value="moderate" {% if profile.risk_tolerance == 'moderate' %}selected{% endif %}>
+                        稳健型 - 平衡风险与收益
+                    </option>
+                    <option value="aggressive" {% if profile.risk_tolerance == 'aggressive' %}selected{% endif %}>
+                        激进型 - 追求高收益，可接受高波动
+                    </option>
+                </select>
+            </div>
+        </section>
+
+        <!-- 安全设置 -->
+        <section class="settings-section">
+            <h2 class="section-title">安全设置</h2>
+            <div class="form-group">
+                <label for="new_password">新密码</label>
+                <input type="password" id="new_password" name="new_password"
+                       class="form-control" minlength="8">
+                <small class="form-hint">留空则不修改密码。密码至少8位</small>
+            </div>
+            <div class="form-group">
+                <label for="password_confirm">确认新密码</label>
+                <input type="password" id="password_confirm" name="password_confirm"
+                       class="form-control" minlength="8">
+            </div>
+        </section>
+
+        <!-- 提交按钮 -->
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">保存设置</button>
+            <a href="/account/profile/" class="btn btn-secondary">取消</a>
+        </div>
+    </form>
+</div>
+
+<!-- 入金/出金弹窗 -->
+<div id="flowModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">入金</h3>
+            <button type="button" class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="flowForm" method="post" action="{% url 'account:capital_flow' %}">
+            {% csrf_token %}
+            <input type="hidden" id="flowType" name="flow_type" value="">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="flowAmount">金额</label>
+                    <input type="number" id="flowAmount" name="amount"
+                           class="form-control" step="0.01" min="0.01" required
+                           placeholder="请输入金额">
+                </div>
+                <div class="form-group">
+                    <label for="flowDate">日期</label>
+                    <input type="date" id="flowDate" name="flow_date"
+                           class="form-control" required
+                           value="{% now 'Y-m-d' %}">
+                </div>
+                <div class="form-group">
+                    <label for="flowNotes">备注</label>
+                    <textarea id="flowNotes" name="notes" class="form-control"
+                              rows="2" placeholder="选填"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button type="submit" class="btn btn-primary">确认</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.settings-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.settings-header {
+    margin-bottom: 24px;
+}
+
+.settings-header h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.subtitle {
+    color: #54595D;
+    font-size: 14px;
+}
+
+.settings-section {
+    background: #FFFFFF;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+/* 资金流水 */
+.capital-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.summary-item {
+    background: #F8F9FA;
+    padding: 16px;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.summary-label {
+    display: block;
+    font-size: 12px;
+    color: #54595D;
+    margin-bottom: 8px;
+}
+
+.summary-value {
+    display: block;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.summary-deposit { color: #14866D; }
+.summary-withdraw { color: #D33; }
+.summary-net { color: #202122; }
+
+.flow-actions {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.flow-list {
+    margin-top: 16px;
+}
+
+.tag-deposit {
+    padding: 2px 8px;
+    border-radius: 2px;
+    background: #D5FBDD;
+    color: #14866D;
+    font-size: 12px;
+}
+
+.tag-withdraw {
+    padding: 2px 8px;
+    border-radius: 2px;
+    background: #FEE7E7;
+    color: #D33;
+    font-size: 12px;
+}
+
+/* 表单 */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.form-control:read-only,
+.form-control:disabled {
+    background: #F8F9FA;
+    color: #54595D;
+}
+
+.form-hint {
+    display: block;
+    font-size: 12px;
+    color: #54595D;
+    margin-top: 4px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-size: 14px;
+    text-decoration: none;
+    display: inline-block;
+    cursor: pointer;
+    border: none;
+}
+
+.btn-primary {
+    background: #36C;
+    color: white;
+}
+
+.btn-secondary {
+    background: #F8F9FA;
+    color: #202122;
+    border: 1px solid #E0E0E0;
+}
+
+/* 表格 */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+}
+
+.table thead {
+    background: #F8F9FA;
+}
+
+.table th {
+    padding: 10px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.table td {
+    padding: 10px;
+    font-size: 13px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.positive { color: #14866D; }
+.negative { color: #D33; }
+
+/* 弹窗 */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #FFFFFF;
+    border-radius: 8px;
+    width: 400px;
+    max-width: 90%;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.modal-header h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+}
+
+.modal-body {
+    padding: 16px;
+}
+
+.modal-footer {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    border-top: 1px solid #E0E0E0;
+    justify-content: flex-end;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 24px;
+    color: #54595D;
+    font-size: 13px;
+}
+</style>
+
+<script>
+function showFlowModal(type) {
+    document.getElementById('flowType').value = type;
+    document.getElementById('modalTitle').textContent = type === 'deposit' ? '入金' : '出金';
+    document.getElementById('flowModal').style.display = 'flex';
+    document.getElementById('flowAmount').focus();
+}
+
+function closeModal() {
+    document.getElementById('flowModal').style.display = 'none';
+    document.getElementById('flowForm').reset();
+}
+
+// 点击弹窗外部关闭
+document.getElementById('flowModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeModal();
+    }
+});
+
+document.querySelector('.settings-form').addEventListener('submit', function(e) {
+    const newPass = document.getElementById('new_password').value;
+    const confirmPass = document.getElementById('password_confirm').value;
+
+    if (newPass && newPass !== confirmPass) {
+        e.preventDefault();
+        alert('两次输入的密码不一致');
+        return false;
+    }
+
+    if (newPass && newPass.length < 8) {
+        e.preventDefault();
+        alert('密码至少需要8位');
+        return false;
+    }
+});
+</script>
+{% endblock %}

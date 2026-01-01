@@ -85,17 +85,16 @@ def run_backtest_task(
 
             实际应用中应该从数据库查询或调用外部数据源
             """
-            # 简化实现：返回模拟价格
-            # 实际应用中需要从数据源获取真实价格
-            mock_prices = {
-                'a_share_growth': 3000.0,
-                'a_share_value': 2500.0,
-                'china_bond': 100.0,
-                'gold': 500.0,
-                'commodity': 200.0,
-                'cash': 1.0,
-            }
-            return mock_prices.get(asset_class, 100.0)
+            from ..infrastructure.adapters import create_default_price_adapter
+            from shared.config.secrets import get_secrets
+
+            try:
+                token = get_secrets().data_sources.tushare_token
+            except Exception:
+                token = None
+
+            adapter = create_default_price_adapter(tushare_token=token)
+            return adapter.get_price(asset_class, as_of_date)
 
         # 5. 创建 PIT 处理器（如果需要）
         pit_processor = None

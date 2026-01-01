@@ -15,36 +15,96 @@
             <a href="/" class="header-logo">AgomSAAF</a>
 
             <nav class="top-nav">
-                <a href="/" class="top-nav-item">首页</a>
-                <a href="/regime/dashboard/" class="top-nav-item">Regime判定</a>
-                <a href="/macro/data/" class="top-nav-item">宏观数据</a>
-                <a href="/filter/dashboard/" class="top-nav-item">趋势滤波</a>
-                <a href="/signal/manage/" class="top-nav-item">投资信号</a>
+                {% if user.is_authenticated %}
+                <a href="{% url 'dashboard:index' %}" class="top-nav-item">投资指挥中心</a>
+                {% else %}
+                <a href="{% url 'index' %}" class="top-nav-item">首页</a>
+                {% endif %}
 
-                <!-- 配置管理：下拉菜单 -->
+                <!-- 宏观环境：下拉菜单 -->
+                <div class="dropdown">
+                    <span class="top-nav-item">宏观环境</span>
+                    <div class="dropdown-menu">
+                        <a href="{% url 'regime:dashboard' %}" class="dropdown-item">Regime判定</a>
+                        <a href="{% url 'macro:data' %}" class="dropdown-item">宏观数据</a>
+                        <a href="{% url 'filter:dashboard' %}" class="dropdown-item">趋势滤波</a>
+                        <a href="{% url 'policy-dashboard' %}" class="dropdown-item">政策跟踪</a>
+                        <a href="{% url 'policy:rss-manage' %}" class="dropdown-item">RSS源管理</a>
+                        <a href="{% url 'policy:rss-keywords' %}" class="dropdown-item">关键词规则</a>
+                        <a href="{% url 'policy:rss-logs' %}" class="dropdown-item">抓取日志</a>
+                    </div>
+                </div>
+
+                <!-- 投资管理：下拉菜单 -->
+                {% if user.is_authenticated %}
+                <div class="dropdown">
+                    <span class="top-nav-item">投资管理</span>
+                    <div class="dropdown-menu">
+                        <a href="{% url 'signal:manage' %}" class="dropdown-item">投资信号</a>
+                        <a href="{% url 'backtest:list' %}" class="dropdown-item">回测引擎</a>
+                        <a href="{% url 'account:profile' %}#positions" class="dropdown-item">我的持仓</a>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 系统：下拉菜单 -->
                 <div class="dropdown">
                     <span class="top-nav-item">系统</span>
                     <div class="dropdown-menu">
+                        <a href="{% url 'docs' %}" class="dropdown-item">文档中心</a>
                         <a href="/admin/" class="dropdown-item">管理后台</a>
-                        <a href="/macro/datasources/" class="dropdown-item">数据源配置</a>
-                        <a href="/macro/controller/" class="dropdown-item">数据管理器</a>
+                        <a href="{% url 'macro:datasources' %}" class="dropdown-item">数据源配置</a>
+                        <a href="{% url 'macro:data_controller' %}" class="dropdown-item">数据管理器</a>
                     </div>
                 </div>
 
                 <div class="dropdown">
                     <span class="top-nav-item">AI服务</span>
                     <div class="dropdown-menu">
-                        <a href="/ai/" class="dropdown-item">AI接口管理</a>
-                        <a href="/prompt/manage/" class="dropdown-item">Prompt模板管理</a>
+                        <a href="{% url 'ai_provider:manage' %}" class="dropdown-item">AI接口管理</a>
+                        <a href="{% url 'prompt:prompt-manage' %}" class="dropdown-item">Prompt模板管理</a>
                     </div>
                 </div>
             </nav>
 
             <div class="header-actions">
+                {% if user.is_authenticated %}
+                <div class="dropdown">
+                    <span class="top-nav-item">
+                        {{ user.account_profile.display_name|default:user.username }}
+                    </span>
+                    <div class="dropdown-menu">
+                        <a href="{% url 'account:profile' %}" class="dropdown-item">我的账户</a>
+                        <a href="{% url 'account:settings' %}" class="dropdown-item">设置</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="{% url 'account:logout' %}" class="dropdown-item">登出</a>
+                    </div>
+                </div>
+                {% else %}
+                <a href="{% url 'account:login' %}" class="btn btn-primary">登录</a>
+                <a href="{% url 'account:register' %}" class="btn btn-secondary">注册</a>
+                {% endif %}
                 <a href="/api/docs/" class="top-nav-item">API文档</a>
+                {% if user.is_staff %}
+                <a href="{% url 'admin-docs-manage' %}" class="top-nav-item">文档管理</a>
+                {% endif %}
             </div>
         </div>
     </header>
+
+    <!-- 全局 Toast 通知 -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- 消息提示 -->
+    {% if messages %}
+    <div class="messages-container">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     <!-- 主内容区域 -->
     <main class="main-content-full">
@@ -58,6 +118,80 @@
         </div>
     </footer>
 
+    <!-- 全局 JavaScript -->
+    <script>
+    // Toast 通知系统
+    (function() {
+        const container = document.getElementById('toast-container');
+
+        function showToast(message, type = 'info', duration = 3000) {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+
+            // 图标映射
+            const icons = {
+                success: '✓',
+                error: '✕',
+                warning: '⚠️',
+                info: 'ℹ️'
+            };
+
+            const icon = icons[type] || icons.info;
+            toast.innerHTML = `<span class="toast-icon">${icon}</span><span class="toast-message">${message}</span>`;
+
+            container.appendChild(toast);
+
+            // 触发动画
+            setTimeout(() => toast.classList.add('toast-show'), 10);
+
+            // 自动移除
+            setTimeout(() => {
+                toast.classList.remove('toast-show');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        // 全局可用
+        window.showToast = showToast;
+
+        // 兼容旧代码的 alert 替换
+        window.alert = function(message) {
+            // 判断消息类型
+            let type = 'info';
+            if (typeof message === 'string') {
+                if (message.startsWith('✓') || message.includes('成功')) {
+                    type = 'success';
+                } else if (message.startsWith('✗') || message.includes('失败') || message.includes('错误')) {
+                    type = 'error';
+                } else if (message.startsWith('⚠️') || message.includes('警告')) {
+                    type = 'warning';
+                }
+            }
+            showToast(message, type);
+        };
+    })();
+
+    // CSRF Token 获取
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // 全局 CSRF Token
+    window.csrfToken = getCookie('csrftoken');
+    </script>
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>
+

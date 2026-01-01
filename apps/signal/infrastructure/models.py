@@ -4,6 +4,7 @@ ORM Models for Investment Signals.
 
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.contrib.auth.models import User
 import json
 
 
@@ -23,6 +24,17 @@ class InvestmentSignalModel(models.Model):
         ('SHORT', 'Short'),
         ('NEUTRAL', 'Neutral'),
     ]
+
+    # 用户关联（允许为空，兼容现有数据）
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='signals',
+        null=True,
+        blank=True,
+        verbose_name="创建用户",
+        help_text="NULL表示系统模板信号"
+    )
 
     asset_code = models.CharField(max_length=20, db_index=True)
     asset_class = models.CharField(max_length=50)

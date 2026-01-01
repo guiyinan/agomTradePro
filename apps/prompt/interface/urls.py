@@ -19,6 +19,8 @@ from .views import (
     prompt_manage_view
 )
 
+app_name = 'prompt'
+
 # 创建路由器
 router = DefaultRouter()
 router.register(r'templates', PromptTemplateViewSet, basename='prompt-template')

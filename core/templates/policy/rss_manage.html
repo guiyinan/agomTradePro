@@ -1,0 +1,609 @@
+{% extends "base.html" %}
+
+{% block title %}RSS源管理 - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+<style>
+    .rss-manage-page {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+
+    .page-header h1 {
+        margin: 0;
+        font-size: 24px;
+    }
+
+    .filter-bar {
+        background: white;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .filter-bar select,
+    .filter-bar input {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .filter-bar input[type="text"] {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .filter-bar label {
+        font-size: 14px;
+        color: #666;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary { background: #007bff; color: white; }
+    .btn-primary:hover { background: #0056b3; }
+    .btn-secondary { background: #6c757d; color: white; }
+    .btn-secondary:hover { background: #545b62; }
+    .btn-success { background: #28a745; color: white; }
+    .btn-success:hover { background: #218838; }
+    .btn-danger { background: #dc3545; color: white; }
+    .btn-sm { padding: 4px 8px; font-size: 12px; }
+
+    .data-table-wrapper {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+
+    .data-table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+        font-size: 13px;
+        text-transform: uppercase;
+    }
+
+    .data-table tr:hover {
+        background: #f8f9fa;
+    }
+
+    .status-badge {
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .status-active {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-inactive {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .category-tag {
+        display: inline-block;
+        padding: 2px 8px;
+        background: #e9ecef;
+        border-radius: 4px;
+        font-size: 12px;
+        color: #495057;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        padding: 20px;
+    }
+
+    .pagination a,
+    .pagination span {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        text-decoration: none;
+        color: #007bff;
+    }
+
+    .pagination .current {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #999;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 6px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rss-manage-page">
+    <div class="page-header">
+        <h1>RSS 源管理</h1>
+        <div>
+            <a href="{% url 'policy:rss-reader' %}" class="btn btn-primary">RSS阅读器</a>
+            <a href="{% url 'policy:rss-keywords' %}" class="btn btn-secondary">关键词规则</a>
+            <a href="{% url 'policy:rss-logs' %}" class="btn btn-secondary">抓取日志</a>
+            <a href="/admin/policy/rsssourceconfigmodel/add/" class="btn btn-secondary">+ 添加源</a>
+        </div>
+    </div>
+
+    <!-- 筛选栏 -->
+    <form method="get" class="filter-bar">
+        <label>分类:
+            <select name="category">
+                <option value="">全部分类</option>
+                {% for value, label in categories %}
+                <option value="{{ value }}" {% if value == selected_category %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>状态:
+            <select name="is_active">
+                <option value="">全部</option>
+                <option value="true" {% if selected_active == 'true' %}selected{% endif %}>启用</option>
+                <option value="false" {% if selected_active == 'false' %}selected{% endif %}>禁用</option>
+            </select>
+        </label>
+
+        <label>搜索:
+            <input type="text" name="search" value="{{ search_query }}" placeholder="输入源名称...">
+        </label>
+
+        <button type="submit" class="btn btn-primary">筛选</button>
+        <a href="{% url 'policy:rss-manage' %}" class="btn btn-secondary">重置</a>
+    </form>
+
+    <!-- 数据表格 -->
+    <div class="data-table-wrapper">
+        {% if sources %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>源名称</th>
+                    <th>分类</th>
+                    <th>RSS URL</th>
+                    <th>状态</th>
+                    <th>抓取间隔</th>
+                    <th>最后抓取</th>
+                    <th>最后状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for source in sources %}
+                <tr>
+                    <td><strong>{{ source.name }}</strong></td>
+                    <td><span class="category-tag">{{ source.get_category_display }}</span></td>
+                    <td><code style="font-size:12px;">{{ source.url|truncatechars:50 }}</code></td>
+                    <td>
+                        {% if source.is_active %}
+                        <span class="status-badge status-active">启用</span>
+                        {% else %}
+                        <span class="status-badge status-inactive">禁用</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ source.fetch_interval_hours }}h</td>
+                    <td style="font-size:12px;">
+                        {% if source.last_fetch_at %}
+                        {{ source.last_fetch_at|date:"m-d H:i" }}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td style="font-size:12px;">
+                        {% if source.last_fetch_status %}
+                        <span class="{% if source.last_fetch_status == 'success' %}text-success{% else %}text-danger{% endif %}">
+                        {{ source.last_fetch_status }}
+                        </span>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <a href="/admin/policy/rsssourceconfigmodel/{{ source.id }}/change/" class="btn btn-sm btn-secondary">编辑</a>
+                            <button onclick="triggerFetch({{ source.id }}, '{{ source.name }}')" class="btn btn-sm btn-success">抓取</button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- 分页 -->
+        {% if is_paginated %}
+        <div class="pagination">
+            {% if page_obj.has_previous %}
+            <a href="?page=1{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_active %}&is_active={{ selected_active }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&laquo;</a>
+            <a href="?page={{ page_obj.previous_page_number }}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_active %}&is_active={{ selected_active }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&lsaquo;</a>
+            {% endif %}
+
+            <span class="current">第 {{ page_obj.number }} 页，共 {{ page_obj.paginator.num_pages }} 页</span>
+
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_active %}&is_active={{ selected_active }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&rsaquo;</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_active %}&is_active={{ selected_active }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">&raquo;</a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="empty-state">
+            <h3>暂无 RSS 源</h3>
+            <p>点击右上角"添加源"按钮添加第一个 RSS 源</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 抓取进度 Modal -->
+<div id="fetchModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>抓取进度</h3>
+            <button class="modal-close" onclick="closeFetchModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="fetchStatus" class="fetch-status">
+                <div class="status-icon">⟳</div>
+                <div class="status-text" id="statusText">正在启动抓取任务...</div>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div id="fetchProgress" class="progress-fill"></div>
+                </div>
+            </div>
+            <div class="fetch-details" id="fetchDetails">
+                <div>任务 ID: <span id="taskId">-</span></div>
+                <div>源名称: <span id="sourceName">-</span></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeFetchModal()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #94a3b8;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+
+.modal-close:hover {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.fetch-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.status-icon {
+    font-size: 24px;
+    animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.status-text {
+    font-size: 14px;
+    color: #475569;
+}
+
+.progress-container {
+    margin-bottom: 20px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #10b981);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.fetch-details {
+    background: #f8fafc;
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.fetch-details div {
+    margin-bottom: 6px;
+}
+
+.fetch-details span {
+    font-weight: 500;
+    color: #475569;
+}
+
+.modal-footer {
+    padding: 16px 20px;
+    border-top: 1px solid #e2e8f0;
+    text-align: right;
+}
+</style>
+
+<script>
+let currentPollingInterval = null;
+
+function triggerFetch(sourceId, sourceName) {
+    // 显示 modal
+    const modal = document.getElementById('fetchModal');
+    modal.style.display = 'flex';
+
+    // 重置状态
+    document.getElementById('statusText').textContent = '正在启动抓取任务...';
+    document.getElementById('fetchProgress').style.width = '10%';
+    document.getElementById('taskId').textContent = '-';
+    document.getElementById('sourceName').textContent = sourceName;
+
+    const url = `/policy/api/rss/sources/${sourceId}/trigger_fetch/`;
+    console.log('Fetching from:', url);
+
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': window.csrfToken
+        }
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+
+        // 检查响应类型
+        const contentType = response.headers.get('content-type');
+        console.log('Content-Type:', contentType);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return response.text().then(text => {
+            console.log('Response text:', text.substring(0, 200));
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                throw new Error('返回的不是有效的 JSON: ' + text.substring(0, 100));
+            }
+        });
+    })
+    .then(data => {
+        console.log('Parsed data:', data);
+
+        if (data.status === 'triggered') {
+            // 异步模式 - 任务已启动
+            document.getElementById('taskId').textContent = data.task_id;
+            document.getElementById('statusText').textContent = '抓取任务已启动，正在处理...';
+            document.getElementById('fetchProgress').style.width = '30%';
+
+            // 开始轮询任务状态
+            pollFetchStatus(data.task_id, sourceName);
+        } else if (data.status === 'completed') {
+            // 同步模式 - 任务已完成
+            document.getElementById('statusText').textContent = data.message || '抓取已完成！';
+            document.getElementById('fetchProgress').style.width = '100%';
+            document.querySelector('.status-icon').style.animation = 'none';
+            document.querySelector('.status-icon').textContent = '✓';
+
+            // 显示结果
+            if (data.result) {
+                console.log('Fetch result:', data.result);
+            }
+
+            // 2秒后自动关闭并刷新
+            setTimeout(() => {
+                closeFetchModal();
+                location.reload();
+            }, 2000);
+        } else if (data.status === 'error') {
+            // 显示服务器返回的错误信息
+            document.getElementById('statusText').textContent = '启动失败: ' + data.error;
+            document.getElementById('fetchProgress').style.width = '0%';
+            document.querySelector('.status-icon').style.animation = 'none';
+            document.querySelector('.status-icon').textContent = '✕';
+        } else {
+            document.getElementById('statusText').textContent = '启动失败，请查看日志';
+            document.getElementById('fetchProgress').style.width = '0%';
+            document.querySelector('.status-icon').style.animation = 'none';
+            document.querySelector('.status-icon').textContent = '✕';
+        }
+    })
+    .catch(error => {
+        console.error('Fetch error:', error);
+        document.getElementById('statusText').textContent = '请求失败: ' + error.message;
+        document.getElementById('fetchProgress').style.width = '0%';
+        document.querySelector('.status-icon').style.animation = 'none';
+        document.querySelector('.status-icon').textContent = '✕';
+    });
+}
+
+function pollFetchStatus(taskId, sourceName) {
+    let attempts = 0;
+    const maxAttempts = 60; // 最多轮询 60 次（约 5 分钟）
+
+    currentPollingInterval = setInterval(() => {
+        attempts++;
+
+        if (attempts > maxAttempts) {
+            clearInterval(currentPollingInterval);
+            document.getElementById('statusText').textContent = '抓取超时，请稍后查看日志';
+            document.getElementById('fetchProgress').style.width = '100%';
+            document.querySelector('.status-icon').style.animation = 'none';
+            document.querySelector('.status-icon').textContent = '⚠️';
+            return;
+        }
+
+        // 更新进度（模拟）
+        const progress = Math.min(30 + (attempts / maxAttempts) * 60, 95);
+        document.getElementById('fetchProgress').style.width = progress + '%';
+
+        // 检查抓取日志（使用 source__name 过滤）
+        fetch(`/policy/api/rss/logs/?source__name=${encodeURIComponent(sourceName)}&limit=1`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.results && data.results.length > 0) {
+                    const latestLog = data.results[0];
+                    if (latestLog.status === 'success') {
+                        clearInterval(currentPollingInterval);
+                        document.getElementById('statusText').textContent = '✓ 抓取完成！';
+                        document.getElementById('fetchProgress').style.width = '100%';
+                        document.querySelector('.status-icon').style.animation = 'none';
+                        document.querySelector('.status-icon').textContent = '✓';
+
+                        setTimeout(() => {
+                            closeFetchModal();
+                            location.reload();
+                        }, 1500);
+                    } else if (latestLog.status === 'error') {
+                        clearInterval(currentPollingInterval);
+                        document.getElementById('statusText').textContent = '✗ 抓取失败: ' + (latestLog.error_message || '未知错误');
+                        document.getElementById('fetchProgress').style.width = '100%';
+                        document.querySelector('.status-icon').style.animation = 'none';
+                        document.querySelector('.status-icon').textContent = '✕';
+                    } else if (latestLog.status === 'partial') {
+                        // 部分成功（抓取到条目但都是重复的）
+                        clearInterval(currentPollingInterval);
+                        document.getElementById('statusText').textContent = '⚠ 抓取完成但无新增条目';
+                        document.getElementById('fetchProgress').style.width = '100%';
+                        document.querySelector('.status-icon').style.animation = 'none';
+                        document.querySelector('.status-icon').textContent = '⚠';
+                    }
+                }
+            })
+            .catch(err => {
+                console.error('检查状态失败:', err);
+            });
+    }, 5000); // 每 5 秒检查一次
+}
+
+function closeFetchModal() {
+    if (currentPollingInterval) {
+        clearInterval(currentPollingInterval);
+        currentPollingInterval = null;
+    }
+
+    const modal = document.getElementById('fetchModal');
+    modal.style.display = 'none';
+
+    // 重置 modal 状态
+    document.querySelector('.status-icon').textContent = '⟳';
+    document.querySelector('.status-icon').style.animation = '';
+}
+</script>
+{% endblock %}

@@ -330,6 +330,33 @@ class DjangoMacroRepository:
             return latest.reporting_period
         return None
 
+    def get_latest_observation(
+        self,
+        code: str,
+        before_date: Optional[date] = None
+    ) -> Optional[MacroIndicator]:
+        """
+        获取指定指标在某个日期前的最新观测值
+
+        用于容错机制，当数据缺失时可以使用前值填充。
+
+        Args:
+            code: 指标代码
+            before_date: 截止日期（None 表示最新）
+
+        Returns:
+            Optional[MacroIndicator]: 最新观测值，无数据则返回 None
+        """
+        query = self._model.objects.filter(code=code)
+
+        if before_date:
+            query = query.filter(reporting_period__lt=before_date)
+
+        latest = query.order_by('-reporting_period').first()
+        if latest:
+            return self._orm_to_entity(latest)
+        return None
+
     def get_available_dates(
         self,
         codes: Optional[List[str]] = None,

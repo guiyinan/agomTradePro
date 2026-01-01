@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}RSS阅读器 - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+<style>
+    .rss-reader-page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+
+    .page-header h1 {
+        margin: 0;
+        font-size: 24px;
+    }
+
+    .filter-bar {
+        background: white;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .filter-bar select {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary { background: #007bff; color: white; }
+    .btn-primary:hover { background: #0056b3; }
+    .btn-secondary { background: #6c757d; color: white; }
+    .btn-secondary:hover { background: #545b62; }
+
+    .feed-items {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .feed-item {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        transition: box-shadow 0.2s;
+    }
+
+    .feed-item:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .feed-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+    }
+
+    .feed-item-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #333;
+        margin: 0;
+    }
+
+    .feed-item-title a {
+        color: #333;
+        text-decoration: none;
+    }
+
+    .feed-item-title a:hover {
+        color: #007bff;
+    }
+
+    .feed-item-meta {
+        display: flex;
+        gap: 16px;
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 12px;
+    }
+
+    .feed-item-source {
+        font-weight: 500;
+        color: #007bff;
+    }
+
+    .feed-item-description {
+        color: #555;
+        line-height: 1.6;
+        font-size: 14px;
+    }
+
+    .feed-item-description img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    .level-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        color: white;
+    }
+
+    .level-p0 { background: #6c757d; }
+    .level-p1 { background: #ffc107; color: #000; }
+    .level-p2 { background: #fd7e14; }
+    .level-p3 { background: #dc3545; }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #999;
+    }
+
+    .stats-bar {
+        display: flex;
+        gap: 24px;
+        padding: 16px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 24px;
+        font-weight: 600;
+        color: #007bff;
+    }
+
+    .stat-label {
+        font-size: 13px;
+        color: #666;
+        margin-top: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rss-reader-page">
+    <div class="page-header">
+        <h1>RSS 阅读器</h1>
+        <div>
+            <a href="{% url 'policy:rss-manage' %}" class="btn btn-secondary">RSS源管理</a>
+            <a href="{% url 'policy:rss-logs' %}" class="btn btn-secondary">抓取日志</a>
+        </div>
+    </div>
+
+    <!-- 统计栏 -->
+    <div class="stats-bar">
+        <div class="stat-item">
+            <div class="stat-value">{{ total_items }}</div>
+            <div class="stat-label">总文章数</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" style="color:#28a745;">{{ today_items }}</div>
+            <div class="stat-label">今日新增</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" style="color:#dc3545;">{{ p3_items }}</div>
+            <div class="stat-label">P3级政策</div>
+        </div>
+    </div>
+
+    <!-- 筛选栏 -->
+    <form method="get" class="filter-bar">
+        <label>RSS源:
+            <select name="source">
+                <option value="">全部源</option>
+                {% for src in sources %}
+                <option value="{{ src.id }}" {% if src.id|stringformat:"s" == selected_source %}selected{% endif %}>
+                {{ src.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>档位:
+            <select name="level">
+                <option value="">全部档位</option>
+                {% for value, label in levels %}
+                <option value="{{ value }}" {% if value == selected_level %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>分类:
+            <select name="category">
+                <option value="">全部分类</option>
+                {% for value, label in categories %}
+                <option value="{{ value }}" {% if value == selected_category %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <button type="submit" class="btn btn-primary">筛选</button>
+        <a href="{% url 'policy:rss-reader' %}" class="btn btn-secondary">重置</a>
+    </form>
+
+    <!-- 文章列表 -->
+    {% if items %}
+    <div class="feed-items">
+        {% for item in items %}
+        <div class="feed-item">
+            <div class="feed-item-header">
+                <h3 class="feed-item-title">
+                    <a href="{{ item.evidence_url }}" target="_blank">{{ item.title }}</a>
+                </h3>
+                {% if item.level %}
+                <span class="level-badge level-{{ item.level|lower }}">{{ item.get_level_display }}</span>
+                {% endif %}
+            </div>
+            <div class="feed-item-meta">
+                <span class="feed-item-source">{{ item.rss_source.name }}</span>
+                <span>发布时间: {{ item.event_date|date:"Y-m-d" }}</span>
+                <span>抓取时间: {{ item.created_at|date:"Y-m-d H:i" }}</span>
+                {% if item.info_category %}
+                <span>分类: {{ item.get_info_category_display }}</span>
+                {% endif %}
+            </div>
+            {% if item.description %}
+            <div class="feed-item-description">
+                {{ item.description|truncatewords:100|safe }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- 分页 -->
+    {% if is_paginated %}
+    <div style="display: flex; justify-content: center; align-items: center; gap: 8px; padding: 20px;">
+        {% if page_obj.has_previous %}
+        <a href="?page=1{% if selected_source %}&source={{ selected_source }}{% endif %}{% if selected_level %}&level={{ selected_level }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}" class="btn btn-secondary btn-sm">&laquo;</a>
+        <a href="?page={{ page_obj.previous_page_number }}{% if selected_source %}&source={{ selected_source }}{% endif %}{% if selected_level %}&level={{ selected_level }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}" class="btn btn-secondary btn-sm">&lsaquo;</a>
+        {% endif %}
+
+        <span>第 {{ page_obj.number }} 页，共 {{ page_obj.paginator.num_pages }} 页</span>
+
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if selected_source %}&source={{ selected_source }}{% endif %}{% if selected_level %}&level={{ selected_level }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}" class="btn btn-secondary btn-sm">&rsaquo;</a>
+        <a href="?page={{ page_obj.paginator.num_pages }}{% if selected_source %}&source={{ selected_source }}{% endif %}{% if selected_level %}&level={{ selected_level }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}" class="btn btn-secondary btn-sm">&raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="empty-state">
+        <h3>暂无文章</h3>
+        <p>点击"抓取"按钮获取最新内容，或检查RSS源配置</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

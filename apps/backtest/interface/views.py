@@ -165,17 +165,17 @@ class BacktestViewSet(viewsets.ViewSet):
             return None
 
         def get_asset_price(asset_class: str, as_of_date: date):
-            # 简化实现：返回模拟价格
-            # 实际应用中需要从数据源获取真实价格
-            mock_prices = {
-                'a_share_growth': 3000.0,
-                'a_share_value': 2500.0,
-                'china_bond': 100.0,
-                'gold': 500.0,
-                'commodity': 200.0,
-                'cash': 1.0,
-            }
-            return mock_prices.get(asset_class, 100.0)
+            from ..infrastructure.adapters import create_default_price_adapter
+            from shared.config.secrets import get_secrets
+
+            # 创建价格适配器（使用组合适配器支持 failover）
+            try:
+                token = get_secrets().data_sources.tushare_token
+            except Exception:
+                token = None
+
+            adapter = create_default_price_adapter(tushare_token=token)
+            return adapter.get_price(asset_class, as_of_date)
 
         use_case = RunBacktestUseCase(self.repository, get_regime, get_asset_price)
         req = RunBacktestRequest(
@@ -288,15 +288,16 @@ def run_backtest_api_view(request):
         return None
 
     def get_asset_price(asset_class: str, as_of_date: date):
-        mock_prices = {
-            'a_share_growth': 3000.0,
-            'a_share_value': 2500.0,
-            'china_bond': 100.0,
-            'gold': 500.0,
-            'commodity': 200.0,
-            'cash': 1.0,
-        }
-        return mock_prices.get(asset_class, 100.0)
+        from ..infrastructure.adapters import create_default_price_adapter
+        from shared.config.secrets import get_secrets
+
+        try:
+            token = get_secrets().data_sources.tushare_token
+        except Exception:
+            token = None
+
+        adapter = create_default_price_adapter(tushare_token=token)
+        return adapter.get_price(asset_class, as_of_date)
 
     use_case = RunBacktestUseCase(repository, get_regime, get_asset_price)
     req = RunBacktestRequest(**validated_data)

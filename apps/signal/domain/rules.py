@@ -4,13 +4,13 @@ Eligibility Rules for Investment Signals.
 Domain 层纯业务逻辑，只使用 Python 标准库。
 """
 
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Callable
 from dataclasses import dataclass
 from .entities import Eligibility, SignalStatus
 
 
-# 准入矩阵配置
-ELIGIBILITY_MATRIX: Dict[str, Dict[str, Eligibility]] = {
+# 默认准入矩阵配置（fallback）
+DEFAULT_ELIGIBILITY_MATRIX: Dict[str, Dict[str, Eligibility]] = {
     "a_share_growth": {
         "Recovery": Eligibility.PREFERRED,
         "Overheat": Eligibility.NEUTRAL,
@@ -49,6 +49,38 @@ ELIGIBILITY_MATRIX: Dict[str, Dict[str, Eligibility]] = {
     },
 }
 
+# 可配置的准入矩阵（可通过依赖注入设置）
+_eligibility_matrix_provider: Optional[Callable[[], Dict[str, Dict[str, Eligibility]]]] = None
+
+
+def set_eligibility_matrix_provider(provider: Callable[[], Dict[str, Dict[str, Eligibility]]]):
+    """
+    设置准入矩阵提供者（依赖注入）
+
+    Args:
+        provider: 返回准入矩阵的函数
+    """
+    global _eligibility_matrix_provider
+    _eligibility_matrix_provider = provider
+
+
+def get_eligibility_matrix() -> Dict[str, Dict[str, Eligibility]]:
+    """
+    获取准入矩阵（优先使用提供者，否则使用默认值）
+
+    Returns:
+        准入矩阵字典
+    """
+    global _eligibility_matrix_provider
+    if _eligibility_matrix_provider:
+        try:
+            return _eligibility_matrix_provider()
+        except Exception:
+            # 提供者失败，使用默认值
+            pass
+    return DEFAULT_ELIGIBILITY_MATRIX
+
+
 # 证伪逻辑量化关键词
 QUANTIFIABLE_KEYWORDS = [
     "跌破", "突破", "低于", "高于", "<", ">", "<=", ">=",
@@ -81,13 +113,18 @@ class RejectionRecord:
     policy_veto: bool = False
 
 
-def check_eligibility(asset_class: str, regime: str) -> Eligibility:
+def check_eligibility(
+    asset_class: str,
+    regime: str,
+    custom_matrix: Optional[Dict[str, Dict[str, Eligibility]]] = None
+) -> Eligibility:
     """
     检查资产在当前 Regime 下的适配性
 
     Args:
         asset_class: 资产类别
         regime: 当前 Regime（Recovery/Overheat/Stagflation/Deflation）
+        custom_matrix: 自定义准入矩阵（可选，用于测试或特殊场景）
 
     Returns:
         Eligibility: 适配性等级
@@ -95,9 +132,12 @@ def check_eligibility(asset_class: str, regime: str) -> Eligibility:
     Raises:
         ValueError: 未知的资产类别
     """
-    if asset_class not in ELIGIBILITY_MATRIX:
+    # 优先使用自定义矩阵，其次使用提供者，最后使用默认值
+    matrix = custom_matrix or get_eligibility_matrix()
+
+    if asset_class not in matrix:
         raise ValueError(f"Unknown asset class: {asset_class}")
-    return ELIGIBILITY_MATRIX[asset_class].get(regime, Eligibility.NEUTRAL)
+    return matrix[asset_class].get(regime, Eligibility.NEUTRAL)
 
 
 def validate_invalidation_logic(logic: str) -> ValidationResult:
@@ -252,7 +292,8 @@ def get_recommended_asset_classes(regime: str) -> List[str]:
     recommended = []
     neutral = []
 
-    for asset_class, regime_map in ELIGIBILITY_MATRIX.items():
+    matrix = get_eligibility_matrix()
+    for asset_class, regime_map in matrix.items():
         eligibility = regime_map.get(regime, Eligibility.NEUTRAL)
         if eligibility == Eligibility.PREFERRED:
             recommended.append(asset_class)
@@ -279,7 +320,8 @@ def analyze_regime_transition(
     """
     impacts = []
 
-    for asset_class in ELIGIBILITY_MATRIX.keys():
+    matrix = get_eligibility_matrix()
+    for asset_class in matrix.keys():
         from_elig = check_eligibility(asset_class, from_regime)
         to_elig = check_eligibility(asset_class, to_regime)
 

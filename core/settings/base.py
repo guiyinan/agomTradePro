@@ -5,6 +5,7 @@ Django base settings for AgomSAAF project.
 import os
 from pathlib import Path
 import environ
+from celery.schedules import crontab
 
 # Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -31,8 +32,12 @@ INSTALLED_APPS = [
 
     # Third-party apps
     'rest_framework',
+    'rest_framework.authtoken',  # Token 认证
     'drf_spectacular',
     'django_celery_beat',
+
+    # Shared infrastructure
+    'shared',
 
     # Local apps
     'apps.macro',
@@ -44,6 +49,8 @@ INSTALLED_APPS = [
     'apps.audit',
     'apps.ai_provider',
     'apps.prompt',
+    'apps.account',   # 新增：用户账户管理
+    'apps.dashboard', # 新增：仪表盘
 ]
 
 MIDDLEWARE = [
@@ -102,9 +109,22 @@ TEMPLATES = [
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Admin Site Configuration
+ADMIN_TITLE = 'AgomSAAF 管理后台'
+ADMIN_HEADER = 'AgomSAAF'
+ADMIN_INDEX_TITLE = '欢迎使用 AgomSAAF 管理后台'
+
 # REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    # 认证配置
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',  # Session 认证（Web界面）
+        'rest_framework.authentication.TokenAuthentication',     # Token 认证（API调用）
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',  # 默认需要登录
+    ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
@@ -127,9 +147,39 @@ SPECTACULAR_SETTINGS = {
 }
 
 # Celery settings
-CELERY_BROKER_URL = env('REDIS_URL', default='redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = env('REDIS_URL', default='redis://localhost:6379/0')
+# For development without Redis, use memory broker (tasks execute immediately)
+# For production, install Redis and set REDIS_URL environment variable
+if env('REDIS_URL', default=None):
+    # Production mode with Redis
+    CELERY_BROKER_URL = env('REDIS_URL')
+    CELERY_RESULT_BACKEND = env('REDIS_URL')
+else:
+    # Development mode - tasks execute synchronously (no background worker needed)
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
+
+# Celery Beat 定时任务配置
+CELERY_BEAT_SCHEDULE = {
+    'daily-sync-and-calculate': {
+        'task': 'apps.macro.application.tasks.sync_and_calculate_regime',
+        'schedule': crontab(hour=8, minute=0),  # 每天 8:00 执行
+        'options': {
+            'source': 'akshare',
+            'indicator': None,
+            'days_back': 30,
+            'use_pit': True,
+        }
+    },
+    'check-data-freshness': {
+        'task': 'apps.macro.application.tasks.check_data_freshness',
+        'schedule': crontab(minute='*/30'),  # 每 30 分钟执行一次
+    },
+    'check-regime-health': {
+        'task': 'apps.regime.application.tasks.check_regime_health',
+        'schedule': crontab(hour='*/6'),  # 每 6 小时执行一次
+    },
+}

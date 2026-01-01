@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block title %}{{ doc.title }} - AgomSAAF{% endblock %}
+
+{% block content %}
+<style>
+.doc-detail-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.doc-breadcrumb {
+    margin-bottom: 16px;
+    font-size: 13px;
+}
+
+.doc-breadcrumb a {
+    color: #36C;
+    text-decoration: none;
+}
+
+.doc-breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.doc-header {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.doc-title {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #202122;
+}
+
+.doc-meta {
+    font-size: 13px;
+    color: #72777D;
+}
+
+.doc-sidebar {
+    position: fixed;
+    right: 24px;
+    top: 100px;
+    width: 250px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    background: #F8F9FA;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.sidebar-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #202122;
+}
+
+.sidebar-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar-item {
+    margin-bottom: 4px;
+}
+
+.sidebar-link {
+    display: block;
+    padding: 6px 8px;
+    font-size: 13px;
+    color: #202122;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.sidebar-link:hover {
+    background: #E0E0E0;
+}
+
+.sidebar-link.active {
+    background: #36C;
+    color: white;
+}
+
+/* Markdown content styling */
+.markdown-content {
+    line-height: 1.7;
+    color: #202122;
+}
+
+.markdown-content h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin-top: 32px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.markdown-content h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-top: 28px;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #E8E8E8;
+}
+
+.markdown-content h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-top: 24px;
+    margin-bottom: 10px;
+}
+
+.markdown-content h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-top: 20px;
+    margin-bottom: 8px;
+}
+
+.markdown-content p {
+    margin-bottom: 16px;
+}
+
+.markdown-content a {
+    color: #36C;
+    text-decoration: none;
+}
+
+.markdown-content a:hover {
+    text-decoration: underline;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+    padding-left: 24px;
+    margin-bottom: 16px;
+}
+
+.markdown-content li {
+    margin-bottom: 6px;
+}
+
+.markdown-content code {
+    background: #F8F9FA;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 14px;
+    color: #D33;
+}
+
+.markdown-content pre {
+    background: #F8F9FA;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    padding: 12px;
+    overflow-x: auto;
+    margin-bottom: 16px;
+}
+
+.markdown-content pre code {
+    background: none;
+    padding: 0;
+    color: #202122;
+}
+
+.markdown-content blockquote {
+    border-left: 4px solid #36C;
+    padding-left: 16px;
+    margin: 16px 0;
+    color: #54595D;
+    font-style: italic;
+}
+
+.markdown-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+}
+
+.markdown-content th,
+.markdown-content td {
+    border: 1px solid #E0E0E0;
+    padding: 10px 12px;
+    text-align: left;
+}
+
+.markdown-content th {
+    background: #F8F9FA;
+    font-weight: 600;
+}
+
+.markdown-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin: 16px 0;
+}
+
+.markdown-content hr {
+    border: none;
+    border-top: 1px solid #E0E0E0;
+    margin: 24px 0;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .doc-sidebar {
+        display: none;
+    }
+}
+</style>
+
+<div class="doc-detail-container">
+    <nav class="doc-breadcrumb">
+        <a href="/docs/">文档中心</a>
+        <span> / </span>
+        <span>{{ doc.get_category_display }}</span>
+    </nav>
+
+    <header class="doc-header">
+        <h1 class="doc-title">{{ doc.title }}</h1>
+        <div class="doc-meta">
+            更新于 {{ doc.updated_at|date:"Y年m月d日" }}
+        </div>
+    </header>
+
+    <div id="markdown-content" class="markdown-content" style="display: none;">
+{{ doc.content }}
+    </div>
+
+    <div id="rendered-content" class="markdown-content"></div>
+</div>
+
+{% if all_docs %}
+<aside class="doc-sidebar">
+    <div class="sidebar-title">文档目录</div>
+    <ul class="sidebar-list">
+        {% for doc in all_docs %}
+        <li class="sidebar-item">
+            <a href="/docs/{{ doc.slug }}/" class="sidebar-link {% if doc.slug == slug %}active{% endif %}">
+                {{ doc.title }}
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+</aside>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+// Parse Markdown content
+const markdownContent = document.getElementById('markdown-content').textContent;
+const renderedContent = document.getElementById('rendered-content');
+
+// Configure marked
+marked.setOptions({
+    breaks: true,
+    gfm: true,
+    headerIds: true,
+    mangle: false
+});
+
+// Render Markdown
+renderedContent.innerHTML = marked.parse(markdownContent);
+
+// Smooth scroll for anchor links
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function (e) {
+        const href = this.getAttribute('href');
+        if (href !== '#') {
+            e.preventDefault();
+            const target = document.querySelector(href);
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

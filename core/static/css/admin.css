@@ -1,0 +1,546 @@
+/*
+ * AgomSAAF Custom Admin Theme
+ * 匹配前端系统的 Django Admin 样式
+ */
+
+:root {
+    /* 颜色系统 - 与前端 main.css 保持一致 */
+    --primary-color: #2563eb;
+    --primary-hover: #1d4ed8;
+    --primary-light: #dbeafe;
+    --secondary-color: #64748b;
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+
+    /* 中性色 */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8fafc;
+    --bg-tertiary: #f1f5f9;
+    --border-color: #e2e8f0;
+
+    /* 文本色 */
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+
+    /* 圆角 */
+    --radius-md: 8px;
+    --radius-lg: 12px;
+
+    /* 阴影 */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* ========================================
+   全局样式重置
+   ======================================== */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+    background-color: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+}
+
+#container {
+    background-color: var(--bg-secondary) !important;
+}
+
+/* ========================================
+   顶部导航栏
+   ======================================== */
+#header {
+    background: var(--bg-primary) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    box-shadow: var(--shadow-sm) !important;
+    height: 56px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+#branding {
+    display: flex !important;
+    align-items: center !important;
+}
+
+#branding h1 {
+    color: var(--primary-color) !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    margin: 0 !important;
+}
+
+#branding a {
+    color: var(--primary-color) !important;
+}
+
+#user-tools {
+    padding: 0 20px !important;
+}
+
+#user-tools a {
+    color: var(--text-secondary) !important;
+    font-weight: 500 !important;
+    font-size: 13px !important;
+}
+
+#user-tools a:hover {
+    color: var(--primary-color) !important;
+}
+
+/* ========================================
+   模块列表
+   ======================================== */
+#content {
+    margin: 20px !important;
+}
+
+.app-module h2 {
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: 16px 20px !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    color: var(--text-primary) !important;
+    margin-bottom: 16px !important;
+}
+
+#content .module {
+    border: none !important;
+    background: transparent !important;
+    margin-bottom: 24px !important;
+}
+
+#content .module caption {
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: 16px 20px !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    color: var(--text-primary) !important;
+}
+
+#content .module th,
+#content .module td {
+    font-size: 13px !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+#content .module tbody tr:hover {
+    background-color: var(--bg-secondary) !important;
+}
+
+/* ========================================
+   链接样式
+   ======================================== */
+#content .module a {
+    color: var(--primary-color) !important;
+    font-weight: 500 !important;
+}
+
+#content .module a:hover {
+    color: var(--primary-hover) !important;
+}
+
+/* ========================================
+   按钮样式
+   ======================================== */
+.button,
+input[type=submit],
+input[type=button],
+.submit-row input,
+.submit-row a,
+.button-default,
+.object-tools a {
+    background: var(--primary-color) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: var(--radius-md) !important;
+    padding: 8px 16px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+.button:hover,
+input[type=submit]:hover,
+input[type=button]:hover,
+.object-tools a:hover {
+    background: var(--primary-hover) !important;
+}
+
+.button-default,
+.submit-row a {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-secondary) !important;
+}
+
+.button-default:hover,
+.submit-row a:hover {
+    background: var(--border-color) !important;
+}
+
+/* ========================================
+   表单样式
+   ======================================== */
+.form-row {
+    border-bottom: 1px solid var(--border-color) !important;
+    padding: 16px 20px !important;
+}
+
+.form-row:last-child {
+    border-bottom: none !important;
+}
+
+.form-row label {
+    color: var(--text-secondary) !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+}
+
+.form-row input[type=text],
+.form-row input[type=password],
+.form-row input[type=email],
+.form-row input[type=url],
+.form-row input[type=number],
+.form-row input[type=tel],
+.form-row textarea,
+.form-row select {
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-md) !important;
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+    transition: all 0.2s ease !important;
+}
+
+.form-row input:focus,
+.form-row textarea:focus,
+.form-row select:focus {
+    outline: none !important;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 3px var(--primary-light) !important;
+}
+
+/* ========================================
+   Inline 表单
+   ======================================== */
+.inline-group {
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-lg) !important;
+    background: var(--bg-primary) !important;
+    overflow: hidden !important;
+}
+
+.inline-group .module {
+    border: none !important;
+}
+
+.inline-group h2 {
+    background: var(--bg-tertiary) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    border-radius: 0 !important;
+    padding: 12px 20px !important;
+}
+
+/* ========================================
+   Breadcrumb
+   ======================================== */
+.breadcrumb {
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: 12px 20px !important;
+    margin-bottom: 20px !important;
+    font-size: 13px !important;
+}
+
+.breadcrumb a {
+    color: var(--text-secondary) !important;
+}
+
+.breadcrumb a:hover {
+    color: var(--primary-color) !important;
+}
+
+/* ========================================
+   分页
+   ======================================== */
+.paginator {
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: 12px 20px !important;
+    margin-top: 16px !important;
+}
+
+.paginator a,
+.paginator .this-page {
+    padding: 6px 12px !important;
+    border-radius: var(--radius-md) !important;
+    font-size: 13px !important;
+}
+
+.paginator a {
+    color: var(--text-secondary) !important;
+}
+
+.paginator a:hover {
+    background: var(--bg-tertiary) !important;
+    color: var(--primary-color) !important;
+}
+
+.paginator .this-page {
+    background: var(--primary-color) !important;
+    color: white !important;
+    font-weight: 500 !important;
+}
+
+/* ========================================
+   消息提示
+   ======================================== */
+.messagelist {
+    margin: 20px !important;
+}
+
+.messagelist li {
+    border-radius: var(--radius-lg) !important;
+    padding: 16px 20px !important;
+    margin-bottom: 12px !important;
+    font-size: 13px !important;
+    border: none !important;
+}
+
+.messagelist li.success {
+    background: #d1fae5 !important;
+    color: var(--success-color) !important;
+}
+
+.messagelist li.warning {
+    background: #fef3c7 !important;
+    color: var(--warning-color) !important;
+}
+
+.messagelist li.error {
+    background: #fee2e2 !important;
+    color: var(--danger-color) !important;
+}
+
+.messagelist li.info {
+    background: var(--primary-light) !important;
+    color: var(--primary-color) !important;
+}
+
+/* ========================================
+   搜索框
+   ======================================== */
+#search-bar {
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: 16px 20px !important;
+    margin-bottom: 20px !important;
+}
+
+#search-bar input {
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-md) !important;
+    padding: 8px 12px !important;
+}
+
+#search-bar input[type=submit] {
+    background: var(--primary-color) !important;
+    color: white !important;
+    border: none !important;
+}
+
+/* ========================================
+   过滤器
+   ======================================== */
+#changelist-filter {
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: 16px !important;
+}
+
+#changelist-filter h2,
+#changelist-filter h3 {
+    background: transparent !important;
+    border: none !important;
+    color: var(--text-primary) !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    margin-bottom: 12px !important;
+}
+
+#changelist-filter ul {
+    margin-bottom: 16px !important;
+}
+
+#changelist-filter li {
+    border-bottom: 1px solid var(--border-light) !important;
+}
+
+#changelist-filter li a {
+    color: var(--text-secondary) !important;
+    font-size: 13px !important;
+    padding: 6px 0 !important;
+}
+
+#changelist-filter li a:hover {
+    color: var(--primary-color) !important;
+}
+
+#changelist-filter li.selected a {
+    color: var(--primary-color) !important;
+    font-weight: 500 !important;
+}
+
+/* ========================================
+   Date层级导航
+   ======================================== */
+.date-hierarchy {
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: 12px 20px !important;
+    margin-bottom: 20px !important;
+}
+
+.date-hierarchy a {
+    color: var(--primary-color) !important;
+    font-size: 13px !important;
+}
+
+/* ========================================
+   Actions 下拉
+   ======================================== */
+.button-selector,
+.actions select {
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-md) !important;
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+}
+
+/* ========================================
+   登录页面
+   ======================================== */
+body.login {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    min-height: 100vh !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.login #container {
+    background: var(--bg-primary) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1) !important;
+    padding: 40px !important;
+    width: 400px !important;
+}
+
+.login #header {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    justify-content: center !important;
+    margin-bottom: 24px !important;
+}
+
+.login #branding h1 {
+    font-size: 24px !important;
+    text-align: center !important;
+}
+
+.login .form-row {
+    padding: 12px 0 !important;
+    border: none !important;
+}
+
+.login .submit-row {
+    padding: 24px 0 0 !important;
+    text-align: center !important;
+}
+
+.login input[type=text],
+.login input[type=password] {
+    width: 100% !important;
+}
+
+.login .button {
+    width: 100% !important;
+    padding: 12px !important;
+}
+
+/* ========================================
+   Dashboard
+   ======================================== */
+.dashboard module {
+    background: var(--bg-primary) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: 20px !important;
+    margin-bottom: 20px !important;
+}
+
+.dashboard module caption {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin-bottom: 16px !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+}
+
+.dashboard module table {
+    margin: 0 !important;
+}
+
+.dashboard module td {
+    border-bottom: 1px solid var(--border-light) !important;
+}
+
+.dashboard module td a {
+    color: var(--primary-color) !important;
+}
+
+/* ========================================
+   空状态
+   ======================================== */
+.inline-group .tabular tr.empty {
+    background: var(--bg-secondary) !important;
+}
+
+.inline-group .tabular td.original p {
+    color: var(--text-muted) !important;
+    font-size: 12px !important;
+}
+
+/* ========================================
+   时间线/历史记录
+   ======================================== */
+.table-row-selector {
+    opacity: 0.6 !important;
+}
+
+/* ========================================
+   响应式调整
+   ======================================== */
+@media (max-width: 768px) {
+    #content {
+        margin: 10px !important;
+    }
+
+    .app-module h2,
+    #changelist-filter,
+    .breadcrumb,
+    .paginator {
+        border-radius: var(--radius-md) !important;
+    }
+}

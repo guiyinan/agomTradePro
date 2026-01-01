@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>测试RSS源</title>
+    <link>https://example.com</link>
+    <description>用于测试RSS抓取功能</description>
+    <language>zh-cn</language>
+
+    <item>
+      <title>央行宣布降准0.5个百分点</title>
+      <link>https://example.com/news/1</link>
+      <description>中国人民银行决定下调金融机构存款准备金率0.5个百分点，释放长期资金约1万亿元。</description>
+      <pubDate>Mon, 06 Jan 2025 10:00:00 GMT</pubDate>
+      <guid>https://example.com/news/1</guid>
+      <author>央行</author>
+    </item>
+
+    <item>
+      <title>证监会优化IPO监管</title>
+      <link>https://example.com/news/2</link>
+      <description>证监会发布通知，进一步优化IPO监管，加强对上市公司质量的把关。</description>
+      <pubDate>Mon, 06 Jan 2025 14:30:00 GMT</pubDate>
+      <guid>https://example.com/news/2</guid>
+      <author>证监会</author>
+    </item>
+
+    <item>
+      <title>财政部发布会支持政策</title>
+      <link>https://example.com/news/3</link>
+      <description>财政部举行新闻发布会，介绍积极的财政政策将加大力度，支持经济复苏。</description>
+      <pubDate>Tue, 07 Jan 2025 09:15:00 GMT</pubDate>
+      <guid>https://example.com/news/3</guid>
+      <author>财政部</author>
+    </item>
+  </channel>
+</rss>

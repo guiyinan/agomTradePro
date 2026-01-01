@@ -3,6 +3,7 @@ ORM Models for Backtest.
 """
 
 from django.db import models
+from django.contrib.auth.models import User
 import json
 
 
@@ -16,6 +17,17 @@ class BacktestResultModel(models.Model):
         ('completed', 'Completed'),
         ('failed', 'Failed'),
     ]
+
+    # 用户关联（允许为空，兼容现有数据）
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='backtests',
+        null=True,
+        blank=True,
+        verbose_name="创建用户",
+        help_text="NULL表示系统/测试数据"
+    )
 
     # 基本配置
     name = models.CharField(max_length=200)

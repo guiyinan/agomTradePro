@@ -1,0 +1,535 @@
+{% extends "base.html" %}
+
+{% block title %}回测详情 - {{ backtest.name }}{% endblock %}
+
+{% block content %}
+<div class="backtest-detail-container">
+    <div class="detail-header">
+        <h1>{{ backtest.name }}</h1>
+        <div class="header-actions">
+            <span class="status-badge status-{{ backtest.status }}">
+                {% if backtest.status == 'completed' %}已完成
+                {% elif backtest.status == 'running' %}运行中
+                {% elif backtest.status == 'pending' %}待处理
+                {% else %}失败
+                {% endif %}
+            </span>
+            <a href="{% url 'backtest:list' %}" class="btn-secondary">返回列表</a>
+        </div>
+    </div>
+
+    {% if backtest.error_message %}
+    <div class="error-banner">
+        <strong>错误：</strong> {{ backtest.error_message }}
+    </div>
+    {% endif %}
+
+    <!-- 回测配置 -->
+    <section class="detail-section">
+        <h2 class="section-title">回测配置</h2>
+        <div class="config-grid">
+            <div class="config-item">
+                <span class="config-label">起始日期</span>
+                <span class="config-value">{{ backtest.start_date|date:"Y-m-d" }}</span>
+            </div>
+            <div class="config-item">
+                <span class="config-label">结束日期</span>
+                <span class="config-value">{{ backtest.end_date|date:"Y-m-d" }}</span>
+            </div>
+            <div class="config-item">
+                <span class="config-label">初始资金</span>
+                <span class="config-value">¥{{ backtest.initial_capital|floatformat:2 }}</span>
+            </div>
+            <div class="config-item">
+                <span class="config-label">再平衡频率</span>
+                <span class="config-value">
+                    {% if backtest.rebalance_frequency == 'monthly' %}月度
+                    {% elif backtest.rebalance_frequency == 'quarterly' %}季度
+                    {% else %}年度
+                    {% endif %}
+                </span>
+            </div>
+            <div class="config-item">
+                <span class="config-label">交易成本</span>
+                <span class="config-value">{{ backtest.transaction_cost_bps }} bp</span>
+            </div>
+            <div class="config-item">
+                <span class="config-label">使用点数据</span>
+                <span class="config-value">{{ backtest.use_pit_data|yesno:"是,否" }}</span>
+            </div>
+        </div>
+    </section>
+
+    {% if is_completed and summary %}
+    <!-- 回测结果 -->
+    <section class="detail-section">
+        <h2 class="section-title">
+            回测结果
+            <span class="section-subtitle">
+                创建于：{{ backtest.created_at|date:"Y-m-d H:i" }}
+            </span>
+        </h2>
+        <div class="results-grid">
+            <div class="result-card">
+                <span class="result-label">最终资产</span>
+                <span class="result-value large">¥{{ backtest.final_capital|floatformat:2 }}</span>
+            </div>
+            <div class="result-card">
+                <span class="result-label">总收益率</span>
+                <span class="result-value {% if backtest.total_return >= 0 %}positive{% else %}negative{% endif %} large">
+                    {{ backtest.total_return|floatformat:2 }}%
+                </span>
+            </div>
+            <div class="result-card">
+                <span class="result-label">年化收益</span>
+                <span class="result-value {% if backtest.annualized_return >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ backtest.annualized_return|floatformat:2 }}%
+                </span>
+            </div>
+            <div class="result-card">
+                <span class="result-label">最大回撤</span>
+                <span class="result-value negative">
+                    {{ backtest.max_drawdown|floatformat:2 }}%
+                </span>
+            </div>
+            <div class="result-card">
+                <span class="result-label">夏普比率</span>
+                <span class="result-value">
+                    {{ backtest.sharpe_ratio|floatformat:2 }}
+                </span>
+            </div>
+        </div>
+
+        {% if backtest.warnings %}
+        <div class="warnings-box">
+            <h3>警告</h3>
+            <ul>
+                {% for warning in backtest.warnings %}
+                <li>{{ warning }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- 应用回测结果功能 -->
+    <section class="detail-section action-section">
+        <h2 class="section-title">应用回测结果</h2>
+        <p class="section-desc">
+            将回测的最终持仓应用到您的实际投资组合中。系统将根据回测的最后一期交易记录创建相应的持仓。
+        </p>
+        <div class="action-form">
+            <div class="form-row">
+                <label for="scale-factor">仓位缩放因子：</label>
+                <input type="number" id="scale-factor" value="1.0" min="0.1" max="10" step="0.1">
+                <span class="form-hint">1.0 = 完全复制，0.5 = 一半仓位，2.0 = 双倍仓位</span>
+            </div>
+            <button id="apply-btn" class="btn-primary">
+                <span class="btn-text">应用到我的持仓</span>
+                <span class="btn-loading" style="display:none;">处理中...</span>
+            </button>
+        </div>
+        <div id="apply-result" class="result-message" style="display:none;"></div>
+    </section>
+
+    <!-- 交易记录 -->
+    {% if backtest.trades %}
+    <section class="detail-section">
+        <h2 class="section-title">交易记录 ({{ backtest.trades|length }})</h2>
+        <div class="trades-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>资产</th>
+                        <th>方向</th>
+                        <th>数量</th>
+                        <th>价格</th>
+                        <th>金额</th>
+                        <th>成本</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trade in backtest.trades|slice:":50" %}
+                    <tr>
+                        <td>{{ trade.trade_date }}</td>
+                        <td>{{ trade.asset_class }}</td>
+                        <td class="{% if trade.action == 'buy' %}positive{% else %}negative{% endif %}">
+                            {{ trade.action|upper }}
+                        </td>
+                        <td>{{ trade.shares|floatformat:2 }}</td>
+                        <td>¥{{ trade.price|floatformat:2 }}</td>
+                        <td>¥{{ trade.notional|floatformat:2 }}</td>
+                        <td>¥{{ trade.cost|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if backtest.trades|length > 50 %}
+                    <tr>
+                        <td colspan="7" class="text-center">
+                            ... 还有 {{ backtest.trades|length|add:"-50" }} 条记录
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Regime 历史 -->
+    {% if backtest.regime_history %}
+    <section class="detail-section">
+        <h2 class="section-title">Regime 变化历史</h2>
+        <div class="regime-history">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>Regime</th>
+                        <th>置信度</th>
+                        <th>组合价值</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in backtest.regime_history %}
+                    <tr>
+                        <td>{{ entry.date }}</td>
+                        <td class="regime-{{ entry.regime|lower }}">{{ entry.regime }}</td>
+                        <td>{{ entry.confidence|floatformat:0 }}%</td>
+                        <td>¥{{ entry.portfolio_value|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% endif %}
+    {% endif %}
+</div>
+
+<script>
+// 应用回测结果
+document.getElementById('apply-btn').addEventListener('click', async function() {
+    const btn = this;
+    const btnText = btn.querySelector('.btn-text');
+    const btnLoading = btn.querySelector('.btn-loading');
+    const resultDiv = document.getElementById('apply-result');
+    const scaleFactor = document.getElementById('scale-factor').value;
+
+    // 显示加载状态
+    btn.disabled = true;
+    btnText.style.display = 'none';
+    btnLoading.style.display = 'inline';
+    resultDiv.style.display = 'none';
+
+    try {
+        const response = await fetch('/account/backtest/{{ backtest.id }}/apply/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify({
+                scale_factor: parseFloat(scaleFactor)
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            resultDiv.className = 'result-message success';
+            resultDiv.innerHTML = `
+                <strong>应用成功！</strong><br>
+                ${data.message}<br>
+                创建持仓：${data.data.total_positions} 个<br>
+                总市值：¥${data.data.total_value.toFixed(2)}
+            `;
+            // 可以选择跳转到持仓页面
+            setTimeout(() => {
+                if (confirm('持仓已创建，是否前往持仓页面查看？')) {
+                    window.location.href = '/dashboard/';
+                }
+            }, 1500);
+        } else {
+            resultDiv.className = 'result-message error';
+            resultDiv.innerHTML = `<strong>应用失败：</strong> ${data.error}`;
+        }
+    } catch (error) {
+        resultDiv.className = 'result-message error';
+        resultDiv.innerHTML = `<strong>请求失败：</strong> ${error.message}`;
+    } finally {
+        btn.disabled = false;
+        btnText.style.display = 'inline';
+        btnLoading.style.display = 'none';
+        resultDiv.style.display = 'block';
+    }
+});
+
+// 获取 CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+
+<style>
+.backtest-detail-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.detail-header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--color-text-primary);
+}
+
+.header-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-completed { background: #D5FBDD; color: #14866D; }
+.status-running { background: #D5E9FF; color: #36C; }
+.status-pending { background: #FEF7E2; color: #AB7100; }
+.status-failed { background: #FEE7E7; color: #D33; }
+
+.error-banner {
+    background: #FEE7E7;
+    border: 1px solid #D33;
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin-bottom: 24px;
+    color: #D33;
+}
+
+.detail-section {
+    background: #FFFFFF;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--color-text-primary);
+}
+
+.section-subtitle {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--color-text-secondary);
+    margin-left: 8px;
+}
+
+.section-desc {
+    color: var(--color-text-secondary);
+    margin-bottom: 16px;
+}
+
+.config-grid, .results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+}
+
+.config-item, .result-card {
+    background: #F8F9FA;
+    padding: 16px;
+    border-radius: 4px;
+}
+
+.config-label, .result-label {
+    display: block;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    margin-bottom: 8px;
+}
+
+.config-value, .result-value {
+    display: block;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.result-value.large {
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.positive { color: #14866D; }
+.negative { color: #D33; }
+
+.action-section {
+    background: linear-gradient(135deg, #F8F9FA 0%, #E8F4F8 100%);
+}
+
+.action-form {
+    margin-top: 16px;
+}
+
+.form-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.form-row label {
+    min-width: 120px;
+    font-weight: 500;
+}
+
+.form-row input {
+    width: 100px;
+    padding: 8px;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+}
+
+.form-hint {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+}
+
+.btn-primary, .btn-secondary {
+    padding: 10px 20px;
+    border-radius: 4px;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: #36C;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #255;
+}
+
+.btn-primary:disabled {
+    background: #AAB;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: #F8F9FA;
+    color: var(--color-text-primary);
+    border: 1px solid #E0E0E0;
+}
+
+.btn-secondary:hover {
+    background: #E8E8E8;
+}
+
+.result-message {
+    margin-top: 16px;
+    padding: 12px 16px;
+    border-radius: 4px;
+}
+
+.result-message.success {
+    background: #D5FBDD;
+    color: #14866D;
+}
+
+.result-message.error {
+    background: #FEE7E7;
+    color: #D33;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table thead {
+    background: #F8F9FA;
+}
+
+.table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.table td {
+    padding: 12px;
+    font-size: 14px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.warnings-box {
+    background: #FEF7E2;
+    border: 1px solid #AB7100;
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin-top: 16px;
+}
+
+.warnings-box h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #AB7100;
+}
+
+.warnings-box ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.warnings-box li {
+    font-size: 14px;
+    color: #AB7100;
+}
+
+.regime-recovery { color: #36C; }
+.regime-overheat { color: #D33; }
+.regime-stagflation { color: #72777D; }
+.regime-deflation { color: #14866D; }
+</style>
+{% endblock %}

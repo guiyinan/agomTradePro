@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block title %}抓取日志 - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+<style>
+    .logs-page {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+
+    .page-header h1 {
+        margin: 0;
+        font-size: 24px;
+    }
+
+    .filter-bar {
+        background: white;
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .filter-bar select {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        min-width: 150px;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .btn-primary { background: #007bff; color: white; }
+    .btn-primary:hover { background: #0056b3; }
+    .btn-secondary { background: #6c757d; color: white; }
+    .btn-secondary:hover { background: #545b62; }
+    .btn-sm { padding: 4px 8px; font-size: 12px; }
+
+    .data-table-wrapper {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        overflow-x: auto;
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 900px;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 12px 16px;
+        text-align: left;
+        border-bottom: 1px solid #eee;
+    }
+
+    .data-table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        color: #495057;
+        font-size: 13px;
+        text-transform: uppercase;
+    }
+
+    .data-table tr:hover {
+        background: #f8f9fa;
+    }
+
+    .status-badge {
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .status-success {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .status-error {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .status-partial {
+        background: #fff3cd;
+        color: #856404;
+    }
+
+    .error-message {
+        max-width: 400px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #dc3545;
+        font-size: 12px;
+        cursor: help;
+    }
+
+    .error-message:hover {
+        white-space: normal;
+        word-break: break-all;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        padding: 20px;
+    }
+
+    .pagination a,
+    .pagination span {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        text-decoration: none;
+        color: #007bff;
+    }
+
+    .pagination .current {
+        background: #007bff;
+        color: white;
+        border-color: #007bff;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #999;
+    }
+
+    .stats-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .stat-card {
+        background: white;
+        padding: 16px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+
+    .stat-card .value {
+        font-size: 24px;
+        font-weight: 600;
+        color: #007bff;
+    }
+
+    .stat-card .label {
+        font-size: 13px;
+        color: #666;
+        margin-top: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="logs-page">
+    <div class="page-header">
+        <h1>RSS 抓取日志</h1>
+        <div>
+            <a href="{% url 'policy:rss-manage' %}" class="btn btn-secondary">RSS源管理</a>
+            <a href="{% url 'policy:rss-keywords' %}" class="btn btn-secondary">关键词规则</a>
+        </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="stats-cards">
+        <div class="stat-card">
+            <div class="value">{{ page_obj.paginator.count|default:0 }}</div>
+            <div class="label">总日志数</div>
+        </div>
+        <div class="stat-card">
+            <div class="value" style="color:#28a745;">{{ success_count }}</div>
+            <div class="label">成功次数</div>
+        </div>
+        <div class="stat-card">
+            <div class="value" style="color:#dc3545;">{{ error_count }}</div>
+            <div class="label">失败次数</div>
+        </div>
+    </div>
+
+    <!-- 筛选栏 -->
+    <form method="get" class="filter-bar">
+        <label>RSS源:
+            <select name="source">
+                <option value="">全部源</option>
+                {% for src in sources %}
+                <option value="{{ src.id }}" {% if src.id|stringformat:"s" == selected_source %}selected{% endif %}>
+                {{ src.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>状态:
+            <select name="status">
+                <option value="">全部状态</option>
+                {% for value, label in statuses %}
+                <option value="{{ value }}" {% if value == selected_status %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <button type="submit" class="btn btn-primary">筛选</button>
+        <a href="/policy/rss/logs/" class="btn btn-secondary">重置</a>
+    </form>
+
+    <!-- 数据表格 -->
+    <div class="data-table-wrapper">
+        {% if logs %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>抓取时间</th>
+                    <th>RSS源</th>
+                    <th>状态</th>
+                    <th>条目数</th>
+                    <th>新增数</th>
+                    <th>耗时</th>
+                    <th>错误信息</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td style="font-size:13px;">{{ log.fetched_at|date:"Y-m-d H:i:s" }}</td>
+                    <td><strong>{{ log.source.name }}</strong></td>
+                    <td>
+                        {% if log.status == 'success' %}
+                        <span class="status-badge status-success">{{ log.get_status_display }}</span>
+                        {% elif log.status == 'error' %}
+                        <span class="status-badge status-error">{{ log.get_status_display }}</span>
+                        {% else %}
+                        <span class="status-badge status-partial">{{ log.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ log.items_count }}</td>
+                    <td>
+                        {% if log.new_items_count > 0 %}
+                        <span style="color:#28a745;font-weight:600;">+{{ log.new_items_count }}</span>
+                        {% else %}
+                        {{ log.new_items_count }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if log.fetch_duration_seconds %}
+                        {{ log.fetch_duration_seconds|floatformat:1 }}s
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if log.error_message %}
+                        <div class="error-message" title="{{ log.error_message }}">
+                        {{ log.error_message }}
+                        </div>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- 分页 -->
+        {% if is_paginated %}
+        <div class="pagination">
+            {% if page_obj.has_previous %}
+            <a href="?page=1{% if selected_source %}&source={{ selected_source }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">&laquo;</a>
+            <a href="?page={{ page_obj.previous_page_number }}{% if selected_source %}&source={{ selected_source }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">&lsaquo;</a>
+            {% endif %}
+
+            <span class="current">第 {{ page_obj.number }} 页，共 {{ page_obj.paginator.num_pages }} 页</span>
+
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if selected_source %}&source={{ selected_source }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">&rsaquo;</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}{% if selected_source %}&source={{ selected_source }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">&raquo;</a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="empty-state">
+            <h3>暂无抓取日志</h3>
+            <p>RSS 抓取任务执行后会在此显示日志</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

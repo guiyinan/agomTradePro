@@ -1,0 +1,572 @@
+{% extends "base.html" %}
+
+{% block title %}文档管理 - AgomSAAF{% endblock %}
+
+{% block content %}
+<style>
+.admin-docs-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.admin-header h1 {
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.admin-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: #F8F9FA;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.stat-label {
+    font-size: 13px;
+    color: #54595D;
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 600;
+    color: #202122;
+}
+
+.admin-toolbar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.search-box {
+    flex: 1;
+    min-width: 200px;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #E0E0E0;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.filter-select {
+    padding: 8px 12px;
+    border: 1px solid #E0E0E0;
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+}
+
+.btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-primary {
+    background: #36C;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2a5aa8;
+}
+
+.btn-secondary {
+    background: #F8F9FA;
+    border: 1px solid #E0E0E0;
+    color: #202122;
+}
+
+.btn-secondary:hover {
+    background: #E0E0E0;
+}
+
+.btn-success {
+    background: #28a745;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #218838;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.docs-table-wrapper {
+    background: white;
+    border: 1px solid #E0E0E0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.docs-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.docs-table th,
+.docs-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.docs-table th {
+    background: #F8F9FA;
+    font-weight: 600;
+    font-size: 13px;
+    color: #54595D;
+}
+
+.docs-table td {
+    font-size: 14px;
+}
+
+.docs-table tr:hover {
+    background: #F8F9FA;
+}
+
+.doc-title {
+    font-weight: 500;
+    color: #202122;
+}
+
+.doc-slug {
+    font-size: 12px;
+    color: #72777D;
+    font-family: monospace;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.badge-published {
+    background: #d4edda;
+    color: #155724;
+}
+
+.badge-draft {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.category-tag {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    background: #E0E0E0;
+    color: #54595D;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 6px;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 24px;
+}
+
+.pagination a,
+.pagination span {
+    padding: 6px 12px;
+    border: 1px solid #E0E0E0;
+    border-radius: 6px;
+    text-decoration: none;
+    color: #202122;
+    font-size: 14px;
+}
+
+.pagination a:hover {
+    background: #F8F9FA;
+}
+
+.pagination .current {
+    background: #36C;
+    color: white;
+    border-color: #36C;
+}
+
+.export-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.export-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    border: 1px solid #E0E0E0;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    min-width: 180px;
+    z-index: 100;
+}
+
+.export-dropdown:hover .export-menu {
+    display: block;
+}
+
+.export-menu a {
+    display: block;
+    padding: 8px 16px;
+    text-decoration: none;
+    color: #202122;
+    font-size: 14px;
+}
+
+.export-menu a:hover {
+    background: #F8F9FA;
+}
+
+/* Import modal styles */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 8px;
+    padding: 24px;
+    width: 90%;
+    max-width: 500px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.modal-title {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #72777D;
+}
+
+.modal-body {
+    margin-bottom: 16px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.form-input,
+.form-select,
+.form-file {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #E0E0E0;
+    border-radius: 6px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.form-help {
+    font-size: 12px;
+    color: #72777D;
+    margin-top: 4px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+</style>
+
+<div class="admin-docs-container">
+    <div class="admin-header">
+        <h1>文档管理</h1>
+        <a href="/admin/docs/edit/" class="btn btn-primary">
+            <span>+</span> 新建文档
+        </a>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="admin-stats">
+        <div class="stat-card">
+            <div class="stat-label">总文档数</div>
+            <div class="stat-value">{{ stats.total }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">已发布</div>
+            <div class="stat-value" style="color: #28a745;">{{ stats.published }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">草稿</div>
+            <div class="stat-value" style="color: #ffc107;">{{ stats.draft }}</div>
+        </div>
+        {% for cat_name, cat_count in stats.by_category.items %}
+        {% if cat_count > 0 %}
+        <div class="stat-card">
+            <div class="stat-label">{{ cat_name }}</div>
+            <div class="stat-value">{{ cat_count }}</div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- 工具栏 -->
+    <div class="admin-toolbar">
+        <div class="search-box">
+            <input type="text" name="q" value="{{ search_query }}" placeholder="搜索标题或内容..." onchange="window.location.href='?q='+this.value">
+        </div>
+
+        <select class="filter-select" name="category" onchange="window.location.href='?category='+this.value">
+            <option value="">全部分类</option>
+            {% for cat_code, cat_name in category_choices %}
+            <option value="{{ cat_code }}" {% if category_filter == cat_code %}selected{% endif %}>{{ cat_name }}</option>
+            {% endfor %}
+        </select>
+
+        <select class="filter-select" name="status" onchange="window.location.href='?status='+this.value">
+            <option value="">全部状态</option>
+            <option value="published" {% if status_filter == 'published' %}selected{% endif %}>已发布</option>
+            <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>草稿</option>
+        </select>
+
+        <div style="margin-left: auto;">
+            <div class="export-dropdown">
+                <button class="btn btn-secondary">
+                    <span>⬇</span> 批量导出
+                </button>
+                <div class="export-menu">
+                    <a href="/admin/docs/export/?format=json">导出为 JSON</a>
+                    <a href="/admin/docs/export/?format=csv">导出为 CSV</a>
+                </div>
+            </div>
+
+            <button class="btn btn-secondary" onclick="openImportModal()">
+                <span>⬆</span> 批量导入
+            </button>
+        </div>
+    </div>
+
+    <!-- 文档列表 -->
+    <div class="docs-table-wrapper">
+        <table class="docs-table">
+            <thead>
+                <tr>
+                    <th>标题</th>
+                    <th>分类</th>
+                    <th>排序</th>
+                    <th>状态</th>
+                    <th>更新时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in page_obj %}
+                <tr>
+                    <td>
+                        <div class="doc-title">{{ doc.title }}</div>
+                        <div class="doc-slug">{{ doc.slug }}</div>
+                    </td>
+                    <td>
+                        <span class="category-tag">{{ doc.get_category_display }}</span>
+                    </td>
+                    <td>{{ doc.order }}</td>
+                    <td>
+                        {% if doc.is_published %}
+                        <span class="badge badge-published">已发布</span>
+                        {% else %}
+                        <span class="badge badge-draft">草稿</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ doc.updated_at|date:"Y-m-d H:i" }}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <a href="/admin/docs/edit/{{ doc.id }}/" class="btn btn-sm btn-secondary">编辑</a>
+                            <a href="/docs/{{ doc.slug }}/" class="btn btn-sm btn-secondary" target="_blank">预览</a>
+                            <a href="/admin/docs/export/{{ doc.id }}/md/" class="btn btn-sm btn-secondary">MD</a>
+                            <form method="POST" action="/admin/docs/delete/{{ doc.id }}/" onsubmit="return confirm('确认删除文档《{{ doc.title }}》？');" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 32px; color: #72777D;">
+                        暂无文档
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 分页 -->
+    {% if page_obj.has_other_pages %}
+    <div class="pagination">
+        {% if page_obj.has_previous %}
+        <a href="?page=1">首页</a>
+        <a href="?page={{ page_obj.previous_page_number }}">上一页</a>
+        {% endif %}
+
+        <span class="current">第 {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} 页</span>
+
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}">下一页</a>
+        <a href="?page={{ page_obj.paginator.num_pages }}">末页</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- 导入模态框 -->
+<div id="importModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">批量导入文档</h3>
+            <button class="modal-close" onclick="closeImportModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="importForm" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label class="form-label">导入格式</label>
+                    <select class="form-select" name="format" id="importFormat">
+                        <option value="json">JSON 格式</option>
+                        <option value="csv">CSV 格式</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">选择文件</label>
+                    <input type="file" class="form-file" name="file" id="importFile" accept=".json,.csv" required>
+                    <div class="form-help">支持 JSON 或 CSV 格式，将从导出文件中读取</div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeImportModal()">取消</button>
+            <button class="btn btn-primary" onclick="submitImport()">导入</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function openImportModal() {
+    document.getElementById('importModal').classList.add('active');
+}
+
+function closeImportModal() {
+    document.getElementById('importModal').classList.remove('active');
+    document.getElementById('importForm').reset();
+}
+
+function submitImport() {
+    const form = document.getElementById('importForm');
+    const formData = new FormData(form);
+
+    fetch('/admin/docs/import/', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeImportModal();
+            location.reload();
+        } else {
+            alert('导入失败: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('导入失败: ' + error);
+    });
+}
+
+// 更新文件选择器的 accept 属性
+document.getElementById('importFormat').addEventListener('change', function() {
+    const fileInput = document.getElementById('importFile');
+    if (this.value === 'json') {
+        fileInput.accept = '.json';
+    } else {
+        fileInput.accept = '.csv';
+    }
+});
+</script>
+{% endblock %}

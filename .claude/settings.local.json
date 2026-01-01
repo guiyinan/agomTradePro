@@ -29,7 +29,14 @@
       "Bash(D:\\\\githv\\\\agomSAAF\\\\agomsaaf\\\\Scripts\\\\python.exe manage.py check:*)",
       "Bash(tree:*)",
       "Bash(D:\\\\githv\\\\agomSAAF\\\\agomsaaf\\\\Scripts\\\\python.exe manage.py makemigrations:*)",
-      "Bash(agomsaafScriptspython.exe manage.py makemigrations backtest)"
+      "Bash(agomsaafScriptspython.exe manage.py makemigrations backtest)",
+      "Bash(mkdir:*)",
+      "Bash(D:githvagomSAAFagomsaafScriptspython.exe manage.py check)",
+      "Bash(if not exist \"D:\\\\githv\\\\agomSAAF\\\\shared\\\\infrastructure\" mkdir \"D:\\\\githv\\\\agomSAAF\\\\shared\\\\infrastructure\")",
+      "Bash(D:/githv/agomSAAF/agomsaaf/Scripts/python.exe:*)",
+      "Bash(ls:*)",
+      "Bash(tasklist:*)",
+      "Bash(test:*)"
     ]
   }
 }

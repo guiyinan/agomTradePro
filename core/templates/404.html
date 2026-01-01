@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}页面未找到 - AgomSAAF{% endblock %}
+
+{% block content %}
+<div class="error-page">
+    <div class="error-container">
+        <div class="error-icon">404</div>
+        <h1>页面未找到</h1>
+        <p class="error-message">抱歉，您访问的页面不存在或已被移除。</p>
+        <div class="error-actions">
+            <a href="/" class="btn btn-primary">返回首页</a>
+            <a href="javascript:history.back()" class="btn btn-secondary">返回上一页</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.error-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+    padding: 40px 20px;
+}
+
+.error-container {
+    text-align: center;
+    max-width: 500px;
+}
+
+.error-icon {
+    font-size: 120px;
+    font-weight: bold;
+    color: #E0E0E0;
+    line-height: 1;
+    margin-bottom: 20px;
+}
+
+.error-container h1 {
+    font-size: 28px;
+    margin-bottom: 16px;
+    color: #202122;
+}
+
+.error-message {
+    font-size: 16px;
+    color: #54595D;
+    margin-bottom: 32px;
+    line-height: 1.6;
+}
+
+.error-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.error-actions .btn {
+    padding: 10px 24px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: #6366F1;
+    color: white;
+    border: none;
+}
+
+.btn-primary:hover {
+    background: #4F46E5;
+}
+
+.btn-secondary {
+    background: #F8F9FA;
+    color: #202122;
+    border: 1px solid #E0E0E0;
+}
+
+.btn-secondary:hover {
+    background: #E8EAED;
+}
+</style>
+{% endblock %}

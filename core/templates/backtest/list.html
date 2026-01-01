@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+
+{% block title %}回测管理{% endblock %}
+
+{% block content %}
+<div class="backtest-list-container">
+    <div class="list-header">
+        <h1>回测管理</h1>
+        <div class="header-actions">
+            <a href="{% url 'backtest:create' %}" class="btn-primary">
+                <span>+</span> 新建回测
+            </a>
+        </div>
+    </div>
+
+    <!-- 统计概览 -->
+    <section class="stats-section">
+        <h2 class="section-title">统计概览</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-label">总回测数</span>
+                <span class="stat-value">{{ stats.total }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">已完成</span>
+                <span class="stat-value completed">{{ stats.by_status.completed.count|default:0 }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">运行中</span>
+                <span class="stat-value running">{{ stats.by_status.running.count|default:0 }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">平均收益率</span>
+                <span class="stat-value {% if stats.avg_return >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ stats.avg_return|floatformat:2 }}%
+                </span>
+            </div>
+        </div>
+    </section>
+
+    <!-- 回测列表 -->
+    <section class="backtests-section">
+        <h2 class="section-title">回测列表</h2>
+        <div class="backtests-table-wrapper">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>名称</th>
+                        <th>状态</th>
+                        <th>时间范围</th>
+                        <th>收益率</th>
+                        <th>年化收益</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for backtest in backtests %}
+                    <tr>
+                        <td>{{ backtest.id }}</td>
+                        <td>
+                            <a href="{% url 'backtest:detail' backtest.id %}" class="backtest-name-link">
+                                {{ backtest.name }}
+                            </a>
+                        </td>
+                        <td>
+                            <span class="status-badge status-{{ backtest.status }}">
+                                {% if backtest.status == 'completed' %}已完成
+                                {% elif backtest.status == 'running' %}运行中
+                                {% elif backtest.status == 'pending' %}待处理
+                                {% else %}失败
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            {{ backtest.start_date|date:"Y-m-d" }} ~ {{ backtest.end_date|date:"Y-m-d" }}
+                        </td>
+                        <td class="{% if backtest.total_return >= 0 %}positive{% else %}negative{% endif %}">
+                            {% if backtest.total_return is not None %}
+                                {{ backtest.total_return|floatformat:2 }}%
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="{% if backtest.annualized_return >= 0 %}positive{% else %}negative{% endif %}">
+                            {% if backtest.annualized_return is not None %}
+                                {{ backtest.annualized_return|floatformat:2 }}%
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>{{ backtest.created_at|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{% url 'backtest:detail' backtest.id %}" class="btn-view" title="查看详情">查看</a>
+                                {% if backtest.status == 'completed' %}
+                                <button class="btn-rerun" onclick="rerunBacktest({{ backtest.id }})" title="重新运行">重跑</button>
+                                {% endif %}
+                                <button class="btn-delete" onclick="deleteBacktest({{ backtest.id }}, '{{ backtest.name }}')" title="删除">删除</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="empty-state">
+                            <div class="empty-message">
+                                <p>暂无回测记录</p>
+                                <a href="{% url 'backtest:create' %}" class="btn-primary">创建第一个回测</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<script>
+// 重新运行回测
+async function rerunBacktest(backtestId) {
+    if (!confirm('确定要重新运行此回测吗？')) return;
+
+    try {
+        const response = await fetch(`/api/backtests/${backtestId}/rerun/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert('回测已重新启动');
+            location.reload();
+        } else {
+            alert('操作失败：' + (data.error || '未知错误'));
+        }
+    } catch (error) {
+        alert('请求失败：' + error.message);
+    }
+}
+
+// 删除回测
+async function deleteBacktest(backtestId, back testName) {
+    if (!confirm(`确定要删除回测"${back testName}"吗？此操作不可恢复。`)) return;
+
+    try {
+        const response = await fetch(`/api/backtests/${backtestId}/`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            }
+        });
+
+        if (response.ok) {
+            alert('回测已删除');
+            location.reload();
+        } else {
+            const data = await response.json();
+            alert('删除失败：' + (data.error || '未知错误'));
+        }
+    } catch (error) {
+        alert('请求失败：' + error.message);
+    }
+}
+
+// 获取 CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+
+<style>
+.backtest-list-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.list-header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--color-text-primary);
+}
+
+.header-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-primary {
+    padding: 10px 20px;
+    border-radius: 4px;
+    border: none;
+    background: #36C;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-primary:hover {
+    background: #255;
+}
+
+.stats-section, .backtests-section {
+    background: #FFFFFF;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--color-text-primary);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+}
+
+.stat-card {
+    background: #F8F9FA;
+    padding: 16px;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.stat-label {
+    display: block;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    margin-bottom: 8px;
+}
+
+.stat-value {
+    display: block;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.stat-value.completed {
+    color: #14866D;
+}
+
+.stat-value.running {
+    color: #36C;
+}
+
+.stat-value.positive {
+    color: #14866D;
+}
+
+.stat-value.negative {
+    color: #D33;
+}
+
+.backtests-table-wrapper {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table thead {
+    background: #F8F9FA;
+}
+
+.table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    border-bottom: 1px solid #E0E0E0;
+    white-space: nowrap;
+}
+
+.table td {
+    padding: 12px;
+    font-size: 14px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.backtest-name-link {
+    color: #36C;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.backtest-name-link:hover {
+    text-decoration: underline;
+}
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-block;
+}
+
+.status-completed { background: #D5FBDD; color: #14866D; }
+.status-running { background: #D5E9FF; color: #36C; }
+.status-pending { background: #FEF7E2; color: #AB7100; }
+.status-failed { background: #FEE7E7; color: #D33; }
+
+.positive { color: #14866D; }
+.negative { color: #D33; }
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-view, .btn-rerun, .btn-delete {
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: 1px solid #E0E0E0;
+    background: white;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-view:hover {
+    background: #F8F9FA;
+    border-color: #36C;
+    color: #36C;
+}
+
+.btn-rerun:hover {
+    background: #D5E9FF;
+    border-color: #36C;
+}
+
+.btn-delete:hover {
+    background: #FEE7E7;
+    border-color: #D33;
+    color: #D33;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-message p {
+    font-size: 16px;
+    color: var(--color-text-secondary);
+    margin-bottom: 16px;
+}
+</style>
+{% endblock %}

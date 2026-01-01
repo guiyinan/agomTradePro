@@ -258,6 +258,33 @@ class DjangoSignalRepository:
 
         return query.count()
 
+    def get_user_signals(
+        self,
+        user_id: int,
+        status: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> List[InvestmentSignal]:
+        """
+        获取用户的投资信号列表
+
+        Args:
+            user_id: 用户ID
+            status: 状态过滤 (pending, approved, rejected)
+            limit: 返回数量限制
+
+        Returns:
+            List[InvestmentSignal]: 信号列表
+        """
+        query = self._model.objects.filter(user_id=user_id).order_by('-created_at')
+
+        if status:
+            query = query.filter(status=status)
+
+        if limit:
+            query = query[:limit]
+
+        return [self._orm_to_entity(obj) for obj in query]
+
     def get_statistics(self) -> dict:
         """
         获取信号统计信息

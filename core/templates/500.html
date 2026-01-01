@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}服务器错误 - AgomSAAF{% endblock %}
+
+{% block content %}
+<div class="error-page">
+    <div class="error-container">
+        <div class="error-icon">500</div>
+        <h1>服务器错误</h1>
+        <p class="error-message">抱歉，服务器遇到了一个问题。请稍后再试。</p>
+        <div class="error-actions">
+            <a href="/" class="btn btn-primary">返回首页</a>
+            <a href="javascript:location.reload()" class="btn btn-secondary">刷新页面</a>
+        </div>
+        {% if user.is_staff %}
+        <details style="margin-top: 24px; text-align: left;">
+            <summary style="cursor: pointer; color: #6366F1;">查看错误详情（仅管理员可见）</summary>
+            <pre style="background: #F8F9FA; padding: 16px; border-radius: 4px; margin-top: 12px; overflow: auto; font-size: 12px;">{{ exception }}</pre>
+        </details>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.error-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+    padding: 40px 20px;
+}
+
+.error-container {
+    text-align: center;
+    max-width: 500px;
+}
+
+.error-icon {
+    font-size: 120px;
+    font-weight: bold;
+    color: #FEE7E7;
+    line-height: 1;
+    margin-bottom: 20px;
+}
+
+.error-container h1 {
+    font-size: 28px;
+    margin-bottom: 16px;
+    color: #202122;
+}
+
+.error-message {
+    font-size: 16px;
+    color: #54595D;
+    margin-bottom: 32px;
+    line-height: 1.6;
+}
+
+.error-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.error-actions .btn {
+    padding: 10px 24px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: #6366F1;
+    color: white;
+    border: none;
+}
+
+.btn-primary:hover {
+    background: #4F46E5;
+}
+
+.btn-secondary {
+    background: #F8F9FA;
+    color: #202122;
+    border: 1px solid #E0E0E0;
+}
+
+.btn-secondary:hover {
+    background: #E8EAED;
+}
+</style>
+{% endblock %}
