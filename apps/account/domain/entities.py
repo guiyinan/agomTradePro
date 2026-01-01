@@ -309,3 +309,108 @@ class RegimeMatchAnalysis:
     neutral_assets: List[str]        # 中性资产列表
     hostile_assets: List[str]        # 不匹配资产列表
     recommendations: List[str]        # 调仓建议
+
+
+# ============================================================
+# 止损止盈相关实体
+# ============================================================
+
+class StopLossType(Enum):
+    """止损类型"""
+    FIXED = "fixed"           # 固定止损（如 -10%）
+    TRAILING = "trailing"     # 移动止损（随价格上涨上移）
+    TIME_BASED = "time_based" # 时间止损（持仓超过N天）
+
+
+class StopLossStatus(Enum):
+    """止损状态"""
+    ACTIVE = "active"         # 激活中
+    TRIGGERED = "triggered"   # 已触发
+    CANCELLED = "cancelled"   # 已取消
+    EXPIRED = "expired"       # 已过期
+
+
+@dataclass(frozen=True)
+class StopLossConfig:
+    """
+    止损配置
+
+    定义单个持仓的止损规则。
+    """
+    position_id: int          # 关联的持仓ID
+    stop_loss_type: StopLossType  # 止损类型
+    stop_loss_pct: float      # 止损百分比（如 -0.10 表示 -10%）
+    trailing_stop_pct: Optional[float] = None  # 移动止损百分比
+    max_holding_days: Optional[int] = None     # 最大持仓天数
+    activated_at: Optional[datetime] = None    # 激活时间
+    status: StopLossStatus = StopLossStatus.ACTIVE
+
+    def calculate_stop_price(self, entry_price: float, current_price: float, highest_price: float) -> float:
+        """
+        计算止损价格
+
+        Args:
+            entry_price: 开仓价格
+            current_price: 当前价格
+            highest_price: 持仓期间最高价
+
+        Returns:
+            止损价格
+        """
+        if self.stop_loss_type == StopLossType.FIXED:
+            # 固定止损：开仓价 * (1 - 止损百分比)
+            return entry_price * (1 + self.stop_loss_pct)
+
+        elif self.stop_loss_type == StopLossType.TRAILING:
+            # 移动止损：最高价 * (1 - 移动止损百分比)
+            trailing_pct = self.trailing_stop_pct or self.stop_loss_pct
+            return highest_price * (1 - trailing_pct)
+
+        elif self.stop_loss_type == StopLossType.TIME_BASED:
+            # 时间止损不基于价格，返回0表示不触发
+            return 0.0
+
+        return entry_price * (1 + self.stop_loss_pct)
+
+
+@dataclass(frozen=True)
+class StopLossTrigger:
+    """
+    止损触发记录
+
+    记录一次止损触发的详细信息。
+    """
+    id: Optional[int]
+    position_id: int          # 关联的持仓ID
+    trigger_type: StopLossType  # 触发类型
+    trigger_price: float      # 触发时的价格
+    trigger_time: datetime    # 触发时间
+    trigger_reason: str       # 触发原因描述
+    pnl: Decimal              # 触发时的盈亏金额
+    pnl_pct: float            # 触发时的盈亏百分比
+    notes: str                # 备注
+
+
+@dataclass(frozen=True)
+class TakeProfitConfig:
+    """
+    止盈配置
+
+    定义单个持仓的止盈规则。
+    """
+    position_id: int          # 关联的持仓ID
+    take_profit_pct: float    # 止盈百分比（如 0.20 表示 +20%）
+    partial_profit_levels: Optional[List[float]] = None  # 分批止盈点位
+    is_active: bool = True    # 是否激活
+
+    def calculate_take_profit_price(self, entry_price: float) -> float:
+        """
+        计算止盈价格
+
+        Args:
+            entry_price: 开仓价格
+
+        Returns:
+            止盈价格
+        """
+        return entry_price * (1 + self.take_profit_pct)

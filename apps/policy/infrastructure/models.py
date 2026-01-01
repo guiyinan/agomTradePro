@@ -447,3 +447,120 @@ def on_policy_level_change(sender, instance, created, **kwargs):
 
     except Exception as e:
         logger.error(f"Failed to trigger signal reevaluation: {e}")
+
+
+# ============================================================
+# 对冲持仓模型
+# ============================================================
+
+class HedgePositionModel(models.Model):
+    """
+    对冲持仓记录表
+
+    记录投资组合的对冲操作和持仓状态。
+    """
+
+    STATUS_CHOICES = [
+        ('pending', '待执行'),
+        ('executed', '已执行'),
+        ('closed', '已平仓'),
+        ('expired', '已过期'),
+        ('failed', '执行失败'),
+    ]
+
+    portfolio = models.ForeignKey(
+        'account.PortfolioModel',
+        on_delete=models.CASCADE,
+        related_name='hedge_positions',
+        verbose_name="投资组合"
+    )
+
+    instrument_code = models.CharField(max_length=50, verbose_name="对冲工具代码")
+    instrument_type = models.CharField(max_length=20, verbose_name="工具类型")
+
+    # 对冲参数
+    hedge_ratio = models.FloatField(verbose_name="对冲比例")
+    hedge_value = models.DecimalField(max_digits=20, decimal_places=2, verbose_name="对冲金额")
+    policy_level = models.CharField(max_length=10, verbose_name="触发政策档位")
+
+    # 执行信息
+    execution_price = models.DecimalField(
+        max_digits=20,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        verbose_name="执行价格"
+    )
+    executed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="执行时间"
+    )
+
+    # 状态
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        verbose_name="状态"
+    )
+
+    # 成本与效果
+    opening_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="开仓成本"
+    )
+    closing_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="平仓成本"
+    )
+    total_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="总成本"
+    )
+
+    # 效果评估
+    beta_before = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="对冲前Beta"
+    )
+    beta_after = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="对冲后Beta"
+    )
+    hedge_profit = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="对冲盈亏"
+    )
+
+    notes = models.TextField(blank=True, verbose_name="备注")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = 'hedge_position'
+        verbose_name = '对冲持仓记录'
+        verbose_name_plural = '对冲持仓记录'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['portfolio', '-created_at']),
+            models.Index(fields=['status']),
+            models.Index(fields=['policy_level']),
+        ]
+
+    def __str__(self):
+        return f"{self.portfolio.name} - {self.instrument_code} ({self.get_status_display()})"

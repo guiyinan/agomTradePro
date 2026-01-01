@@ -58,6 +58,25 @@ class InvestmentSignalModel(models.Model):
     invalidation_details = models.JSONField(null=True, blank=True,
         help_text="证伪时的详细数据")
 
+    # 回测表现评分
+    backtest_performance_score = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="回测表现评分",
+        help_text="基于历史回测的信号表现评分 (0-100)"
+    )
+    backtest_count = models.IntegerField(
+        default=0,
+        verbose_name="回测次数",
+        help_text="该信号参与回测的次数"
+    )
+    avg_backtest_return = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="平均回测收益率",
+        help_text="该信号在所有回测中的平均收益率"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

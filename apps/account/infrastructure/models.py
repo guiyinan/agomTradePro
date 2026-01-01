@@ -124,6 +124,25 @@ class AccountProfileModel(models.Model):
         verbose_name="风险偏好"
     )
 
+    # 波动率目标配置
+    target_volatility = models.FloatField(
+        default=0.15,
+        verbose_name="目标波动率",
+        help_text="年化波动率目标，如0.15表示15%"
+    )
+
+    volatility_tolerance = models.FloatField(
+        default=0.2,
+        verbose_name="波动率容忍度",
+        help_text="超过目标波动率多少比例触发降仓，如0.2表示20%"
+    )
+
+    max_volatility_reduction = models.FloatField(
+        default=0.5,
+        verbose_name="最大降仓幅度",
+        help_text="波动率超标时最大降仓比例，如0.5表示最多降50%"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
 
@@ -320,7 +339,41 @@ class TransactionModel(models.Model):
     shares = models.FloatField(verbose_name="交易数量")
     price = models.DecimalField(max_digits=20, decimal_places=4, verbose_name="成交价格")
     notional = models.DecimalField(max_digits=20, decimal_places=2, verbose_name="成交金额")
+
+    # 成本明细
     commission = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="手续费")
+    slippage = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="滑点成本")
+    stamp_duty = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="印花税")
+    transfer_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="过户费")
+
+    # 成本预估（交易前）
+    estimated_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="预估成本"
+    )
+    estimated_cost_ratio = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="预估成本比例"
+    )
+
+    # 成本对比
+    cost_variance = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="成本差异",
+        help_text="实际成本 - 预估成本"
+    )
+    cost_variance_pct = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="成本差异百分比"
+    )
 
     traded_at = models.DateTimeField(verbose_name="交易时间")
     notes = models.TextField(blank=True, verbose_name="备注")
@@ -755,3 +808,197 @@ class ExchangeRateModel(models.Model):
             raise ValueError(f"No exchange rate found for {from_code} -> {to_code}")
 
         return rate.convert(amount)
+
+
+# ============================================================
+# 止损止盈模型
+# ============================================================
+
+class StopLossConfigModel(models.Model):
+    """
+    止损配置表
+
+    为每个持仓配置止损规则。
+    """
+
+    STOP_LOSS_TYPE_CHOICES = [
+        ('fixed', '固定止损'),
+        ('trailing', '移动止损'),
+        ('time_based', '时间止损'),
+    ]
+
+    STATUS_CHOICES = [
+        ('active', '激活中'),
+        ('triggered', '已触发'),
+        ('cancelled', '已取消'),
+        ('expired', '已过期'),
+    ]
+
+    position = models.OneToOneField(
+        PositionModel,
+        on_delete=models.CASCADE,
+        related_name='stop_loss_config',
+        verbose_name="关联持仓"
+    )
+
+    stop_loss_type = models.CharField(
+        max_length=20,
+        choices=STOP_LOSS_TYPE_CHOICES,
+        default='fixed',
+        verbose_name="止损类型"
+    )
+
+    stop_loss_pct = models.FloatField(
+        verbose_name="止损百分比",
+        help_text="如 -0.10 表示 -10%"
+    )
+
+    trailing_stop_pct = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="移动止损百分比",
+        help_text="移动止损时使用，如 -0.10"
+    )
+
+    max_holding_days = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name="最大持仓天数",
+        help_text="时间止损时使用"
+    )
+
+    # 追踪最高价（用于移动止损）
+    highest_price = models.DecimalField(
+        max_digits=20,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        verbose_name="持仓期间最高价"
+    )
+
+    highest_price_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="最高价更新时间"
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='active',
+        verbose_name="状态"
+    )
+
+    activated_at = models.DateTimeField(auto_now_add=True, verbose_name="激活时间")
+    triggered_at = models.DateTimeField(null=True, blank=True, verbose_name="触发时间")
+
+    notes = models.TextField(blank=True, verbose_name="备注")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = 'stop_loss_config'
+        verbose_name = '止损配置'
+        verbose_name_plural = '止损配置'
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['position', 'status']),
+        ]
+
+    def __str__(self):
+        return f"{self.position.asset_code} - {self.get_stop_loss_type_display()} ({self.stop_loss_pct:.2%})"
+
+
+class TakeProfitConfigModel(models.Model):
+    """
+    止盈配置表
+
+    为每个持仓配置止盈规则。
+    """
+
+    position = models.OneToOneField(
+        PositionModel,
+        on_delete=models.CASCADE,
+        related_name='take_profit_config',
+        verbose_name="关联持仓"
+    )
+
+    take_profit_pct = models.FloatField(
+        verbose_name="止盈百分比",
+        help_text="如 0.20 表示 +20%"
+    )
+
+    # 分批止盈配置
+    partial_profit_levels = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name="分批止盈点位",
+        help_text="如 [0.10, 0.20, 0.30] 表示在10%, 20%, 30%时各止盈一部分"
+    )
+
+    is_active = models.BooleanField(default=True, verbose_name="是否激活")
+    notes = models.TextField(blank=True, verbose_name="备注")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = 'take_profit_config'
+        verbose_name = '止盈配置'
+        verbose_name_plural = '止盈配置'
+        indexes = [
+            models.Index(fields=['is_active']),
+            models.Index(fields=['position', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.position.asset_code} - 止盈 {self.take_profit_pct:.2%}"
+
+
+class StopLossTriggerModel(models.Model):
+    """
+    止损触发记录表
+
+    记录所有止损触发的详细信息，用于审计和分析。
+    """
+
+    TRIGGER_TYPE_CHOICES = [
+        ('fixed', '固定止损'),
+        ('trailing', '移动止损'),
+        ('time_based', '时间止损'),
+    ]
+
+    position = models.ForeignKey(
+        PositionModel,
+        on_delete=models.CASCADE,
+        related_name='stop_loss_triggers',
+        verbose_name="关联持仓"
+    )
+
+    trigger_type = models.CharField(
+        max_length=20,
+        choices=TRIGGER_TYPE_CHOICES,
+        verbose_name="触发类型"
+    )
+
+    trigger_price = models.DecimalField(max_digits=20, decimal_places=4, verbose_name="触发价格")
+    trigger_time = models.DateTimeField(verbose_name="触发时间")
+    trigger_reason = models.TextField(verbose_name="触发原因")
+
+    pnl = models.DecimalField(max_digits=20, decimal_places=2, verbose_name="盈亏金额")
+    pnl_pct = models.FloatField(verbose_name="盈亏百分比")
+
+    notes = models.TextField(blank=True, verbose_name="备注")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    class Meta:
+        db_table = 'stop_loss_trigger'
+        verbose_name = '止损触发记录'
+        verbose_name_plural = '止损触发记录'
+        ordering = ['-trigger_time']
+        indexes = [
+            models.Index(fields=['position', '-trigger_time']),
+            models.Index(fields=['trigger_type']),
+        ]
+
+    def __str__(self):
+        return f"{self.position.asset_code} - {self.get_trigger_type_display()} @ {self.trigger_price}"

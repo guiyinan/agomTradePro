@@ -60,6 +60,23 @@ class BacktestResultModel(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
+    # Signal 反向链接
+    used_signals = models.ManyToManyField(
+        'signal.InvestmentSignalModel',
+        related_name='backtests',
+        blank=True,
+        verbose_name="使用的信号",
+        help_text="记录回测使用了哪些投资信号"
+    )
+
+    # 关联的信号配置（JSON 存储，用于追踪信号参数）
+    signal_configs = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="信号配置",
+        help_text="记录每个信号的配置参数，如权重、准入条件等"
+    )
+
     class Meta:
         db_table = 'backtest_result'
         ordering = ['-created_at']
