@@ -272,13 +272,14 @@ class GetRecommendedAssetsUseCase:
         Returns:
             GetRecommendedAssetsResponse: 推荐资产分类
         """
-        from ..domain.rules import ELIGIBILITY_MATRIX, Eligibility
+        from ..domain.rules import get_eligibility_matrix, Eligibility
 
         recommended = []
         neutral = []
         hostile = []
 
-        for asset_class, regime_map in ELIGIBILITY_MATRIX.items():
+        eligibility_matrix = get_eligibility_matrix()
+        for asset_class, regime_map in eligibility_matrix.items():
             eligibility = regime_map.get(request.current_regime, Eligibility.NEUTRAL)
             if eligibility == Eligibility.PREFERRED:
                 recommended.append(asset_class)
