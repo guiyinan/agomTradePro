@@ -282,3 +282,126 @@ def get_all_indicator_configs() -> List[Dict[str, Any]]:
     except Exception as e:
         logger.error(f"Error loading all indicator configs: {e}")
         return []
+
+
+def get_stock_screening_rule(regime: str) -> Optional['StockScreeningRule']:
+    """
+    获取个股筛选规则（带缓存）
+
+    Args:
+        regime: Regime 名称（Recovery/Overheat/Stagflation/Deflation）
+
+    Returns:
+        StockScreeningRule 对象或 None（如果未配置）
+    """
+    from .models import StockScreeningRuleConfigModel
+    from apps.equity.domain.rules import StockScreeningRule
+    from decimal import Decimal
+
+    cache_key = f"stock_screening_rule:{regime}"
+    rule = cache.get(cache_key)
+
+    if rule is None:
+        try:
+            # 查询最高优先级的启用规则
+            config = StockScreeningRuleConfigModel.objects.filter(
+                regime=regime,
+                is_active=True
+            ).order_by('-priority', '-created_at').first()
+
+            if config:
+                # 转换为 Domain 层值对象
+                rule = StockScreeningRule(
+                    regime=config.regime,
+                    name=config.rule_name,
+                    min_roe=config.min_roe,
+                    min_revenue_growth=config.min_revenue_growth,
+                    min_profit_growth=config.min_profit_growth,
+                    max_debt_ratio=config.max_debt_ratio,
+                    max_pe=config.max_pe,
+                    max_pb=config.max_pb,
+                    min_market_cap=Decimal(config.min_market_cap),
+                    sector_preference=config.sector_preference,
+                    max_count=config.max_count
+                )
+
+                # 缓存 1 小时
+                cache.set(cache_key, rule, timeout=3600)
+            else:
+                logger.warning(f"Stock screening rule not found for regime: {regime}")
+
+        except Exception as e:
+            logger.error(f"Error loading stock screening rule for {regime}: {e}")
+
+    return rule
+
+
+def get_sector_weights(regime: str) -> Dict[str, float]:
+    """
+    获取板块权重配置（带缓存）
+
+    Args:
+        regime: Regime 名称
+
+    Returns:
+        {板块名称: 权重}
+    """
+    from .models import SectorPreferenceConfigModel
+
+    cache_key = f"sector_weights:{regime}"
+    weights = cache.get(cache_key)
+
+    if weights is None:
+        try:
+            configs = SectorPreferenceConfigModel.objects.filter(
+                regime=regime,
+                is_active=True
+            )
+
+            weights = {
+                config.sector_name: config.weight
+                for config in configs
+            }
+
+            # 缓存 1 小时
+            cache.set(cache_key, weights, timeout=3600)
+
+        except Exception as e:
+            logger.error(f"Error loading sector weights for {regime}: {e}")
+            weights = {}
+
+    return weights
+
+
+def get_fund_type_preferences(regime: str) -> List[str]:
+    """
+    获取基金类型偏好（带缓存）
+
+    Args:
+        regime: Regime 名称
+
+    Returns:
+        偏好的基金类型列表
+    """
+    from .models import FundTypePreferenceConfigModel
+
+    cache_key = f"fund_type_preferences:{regime}"
+    types = cache.get(cache_key)
+
+    if types is None:
+        try:
+            configs = FundTypePreferenceConfigModel.objects.filter(
+                regime=regime,
+                is_active=True
+            ).order_by('-priority')
+
+            types = [config.fund_type for config in configs]
+
+            # 缓存 1 小时
+            cache.set(cache_key, types, timeout=3600)
+
+        except Exception as e:
+            logger.error(f"Error loading fund type preferences for {regime}: {e}")
+            types = []
+
+    return types

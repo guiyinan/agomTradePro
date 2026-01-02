@@ -52,6 +52,8 @@ INSTALLED_APPS = [
     'apps.prompt',
     'apps.account',   # 新增：用户账户管理
     'apps.dashboard', # 新增：仪表盘
+    'apps.equity',    # 新增：个股分析模块
+    'apps.sector',    # 新增：板块分析模块
 ]
 
 MIDDLEWARE = [

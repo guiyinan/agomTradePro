@@ -1,0 +1,361 @@
+{% extends "equity/base.html" %}
+
+{% block title %}{{ stock_code }} - 个股详情 - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link href="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="equity-container">
+    <div class="equity-header">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <h1 style="display: flex; align-items: center; gap: 12px;">
+                    <span id="stockCode">{{ stock_code }}</span>
+                    <span id="stockName" style="font-size: 22px; color: #6b7280;">加载中...</span>
+                </h1>
+                <p style="margin-top: 8px;">个股估值分析与基本面指标</p>
+            </div>
+            <div>
+                <button class="btn btn-secondary" onclick="window.location.href='/equity/screen/'">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="19" y1="12" x2="5" y2="12"/>
+                        <polyline points="12 19 5 12 12 5"/>
+                    </svg>
+                    返回筛选
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 基本信息卡片 -->
+    <div class="card">
+        <h2 class="card-title">基本信息</h2>
+        <div class="metric-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+            <div class="metric-card">
+                <div class="metric-label">股票代码</div>
+                <div class="metric-value" style="font-size: 16px;" id="detailCode">{{ stock_code }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">所属行业</div>
+                <div class="metric-value" style="font-size: 16px;" id="detailSector">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">交易市场</div>
+                <div class="metric-value" style="font-size: 16px;" id="detailMarket">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">上市日期</div>
+                <div class="metric-value" style="font-size: 16px;" id="detailListDate">-</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 最新价格与估值 -->
+    <div class="card">
+        <h2 class="card-title">最新价格与估值</h2>
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-label">最新价</div>
+                <div class="metric-value" id="detailPrice">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">市盈率 (PE)</div>
+                <div class="metric-value" id="detailPe">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">市净率 (PB)</div>
+                <div class="metric-value" id="detailPb">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">市销率 (PS)</div>
+                <div class="metric-value" id="detailPs">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">总市值</div>
+                <div class="metric-value" style="font-size: 18px;" id="detailTotalMv">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">流通市值</div>
+                <div class="metric-value" style="font-size: 18px;" id="detailCircMv">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">股息率</div>
+                <div class="metric-value" id="detailDivYield">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">换手率</div>
+                <div class="metric-value" id="detailTurnover">-</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 财务指标 -->
+    <div class="card">
+        <h2 class="card-title">财务指标</h2>
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-label">净资产收益率 (ROE)</div>
+                <div class="metric-value" id="detailRoe">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">总资产收益率 (ROA)</div>
+                <div class="metric-value" id="detailRoa">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">营业收入</div>
+                <div class="metric-value" style="font-size: 18px;" id="detailRevenue">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">净利润</div>
+                <div class="metric-value" style="font-size: 18px;" id="detailNetProfit">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">营收增长率</div>
+                <div class="metric-value" id="detailRevenueGrowth">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">净利润增长率</div>
+                <div class="metric-value" id="detailProfitGrowth">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">资产负债率</div>
+                <div class="metric-value" id="detailDebtRatio">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">毛利率</div>
+                <div class="metric-value" id="detailGrossMargin">-</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 估值分析 -->
+    <div class="card">
+        <h2 class="card-title">估值分析</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+            <div>
+                <h3 style="font-size: 16px; margin: 0 0 12px 0;">PE 历史分位数</h3>
+                <canvas id="peChart" height="200"></canvas>
+                <div style="text-align: center; margin-top: 12px;">
+                    <span style="font-size: 32px; font-weight: 600; color: #2563eb;" id="pePercentile">-</span>
+                    <span style="color: #6b7280; margin-left: 8px;">%</span>
+                </div>
+                <p style="text-align: center; color: #6b7280; font-size: 14px; margin-top: 8px;" id="peHint">当前 PE 在历史中的位置</p>
+            </div>
+            <div>
+                <h3 style="font-size: 16px; margin: 0 0 12px 0;">PB 历史分位数</h3>
+                <canvas id="pbChart" height="200"></canvas>
+                <div style="text-align: center; margin-top: 12px;">
+                    <span style="font-size: 32px; font-weight: 600; color: #2563eb;" id="pbPercentile">-</span>
+                    <span style="color: #6b7280; margin-left: 8px;">%</span>
+                </div>
+                <p style="text-align: center; color: #6b7280; font-size: 14px; margin-top: 8px;" id="pbHint">当前 PB 在历史中的位置</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- DCF 估值 -->
+    <div class="card" id="dcfCard" style="display: none;">
+        <h2 class="card-title">DCF 绝对估值</h2>
+        <div class="metric-grid" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="metric-card">
+                <div class="metric-label">内在价值（每股）</div>
+                <div class="metric-value" id="dcfIntrinsicValue">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">当前价格</div>
+                <div class="metric-value" id="dcfCurrentPrice">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">上涨空间</div>
+                <div class="metric-value" id="dcfUpside">-</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Regime 相关性 -->
+    <div class="card">
+        <h2 class="card-title">Regime 相关性分析</h2>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Regime</th>
+                        <th>平均收益率</th>
+                        <th>胜率</th>
+                        <th>最大回撤</th>
+                    </tr>
+                </thead>
+                <tbody id="regimeTableBody">
+                    <tr>
+                        <td>复苏 (Recovery)</td>
+                        <td class="text-green">-</td>
+                        <td>-</td>
+                        <td class="text-red">-</td>
+                    </tr>
+                    <tr>
+                        <td>过热 (Overheat)</td>
+                        <td class="text-green">-</td>
+                        <td>-</td>
+                        <td class="text-red">-</td>
+                    </tr>
+                    <tr>
+                        <td>滞胀 (Stagflation)</td>
+                        <td class="text-green">-</td>
+                        <td>-</td>
+                        <td class="text-red">-</td>
+                    </tr>
+                    <tr>
+                        <td>通缩 (Deflation)</td>
+                        <td class="text-green">-</td>
+                        <td>-</td>
+                        <td class="text-red">-</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+const stockCode = '{{ stock_code }}';
+
+// 加载股票详情
+async function loadStockDetail() {
+    try {
+        const response = await fetch(`/api/equity/valuation/${stockCode}/`);
+        const result = await response.json();
+
+        if (result.success) {
+            updateBasicInfo(result);
+            updateValuation(result);
+            updateFinancials(result);
+            createCharts(result);
+        } else {
+            alert('加载失败: ' + result.error);
+        }
+    } catch (error) {
+        console.error('加载股票详情失败:', error);
+    }
+}
+
+function updateBasicInfo(data) {
+    document.getElementById('stockName').textContent = data.name || '未知';
+    document.getElementById('detailSector').textContent = data.sector || '-';
+    document.getElementById('detailMarket').textContent = data.market || '-';
+    document.getElementById('detailListDate').textContent = data.list_date || '-';
+}
+
+function updateValuation(data) {
+    const latest = data.latest_valuation;
+    if (latest) {
+        document.getElementById('detailPrice').textContent = latest.price || '-';
+        document.getElementById('detailPe').textContent = latest.pe ? latest.pe.toFixed(2) : '-';
+        document.getElementById('detailPb').textContent = latest.pb ? latest.pb.toFixed(2) : '-';
+        document.getElementById('detailPs').textContent = latest.ps ? latest.ps.toFixed(2) : '-';
+        document.getElementById('detailTotalMv').textContent = latest.total_mv ? formatMoney(latest.total_mv) : '-';
+        document.getElementById('detailCircMv').textContent = latest.circ_mv ? formatMoney(latest.circ_mv) : '-';
+        document.getElementById('detailDivYield').textContent = latest.dividend_yield ? latest.dividend_yield.toFixed(2) + '%' : '-';
+        document.getElementById('detailTurnover').textContent = latest.turnover_rate ? latest.turnover_rate.toFixed(2) + '%' : '-';
+
+        // 更新估值分位数
+        if (latest.pe_percentile !== undefined) {
+            document.getElementById('pePercentile').textContent = (latest.pe_percentile * 100).toFixed(1);
+            const peHint = latest.pe_percentile < 0.3 ? '低估' : (latest.pe_percentile > 0.7 ? '高估' : '合理');
+            document.getElementById('peHint').textContent = peHint;
+        }
+        if (latest.pb_percentile !== undefined) {
+            document.getElementById('pbPercentile').textContent = (latest.pb_percentile * 100).toFixed(1);
+            const pbHint = latest.pb_percentile < 0.3 ? '低估' : (latest.pb_percentile > 0.7 ? '高估' : '合理');
+            document.getElementById('pbHint').textContent = pbHint;
+        }
+    }
+
+    // DCF 估值
+    if (data.dcf_value) {
+        document.getElementById('dcfCard').style.display = 'block';
+        document.getElementById('dcfIntrinsicValue').textContent = '¥' + data.dcf_value.intrinsic_value_per_share.toFixed(2);
+        document.getElementById('dcfCurrentPrice').textContent = '¥' + data.dcf_value.current_price.toFixed(2);
+        const upside = (data.dcf_value.upside * 100).toFixed(1);
+        document.getElementById('dcfUpside').textContent = upside + '%';
+        document.getElementById('dcfUpside').className = 'metric-value ' + (data.dcf_value.upside > 0 ? 'text-green' : 'text-red');
+    }
+}
+
+function updateFinancials(data) {
+    const financial = data.financial_data;
+    if (financial) {
+        document.getElementById('detailRoe').textContent = financial.roe ? financial.roe.toFixed(2) + '%' : '-';
+        document.getElementById('detailRoa').textContent = financial.roa ? financial.roa.toFixed(2) + '%' : '-';
+        document.getElementById('detailRevenue').textContent = financial.revenue ? formatMoney(financial.revenue) : '-';
+        document.getElementById('detailNetProfit').textContent = financial.net_profit ? formatMoney(financial.net_profit) : '-';
+        document.getElementById('detailRevenueGrowth').textContent = financial.revenue_growth ? financial.revenue_growth.toFixed(2) + '%' : '-';
+        document.getElementById('detailProfitGrowth').textContent = financial.net_profit_growth ? financial.net_profit_growth.toFixed(2) + '%' : '-';
+        document.getElementById('detailDebtRatio').textContent = financial.debt_ratio ? financial.debt_ratio.toFixed(2) + '%' : '-';
+        document.getElementById('detailGrossMargin').textContent = financial.gross_margin ? financial.gross_margin.toFixed(2) + '%' : '-';
+    }
+}
+
+function createCharts(data) {
+    // PE 分位数图表
+    const peCtx = document.getElementById('peChart').getContext('2d');
+    new Chart(peCtx, {
+        type: 'bar',
+        data: {
+            labels: ['低', '中低', '中', '中高', '高'],
+            datasets: [{
+                data: [20, 20, 20, 20, 20],
+                backgroundColor: ['#10b981', '#34d399', '#fbbf24', '#f59e0b', '#ef4444']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { display: false },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+
+    // PB 分位数图表
+    const pbCtx = document.getElementById('pbChart').getContext('2d');
+    new Chart(pbCtx, {
+        type: 'bar',
+        data: {
+            labels: ['低', '中低', '中', '中高', '高'],
+            datasets: [{
+                data: [20, 20, 20, 20, 20],
+                backgroundColor: ['#10b981', '#34d399', '#fbbf24', '#f59e0b', '#ef4444']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { display: false },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+}
+
+function formatMoney(value) {
+    if (value >= 1e12) return (value / 1e12).toFixed(2) + '万亿';
+    if (value >= 1e8) return (value / 1e8).toFixed(2) + '亿';
+    if (value >= 1e4) return (value / 1e4).toFixed(2) + '万';
+    return value.toFixed(2);
+}
+
+// 页面加载时执行
+loadStockDetail();
+</script>
+{% endblock %}

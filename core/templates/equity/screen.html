@@ -1,0 +1,299 @@
+{% extends "equity/base.html" %}
+
+{% block title %}个股筛选 - AgomSAAF{% endblock %}
+
+{% block content %}
+<div class="equity-container">
+    <div class="equity-header">
+        <h1>个股筛选</h1>
+        <p>基于 Regime + 财务指标 + 估值指标筛选优质个股</p>
+    </div>
+
+    <div class="page-tabs">
+        <button class="page-tab active" onclick="switchTab('screen')">个股筛选</button>
+        <button class="page-tab" onclick="window.location.href='/equity/pool/'">股票池</button>
+    </div>
+
+    <!-- 筛选条件卡片 -->
+    <div class="card">
+        <h2 class="card-title">筛选条件</h2>
+
+        <div class="filter-group">
+            <div class="filter-item">
+                <label>Regime</label>
+                <select id="regimeSelect">
+                    <option value="">自动获取最新</option>
+                    <option value="Recovery">复苏 (Recovery)</option>
+                    <option value="Overheat">过热 (Overheat)</option>
+                    <option value="Stagflation">滞胀 (Stagflation)</option>
+                    <option value="Deflation">通缩 (Deflation)</option>
+                </select>
+            </div>
+
+            <div class="filter-item">
+                <label>最低 ROE (%)</label>
+                <input type="number" id="minRoe" value="15" min="0" max="100" step="1">
+            </div>
+
+            <div class="filter-item">
+                <label>最高 PE</label>
+                <input type="number" id="maxPe" value="30" min="0" max="200" step="1">
+            </div>
+
+            <div class="filter-item">
+                <label>最高 PB</label>
+                <input type="number" id="maxPb" value="5" min="0" max="50" step="0.5">
+            </div>
+
+            <div class="filter-item">
+                <label>最低营收增长率 (%)</label>
+                <input type="number" id="minRevenueGrowth" value="10" min="-100" max="500" step="1">
+            </div>
+
+            <div class="filter-item">
+                <label>最低净利润增长率 (%)</label>
+                <input type="number" id="minProfitGrowth" value="10" min="-100" max="500" step="1">
+            </div>
+
+            <div class="filter-item">
+                <label>最高资产负债率 (%)</label>
+                <input type="number" id="maxDebtRatio" value="70" min="0" max="100" step="1">
+            </div>
+
+            <div class="filter-item">
+                <label>返回数量</label>
+                <input type="number" id="maxCount" value="30" min="1" max="100" step="1">
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-top: 20px;">
+            <button class="btn btn-primary" onclick="runScreening()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                </svg>
+                开始筛选
+            </button>
+            <button class="btn btn-secondary" onclick="resetFilters()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                    <path d="M3 3v5h5"/>
+                </svg>
+                重置条件
+            </button>
+            <button class="btn btn-success" onclick="exportResults()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                导出结果
+            </button>
+        </div>
+    </div>
+
+    <!-- 当前 Regime 显示 -->
+    <div class="card" id="regimeInfo" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h2 class="card-title" style="margin: 0;">当前宏观环境</h2>
+                <div style="margin-top: 8px;">
+                    <span style="font-size: 24px; font-weight: 600; color: #2563eb;" id="currentRegime">-</span>
+                    <span style="color: #6b7280; margin-left: 12px;" id="regimeDesc">-</span>
+                </div>
+            </div>
+            <div class="metric-grid" style="grid-template-columns: repeat(3, 150px); gap: 24px;">
+                <div class="metric-card">
+                    <div class="metric-label">筛选时间</div>
+                    <div class="metric-value" style="font-size: 16px;" id="screenTime">-</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">筛选结果</div>
+                    <div class="metric-value" style="font-size: 16px;" id="screenCount">-</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">用时</div>
+                    <div class="metric-value" style="font-size: 16px;" id="screenDuration">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载状态 -->
+    <div class="card" id="loadingCard" style="display: none;">
+        <div class="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 16px;">正在筛选个股...</p>
+        </div>
+    </div>
+
+    <!-- 筛选结果 -->
+    <div class="card" id="resultsCard" style="display: none;">
+        <h2 class="card-title">筛选结果</h2>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>排名</th>
+                        <th>股票代码</th>
+                        <th>股票名称</th>
+                        <th>所属行业</th>
+                        <th>ROE (%)</th>
+                        <th>PE</th>
+                        <th>PB</th>
+                        <th>营收增长率 (%)</th>
+                        <th>净利润增长率 (%)</th>
+                        <th>综合评分</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 空状态 -->
+    <div class="card" id="emptyCard" style="display: none;">
+        <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <p>点击"开始筛选"按钮进行个股筛选</p>
+        </div>
+    </div>
+</div>
+
+<script>
+let screeningResults = [];
+
+function switchTab(tab) {
+    // Tab 切换逻辑
+}
+
+function resetFilters() {
+    document.getElementById('regimeSelect').value = '';
+    document.getElementById('minRoe').value = 15;
+    document.getElementById('maxPe').value = 30;
+    document.getElementById('maxPb').value = 5;
+    document.getElementById('minRevenueGrowth').value = 10;
+    document.getElementById('minProfitGrowth').value = 10;
+    document.getElementById('maxDebtRatio').value = 70;
+    document.getElementById('maxCount').value = 30;
+}
+
+async function runScreening() {
+    const regime = document.getElementById('regimeSelect').value;
+    const customRule = {
+        min_roe: parseFloat(document.getElementById('minRoe').value),
+        max_pe: parseFloat(document.getElementById('maxPe').value),
+        max_pb: parseFloat(document.getElementById('maxPb').value),
+        min_revenue_growth: parseFloat(document.getElementById('minRevenueGrowth').value),
+        min_profit_growth: parseFloat(document.getElementById('minProfitGrowth').value),
+        max_debt_ratio: parseFloat(document.getElementById('maxDebtRatio').value)
+    };
+    const maxCount = parseInt(document.getElementById('maxCount').value);
+
+    // 显示加载状态
+    document.getElementById('loadingCard').style.display = 'block';
+    document.getElementById('resultsCard').style.display = 'none';
+    document.getElementById('emptyCard').style.display = 'none';
+    document.getElementById('regimeInfo').style.display = 'none';
+
+    const startTime = Date.now();
+
+    try {
+        const response = await fetch('/api/equity/screen/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                regime: regime || null,
+                custom_rule: customRule,
+                max_count: maxCount
+            })
+        });
+
+        const result = await response.json();
+        const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+
+        document.getElementById('loadingCard').style.display = 'none';
+
+        if (result.success) {
+            screeningResults = result.stock_codes;
+            displayResults(result, duration);
+        } else {
+            alert('筛选失败: ' + result.error);
+            document.getElementById('emptyCard').style.display = 'block';
+        }
+    } catch (error) {
+        document.getElementById('loadingCard').style.display = 'none';
+        alert('请求失败: ' + error.message);
+        document.getElementById('emptyCard').style.display = 'block';
+    }
+}
+
+function displayResults(result, duration) {
+    // 显示 Regime 信息
+    const regimeNames = {
+        'Recovery': '复苏',
+        'Overheat': '过热',
+        'Stagflation': '滞胀',
+        'Deflation': '通缩'
+    };
+
+    document.getElementById('currentRegime').textContent = regimeNames[result.regime] || result.regime;
+    document.getElementById('regimeDesc').textContent = result.screening_criteria.sectors ? '偏好行业: ' + result.screening_criteria.sectors.join(', ') : '';
+    document.getElementById('screenTime').textContent = new Date().toLocaleString('zh-CN');
+    document.getElementById('screenCount').textContent = result.stock_codes.length + ' 只';
+    document.getElementById('screenDuration').textContent = duration + ' 秒';
+    document.getElementById('regimeInfo').style.display = 'block';
+
+    // 显示结果表格
+    const tbody = document.getElementById('resultsTableBody');
+    tbody.innerHTML = '';
+
+    // 模拟数据（实际需要从 API 获取详细信息）
+    result.stock_codes.forEach((code, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td><span class="stock-code">${code}</span></td>
+            <td>股票名称</td>
+            <td>所属行业</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>-</td>
+            <td>
+                <button class="btn btn-primary" style="padding: 6px 12px; font-size: 13px;" onclick="viewDetail('${code}')">详情</button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    document.getElementById('resultsCard').style.display = 'block';
+}
+
+function viewDetail(stockCode) {
+    window.location.href = `/equity/detail/${stockCode}/`;
+}
+
+function exportResults() {
+    if (screeningResults.length === 0) {
+        alert('没有可导出的数据');
+        return;
+    }
+
+    const csv = '股票代码\n' + screeningResults.join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `stock_screen_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+}
+</script>
+{% endblock %}

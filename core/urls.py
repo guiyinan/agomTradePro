@@ -73,6 +73,8 @@ urlpatterns = [
     path('ai/', include('apps.ai_provider.interface.urls')),
     path('prompt/', include('apps.prompt.interface.urls')),
     path('audit/', include('apps.audit.interface.urls')),
+    path('sector/', include('apps.sector.interface.urls')),
+    path('equity/', include('apps.equity.interface.urls')),
 
     # Policy Management (包含页面和API)
     path('policy/', include('apps.policy.interface.urls')),

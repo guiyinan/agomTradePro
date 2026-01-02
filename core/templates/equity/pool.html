@@ -1,0 +1,328 @@
+{% extends "equity/base.html" %}
+
+{% block title %}股票池管理 - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link href="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="equity-container">
+    <div class="equity-header">
+        <h1>股票池管理</h1>
+        <p>基于 Regime 的动态股票池</p>
+    </div>
+
+    <div class="page-tabs">
+        <button class="page-tab" onclick="window.location.href='/equity/screen/'">个股筛选</button>
+        <button class="page-tab active" onclick="switchTab('pool')">股票池</button>
+    </div>
+
+    <!-- 股票池概览 -->
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+            <div>
+                <h2 class="card-title" style="margin: 0;">当前股票池</h2>
+                <p style="color: #6b7280; margin: 8px 0 0 0;">基于 <strong id="poolRegime">-</strong> Regime 筛选</p>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <button class="btn btn-primary" onclick="refreshPool()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6"/>
+                        <path d="M1 20v-6h6"/>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                    刷新股票池
+                </button>
+                <button class="btn btn-secondary" onclick="exportPool()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    导出股票池
+                </button>
+            </div>
+        </div>
+
+        <div class="metric-grid" style="grid-template-columns: repeat(4, 1fr);">
+            <div class="metric-card">
+                <div class="metric-label">股票数量</div>
+                <div class="metric-value" id="poolCount">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">更新时间</div>
+                <div class="metric-value" style="font-size: 16px;" id="poolUpdateTime">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">平均 ROE</div>
+                <div class="metric-value" id="poolAvgRoe">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">平均 PE</div>
+                <div class="metric-value" id="poolAvgPe">-</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 行业分布 -->
+    <div class="card">
+        <h2 class="card-title">行业分布</h2>
+        <div style="height: 300px;">
+            <canvas id="sectorChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 股票池列表 -->
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h2 class="card-title" style="margin: 0;">股票列表</h2>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <label style="font-size: 14px; color: #4b5563;">搜索:</label>
+                <input type="text" id="searchInput" placeholder="输入代码或名称" style="padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; width: 200px;" onkeyup="searchStock()">
+            </div>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>代码</th>
+                        <th>名称</th>
+                        <th>行业</th>
+                        <th>ROE (%)</th>
+                        <th>PE</th>
+                        <th>PB</th>
+                        <th>营收增长率 (%)</th>
+                        <th>净利润增长率 (%)</th>
+                        <th>评分</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="poolTableBody">
+                </tbody>
+            </table>
+        </div>
+        <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="color: #6b7280; font-size: 14px;">
+                共 <span id="totalStocks">0</span> 只股票
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn btn-secondary" style="padding: 8px 16px;" onclick="prevPage()">上一页</button>
+                <span style="padding: 8px 16px; color: #6b7280;" id="pageInfo">第 1 页</span>
+                <button class="btn btn-secondary" style="padding: 8px 16px;" onclick="nextPage()">下一页</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 历史股票池 -->
+    <div class="card">
+        <h2 class="card-title">历史股票池</h2>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>Regime</th>
+                        <th>股票数量</th>
+                        <th>平均收益率</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentPool = [];
+let filteredPool = [];
+let currentPage = 1;
+const pageSize = 20;
+
+// 加载股票池
+async function loadPool() {
+    try {
+        const response = await fetch('/api/equity/pool/');
+        const result = await response.json();
+
+        if (result.success) {
+            currentPool = result.stocks || [];
+            filteredPool = [...currentPool];
+            updatePoolInfo(result);
+            displayPool();
+            displaySectorDistribution(result.stocks || []);
+        } else {
+            alert('加载失败: ' + result.error);
+        }
+    } catch (error) {
+        console.error('加载股票池失败:', error);
+    }
+}
+
+function updatePoolInfo(data) {
+    const regimeNames = {
+        'Recovery': '复苏',
+        'Overheat': '过热',
+        'Stagflation': '滞胀',
+        'Deflation': '通缩'
+    };
+
+    document.getElementById('poolRegime').textContent = regimeNames[data.regime] || data.regime;
+    document.getElementById('poolCount').textContent = data.count || 0;
+    document.getElementById('poolUpdateTime').textContent = data.update_time || new Date().toLocaleString('zh-CN');
+    document.getElementById('poolAvgRoe').textContent = data.avg_roe ? data.avg_roe.toFixed(2) + '%' : '-';
+    document.getElementById('poolAvgPe').textContent = data.avg_pe ? data.avg_pe.toFixed(2) : '-';
+}
+
+function displayPool() {
+    const tbody = document.getElementById('poolTableBody');
+    tbody.innerHTML = '';
+
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    const pageData = filteredPool.slice(start, end);
+
+    pageData.forEach((stock, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><span class="stock-code">${stock.code}</span></td>
+            <td>${stock.name || '-'}</td>
+            <td>${stock.sector || '-'}</td>
+            <td class="${stock.roe >= 15 ? 'text-green' : ''}">${stock.roe !== undefined ? stock.roe.toFixed(2) : '-'}</td>
+            <td>${stock.pe !== undefined ? stock.pe.toFixed(2) : '-'}</td>
+            <td>${stock.pb !== undefined ? stock.pb.toFixed(2) : '-'}</td>
+            <td class="${stock.revenue_growth >= 10 ? 'text-green' : ''}">${stock.revenue_growth !== undefined ? stock.revenue_growth.toFixed(2) : '-'}</td>
+            <td class="${stock.profit_growth >= 10 ? 'text-green' : ''}">${stock.profit_growth !== undefined ? stock.profit_growth.toFixed(2) : '-'}</td>
+            <td><strong>${stock.score !== undefined ? stock.score.toFixed(1) : '-'}</strong></td>
+            <td>
+                <button class="btn btn-primary" style="padding: 6px 12px; font-size: 13px;" onclick="viewDetail('${stock.code}')">详情</button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    document.getElementById('totalStocks').textContent = filteredPool.length;
+    document.getElementById('pageInfo').textContent = `第 ${currentPage} 页 / 共 ${Math.ceil(filteredPool.length / pageSize)} 页`;
+}
+
+function displaySectorDistribution(stocks) {
+    // 统计行业分布
+    const sectorCount = {};
+    stocks.forEach(stock => {
+        const sector = stock.sector || '未知';
+        sectorCount[sector] = (sectorCount[sector] || 0) + 1;
+    });
+
+    const labels = Object.keys(sectorCount);
+    const data = Object.values(sectorCount);
+
+    const ctx = document.getElementById('sectorChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: [
+                    '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+                    '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right'
+                }
+            }
+        }
+    });
+}
+
+function searchStock() {
+    const keyword = document.getElementById('searchInput').value.toLowerCase();
+    filteredPool = currentPool.filter(stock => {
+        return (stock.code && stock.code.toLowerCase().includes(keyword)) ||
+               (stock.name && stock.name.toLowerCase().includes(keyword));
+    });
+    currentPage = 1;
+    displayPool();
+}
+
+function prevPage() {
+    if (currentPage > 1) {
+        currentPage--;
+        displayPool();
+    }
+}
+
+function nextPage() {
+    if (currentPage < Math.ceil(filteredPool.length / pageSize)) {
+        currentPage++;
+        displayPool();
+    }
+}
+
+function viewDetail(code) {
+    window.location.href = `/equity/detail/${code}/`;
+}
+
+async function refreshPool() {
+    try {
+        const response = await fetch('/api/equity/pool/refresh/', {
+            method: 'POST'
+        });
+        const result = await response.json();
+
+        if (result.success) {
+            alert('股票池已更新');
+            loadPool();
+        } else {
+            alert('更新失败: ' + result.error);
+        }
+    } catch (error) {
+        alert('更新失败: ' + error.message);
+    }
+}
+
+function exportPool() {
+    if (filteredPool.length === 0) {
+        alert('没有可导出的数据');
+        return;
+    }
+
+    const headers = ['代码', '名称', '行业', 'ROE', 'PE', 'PB', '营收增长率', '净利润增长率', '评分'];
+    const csv = headers.join(',') + '\n' + filteredPool.map(stock => {
+        return [
+            stock.code || '',
+            stock.name || '',
+            stock.sector || '',
+            stock.roe !== undefined ? stock.roe.toFixed(2) : '',
+            stock.pe !== undefined ? stock.pe.toFixed(2) : '',
+            stock.pb !== undefined ? stock.pb.toFixed(2) : '',
+            stock.revenue_growth !== undefined ? stock.revenue_growth.toFixed(2) : '',
+            stock.profit_growth !== undefined ? stock.profit_growth.toFixed(2) : '',
+            stock.score !== undefined ? stock.score.toFixed(2) : ''
+        ].join(',');
+    }).join('\n');
+
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `stock_pool_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+}
+
+// 页面加载时执行
+loadPool();
+</script>
+{% endblock %}

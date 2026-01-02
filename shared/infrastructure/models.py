@@ -535,3 +535,142 @@ class HedgingInstrumentConfigModel(models.Model):
 
     def __str__(self):
         return f"{self.instrument_name} ({self.instrument_code})"
+
+
+class StockScreeningRuleConfigModel(models.Model):
+    """个股筛选规则配置表"""
+
+    regime = models.CharField(
+        max_length=20,
+        db_index=True,
+        verbose_name="Regime",
+        help_text="Recovery/Overheat/Stagflation/Deflation"
+    )
+    rule_name = models.CharField(max_length=100, verbose_name="规则名称")
+
+    # 财务指标阈值
+    min_roe = models.FloatField(default=0.0, verbose_name="最低 ROE（%）")
+    min_revenue_growth = models.FloatField(
+        default=0.0,
+        verbose_name="最低营收增长率（%）"
+    )
+    min_profit_growth = models.FloatField(
+        default=0.0,
+        verbose_name="最低净利润增长率（%）"
+    )
+    max_debt_ratio = models.FloatField(
+        default=100.0,
+        verbose_name="最高资产负债率（%）"
+    )
+
+    # 估值指标阈值
+    max_pe = models.FloatField(default=999.0, verbose_name="最高 PE")
+    max_pb = models.FloatField(default=999.0, verbose_name="最高 PB")
+    min_market_cap = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        default=0,
+        verbose_name="最低市值（元）"
+    )
+
+    # 行业偏好（JSON 数组）
+    sector_preference = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="偏好行业列表"
+    )
+
+    # 筛选数量
+    max_count = models.IntegerField(default=50, verbose_name="最多返回个股数量")
+
+    # 元数据
+    is_active = models.BooleanField(default=True, verbose_name="是否启用")
+    priority = models.IntegerField(
+        default=0,
+        verbose_name="优先级（数字越大优先级越高）"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'config_stock_screening_rule'
+        verbose_name = '个股筛选规则配置'
+        verbose_name_plural = '个股筛选规则配置'
+        indexes = [
+            models.Index(fields=['regime', 'is_active']),
+            models.Index(fields=['regime', 'priority']),
+        ]
+        ordering = ['-priority', '-created_at']
+
+    def __str__(self):
+        return f"{self.regime} - {self.rule_name}"
+
+
+class SectorPreferenceConfigModel(models.Model):
+    """板块偏好配置表"""
+
+    regime = models.CharField(
+        max_length=20,
+        db_index=True,
+        verbose_name="Regime",
+        help_text="Recovery/Overheat/Stagflation/Deflation"
+    )
+    sector_name = models.CharField(max_length=50, verbose_name="板块名称")
+    weight = models.FloatField(
+        default=0.5,
+        verbose_name="权重（0.0-1.0）",
+        help_text="1.0 表示最强偏好，0.0 表示无偏好"
+    )
+
+    # 元数据
+    is_active = models.BooleanField(default=True, verbose_name="是否启用")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'config_sector_preference'
+        verbose_name = '板块偏好配置'
+        verbose_name_plural = '板块偏好配置'
+        unique_together = [['regime', 'sector_name']]
+        indexes = [
+            models.Index(fields=['regime', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.regime} - {self.sector_name} (权重: {self.weight})"
+
+
+class FundTypePreferenceConfigModel(models.Model):
+    """基金类型偏好配置表"""
+
+    regime = models.CharField(
+        max_length=20,
+        db_index=True,
+        verbose_name="Regime",
+        help_text="Recovery/Overheat/Stagflation/Deflation"
+    )
+    fund_type = models.CharField(max_length=50, verbose_name="基金类型")
+    style = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="基金风格",
+        help_text="如：成长、价值、平衡、商品等"
+    )
+
+    # 元数据
+    is_active = models.BooleanField(default=True, verbose_name="是否启用")
+    priority = models.IntegerField(default=0, verbose_name="优先级")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'config_fund_type_preference'
+        verbose_name = '基金类型偏好配置'
+        verbose_name_plural = '基金类型偏好配置'
+        unique_together = [['regime', 'fund_type', 'style']]
+        indexes = [
+            models.Index(fields=['regime', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.regime} - {self.fund_type} ({self.style})"
