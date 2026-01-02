@@ -43,7 +43,9 @@
       "Bash(pytest:*)",
       "Bash(D:\\\\githv\\\\agomSAAF\\\\agomsaaf\\\\Scripts\\\\python.exe manage.py shell:*)",
       "Bash(agomsaafScriptspython.exe manage.py shell:*)",
-      "Bash(echo.:*)"
+      "Bash(echo.:*)",
+      "Bash(if not exist \"D:\\\\githv\\\\agomSAAF\\\\docs\\\\api\" mkdir \"D:\\\\githv\\\\agomSAAF\\\\docs\\\\api\")",
+      "Bash(if exist docsapi del docsapi)"
     ]
   }
 }
