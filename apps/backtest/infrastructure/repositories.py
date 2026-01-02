@@ -131,8 +131,8 @@ class DjangoBacktestRepository:
 
             if status == 'failed' and error_message:
                 orm_obj.mark_failed(error_message)
-            elif status == 'running':
-                # 运行中状态，只更新状态
+            else:
+                # 对于所有状态（除了 failed），都需要保存
                 orm_obj.save()
 
             return True

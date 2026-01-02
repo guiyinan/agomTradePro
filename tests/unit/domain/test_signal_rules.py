@@ -7,7 +7,6 @@ Pure Domain layer tests using only Python standard library.
 import pytest
 from apps.signal.domain.entities import Eligibility, SignalStatus
 from apps.signal.domain.rules import (
-    ELIGIBILITY_MATRIX,
     check_eligibility,
     validate_invalidation_logic,
     should_reject_signal,
@@ -24,22 +23,27 @@ class TestEligibilityMatrix:
 
     def test_matrix_structure(self):
         """Test that matrix has required structure"""
-        # Check all asset classes have entries for all regimes
+        from apps.signal.domain.rules import get_eligibility_matrix
+
+        matrix = get_eligibility_matrix()
         regimes = ["Recovery", "Overheat", "Stagflation", "Deflation"]
 
-        for asset_class, regime_map in ELIGIBILITY_MATRIX.items():
+        for asset_class, regime_map in matrix.items():
             for regime in regimes:
                 assert regime in regime_map
                 assert isinstance(regime_map[regime], Eligibility)
 
     def test_known_asset_classes(self):
         """Test expected asset classes exist"""
+        from apps.signal.domain.rules import get_eligibility_matrix
+
+        matrix = get_eligibility_matrix()
         expected_classes = [
             "a_share_growth", "a_share_value", "china_bond",
             "gold", "commodity", "cash"
         ]
         for asset_class in expected_classes:
-            assert asset_class in ELIGIBILITY_MATRIX
+            assert asset_class in matrix
 
 
 class TestCheckEligibility:

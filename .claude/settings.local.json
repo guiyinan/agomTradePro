@@ -40,7 +40,10 @@
       "Bash(grep:*)",
       "Bash(D:\\\\githv\\\\agomSAAF\\\\agomsaaf\\\\Scripts\\\\python.exe manage.py runserver:*)",
       "Bash(fi)",
-      "Bash(pytest:*)"
+      "Bash(pytest:*)",
+      "Bash(D:\\\\githv\\\\agomSAAF\\\\agomsaaf\\\\Scripts\\\\python.exe manage.py shell:*)",
+      "Bash(agomsaafScriptspython.exe manage.py shell:*)",
+      "Bash(echo.:*)"
     ]
   }
 }

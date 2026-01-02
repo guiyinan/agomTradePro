@@ -183,4 +183,20 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.regime.application.tasks.check_regime_health',
         'schedule': crontab(hour='*/6'),  # 每 6 小时执行一次
     },
+
+    # ========== Signal 证伪自动检查 ==========
+    'daily-signal-invalidation': {
+        'task': 'signal.check_all_invalidations',
+        'schedule': crontab(hour=2, minute=0),  # 每天凌晨 2:00
+        'options': {
+            'expires': 3600,  # 1 小时超时
+        }
+    },
+
+    # 可选：每日信号摘要
+    'daily-signal-summary': {
+        'task': 'signal.daily_summary',
+        'schedule': crontab(hour=9, minute=0),  # 每天上午 9:00
+    },
+    # ============================================
 }

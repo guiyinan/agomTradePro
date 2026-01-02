@@ -72,6 +72,7 @@ urlpatterns = [
     path('signal/', include('apps.signal.interface.urls')),
     path('ai/', include('apps.ai_provider.interface.urls')),
     path('prompt/', include('apps.prompt.interface.urls')),
+    path('audit/', include('apps.audit.interface.urls')),
 
     # Policy Management (包含页面和API)
     path('policy/', include('apps.policy.interface.urls')),

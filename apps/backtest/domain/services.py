@@ -133,7 +133,7 @@ class BacktestEngine:
             result = self._rebalance(rebalance_date)
             if result:
                 self._regime_history.append({
-                    "date": rebalance_date,
+                    "date": rebalance_date.isoformat(),  # 转换为字符串以便 JSON 序列化
                     "regime": result.regime,
                     "confidence": result.regime_confidence,
                     "portfolio_value": result.portfolio_value

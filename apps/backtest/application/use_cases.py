@@ -83,6 +83,7 @@ class RunBacktestUseCase:
         """
         errors = []
         warnings = []
+        backtest_id = None  # 初始化以避免异常处理时 UnboundLocalError
 
         try:
             # 1. 创建配置
@@ -123,6 +124,35 @@ class RunBacktestUseCase:
 
             # 6. 保存结果
             self.repository.save_result(backtest_id, result)
+
+            # ========== 新增：自动触发审计分析 ==========
+            try:
+                from apps.audit.application.use_cases import (
+                    GenerateAttributionReportUseCase,
+                    GenerateAttributionReportRequest
+                )
+                from apps.audit.infrastructure.repositories import DjangoAuditRepository
+
+                logger.info(f"Backtest {backtest_id} 完成，触发审计分析...")
+
+                audit_use_case = GenerateAttributionReportUseCase(
+                    audit_repository=DjangoAuditRepository(),
+                    backtest_repository=self.repository,
+                )
+
+                audit_response = audit_use_case.execute(
+                    GenerateAttributionReportRequest(backtest_id=backtest_id)
+                )
+
+                if audit_response.success:
+                    logger.info(f"审计分析完成: report_id={audit_response.report_id}")
+                else:
+                    logger.warning(f"审计分析失败（不影响回测）: {audit_response.error}")
+
+            except Exception as audit_error:
+                # 审计失败不影响回测结果
+                logger.warning(f"审计分析异常（不影响回测）: {audit_error}", exc_info=True)
+            # ============================================
 
             logger.info(f"Backtest {backtest_id} completed successfully")
 
