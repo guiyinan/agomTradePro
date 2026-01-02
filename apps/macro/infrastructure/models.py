@@ -44,6 +44,66 @@ class DataSourceConfig(models.Model):
         return f"{self.name} ({self.get_source_type_display()})"
 
 
+class IndicatorUnitConfig(models.Model):
+    """指标单位配置 ORM 模型
+
+    用于人工配置各指标的原始单位，支持优先级配置。
+    """
+
+    INDICATOR_SOURCE_CHOICES = [
+        ('akshare', 'AKShare'),
+        ('tushare', 'Tushare Pro'),
+        ('fred', 'FRED'),
+        ('wind', 'Wind'),
+        ('manual', '手动配置'),
+    ]
+
+    indicator_code = models.CharField(
+        max_length=50,
+        db_index=True,
+        help_text="指标代码（如 CN_GDP, CN_M2）"
+    )
+    source = models.CharField(
+        max_length=20,
+        choices=INDICATOR_SOURCE_CHOICES,
+        default='manual',
+        help_text="数据源"
+    )
+    original_unit = models.CharField(
+        max_length=50,
+        help_text="原始单位（如 亿元、万亿元、万元等）"
+    )
+    is_currency = models.BooleanField(
+        default=False,
+        help_text="是否为货币类指标（货币类会转换为元存储）"
+    )
+    priority = models.IntegerField(
+        default=0,
+        help_text="优先级（数字越大越优先，用于多数据源冲突时）"
+    )
+    description = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="单位说明"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="是否启用"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'indicator_unit_config'
+        unique_together = [['indicator_code', 'source']]
+        ordering = ['-priority', 'indicator_code']
+        verbose_name = "指标单位配置"
+        verbose_name_plural = "指标单位配置"
+
+    def __str__(self):
+        return f"{self.indicator_code}@{self.source}: {self.original_unit}"
+
+
 class MacroIndicator(models.Model):
     """宏观指标 ORM 模型"""
 
@@ -72,6 +132,8 @@ class MacroIndicator(models.Model):
 
     code = models.CharField(max_length=50, db_index=True, help_text="指标代码")
     value = models.DecimalField(max_digits=20, decimal_places=6, help_text="指标值")
+    unit = models.CharField(max_length=50, default="", help_text="存储单位（货币类统一为元）")
+    original_unit = models.CharField(max_length=50, default="", help_text="原始单位（数据源返回的单位，用于展示）")
 
     # 报告期：时点数据为观测日，期间数据为期末日
     reporting_period = models.DateField(

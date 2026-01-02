@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import date
 from enum import Enum
 from typing import Optional
+from shared.domain.asset_eligibility import Eligibility
 
 
 class SignalStatus(Enum):
@@ -14,12 +15,6 @@ class SignalStatus(Enum):
     REJECTED = "rejected"
     INVALIDATED = "invalidated"
     EXPIRED = "expired"
-
-
-class Eligibility(Enum):
-    PREFERRED = "preferred"
-    NEUTRAL = "neutral"
-    HOSTILE = "hostile"
 
 
 @dataclass

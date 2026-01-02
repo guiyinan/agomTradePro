@@ -145,7 +145,10 @@ class EconomicIndicatorFetcher:
         start_date: date,
         end_date: date
     ) -> List[MacroDataPoint]:
-        """获取中国 GDP 数据"""
+        """获取中国 GDP 数据
+
+        注意：akshare返回的GDP数据单位是"亿元"
+        """
         try:
             df = self.ak.macro_china_gdp()
             if df.empty:
@@ -167,12 +170,15 @@ class EconomicIndicatorFetcher:
             data_points = []
             for _, row in df.iterrows():
                 try:
-                    value_in_trillion = float(row['value']) / 10000
+                    # akshare的GDP数据单位是"亿元"
+                    original_value = float(row['value'])
                     point = MacroDataPoint(
                         code="CN_GDP",
-                        value=value_in_trillion,
+                        value=original_value,  # 保持原始值
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit="",  # 不设置，让系统自动配置
+                        original_unit="亿元"  # 记录原始单位
                     )
                     self._validate(point)
                     data_points.append(point)

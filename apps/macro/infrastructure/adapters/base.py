@@ -91,6 +91,8 @@ class MacroDataPoint:
     observed_at: date
     published_at: Optional[date] = None
     source: str = "unknown"
+    unit: str = ""
+    original_unit: str = ""  # 原始单位（数据源返回的单位）
 
     def __post_init__(self):
         """自动填充发布时间和计算延迟"""

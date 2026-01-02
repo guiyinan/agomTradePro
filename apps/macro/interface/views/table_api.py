@@ -7,11 +7,49 @@ Handles table data operations including CRUD operations.
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from apps.macro.infrastructure.models import MacroIndicator
+from apps.macro.application.indicator_service import UnitDisplayService
 from datetime import datetime
 import json
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _format_indicator_for_display(item: MacroIndicator) -> dict:
+    """
+    将指标数据格式化为展示格式
+
+    将存储值（元）转换为展示值（原始单位）
+
+    Args:
+        item: MacroIndicator ORM 对象
+
+    Returns:
+        dict: 格式化后的数据
+    """
+    # 转换为展示值（原始单位）
+    display_value, display_unit = UnitDisplayService.convert_for_display(
+        float(item.value),
+        item.unit,  # 存储单位
+        item.original_unit or item.unit  # 原始单位（如果为空则使用存储单位）
+    )
+
+    return {
+        'id': item.id,
+        'code': item.code,
+        'value': display_value,  # 展示值（原始单位）
+        'unit': display_unit,  # 展示单位（原始单位）
+        'storage_value': float(item.value),  # 存储值（元）
+        'storage_unit': item.unit,  # 存储单位（元）
+        'reporting_period': item.reporting_period.isoformat(),
+        'period_type': item.period_type,
+        'period_type_display': item.get_period_type_display(),
+        'observed_at': item.observed_at.isoformat(),  # 兼容旧 API
+        'published_at': item.published_at.isoformat() if item.published_at else None,
+        'source': item.source,
+        'revision_number': item.revision_number,
+        'publication_lag_days': item.publication_lag_days,
+    }
 
 
 def api_get_indicator_data(request):
@@ -46,20 +84,7 @@ def api_get_indicator_data(request):
         # 排序并限制数量
         queryset = queryset.order_by('reporting_period', 'revision_number')[:limit]
 
-        data = [
-            {
-                'id': item.id,
-                'code': item.code,
-                'value': float(item.value),
-                'observed_at': item.observed_at.isoformat(),
-                'published_at': item.published_at.isoformat() if item.published_at else None,
-                'source': item.source,
-                'period_type': item.period_type,
-                'period_type_display': item.get_period_type_display(),
-                'revision_number': item.revision_number,
-            }
-            for item in queryset
-        ]
+        data = [_format_indicator_for_display(item) for item in queryset]
 
         return JsonResponse({
             'success': True,
@@ -118,22 +143,7 @@ def api_table_data(request):
         end_idx = start_idx + page_size
         records = queryset[start_idx:end_idx]
 
-        data = [
-            {
-                'id': item.id,
-                'code': item.code,
-                'value': float(item.value),
-                'reporting_period': item.reporting_period.isoformat(),
-                'period_type': item.period_type,
-                'period_type_display': item.get_period_type_display(),
-                'observed_at': item.observed_at.isoformat(),  # 兼容旧 API
-                'published_at': item.published_at.isoformat() if item.published_at else None,
-                'source': item.source,
-                'revision_number': item.revision_number,
-                'publication_lag_days': item.publication_lag_days,
-            }
-            for item in records
-        ]
+        data = [_format_indicator_for_display(item) for item in records]
 
         return JsonResponse({
             'success': True,
@@ -241,18 +251,7 @@ def api_create_record(request):
         return JsonResponse({
             'success': True,
             'message': '创建成功',
-            'data': {
-                'id': record.id,
-                'code': record.code,
-                'value': float(record.value),
-                'reporting_period': record.reporting_period.isoformat(),
-                'period_type': record.period_type,
-                'period_type_display': record.get_period_type_display(),
-                'observed_at': record.observed_at.isoformat(),
-                'published_at': record.published_at.isoformat() if record.published_at else None,
-                'source': record.source,
-                'revision_number': record.revision_number,
-            }
+            'data': _format_indicator_for_display(record)
         })
 
     except Exception as e:
@@ -298,18 +297,7 @@ def api_update_record(request, record_id):
         return JsonResponse({
             'success': True,
             'message': '更新成功',
-            'data': {
-                'id': record.id,
-                'code': record.code,
-                'value': float(record.value),
-                'reporting_period': record.reporting_period.isoformat(),
-                'period_type': record.period_type,
-                'period_type_display': record.get_period_type_display(),
-                'observed_at': record.observed_at.isoformat(),
-                'published_at': record.published_at.isoformat() if record.published_at else None,
-                'source': record.source,
-                'revision_number': record.revision_number,
-            }
+            'data': _format_indicator_for_display(record)
         })
 
     except MacroIndicator.DoesNotExist:

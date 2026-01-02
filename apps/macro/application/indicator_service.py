@@ -1,12 +1,277 @@
 """
 宏观经济指标服务
 
-提供指标查询、元数据获取等功能
+提供指标查询、元数据获取、单位转换等功能
 """
 
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from datetime import datetime, timedelta
-from apps.macro.infrastructure.models import MacroIndicator
+from apps.macro.infrastructure.models import MacroIndicator, IndicatorUnitConfig
+
+
+class UnitDisplayService:
+    """单位展示服务
+
+    负责将存储值（统一为"元"）转换回展示值（原始单位）
+    """
+
+    @staticmethod
+    def convert_for_display(
+        stored_value: float,
+        storage_unit: str,
+        original_unit: str
+    ) -> Tuple[float, str]:
+        """
+        将存储值转换为展示值
+
+        Args:
+            stored_value: 存储的值（货币类为元）
+            storage_unit: 存储单位（货币类为"元"）
+            original_unit: 原始单位（用于展示）
+
+        Returns:
+            tuple: (展示值, 展示单位)
+
+        Examples:
+            >>> # GDP: 存储为元，展示为亿元
+            >>> UnitDisplayService.convert_for_display(150000000000, "元", "亿元")
+            (1500.0, "亿元")
+
+            >>> # PMI: 存储和展示都是原始单位
+            >>> UnitDisplayService.convert_for_display(50.5, "指数", "指数")
+            (50.5, "指数")
+        """
+        from ..domain.entities import UNIT_CONVERSION_FACTORS
+
+        # 如果存储单位和原始单位相同，直接返回
+        if storage_unit == original_unit:
+            return (stored_value, original_unit)
+
+        # 如果存储单位是"元"，需要转换回原始单位
+        if storage_unit == "元" and original_unit in UNIT_CONVERSION_FACTORS:
+            factor = UNIT_CONVERSION_FACTORS[original_unit]
+            display_value = stored_value / factor
+            return (display_value, original_unit)
+
+        # 如果原始单位是"元"，说明已经是最小单位
+        if original_unit == "元":
+            return (stored_value, "元")
+
+        # 其他情况，直接返回原始值和原始单位
+        return (stored_value, original_unit)
+
+    @classmethod
+    def format_for_display(
+        cls,
+        stored_value: float,
+        storage_unit: str,
+        original_unit: str,
+        precision: int = 2
+    ) -> str:
+        """
+        格式化值为展示字符串
+
+        Args:
+            stored_value: 存储的值
+            storage_unit: 存储单位
+            original_unit: 原始单位
+            precision: 小数点精度
+
+        Returns:
+            str: 格式化的展示字符串
+
+        Examples:
+            >>> UnitDisplayService.format_for_display(150000000000, "元", "亿元")
+            "1500.00亿元"
+        """
+        display_value, display_unit = cls.convert_for_display(
+            stored_value, storage_unit, original_unit
+        )
+
+        # 如果是百分比，不格式化小数
+        if display_unit == "%":
+            return f"{display_value:.{precision}f}%"
+
+        # 如果是指数或点，不添加单位（原始数据可能已包含单位）
+        if display_unit in ["指数", "点", ""]:
+            return f"{display_value:.{precision}f}{display_unit}"
+
+        # 其他单位，数值+单位
+        return f"{display_value:.{precision}f}{display_unit}"
+
+    @classmethod
+    def get_indicator_config(cls, indicator_code: str, source: str = None) -> Optional[IndicatorUnitConfig]:
+        """
+        获取指标的单位配置
+
+        优先级：
+        1. 指定数据源的配置
+        2. 手动配置
+        3. 默认配置
+
+        Args:
+            indicator_code: 指标代码
+            source: 数据源（可选）
+
+        Returns:
+            IndicatorUnitConfig: 单位配置，不存在则返回 None
+        """
+        queryset = IndicatorUnitConfig.objects.filter(
+            indicator_code=indicator_code,
+            is_active=True
+        )
+
+        if source:
+            # 优先查找指定数据源的配置
+            config = queryset.filter(source=source).first()
+            if config:
+                return config
+
+        # 查找手动配置
+        config = queryset.filter(source='manual').first()
+        if config:
+            return config
+
+        # 返回优先级最高的配置
+        return queryset.order_by('-priority').first()
+
+    @classmethod
+    def get_original_unit(cls, indicator_code: str, source: str = None) -> str:
+        """
+        获取指标的原始单位
+
+        Args:
+            indicator_code: 指标代码
+            source: 数据源（可选）
+
+        Returns:
+            str: 原始单位，如果未配置则返回空字符串
+        """
+        config = cls.get_indicator_config(indicator_code, source)
+        if config:
+            return config.original_unit
+
+        # 回退到 IndicatorUnitService 的配置
+        return IndicatorUnitService.get_unit_for_indicator(indicator_code)
+
+
+class IndicatorUnitService:
+    """指标单位服务"""
+
+    # 指标单位映射（指标代码 -> 单位）
+    INDICATOR_UNITS: Dict[str, str] = {
+        # 景气指标
+        'CN_PMI': '指数',
+        'CN_PMI_MANUFACTURING': '指数',
+        'CN_NON_MAN_PMI': '指数',
+        'CN_PMI_NON_MANUFACTURING': '指数',
+
+        # 物价指标
+        'CN_CPI': '%',
+        'CN_CPI_YOY': '%',
+        'CN_CPI_MOY': '%',
+        'CN_CPI_NATIONAL_YOY': '%',
+        'CN_CPI_NATIONAL_MOM': '%',
+        'CN_PPI': '%',
+        'CN_PPI_YOY': '%',
+        'CN_PPI_MOM': '%',
+
+        # 货币指标
+        'CN_M2': '%',
+        'CN_M2_YOY': '%',
+        'CN_SOCIAL_FINANCING': '万亿元',
+        'CN_SOCIAL_FINANCING_YOY': '%',
+
+        # 利率指标
+        'SHIBOR': '%',
+        'SHIBOR_O_N': '%',
+        'SHIBOR_1M': '%',
+        'SHIBOR_1Y': '%',
+        'CN_SHIBOR': '%',
+        'CN_LPR': '%',
+        'CN_LPR_1Y': '%',
+        'CN_LPR_5Y': '%',
+        'CN_RRR': '%',
+
+        # 货币供应量（需要转换为元）
+        'CN_FX_RESERVES': '万亿美元',  # 需要转换为元
+        'CN_NEW_CREDIT': '万亿元',  # 需要转换为元
+        'CN_RMB_DEPOSIT': '万亿元',  # 需要转换为元
+        'CN_RMB_LOAN': '万亿元',  # 需要转换为元
+
+        # GDP
+        'CN_GDP': '%',
+        'CN_GDP_YOY': '%',
+
+        # 投资指标
+        'CN_FAI': '%',
+        'CN_FAI_YOY': '%',
+        'CN_REALESTATE_INVESTMENT': '%',
+        'CN_REALESTATE_INVESTMENT_YOY': '%',
+
+        # 消费指标
+        'CN_RETAIL_SALES': '%',
+        'CN_RETAIL_SALES_YOY': '%',
+
+        # 外贸指标
+        'CN_EXPORTS': '%',
+        'CN_EXPORT_YOY': '%',
+        'CN_IMPORTS': '%',
+        'CN_IMPORT_YOY': '%',
+        'CN_TRADE_BALANCE': '亿美元',
+
+        # 汇率
+        'USDCNY': '',
+        'USDCNH': '',
+
+        # 股票指数
+        '000001.SH': '点',
+        '399001.SZ': '点',
+
+        # 期货
+        'TS_FUT': '元',
+        'T_FUT': '元',
+        'AU_FUT': '元/g',
+        'CU_FUT': '元/吨',
+    }
+
+    @classmethod
+    def get_unit_for_indicator(cls, indicator_code: str) -> str:
+        """
+        获取指标的单位
+
+        Args:
+            indicator_code: 指标代码
+
+        Returns:
+            str: 单位，如果没有配置则返回空字符串
+        """
+        return cls.INDICATOR_UNITS.get(indicator_code, "")
+
+    @classmethod
+    def get_normalized_unit_and_value(cls, indicator_code: str, value: float) -> tuple[float, str]:
+        """
+        获取标准化后的单位和值
+
+        对于货币类指标，统一转换为"元"层级
+
+        Args:
+            indicator_code: 指标代码
+            value: 原始值
+
+        Returns:
+            tuple: (转换后的值, 单位)
+        """
+        from ..domain.entities import normalize_currency_unit
+
+        original_unit = cls.get_unit_for_indicator(indicator_code)
+
+        # 如果是货币类单位，进行转换
+        if original_unit in ['万亿元', '亿元', '万元', '万亿美元', '亿美元', '百万美元', '十亿美元']:
+            normalized_value, normalized_unit = normalize_currency_unit(value, original_unit)
+            return (normalized_value, normalized_unit)
+
+        return (value, original_unit)
 
 
 class IndicatorService:
@@ -255,6 +520,13 @@ class IndicatorService:
             # 获取元数据
             metadata = cls.INDICATOR_METADATA.get(code, {})
 
+            # 转换最新值为展示值
+            display_value, display_unit = UnitDisplayService.convert_for_display(
+                float(latest.value),
+                latest.unit,
+                latest.original_unit or metadata.get('unit', '')
+            )
+
             # 获取历史数据统计
             from django.db.models import Avg, Max, Min
             stats = MacroIndicator.objects.filter(
@@ -271,15 +543,15 @@ class IndicatorService:
                 'name': metadata.get('name', code),
                 'name_en': metadata.get('name_en', code),
                 'category': metadata.get('category', '其他'),
-                'unit': metadata.get('unit', ''),
+                'unit': display_unit,  # 使用展示单位
                 'description': metadata.get('description', ''),
-                'latest_value': float(latest.value),
+                'latest_value': display_value,  # 使用展示值
                 'latest_date': latest.reporting_period.isoformat(),
                 'period_type': latest.period_type,
                 # 推荐阈值
                 'threshold_bullish': metadata.get('threshold_bullish'),
                 'threshold_bearish': metadata.get('threshold_bearish'),
-                # 历史统计
+                # 历史统计（存储值，用于趋势分析）
                 'avg_value': float(stats['avg_value']) if stats['avg_value'] else None,
                 'max_value': float(stats['max_value']) if stats['max_value'] else None,
                 'min_value': float(stats['min_value']) if stats['min_value'] else None,
@@ -300,14 +572,21 @@ class IndicatorService:
 
             metadata = cls.INDICATOR_METADATA.get(code, {})
 
+            # 转换为展示值
+            display_value, display_unit = UnitDisplayService.convert_for_display(
+                float(latest.value),
+                latest.unit,
+                latest.original_unit or metadata.get('unit', '')
+            )
+
             return {
                 'code': code,
                 'name': metadata.get('name', code),
                 'name_en': metadata.get('name_en', code),
                 'category': metadata.get('category', '其他'),
-                'unit': metadata.get('unit', ''),
+                'unit': display_unit,  # 使用展示单位
                 'description': metadata.get('description', ''),
-                'latest_value': float(latest.value),
+                'latest_value': display_value,  # 使用展示值
                 'latest_date': latest.reporting_period.isoformat(),
                 'period_type': latest.period_type,
             }
@@ -316,7 +595,7 @@ class IndicatorService:
 
     @classmethod
     def get_indicator_history(cls, code: str, periods: int = 12) -> List[Dict]:
-        """获取指标历史数据"""
+        """获取指标历史数据（返回展示值）"""
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=periods * 35)
 
@@ -326,10 +605,19 @@ class IndicatorService:
             reporting_period__lte=end_date
         ).order_by('-reporting_period')[:periods]
 
+        # 获取元数据中的单位配置
+        metadata = cls.INDICATOR_METADATA.get(code, {})
+        default_unit = metadata.get('unit', '')
+
         return [
             {
                 'date': d.reporting_period.isoformat(),
-                'value': float(d.value),
+                'value': UnitDisplayService.convert_for_display(
+                    float(d.value),
+                    d.unit,
+                    d.original_unit or default_unit
+                )[0],  # 只返回值
+                'unit': d.original_unit or default_unit,  # 返回原始单位
                 'period_type': d.period_type,
             }
             for d in data_points

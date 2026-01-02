@@ -304,14 +304,15 @@ class BacktestEngine:
             Dict[str, float]: 目标权重 {asset_class: weight}
         """
         # 基础配置：等权分配给 PREFERRED 资产
-        from apps.signal.domain.rules import (
+        from shared.domain.asset_eligibility import (
             check_eligibility,
             Eligibility,
-            ELIGIBILITY_MATRIX
+            get_eligibility_matrix
         )
 
         eligible_assets = []
-        for asset_class in ELIGIBILITY_MATRIX.keys():
+        eligibility_matrix = get_eligibility_matrix()
+        for asset_class in eligibility_matrix.keys():
             eligibility = check_eligibility(asset_class, regime)
             if eligibility == Eligibility.PREFERRED:
                 eligible_assets.append(asset_class)

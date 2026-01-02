@@ -9,6 +9,7 @@ from datetime import date, timedelta
 from typing import List, Optional, Dict
 
 from ..domain.entities import MacroIndicator
+from .indicator_service import IndicatorUnitService
 
 
 @dataclass
@@ -37,6 +38,8 @@ class MacroDataPoint:
     observed_at: date
     published_at: Optional[date]
     source: str
+    unit: str = ""
+    original_unit: str = ""  # 原始单位（数据源返回的单位）
 
 
 class SyncMacroDataUseCase:
@@ -97,17 +100,38 @@ class SyncMacroDataUseCase:
                 new_points = self._deduplicate_data(indicator_code, data_points)
 
                 # 3. 批量保存 (映射 MacroDataPoint 到 ORM MacroIndicator)
-                indicators_to_save = [
-                    MacroIndicator(
-                        code=dp.code,
-                        value=dp.value,
-                        reporting_period=dp.observed_at,  # MacroDataPoint.observed_at -> MacroIndicator.reporting_period
-                        published_at=dp.published_at,
-                        source=dp.source,
-                        period_type='M'  # 默认月度，可以根据指标代码优化
+                indicators_to_save = []
+                for dp in new_points:
+                    # 确定原始单位（优先使用适配器提供的，否则从配置获取）
+                    original_unit_to_use = dp.original_unit if dp.original_unit else (
+                        dp.unit if dp.unit else IndicatorUnitService.get_unit_for_indicator(dp.code)
                     )
-                    for dp in new_points
-                ]
+
+                    # 获取标准化后的单位和值（货币类自动转换为元）
+                    normalized_value, normalized_unit = IndicatorUnitService.get_normalized_unit_and_value(
+                        dp.code, dp.value
+                    )
+
+                    # 存储单位：如果是货币类且成功转换，使用"元"；否则使用原始单位
+                    if normalized_unit == "元":
+                        unit_to_save = "元"
+                        value_to_save = normalized_value
+                    else:
+                        unit_to_save = original_unit_to_use
+                        value_to_save = dp.value
+
+                    indicators_to_save.append(
+                        MacroIndicator(
+                            code=dp.code,
+                            value=value_to_save,
+                            reporting_period=dp.observed_at,  # MacroDataPoint.observed_at -> MacroIndicator.reporting_period
+                            published_at=dp.published_at,
+                            source=dp.source,
+                            unit=unit_to_save,  # 存储单位（货币类为"元"）
+                            original_unit=original_unit_to_use,  # 原始单位（用于展示）
+                            period_type='M'  # 默认月度，可以根据指标代码优化
+                        )
+                    )
 
                 if indicators_to_save:
                     self.repository.save_indicators_batch(indicators_to_save)

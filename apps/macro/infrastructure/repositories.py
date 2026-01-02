@@ -77,6 +77,8 @@ class DjangoMacroRepository:
             existing.published_at = indicator.published_at
             existing.source = indicator.source
             existing.period_type = period_type_value
+            existing.unit = indicator.unit
+            existing.original_unit = indicator.original_unit
             existing.save()
             orm_obj = existing
         else:
@@ -86,6 +88,8 @@ class DjangoMacroRepository:
                 value=indicator.value,
                 reporting_period=indicator.reporting_period,
                 period_type=period_type_value,
+                unit=indicator.unit,
+                original_unit=indicator.original_unit,
                 published_at=indicator.published_at,
                 source=indicator.source,
                 revision_number=revision_number
@@ -549,6 +553,8 @@ class DjangoMacroRepository:
             value=float(orm_obj.value),
             reporting_period=orm_obj.reporting_period,
             period_type=period_type,
+            unit=orm_obj.unit,
+            original_unit=orm_obj.original_unit,
             published_at=orm_obj.published_at,
             source=orm_obj.source,
         )

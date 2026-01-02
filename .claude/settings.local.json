@@ -36,7 +36,8 @@
       "Bash(D:/githv/agomSAAF/agomsaaf/Scripts/python.exe:*)",
       "Bash(ls:*)",
       "Bash(tasklist:*)",
-      "Bash(test:*)"
+      "Bash(test:*)",
+      "Bash(grep:*)"
     ]
   }
 }

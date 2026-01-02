@@ -4,81 +4,14 @@ Eligibility Rules for Investment Signals.
 Domain 层纯业务逻辑，只使用 Python 标准库。
 """
 
-from typing import Dict, List, Tuple, Optional, Callable
+from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
-from .entities import Eligibility, SignalStatus
-
-
-# 默认准入矩阵配置（fallback）
-DEFAULT_ELIGIBILITY_MATRIX: Dict[str, Dict[str, Eligibility]] = {
-    "a_share_growth": {
-        "Recovery": Eligibility.PREFERRED,
-        "Overheat": Eligibility.NEUTRAL,
-        "Stagflation": Eligibility.HOSTILE,
-        "Deflation": Eligibility.NEUTRAL,
-    },
-    "a_share_value": {
-        "Recovery": Eligibility.PREFERRED,
-        "Overheat": Eligibility.PREFERRED,
-        "Stagflation": Eligibility.NEUTRAL,
-        "Deflation": Eligibility.HOSTILE,
-    },
-    "china_bond": {
-        "Recovery": Eligibility.NEUTRAL,
-        "Overheat": Eligibility.HOSTILE,
-        "Stagflation": Eligibility.NEUTRAL,
-        "Deflation": Eligibility.PREFERRED,
-    },
-    "gold": {
-        "Recovery": Eligibility.NEUTRAL,
-        "Overheat": Eligibility.PREFERRED,
-        "Stagflation": Eligibility.PREFERRED,
-        "Deflation": Eligibility.NEUTRAL,
-    },
-    "commodity": {
-        "Recovery": Eligibility.NEUTRAL,
-        "Overheat": Eligibility.PREFERRED,
-        "Stagflation": Eligibility.HOSTILE,
-        "Deflation": Eligibility.HOSTILE,
-    },
-    "cash": {
-        "Recovery": Eligibility.HOSTILE,
-        "Overheat": Eligibility.NEUTRAL,
-        "Stagflation": Eligibility.PREFERRED,
-        "Deflation": Eligibility.NEUTRAL,
-    },
-}
-
-# 可配置的准入矩阵（可通过依赖注入设置）
-_eligibility_matrix_provider: Optional[Callable[[], Dict[str, Dict[str, Eligibility]]]] = None
-
-
-def set_eligibility_matrix_provider(provider: Callable[[], Dict[str, Dict[str, Eligibility]]]):
-    """
-    设置准入矩阵提供者（依赖注入）
-
-    Args:
-        provider: 返回准入矩阵的函数
-    """
-    global _eligibility_matrix_provider
-    _eligibility_matrix_provider = provider
-
-
-def get_eligibility_matrix() -> Dict[str, Dict[str, Eligibility]]:
-    """
-    获取准入矩阵（优先使用提供者，否则使用默认值）
-
-    Returns:
-        准入矩阵字典
-    """
-    global _eligibility_matrix_provider
-    if _eligibility_matrix_provider:
-        try:
-            return _eligibility_matrix_provider()
-        except Exception:
-            # 提供者失败，使用默认值
-            pass
-    return DEFAULT_ELIGIBILITY_MATRIX
+from .entities import SignalStatus
+from shared.domain.asset_eligibility import (
+    Eligibility,
+    check_eligibility as _check_eligibility,
+    get_eligibility_matrix,
+)
 
 
 # 证伪逻辑量化关键词
@@ -132,12 +65,7 @@ def check_eligibility(
     Raises:
         ValueError: 未知的资产类别
     """
-    # 优先使用自定义矩阵，其次使用提供者，最后使用默认值
-    matrix = custom_matrix or get_eligibility_matrix()
-
-    if asset_class not in matrix:
-        raise ValueError(f"Unknown asset class: {asset_class}")
-    return matrix[asset_class].get(regime, Eligibility.NEUTRAL)
+    return _check_eligibility(asset_class, regime, custom_matrix)
 
 
 def validate_invalidation_logic(logic: str) -> ValidationResult:
