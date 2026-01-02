@@ -64,6 +64,7 @@ function updateIndicatorInfoFromServer() {
     document.getElementById('currentIndicatorCode').textContent = '{{ selected_indicator }}';
     document.getElementById('currentIndicatorName').textContent = '{{ selected_indicator_data.name|escapejs }}';
     document.getElementById('currentIndicatorValue').textContent = '{{ selected_indicator_data.latest_value }}';
+    document.getElementById('currentIndicatorUnit').textContent = '{{ selected_indicator_data.unit|escapejs }}';
     document.getElementById('currentIndicatorPeriod').textContent = '{{ selected_indicator_data.latest_period }}';
     document.getElementById('currentIndicatorRecords').textContent = {{ chart_values|length }} + ' 条';
     {% endif %}
@@ -166,6 +167,7 @@ function updateIndicatorInfo(code, data) {
     document.getElementById('currentIndicatorCode').textContent = code;
     document.getElementById('currentIndicatorName').textContent = indicatorNamesMap[code] || code;
     document.getElementById('currentIndicatorValue').textContent = latest.value.toFixed(2);
+    document.getElementById('currentIndicatorUnit').textContent = latest.unit || '-';
     document.getElementById('currentIndicatorSource').textContent = latest.source || '-';
     document.getElementById('currentIndicatorPeriod').textContent = latest.observed_at;
     document.getElementById('currentIndicatorRecords').textContent = data.length + ' 条';
@@ -393,6 +395,7 @@ function getCookie(name) {
             <div class="info-bar-section">
                 <span class="info-label">最新值:</span>
                 <span class="info-value highlight" id="currentIndicatorValue">-</span>
+                <span class="info-value" id="currentIndicatorUnit" style="font-size: 14px; margin-left: 4px;">-</span>
             </div>
             <div class="info-bar-section">
                 <span class="info-label">日期:</span>

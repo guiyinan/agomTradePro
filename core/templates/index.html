@@ -1,6 +1,62 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- 系统状态概览 -->
+<div class="system-overview">
+    <div class="overview-card">
+        <div class="overview-icon regime-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <line x1="12" y1="2" x2="12" y2="22"/>
+            </svg>
+        </div>
+        <div class="overview-content">
+            <div class="overview-label">当前宏观环境</div>
+            <div class="overview-value">系统运行中</div>
+            <div class="overview-sub">点击查看 Regime 判定详情</div>
+        </div>
+    </div>
+    <div class="overview-card">
+        <div class="overview-icon data-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="20" x2="12" y2="10"/>
+                <line x1="18" y1="20" x2="18" y2="4"/>
+                <line x1="6" y1="20" x2="6" y2="16"/>
+            </svg>
+        </div>
+        <div class="overview-content">
+            <div class="overview-label">宏观数据状态</div>
+            <div class="overview-value">8 个指标已配置</div>
+            <div class="overview-sub">PMI / CPI / M2 / SHIBOR 等</div>
+        </div>
+    </div>
+    <div class="overview-card">
+        <div class="overview-icon signal-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+        </div>
+        <div class="overview-content">
+            <div class="overview-label">投资信号</div>
+            <div class="overview-value">6 类资产配置</div>
+            <div class="overview-sub">基于 Regime 的准入过滤</div>
+        </div>
+    </div>
+    <div class="overview-card">
+        <div class="overview-icon policy-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+        </div>
+        <div class="overview-content">
+            <div class="overview-label">政策档位</div>
+            <div class="overview-value">P0 正常状态</div>
+            <div class="overview-sub">无强制平仓风险</div>
+        </div>
+    </div>
+</div>
+
 <div class="page-header">
     <h1>AgomSAAF</h1>
     <p class="subtitle">Agom Strategic Asset Allocation Framework</p>
@@ -212,22 +268,160 @@
 </div>
 
 <div class="section">
-    <h2 class="section-title">系统架构</h2>
+    <h2 class="section-title">系统架构流程</h2>
+    <div class="flow-diagram">
+        <!-- 数据源层 -->
+        <div class="flow-layer flow-source">
+            <div class="flow-title">数据源层</div>
+            <div class="flow-items">
+                <div class="flow-item">Tushare Pro</div>
+                <div class="flow-item">AKShare</div>
+                <div class="flow-item">央行统计</div>
+                <div class="flow-item">RSS 订阅</div>
+            </div>
+        </div>
+
+        <div class="flow-arrow">↓</div>
+
+        <!-- 数据采集层 -->
+        <div class="flow-layer flow-collection">
+            <div class="flow-title">数据采集层</div>
+            <div class="flow-items">
+                <div class="flow-item">宏观数据采集</div>
+                <div class="flow-item">政策事件抓取</div>
+                <div class="flow-item">行情数据获取</div>
+                <div class="flow-item">多源容错切换</div>
+            </div>
+        </div>
+
+        <div class="flow-arrow">↓</div>
+
+        <!-- 数据处理层 -->
+        <div class="flow-layer flow-process">
+            <div class="flow-title">数据处理层</div>
+            <div class="flow-items">
+                <div class="flow-item">HP 滤波（扩张窗口）</div>
+                <div class="flow-item">Kalman 滤波（实时）</div>
+                <div class="flow-item">动量计算 & Z-score</div>
+                <div class="flow-item">PIT 数据处理</div>
+            </div>
+        </div>
+
+        <div class="flow-arrow">↓</div>
+
+        <!-- 决策引擎层 -->
+        <div class="flow-layer flow-decision">
+            <div class="flow-title">决策引擎层</div>
+            <div class="flow-items">
+                <div class="flow-item">Regime 判定（四象限）</div>
+                <div class="flow-item">政策档位（P0-P3）</div>
+                <div class="flow-item">准入矩阵（6类资产×4象限）</div>
+                <div class="flow-item">证伪逻辑验证</div>
+            </div>
+        </div>
+
+        <div class="flow-arrow">↓</div>
+
+        <!-- 输出层 -->
+        <div class="flow-layer flow-output">
+            <div class="flow-title">输出层</div>
+            <div class="flow-items">
+                <div class="flow-item">投资信号</div>
+                <div class="flow-item">风险告警</div>
+                <div class="flow-item">回测报告</div>
+                <div class="flow-item">持仓建议</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 数据流说明 -->
+    <div class="flow-legend">
+        <div class="legend-item">
+            <span class="legend-dot dot-source"></span>
+            <span>外部数据源</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-dot dot-collection"></span>
+            <span>数据采集与存储</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-dot dot-process"></span>
+            <span>滤波与计算</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-dot dot-decision"></span>
+            <span>规则引擎判定</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-dot dot-output"></span>
+            <span>投资决策输出</span>
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <h2 class="section-title">Regime 四象限模型</h2>
+    <div class="regime-quadrant">
+        <div class="quadrant-row">
+            <div class="quadrant-item quadrant-overheat">
+                <div class="quadrant-label">过热</div>
+                <div class="quadrant-desc">增长↑ 通胀↑</div>
+                <div class="quadrant-assets">
+                    <span class="asset-tag">商品</span>
+                    <span class="asset-tag">现金</span>
+                </div>
+            </div>
+            <div class="quadrant-item quadrant-recovery">
+                <div class="quadrant-label">复苏</div>
+                <div class="quadrant-desc">增长↑ 通胀↓</div>
+                <div class="quadrant-assets">
+                    <span class="asset-tag">股票</span>
+                    <span class="asset-tag">信用债</span>
+                </div>
+            </div>
+        </div>
+        <div class="quadrant-row">
+            <div class="quadrant-item quadrant-stagflation">
+                <div class="quadrant-label">滞胀</div>
+                <div class="quadrant-desc">增长↓ 通胀↑</div>
+                <div class="quadrant-assets">
+                    <span class="asset-tag">商品</span>
+                    <span class="asset-tag">现金</span>
+                </div>
+            </div>
+            <div class="quadrant-item quadrant-deflation">
+                <div class="quadrant-label">通缩</div>
+                <div class="quadrant-desc">增长↓ 通胀↓</div>
+                <div class="quadrant-assets">
+                    <span class="asset-tag">国债</span>
+                    <span class="asset-tag">信用债</span>
+                </div>
+            </div>
+        </div>
+        <div class="regime-axis">
+            <div class="axis-label axis-y">通胀动量</div>
+            <div class="axis-label axis-x">增长动量</div>
+        </div>
+    </div>
+</div>
+
+<div class="section">
+    <h2 class="section-title">四层架构</h2>
     <div class="architecture-diagram">
         <div class="arch-layer arch-interface">
-            <div class="arch-label">Interface Layer</div>
+            <div class="arch-label">Interface Layer（接口层）</div>
             <div class="arch-items">DRF API | Django Admin | CLI Tools</div>
         </div>
         <div class="arch-layer arch-application">
-            <div class="arch-label">Application Layer</div>
+            <div class="arch-label">Application Layer（应用层）</div>
             <div class="arch-items">Use Cases | Workflow | Celery Tasks</div>
         </div>
         <div class="arch-layer arch-domain">
-            <div class="arch-label">Domain Layer</div>
+            <div class="arch-label">Domain Layer（领域层）</div>
             <div class="arch-items">Entities | Rules | Services | Validators</div>
         </div>
         <div class="arch-layer arch-infra">
-            <div class="arch-label">Infrastructure Layer</div>
+            <div class="arch-label">Infrastructure Layer（基础设施层）</div>
             <div class="arch-items">ORM Models | Repositories | API Adapters | Cache</div>
         </div>
     </div>

@@ -14,6 +14,22 @@ from ..base import MacroDataPoint, DataValidationError
 
 logger = logging.getLogger(__name__)
 
+# 指标单位映射 (unit, original_unit)
+INDICATOR_UNITS = {
+    "CN_PMI": ("指数", "指数"),
+    "CN_NON_MAN_PMI": ("指数", "指数"),
+    "CN_CPI": ("指数", "指数"),
+    "CN_CPI_NATIONAL_YOY": ("%", "%"),
+    "CN_CPI_NATIONAL_MOM": ("%", "%"),
+    "CN_CPI_URBAN_YOY": ("%", "%"),
+    "CN_CPI_URBAN_MOM": ("%", "%"),
+    "CN_CPI_RURAL_YOY": ("%", "%"),
+    "CN_CPI_RURAL_MOM": ("%", "%"),
+    "CN_PPI": ("指数", "指数"),
+    "CN_PPI_YOY": ("%", "%"),
+    "CN_M2": ("万亿元", "万亿元"),
+}
+
 
 def parse_chinese_date(date_str: str) -> str:
     """解析中文日期格式 (如: '2024年1月')"""
@@ -58,13 +74,16 @@ class BaseIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_PMI", ("", ""))
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
                         code="CN_PMI",
                         value=float(row['value']),
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -101,13 +120,16 @@ class BaseIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_CPI", ("", ""))
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
                         code="CN_CPI",
                         value=float(row['value']),
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -155,6 +177,7 @@ class BaseIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get(indicator_code, ("", ""))
             for _, row in df.iterrows():
                 try:
                     value_raw = row['value']
@@ -167,7 +190,9 @@ class BaseIndicatorFetcher:
                         code=indicator_code,
                         value=value,
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -204,13 +229,16 @@ class BaseIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_PPI", ("", ""))
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
                         code="CN_PPI",
                         value=float(row['value']),
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -247,13 +275,16 @@ class BaseIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_PPI_YOY", ("", ""))
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
                         code="CN_PPI_YOY",
                         value=float(row['value']),
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -290,6 +321,7 @@ class BaseIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_M2", ("万亿元", "万亿元"))
             for _, row in df.iterrows():
                 try:
                     value_in_trillion = float(row['value']) / 10000
@@ -297,7 +329,9 @@ class BaseIndicatorFetcher:
                         code="CN_M2",
                         value=value_in_trillion,
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -334,13 +368,16 @@ class BaseIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_NON_MAN_PMI", ("指数", "指数"))
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
                         code="CN_NON_MAN_PMI",
                         value=float(row['value']),
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)

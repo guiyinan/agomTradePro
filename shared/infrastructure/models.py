@@ -6,6 +6,7 @@ Configuration Models for AgomSAAF
 
 from decimal import Decimal
 from django.db import models
+from typing import Dict
 
 
 class AssetConfigModel(models.Model):

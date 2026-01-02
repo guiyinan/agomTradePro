@@ -14,6 +14,17 @@ from ..base import MacroDataPoint, DataValidationError
 
 logger = logging.getLogger(__name__)
 
+# 指标单位映射 (unit, original_unit)
+INDICATOR_UNITS = {
+    "CN_FX_RESERVES": ("万亿美元", "万亿美元"),
+    "CN_LPR": ("%", "%"),
+    "CN_SHIBOR": ("%", "%"),
+    "CN_RRR": ("%", "%"),
+    "CN_NEW_CREDIT": ("亿元", "亿元"),
+    "CN_RMB_DEPOSIT": ("亿元", "亿元"),
+    "CN_RMB_LOAN": ("亿元", "亿元"),
+}
+
 
 def parse_chinese_date(date_str: str) -> str:
     """解析中文日期格式"""
@@ -68,14 +79,18 @@ class FinancialIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_FX_RESERVES", ("万亿美元", "万亿美元"))
             for _, row in df.iterrows():
                 try:
-                    value_in_trillion = float(row['value']) / 10000
+                    # 原始单位是万美元，转换为万亿美元
+                    value_in_trillions = float(row['value']) / 10000
                     point = MacroDataPoint(
                         code="CN_FX_RESERVES",
-                        value=value_in_trillion,
+                        value=value_in_trillions,
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -112,6 +127,7 @@ class FinancialIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_LPR", ("%", "%"))
             for _, row in df.iterrows():
                 try:
                     value_decimal = float(row['value']) / 100 if float(row['value']) > 1 else float(row['value'])
@@ -119,7 +135,9 @@ class FinancialIndicatorFetcher:
                         code="CN_LPR",
                         value=value_decimal,
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -156,6 +174,7 @@ class FinancialIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_SHIBOR", ("%", "%"))
             for _, row in df.iterrows():
                 try:
                     value_decimal = float(row['value']) / 100 if float(row['value']) > 1 else float(row['value'])
@@ -163,7 +182,9 @@ class FinancialIndicatorFetcher:
                         code="CN_SHIBOR",
                         value=value_decimal,
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -201,6 +222,7 @@ class FinancialIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_RRR", ("%", "%"))
             for _, row in df.iterrows():
                 try:
                     value_decimal = float(row['value']) / 100 if float(row['value']) > 1 else float(row['value'])
@@ -208,7 +230,9 @@ class FinancialIndicatorFetcher:
                         code="CN_RRR",
                         value=value_decimal,
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -245,14 +269,18 @@ class FinancialIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_NEW_CREDIT", ("亿元", "亿元"))
             for _, row in df.iterrows():
                 try:
-                    value_in_trillion = float(row['value']) / 10000
+                    # 原始数据已经是亿元
+                    value = float(row['value'])
                     point = MacroDataPoint(
                         code="CN_NEW_CREDIT",
-                        value=value_in_trillion,
+                        value=value,
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -289,17 +317,21 @@ class FinancialIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_RMB_DEPOSIT", ("亿元", "亿元"))
             for _, row in df.iterrows():
                 try:
                     value_str = row['value']
                     if isinstance(value_str, str):
                         value_str = value_str.replace('%', '').replace(',', '')
-                    value_in_trillion = float(value_str) / 10000
+                    # 原始数据已经是亿元
+                    value = float(value_str)
                     point = MacroDataPoint(
                         code="CN_RMB_DEPOSIT",
-                        value=value_in_trillion,
+                        value=value,
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -336,17 +368,21 @@ class FinancialIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_RMB_LOAN", ("亿元", "亿元"))
             for _, row in df.iterrows():
                 try:
                     value_str = row['value']
                     if isinstance(value_str, str):
                         value_str = value_str.replace('%', '').replace(',', '')
-                    value_in_trillion = float(value_str) / 10000
+                    # 原始数据已经是亿元
+                    value = float(value_str)
                     point = MacroDataPoint(
                         code="CN_RMB_LOAN",
-                        value=value_in_trillion,
+                        value=value,
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)

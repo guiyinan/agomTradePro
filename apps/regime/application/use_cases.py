@@ -345,6 +345,19 @@ class CalculateRegimeUseCase:
                 source=request.data_source
             )
 
+            # 8.5. 获取实际最新数据的日期（用于 observed_at）
+            actual_data_dates = []
+            if growth_full:
+                actual_data_dates.append(growth_full[-1].reporting_period)
+            if inflation_full:
+                actual_data_dates.append(inflation_full[-1].reporting_period)
+
+            # 使用较早的日期作为 observed_at（确保两个指标都有数据）
+            if actual_data_dates:
+                actual_observed_at = min(actual_data_dates)
+            else:
+                actual_observed_at = request.as_of_date
+
             # 9. 计算中间值
             growth_momentums = calculate_momentum(growth_series, period=3)
             inflation_momentums = calculate_momentum(inflation_series, period=3)
@@ -376,9 +389,20 @@ class CalculateRegimeUseCase:
                 'inflation_z_score': inflation_z_scores
             }
 
+            # 创建新的 snapshot，使用实际数据日期
+            from ..domain.entities import RegimeSnapshot
+            corrected_snapshot = RegimeSnapshot(
+                growth_momentum_z=result.snapshot.growth_momentum_z,
+                inflation_momentum_z=result.snapshot.inflation_momentum_z,
+                distribution=result.snapshot.distribution,
+                dominant_regime=result.snapshot.dominant_regime,
+                confidence=result.snapshot.confidence,
+                observed_at=actual_observed_at  # 使用实际数据日期
+            )
+
             return CalculateRegimeResponse(
                 success=True,
-                snapshot=result.snapshot,
+                snapshot=corrected_snapshot,
                 warnings=result.warnings + warnings_list,
                 error=None,
                 raw_data=raw_data,

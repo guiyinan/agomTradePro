@@ -4,6 +4,7 @@ Dashboard Application Use Cases
 首页数据聚合用例。
 """
 
+import logging
 from dataclasses import dataclass
 from typing import List, Dict, Optional
 from datetime import date, datetime
@@ -20,6 +21,8 @@ from apps.account.infrastructure.repositories import (
 )
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from apps.signal.infrastructure.repositories import DjangoSignalRepository
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -314,9 +317,156 @@ class GetDashboardDataUseCase:
         match_analysis: RegimeMatchAnalysis,
         active_signals: List[Dict],
     ) -> List[str]:
-        """从数据库规则生成投资建议"""
-        from apps.account.infrastructure.models import InvestmentRuleModel
+        """调用 AI 生成投资建议"""
+        import requests
+        from django.conf import settings
 
+        insights = []
+
+        # 1. 准备 AI 请求的上下文信息
+        context = {
+            "current_regime": current_regime,
+            "total_assets": float(snapshot.total_value),
+            "total_return_pct": snapshot.total_return_pct,
+            "invested_ratio": snapshot.get_invested_ratio(),
+            "cash_ratio": 1 - snapshot.get_invested_ratio(),
+            "regime_match_score": match_analysis.total_match_score,
+            "position_count": len(snapshot.positions),
+            "active_signal_count": len(active_signals),
+        }
+
+        # 如果有敌对资产，添加到上下文
+        if match_analysis.hostile_assets:
+            context["hostile_assets"] = match_analysis.hostile_assets[:5]
+
+        # 如果有活跃信号，添加信号信息
+        if active_signals:
+            context["recent_signals"] = [
+                {"asset": s["asset_code"], "direction": s["direction"]}
+                for s in active_signals[:3]
+            ]
+
+        # 2. 构建 AI 提示词
+        prompt = f"""作为 AgomSAAF 投资助手，基于以下当前投资组合状态，给出 3-5 条简洁的投资建议（每条不超过30字）：
+
+【宏观环境】
+- 当前 Regime: {current_regime}
+- Regime 匹配度: {match_analysis.total_match_score:.0f} 分
+
+【资产组合】
+- 总资产: ¥{snapshot.total_value:,.0f}
+- 收益率: {snapshot.total_return_pct:+.2f}%
+- 仓位比例: {snapshot.get_invested_ratio()*100:.0f}% 股票 / { (1-snapshot.get_invested_ratio())*100:.0f}% 现金
+- 持仓数量: {len(snapshot.positions)} 个
+- 活跃信号: {len(active_signals)} 个
+
+{f"【不匹配资产】{', '.join(match_analysis.hostile_assets[:3])}" if match_analysis.hostile_assets else ""}
+
+请给出 3-5 条具体、可操作的投资建议，每条建议单独一行，不要太长。"""
+
+        # 3. 调用 AI API
+        try:
+            # 获取 AI 提供商配置
+            from apps.prompt.infrastructure.models import AIProvider
+
+            provider = AIProvider.objects.filter(is_active=True).first()
+
+            if not provider:
+                # 如果没有配置 AI，使用数据库规则作为后备
+                return self._fallback_insights(current_regime, snapshot, match_analysis, active_signals)
+
+            # 构建 API 请求
+            api_url = provider.get_api_url()
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {provider.api_key}"
+            }
+
+            # 根据不同的提供商调整请求格式
+            if provider.provider_type == 'openai':
+                payload = {
+                    "model": provider.model_name,
+                    "messages": [
+                        {"role": "system", "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。"},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "temperature": 0.7,
+                    "max_tokens": 500
+                }
+            elif provider.provider_type == 'deepseek':
+                payload = {
+                    "model": provider.model_name,
+                    "messages": [
+                        {"role": "system", "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。"},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "temperature": 0.7,
+                    "max_tokens": 500
+                }
+            else:  # 通用格式
+                payload = {
+                    "model": provider.model_name,
+                    "messages": [
+                        {"role": "system", "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。"},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "temperature": 0.7,
+                    "max_tokens": 500
+                }
+
+            # 发送请求
+            response = requests.post(
+                api_url,
+                headers=headers,
+                json=payload,
+                timeout=10
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+
+                # 解析响应
+                if provider.provider_type in ['openai', 'deepseek', 'qwen']:
+                    content = data['choices'][0]['message']['content']
+                else:
+                    content = str(data)
+
+                # 分割建议（按行）
+                lines = [line.strip() for line in content.split('\n') if line.strip()]
+
+                # 清理和限制建议数量
+                insights = []
+                for line in lines:
+                    # 移除序号、符号等
+                    line = line.lstrip('0123456789.-*•、 ')
+                    line = line.lstrip('【').rstrip('】')
+                    if len(line) > 5 and len(line) < 100:  # 过滤太短或太长的
+                        insights.append(line)
+                    if len(insights) >= 5:  # 最多 5 条
+                        break
+
+                if insights:
+                    return insights
+
+        except Exception as e:
+            # AI 调用失败，使用后备方案
+            logger.warning(f"AI 调用失败: {e}，使用数据库规则")
+
+        # 后备方案：使用数据库规则
+        return self._fallback_insights(current_regime, snapshot, match_analysis, active_signals)
+
+    def _fallback_insights(
+        self,
+        current_regime: str,
+        snapshot,
+        match_analysis: RegimeMatchAnalysis,
+        active_signals: List[Dict],
+    ) -> List[str]:
+        """从数据库规则生成投资建议（AI 失败时的后备方案）"""
+        from apps.account.infrastructure.models import InvestmentRuleModel
+        import logging
+
+        logger = logging.getLogger(__name__)
         insights = []
         invested_ratio = snapshot.get_invested_ratio()
 

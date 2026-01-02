@@ -14,6 +14,13 @@ from ..base import MacroDataPoint, DataValidationError
 
 logger = logging.getLogger(__name__)
 
+# 指标单位映射 (unit, original_unit)
+INDICATOR_UNITS = {
+    "CN_UNEMPLOYMENT": ("%", "%"),
+    "CN_NEW_HOUSE_PRICE": ("%", "%"),
+    "CN_OIL_PRICE": ("元/升", "元/升"),
+}
+
 
 def parse_chinese_date(date_str: str) -> str:
     """解析中文日期格式"""
@@ -58,6 +65,7 @@ class OtherIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_UNEMPLOYMENT", ("%", "%"))
             for _, row in df.iterrows():
                 try:
                     value_decimal = float(row['value']) / 100 if float(row['value']) > 1 else float(row['value'])
@@ -65,7 +73,9 @@ class OtherIndicatorFetcher:
                         code="CN_UNEMPLOYMENT",
                         value=value_decimal,
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -108,6 +118,7 @@ class OtherIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_NEW_HOUSE_PRICE", ("%", "%"))
             for _, row in df_filtered.iterrows():
                 try:
                     value_yoy = (float(row['value']) - 100) / 100
@@ -115,7 +126,9 @@ class OtherIndicatorFetcher:
                         code="CN_NEW_HOUSE_PRICE",
                         value=value_yoy,
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -152,14 +165,19 @@ class OtherIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_OIL_PRICE", ("元/升", "元/升"))
             for _, row in df.iterrows():
                 try:
-                    value_in_k = float(row['value']) / 1000
+                    # 原始数据单位是元/吨，转换为元/升
+                    # 假设汽油密度约为 0.735 kg/L，即 1 吨 ≈ 1360 升
+                    value_in_yuan_per_liter = float(row['value']) / 1360
                     point = MacroDataPoint(
                         code="CN_OIL_PRICE",
-                        value=value_in_k,
+                        value=value_in_yuan_per_liter,
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)

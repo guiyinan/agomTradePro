@@ -134,13 +134,25 @@ def profile_view(request):
 
     显示和编辑用户账户配置。
     """
+    from apps.account.infrastructure.repositories import PortfolioRepository
+
     profile = request.user.account_profile
     portfolios = request.user.portfolios.all()
+
+    # 计算当前总资产（使用 Repository 方法，包含现金余额）
+    total_assets = 0.0
+    portfolio_repo = PortfolioRepository()
+
+    for portfolio in portfolios.filter(is_active=True):
+        snapshot = portfolio_repo.get_portfolio_snapshot(portfolio.id)
+        if snapshot:
+            total_assets += float(snapshot.total_value)
 
     context = {
         "user": request.user,
         "profile": profile,
         "portfolios": portfolios,
+        "total_assets": total_assets,
     }
     return render(request, "account/profile.html", context)
 

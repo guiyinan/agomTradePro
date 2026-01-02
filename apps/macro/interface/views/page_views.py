@@ -164,6 +164,7 @@ def macro_data_view(request):
                         'name': _get_indicator_display_name(code),
                         'latest_value': float(latest_record.value),
                         'latest_period': latest_record.reporting_period.strftime('%Y-%m'),
+                        'unit': latest_record.original_unit or latest_record.unit or '-',
                     }
                     category_indicators.append(ind_info)
                     all_indicators_map[code] = ind_info

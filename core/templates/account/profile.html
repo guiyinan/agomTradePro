@@ -18,8 +18,8 @@
                 <span class="stat-value">{{ profile.display_name|default:user.username }}</span>
             </div>
             <div class="stat-card">
-                <span class="stat-label">初始资金</span>
-                <span class="stat-value">¥{{ profile.initial_capital|floatformat:2 }}</span>
+                <span class="stat-label">当前总资产</span>
+                <span class="stat-value">¥{{ total_assets|floatformat:2|default:"0.00" }}</span>
             </div>
             <div class="stat-card">
                 <span class="stat-label">风险偏好</span>

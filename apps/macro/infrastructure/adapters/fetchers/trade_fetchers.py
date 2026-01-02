@@ -13,6 +13,13 @@ from ..base import MacroDataPoint, DataValidationError
 
 logger = logging.getLogger(__name__)
 
+# 指标单位映射 (unit, original_unit)
+INDICATOR_UNITS = {
+    "CN_EXPORTS": ("%", "%"),
+    "CN_IMPORTS": ("%", "%"),
+    "CN_TRADE_BALANCE": ("亿美元", "亿美元"),
+}
+
 
 class TradeIndicatorFetcher:
     """贸易指标获取器"""
@@ -47,13 +54,16 @@ class TradeIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_EXPORTS", ("%", "%"))
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
                         code="CN_EXPORTS",
                         value=float(row['value']),
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -90,13 +100,16 @@ class TradeIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_IMPORTS", ("%", "%"))
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
                         code="CN_IMPORTS",
                         value=float(row['value']),
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -133,14 +146,18 @@ class TradeIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_TRADE_BALANCE", ("亿美元", "亿美元"))
             for _, row in df.iterrows():
                 try:
-                    value_in_billion = float(row['value']) / 10000
+                    # 原始数据单位是万美元，转换为亿美元
+                    value_in_100m_usd = float(row['value']) / 10000
                     point = MacroDataPoint(
                         code="CN_TRADE_BALANCE",
-                        value=value_in_billion,
+                        value=value_in_100m_usd,
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)

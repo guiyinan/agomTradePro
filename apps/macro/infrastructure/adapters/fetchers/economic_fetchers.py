@@ -14,6 +14,13 @@ from ..base import MacroDataPoint, DataValidationError
 
 logger = logging.getLogger(__name__)
 
+# 指标单位映射 (unit, original_unit)
+INDICATOR_UNITS = {
+    "CN_VALUE_ADDED": ("%", "%"),
+    "CN_RETAIL_SALES": ("%", "%"),
+    "CN_GDP": ("亿元", "亿元"),
+}
+
 
 def parse_chinese_date(date_str: str) -> str:
     """解析中文日期格式"""
@@ -77,13 +84,16 @@ class EconomicIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_VALUE_ADDED", ("%", "%"))
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
                         code="CN_VALUE_ADDED",
                         value=float(row['value']),
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -121,13 +131,16 @@ class EconomicIndicatorFetcher:
             df = df[['observed_at', 'value']].dropna()
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_RETAIL_SALES", ("%", "%"))
             for _, row in df.iterrows():
                 try:
                     point = MacroDataPoint(
                         code="CN_RETAIL_SALES",
                         value=float(row['value']),
                         observed_at=row['observed_at'].date(),
-                        source=self.source_name
+                        source=self.source_name,
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)
@@ -168,17 +181,18 @@ class EconomicIndicatorFetcher:
             ]
 
             data_points = []
+            unit, original_unit = INDICATOR_UNITS.get("CN_GDP", ("亿元", "亿元"))
             for _, row in df.iterrows():
                 try:
                     # akshare的GDP数据单位是"亿元"
                     original_value = float(row['value'])
                     point = MacroDataPoint(
                         code="CN_GDP",
-                        value=original_value,  # 保持原始值
+                        value=original_value,  # 保持原始值（亿元）
                         observed_at=row['observed_at'].date(),
                         source=self.source_name,
-                        unit="",  # 不设置，让系统自动配置
-                        original_unit="亿元"  # 记录原始单位
+                        unit=unit,
+                        original_unit=original_unit
                     )
                     self._validate(point)
                     data_points.append(point)
