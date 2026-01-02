@@ -38,7 +38,9 @@
       "Bash(tasklist:*)",
       "Bash(test:*)",
       "Bash(grep:*)",
-      "Bash(D:\\\\githv\\\\agomSAAF\\\\agomsaaf\\\\Scripts\\\\python.exe manage.py runserver:*)"
+      "Bash(D:\\\\githv\\\\agomSAAF\\\\agomsaaf\\\\Scripts\\\\python.exe manage.py runserver:*)",
+      "Bash(fi)",
+      "Bash(pytest:*)"
     ]
   }
 }
