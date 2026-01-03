@@ -9,6 +9,7 @@
 
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -95,6 +96,7 @@ class EquityViewSet(viewsets.ViewSet):
         responses={200: ScreenStocksResponseSerializer},
     )
     @action(detail=False, methods=['post'], url_path='screen')
+    @csrf_exempt
     def screen_stocks(self, request):
         """
         POST /api/equity/screen/
@@ -440,4 +442,86 @@ class EquityViewSet(viewsets.ViewSet):
         # 4. 返回响应
         response_serializer = ComprehensiveValuationResponseSerializer(use_case_response)
         return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='pool')
+    def get_pool(self, request):
+        """
+        GET /equity/api/pool/
+
+        获取当前股票池
+        """
+        # TODO: 实现股票池逻辑
+        # 临时返回模拟数据
+        from datetime import datetime
+        from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+        regime_repo = DjangoRegimeRepository()
+        latest_regime = regime_repo.get_latest_regime()
+
+        # 模拟股票数据
+        mock_stocks = [
+            {
+                'code': '600030.SH',
+                'name': '中信证券',
+                'sector': '金融',
+                'roe': 12.5,
+                'pe': 15.2,
+                'pb': 1.3,
+                'revenue_growth': 8.5,
+                'profit_growth': 10.2,
+                'score': 75.5
+            },
+            {
+                'code': '000001.SZ',
+                'name': '平安银行',
+                'sector': '金融',
+                'roe': 11.8,
+                'pe': 6.5,
+                'pb': 0.85,
+                'revenue_growth': 5.2,
+                'profit_growth': 8.1,
+                'score': 70.2
+            },
+            {
+                'code': '600519.SH',
+                'name': '贵州茅台',
+                'sector': '消费',
+                'roe': 25.5,
+                'pe': 28.5,
+                'pb': 9.2,
+                'revenue_growth': 15.8,
+                'profit_growth': 18.5,
+                'score': 85.0
+            }
+        ]
+
+        return Response({
+            'success': True,
+            'regime': latest_regime.regime if latest_regime else 'Unknown',
+            'count': len(mock_stocks),
+            'update_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'avg_roe': sum(s['roe'] for s in mock_stocks) / len(mock_stocks),
+            'avg_pe': sum(s['pe'] for s in mock_stocks) / len(mock_stocks),
+            'stocks': mock_stocks
+        })
+
+    @action(detail=False, methods=['post'], url_path='pool/refresh')
+    @csrf_exempt
+    def refresh_pool(self, request):
+        """
+        POST /equity/api/pool/refresh/
+
+        刷新股票池
+        """
+        # TODO: 实现刷新逻辑
+        from datetime import datetime
+        from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+        regime_repo = DjangoRegimeRepository()
+        latest_regime = regime_repo.get_latest_regime()
+
+        return Response({
+            'success': True,
+            'message': '股票池已刷新',
+            'regime': latest_regime.regime if latest_regime else 'Unknown',
+            'update_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        })
 

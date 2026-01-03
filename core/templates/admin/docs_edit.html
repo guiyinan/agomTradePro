@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{% if doc %}编辑文档{% else %}新建文档{% endif %} - AgomSAAF{% endblock %}
 
@@ -432,7 +433,7 @@
 #previewContent th { background: #F8F9FA; }
 </style>
 
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="{% static 'vendor/marked/marked.min.js' %}"></script>
 <script>
 function insertMarkdown(before, after) {
     const textarea = document.getElementById('contentEditor');

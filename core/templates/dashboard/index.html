@@ -1,11 +1,12 @@
 {% extends "base.html" %}
+{% load static %}
 {% load dashboard_tags %}
 
 {% block title %}投资指挥中心 - AgomSAAF{% endblock %}
 
 {% block extra_css %}
 <!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
 {% endblock %}
 
 {% block content %}

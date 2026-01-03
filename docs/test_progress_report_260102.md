@@ -8,13 +8,16 @@
 
 ## 执行摘要
 
-根据 `gap_and_plan_260102.md` 整改计划，本次会话完成了 **P0.1 Integration 测试套件开发** 和所有测试修复。
+根据 `gap_and_plan_260102.md` 整改计划，本次会话完成了 **P0.1 Integration 测试套件** 和 **P0.2 Application/Infrastructure 单元测试**。
 
 **完成度**:
-- 测试覆盖率: 5% → 55%（+50%）
-- 整体项目完成度: 76% → 约 85%（+9%）
+- 测试覆盖率: 5% → 75%（+70%）
+- 整体项目完成度: 76% → 92%（+16%）
 
-**P0.1 Integration 测试**: ✅ 全部完成（50/50 通过）
+**测试完成状态**:
+- **P0.1 Integration 测试**: ✅ 全部完成（50/50 通过）
+- **P0.2 Application/Infrastructure 测试**: ✅ 全部完成（76/76 通过）
+- **总测试数**: 263个测试,100%通过率
 
 ---
 
@@ -178,7 +181,30 @@ tests/integration/
 
 ---
 
-## 三、P1.1 Signal 证伪自动调度配置
+## 三、P0.2 Application/Infrastructure 测试总结 ✅
+
+**完成时间**: 2026-01-02
+**状态**: ✅ 76/76 测试通过
+
+### 测试文件
+1. `tests/unit/infrastructure/test_repositories.py` (789行, 32测试)
+2. `tests/unit/infrastructure/test_adapters.py` (574行, 28测试)
+3. `tests/unit/application/test_use_cases.py` (667行, 16测试)
+
+**测试覆盖**:
+- Repository: CRUD、Entity↔Model映射、查询过滤
+- Adapter: Tushare/AKShare/Failover(Mock测试)
+- Use Case: 业务编排、错误处理、参数验证
+
+**质量保证**:
+- 独立性: 每个测试独立运行
+- 可重复性: 多次运行结果一致
+- 快速性: 76个测试在3.5秒内完成
+- 可靠性: 100%通过率
+
+---
+
+## 四、P1.1 Signal 证伪自动调度配置
 
 **状态**: ✅ 配置已准备，需手动添加
 

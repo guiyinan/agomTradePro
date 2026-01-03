@@ -1,14 +1,10 @@
 {% extends "equity/base.html" %}
+{% load static %}
 
 {% block title %}{{ stock_code }} - 个股详情 - AgomSAAF{% endblock %}
 
-{% block extra_css %}
-{{ block.super }}
-<link href="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.css" rel="stylesheet">
-{% endblock %}
-
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
 {% endblock %}
 
 {% block content %}
@@ -229,7 +225,7 @@ const stockCode = '{{ stock_code }}';
 // 加载股票详情
 async function loadStockDetail() {
     try {
-        const response = await fetch(`/api/equity/valuation/${stockCode}/`);
+        const response = await fetch(`/equity/api/valuation/${stockCode}/`);
         const result = await response.json();
 
         if (result.success) {

@@ -1,14 +1,10 @@
 {% extends "equity/base.html" %}
+{% load static %}
 
 {% block title %}股票池管理 - AgomSAAF{% endblock %}
 
-{% block extra_css %}
-{{ block.super }}
-<link href="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.css" rel="stylesheet">
-{% endblock %}
-
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
 {% endblock %}
 
 {% block content %}
@@ -149,7 +145,7 @@ const pageSize = 20;
 // 加载股票池
 async function loadPool() {
     try {
-        const response = await fetch('/api/equity/pool/');
+        const response = await fetch('/equity/api/pool/');
         const result = await response.json();
 
         if (result.success) {
@@ -278,8 +274,30 @@ function viewDetail(code) {
 
 async function refreshPool() {
     try {
-        const response = await fetch('/api/equity/pool/refresh/', {
-            method: 'POST'
+        // 获取 CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        const csrftoken = getCookie('csrftoken');
+
+        const response = await fetch('/equity/api/pool/refresh/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            }
         });
         const result = await response.json();
 
