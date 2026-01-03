@@ -52,6 +52,15 @@ class PolicyEvent:
 
 
 @dataclass(frozen=True)
+class RSSHubGlobalConfig:
+    """RSSHub 全局配置实体"""
+    base_url: str
+    access_key: str
+    enabled: bool
+    default_format: str = "rss"
+
+
+@dataclass(frozen=True)
 class ProxyConfig:
     """代理配置值对象"""
     host: str
@@ -71,6 +80,14 @@ class RSSSourceConfig:
     fetch_interval_hours: int  # 抓取间隔（小时）
     extract_content: bool  # 是否提取完整内容
     proxy_config: Optional[ProxyConfig] = None
+
+    # ========== RSSHub 配置 ==========
+    rsshub_enabled: bool = False  # 是否使用 RSSHub 模式
+    rsshub_route_path: str = ""  # RSSHub 路由路径
+    rsshub_use_global_config: bool = True  # 是否使用全局配置
+    rsshub_custom_base_url: str = ""  # 自定义基址
+    rsshub_custom_access_key: str = ""  # 自定义密钥
+    rsshub_format: str = ""  # 输出格式
 
 
 @dataclass(frozen=True)

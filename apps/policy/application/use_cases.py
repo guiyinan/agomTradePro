@@ -903,12 +903,19 @@ class FetchRSSUseCase:
 
         return RSSSourceConfig(
             name=orm_obj.name,
-            url=orm_obj.url,
+            url=orm_obj.get_effective_url(),  # 使用有效 URL（RSSHub 模式下自动构建）
             category=orm_obj.category,
             is_active=orm_obj.is_active,
             fetch_interval_hours=orm_obj.fetch_interval_hours,
             extract_content=orm_obj.extract_content,
-            proxy_config=proxy_config
+            proxy_config=proxy_config,
+            # RSSHub 配置
+            rsshub_enabled=orm_obj.rsshub_enabled,
+            rsshub_route_path=orm_obj.rsshub_route_path or '',
+            rsshub_use_global_config=orm_obj.rsshub_use_global_config,
+            rsshub_custom_base_url=orm_obj.rsshub_custom_base_url or '',
+            rsshub_custom_access_key=orm_obj.rsshub_custom_access_key or '',
+            rsshub_format=orm_obj.rsshub_format or ''
         )
 
     def _send_alert_for_rss_event(self, event: PolicyEvent) -> bool:

@@ -1,10 +1,10 @@
 # AgomSAAF 系统差异分析与整改计划
 
 **日期**: 2026-01-03
-**分析版本**: V1.8
+**分析版本**: V1.9
 **项目当前完成度**: 100% ⬆️ (+2%)
 **目标完成度**: 95% ✅ 已达成
-**最新更新**: 完成 P2.2 Domain 层测试补充，全部 226 个测试通过
+**最新更新**: 完成 RSSHub 鉴权支持，支持带密钥的本地 RSSHub 服务
 
 ---
 
@@ -51,6 +51,74 @@
 - BacktestRepository 回测创建、状态管理、删除
 - Tushare/AKShare/Failover 适配器（Mock 测试）
 - Use Case 业务编排、错误处理、参数验证
+
+---
+
+### ✅ RSSHub 鉴权支持（已完成）
+
+**状态**: **✅ 已完成**
+**优先级**: **P1（重要）**
+**完成时间**: 2026-01-03
+
+**功能描述**:
+支持带鉴权的本地 RSSHub 服务，采用混合配置模式（全局配置 + 源级覆盖）
+
+**完成的文件**:
+
+| 文件 | 行数 | 状态 | 说明 |
+|------|------|------|------|
+| `apps/policy/infrastructure/models.py` | +120 行 | ✅ 新增 RSSHub 全局配置模型 |
+| `apps/policy/domain/entities.py` | +10 行 | ✅ 新增 RSSHub 配置实体 |
+| `apps/policy/application/use_cases.py` | +10 行 | ✅ 更新 URL 构建逻辑 |
+| `apps/policy/interface/admin.py` | +85 行 | ✅ 新增 Admin 管理界面 |
+| `apps/policy/migrations/0005_*.py` | +1 个 | ✅ 数据库迁移已应用 |
+| `docs/rss_policy_integration.md` | +120 行 | ✅ 更新功能文档 |
+
+**新增功能**:
+
+1. **RSSHub 全局配置模型** (`RSSHubGlobalConfig`)
+   - 单例模式，数据库中只有一条记录
+   - 存储基址、访问密钥、默认格式
+   - 通过 Django Admin 管理
+
+2. **RSS 源配置扩展**
+   - `rsshub_enabled`: 是否使用 RSSHub 模式
+   - `rsshub_route_path`: 路由路径（如 `/csrc/news/bwj`）
+   - `rsshub_use_global_config`: 是否使用全局配置
+   - `rsshub_custom_base_url`: 自定义基址
+   - `rsshub_custom_access_key`: 自定义密钥
+   - `rsshub_format`: 输出格式
+
+3. **URL 自动构建**
+   - `get_effective_url()`: 自动构建完整 URL
+   - 格式: `基址 + 路由 + ?key=密钥&format=格式`
+
+4. **Admin 界面**
+   - 新增"RSSHub 全局配置"管理页面
+   - 更新"RSS 源配置"界面，支持 RSSHub 配置
+   - 添加 URL 预览功能
+
+**配置示例**:
+
+```python
+# 全局配置（Admin → RSSHub 全局配置）
+基址: http://127.0.0.1:1200
+访问密钥: YOUR_ACCESS_KEY
+默认格式: RSS 2.0
+
+# RSS 源配置（Admin → RSS 源配置）
+名称: 证监会新闻
+使用 RSSHub: 勾选
+路由路径: /csrc/news/bwj
+使用全局配置: 勾选
+
+# 自动构建的 URL
+# http://127.0.0.1:1200/csrc/news/bwj?key=YOUR_KEY&format=rss
+```
+
+**向后兼容**:
+- 现有普通 RSS 源不受影响
+- 可混合使用普通 RSS 源和 RSSHub 源
 
 ---
 

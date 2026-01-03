@@ -10,7 +10,10 @@ from django.utils.html import format_html
 from django.db.models import Count
 from django.utils.safestring import mark_safe
 
-from ..infrastructure.models import PolicyLog, RSSSourceConfigModel, PolicyLevelKeywordModel, RSSFetchLog, PolicyAuditQueue
+from ..infrastructure.models import (
+    PolicyLog, RSSSourceConfigModel, PolicyLevelKeywordModel,
+    RSSFetchLog, PolicyAuditQueue, RSSHubGlobalConfig
+)
 from ..domain.entities import PolicyLevel
 
 
@@ -389,23 +392,128 @@ class PolicyLogAdminSite(admin.AdminSite):
 
 # ========== RSS 相关 Admin ==========
 
+@admin.register(RSSHubGlobalConfig)
+class RSSHubGlobalConfigAdmin(admin.ModelAdmin):
+    """RSSHub 全局配置管理（单例模式）"""
+
+    def has_add_permission(self, request):
+        """禁止手动添加（单例模式）"""
+        return not RSSHubGlobalConfig.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        """禁止删除配置"""
+        return False
+
+    list_display = ['enabled_badge', 'base_url', 'has_key_badge', 'default_format', 'updated_at']
+    readonly_fields = ['created_at', 'updated_at']
+
+    fieldsets = (
+        ('基本配置', {
+            'fields': (
+                'enabled',
+                'base_url',
+                'access_key',
+                'default_format'
+            )
+        }),
+        ('说明', {
+            'fields': (),
+            'description': (
+                '<div style="padding: 10px; background: #f8f9fa; border-radius: 5px;">'
+                '<p><strong> RSSHub 全局配置说明：</strong></p>'
+                '<ul>'
+                '<li><strong>基址：</strong>本地 RSSHub 服务的地址，如 http://127.0.0.1:1200</li>'
+                '<li><strong>访问密钥：</strong>RSSHub 的 ACCESS_KEY，留空表示不使用鉴权</li>'
+                '<li><strong>默认格式：</strong>RSS 输出格式（RSS 2.0 / Atom / JSON）</li>'
+                '</ul>'
+                '<p>单个 RSS 源可以选择使用全局配置或自定义配置。</p>'
+                '</div>'
+            )
+        }),
+        ('时间戳', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def enabled_badge(self, obj):
+        """启用状态标签"""
+        if obj.enabled:
+            return format_html(
+                '<span style="background-color: #28a745; color: white; '
+                'padding: 3px 8px; border-radius: 4px;">✅ 已启用</span>'
+            )
+        return format_html(
+            '<span style="background-color: #6c757d; color: white; '
+            'padding: 3px 8px; border-radius: 4px;">❌ 未启用</span>'
+        )
+    enabled_badge.short_description = '状态'
+
+    def has_key_badge(self, obj):
+        """密钥状态标签"""
+        if obj.access_key:
+            return format_html(
+                '<span style="background-color: #007bff; color: white; '
+                'padding: 3px 8px; border-radius: 4px;">🔑 已配置</span>'
+            )
+        return format_html(
+            '<span style="background-color: #ffc107; color: black; '
+            'padding: 3px 8px; border-radius: 4px;">⚠️ 未配置</span>'
+        )
+    has_key_badge.short_description = '鉴权'
+
+    def changelist_view(self, request, extra_context=None):
+        """自定义列表页（单例模式）"""
+        # 如果已有配置，直接跳转到编辑页
+        if RSSHubGlobalConfig.objects.exists():
+            config = RSSHubGlobalConfig.get_config()
+            return super().change_view(
+                str(config.pk),
+                extra_context=extra_context
+            )
+        return super().changelist_view(request, extra_context)
+
+
 @admin.register(RSSSourceConfigModel)
 class RSSSourceConfigAdmin(admin.ModelAdmin):
     """RSS源配置管理"""
 
     list_display = [
-        'name', 'category_badge', 'is_active', 'fetch_interval_hours',
-        'extract_content', 'proxy_enabled', 'last_fetch_at',
+        'name', 'category_badge', 'rsshub_badge', 'is_active',
+        'fetch_interval_hours', 'proxy_enabled', 'last_fetch_at',
         'last_fetch_status_badge', 'created_at'
     ]
-    list_filter = ['category', 'is_active', 'proxy_enabled', 'parser_type', 'last_fetch_status']
-    search_fields = ['name', 'url']
-    readonly_fields = ['last_fetch_at', 'last_fetch_status', 'last_error_message', 'created_at', 'updated_at']
+    list_filter = ['category', 'is_active', 'rsshub_enabled', 'proxy_enabled', 'parser_type', 'last_fetch_status']
+    search_fields = ['name', 'url', 'rsshub_route_path']
+    readonly_fields = ['last_fetch_at', 'last_fetch_status', 'last_error_message', 'effective_url_display', 'created_at', 'updated_at']
     list_per_page = 20
 
     fieldsets = (
         ('基本信息', {
             'fields': ('name', 'url', 'category', 'is_active')
+        }),
+        ('RSSHub 配置', {
+            'fields': (
+                'rsshub_enabled',
+                'rsshub_route_path',
+                'rsshub_use_global_config',
+                'rsshub_custom_base_url',
+                'rsshub_custom_access_key',
+                'rsshub_format',
+                'effective_url_display'
+            ),
+            'classes': ('collapse',),
+            'description': (
+                '<div style="padding: 10px; background: #e7f3ff; border-radius: 5px; margin-bottom: 10px;">'
+                '<p><strong> RSSHub 模式说明：</strong></p>'
+                '<ul>'
+                '<li>启用后将忽略「URL」字段，使用「路由路径」构建完整 URL</li>'
+                '<li>路由路径示例：/csrc/news/bwj（证监会部门文件）</li>'
+                '<li>完整 URL = 基址 + 路由路径 + ?key=密钥&format=格式</li>'
+                '<li>可选择使用全局配置或自定义配置</li>'
+                '</ul>'
+                '</div>'
+            )
         }),
         ('抓取配置', {
             'fields': (
@@ -451,6 +559,31 @@ class RSSSourceConfigAdmin(admin.ModelAdmin):
             color, obj.get_category_display()
         )
     category_badge.short_description = '分类'
+
+    def rsshub_badge(self, obj):
+        """RSSHub 模式标签"""
+        if obj.rsshub_enabled:
+            return format_html(
+                '<span style="background-color: #6f42c1; color: white; '
+                'padding: 3px 8px; border-radius: 4px;">RSSHub</span>'
+            )
+        return format_html(
+            '<span style="background-color: #e9ecef; color: #495057; '
+            'padding: 3px 8px; border-radius: 4px;">普通</span>'
+        )
+    rsshub_badge.short_description = '模式'
+
+    def effective_url_display(self, obj):
+        """显示有效 URL（预览）"""
+        url = obj.get_effective_url()
+        if len(url) > 100:
+            url = url[:97] + '...'
+        return format_html(
+            '<code style="background: #f8f9fa; padding: 5px; '
+            'display: block; word-break: break-all;">{}</code>',
+            url
+        )
+    effective_url_display.short_description = '有效 URL（预览）'
 
     def last_fetch_status_badge(self, obj):
         """最后抓取状态标签"""

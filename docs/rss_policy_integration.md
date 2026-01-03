@@ -394,7 +394,126 @@ POST /api/policy/api/rss/keywords/
 | `scripts/init_rss_sources.py` | RSS源初始化脚本 |
 | `scripts/init_policy_keywords.py` | 关键词规则初始化脚本 |
 
+## RSSHub 鉴权支持
+
+### 概述
+
+系统现在支持带鉴权的 RSSHub 服务，采用**混合配置模式**：
+- **全局配置**：在数据库中统一管理 RSSHub 基址和访问密钥
+- **源级覆盖**：每个 RSS 源可以选择使用全局配置或自定义配置
+
+### 数据模型
+
+#### RSSHub 全局配置表 (rsshub_global_config)
+
+```sql
+CREATE TABLE rsshub_global_config (
+    singleton_id INTEGER PRIMARY KEY,
+    base_url VARCHAR(500) DEFAULT 'http://127.0.0.1:1200',
+    access_key VARCHAR(200) DEFAULT '',
+    enabled BOOLEAN DEFAULT FALSE,
+    default_format VARCHAR(20) DEFAULT 'rss',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+**字段说明：**
+- `singleton_id`: 单例主键，数据库中只有一条记录
+- `base_url`: RSSHub 服务基址
+- `access_key`: 访问密钥（留空表示不使用鉴权）
+- `enabled`: 是否启用 RSSHub 全局配置
+- `default_format`: 默认输出格式（rss/atom/json）
+
+### 配置步骤
+
+#### 1. 配置全局 RSSHub
+
+1. 登录 Django Admin：`http://127.0.0.1:8000/admin/`
+2. 进入 `Policy › RSSHub 全局配置`
+3. 填写配置：
+   - **启用 RSSHub**：勾选
+   - **基址**：`http://127.0.0.1:1200`
+   - **访问密钥**：你的 ACCESS_KEY
+   - **默认格式**：RSS 2.0
+
+#### 2. 添加 RSSHub 源
+
+在 `RSS 源配置` 中添加新源：
+
+**基本信息：**
+- 名称：`证监会新闻`
+- 分类：`证监会`
+- 启用：勾选
+
+**RSSHub 配置：**
+- **使用 RSSHub**：勾选
+- **路由路径**：`/csrc/news/bwj`
+- **使用全局 RSSHub 配置**：勾选（或取消勾选后填写自定义配置）
+
+**完整 URL 自动构建为：**
+```
+http://127.0.0.1:1200/csrc/news/bwj?key=YOUR_KEY&format=rss
+```
+
+#### 3. 常用 RSSHub 路由
+
+| 源名称 | 分类 | 路由路径 | 说明 |
+|--------|------|----------|------|
+| 证监会新闻 | csrc | `/csrc/news/bwj` | 部门文件 |
+| 央行公告 | central_bank | `/pbc/cnych/notice` | 新闻公告 |
+| 财政部文件 | mof | `/mof/zhengcefabu` | 政策发布 |
+| 国务院文件 | gov_docs | `/gov/zhengce/zhengceku/bmwj` | 部门文件 |
+
+### URL 构建规则
+
+```python
+# 如果使用 RSSHub 模式
+effective_url = base_url + route_path + "?" + urlencode({
+    "key": access_key,
+    "format": format
+})
+
+# 示例
+# http://127.0.0.1:1200/csrc/news/bwj?key=xxxx&format=rss
+```
+
+### 向后兼容
+
+- 现有的普通 RSS 源不受影响，继续使用 `url` 字段
+- 只有勾选 `使用 RSSHub` 的源才会启用 RSSHub 模式
+- 可以混合使用普通 RSS 源和 RSSHub 源
+
+### API 使用
+
+#### 获取全局配置
+
+```python
+from apps.policy.infrastructure.models import RSSHubGlobalConfig
+
+config = RSSHubGlobalConfig.get_config()
+print(f"Base URL: {config.base_url}")
+print(f"Has Key: {bool(config.access_key)}")
+```
+
+#### 获取有效 URL
+
+```python
+from apps.policy.infrastructure.models import RSSSourceConfigModel
+
+source = RSSSourceConfigModel.objects.get(name='证监会新闻')
+url = source.get_effective_url()
+# RSSHub 模式：http://127.0.0.1:1200/csrc/news/bwj?key=xxxx&format=rss
+# 普通模式：直接返回 url 字段
+```
+
 ## 版本历史
+
+- v1.1.0 (2026-01-03): RSSHub 鉴权支持
+  - 新增 RSSHub 全局配置模型
+  - RSS 源支持 RSSHub 模式
+  - 支持自动构建鉴权 URL
+  - 混合配置模式（全局+源级）
 
 - v1.0.0 (2026-01-01): 初始版本
   - 支持RSSHub源

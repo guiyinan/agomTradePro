@@ -172,6 +172,111 @@ class PolicyLog(models.Model):
         return f"{self.event_date}: {self.level} - {self.title}"
 
 
+class RSSHubGlobalConfig(models.Model):
+    """
+    RSSHub 全局配置模型（单例模式）
+
+    存储默认的 RSSHub 基址和访问密钥。
+    通过 Django Admin 或 API 进行配置。
+    """
+    # 单例约束：数据库中只应有一条记录
+    singleton_id = models.AutoField(primary_key=True, verbose_name="单例ID")
+
+    # RSSHub 基础配置
+    base_url = models.URLField(
+        max_length=500,
+        default='http://127.0.0.1:1200',
+        verbose_name="RSSHub 基址",
+        help_text="本地 RSSHub 服务的基址，如 http://127.0.0.1:1200"
+    )
+    access_key = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="访问密钥",
+        help_text="RSSHub 的 ACCESS_KEY，留空表示不使用鉴权"
+    )
+    enabled = models.BooleanField(
+        default=False,
+        verbose_name="启用 RSSHub",
+        help_text="是否启用 RSSHub 全局配置"
+    )
+
+    # 默认参数配置
+    default_format = models.CharField(
+        max_length=20,
+        choices=[('rss', 'RSS 2.0'), ('atom', 'Atom'), ('json', 'JSON Feed')],
+        default='rss',
+        verbose_name="默认输出格式",
+        help_text="RSSHub 默认输出格式"
+    )
+
+    # 时间戳
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = 'rsshub_global_config'
+        verbose_name = "RSSHub 全局配置"
+        verbose_name_plural = "RSSHub 全局配置"
+
+    def __str__(self):
+        status = "启用" if self.enabled else "禁用"
+        has_key = "有密钥" if self.access_key else "无密钥"
+        return f"RSSHub 全局配置 [{status}] - {self.base_url} ({has_key})"
+
+    @classmethod
+    def get_config(cls):
+        """
+        获取全局 RSSHub 配置（单例模式）
+
+        Returns:
+            RSSHubGlobalConfig: 全局配置对象，如果不存在则创建默认配置
+        """
+        config, created = cls.objects.get_or_create(
+            singleton_id=1,
+            defaults={
+                'base_url': 'http://127.0.0.1:1200',
+                'access_key': '',
+                'enabled': False,
+            }
+        )
+        return config
+
+    def get_full_url(self, route_path: str, format: str = None) -> str:
+        """
+        构建完整的 RSSHub URL
+
+        Args:
+            route_path: 路由路径，如 /csrc/news/bwj
+            format: 输出格式，默认使用 default_format
+
+        Returns:
+            str: 完整的 RSSHub URL
+
+        Examples:
+            >>> config = RSSHubGlobalConfig.get_config()
+            >>> config.get_full_url('/csrc/news/bwj')
+            'http://127.0.0.1:1200/csrc/news/bwj?key=xxxx&format=rss'
+        """
+        from urllib.parse import urlencode
+
+        # 构建查询参数
+        params = {}
+        if self.access_key:
+            params['key'] = self.access_key
+        if format:
+            params['format'] = format
+        elif self.default_format != 'rss':
+            params['format'] = self.default_format
+
+        # 构建完整 URL
+        url = f"{self.base_url.rstrip('/')}{route_path}"
+        if params:
+            url += f"?{urlencode(params)}"
+
+        return url
+
+
 class RSSSourceConfigModel(models.Model):
     """RSS源配置ORM"""
 
@@ -237,6 +342,44 @@ class RSSSourceConfigModel(models.Model):
     timeout_seconds = models.IntegerField(default=30, verbose_name="超时时间(秒)")
     retry_times = models.IntegerField(default=3, verbose_name="重试次数")
 
+    # ========== RSSHub 配置 ==========
+    rsshub_enabled = models.BooleanField(
+        default=False,
+        verbose_name="使用 RSSHub",
+        help_text="是否使用 RSSHub 模式（启用后将忽略 URL 字段，使用路由路径）"
+    )
+    rsshub_route_path = models.CharField(
+        max_length=500,
+        blank=True,
+        verbose_name="RSSHub 路由路径",
+        help_text="如 /csrc/news/bwj，完整 URL 将自动构建为: 基址 + 路由 + key"
+    )
+    rsshub_use_global_config = models.BooleanField(
+        default=True,
+        verbose_name="使用全局 RSSHub 配置",
+        help_text="是否使用全局 RSSHub 配置（基址和密钥）。取消勾选后可自定义配置。"
+    )
+    rsshub_custom_base_url = models.URLField(
+        max_length=500,
+        blank=True,
+        verbose_name="自定义 RSSHub 基址",
+        help_text="仅在「不使用全局配置」时生效"
+    )
+    rsshub_custom_access_key = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="自定义访问密钥",
+        help_text="仅在「不使用全局配置」时生效"
+    )
+    rsshub_format = models.CharField(
+        max_length=20,
+        choices=[('', '默认'), ('rss', 'RSS 2.0'), ('atom', 'Atom'), ('json', 'JSON Feed')],
+        default='',
+        blank=True,
+        verbose_name="输出格式",
+        help_text="留空则使用全局配置的默认格式"
+    )
+
     # 状态监控
     last_fetch_at = models.DateTimeField(null=True, blank=True, verbose_name="最后抓取时间")
     last_fetch_status = models.CharField(max_length=20, blank=True, verbose_name="最后抓取状态")
@@ -257,6 +400,56 @@ class RSSSourceConfigModel(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.get_category_display()})"
+
+    def get_effective_url(self) -> str:
+        """
+        获取有效的 RSS URL
+
+        如果启用 RSSHub 模式，则自动构建完整的 RSSHub URL。
+        否则返回原有的 url 字段。
+
+        Returns:
+            str: 完整的 RSS URL
+
+        Examples:
+            >>> source = RSSSourceConfigModel.objects.get(name='证监会新闻')
+            >>> source.get_effective_url()
+            'http://127.0.0.1:1200/csrc/news/bwj?key=xxxx&format=rss'
+        """
+        if not self.rsshub_enabled:
+            # 普通模式，直接返回 URL
+            return self.url
+
+        # RSSHub 模式，构建完整 URL
+        from urllib.parse import urlencode
+
+        # 确定基址和密钥
+        if self.rsshub_use_global_config:
+            # 使用全局配置
+            global_config = RSSHubGlobalConfig.get_config()
+            base_url = global_config.base_url
+            access_key = global_config.access_key
+            format = self.rsshub_format or global_config.default_format
+        else:
+            # 使用自定义配置
+            base_url = self.rsshub_custom_base_url
+            access_key = self.rsshub_custom_access_key
+            format = self.rsshub_format or 'rss'
+
+        # 构建查询参数
+        params = {}
+        if access_key:
+            params['key'] = access_key
+        if format and format != '':
+            params['format'] = format
+
+        # 构建完整 URL
+        route = self.rsshub_route_path or ''
+        url = f"{base_url.rstrip('/')}{route}"
+        if params:
+            url += f"?{urlencode(params)}"
+
+        return url
 
 
 class PolicyLevelKeywordModel(models.Model):
