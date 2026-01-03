@@ -45,6 +45,20 @@
                         <a href="{% url 'account:profile' %}#positions" class="dropdown-item">我的持仓</a>
                     </div>
                 </div>
+
+                <!-- 证券分析：下拉菜单 -->
+                <div class="dropdown">
+                    <span class="top-nav-item">证券分析</span>
+                    <div class="dropdown-menu">
+                        <a href="{% url 'equity:screen' %}" class="dropdown-item">个股筛选</a>
+                        <a href="{% url 'equity:pool' %}" class="dropdown-item">股票池管理</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="/api/docs/" class="dropdown-item">板块轮动 API</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="/api/docs/" class="dropdown-item">基金筛选 API</a>
+                        <a href="/api/docs/" class="dropdown-item">基金排名 API</a>
+                    </div>
+                </div>
                 {% endif %}
 
                 <!-- 系统：下拉菜单 -->

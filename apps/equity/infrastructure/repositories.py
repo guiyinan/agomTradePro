@@ -7,7 +7,7 @@
 - 负责数据持久化逻辑
 """
 
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 from datetime import date
 from decimal import Decimal
 
@@ -22,7 +22,8 @@ from .models import (
 from apps.equity.domain.entities import (
     StockInfo,
     FinancialData,
-    ValuationMetrics
+    ValuationMetrics,
+    TechnicalIndicators
 )
 
 
@@ -275,3 +276,121 @@ class DjangoStockRepository:
                 'dividend_yield': valuation.dividend_yield
             }
         )
+
+    def get_daily_prices(
+        self,
+        stock_code: str,
+        start_date: date,
+        end_date: date
+    ) -> List[Tuple[date, Decimal]]:
+        """
+        获取股票的日线收盘价数据
+
+        Args:
+            stock_code: 股票代码
+            start_date: 开始日期
+            end_date: 结束日期
+
+        Returns:
+            [(日期, 收盘价), ...]，按日期升序排列
+        """
+        models = StockDailyModel.objects.filter(
+            stock_code=stock_code,
+            trade_date__gte=start_date,
+            trade_date__lte=end_date
+        ).order_by('trade_date')
+
+        return [(m.trade_date, m.close) for m in models]
+
+    def calculate_daily_returns(
+        self,
+        stock_code: str,
+        start_date: date,
+        end_date: date
+    ) -> Dict[date, float]:
+        """
+        计算股票的日收益率
+
+        Args:
+            stock_code: 股票代码
+            start_date: 开始日期
+            end_date: 结束日期
+
+        Returns:
+            {日期: 收益率}，收益率以小数表示（如 0.01 表示 1%）
+        """
+        prices = self.get_daily_prices(stock_code, start_date, end_date)
+
+        returns = {}
+        for i in range(1, len(prices)):
+            prev_date, prev_price = prices[i - 1]
+            curr_date, curr_price = prices[i]
+
+            if prev_price > 0:
+                daily_return = float((curr_price - prev_price) / prev_price)
+                returns[curr_date] = daily_return
+
+        return returns
+
+    def get_latest_financial_data(
+        self,
+        stock_code: str
+    ) -> Optional[FinancialData]:
+        """
+        获取股票最新的财务数据
+
+        Args:
+            stock_code: 股票代码
+
+        Returns:
+            FinancialData 或 None
+        """
+        model = FinancialDataModel.objects.filter(
+            stock_code=stock_code
+        ).order_by('-report_date').first()
+
+        if not model:
+            return None
+
+        return FinancialData(
+            stock_code=model.stock_code,
+            report_date=model.report_date,
+            revenue=model.revenue,
+            net_profit=model.net_profit,
+            revenue_growth=model.revenue_growth or 0.0,
+            net_profit_growth=model.net_profit_growth or 0.0,
+            total_assets=model.total_assets,
+            total_liabilities=model.total_liabilities,
+            equity=model.equity,
+            roe=model.roe,
+            roa=model.roa or 0.0,
+            debt_ratio=model.debt_ratio
+        )
+
+    def get_stock_count_by_sector(self, sector: str) -> int:
+        """
+        获取指定行业的股票数量
+
+        Args:
+            sector: 行业名称
+
+        Returns:
+            股票数量
+        """
+        return StockInfoModel.objects.filter(
+            sector=sector,
+            is_active=True
+        ).count()
+
+    def get_all_sectors(self) -> List[str]:
+        """
+        获取所有行业列表
+
+        Returns:
+            行业名称列表
+        """
+        sectors = StockInfoModel.objects.filter(
+            is_active=True
+        ).values_list('sector', flat=True).distinct()
+
+        return list(sectors)

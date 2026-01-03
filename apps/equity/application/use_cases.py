@@ -8,8 +8,8 @@
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
-from datetime import date
+from typing import List, Optional, Dict, Tuple
+from datetime import date, timedelta
 from decimal import Decimal
 
 from apps.equity.domain.services import StockScreener
@@ -262,5 +262,477 @@ class AnalyzeValuationUseCase:
                 current_pb=0.0,
                 pb_percentile=0.0,
                 is_undervalued=False,
+                error=str(e)
+            )
+
+
+# ============================================================================
+# DCF 绝对估值
+# ============================================================================
+
+@dataclass
+class CalculateDCFRequest:
+    """DCF 估值请求"""
+    stock_code: str
+    growth_rate: float = 0.1  # 未来增长率（默认 10%）
+    discount_rate: float = 0.1  # 折现率（默认 10%）
+    terminal_growth: float = 0.03  # 永续增长率（默认 3%）
+    projection_years: int = 5  # 预测年数（默认 5 年）
+
+
+@dataclass
+class CalculateDCFResponse:
+    """DCF 估值响应"""
+    success: bool
+    stock_code: str
+    stock_name: str
+    intrinsic_value: Decimal  # 内在价值（企业总价值）
+    intrinsic_value_per_share: Optional[Decimal]  # 每股内在价值
+    current_price: Optional[Decimal]  # 当前股价
+    upside: Optional[float]  # 上涨空间（百分比）
+    error: Optional[str] = None
+
+
+class CalculateDCFUseCase:
+    """DCF 绝对估值用例"""
+
+    def __init__(self, stock_repository):
+        """
+        初始化用例
+
+        Args:
+            stock_repository: 股票数据仓储
+        """
+        self.stock_repo = stock_repository
+
+    def execute(self, request: CalculateDCFRequest) -> CalculateDCFResponse:
+        """
+        执行 DCF 估值
+
+        流程：
+        1. 获取股票基本信息
+        2. 获取最新财务数据（计算自由现金流）
+        3. 调用 Domain 层的 DCF 计算逻辑
+        4. 计算每股内在价值
+        5. 对比当前价格，计算上涨空间
+        6. 返回结果
+        """
+        try:
+            from apps.equity.domain.services import ValuationAnalyzer
+
+            # 1. 获取股票基本信息
+            stock_info = self.stock_repo.get_stock_info(request.stock_code)
+            if not stock_info:
+                raise ValueError(f"未找到股票 {request.stock_code}")
+
+            # 2. 获取最新财务数据
+            financial = self.stock_repo.get_latest_financial_data(request.stock_code)
+            if not financial:
+                raise ValueError(f"未找到股票 {request.stock_code} 的财务数据")
+
+            # 3. 计算自由现金流（简化版：FCF = 净利润 + 折旧 - 资本支出 - 营运资本变化）
+            # 简化：使用净利润的 80% 作为自由现金流近似值
+            latest_fcf = financial.net_profit * Decimal(0.8)
+
+            # 4. 调用 Domain 层的 DCF 计算
+            analyzer = ValuationAnalyzer()
+            intrinsic_value = analyzer.calculate_dcf_value(
+                latest_fcf=latest_fcf,
+                growth_rate=request.growth_rate,
+                discount_rate=request.discount_rate,
+                terminal_growth=request.terminal_growth,
+                projection_years=request.projection_years
+            )
+
+            # 5. 获取当前市值和股价
+            valuation = self.stock_repo.get_valuation_history(
+                request.stock_code,
+                start_date=date.today() - timedelta(days=7),
+                end_date=date.today()
+            )
+
+            current_price = None
+            intrinsic_value_per_share = None
+            upside = None
+
+            if valuation:
+                current_mv = valuation[-1].total_mv
+                current_price = valuation[-1].total_mv / valuation[-1].ps if valuation[-1].ps > 0 else None
+
+                # 计算每股内在价值（简化：使用总股本）
+                # intrinsic_value_per_share = intrinsic_value / total_shares
+                # 这里简化处理：假设内在价值/市值比例
+                if current_mv and current_mv > 0:
+                    intrinsic_value_per_share = intrinsic_value / current_mv * (current_price or Decimal(1))
+
+                # 计算上涨空间
+                if current_price and current_price > 0:
+                    upside = float((intrinsic_value_per_share - current_price) / current_price)
+
+            # 6. 返回结果
+            return CalculateDCFResponse(
+                success=True,
+                stock_code=request.stock_code,
+                stock_name=stock_info.name,
+                intrinsic_value=intrinsic_value,
+                intrinsic_value_per_share=intrinsic_value_per_share,
+                current_price=current_price,
+                upside=upside
+            )
+
+        except Exception as e:
+            return CalculateDCFResponse(
+                success=False,
+                stock_code=request.stock_code,
+                stock_name='',
+                intrinsic_value=Decimal(0),
+                intrinsic_value_per_share=None,
+                current_price=None,
+                upside=None,
+                error=str(e)
+            )
+
+
+# ============================================================================
+# Regime 相关性分析
+# ============================================================================
+
+@dataclass
+class AnalyzeRegimeCorrelationRequest:
+    """Regime 相关性分析请求"""
+    stock_code: str
+    lookback_days: int = 1260  # 回看天数（默认 5 年，约 1260 个交易日）
+
+
+@dataclass
+class RegimePerformance:
+    """单个 Regime 的表现"""
+    regime: str
+    avg_return: float
+    beta: float
+    sample_days: int
+
+
+@dataclass
+class AnalyzeRegimeCorrelationResponse:
+    """Regime 相关性分析响应"""
+    success: bool
+    stock_code: str
+    stock_name: str
+    regime_performance: Dict[str, RegimePerformance]
+    best_regime: str
+    worst_regime: str
+    error: Optional[str] = None
+
+
+class AnalyzeRegimeCorrelationUseCase:
+    """Regime 相关性分析用例"""
+
+    def __init__(self, stock_repository, regime_repository):
+        """
+        初始化用例
+
+        Args:
+            stock_repository: 股票数据仓储
+            regime_repository: Regime 数据仓储
+        """
+        self.stock_repo = stock_repository
+        self.regime_repo = regime_repository
+
+    def execute(self, request: AnalyzeRegimeCorrelationRequest) -> AnalyzeRegimeCorrelationResponse:
+        """
+        执行 Regime 相关性分析
+
+        流程：
+        1. 获取股票基本信息
+        2. 获取历史收益率数据
+        3. 获取 Regime 历史数据
+        4. 获取市场指数收益率（用于计算 Beta）
+        5. 调用 Domain 层的分析逻辑
+        6. 返回结果
+        """
+        try:
+            from apps.equity.domain.services import RegimeCorrelationAnalyzer
+            from datetime import timedelta
+
+            # 1. 获取股票基本信息
+            stock_info = self.stock_repo.get_stock_info(request.stock_code)
+            if not stock_info:
+                raise ValueError(f"未找到股票 {request.stock_code}")
+
+            # 2. 获取历史收益率
+            end_date = date.today()
+            start_date = end_date - timedelta(days=request.lookback_days)
+
+            stock_returns = self.stock_repo.calculate_daily_returns(
+                request.stock_code,
+                start_date,
+                end_date
+            )
+
+            if not stock_returns:
+                raise ValueError(f"未找到股票 {request.stock_code} 的价格数据")
+
+            # 3. 获取 Regime 历史（从 Regime 模块）
+            # TODO: 实现 regime_repo.get_regime_history(start_date, end_date)
+            # 临时使用模拟数据
+            regime_history = self._get_mock_regime_history(start_date, end_date)
+
+            # 4. 获取市场收益率（简化：使用沪深 300）
+            # TODO: 实现 market_repo.get_market_returns(start_date, end_date)
+            market_returns = self._get_mock_market_returns(start_date, end_date)
+
+            # 5. 调用 Domain 层分析
+            analyzer = RegimeCorrelationAnalyzer()
+
+            # 计算各 Regime 下的平均收益
+            avg_returns = analyzer.calculate_regime_correlation(
+                stock_returns,
+                regime_history
+            )
+
+            # 计算各 Regime 下的 Beta
+            regime_betas = analyzer.calculate_regime_beta(
+                stock_returns,
+                market_returns,
+                regime_history
+            )
+
+            # 6. 构造响应
+            regime_performance = {}
+            for regime in ['Recovery', 'Overheat', 'Stagflation', 'Deflation']:
+                # 计算样本天数
+                sample_days = sum(
+                    1 for r in regime_history.values()
+                    if r == regime
+                )
+
+                regime_performance[regime] = RegimePerformance(
+                    regime=regime,
+                    avg_return=avg_returns.get(regime, 0.0),
+                    beta=regime_betas.get(regime, 1.0),
+                    sample_days=sample_days
+                )
+
+            # 找出最佳和最差 Regime
+            sorted_by_return = sorted(
+                regime_performance.items(),
+                key=lambda x: x[1].avg_return,
+                reverse=True
+            )
+            best_regime = sorted_by_return[0][0] if sorted_by_return else 'Recovery'
+            worst_regime = sorted_by_return[-1][0] if sorted_by_return else 'Deflation'
+
+            return AnalyzeRegimeCorrelationResponse(
+                success=True,
+                stock_code=request.stock_code,
+                stock_name=stock_info.name,
+                regime_performance=regime_performance,
+                best_regime=best_regime,
+                worst_regime=worst_regime
+            )
+
+        except Exception as e:
+            return AnalyzeRegimeCorrelationResponse(
+                success=False,
+                stock_code=request.stock_code,
+                stock_name='',
+                regime_performance={},
+                best_regime='',
+                worst_regime='',
+                error=str(e)
+            )
+
+    def _get_mock_regime_history(self, start_date: date, end_date: date) -> Dict[date, str]:
+        """
+        模拟 Regime 历史（临时方法）
+
+        TODO: 替换为真实的 Regime 数据
+        """
+        from datetime import timedelta
+
+        result = {}
+        current = start_date
+        regime_list = ['Recovery', 'Overheat', 'Stagflation', 'Deflation']
+        idx = 0
+
+        while current <= end_date:
+            # 每 90 天切换一个 Regime
+            if current.day % 90 == 0:
+                idx = (idx + 1) % 4
+            result[current] = regime_list[idx]
+            current += timedelta(days=1)
+
+        return result
+
+    def _get_mock_market_returns(self, start_date: date, end_date: date) -> Dict[date, float]:
+        """
+        模拟市场收益率（临时方法）
+
+        TODO: 替换为真实的沪深 300 数据
+        """
+        from datetime import timedelta
+        import random
+
+        result = {}
+        current = start_date
+
+        while current <= end_date:
+            # 随机生成市场收益率（-2% 到 +2%）
+            result[current] = random.uniform(-0.02, 0.02)
+            current += timedelta(days=1)
+
+        return result
+
+
+# ============================================================================
+# 综合估值分析
+# ============================================================================
+
+@dataclass
+class ComprehensiveValuationRequest:
+    """综合估值分析请求"""
+    stock_code: str
+    lookback_days: int = 252  # 回看天数
+    industry_avg_pe: float = 20.0  # 行业平均 PE
+    industry_avg_pb: float = 2.0  # 行业平均 PB
+    risk_free_rate: float = 0.03  # 无风险利率
+
+
+@dataclass
+class ValuationScoreDTO:
+    """估值评分 DTO"""
+    method: str
+    score: float
+    signal: str  # 'undervalued', 'fair', 'overvalued'
+    details: Dict
+
+    def to_dict(self):
+        return {
+            'method': self.method,
+            'score': self.score,
+            'signal': self.signal,
+            'details': self.details
+        }
+
+
+@dataclass
+class ComprehensiveValuationResponse:
+    """综合估值分析响应"""
+    success: bool
+    stock_code: str
+    stock_name: str
+    overall_score: float
+    overall_signal: str
+    recommendation: str
+    confidence: float
+    scores: List[Dict]  # 序列化后的评分列表
+    error: Optional[str] = None
+
+
+class ComprehensiveValuationUseCase:
+    """综合估值分析用例"""
+
+    def __init__(self, stock_repository):
+        """
+        初始化用例
+
+        Args:
+            stock_repository: 股票数据仓储
+        """
+        self.stock_repo = stock_repository
+
+    def execute(self, request: ComprehensiveValuationRequest) -> ComprehensiveValuationResponse:
+        """
+        执行综合估值分析
+
+        流程：
+        1. 获取股票基本信息
+        2. 获取最新财务数据
+        3. 获取最新估值数据
+        4. 获取历史估值数据
+        5. 调用综合估值分析器
+        6. 返回结果
+        """
+        try:
+            from apps.equity.domain.services_comprehensive_valuation import (
+                ComprehensiveValuationAnalyzer
+            )
+            from datetime import timedelta
+
+            # 1. 获取股票基本信息
+            stock_info = self.stock_repo.get_stock_info(request.stock_code)
+            if not stock_info:
+                raise ValueError(f"未找到股票 {request.stock_code}")
+
+            # 2. 获取最新财务数据
+            financial = self.stock_repo.get_latest_financial_data(request.stock_code)
+            if not financial:
+                raise ValueError(f"未找到股票 {request.stock_code} 的财务数据")
+
+            # 3. 获取最新估值数据
+            end_date = date.today()
+            start_date = end_date - timedelta(days=request.lookback_days)
+
+            valuation_history = self.stock_repo.get_valuation_history(
+                request.stock_code,
+                start_date,
+                end_date
+            )
+
+            if not valuation_history:
+                raise ValueError(f"未找到股票 {request.stock_code} 的估值数据")
+
+            latest_valuation = valuation_history[-1]
+
+            # 4. 提取历史 PE/PB 数据
+            historical_pe = [v.pe for v in valuation_history if v.pe > 0]
+            historical_pb = [v.pb for v in valuation_history if v.pb > 0]
+
+            # 5. 调用综合估值分析器
+            analyzer = ComprehensiveValuationAnalyzer()
+            result = analyzer.analyze(
+                stock_code=request.stock_code,
+                financial=financial,
+                valuation=latest_valuation,
+                historical_pe=historical_pe,
+                historical_pb=historical_pb,
+                industry_avg_pe=request.industry_avg_pe,
+                industry_avg_pb=request.industry_avg_pb,
+                risk_free_rate=request.risk_free_rate
+            )
+
+            # 6. 转换为响应格式
+            scores_dto = [
+                ValuationScoreDTO(
+                    method=s.method,
+                    score=s.score,
+                    signal=s.signal,
+                    details=s.details
+                )
+                for s in result.scores
+            ]
+
+            return ComprehensiveValuationResponse(
+                success=True,
+                stock_code=result.stock_code,
+                stock_name=stock_info.name,
+                overall_score=result.overall_score,
+                overall_signal=result.overall_signal,
+                recommendation=result.recommendation,
+                confidence=result.confidence,
+                scores=[s.to_dict() for s in scores_dto]
+            )
+
+        except Exception as e:
+            return ComprehensiveValuationResponse(
+                success=False,
+                stock_code=request.stock_code,
+                stock_name='',
+                overall_score=0.0,
+                overall_signal='',
+                recommendation='',
+                confidence=0.0,
+                scores=[],
                 error=str(e)
             )

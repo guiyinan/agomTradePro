@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'apps.dashboard', # 新增：仪表盘
     'apps.equity',    # 新增：个股分析模块
     'apps.sector',    # 新增：板块分析模块
+    'apps.fund',      # 新增：基金分析模块
 ]
 
 MIDDLEWARE = [

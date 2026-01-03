@@ -241,6 +241,82 @@
     </div>
     </a>
 
+    <a href="/equity/screen/" class="card-link">
+    <div class="card" id="equity">
+        <div class="card-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 3v18h18"/>
+                <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
+            </svg>
+        </div>
+        <div class="card-title">个股分析</div>
+        <div class="card-desc">基于 Regime 的个股精选</div>
+        <div class="card-status status-done">已完成</div>
+        <div class="card-meta">
+            <span class="meta-item">财务筛选</span>
+            <span class="meta-item">估值分析</span>
+        </div>
+        <div class="card-features">
+            <ul>
+                <li>ROE、营收增长率筛选</li>
+                <li>PE/PB 百分位分析</li>
+                <li>动态股票池管理</li>
+            </ul>
+        </div>
+    </div>
+    </a>
+
+    <a href="/api/docs/" class="card-link">
+    <div class="card" id="sector">
+        <div class="card-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                <path d="M2 12h20"/>
+            </svg>
+        </div>
+        <div class="card-title">板块轮动</div>
+        <div class="card-desc">基于 Regime 的板块配置</div>
+        <div class="card-status status-done">已完成</div>
+        <div class="card-meta">
+            <span class="meta-item">申万行业</span>
+            <span class="meta-item">轮动分析</span>
+        </div>
+        <div class="card-features">
+            <ul>
+                <li>板块相对强弱计算</li>
+                <li>动量评分排名</li>
+                <li>Regime 适配度分析</li>
+            </ul>
+        </div>
+    </div>
+    </a>
+
+    <a href="/api/docs/" class="card-link">
+    <div class="card" id="fund">
+        <div class="card-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+            </svg>
+        </div>
+        <div class="card-title">基金分析</div>
+        <div class="card-desc">基于 Regime 的基金筛选</div>
+        <div class="card-status status-done">已完成</div>
+        <div class="card-meta">
+            <span class="meta-item">基金筛选</span>
+            <span class="meta-item">风格分析</span>
+        </div>
+        <div class="card-features">
+            <ul>
+                <li>基金类型与风格匹配</li>
+                <li>业绩指标计算</li>
+                <li>持仓分析</li>
+            </ul>
+        </div>
+    </div>
+    </a>
+
     <a href="/policy/dashboard/" class="card-link">
     <div class="card" id="policy">
         <div class="card-icon">
@@ -322,14 +398,28 @@
 
         <div class="flow-arrow">↓</div>
 
+        <!-- 证券分析层 -->
+        <div class="flow-layer" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="flow-title">证券分析层</div>
+            <div class="flow-items">
+                <div class="flow-item">个股精选（ROE/PE/PB筛选）</div>
+                <div class="flow-item">板块轮动（动量/相对强弱）</div>
+                <div class="flow-item">基金筛选（风格/业绩匹配）</div>
+                <div class="flow-item">估值分析（PE/PB百分位）</div>
+            </div>
+        </div>
+
+        <div class="flow-arrow">↓</div>
+
         <!-- 输出层 -->
         <div class="flow-layer flow-output">
             <div class="flow-title">输出层</div>
             <div class="flow-items">
                 <div class="flow-item">投资信号</div>
-                <div class="flow-item">风险告警</div>
+                <div class="flow-item">股票池推荐</div>
+                <div class="flow-item">板块配置建议</div>
+                <div class="flow-item">基金推荐列表</div>
                 <div class="flow-item">回测报告</div>
-                <div class="flow-item">持仓建议</div>
             </div>
         </div>
     </div>
@@ -351,6 +441,10 @@
         <div class="legend-item">
             <span class="legend-dot dot-decision"></span>
             <span>规则引擎判定</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-dot" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"></span>
+            <span>证券分析（个股/板块/基金）</span>
         </div>
         <div class="legend-item">
             <span class="legend-dot dot-output"></span>
@@ -484,7 +578,23 @@
         </div>
         <div class="progress-item">
             <div class="progress-header">
-                <span class="progress-label">Phase 3: 回测验证</span>
+                <span class="progress-label">Phase 3: 证券分析模块</span>
+                <span class="progress-percent">100%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill progress-complete"></div>
+            </div>
+            <div class="progress-details">
+                <span class="check-mark">✓</span> 个股分析模块（财务筛选、估值分析）
+                <span class="check-mark">✓</span> 板块轮动模块（申万行业、动量分析）
+                <span class="check-mark">✓</span> 基金分析模块（基金筛选、风格分析）
+                <span class="check-mark">✓</span> 数据适配器（Tushare/AKShare）
+                <span class="check-mark">✓</span> API 端点与页面
+            </div>
+        </div>
+        <div class="progress-item">
+            <div class="progress-header">
+                <span class="progress-label">Phase 4: 估值分析与优化</span>
                 <span class="progress-percent">0%</span>
             </div>
             <div class="progress-bar">
@@ -493,7 +603,7 @@
         </div>
         <div class="progress-item">
             <div class="progress-header">
-                <span class="progress-label">Phase 4: 产品化部署</span>
+                <span class="progress-label">Phase 5: 产品化部署</span>
                 <span class="progress-percent">0%</span>
             </div>
             <div class="progress-bar">
@@ -517,6 +627,18 @@
         <div class="feature-item">
             <div class="feature-title">准入矩阵</div>
             <div class="feature-desc">6类资产在4象限下的适配性配置（PREFERRED/NEUTRAL/HOSTILE）</div>
+        </div>
+        <div class="feature-item">
+            <div class="feature-title">个股精选</div>
+            <div class="feature-desc">基于 ROE、PE、PB 等指标筛选优质股票</div>
+        </div>
+        <div class="feature-item">
+            <div class="feature-title">板块轮动</div>
+            <div class="feature-desc">基于动量和相对强弱分析板块配置</div>
+        </div>
+        <div class="feature-item">
+            <div class="feature-title">基金筛选</div>
+            <div class="feature-desc">基于投资风格和业绩筛选匹配的基金</div>
         </div>
         <div class="feature-item">
             <div class="feature-title">多源容错</div>
