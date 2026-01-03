@@ -509,6 +509,14 @@ url = source.get_effective_url()
 
 ## 版本历史
 
+- v1.2.0 (2026-01-03): RSSHub 鉴权支持（数据库配置模式）
+  - 新增 RSSHub 全局配置模型（数据库存储，非硬编码）
+  - RSS 源支持 RSSHub 模式（混合配置：全局 + 源级覆盖）
+  - 支持自动构建鉴权 URL（`?key=ACCESS_KEY&format=...`）
+  - 新增 Admin 管理界面（RSSHub 全局配置页面）
+  - 添加 URL 预览功能（`get_effective_url()` 方法）
+  - 向后兼容现有 RSS 源
+
 - v1.1.0 (2026-01-03): RSSHub 鉴权支持
   - 新增 RSSHub 全局配置模型
   - RSS 源支持 RSSHub 模式
