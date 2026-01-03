@@ -38,6 +38,7 @@ urlpatterns = [
     path('api/profile/', api_views.AccountProfileView.as_view(), name='api_profile'),
     path('api/health/', api_views.AccountHealthView.as_view(), name='api_health'),
     path('api/', include(router.urls)),
+    path('api/volatility/', views.portfolio_volatility_api_view, name='api_volatility'),
 
     # 分类和汇率 API
     path('api/', include(classification_router.urls)),

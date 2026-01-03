@@ -2,6 +2,11 @@
 
 {% block title %}我的账户 - AgomSAAF{% endblock %}
 
+{% block extra_css %}
+<!-- Chart.js -->
+<script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
+{% endblock %}
+
 {% block content %}
 <div class="account-container">
     <div class="account-header">
@@ -87,6 +92,33 @@
             <p class="empty-hint">通过<a href="/signal/manage/">创建投资信号</a>或<a href="/backtest/">回测引擎</a>开始投资</p>
         </div>
         {% endif %}
+    </section>
+
+    <!-- 波动率分析 -->
+    <section class="account-section">
+        <h2 class="section-title">波动率分析</h2>
+        <div class="volatility-overview">
+            <div class="volatility-stat">
+                <span class="volatility-label">30天波动率</span>
+                <span class="volatility-value" id="vol30d">-</span>
+            </div>
+            <div class="volatility-stat">
+                <span class="volatility-label">60天波动率</span>
+                <span class="volatility-value" id="vol60d">-</span>
+            </div>
+            <div class="volatility-stat">
+                <span class="volatility-label">90天波动率</span>
+                <span class="volatility-value" id="vol90d">-</span>
+            </div>
+            <div class="volatility-stat">
+                <span class="volatility-label">目标波动率</span>
+                <span class="volatility-value volatility-target" id="volTarget">-</span>
+            </div>
+        </div>
+        <div class="volatility-chart-container">
+            <canvas id="volatilityChart"></canvas>
+        </div>
+        <div id="volatilityAlert" class="volatility-alert" style="display: none;"></div>
     </section>
 
     <!-- 我的投资组合 -->
@@ -314,5 +346,231 @@
 .empty-state a:hover {
     text-decoration: underline;
 }
+
+/* 波动率分析样式 */
+.volatility-overview {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.volatility-stat {
+    background: #F8F9FA;
+    padding: 16px;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.volatility-label {
+    display: block;
+    font-size: 12px;
+    color: #54595D;
+    margin-bottom: 8px;
+}
+
+.volatility-value {
+    display: block;
+    font-size: 18px;
+    font-weight: 600;
+    color: #202122;
+}
+
+.volatility-value.volatility-target {
+    color: #36C;
+}
+
+.volatility-chart-container {
+    position: relative;
+    height: 300px;
+    margin: 20px 0;
+}
+
+.volatility-alert {
+    padding: 12px 16px;
+    border-radius: 4px;
+    margin-top: 16px;
+    font-size: 14px;
+}
+
+.volatility-alert.warning {
+    background: #fef3c7;
+    color: #92400e;
+    border-left: 4px solid #f59e0b;
+}
+
+.volatility-alert.danger {
+    background: #fee7e7;
+    color: #991b1b;
+    border-left: 4px solid #ef4444;
+}
+
+.volatility-alert.success {
+    background: #dcfce7;
+    color: #166534;
+    border-left: 4px solid #22c55e;
+}
 </style>
+
+<script>
+async function loadVolatilityData() {
+    try {
+        const response = await fetch('{% url "account:api_volatility" %}');
+        const result = await response.json();
+
+        if (!result.success) {
+            console.error('获取波动率数据失败:', result.error);
+            return;
+        }
+
+        const data = result.data;
+
+        // 更新当前波动率显示
+        document.getElementById('vol30d').textContent = (data.current.volatility_30d * 100).toFixed(2) + '%';
+        document.getElementById('vol60d').textContent = (data.current.volatility_60d * 100).toFixed(2) + '%';
+        document.getElementById('vol90d').textContent = (data.current.volatility_90d * 100).toFixed(2) + '%';
+        document.getElementById('volTarget').textContent = (data.current.target * 100).toFixed(2) + '%';
+
+        // 显示调整建议
+        const alertBox = document.getElementById('volatilityAlert');
+        if (data.adjustment && data.adjustment.should_reduce) {
+            alertBox.textContent = '⚠️ ' + data.adjustment.reduction_reason;
+            alertBox.className = 'volatility-alert warning';
+            alertBox.style.display = 'block';
+        } else {
+            alertBox.style.display = 'none';
+        }
+
+        // 渲染图表
+        renderVolatilityChart(data.history, data.current.target);
+
+    } catch (error) {
+        console.error('加载波动率数据失败:', error);
+    }
+}
+
+function renderVolatilityChart(history, targetVolatility) {
+    const ctx = document.getElementById('volatilityChart');
+    if (!ctx) return;
+
+    // 准备数据
+    const labels = history.map(h => h.date).filter(d => d !== null);
+    const data30d = history.map(h => h.rolling_volatility_30d ? h.rolling_volatility_30d * 100 : null);
+    const annualized = history.map(h => h.annualized_volatility ? h.annualized_volatility * 100 : null);
+
+    // 目标线
+    const targetLine = Array(labels.length).fill(targetVolatility * 100);
+    const targetUpper = Array(labels.length).fill(targetVolatility * 100 * 1.2);
+    const targetLower = Array(labels.length).fill(targetVolatility * 100 * 0.8);
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: '年化波动率',
+                    data: annualized,
+                    borderColor: '#36C',
+                    backgroundColor: 'rgba(51, 102, 204, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 2,
+                },
+                {
+                    label: '30天滚动波动率',
+                    data: data30d,
+                    borderColor: '#22c55e',
+                    backgroundColor: 'transparent',
+                    borderDash: [5, 5],
+                    tension: 0.3,
+                    pointRadius: 0,
+                },
+                {
+                    label: '目标波动率',
+                    data: targetLine,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'transparent',
+                    borderDash: [10, 5],
+                    pointRadius: 0,
+                },
+                {
+                    label: '目标上限 (+20%)',
+                    data: targetUpper,
+                    borderColor: 'transparent',
+                    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                    fill: '+1',
+                    pointRadius: 0,
+                },
+                {
+                    label: '目标下限 (-20%)',
+                    data: targetLower,
+                    borderColor: 'transparent',
+                    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+                    fill: false,
+                    pointRadius: 0,
+                },
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        boxWidth: 12,
+                        padding: 15,
+                        font: { size: 11 }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + '%';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: '日期',
+                        font: { size: 11 }
+                    },
+                    ticks: {
+                        font: { size: 10 },
+                        maxTicksLimit: 10
+                    }
+                },
+                y: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: '波动率 (%)',
+                        font: { size: 11 }
+                    },
+                    ticks: {
+                        font: { size: 10 },
+                        callback: function(value) {
+                            return value.toFixed(1) + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 页面加载时获取数据
+document.addEventListener('DOMContentLoaded', function() {
+    loadVolatilityData();
+});
+</script>
 {% endblock %}

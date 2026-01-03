@@ -360,3 +360,71 @@ def apply_backtest_results_view(request, backtest_id):
             'success': False,
             'error': f'应用失败：{str(e)}'
         }, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def portfolio_volatility_api_view(request):
+    """
+    投资组合波动率API
+
+    返回30/60/90天滚动波动率数据（用于图表展示）
+    """
+    from apps.account.application.volatility_use_cases import VolatilityAnalysisUseCase
+
+    try:
+        # 获取投资组合ID（默认活跃组合）
+        portfolio = request.user.portfolios.filter(is_active=True).first()
+
+        if not portfolio:
+            return JsonResponse({
+                'success': False,
+                'error': '暂无投资组合'
+            }, status=404)
+
+        # 执行波动率分析
+        use_case = VolatilityAnalysisUseCase()
+        analysis = use_case.analyze_portfolio_volatility(
+            portfolio_id=portfolio.id,
+            user_id=request.user.id,
+        )
+
+        # 转换历史数据为图表格式
+        history_data = []
+        for metric in analysis.volatility_history:
+            history_data.append({
+                'date': metric.date.strftime('%Y-%m-%d') if metric.date else None,
+                'daily_volatility': metric.daily_volatility,
+                'rolling_volatility_30d': metric.rolling_volatility_30d,
+                'annualized_volatility': metric.annualized_volatility,
+            })
+
+        return JsonResponse({
+            'success': True,
+            'data': {
+                'portfolio_id': analysis.portfolio_id,
+                'current': {
+                    'volatility_30d': analysis.current_volatility_30d,
+                    'volatility_60d': analysis.current_volatility_60d,
+                    'volatility_90d': analysis.current_volatility_90d,
+                    'target': analysis.target_volatility,
+                },
+                'adjustment': {
+                    'should_reduce': analysis.adjustment_result.should_reduce,
+                    'reduction_reason': analysis.adjustment_result.reduction_reason,
+                    'suggested_multiplier': analysis.adjustment_result.suggested_position_multiplier,
+                } if analysis.adjustment_result else None,
+                'history': history_data,
+            }
+        })
+
+    except ValueError as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'获取波动率数据失败：{str(e)}'
+        }, status=500)
