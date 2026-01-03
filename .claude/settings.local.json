@@ -52,7 +52,8 @@
       "Bash(powershell:*)",
       "Bash(netstat:*)",
       "Bash(if not exist \"D:\\\\githv\\\\agomSAAF\\\\core\\\\templates\\\\fund\" mkdir \"D:\\\\githv\\\\agomSAAF\\\\core\\\\templates\\\\fund\")",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(set:*)"
     ]
   }
 }
