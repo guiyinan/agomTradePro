@@ -2,142 +2,247 @@
 {% load static %}
 {% load dashboard_tags %}
 
-{% block title %}投资指挥中心 - AgomSAAF{% endblock %}
+{% block title %}AgomSAAF - 投资指挥中心{% endblock %}
 
 {% block extra_css %}
 <!-- Chart.js -->
 <script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
+<link rel="stylesheet" href="{% static 'css/home.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="dashboard-container">
-    <!-- 顶部导航栏 -->
-    <header class="dashboard-header">
-        <div class="header-left">
-            <h1 class="page-title">AgomSAAF <span class="page-subtitle">投资指挥中心</span></h1>
-            <p class="welcome-text">欢迎回来，{{ display_name|default:user.username }}</p>
+<div class="home-layout">
+    <!-- 左侧导航栏 -->
+    <aside class="home-sidebar">
+        <div class="sidebar-header">
+            <h2 class="sidebar-title">功能导航</h2>
         </div>
-        <div class="header-right">
-            <div class="header-stats">
+
+        <nav class="sidebar-nav">
+            <!-- 宏观环境 -->
+            <div class="nav-section">
+                <div class="nav-section-title">宏观环境</div>
+                <a href="/regime/dashboard/" class="nav-item">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-text">Regime 判定</span>
+                </a>
+                <a href="/policy/events/" class="nav-item">
+                    <span class="nav-icon">📰</span>
+                    <span class="nav-text">政策事件</span>
+                </a>
+                <a href="/macro/dashboard/" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">宏观数据</span>
+                </a>
+            </div>
+
+            <!-- 投资决策 -->
+            <div class="nav-section">
+                <div class="nav-section-title">投资决策</div>
+                <a href="/signal/manage/" class="nav-item">
+                    <span class="nav-icon">🎯</span>
+                    <span class="nav-text">投资信号</span>
+                </a>
+                <a href="/backtest/create/" class="nav-item">
+                    <span class="nav-icon">🧪</span>
+                    <span class="nav-text">策略回测</span>
+                </a>
+                <a href="/filter/dashboard/" class="nav-item">
+                    <span class="nav-icon">🔍</span>
+                    <span class="nav-text">股票筛选</span>
+                </a>
+            </div>
+
+            <!-- 资产管理 -->
+            <div class="nav-section">
+                <div class="nav-section-title">资产管理</div>
+                <a href="/account/profile/#positions" class="nav-item">
+                    <span class="nav-icon">💼</span>
+                    <span class="nav-text">持仓管理</span>
+                </a>
+                <a href="/account/profile/#portfolio" class="nav-item">
+                    <span class="nav-icon">📦</span>
+                    <span class="nav-text">组合配置</span>
+                </a>
+                <a href="/equity/dashboard/" class="nav-item">
+                    <span class="nav-icon">📈</span>
+                    <span class="nav-text">股票分析</span>
+                </a>
+                <a href="/fund/dashboard/" class="nav-item">
+                    <span class="nav-icon">💰</span>
+                    <span class="nav-text">基金分析</span>
+                </a>
+            </div>
+
+            <!-- 系统设置 -->
+            <div class="nav-section">
+                <div class="nav-section-title">系统</div>
+                <a href="/audit/review/" class="nav-item">
+                    <span class="nav-icon">🔍</span>
+                    <span class="nav-text">事后审计</span>
+                </a>
+                <a href="/admin/" class="nav-item">
+                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-text">管理后台</span>
+                </a>
+            </div>
+        </nav>
+
+        <!-- 快捷状态 -->
+        <div class="sidebar-footer">
+            <div class="status-card">
+                <div class="status-item">
+                    <span class="status-label">当前 Regime</span>
+                    <span class="status-value regime-{{ current_regime|lower }}">{{ current_regime|default:"-" }}</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">政策档位</span>
+                    <span class="status-value policy-{{ policy_level|default:"P0"|lower }}">{{ policy_level|default:"P0" }}</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 中间主内容区 -->
+    <main class="home-main">
+        <!-- 顶部欢迎区 -->
+        <header class="home-header">
+            <div class="header-welcome">
+                <h1 class="home-title">欢迎回来，{{ display_name|default:user.username }}</h1>
+                <p class="home-subtitle">AgomSAAF 战略资产配置框架 - 投资指挥中心</p>
+            </div>
+            <div class="header-actions">
                 <div class="header-stat">
                     <span class="stat-label">总资产</span>
                     <span class="stat-value">¥{{ total_assets|floatformat:0 }}</span>
                 </div>
                 <div class="header-stat">
                     <span class="stat-label">收益率</span>
-                    <span class="stat-value {% if total_return_pct >= 0 %}text-green{% else %}text-red{% endif %}">{{ total_return_pct|floatformat:2 }}%</span>
+                    <span class="stat-value {% if total_return_pct >= 0 %}positive{% else %}negative{% endif %}">
+                        {{ total_return_pct|floatformat:2 }}%
+                    </span>
                 </div>
             </div>
-        </div>
-    </header>
+        </header>
 
-    <!-- 主要内容区 - 使用与 regime 相同的布局 -->
-    <div class="regime-dashboard-new">
-        <!-- 左侧主面板 -->
-        <div class="main-panel">
-            <!-- Regime 象限卡片 -->
-            <div class="regime-matrix-card">
-                <div class="matrix-compact">
-                    <!-- 四象限 + 坐标轴 -->
-                    <div class="quad-wrapper">
-                        <!-- 左侧Y轴标签 -->
-                        <div class="axis-y">
-                            <span class="axis-label-top">增长↑</span>
-                        </div>
+        <!-- 核心指标卡片 -->
+        <section class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">📊</span>
+                    <span class="metric-title">增长 Z-Score</span>
+                </div>
+                <div class="metric-value {% if growth_momentum_z > 0 %}positive{% else %}negative{% endif %}">
+                    {{ growth_momentum_z|default:"0.00"|floatformat:2 }}
+                </div>
+                <div class="metric-footer">
+                    <span class="metric-label">PMI: {{ pmi_value|default:"-" }}</span>
+                </div>
+            </div>
 
-                        <!-- 四象限网格 -->
-                        <div class="quad-grid">
-                            <!-- 复苏 (左上) -->
-                            <div class="quad-box {% if current_regime == 'Recovery' %}quad-active-recovery{% endif %}">
-                                <div class="quad-title">复苏</div>
-                                <div class="quad-prob">{{ regime_distribution.Recovery|default:"0.00"|floatformat:2 }}</div>
-                                <div class="quad-hint">高增低胀</div>
-                            </div>
-                            <!-- 过热 (右上) -->
-                            <div class="quad-box {% if current_regime == 'Overheat' %}quad-active-overheat{% endif %}">
-                                <div class="quad-title">过热</div>
-                                <div class="quad-prob">{{ regime_distribution.Overheat|default:"0.00"|floatformat:2 }}</div>
-                                <div class="quad-hint">双高</div>
-                            </div>
-                            <!-- 通缩 (左下) -->
-                            <div class="quad-box {% if current_regime == 'Deflation' %}quad-active-deflation{% endif %}">
-                                <div class="quad-title">通缩</div>
-                                <div class="quad-prob">{{ regime_distribution.Deflation|default:"0.00"|floatformat:2 }}</div>
-                                <div class="quad-hint">双低</div>
-                            </div>
-                            <!-- 滞胀 (右下) -->
-                            <div class="quad-box {% if current_regime == 'Stagflation' %}quad-active-stagflation{% endif %}">
-                                <div class="quad-title">滞胀</div>
-                                <div class="quad-prob">{{ regime_distribution.Stagflation|default:"0.00"|floatformat:2 }}</div>
-                                <div class="quad-hint">低增高胀</div>
-                            </div>
-                        </div>
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">📈</span>
+                    <span class="metric-title">通胀 Z-Score</span>
+                </div>
+                <div class="metric-value {% if inflation_momentum_z > 0 %}positive{% else %}negative{% endif %}">
+                    {{ inflation_momentum_z|default:"0.00"|floatformat:2 }}
+                </div>
+                <div class="metric-footer">
+                    <span class="metric-label">CPI: {{ cpi_value|default:"-" }}</span>
+                </div>
+            </div>
 
-                        <!-- 右侧说明区 -->
-                        <div class="quad-explanation">
-                            <div class="explain-header">📊 关键指标</div>
-                            <div class="key-metrics-vertical">
-                                <div class="metric-item-vertical">
-                                    <span class="metric-label">增长Z-Score</span>
-                                    <span class="metric-val {% if growth_momentum_z > 0 %}val-up{% else %}val-down{% endif %}">
-                                        {{ growth_momentum_z|default:"0.00"|floatformat:2 }}
-                                    </span>
-                                </div>
-                                <div class="metric-item-vertical">
-                                    <span class="metric-label">通胀Z-Score</span>
-                                    <span class="metric-val {% if inflation_momentum_z > 0 %}val-up{% else %}val-down{% endif %}">
-                                        {{ inflation_momentum_z|default:"0.00"|floatformat:2 }}
-                                    </span>
-                                </div>
-                                <div class="metric-item-vertical">
-                                    <span class="metric-label">置信度</span>
-                                    <span class="metric-val">{{ regime_confidence_pct|default:0|floatformat:0 }}%</span>
-                                </div>
-                                <div class="metric-item-vertical">
-                                    <span class="metric-label">数据时点</span>
-                                    <span class="metric-val">{{ regime_date|default:"-" }}</span>
-                                </div>
-                            </div>
-                            <div class="explain-footer">
-                                <span class="footer-label">经济指标</span>
-                                <span class="footer-value">PMI: {{ pmi_value|default:"-" }} / CPI: {{ cpi_value|default:"-" }}</span>
-                            </div>
-                        </div>
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">🎯</span>
+                    <span class="metric-title">置信度</span>
+                </div>
+                <div class="metric-value">
+                    {{ regime_confidence_pct|default:0|floatformat:0 }}%
+                </div>
+                <div class="metric-footer">
+                    <span class="metric-label">{{ regime_date|default:"-" }}</span>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-icon">💼</span>
+                    <span class="metric-title">持仓数量</span>
+                </div>
+                <div class="metric-value">
+                    {{ position_count|default:0 }}
+                </div>
+                <div class="metric-footer">
+                    <span class="metric-label">仓位: {{ invested_ratio|floatformat:1 }}%</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Regime 象限图 -->
+        <section class="regime-section">
+            <div class="section-header">
+                <h2 class="section-title">Regime 象限</h2>
+                <a href="/regime/dashboard/" class="section-link">查看详情 →</a>
+            </div>
+            <div class="regime-matrix">
+                <div class="regime-axis-y">增长 ↑</div>
+                <div class="regime-grid">
+                    <div class="regime-quad {% if current_regime == 'Recovery' %}active{% endif %} quad-recovery">
+                        <div class="quad-name">复苏</div>
+                        <div class="quad-prob">{{ regime_distribution.Recovery|default:"0.00"|floatformat:2 }}</div>
+                        <div class="quad-hint">高增低胀</div>
+                    </div>
+                    <div class="regime-quad {% if current_regime == 'Overheat' %}active{% endif %} quad-overheat">
+                        <div class="quad-name">过热</div>
+                        <div class="quad-prob">{{ regime_distribution.Overheat|default:"0.00"|floatformat:2 }}</div>
+                        <div class="quad-hint">双高</div>
+                    </div>
+                    <div class="regime-quad {% if current_regime == 'Deflation' %}active{% endif %} quad-deflation">
+                        <div class="quad-name">通缩</div>
+                        <div class="quad-prob">{{ regime_distribution.Deflation|default:"0.00"|floatformat:2 }}</div>
+                        <div class="quad-hint">双低</div>
+                    </div>
+                    <div class="regime-quad {% if current_regime == 'Stagflation' %}active{% endif %} quad-stagflation">
+                        <div class="quad-name">滞胀</div>
+                        <div class="quad-prob">{{ regime_distribution.Stagflation|default:"0.00"|floatformat:2 }}</div>
+                        <div class="quad-hint">低增高胀</div>
                     </div>
                 </div>
             </div>
+        </section>
 
+        <!-- 持仓和信号 -->
+        <div class="content-row">
             <!-- 持仓列表 -->
-            <div class="data-section-card">
-                <div class="section-card-header">
-                    <h3 class="section-card-title">当前持仓</h3>
-                    <span class="section-card-meta">{{ position_count|default:0 }} 个标的</span>
-                    <a href="/account/profile/#positions" class="section-card-link">管理 →</a>
+            <section class="content-card half">
+                <div class="section-header">
+                    <h2 class="section-title">当前持仓</h2>
+                    <a href="/account/profile/#positions" class="section-link">管理 →</a>
                 </div>
-                <div class="section-card-body">
+                <div class="card-body">
                     {% if positions %}
-                    <table class="compact-table">
+                    <table class="data-table">
                         <thead>
                             <tr>
                                 <th>代码</th>
                                 <th>名称</th>
-                                <th>数量</th>
                                 <th>市值</th>
                                 <th>盈亏</th>
                                 <th>收益率</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for pos in positions %}
+                            {% for pos in positions|slice:":5" %}
                             <tr>
                                 <td><strong>{{ pos.asset_code }}</strong></td>
                                 <td>{{ pos.asset_name|default:"-" }}</td>
-                                <td>{{ pos.shares|floatformat:2 }}</td>
                                 <td>¥{{ pos.market_value|floatformat:0 }}</td>
-                                <td class="{% if pos.unrealized_pnl >= 0 %}text-green{% else %}text-red{% endif %}">
+                                <td class="{% if pos.unrealized_pnl >= 0 %}positive{% else %}negative{% endif %}">
                                     ¥{{ pos.unrealized_pnl|floatformat:0 }}
                                 </td>
-                                <td class="{% if pos.unrealized_pnl_pct >= 0 %}text-green{% else %}text-red{% endif %}">
+                                <td class="{% if pos.unrealized_pnl_pct >= 0 %}positive{% else %}negative{% endif %}">
                                     {{ pos.unrealized_pnl_pct|floatformat:2 }}%
                                 </td>
                             </tr>
@@ -148,32 +253,27 @@
                     <div class="empty-state">
                         <div class="empty-icon">📭</div>
                         <p>暂无持仓记录</p>
-                        <a href="/account/profile/#positions" class="btn btn-primary">添加持仓</a>
                     </div>
                     {% endif %}
                 </div>
-            </div>
+            </section>
 
-            <!-- 投资信号 -->
-            <div class="data-section-card">
-                <div class="section-card-header">
-                    <h3 class="section-card-title">活跃信号</h3>
-                    <a href="/signal/manage/" class="section-card-link">全部 →</a>
+            <!-- 活跃信号 -->
+            <section class="content-card half">
+                <div class="section-header">
+                    <h2 class="section-title">活跃信号</h2>
+                    <a href="/signal/manage/" class="section-link">全部 →</a>
                 </div>
-                <div class="section-card-body">
+                <div class="card-body">
                     {% if active_signals %}
                     <div class="signal-list">
-                        {% for signal in active_signals|slice:"5" %}
-                        <div class="signal-card">
-                            <div class="signal-card-header">
+                        {% for signal in active_signals|slice:":5" %}
+                        <div class="signal-item">
+                            <div class="signal-header">
                                 <span class="signal-asset">{{ signal.asset_code }}</span>
                                 <span class="signal-badge badge-{{ signal.direction|lower }}">{{ signal.direction }}</span>
                             </div>
-                            <p class="signal-logic">{{ signal.logic_desc|truncatewords:15 }}</p>
-                            <div class="signal-card-footer">
-                                <span class="signal-date">{{ signal.created_at|date:"m-d" }}</span>
-                                <span class="signal-regime">目标: {{ signal.target_regime }}</span>
-                            </div>
+                            <p class="signal-logic">{{ signal.logic_desc|truncatewords:12 }}</p>
                         </div>
                         {% endfor %}
                     </div>
@@ -181,945 +281,96 @@
                     <div class="empty-state">
                         <div class="empty-icon">📊</div>
                         <p>暂无活跃信号</p>
-                        <a href="/signal/manage/" class="btn btn-primary">创建信号</a>
                     </div>
                     {% endif %}
                 </div>
-            </div>
+            </section>
+        </div>
 
-            <!-- 快捷操作 -->
-            <div class="data-section-card">
-                <div class="section-card-header">
-                    <h3 class="section-card-title">快捷操作</h3>
-                </div>
-                <div class="section-card-body">
-                    <div class="action-grid">
-                        <a href="/signal/manage/" class="action-item">
-                            <div class="action-icon">📊</div>
-                            <span class="action-title">管理信号</span>
-                            <span class="action-desc">创建和验证投资信号</span>
-                        </a>
-                        <a href="/account/profile/#positions" class="action-item">
-                            <div class="action-icon">💼</div>
-                            <span class="action-title">持仓管理</span>
-                            <span class="action-desc">录入和更新持仓信息</span>
-                        </a>
-                        <a href="/regime/dashboard/" class="action-item">
-                            <div class="action-icon">📈</div>
-                            <span class="action-title">Regime 判定</span>
-                            <span class="action-desc">查看历史 Regime 变化</span>
-                        </a>
-                        <a href="/backtest/create/" class="action-item">
-                            <div class="action-icon">🧪</div>
-                            <span class="action-title">策略回测</span>
-                            <span class="action-desc">验证投资策略效果</span>
-                        </a>
-                        <a href="/policy/events/" class="action-item">
-                            <div class="action-icon">📰</div>
-                            <span class="action-title">政策事件</span>
-                            <span class="action-desc">跟踪最新政策动态</span>
-                        </a>
-                        <a href="/docs/" class="action-item">
-                            <div class="action-icon">📖</div>
-                            <span class="action-title">帮助文档</span>
-                            <span class="action-desc">查看使用说明</span>
-                        </a>
+        <!-- 系统状态 -->
+        <section class="system-status">
+            <div class="section-header">
+                <h2 class="section-title">系统状态</h2>
+            </div>
+            <div class="status-grid">
+                <div class="status-item-card">
+                    <div class="status-icon">📊</div>
+                    <div class="status-content">
+                        <div class="status-name">宏观数据</div>
+                        <div class="status-desc">数据采集正常</div>
                     </div>
+                    <div class="status-indicator status-ok"></div>
+                </div>
+                <div class="status-item-card">
+                    <div class="status-icon">🎯</div>
+                    <div class="status-content">
+                        <div class="status-name">Regime 引擎</div>
+                        <div class="status-desc">运行正常</div>
+                    </div>
+                    <div class="status-indicator status-ok"></div>
+                </div>
+                <div class="status-item-card">
+                    <div class="status-icon">📰</div>
+                    <div class="status-content">
+                        <div class="status-name">政策事件</div>
+                        <div class="status-desc">已更新</div>
+                    </div>
+                    <div class="status-indicator status-ok"></div>
+                </div>
+                <div class="status-item-card">
+                    <div class="status-icon">🤖</div>
+                    <div class="status-content">
+                        <div class="status-name">AI 助手</div>
+                        <div class="status-desc">就绪</div>
+                    </div>
+                    <div class="status-indicator status-ok"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 右侧 AI 聊天窗口 -->
+    <aside class="home-chat">
+        <div class="chat-header">
+            <h2 class="chat-title">AI 助手</h2>
+            <div class="chat-status"></div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="message message-system">
+                <div class="message-content">
+                    <p>你好！我是 AgomSAAF AI 助手。</p>
+                    <p>我可以帮你：</p>
+                    <ul>
+                        <li>分析当前宏观环境</li>
+                        <li>评估投资组合配置</li>
+                        <li>回答投资相关问题</li>
+                    </ul>
                 </div>
             </div>
         </div>
 
-        <!-- 右侧侧边栏 -->
-        <div class="side-panel">
-            <!-- 政策状态 -->
-            <div class="side-card">
-                <div class="side-card-header">
-                    <h4 class="side-card-title">政策状态</h4>
-                </div>
-                <div class="side-card-body">
-                    <div class="policy-display">
-                        <div class="policy-level policy-{{ policy_level|default:"P0"|lower }}">
-                            <span class="policy-value">{{ policy_level|default:"P0" }}</span>
-                        </div>
-                        <p class="policy-desc">
-                            {% if policy_level == "P0" or policy_level is None %}正常{% elif policy_level == "P1" %}观察{% elif policy_level == "P2" %}谨慎{% else %}紧急{% endif %}
-                        </p>
-                    </div>
-                    <div class="signal-summary">
-                        <div class="summary-item">
-                            <span class="summary-label">活跃信号</span>
-                            <span class="summary-value">{{ signal_stats.approved|default:0 }}</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-label">待验证</span>
-                            <span class="summary-value">{{ signal_stats.pending|default:0 }}</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-label">已拒绝</span>
-                            <span class="summary-value">{{ signal_stats.rejected|default:0 }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="chat-input-area">
+            <textarea id="chatInput" class="chat-input" placeholder="输入您的问题..." rows="3"></textarea>
+            <button id="chatSendBtn" class="btn-send">
+                <span>发送</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                </svg>
+            </button>
+        </div>
 
-            <!-- 资产配置 -->
-            <div class="side-card">
-                <div class="side-card-header">
-                    <h4 class="side-card-title">资产配置</h4>
-                </div>
-                <div class="side-card-body">
-                    <div class="allocation-chart-container">
-                        <canvas id="allocationChart" height="180"></canvas>
-                    </div>
-                    {% if asset_allocation %}
-                    <div class="allocation-details">
-                        {% for item in asset_allocation %}
-                        <div class="allocation-item">
-                            <span class="allocation-label">{{ item.dimension_display }}</span>
-                            <span class="allocation-value">{{ item.percentage|floatformat:1 }}%</span>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- AI 助手 -->
-            <div class="side-card">
-                <div class="side-card-header">
-                    <h4 class="side-card-title">AI 助手</h4>
-                </div>
-                <div class="side-card-body">
-                    <div class="chat-container">
-                        <div class="chat-messages" id="chatMessages">
-                            <div class="chat-message chat-message-system">
-                                <div class="message-content">
-                                    <p>你好！我是 AgomSAAF AI 助手。</p>
-                                    <p>我可以帮你：</p>
-                                    <ul>
-                                        <li>分析当前宏观环境</li>
-                                        <li>评估投资组合配置</li>
-                                        <li>回答投资相关问题</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="chat-input-area">
-                            <textarea id="chatInput" class="chat-input" placeholder="输入您的问题..." rows="2"></textarea>
-                            <button id="chatSendBtn" class="btn btn-primary btn-block">
-                                <span class="btn-text">发送</span>
-                                <span class="btn-icon">→</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- AI 投资建议 -->
-            <div class="side-card">
-                <div class="side-card-header">
-                    <h4 class="side-card-title">AI 投资建议</h4>
-                    <span class="side-card-meta">基于当前宏观环境</span>
-                </div>
-                <div class="side-card-body">
-                    <div class="insights-list">
-                        {% for insight in ai_insights %}
-                        <div class="insight-item">
-                            <div class="insight-icon">💡</div>
-                            <p class="insight-text">{{ insight }}</p>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    {% if regime_recommendations %}
-                    <div class="recommendations-box">
-                        <h5 class="recommendations-title">Regime 匹配分析</h5>
-                        <div class="recommendations-score">
-                            <span class="score-label">匹配度</span>
-                            {% if regime_match_score >= 70 %}
-                                <span class="score-value score-high">{{ regime_match_score|floatformat:0 }}分</span>
-                            {% elif regime_match_score >= 50 %}
-                                <span class="score-value score-medium">{{ regime_match_score|floatformat:0 }}分</span>
-                            {% else %}
-                                <span class="score-value score-low">{{ regime_match_score|floatformat:0 }}分</span>
-                            {% endif %}
-                        </div>
-                        {% for rec in regime_recommendations %}
-                        <p class="recommendation-item">• {{ rec }}</p>
-                        {% endfor %}
-                    </div>
-                    {% endif %}
-                </div>
+        <!-- AI 建议卡片 -->
+        <div class="ai-suggestions">
+            <div class="suggestions-title">💡 快捷提问</div>
+            <div class="suggestion-buttons">
+                <button class="suggestion-btn" data-query="当前宏观环境如何？">当前宏观环境如何？</button>
+                <button class="suggestion-btn" data-query="我的持仓配置合理吗？">我的持仓配置合理吗？</button>
+                <button class="suggestion-btn" data-query="推荐什么投资策略？">推荐什么投资策略？</button>
             </div>
         </div>
-    </div>
+    </aside>
 </div>
-
-<style>
-/* ==================== Dashboard 全局样式 ==================== */
-:root {
-    --color-bg: #ffffff;
-    --color-surface: #f8fafc;
-    --color-border: #e2e8f0;
-    --color-text-primary: #0f172a;
-    --color-text-secondary: #475569;
-    --color-text-muted: #94a3b8;
-    --color-primary: #3366cc;
-    --color-primary-hover: #2654c9;
-    --color-success: #22c55e;
-    --color-warning: #f59e0b;
-    --color-error: #ef4444;
-    --radius-sm: 4px;
-    --radius-md: 8px;
-    --radius-lg: 12px;
-}
-
-.dashboard-container {
-    max-width: 1600px;
-    margin: 0 auto;
-    padding: 20px;
-}
-
-.dashboard-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    padding: 20px 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: var(--radius-lg);
-    color: white;
-}
-
-.header-left .page-title {
-    font-size: 24px;
-    font-weight: 700;
-    margin: 0;
-}
-
-.page-subtitle {
-    font-size: 14px;
-    font-weight: 400;
-    opacity: 0.9;
-}
-
-.welcome-text {
-    margin: 4px 0 0 0;
-    font-size: 14px;
-    opacity: 0.9;
-}
-
-.header-stats {
-    display: flex;
-    gap: 24px;
-}
-
-.header-stat {
-    text-align: right;
-}
-
-.stat-label {
-    display: block;
-    font-size: 11px;
-    text-transform: uppercase;
-    opacity: 0.8;
-}
-
-.stat-value {
-    display: block;
-    font-size: 20px;
-    font-weight: 700;
-}
-
-/* ==================== 主布局（复用 regime 样式） ==================== */
-.regime-dashboard-new {
-    display: grid;
-    grid-template-columns: 1fr 380px;
-    gap: 20px;
-    align-items: start;
-}
-
-.main-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.side-panel {
-    position: sticky;
-    top: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-/* ==================== Regime 矩阵（复用 regime 样式） ==================== */
-.regime-matrix-card {
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 20px;
-}
-
-.matrix-compact {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.quad-wrapper {
-    display: flex;
-    align-items: stretch;
-    gap: 16px;
-}
-
-.axis-y {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-    padding: 0 4px;
-}
-
-.quad-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 140px);
-    grid-template-rows: repeat(2, 100px);
-    gap: 8px;
-}
-
-.quad-box {
-    border: 2px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    transition: all 0.2s;
-}
-
-.quad-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-text-secondary);
-}
-
-.quad-prob {
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--color-text-primary);
-}
-
-.quad-hint {
-    font-size: 10px;
-    color: var(--color-text-muted);
-}
-
-/* 激活状态 */
-.quad-active-recovery {
-    border-color: #22c55e;
-    background: rgba(34, 197, 94, 0.08);
-}
-.quad-active-recovery .quad-prob { color: #22c55e; }
-
-.quad-active-overheat {
-    border-color: #ef4444;
-    background: rgba(239, 68, 68, 0.08);
-}
-.quad-active-overheat .quad-prob { color: #ef4444; }
-
-.quad-active-stagflation {
-    border-color: #f59e0b;
-    background: rgba(245, 158, 11, 0.08);
-}
-.quad-active-stagflation .quad-prob { color: #f59e0b; }
-
-.quad-active-deflation {
-    border-color: #3b82f6;
-    background: rgba(59, 130, 246, 0.08);
-}
-.quad-active-deflation .quad-prob { color: #3b82f6; }
-
-/* 算法说明区 */
-.quad-explanation {
-    flex: 1;
-    min-width: 240px;
-    max-width: 320px;
-    padding: 16px;
-    background: var(--color-surface);
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--color-border);
-    display: flex;
-    flex-direction: column;
-}
-
-.explain-header {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin-bottom: 16px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--color-border);
-}
-
-.key-metrics-vertical {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    flex: 1;
-}
-
-.metric-item-vertical {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.metric-label {
-    font-size: 11px;
-    color: var(--color-text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.metric-val {
-    font-size: 16px;
-    font-weight: 700;
-    font-family: monospace;
-}
-
-.val-up { color: #22c55e; }
-.val-down { color: #ef4444; }
-
-.explain-footer {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 16px;
-    padding-top: 12px;
-    border-top: 1px dashed var(--color-border);
-}
-
-.footer-label {
-    font-size: 11px;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.footer-value {
-    font-size: 11px;
-    color: var(--color-text-secondary);
-    font-family: monospace;
-}
-
-/* ==================== 数据区块卡片 ==================== */
-.data-section-card {
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-}
-
-.section-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--color-border);
-    background: var(--color-surface);
-}
-
-.section-card-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin: 0;
-}
-
-.section-card-meta {
-    font-size: 12px;
-    color: var(--color-text-secondary);
-}
-
-.section-card-link {
-    font-size: 13px;
-    color: var(--color-primary);
-    text-decoration: none;
-    font-weight: 500;
-}
-
-.section-card-link:hover {
-    text-decoration: underline;
-}
-
-.section-card-body {
-    padding: 20px;
-}
-
-/* ==================== 表格样式 ==================== */
-.compact-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-}
-
-.compact-table thead {
-    background: var(--color-surface);
-}
-
-.compact-table th {
-    padding: 10px 12px;
-    text-align: left;
-    font-weight: 600;
-    color: var(--color-text-secondary);
-    border-bottom: 1px solid var(--color-border);
-}
-
-.compact-table td {
-    padding: 10px 12px;
-    border-bottom: 1px solid var(--color-surface);
-    color: var(--color-text-primary);
-}
-
-.compact-table tbody tr:hover {
-    background: var(--color-surface);
-}
-
-.compact-table tbody tr:last-child td {
-    border-bottom: none;
-}
-
-.text-green { color: #22c55e; }
-.text-red { color: #ef4444; }
-
-/* ==================== 信号卡片 ==================== */
-.signal-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.signal-card {
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 12px;
-    transition: box-shadow 0.2s;
-}
-
-.signal-card:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-
-.signal-card-header {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-bottom: 8px;
-}
-
-.signal-asset {
-    font-weight: 600;
-    font-size: 14px;
-}
-
-.signal-badge {
-    padding: 2px 8px;
-    border-radius: var(--radius-sm);
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-}
-
-.badge-long { background: #dbeafe; color: #1e40af; }
-.badge-short { background: #fee2e2; color: #991b1b; }
-
-.signal-logic {
-    font-size: 12px;
-    color: var(--color-text-secondary);
-    line-height: 1.4;
-    margin: 8px 0;
-}
-
-.signal-card-footer {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11px;
-    color: var(--color-text-muted);
-}
-
-/* ==================== 快捷操作 ==================== */
-.action-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 12px;
-}
-
-.action-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 16px;
-    text-align: center;
-    border-radius: var(--radius-md);
-    text-decoration: none;
-    color: inherit;
-    transition: all 0.2s;
-    border: 1px solid var(--color-border);
-}
-
-.action-item:hover {
-    background: var(--color-surface);
-    transform: translateY(-2px);
-    border-color: var(--color-primary);
-}
-
-.action-icon {
-    font-size: 28px;
-    margin-bottom: 8px;
-}
-
-.action-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin-bottom: 4px;
-}
-
-.action-desc {
-    font-size: 11px;
-    color: var(--color-text-secondary);
-}
-
-/* ==================== 侧边栏卡片 ==================== */
-.side-card {
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-}
-
-.side-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--color-border);
-    background: var(--color-surface);
-}
-
-.side-card-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin: 0;
-}
-
-.side-card-meta {
-    font-size: 11px;
-    color: var(--color-text-muted);
-}
-
-.side-card-body {
-    padding: 16px;
-}
-
-/* ==================== 政策状态 ==================== */
-.policy-display {
-    text-align: center;
-    padding: 12px;
-    margin-bottom: 12px;
-}
-
-.policy-level {
-    width: 70px;
-    height: 70px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 8px;
-}
-
-.policy-value {
-    font-size: 20px;
-    font-weight: 700;
-}
-
-.policy-p0 { background: #dcfce7; color: #166534; }
-.policy-p1 { background: #fef3c7; color: #92400e; }
-.policy-p2 { background: #fed7aa; color: #9a3412; }
-.policy-p3 { background: #fee2e2; color: #991b1b; }
-
-.policy-desc {
-    font-size: 13px;
-    color: var(--color-text-secondary);
-}
-
-.signal-summary {
-    display: flex;
-    justify-content: space-around;
-    padding: 12px 0;
-}
-
-.summary-item {
-    text-align: center;
-}
-
-.summary-label {
-    display: block;
-    font-size: 11px;
-    color: var(--color-text-muted);
-}
-
-.summary-value {
-    display: block;
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-}
-
-/* ==================== 资产配置 ==================== */
-.allocation-chart-container {
-    margin-bottom: 16px;
-}
-
-.allocation-details {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.allocation-item {
-    display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-}
-
-.allocation-label {
-    color: var(--color-text-secondary);
-}
-
-.allocation-value {
-    font-weight: 600;
-    color: var(--color-text-primary);
-}
-
-/* ==================== AI 聊天 ==================== */
-.chat-container {
-    display: flex;
-    flex-direction: column;
-    height: 320px;
-}
-
-.chat-messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 12px;
-    background: var(--color-surface);
-    border-radius: var(--radius-sm);
-    margin-bottom: 12px;
-}
-
-.chat-message {
-    margin-bottom: 12px;
-}
-
-.chat-message-system {
-    display: flex;
-    justify-content: center;
-}
-
-.message-content {
-    max-width: 90%;
-}
-
-.chat-message-system .message-content {
-    background: #e0f2fe;
-    padding: 10px 14px;
-    border-radius: var(--radius-sm);
-    font-size: 12px;
-    color: #0c4a6e;
-}
-
-.chat-input-area {
-    display: flex;
-    gap: 8px;
-}
-
-.chat-input {
-    flex: 1;
-    padding: 8px 12px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    resize: none;
-    font-family: inherit;
-    font-size: 13px;
-}
-
-.btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 8px 16px;
-    border: none;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-}
-
-.btn-primary {
-    background: var(--color-primary);
-    color: white;
-}
-
-.btn-block {
-    width: 100%;
-}
-
-/* ==================== AI 建议 ==================== */
-.insights-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 16px;
-}
-
-.insight-item {
-    display: flex;
-    gap: 10px;
-    padding: 10px;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e8f4f8 100%);
-    border-radius: var(--radius-sm);
-    border-left: 3px solid #667eea;
-}
-
-.insight-icon {
-    font-size: 16px;
-}
-
-.insight-text {
-    font-size: 12px;
-    color: var(--color-text-primary);
-    margin: 0;
-}
-
-.recommendations-box {
-    background: var(--color-surface);
-    border-radius: var(--radius-sm);
-    padding: 12px;
-}
-
-.recommendations-title {
-    font-size: 12px;
-    font-weight: 600;
-    margin-bottom: 10px;
-    color: var(--color-text-primary);
-}
-
-.recommendations-score {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
-}
-
-.score-label {
-    font-size: 11px;
-    color: var(--color-text-muted);
-}
-
-.score-value {
-    padding: 4px 10px;
-    border-radius: var(--radius-sm);
-    font-size: 11px;
-    font-weight: 600;
-}
-
-.score-high { background: #dcfce7; color: #166534; }
-.score-medium { background: #fef3c7; color: #92400e; }
-.score-low { background: #fee7e7; color: #991b1b; }
-
-.recommendation-item {
-    font-size: 12px;
-    color: var(--color-text-secondary);
-    padding: 3px 0;
-}
-
-/* ==================== 空状态 ==================== */
-.empty-state {
-    text-align: center;
-    padding: 32px;
-    color: var(--color-text-muted);
-}
-
-.empty-icon {
-    font-size: 36px;
-    margin-bottom: 12px;
-    opacity: 0.5;
-}
-
-.empty-state p {
-    margin-bottom: 12px;
-}
-
-.btn {
-    display: inline-block;
-    padding: 8px 16px;
-    background: var(--color-primary);
-    color: white;
-    text-decoration: none;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-}
-
-/* ==================== 响应式设计 ==================== */
-@media (max-width: 1200px) {
-    .regime-dashboard-new {
-        grid-template-columns: 1fr;
-    }
-
-    .side-panel {
-        position: static;
-    }
-}
-
-@media (max-width: 768px) {
-    .dashboard-header {
-        flex-direction: column;
-        gap: 16px;
-        text-align: center;
-    }
-
-    .header-stats {
-        justify-content: center;
-    }
-
-    .quad-wrapper {
-        flex-direction: column;
-    }
-
-    .axis-y {
-        writing-mode: horizontal-tb;
-    }
-
-    .quad-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .action-grid {
-        grid-template-columns: 1fr;
-    }
-}
-</style>
 
 <script>
 // API 配置
@@ -1128,49 +379,16 @@ const API_URLS = {
     aiProviderManage: "{% url 'ai_provider:manage' %}"
 };
 
-// 资产配置饼图
-const allocationCtx = document.getElementById('allocationChart');
-if (allocationCtx && {{ asset_allocation|length|default:0 }} > 0) {
-    const allocationData = {{ asset_allocation|json_serialize }};
-    new Chart(allocationCtx, {
-        type: 'doughnut',
-        data: {
-            labels: allocationData.map(a => a.dimension_display),
-            datasets: [{
-                data: allocationData.map(a => parseFloat(a.percentage)),
-                backgroundColor: [
-                    '#667eea', '#764ba2', '#22c55e', '#ef4444', '#f59e0b',
-                    '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6'
-                ]
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        boxWidth: 10,
-                        padding: 8,
-                        font: { size: 10 }
-                    }
-                }
-            }
-        }
-    });
-}
-
-// AI 聊天功能
+// 聊天功能
+const chatMessages = document.getElementById('chatMessages');
 const chatInput = document.getElementById('chatInput');
 const chatSendBtn = document.getElementById('chatSendBtn');
-const chatMessages = document.getElementById('chatMessages');
 let chatSessionId = null;
 let chatHistory = [];
 
 function addMessage(content, isSystem = false) {
     const msgDiv = document.createElement('div');
-    msgDiv.className = 'chat-message' + (isSystem ? ' chat-message-system' : '');
+    msgDiv.className = 'message' + (isSystem ? ' message-system' : ' message-user');
 
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
@@ -1188,7 +406,7 @@ async function sendMessage() {
     chatInput.disabled = true;
     chatSendBtn.disabled = true;
 
-    addMessage(text);
+    addMessage(text, false);
     chatInput.value = '';
 
     chatHistory.push({ role: 'user', content: text });
@@ -1249,12 +467,21 @@ chatInput.addEventListener('keypress', (e) => {
     }
 });
 
+// 快捷提问
+document.querySelectorAll('.suggestion-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        chatInput.value = btn.dataset.query;
+        sendMessage();
+    });
+});
+
 // 定期刷新数据
 setInterval(() => {
     fetch('/regime/api/current/')
         .then(r => r.json())
         .then(data => {
-            location.reload();
+            // 只刷新关键指标，不刷新整个页面
+            console.log('数据已更新');
         });
 }, 300000); // 每5分钟刷新一次
 </script>

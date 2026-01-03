@@ -8,10 +8,10 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 
 
-@login_required
 def index_view(request):
-    """首页视图"""
-    return render(request, 'index.html')
+    """首页视图 - 重定向到 Dashboard"""
+    from django.shortcuts import redirect
+    return redirect('/dashboard/')
 
 
 @login_required

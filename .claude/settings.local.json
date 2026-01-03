@@ -47,7 +47,8 @@
       "Bash(if not exist \"D:\\\\githv\\\\agomSAAF\\\\docs\\\\api\" mkdir \"D:\\\\githv\\\\agomSAAF\\\\docs\\\\api\")",
       "Bash(if exist docsapi del docsapi)",
       "Bash(wc:*)",
-      "Bash(if not exist \"D:\\\\githv\\\\agomSAAF\\\\static\\\\vendor\" mkdir \"D:\\\\githv\\\\agomSAAF\\\\static\\\\vendor\":*)"
+      "Bash(if not exist \"D:\\\\githv\\\\agomSAAF\\\\static\\\\vendor\" mkdir \"D:\\\\githv\\\\agomSAAF\\\\static\\\\vendor\":*)",
+      "Bash(move:*)"
     ]
   }
 }
