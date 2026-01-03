@@ -49,7 +49,10 @@
       "Bash(wc:*)",
       "Bash(if not exist \"D:\\\\githv\\\\agomSAAF\\\\static\\\\vendor\" mkdir \"D:\\\\githv\\\\agomSAAF\\\\static\\\\vendor\":*)",
       "Bash(move:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(netstat:*)",
+      "Bash(if not exist \"D:\\\\githv\\\\agomSAAF\\\\core\\\\templates\\\\fund\" mkdir \"D:\\\\githv\\\\agomSAAF\\\\core\\\\templates\\\\fund\")",
+      "Bash(mv:*)"
     ]
   }
 }

@@ -14,9 +14,8 @@ def index_view(request):
     return redirect('/dashboard/')
 
 
-@login_required
 def health_view(request):
-    """健康检查"""
+    """健康检查（公开端点，无需登录）"""
     from django.http import JsonResponse
     return JsonResponse({'status': 'healthy'})
 

@@ -6,6 +6,23 @@ Updated for collapsible category layout.
 from django.shortcuts import render
 from django.db.models import Q, Count, Max, Min
 from apps.macro.infrastructure.models import MacroIndicator, DataSourceConfig
+from decimal import Decimal, InvalidOperation
+
+
+def safe_float(value):
+    """Safely convert value to float, handling None, NaN, Infinity"""
+    if value is None:
+        return None
+    try:
+        f = float(value)
+        # Check for NaN or Infinity
+        if not (f == f):  # NaN check
+            return None
+        if abs(f) == float('inf'):  # Infinity check
+            return None
+        return f
+    except (InvalidOperation, ValueError, TypeError):
+        return None
 
 
 # 分类定义：包含ID、图标、名称和关键词匹配规则
@@ -162,7 +179,7 @@ def macro_data_view(request):
                     ind_info = {
                         'code': code,
                         'name': _get_indicator_display_name(code),
-                        'latest_value': float(latest_record.value),
+                        'latest_value': safe_float(latest_record.value),
                         'latest_period': latest_record.reporting_period.strftime('%Y-%m'),
                         'unit': latest_record.original_unit or latest_record.unit or '-',
                     }
@@ -199,7 +216,7 @@ def macro_data_view(request):
         ).order_by('reporting_period')
 
         chart_dates = [d.reporting_period.strftime('%Y-%m') for d in historical_data]
-        chart_values = [float(d.value) for d in historical_data]
+        chart_values = [safe_float(d.value) for d in historical_data]
 
     # 统计信息
     stats = {

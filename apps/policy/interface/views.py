@@ -765,6 +765,37 @@ class RSSReaderView(LoginRequiredMixin, ListView):
         return context
 
 
+class PolicyEventsPageView(LoginRequiredMixin, ListView):
+    """Policy events list page (HTML)"""
+    model = PolicyLog
+    template_name = 'policy/policy_events.html'
+    context_object_name = 'events'
+    paginate_by = 20
+
+    def get_queryset(self):
+        queryset = PolicyLog.objects.all()
+        level = self.request.GET.get('level')
+        start_date = self.request.GET.get('start_date')
+        end_date = self.request.GET.get('end_date')
+
+        if level:
+            queryset = queryset.filter(level=level)
+        if start_date:
+            queryset = queryset.filter(event_date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(event_date__lte=end_date)
+
+        return queryset.order_by('-event_date', '-created_at')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['levels'] = PolicyLog.POLICY_LEVELS
+        context['selected_level'] = self.request.GET.get('level', '')
+        context['selected_start'] = self.request.GET.get('start_date', '')
+        context['selected_end'] = self.request.GET.get('end_date', '')
+        return context
+
+
 # ========== 审核相关API视图 ==========
 
 class AuditQueueView(APIView):

@@ -63,12 +63,82 @@ AgomSAAF/
 │   ├── policy/               # 政策事件管理
 │   ├── signal/               # 投资信号管理
 │   ├── backtest/             # 回测引擎
-│   └── audit/                # 事后审计
-├── shared/                   # 跨 App 共享
+│   ├── audit/                # 事后审计
+│   └── asset_analysis/       # 通用资产分析（独立业务模块）
+├── shared/                   # 跨 App 共享（仅技术性组件）
 │   ├── domain/interfaces.py  # Protocol 定义
-│   ├── infrastructure/       # 通用实现
+│   ├── infrastructure/       # 通用算法实现（如 Kalman 滤波）
 │   └── config/secrets.py     # 密钥管理
 └── tests/
+```
+
+## apps/ vs shared/ 架构边界 ⚠️
+
+### apps/ - 业务模块（Business Modules）
+
+**定义：** 拥有独立业务能力的完整四层架构模块
+
+**必须放在 apps/ 的条件：**
+1. ✅ 提供独立的业务能力（如"资产评分"、"回测计算"）
+2. ✅ 拥有完整的四层架构（Domain/Application/Infrastructure/Interface）
+3. ✅ 包含业务实体和业务规则
+4. ✅ 拥有独立的数据模型（Django Model）
+5. ✅ 提供 API 接口或 UI 界面
+
+**示例：**
+- `apps/asset_analysis/` - 资产评分与推荐（业务能力）
+- `apps/regime/` - Regime 判定引擎（业务能力）
+- `apps/backtest/` - 回测引擎（业务能力）
+
+### shared/ - 技术性组件（Technical Components）
+
+**定义：** 纯技术性的、无业务语义的通用组件
+
+**只能放在 shared/ 的内容：**
+1. ✅ Protocol 接口定义（`RepositoryProtocol`、`FilterProtocol`）
+2. ✅ 纯算法实现（`KalmanFilter`、`HPFilter`）
+3. ✅ 配置管理（`secrets.py`、`settings_loader.py`）
+4. ✅ 工具函数（`date_utils.py`、`validators.py`）
+
+**禁止放在 shared/ 的内容：**
+- ❌ 完整的四层架构模块
+- ❌ 业务实体（`AssetScore`、`RegimeState`）
+- ❌ 业务规则（`RegimeMatcher`、`PolicyMatcher`）
+- ❌ Django Model（ORM 模型）
+- ❌ API 视图（DRF ViewSet）
+
+### 跨 App 依赖管理
+
+**允许的依赖关系：**
+```python
+# ✅ 业务模块依赖其他业务模块（明确声明）
+from apps.asset_analysis.domain.entities import AssetScore
+from apps.regime.application.use_cases import GetCurrentRegimeUseCase
+
+# ✅ 业务模块依赖 shared 组件
+from shared.domain.interfaces import RepositoryProtocol
+from shared.infrastructure.kalman_filter import LocalLinearTrendFilter
+from shared.config.secrets import get_secrets
+```
+
+**禁止的依赖关系：**
+```python
+# ❌ shared 依赖 apps（违反依赖方向）
+from apps.regime.domain.entities import RegimeState  # 错误！
+
+# ❌ 循环依赖
+# apps/fund → apps/asset_analysis → apps/fund  # 错误！
+```
+
+**依赖方向：**
+```
+apps/fund ─────┐
+               ├──→ apps/asset_analysis ──→ shared/
+apps/equity ───┘
+
+✅ 正确：业务模块 → 业务模块 → shared
+❌ 错误：shared → 业务模块
+❌ 错误：循环依赖
 ```
 
 ## 关键技术规则

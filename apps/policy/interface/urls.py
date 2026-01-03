@@ -10,6 +10,7 @@ from .views import (
     PolicyStatusView,
     PolicyEventListView,
     PolicyEventDetailView,
+    PolicyEventsPageView,
     RSSSourceConfigViewSet,
     RSSFetchLogViewSet,
     PolicyLevelKeywordViewSet,
@@ -35,11 +36,12 @@ urlpatterns = [
     # 政策状态
     path("status/", PolicyStatusView.as_view(), name="status"),
 
-    # 政策事件列表
-    path("events/", PolicyEventListView.as_view(), name="event-list"),
+    # 政策事件页面 (HTML)
+    path("events/", PolicyEventsPageView.as_view(), name="events-page"),
 
-    # 政策事件详情
-    path("events/<str:event_date>/", PolicyEventDetailView.as_view(), name="event-detail"),
+    # 政策事件列表 (API)
+    path("api/events/", PolicyEventListView.as_view(), name="event-list"),
+    path("api/events/<str:event_date>/", PolicyEventDetailView.as_view(), name="event-detail-api"),
 
     # ========== 审核相关API ==========
     path("audit/queue/", AuditQueueView.as_view(), name="audit-queue"),

@@ -1,82 +1,40 @@
-<#
-.SYNOPSIS
-    General project backup script
-.DESCRIPTION
-    Backup current directory to bak folder in parent directory
-.PARAMETER ExcludeFiles
-    File patterns to exclude (space separated)
-.PARAMETER ExcludeDirs
-    Directory names to exclude (space separated)
-.PARAMETER Compression
-    Compression level: NoCompression, Fast, Optimal
-.EXAMPLE
-    .\backup-script.ps1
-    Backup with default exclusion rules
-#>
-
-param(
-    [string]$ExcludeFiles = "*.xml *.log *.log.*",
-    [string]$ExcludeDirs = "__pycache__ .venv venv node_modules .git *.egg-info .vscode .idea",
-    [ValidateSet("NoCompression", "Fastest", "Optimal")]
-    [string]$Compression = "Fastest"
-)
-
-# Get current folder name
-$currentFolder = Split-Path -Path (Get-Location) -Leaf
+# Quick backup script - Auto-detect 7-Zip, fallback to robocopy
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$backupName = "${currentFolder}_${timestamp}.zip"
+$backupDir = "D:\githv\bak"
 
-# Script parent directory's bak folder
-$scriptDir = Split-Path -Parent $PSScriptRoot
-if (-not $scriptDir) {
-    $scriptDir = ".."
-}
-$backupDir = Join-Path $scriptDir "bak"
-$destinationPath = Join-Path $backupDir $backupName
-
-# Ensure backup directory exists
 if (-not (Test-Path $backupDir)) {
     New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
 }
 
-# Create temp directory
-$tempDir = New-Item -ItemType Directory -Path "$env:TEMP\$backupName" -Force
+# Find 7-Zip
+$sevenZipPaths = @(
+    "C:\Program Files\7-Zip\7z.exe",
+    "C:\Program Files (x86)\7-Zip\7z.exe"
+)
+$sevenZip = $sevenZipPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
 
-try {
-    Write-Host "Backing up: $currentFolder" -ForegroundColor Cyan
-    Write-Host "Script location: $PSScriptRoot" -ForegroundColor Gray
-    Write-Host "Backup target: $destinationPath" -ForegroundColor Gray
-    Write-Host ""
+if ($sevenZip) {
+    # Use 7-Zip
+    $zipPath = "$backupDir\agomSAAF_$timestamp.zip"
+    Write-Host "Using 7-Zip..." -ForegroundColor Cyan
 
-    # Copy files using robocopy
-    Write-Host "Copying files..." -ForegroundColor Cyan
-    $robocopyCmd = "robocopy . `"$tempDir`" /E /XF $ExcludeFiles /XD $ExcludeDirs /NDL /NFL /NP /NJH /NJS /R:0 /W:0"
-    $robocopyExitCode = cmd /c $robocopyCmd
+    $excludeArgs = @(
+        "-x!.git", "-x!__pycache__", "-x!.venv", "-x!venv",
+        "-x!node_modules", "-x!.vscode", "-x!.idea",
+        "-x!*.egg-info", "-x!bak"
+    )
 
-    if ($robocopyExitCode -gt 7) {
-        throw "robocopy failed with exit code: $robocopyExitCode"
-    }
+    & $sevenZip a -tzip -mx1 $zipPath @excludeArgs * | Out-Null
 
-    # Compress
-    Write-Host "Compressing..." -ForegroundColor Cyan
-    Compress-Archive -Path "$tempDir\*" -DestinationPath $destinationPath -CompressionLevel $Compression -Force
+    $size = "{0:N2}" -f ((Get-Item $zipPath).Length / 1MB)
+    Write-Host "Done: $zipPath ($size MB)" -ForegroundColor Green
+} else {
+    # Fallback to robocopy mirror
+    $targetDir = "$backupDir\agomSAAF_$timestamp"
+    Write-Host "7-Zip not found, using robocopy..." -ForegroundColor Cyan
+    Write-Host "Mirroring to: $targetDir"
 
-    $backupSize = (Get-Item $destinationPath).Length / 1MB
-    $backupSizeStr = "{0:N2}" -f $backupSize
+    robocopy . $targetDir /E /XD .git __pycache__ .venv venv node_modules .vscode .idea bak /XF *.pyc *.log /NFL /NDL /NJH /NJS /NP /R:0 /W:0
 
-    Write-Host ""
-    Write-Host "[OK] Backup completed!" -ForegroundColor Green
-    Write-Host "  Location: $destinationPath" -ForegroundColor Gray
-    Write-Host "  Size: $backupSizeStr MB" -ForegroundColor Gray
-}
-catch {
-    Write-Host ""
-    $errorMsg = "Backup failed: " + $_.Exception.Message
-    Write-Host $errorMsg -ForegroundColor Red
-    exit 1
-}
-finally {
-    if (Test-Path $tempDir) {
-        Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
-    }
+    Write-Host "Done: $targetDir" -ForegroundColor Green
 }

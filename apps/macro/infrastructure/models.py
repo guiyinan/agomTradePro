@@ -131,7 +131,7 @@ class MacroIndicator(models.Model):
     }
 
     code = models.CharField(max_length=50, db_index=True, help_text="指标代码")
-    value = models.DecimalField(max_digits=20, decimal_places=6, help_text="指标值")
+    value = models.FloatField(help_text="指标值")  # 改用 FloatField 以更鲁棒地处理各种数据格式
     unit = models.CharField(max_length=50, default="", help_text="存储单位（货币类统一为元）")
     original_unit = models.CharField(max_length=50, default="", help_text="原始单位（数据源返回的单位，用于展示）")
 

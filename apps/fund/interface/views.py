@@ -1,11 +1,18 @@
 """
-基金分析模块 - API 视图
+基金分析模块 - 视图
+
+包含：
+- 页面视图（HTML）
+- API 视图（REST）
 
 遵循项目架构约束：
 - 只负责请求/响应处理
 - 调用 Application 层用例
 - 不包含业务逻辑
 """
+
+from django.shortcuts import render
+from django.views.decorators.http import require_http_methods
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -25,6 +32,38 @@ from .serializers import (
     CalculateFundPerformanceRequestSerializer, CalculateFundPerformanceResponseSerializer,
     FundScoreSerializer
 )
+
+
+# ============================================================================
+# 页面视图（前端）
+# ============================================================================
+
+@require_http_methods(["GET"])
+def dashboard_view(request):
+    """
+    基金分析仪表盘页面
+
+    GET /fund/dashboard/
+    """
+    # 获取当前 Regime 信息
+    from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+    regime_repo = DjangoRegimeRepository()
+    latest_regime = regime_repo.get_latest_snapshot()
+
+    regime_display = {
+        'Recovery': '复苏',
+        'Overheat': '过热',
+        'Stagflation': '滞胀',
+        'Deflation': '通缩',
+    }
+
+    context = {
+        'current_regime': latest_regime.dominant_regime if latest_regime else 'Unknown',
+        'regime_display': regime_display.get(latest_regime.dominant_regime) if latest_regime else '未知',
+        'regime_confidence': f"{latest_regime.confidence:.1%}" if latest_regime else "N/A",
+    }
+
+    return render(request, 'fund/dashboard.html', context)
 
 
 class ScreenFundsView(APIView):

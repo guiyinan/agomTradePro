@@ -4,6 +4,7 @@
 
 from django.urls import path
 from .views import (
+    dashboard_view,
     ScreenFundsView,
     AnalyzeFundStyleView,
     CalculateFundPerformanceView,
@@ -16,6 +17,9 @@ from .views import (
 app_name = 'fund'
 
 urlpatterns = [
+    # 仪表盘页面
+    path('dashboard/', dashboard_view, name='dashboard'),
+
     # 基金筛选
     path('screen/', ScreenFundsView.as_view(), name='screen'),
 

@@ -50,11 +50,12 @@ INSTALLED_APPS = [
     'apps.audit',
     'apps.ai_provider',
     'apps.prompt',
-    'apps.account',   # 新增：用户账户管理
-    'apps.dashboard', # 新增：仪表盘
-    'apps.equity',    # 新增：个股分析模块
-    'apps.sector',    # 新增：板块分析模块
-    'apps.fund',      # 新增：基金分析模块
+    'apps.account',        # 新增：用户账户管理
+    'apps.dashboard',      # 新增：仪表盘
+    'apps.equity',         # 新增：个股分析模块
+    'apps.sector',         # 新增：板块分析模块
+    'apps.fund',           # 新增：基金分析模块
+    'apps.asset_analysis', # 新增：通用资产分析模块
 ]
 
 MIDDLEWARE = [
@@ -78,6 +79,11 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
+
+# Authentication URLs
+LOGIN_URL = '/account/login/'
+LOGIN_REDIRECT_URL = '/dashboard/'
+LOGOUT_REDIRECT_URL = '/'
 
 # Internationalization
 LANGUAGE_CODE = 'zh-hans'
