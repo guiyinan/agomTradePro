@@ -55,7 +55,8 @@
       "Bash(mv:*)",
       "Bash(set:*)",
       "Bash(D:\\\\githv\\\\agomSAAF\\\\agomsaaf\\\\Scripts\\\\python.exe manage.py showmigrations:*)",
-      "Bash(if not exist \"tests\\\\unit\\\\domain\\\\simulated_trading\" mkdir \"tests\\\\unit\\\\domain\\\\simulated_trading\")"
+      "Bash(if not exist \"tests\\\\unit\\\\domain\\\\simulated_trading\" mkdir \"tests\\\\unit\\\\domain\\\\simulated_trading\")",
+      "Bash(powershell.exe:*)"
     ]
   }
 }

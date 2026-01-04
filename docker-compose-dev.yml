@@ -1,0 +1,62 @@
+# AgomSADF 开发环境 Docker Compose 配置
+# 仅包含 PostgreSQL 和 Redis，Django 应用在本地运行
+# 适用于 Windows 开发环境
+
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: agomsaaf_postgres_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: agomsaaf
+      POSTGRES_USER: agomsaaf
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      # 优化 PostgreSQL 性能
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+    volumes:
+      # 持久化数据到本地目录
+      - postgres_dev_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agomsaaf -d agomsaaf"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Windows 兼容性：确保容器正确关闭
+    stop_grace_period: 10s
+
+  # Redis 服务（用于 Celery）
+  redis:
+    image: redis:7-alpine
+    container_name: agomsaaf_redis_dev
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_dev_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+# 命名卷
+volumes:
+  postgres_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+
+networks:
+  default:
+    name: agomsaaf_dev_network
