@@ -39,20 +39,14 @@ echo [OK] Docker found
 echo.
 
 REM ========== 3. Start Docker Services ==========
-echo [INFO] Checking Docker containers...
-docker ps --filter "name=agomsaaf_postgres_dev" --format "^{{.Names}}" | findstr "agomsaaf_postgres_dev" >nul 2>&1
+echo [INFO] Starting Docker services (PostgreSQL + Redis)...
+docker-compose -f docker-compose-dev.yml up -d
 if errorlevel 1 (
-    echo [INFO] Starting Docker services (PostgreSQL + Redis)...
-    docker-compose -f %COMPOSE_FILE% up -d
-    if errorlevel 1 (
-        echo [ERROR] Failed to start Docker services!
-        pause
-        exit /b 1
-    )
-    echo [OK] Docker services starting
-) else (
-    echo [OK] Docker containers already running
+    echo [ERROR] Failed to start Docker services!
+    pause
+    exit /b 1
 )
+echo [OK] Docker services started
 
 REM Wait for PostgreSQL to be ready
 echo [INFO] Waiting for PostgreSQL to be ready...
