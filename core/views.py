@@ -69,6 +69,52 @@ def policy_dashboard_view(request):
     return render(request, 'policy/dashboard.html', context)
 
 
+@login_required
+def asset_screen_view(request):
+    """
+    资产筛选页面
+
+    统一的多资产筛选和资产池管理界面
+    """
+    from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+    from apps.policy.infrastructure.repositories import DjangoPolicyRepository
+    from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
+
+    # 获取当前上下文信息
+    regime_repo = DjangoRegimeRepository()
+    latest_regime = regime_repo.get_latest_snapshot()
+
+    policy_repo = DjangoPolicyRepository()
+    latest_policy = policy_repo.get_current_policy_level()
+
+    sentiment_repo = SentimentIndexRepository()
+    latest_sentiment = sentiment_repo.get_latest()
+
+    regime_display = {
+        'Recovery': '复苏',
+        'Overheat': '过热',
+        'Stagflation': '滞胀',
+        'Deflation': '通缩',
+    }
+
+    policy_display = {
+        'P0': 'P0（极度宽松）',
+        'P1': 'P1（宽松）',
+        'P2': 'P2（收紧）',
+        'P3': 'P3（极度收紧）',
+    }
+
+    context = {
+        'current_regime': latest_regime.dominant_regime if latest_regime else 'Unknown',
+        'regime_display': regime_display.get(latest_regime.dominant_regime) if latest_regime else '未知',
+        'current_policy': latest_policy.value if latest_policy else 'P1',
+        'policy_display': policy_display.get(latest_policy.value) if latest_policy else 'P1（宽松）',
+        'sentiment_index': f"{latest_sentiment.composite_index:.2f}" if latest_sentiment else "0.00",
+    }
+
+    return render(request, 'asset_analysis/screen.html', context)
+
+
 def docs_view(request, doc_slug=''):
     """文档查看视图"""
     from django.http import Http404

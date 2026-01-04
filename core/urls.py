@@ -26,6 +26,7 @@ from core.views import (
     chat_example_view,
     docs_view,
     policy_dashboard_view,
+    asset_screen_view,
 )
 
 
@@ -42,6 +43,8 @@ urlpatterns = [
     path('chat-example/', chat_example_view, name='chat-example'),
     # Policy Dashboard
     path('policy/dashboard/', policy_dashboard_view, name='policy-dashboard'),
+    # Asset Screen
+    path('asset-analysis/screen/', asset_screen_view, name='asset-screen'),
     # More specific pattern must come first
     path('docs/<str:doc_slug>/', docs_view, name='docs-detail'),
     path('docs/', docs_view, name='docs'),

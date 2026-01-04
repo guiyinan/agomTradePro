@@ -13,7 +13,7 @@
     </div>
 </div>
 
-<!-- 当前 Regime 显示 -->
+<!-- 当前 Regime、Policy、Sentiment 显示 -->
 <div class="stats-row">
     <div class="stat-card">
         <div class="stat-icon">📊</div>
@@ -28,6 +28,22 @@
         <div class="stat-info">
             <div class="stat-label">置信度</div>
             <div class="stat-value">{{ regime_confidence }}</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">📜</div>
+        <div class="stat-info">
+            <div class="stat-label">政策档位</div>
+            <div class="stat-value" style="font-size: 16px;">{{ current_policy }}</div>
+            <div style="font-size: 12px; color: #666; margin-top: 4px;">{{ policy_display }}</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">💭</div>
+        <div class="stat-info">
+            <div class="stat-label">市场情绪</div>
+            <div class="stat-value" style="font-size: 16px;">{{ sentiment_index }}</div>
+            <div style="font-size: 12px; color: #666; margin-top: 4px;">{{ sentiment_level }} ({{ sentiment_date }})</div>
         </div>
     </div>
     <div class="stat-card">
@@ -47,7 +63,11 @@
                 <h3>📋 功能导航</h3>
             </div>
             <div class="nav-menu">
-                <a href="#screen" class="nav-item active" onclick="switchSection('screen')">
+                <a href="#multidim" class="nav-item active" onclick="switchSection('multidim')">
+                    <span class="nav-icon">🎯</span>
+                    <span class="nav-text">多维度评分</span>
+                </a>
+                <a href="#screen" class="nav-item" onclick="switchSection('screen')">
                     <span class="nav-icon">🔍</span>
                     <span class="nav-text">基金筛选</span>
                 </a>
@@ -90,8 +110,112 @@
 
     <!-- 中间：功能展示区域 -->
     <div class="main-panel">
+        <!-- 多维度评分 -->
+        <div id="section-multidim" class="section-content active">
+            <div class="section-header">
+                <h2>🎯 多维度评分筛选</h2>
+                <p>基于 Regime + Policy + Sentiment + Signal 四维度综合评分</p>
+            </div>
+
+            <div class="card">
+                <h3 class="card-title">筛选条件</h3>
+                <div class="filter-group">
+                    <div class="filter-item">
+                        <label>基金类型</label>
+                        <select id="multiFundType">
+                            <option value="">全部</option>
+                            <option value="股票型">股票型</option>
+                            <option value="混合型">混合型</option>
+                            <option value="债券型">债券型</option>
+                            <option value="货币型">货币型</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label>投资风格</label>
+                        <select id="multiInvestmentStyle">
+                            <option value="">全部</option>
+                            <option value="成长">成长</option>
+                            <option value="价值">价值</option>
+                            <option value="平衡">平衡</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label>最小规模（亿）</label>
+                        <input type="number" id="multiMinScale" placeholder="不限制" min="0" step="0.1">
+                    </div>
+                    <div class="filter-item">
+                        <label>返回数量</label>
+                        <input type="number" id="multiMaxCount" value="20" min="1" max="100">
+                    </div>
+                </div>
+
+                <div class="multi-dim-info">
+                    <div class="info-item">
+                        <span class="info-label">当前 Regime</span>
+                        <span class="info-value">{{ current_regime }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Policy 档位</span>
+                        <span class="info-value">{{ current_policy }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">情绪指数</span>
+                        <span class="info-value">{{ sentiment_index }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">激活信号</span>
+                        <span class="info-value" id="activeSignalsCount">-</span>
+                    </div>
+                </div>
+
+                <div class="weight-config" id="weightConfig" style="display: none;">
+                    <h4 style="font-size: 13px; margin-bottom: 8px;">当前权重配置</h4>
+                    <div style="display: flex; gap: 16px; font-size: 12px;">
+                        <span>Regime: <strong id="weightRegime">-</strong></span>
+                        <span>Policy: <strong id="weightPolicy">-</strong></span>
+                        <span>Sentiment: <strong id="weightSentiment">-</strong></span>
+                        <span>Signal: <strong id="weightSignal">-</strong></span>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 12px; margin-top: 16px;">
+                    <button class="btn btn-primary" onclick="runMultiDimScreen()">
+                        <span>🎯</span> 开始评分筛选
+                    </button>
+                    <button class="btn btn-secondary" onclick="showWeightConfig()">
+                        <span>⚙️</span> 查看权重
+                    </button>
+                </div>
+            </div>
+
+            <div id="multiDimResults" class="card" style="display: none;">
+                <h3 class="card-title">评分结果</h3>
+                <div class="table-container">
+                    <table id="multiDimTable">
+                        <thead>
+                            <tr>
+                                <th>排名</th>
+                                <th>基金代码</th>
+                                <th>基金名称</th>
+                                <th>类型</th>
+                                <th>风格</th>
+                                <th>Regime</th>
+                                <th>Policy</th>
+                                <th>Sentiment</th>
+                                <th>Signal</th>
+                                <th>综合评分</th>
+                                <th>风险等级</th>
+                            </tr>
+                        </thead>
+                        <tbody id="multiDimTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- 基金筛选 -->
-        <div id="section-screen" class="section-content active">
+        <div id="section-screen" class="section-content">
             <div class="section-header">
                 <h2>🔍 基金筛选</h2>
                 <p>根据当前 Regime 筛选适合的基金</p>
@@ -372,6 +496,110 @@ function switchSection(sectionId) {
     });
     document.getElementById(`section-${sectionId}`).classList.add('active');
 }
+
+// 多维度评分筛选
+async function runMultiDimScreen() {
+    const fundType = document.getElementById('multiFundType').value;
+    const investmentStyle = document.getElementById('multiInvestmentStyle').value;
+    const minScale = parseFloat(document.getElementById('multiMinScale').value) || null;
+    const maxCount = parseInt(document.getElementById('multiMaxCount').value);
+
+    document.getElementById('multiDimResults').style.display = 'block';
+    document.getElementById('multiDimTableBody').innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 40px;">评分中...</td></tr>';
+
+    const filters = {};
+    if (fundType) filters.fund_type = fundType;
+    if (investmentStyle) filters.investment_style = investmentStyle;
+    if (minScale) filters.min_scale = minScale * 100000000; // 转换为元
+
+    const context = {
+        regime: '{{ current_regime }}',
+        policy_level: '{{ current_policy }}',
+        sentiment_index: parseFloat('{{ sentiment_index }}') || 0.0,
+    };
+
+    try {
+        const response = await fetch('/api/fund/multidim-screen/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                filters: filters,
+                context: context,
+                max_count: maxCount
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success && result.funds && result.funds.length > 0) {
+            displayMultiDimResults(result.funds);
+        } else {
+            document.getElementById('multiDimTableBody').innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 40px;">暂无符合条件的基金</td></tr>';
+        }
+    } catch (error) {
+        document.getElementById('multiDimTableBody').innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 40px; color: red;">请求失败: ' + error.message + '</td></tr>';
+    }
+}
+
+function displayMultiDimResults(funds) {
+    const tbody = document.getElementById('multiDimTableBody');
+    tbody.innerHTML = '';
+
+    funds.forEach((fund, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td><span class="fund-code">${fund.asset_code || '-'}</span></td>
+            <td>${fund.asset_name || '-'}</td>
+            <td>${fund.fund_type || '-'}</td>
+            <td>${fund.investment_style || '-'}</td>
+            <td>${fund.scores?.regime?.toFixed(1) || '-'}</td>
+            <td>${fund.scores?.policy?.toFixed(1) || '-'}</td>
+            <td>${fund.scores?.sentiment?.toFixed(1) || '-'}</td>
+            <td>${fund.scores?.signal?.toFixed(1) || '-'}</td>
+            <td><span class="score-badge">${fund.scores?.total?.toFixed(1) || '-'}</span></td>
+            <td>${fund.risk_level || '-'}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function showWeightConfig() {
+    const configDiv = document.getElementById('weightConfig');
+    if (configDiv.style.display === 'none') {
+        // 加载权重配置
+        fetch('/api/asset-analysis/current-weight/?asset_type=fund')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.weights) {
+                    document.getElementById('weightRegime').textContent = (data.weights.regime * 100).toFixed(0) + '%';
+                    document.getElementById('weightPolicy').textContent = (data.weights.policy * 100).toFixed(0) + '%';
+                    document.getElementById('weightSentiment').textContent = (data.weights.sentiment * 100).toFixed(0) + '%';
+                    document.getElementById('weightSignal').textContent = (data.weights.signal * 100).toFixed(0) + '%';
+                    configDiv.style.display = 'block';
+                }
+            });
+    } else {
+        configDiv.style.display = 'none';
+    }
+}
+
+// 页面加载时获取激活信号数量
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/api/signal/active/')
+        .then(res => res.json())
+        .then(data => {
+            if (data.success && data.signals) {
+                document.getElementById('activeSignalsCount').textContent = data.signals.length;
+            }
+        })
+        .catch(() => {
+            document.getElementById('activeSignalsCount').textContent = '0';
+        });
+});
 
 // 基金筛选
 async function screenFunds() {
@@ -701,7 +929,7 @@ function displayHoldingResult(result) {
 /* 统计卡片 */
 .stats-row {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 16px;
     margin-bottom: 20px;
 }
@@ -1206,6 +1434,43 @@ table th {
     line-height: 1.6;
     color: var(--color-text-primary);
     white-space: pre-wrap;
+}
+
+/* 多维度评分样式 */
+.multi-dim-info {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    padding: 16px;
+    background: var(--color-surface);
+    border-radius: var(--radius-sm);
+    margin-bottom: 16px;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.info-label {
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+}
+
+.info-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: #2563EB;
+}
+
+.weight-config {
+    padding: 12px;
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    border-radius: var(--radius-sm);
+    margin-bottom: 16px;
 }
 
 /* 响应式 */

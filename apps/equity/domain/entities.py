@@ -6,10 +6,10 @@
 - 只使用 Python 标准库和 dataclasses
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, Dict
 
 
 @dataclass(frozen=True)
@@ -146,3 +146,203 @@ class TechnicalIndicators:
     macd_hist: Optional[float]
 
     rsi: Optional[float]
+
+
+# ==================== 通用资产分析框架集成 ====================
+
+
+@dataclass(frozen=True)
+class EquityAssetScore:
+    """
+    个股资产评分实体（集成通用资产分析框架）
+
+    遵循组合模式（非继承），因为 Domain 层不能跨 App 依赖。
+    包含个股特有的维度得分。
+    """
+
+    # ========== 个股基本信息 ==========
+    stock_code: str                                # 股票代码
+    stock_name: str                                # 股票名称
+    sector: str                                    # 所属行业
+    market: str                                    # 交易市场（SH/SZ/BJ）
+    list_date: date                                # 上市日期
+
+    # ========== 估值指标 ==========
+    pe_ratio: Optional[float] = None               # 市盈率
+    pb_ratio: Optional[float] = None               # 市净率
+    ps_ratio: Optional[float] = None               # 市销率
+    market_cap: Optional[Decimal] = None           # 总市值（元）
+    dividend_yield: Optional[float] = None         # 股息率
+
+    # ========== 财务指标 ==========
+    roe: Optional[float] = None                    # 净资产收益率
+    revenue_growth: Optional[float] = None         # 营收增长率
+    net_profit_growth: Optional[float] = None      # 净利润增长率
+    debt_ratio: Optional[float] = None             # 资产负债率
+
+    # ========== 技术指标 ==========
+    current_price: Optional[Decimal] = None        # 当前价格
+    ma5: Optional[Decimal] = None                  # 5日均线
+    ma20: Optional[Decimal] = None                 # 20日均线
+    ma60: Optional[Decimal] = None                 # 60日均线
+    rsi: Optional[float] = None                    # RSI指标
+
+    # ========== 通用维度得分（来自 asset_analysis） ==========
+    asset_type: str = "equity"                     # 固定为 "equity"
+    style: Optional[str] = None                    # growth/value/blend/defensive
+    size: Optional[str] = None                     # large/mid/small
+
+    # 四大维度得分（0-100）
+    regime_score: float = 0.0                      # 宏观环境得分
+    policy_score: float = 0.0                      # 政策档位得分
+    sentiment_score: float = 0.0                   # 舆情情绪得分
+    signal_score: float = 0.0                      # 投资信号得分
+
+    # ========== 个股特有维度得分 ==========
+    # 这些维度在 custom_scores 中存储
+    technical_score: float = 0.0                   # 技术面评分
+    fundamental_score: float = 0.0                 # 基本面评分
+    valuation_score: float = 0.0                   # 估值评分
+
+    # ========== 综合评分 ==========
+    total_score: float = 0.0                       # 综合得分
+    rank: int = 0                                  # 排名
+
+    # ========== 推荐信息 ==========
+    allocation_percent: float = 0.0                # 推荐配置比例
+    risk_level: str = "未知"                       # 风险等级
+
+    # ========== 元信息 ==========
+    score_date: date = field(default_factory=date.today)
+    context: Optional[Dict] = None                 # 评分上下文
+
+    def __post_init__(self):
+        """初始化后处理"""
+        # 1. 根据 PE 和 ROE 推断风格
+        if not self.style:
+            if self.pe_ratio and self.roe:
+                if self.pe_ratio < 15 and self.roe > 15:
+                    style = "value"  # 低PE高ROE = 价值
+                elif self.pe_ratio > 30 and self.revenue_growth and self.revenue_growth > 20:
+                    style = "growth"  # 高PE高增长 = 成长
+                else:
+                    style = "blend"
+                object.__setattr__(self, 'style', style)
+
+        # 2. 根据市值推断规模
+        if not self.size and self.market_cap:
+            cap = float(self.market_cap)
+            if cap >= 200_000_000_000:  # 2000亿以上
+                size = "large"
+            elif cap >= 50_000_000_000:  # 500亿以上
+                size = "mid"
+            else:
+                size = "small"
+            object.__setattr__(self, 'size', size)
+
+    def get_custom_scores(self) -> Dict[str, float]:
+        """获取个股特有得分（用于传递给通用框架）"""
+        return {
+            "technical": self.technical_score,
+            "fundamental": self.fundamental_score,
+            "valuation": self.valuation_score,
+        }
+
+    def to_dict(self) -> dict:
+        """转换为字典"""
+        return {
+            # 基本信息
+            "stock_code": self.stock_code,
+            "stock_name": self.stock_name,
+            "sector": self.sector,
+            "market": self.market,
+            "list_date": self.list_date.isoformat(),
+
+            # 估值指标
+            "pe_ratio": self.pe_ratio,
+            "pb_ratio": self.pb_ratio,
+            "ps_ratio": self.ps_ratio,
+            "market_cap": f"{float(self.market_cap)/100000000:.2f}亿" if self.market_cap else None,
+            "dividend_yield": self.dividend_yield,
+
+            # 财务指标
+            "roe": self.roe,
+            "revenue_growth": self.revenue_growth,
+            "net_profit_growth": self.net_profit_growth,
+            "debt_ratio": self.debt_ratio,
+
+            # 技术指标
+            "current_price": f"{float(self.current_price):.2f}" if self.current_price else None,
+            "ma5": f"{float(self.ma5):.2f}" if self.ma5 else None,
+            "ma20": f"{float(self.ma20):.2f}" if self.ma20 else None,
+            "rsi": self.rsi,
+
+            # 通用维度得分
+            "style": self.style,
+            "size": self.size,
+            "regime_score": self.regime_score,
+            "policy_score": self.policy_score,
+            "sentiment_score": self.sentiment_score,
+            "signal_score": self.signal_score,
+
+            # 个股特有维度得分
+            "technical_score": self.technical_score,
+            "fundamental_score": self.fundamental_score,
+            "valuation_score": self.valuation_score,
+
+            # 综合评分
+            "total_score": self.total_score,
+            "rank": self.rank,
+
+            # 推荐信息
+            "allocation": f"{self.allocation_percent:.1f}%",
+            "risk_level": self.risk_level,
+        }
+
+    @classmethod
+    def from_stock_info(
+        cls,
+        stock_info: 'StockInfo',
+        valuation: Optional['ValuationMetrics'] = None,
+        financial: Optional['FinancialData'] = None,
+        technical: Optional['TechnicalIndicators'] = None,
+    ) -> 'EquityAssetScore':
+        """
+        从 StockInfo 创建 EquityAssetScore
+
+        Args:
+            stock_info: 个股基本信息实体
+            valuation: 估值指标（可选）
+            financial: 财务数据（可选）
+            technical: 技术指标（可选）
+
+        Returns:
+            EquityAssetScore 实例
+        """
+        return cls(
+            stock_code=stock_info.stock_code,
+            stock_name=stock_info.name,
+            sector=stock_info.sector,
+            market=stock_info.market,
+            list_date=stock_info.list_date,
+
+            # 估值指标
+            pe_ratio=valuation.pe if valuation else None,
+            pb_ratio=valuation.pb if valuation else None,
+            ps_ratio=valuation.ps if valuation else None,
+            market_cap=valuation.total_mv if valuation else None,
+            dividend_yield=valuation.dividend_yield if valuation else None,
+
+            # 财务指标
+            roe=financial.roe if financial else None,
+            revenue_growth=financial.revenue_growth if financial else None,
+            net_profit_growth=financial.net_profit_growth if financial else None,
+            debt_ratio=financial.debt_ratio if financial else None,
+
+            # 技术指标
+            current_price=technical.close if technical else None,
+            ma5=technical.ma5 if technical else None,
+            ma20=technical.ma20 if technical else None,
+            ma60=technical.ma60 if technical else None,
+            rsi=technical.rsi if technical else None,
+        )

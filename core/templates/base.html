@@ -50,13 +50,13 @@
                 <div class="dropdown">
                     <span class="top-nav-item">证券分析</span>
                     <div class="dropdown-menu">
+                        <a href="{% url 'asset-screen' %}" class="dropdown-item">资产筛选</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="{% url 'fund:dashboard' %}" class="dropdown-item">基金分析</a>
                         <a href="{% url 'equity:screen' %}" class="dropdown-item">个股筛选</a>
                         <a href="{% url 'equity:pool' %}" class="dropdown-item">股票池管理</a>
                         <div class="dropdown-divider"></div>
-                        <a href="/api/docs/" class="dropdown-item">板块轮动 API</a>
-                        <div class="dropdown-divider"></div>
-                        <a href="/api/docs/" class="dropdown-item">基金筛选 API</a>
-                        <a href="/api/docs/" class="dropdown-item">基金排名 API</a>
+                        <a href="/api/docs/" class="dropdown-item">API 文档</a>
                     </div>
                 </div>
                 {% endif %}
@@ -69,6 +69,11 @@
                         <a href="/admin/" class="dropdown-item">管理后台</a>
                         <a href="{% url 'macro:datasources' %}" class="dropdown-item">数据源配置</a>
                         <a href="{% url 'macro:data_controller' %}" class="dropdown-item">数据管理器</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="/admin/asset_analysis/assetpoolconfig/" class="dropdown-item">资产池配置</a>
+                        <a href="/admin/asset_analysis/assetscoringlog/" class="dropdown-item">评分日志</a>
+                        <a href="/admin/asset_analysis/assetanalysisalert/" class="dropdown-item">告警管理</a>
+                        <a href="/admin/asset_analysis/assetpoolentry/" class="dropdown-item">资产池条目</a>
                     </div>
                 </div>
 

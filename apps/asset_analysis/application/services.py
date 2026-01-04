@@ -5,7 +5,8 @@
 Application 层依赖 Domain 层和 Infrastructure 层的接口。
 """
 
-from typing import List
+import time
+from typing import List, Optional
 from dataclasses import replace
 
 from apps.asset_analysis.domain.entities import AssetScore
@@ -17,6 +18,7 @@ from apps.asset_analysis.domain.services import (
     SentimentMatcher,
     SignalMatcher,
 )
+from apps.asset_analysis.application.logging_service import ScoringLogger, AlertService
 
 
 class AssetMultiDimScorer:
@@ -28,16 +30,33 @@ class AssetMultiDimScorer:
     - Policy（政策档位）
     - Sentiment（舆情情绪）
     - Signal（投资信号）
+
+    集成日志记录和告警功能。
     """
 
-    def __init__(self, weight_repository: WeightConfigRepositoryProtocol):
+    def __init__(
+        self,
+        weight_repository: WeightConfigRepositoryProtocol,
+        enable_logging: bool = True,
+        enable_alerts: bool = True,
+    ):
         """
         初始化评分器
 
         Args:
             weight_repository: 权重配置仓储
+            enable_logging: 是否启用日志记录
+            enable_alerts: 是否启用告警
         """
         self.weight_repo = weight_repository
+        self.enable_logging = enable_logging
+        self.enable_alerts = enable_alerts
+
+        # 初始化日志和告警服务
+        if self.enable_logging:
+            self.logger = ScoringLogger()
+        if self.enable_alerts:
+            self.alert_service = AlertService()
 
     def score(self, asset: AssetScore, context: ScoreContext) -> AssetScore:
         """
@@ -83,46 +102,114 @@ class AssetMultiDimScorer:
     def score_batch(
         self,
         assets: List[AssetScore],
-        context: ScoreContext
+        context: ScoreContext,
+        request_source: str = "unknown",
+        user_id: Optional[int] = None,
+        filters: Optional[dict] = None,
     ) -> List[AssetScore]:
         """
-        批量评分资产
+        批量评分资产（带日志记录和告警）
 
         Args:
             assets: 资产评分实体列表
             context: 评分上下文
+            request_source: 请求来源
+            user_id: 用户ID
+            filters: 筛选条件
 
         Returns:
             评分后的资产列表（已按 total_score 降序排序并设置排名）
         """
-        # 1. 批量计算得分
-        scored_assets = [self.score(asset, context) for asset in assets]
+        start_time = time.time()
+        total_assets = len(assets)
+        status = "success"
+        error_message = None
 
-        # 2. 按综合得分排序
-        scored_assets.sort(key=lambda x: x.total_score, reverse=True)
-
-        # 3. 设置排名和推荐比例
-        for rank, asset in enumerate(scored_assets, start=1):
-            # 更新排名（frozen dataclass 需要使用 replace）
-            asset = replace(asset, rank=rank)
-
-            # 计算推荐比例（前 10 名分配更高比例）
-            if rank <= 3:
-                allocation = 20.0  # 前 3 名各 20%
-            elif rank <= 10:
-                allocation = 10.0  # 4-10 名各 10%
-            else:
-                allocation = 0.0
-
-            # 更新推荐比例和风险等级
-            asset = replace(
-                asset,
-                allocation_percent=allocation,
-                risk_level=self._calculate_risk_level(asset)
+        try:
+            # 1. 获取权重配置
+            weights = self.weight_repo.get_active_weights(
+                asset_type=assets[0].asset_type.value if assets else "unknown"
             )
-            scored_assets[rank - 1] = asset
 
-        return scored_assets
+            # 2. 批量计算得分
+            scored_assets = [self.score(asset, context) for asset in assets]
+
+            # 3. 按综合得分排序
+            scored_assets.sort(key=lambda x: x.total_score, reverse=True)
+
+            # 4. 设置排名和推荐比例
+            for rank, asset in enumerate(scored_assets, start=1):
+                # 更新排名（frozen dataclass 需要使用 replace）
+                asset = replace(asset, rank=rank)
+
+                # 计算推荐比例（前 10 名分配更高比例）
+                if rank <= 3:
+                    allocation = 20.0  # 前 3 名各 20%
+                elif rank <= 10:
+                    allocation = 10.0  # 4-10 名各 10%
+                else:
+                    allocation = 0.0
+
+                # 更新推荐比例和风险等级
+                asset = replace(
+                    asset,
+                    allocation_percent=allocation,
+                    risk_level=self._calculate_risk_level(asset)
+                )
+                scored_assets[rank - 1] = asset
+
+            return scored_assets
+
+        except Exception as e:
+            status = "failed"
+            error_message = str(e)
+
+            # 创建告警
+            if self.enable_alerts:
+                asset_type = assets[0].asset_type.value if assets else "unknown"
+                self.alert_service.create_scoring_error_alert(
+                    asset_type=asset_type,
+                    error_message=error_message,
+                    context={"total_assets": total_assets},
+                    stack_trace=traceback.format_exc(),
+                )
+
+            raise
+
+        finally:
+            # 记录日志
+            if self.enable_logging:
+                execution_time_ms = int((time.time() - start_time) * 1000)
+                asset_type = assets[0].asset_type.value if assets else "unknown"
+
+                # 获取权重用于日志
+                try:
+                    weights = self.weight_repo.get_active_weights(asset_type=asset_type)
+                except:
+                    weights = WeightConfig()  # 使用默认权重
+
+                self.logger.log_scoring_from_context(
+                    asset_type=asset_type,
+                    request_source=request_source,
+                    context=context,
+                    weights=weights,
+                    filters=filters or {},
+                    total_assets=total_assets,
+                    filtered_assets=len(assets) if assets else 0,
+                    execution_time_ms=execution_time_ms,
+                    user_id=user_id,
+                    status=status,
+                    error_message=error_message,
+                )
+
+                # 性能告警
+                if self.enable_alerts and execution_time_ms > 5000:
+                    self.alert_service.create_performance_alert(
+                        asset_type=asset_type,
+                        execution_time_ms=execution_time_ms,
+                        threshold_ms=5000,
+                        context={"total_assets": total_assets},
+                    )
 
     @staticmethod
     def _calculate_risk_level(asset: AssetScore) -> str:

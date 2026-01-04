@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'apps.sector',         # 新增：板块分析模块
     'apps.fund',           # 新增：基金分析模块
     'apps.asset_analysis', # 新增：通用资产分析模块
+    'apps.sentiment',      # 新增：舆情情感分析模块
 ]
 
 MIDDLEWARE = [

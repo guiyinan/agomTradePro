@@ -11,7 +11,8 @@ from .views import (
     RankFundsView,
     FundInfoView,
     FundNavView,
-    FundHoldingView
+    FundHoldingView,
+    FundMultiDimScreenAPIView,
 )
 
 app_name = 'fund'
@@ -40,4 +41,7 @@ urlpatterns = [
 
     # 基金持仓
     path('holding/<str:fund_code>/', FundHoldingView.as_view(), name='holding'),
+
+    # ========== 多维度筛选 API（通用资产分析框架集成） ==========
+    path('multidim-screen/', FundMultiDimScreenAPIView.as_view(), name='multidim_screen'),
 ]

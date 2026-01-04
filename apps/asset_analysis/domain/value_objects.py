@@ -24,17 +24,8 @@ class WeightConfig:
     signal_weight: float = 0.15
 
     def __post_init__(self):
-        """验证权重总和为 1.0（容差 0.01）"""
-        total = (
-            self.regime_weight +
-            self.policy_weight +
-            self.sentiment_weight +
-            self.signal_weight
-        )
-        if abs(total - 1.0) > 0.01:
-            raise ValueError(f"权重总和必须为1.0，当前为 {total:.4f}")
-
-        # 验证每个权重为非负数
+        """验证权重配置"""
+        # 1. 先验证每个权重为非负数
         for name, value in [
             ("regime_weight", self.regime_weight),
             ("policy_weight", self.policy_weight),
@@ -43,6 +34,16 @@ class WeightConfig:
         ]:
             if value < 0:
                 raise ValueError(f"{name} 必须为非负数，当前为 {value}")
+
+        # 2. 再验证权重总和为 1.0（容差 0.01）
+        total = (
+            self.regime_weight +
+            self.policy_weight +
+            self.sentiment_weight +
+            self.signal_weight
+        )
+        if abs(total - 1.0) > 0.01:
+            raise ValueError(f"权重总和必须为1.0，当前为 {total:.4f}")
 
     def to_dict(self) -> dict:
         """转换为字典"""

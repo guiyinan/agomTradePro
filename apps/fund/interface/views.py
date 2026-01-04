@@ -47,8 +47,19 @@ def dashboard_view(request):
     """
     # 获取当前 Regime 信息
     from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+    from apps.policy.infrastructure.repositories import DjangoPolicyRepository
+    from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
+
     regime_repo = DjangoRegimeRepository()
     latest_regime = regime_repo.get_latest_snapshot()
+
+    # 获取当前政策档位
+    policy_repo = DjangoPolicyRepository()
+    latest_policy = policy_repo.get_current_policy_level()
+
+    # 获取最新情绪指数
+    sentiment_repo = SentimentIndexRepository()
+    latest_sentiment = sentiment_repo.get_latest()
 
     regime_display = {
         'Recovery': '复苏',
@@ -57,10 +68,37 @@ def dashboard_view(request):
         'Deflation': '通缩',
     }
 
+    policy_display = {
+        'P0': 'P0（极度宽松）',
+        'P1': 'P1（宽松）',
+        'P2': 'P2（收紧）',
+        'P3': 'P3（极度收紧）',
+    }
+
+    # 情绪等级
+    sentiment_level = "中性"
+    if latest_sentiment:
+        idx = latest_sentiment.composite_index
+        if idx >= 1.5:
+            sentiment_level = "极度乐观"
+        elif idx >= 0.5:
+            sentiment_level = "乐观"
+        elif idx <= -1.5:
+            sentiment_level = "极度悲观"
+        elif idx <= -0.5:
+            sentiment_level = "悲观"
+
     context = {
         'current_regime': latest_regime.dominant_regime if latest_regime else 'Unknown',
         'regime_display': regime_display.get(latest_regime.dominant_regime) if latest_regime else '未知',
         'regime_confidence': f"{latest_regime.confidence:.1%}" if latest_regime else "N/A",
+        # 新增：Policy 档位
+        'current_policy': latest_policy.value if latest_policy else 'P1',
+        'policy_display': policy_display.get(latest_policy.value) if latest_policy else 'P1（宽松）',
+        # 新增：情绪指数
+        'sentiment_index': f"{latest_sentiment.composite_index:.2f}" if latest_sentiment else "0.00",
+        'sentiment_level': sentiment_level,
+        'sentiment_date': latest_sentiment.index_date.strftime('%Y-%m-%d') if latest_sentiment else '-',
     }
 
     return render(request, 'fund/dashboard.html', context)
@@ -303,3 +341,90 @@ class FundHoldingView(APIView):
             'count': len(holdings),
             'holdings': serializer.data
         }, status=status.HTTP_200_OK)
+
+
+# ==================== 多维度筛选 API（通用资产分析框架集成） ====================
+
+
+class FundMultiDimScreenAPIView(APIView):
+    """基金多维度筛选 API
+
+    POST /api/fund/multidim-screen/
+
+    使用通用资产分析框架进行多维度评分筛选。
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        from apps.fund.infrastructure.repositories import DjangoFundAssetRepository
+        from apps.fund.application.services import FundMultiDimScorer
+
+        self.asset_repo = DjangoFundAssetRepository()
+        self.scorer = FundMultiDimScorer(self.asset_repo)
+
+    def post(self, request) -> Response:
+        """
+        多维度筛选基金
+
+        请求体：
+        {
+            "filters": {
+                "fund_type": "股票型",
+                "investment_style": "成长",
+                "min_scale": 1000000000
+            },
+            "context": {
+                "regime": "Recovery",
+                "policy_level": "P0",
+                "sentiment_index": 0.5
+            },
+            "max_count": 30
+        }
+        """
+        # 1. 验证请求
+        filters = request.data.get("filters", {})
+        context_data = request.data.get("context", {})
+        max_count = request.data.get("max_count", 30)
+
+        # 2. 构建评分上下文
+        from apps.asset_analysis.domain.value_objects import ScoreContext
+        from apps.signal.infrastructure.repositories import DjangoSignalRepository
+
+        # 获取激活的信号
+        signal_repo = DjangoSignalRepository()
+        active_signals = signal_repo.get_active_signals()
+
+        context = ScoreContext(
+            current_regime=context_data.get("regime", "Recovery"),
+            policy_level=context_data.get("policy_level", "P0"),
+            sentiment_index=context_data.get("sentiment_index", 0.0),
+            active_signals=active_signals,
+        )
+
+        # 3. 执行筛选
+        try:
+            result = self.scorer.screen_funds(
+                filters=filters,
+                context=context,
+                max_count=max_count,
+            )
+
+            # 4. 返回响应
+            return Response({
+                "success": result["success"],
+                "count": result["count"],
+                "context": {
+                    "regime": context.current_regime,
+                    "policy_level": context.policy_level,
+                    "sentiment_index": context.sentiment_index,
+                    "active_signals_count": len(active_signals),
+                },
+                "funds": result["funds"],
+            }, status=status.HTTP_200_OK if result["success"] else status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({
+                "success": False,
+                "message": f"筛选失败: {str(e)}",
+                "funds": [],
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

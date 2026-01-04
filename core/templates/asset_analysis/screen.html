@@ -1,0 +1,620 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}资产筛选 - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+<style>
+.asset-screen-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.screen-header {
+    margin-bottom: 24px;
+}
+
+.screen-header h1 {
+    font-size: 28px;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 8px 0;
+}
+
+.screen-header p {
+    color: #6b7280;
+    margin: 0;
+}
+
+.asset-type-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.asset-type-tab {
+    padding: 12px 24px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    color: #6b7280;
+    transition: all 0.2s;
+}
+
+.asset-type-tab:hover {
+    color: #2563eb;
+}
+
+.asset-type-tab.active {
+    color: #2563eb;
+    border-bottom-color: #2563eb;
+}
+
+.pool-overview {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.pool-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+}
+
+.pool-card.investable {
+    border-left: 4px solid #10b981;
+}
+
+.pool-card.prohibited {
+    border-left: 4px solid #ef4444;
+}
+
+.pool-card.watch {
+    border-left: 4px solid #f59e0b;
+}
+
+.pool-card.candidate {
+    border-left: 4px solid #6b7280;
+}
+
+.pool-count {
+    font-size: 32px;
+    font-weight: 700;
+    margin: 8px 0;
+}
+
+.pool-count.investable { color: #10b981; }
+.pool-count.prohibited { color: #ef4444; }
+.pool-count.watch { color: #f59e0b; }
+.pool-count.candidate { color: #6b7280; }
+
+.pool-label {
+    font-size: 14px;
+    color: #6b7280;
+    margin: 0;
+}
+
+.filter-section {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.filter-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.filter-group label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.filter-group select,
+.filter-group input {
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.pool-type-filter {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.pool-type-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.pool-type-checkbox:hover {
+    background: #f3f4f6;
+}
+
+.pool-type-checkbox input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: #2563eb;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #1d4ed8;
+}
+
+.btn-secondary {
+    background: #6b7280;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #4b5563;
+}
+
+.results-section {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.results-header {
+    padding: 20px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+thead {
+    background: #f9fafb;
+}
+
+th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+td {
+    padding: 12px 16px;
+    font-size: 14px;
+    border-bottom: 1px solid #f5f5f5;
+}
+
+.pool-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.pool-badge.investable {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.pool-badge.prohibited {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.pool-badge.watch {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.pool-badge.candidate {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.score-bar {
+    width: 100px;
+    height: 8px;
+    background: #e5e7eb;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.score-fill {
+    height: 100%;
+    background: linear-gradient(to right, #10b981, #2563eb);
+    transition: width 0.3s;
+}
+
+.loading {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.spinner {
+    border: 3px solid #f3f4f6;
+    border-top: 3px solid #2563eb;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="asset-screen-container">
+    <div class="screen-header">
+        <h1>资产筛选</h1>
+        <p>基于多维度评分的资产分类与筛选</p>
+    </div>
+
+    <!-- 资产类型切换 -->
+    <div class="asset-type-tabs">
+        <button class="asset-type-tab active" data-type="equity" onclick="switchAssetType('equity')">
+            📈 股票
+        </button>
+        <button class="asset-type-tab" data-type="fund" onclick="switchAssetType('fund')">
+            💰 基金
+        </button>
+        <button class="asset-type-tab" data-type="bond" onclick="switchAssetType('bond')">
+            📊 债券
+        </button>
+        <button class="asset-type-tab" data-type="wealth" onclick="switchAssetType('wealth')">
+            💎 理财
+        </button>
+        <button class="asset-type-tab" data-type="commodity" onclick="switchAssetType('commodity')">
+            🪙 商品
+        </button>
+    </div>
+
+    <!-- 资产池概览 -->
+    <div class="pool-overview">
+        <div class="pool-card investable">
+            <p class="pool-label">可投池</p>
+            <p class="pool-count investable" id="investableCount">-</p>
+        </div>
+        <div class="pool-card watch">
+            <p class="pool-label">观察池</p>
+            <p class="pool-count watch" id="watchCount">-</p>
+        </div>
+        <div class="pool-card prohibited">
+            <p class="pool-label">禁投池</p>
+            <p class="pool-count prohibited" id="prohibitedCount">-</p>
+        </div>
+        <div class="pool-card candidate">
+            <p class="pool-label">候选池</p>
+            <p class="pool-count candidate" id="candidateCount">-</p>
+        </div>
+    </div>
+
+    <!-- 筛选条件 -->
+    <div class="filter-section">
+        <div class="filter-row">
+            <div class="filter-group">
+                <label>Regime 环境</label>
+                <select id="regimeSelect">
+                    <option value="">自动获取</option>
+                    <option value="Recovery">复苏 (Recovery)</option>
+                    <option value="Overheat">过热 (Overheat)</option>
+                    <option value="Stagflation">滞胀 (Stagflation)</option>
+                    <option value="Deflation">通缩 (Deflation)</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>最低综合评分</label>
+                <input type="number" id="minScore" value="0" min="0" max="100">
+            </div>
+            <div class="filter-group">
+                <label>最高综合评分</label>
+                <input type="number" id="maxScore" value="100" min="0" max="100">
+            </div>
+            <div class="filter-group">
+                <label>风险等级</label>
+                <select id="riskLevel">
+                    <option value="">全部</option>
+                    <option value="低风险">低风险</option>
+                    <option value="中低风险">中低风险</option>
+                    <option value="中风险">中风险</option>
+                    <option value="高风险">高风险</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="pool-type-filter">
+            <label class="pool-type-checkbox">
+                <input type="checkbox" value="investable" checked>
+                显示可投池
+            </label>
+            <label class="pool-type-checkbox">
+                <input type="checkbox" value="watch" checked>
+                显示观察池
+            </label>
+            <label class="pool-type-checkbox">
+                <input type="checkbox" value="prohibited">
+                显示禁投池
+            </label>
+            <label class="pool-type-checkbox">
+                <input type="checkbox" value="candidate" checked>
+                显示候选池
+            </label>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn btn-primary" onclick="runScreening()">
+                开始筛选
+            </button>
+            <button class="btn btn-secondary" onclick="exportResults()">
+                导出结果
+            </button>
+        </div>
+    </div>
+
+    <!-- 筛选结果 -->
+    <div class="results-section">
+        <div class="results-header">
+            <h3 style="margin: 0;">筛选结果</h3>
+            <span style="color: #6b7280; font-size: 14px;" id="resultSummary">共 0 条结果</span>
+        </div>
+        <div class="table-container">
+            <table id="resultsTable">
+                <thead>
+                    <tr>
+                        <th>资产代码</th>
+                        <th>资产名称</th>
+                        <th>资产池</th>
+                        <th>综合评分</th>
+                        <th>Regime</th>
+                        <th>Policy</th>
+                        <th>Sentiment</th>
+                        <th>Signal</th>
+                        <th>风险等级</th>
+                        <th>入池原因</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentAssetType = 'equity';
+let screeningResults = [];
+
+function switchAssetType(type) {
+    currentAssetType = type;
+
+    // 更新标签样式
+    document.querySelectorAll('.asset-type-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.type === type) {
+            tab.classList.add('active');
+        }
+    });
+
+    // 清空结果
+    screeningResults = [];
+    document.getElementById('resultsTableBody').innerHTML = '';
+    updatePoolOverview();
+}
+
+async function runScreening() {
+    // 获取筛选条件
+    const regime = document.getElementById('regimeSelect').value;
+    const minScore = parseFloat(document.getElementById('minScore').value) || 0;
+    const maxScore = parseFloat(document.getElementById('maxScore').value) || 100;
+    const riskLevel = document.getElementById('riskLevel').value;
+
+    // 获取选中的资产池类型
+    const poolTypes = Array.from(document.querySelectorAll('.pool-type-checkbox input:checked'))
+        .map(cb => cb.value);
+
+    // 显示加载状态
+    document.getElementById('resultsTableBody').innerHTML = `
+        <tr>
+            <td colspan="10" class="loading">
+                <div class="spinner"></div>
+                <p>筛选中...</p>
+            </td>
+        </tr>
+    `;
+
+    try {
+        const response = await fetch(`/asset-analysis/api/screen/${currentAssetType}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                regime: regime || null,
+                min_score: minScore,
+                max_score: maxScore,
+                risk_level: riskLevel,
+                pool_types: poolTypes,
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            screeningResults = result.assets || [];
+            displayResults(screeningResults);
+            updatePoolOverview();
+        } else {
+            alert('筛选失败: ' + result.error);
+        }
+    } catch (error) {
+        alert('请求失败: ' + error.message);
+    }
+}
+
+function displayResults(assets) {
+    const tbody = document.getElementById('resultsTableBody');
+    tbody.innerHTML = '';
+
+    assets.forEach(asset => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><strong>${asset.asset_code}</strong></td>
+            <td>${asset.asset_name}</td>
+            <td><span class="pool-badge ${asset.pool_type}">${getPoolTypeName(asset.pool_type)}</span></td>
+            <td>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="score-bar">
+                        <div class="score-fill" style="width: ${asset.total_score}%"></div>
+                    </div>
+                    <span>${asset.total_score.toFixed(1)}</span>
+                </div>
+            </td>
+            <td>${asset.regime_score.toFixed(1)}</td>
+            <td>${asset.policy_score.toFixed(1)}</td>
+            <td>${asset.sentiment_score.toFixed(1)}</td>
+            <td>${asset.signal_score.toFixed(1)}</td>
+            <td>${asset.risk_level}</td>
+            <td>${asset.entry_reason || '-'}</td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    document.getElementById('resultSummary').textContent = `共 ${assets.length} 条结果`;
+}
+
+function updatePoolOverview() {
+    const counts = {
+        investable: 0,
+        watch: 0,
+        prohibited: 0,
+        candidate: 0
+    };
+
+    screeningResults.forEach(asset => {
+        if (counts[asset.pool_type] !== undefined) {
+            counts[asset.pool_type]++;
+        }
+    });
+
+    document.getElementById('investableCount').textContent = counts.investable;
+    document.getElementById('watchCount').textContent = counts.watch;
+    document.getElementById('prohibitedCount').textContent = counts.prohibited;
+    document.getElementById('candidateCount').textContent = counts.candidate;
+}
+
+function getPoolTypeName(type) {
+    const names = {
+        'investable': '可投',
+        'watch': '观察',
+        'prohibited': '禁投',
+        'candidate': '候选'
+    };
+    return names[type] || type;
+}
+
+function exportResults() {
+    if (screeningResults.length === 0) {
+        alert('没有可导出的数据');
+        return;
+    }
+
+    const headers = ['资产代码', '资产名称', '资产池', '综合评分', 'Regime评分', 'Policy评分', 'Sentiment评分', 'Signal评分', '风险等级', '入池原因'];
+    const csv = headers.join(',') + '\n' + screeningResults.map(asset => {
+        return [
+            asset.asset_code,
+            asset.asset_name,
+            getPoolTypeName(asset.pool_type),
+            asset.total_score.toFixed(2),
+            asset.regime_score.toFixed(2),
+            asset.policy_score.toFixed(2),
+            asset.sentiment_score.toFixed(2),
+            asset.signal_score.toFixed(2),
+            asset.risk_level,
+            asset.entry_reason || ''
+        ].join(',');
+    }).join('\n');
+
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${currentAssetType}_pool_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

@@ -12,6 +12,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 
 from rest_framework import viewsets, status
+from rest_framework.views import APIView
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiParameter
@@ -516,12 +517,100 @@ class EquityViewSet(viewsets.ViewSet):
         from datetime import datetime
         from apps.regime.infrastructure.repositories import DjangoRegimeRepository
         regime_repo = DjangoRegimeRepository()
-        latest_regime = regime_repo.get_latest_regime()
+        latest_regime = regime_repo.get_latest_snapshot()
 
         return Response({
             'success': True,
             'message': '股票池已刷新',
-            'regime': latest_regime.regime if latest_regime else 'Unknown',
+            'regime': latest_regime.dominant_regime if latest_regime else 'Unknown',
             'update_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         })
+
+
+# ==================== 多维度筛选 API（通用资产分析框架集成） ====================
+
+
+class EquityMultiDimScreenAPIView(APIView):
+    """个股多维度筛选 API
+
+    POST /api/equity/multidim-screen/
+
+    使用通用资产分析框架进行多维度评分筛选。
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        from apps.equity.infrastructure.repositories import DjangoEquityAssetRepository
+        from apps.equity.application.services import EquityMultiDimScorer
+
+        self.asset_repo = DjangoEquityAssetRepository()
+        self.scorer = EquityMultiDimScorer(self.asset_repo)
+
+    def post(self, request) -> Response:
+        """
+        多维度筛选个股
+
+        请求体：
+        {
+            "filters": {
+                "sector": "银行",
+                "market": "SH",
+                "min_market_cap": 50000000000,
+                "max_pe": 15.0
+            },
+            "context": {
+                "regime": "Recovery",
+                "policy_level": "P0",
+                "sentiment_index": 0.5
+            },
+            "max_count": 30
+        }
+        """
+        # 1. 验证请求
+        filters = request.data.get("filters", {})
+        context_data = request.data.get("context", {})
+        max_count = request.data.get("max_count", 30)
+
+        # 2. 构建评分上下文
+        from apps.asset_analysis.domain.value_objects import ScoreContext
+        from apps.signal.infrastructure.repositories import DjangoSignalRepository
+
+        # 获取激活的信号
+        signal_repo = DjangoSignalRepository()
+        active_signals = signal_repo.get_active_signals()
+
+        context = ScoreContext(
+            current_regime=context_data.get("regime", "Recovery"),
+            policy_level=context_data.get("policy_level", "P0"),
+            sentiment_index=context_data.get("sentiment_index", 0.0),
+            active_signals=active_signals,
+        )
+
+        # 3. 执行筛选
+        try:
+            result = self.scorer.screen_stocks(
+                filters=filters,
+                context=context,
+                max_count=max_count,
+            )
+
+            # 4. 返回响应
+            return Response({
+                "success": result["success"],
+                "count": result["count"],
+                "context": {
+                    "regime": context.current_regime,
+                    "policy_level": context.policy_level,
+                    "sentiment_index": context.sentiment_index,
+                    "active_signals_count": len(active_signals),
+                },
+                "stocks": result["stocks"],
+            }, status=status.HTTP_200_OK if result["success"] else status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({
+                "success": False,
+                "message": f"筛选失败: {str(e)}",
+                "stocks": [],
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

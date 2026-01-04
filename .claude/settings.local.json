@@ -53,7 +53,8 @@
       "Bash(netstat:*)",
       "Bash(if not exist \"D:\\\\githv\\\\agomSAAF\\\\core\\\\templates\\\\fund\" mkdir \"D:\\\\githv\\\\agomSAAF\\\\core\\\\templates\\\\fund\")",
       "Bash(mv:*)",
-      "Bash(set:*)"
+      "Bash(set:*)",
+      "Bash(D:\\\\githv\\\\agomSAAF\\\\agomsaaf\\\\Scripts\\\\python.exe manage.py showmigrations:*)"
     ]
   }
 }

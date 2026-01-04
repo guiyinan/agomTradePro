@@ -20,10 +20,108 @@ from .models import (
 )
 from ..domain.entities import (
     FundInfo, FundManager, FundNetValue, FundHolding,
-    FundSectorAllocation, FundPerformance
+    FundSectorAllocation, FundPerformance, FundAssetScore
 )
 from .adapters.tushare_fund_adapter import TushareFundAdapter
 from .adapters.akshare_fund_adapter import AkShareFundAdapter
+
+
+# ==================== 通用资产分析框架集成 ====================
+# 实现 AssetRepositoryProtocol 接口以支持通用资产分析
+
+
+class DjangoFundAssetRepository:
+    """
+    基金资产仓储（实现 AssetRepositoryProtocol）
+
+    为通用资产分析框架提供基金数据访问接口。
+    """
+
+    def __init__(self):
+        """初始化仓储"""
+        self.fund_repo = DjangoFundRepository()
+
+    def get_assets_by_filter(
+        self,
+        asset_type: str,
+        filters: dict,
+        max_count: int = 100
+    ) -> List[FundAssetScore]:
+        """
+        根据过滤条件获取资产列表
+
+        Args:
+            asset_type: 资产类型（应为 "fund"）
+            filters: 过滤条件字典
+                - fund_type: 基金类型
+                - investment_style: 投资风格
+                - min_scale: 最小规模（元）
+                - max_scale: 最大规模（元）
+                - fund_company: 基金公司
+            max_count: 最大返回数量
+
+        Returns:
+            FundAssetScore 实体列表
+        """
+        if asset_type != "fund":
+            return []
+
+        # 构建查询
+        queryset = FundInfoModel.objects.filter(is_active=True)
+
+        # 应用过滤条件
+        fund_type = filters.get("fund_type")
+        if fund_type:
+            queryset = queryset.filter(fund_type=fund_type)
+
+        investment_style = filters.get("investment_style")
+        if investment_style:
+            queryset = queryset.filter(investment_style=investment_style)
+
+        min_scale = filters.get("min_scale")
+        if min_scale is not None:
+            queryset = queryset.filter(fund_scale__gte=min_scale)
+
+        max_scale = filters.get("max_scale")
+        if max_scale is not None:
+            queryset = queryset.filter(fund_scale__lte=max_scale)
+
+        fund_company = filters.get("fund_company")
+        if fund_company:
+            queryset = queryset.filter(management_company__icontains=fund_company)
+
+        # 限制数量并排序
+        models = queryset.order_by("-fund_scale")[:max_count]
+
+        # 转换为 FundAssetScore 实体
+        return [
+            FundAssetScore.from_fund_info(self.fund_repo._model_to_entity_info(m))
+            for m in models
+        ]
+
+    def get_asset_by_code(self, asset_type: str, asset_code: str) -> Optional[FundAssetScore]:
+        """
+        根据代码获取资产
+
+        Args:
+            asset_type: 资产类型（应为 "fund"）
+            asset_code: 基金代码
+
+        Returns:
+            FundAssetScore 实体，不存在则返回 None
+        """
+        if asset_type != "fund":
+            return None
+
+        try:
+            model = FundInfoModel.objects.get(
+                fund_code=asset_code,
+                is_active=True
+            )
+            fund_info = self.fund_repo._model_to_entity_info(model)
+            return FundAssetScore.from_fund_info(fund_info)
+        except FundInfoModel.DoesNotExist:
+            return None
 
 
 class DjangoFundRepository:

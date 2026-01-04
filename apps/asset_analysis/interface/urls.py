@@ -8,6 +8,10 @@ from apps.asset_analysis.interface.views import (
     WeightConfigsAPIView,
     CurrentWeightAPIView,
 )
+from apps.asset_analysis.interface.pool_views import (
+    AssetPoolScreenAPIView,
+    AssetPoolSummaryAPIView,
+)
 
 app_name = "asset_analysis"
 
@@ -18,4 +22,8 @@ urlpatterns = [
     # 权重配置 API
     path("weight-configs/", WeightConfigsAPIView.as_view(), name="weight_configs"),
     path("current-weight/", CurrentWeightAPIView.as_view(), name="current_weight"),
+
+    # 资产池 API
+    path("screen/<str:asset_type>/", AssetPoolScreenAPIView.as_view(), name="pool_screen"),
+    path("pool-summary/", AssetPoolSummaryAPIView.as_view(), name="pool_summary"),
 ]
