@@ -40,7 +40,7 @@ echo.
 
 REM ========== 3. Start Docker Services ==========
 echo [INFO] Checking Docker containers...
-docker ps --filter "name=agomsaaf_postgres_dev" --format "{{.Names}}" | findstr "agomsaaf_postgres_dev" >nul 2>&1
+docker ps --filter "name=agomsaaf_postgres_dev" --format "^{{.Names}}" | findstr "agomsaaf_postgres_dev" >nul 2>&1
 if errorlevel 1 (
     echo [INFO] Starting Docker services (PostgreSQL + Redis)...
     docker-compose -f %COMPOSE_FILE% up -d
@@ -90,7 +90,7 @@ if not defined SKIP_CELERY (
     echo.
 )
 
-REM ========== 5. Start Celery Beat (Optional) ==========
+REM ========== 6. Start Celery Beat (Optional) ==========
 echo.
 echo Start Celery Beat (scheduler for periodic tasks)?
 echo   1. Start Beat
@@ -104,7 +104,7 @@ if errorlevel 1 (
     echo [OK] Celery Beat started
 )
 
-REM ========== 6. Start Django ==========
+REM ========== 7. Start Django ==========
 :run_django
 echo.
 echo ====================================
@@ -117,14 +117,14 @@ echo   - Admin:   http://127.0.0.1:%DJANGO_PORT%/admin/
 echo   - API:     http://127.0.0.1:%DJANGO_PORT%/api/
 echo.
 echo Service windows:
+echo   - PostgreSQL + Redis:  Docker containers
 if not defined SKIP_CELERY (
-    echo   - Redis:     separate window
-    echo   - Celery:    separate window
+    echo   - Celery:             separate window
 )
-echo   - Django:    current window
+echo   - Django:             current window
 echo.
 echo Press Ctrl+C to stop Django server
-echo (Close other windows manually)
+echo (Close other windows manually, use docker-compose down to stop containers)
 echo.
 echo ====================================
 echo.
