@@ -71,3 +71,5 @@ doc/admin_credentials.md
 doc/secrets.md
 doc/passwords.md
 /screenshots
+sqlite-backup.json
+sqlite-backup-utf8.json

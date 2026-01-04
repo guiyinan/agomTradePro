@@ -130,19 +130,182 @@ function Connect-Redis {
 function Backup-Database {
     Write-Header "`n=== Backup PostgreSQL Database ===`n"
 
-    $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-    $backupFile = "$ProjectRoot\backup-postgres-$timestamp.sql"
+    Write-Info "Backup options:"
+    Write-Info "1. Full backup (all data)"
+    Write-Info "2. Schema only (no data)"
+    Write-Info "3. Data only (no schema)"
+    Write-Info "4. Specific tables"
+    Write-Info "5. List existing backups"
+    Write-Info "6. Delete old backups"
+    Write-Info "0. Back to menu"
 
-    Write-Info "Backing up to: $backupFile"
-    docker exec agomsaaf_postgres_dev pg_dump -U agomsaaf agomsaaf > $backupFile
+    $choice = Read-Host "`nSelect option"
 
-    if (Test-Path $backupFile) {
-        $size = (Get-Item $backupFile).Length / 1KB
-        Write-Success "`nBackup completed! Size: $([math]::Round($size, 2)) KB"
-        Write-Info "File: $backupFile"
-    }
-    else {
-        Write-Error "Backup failed!"
+    switch ($choice) {
+        "1" {
+            $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+            $backupFile = "$ProjectRoot\backup-postgres-$timestamp.sql"
+            Write-Info "Creating full backup..."
+            docker exec agomsaaf_postgres_dev pg_dump -U agomsaaf -d agomsaaf > $backupFile
+
+            if (Test-Path $backupFile) {
+                $size = [math]::Round((Get-Item $backupFile).Length / 1KB, 2)
+                Write-Success "`nBackup completed! Size: $size KB"
+                Write-Info "File: $backupFile"
+            }
+            else {
+                Write-Error "Backup failed!"
+            }
+        }
+        "2" {
+            $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+            $backupFile = "$ProjectRoot\backup-schema-$timestamp.sql"
+            Write-Info "Creating schema backup..."
+            docker exec agomsaaf_postgres_dev pg_dump -U agomsaaf -d agomsaaf --schema-only > $backupFile
+
+            if (Test-Path $backupFile) {
+                $size = [math]::Round((Get-Item $backupFile).Length / 1KB, 2)
+                Write-Success "`nSchema backup completed! Size: $size KB"
+                Write-Info "File: $backupFile"
+            }
+            else {
+                Write-Error "Backup failed!"
+            }
+        }
+        "3" {
+            $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+            $backupFile = "$ProjectRoot\backup-data-$timestamp.sql"
+            Write-Info "Creating data backup..."
+            docker exec agomsaaf_postgres_dev pg_dump -U agomsaaf -d agomsaaf --data-only > $backupFile
+
+            if (Test-Path $backupFile) {
+                $size = [math]::Round((Get-Item $backupFile).Length / 1KB, 2)
+                Write-Success "`nData backup completed! Size: $size KB"
+                Write-Info "File: $backupFile"
+            }
+            else {
+                Write-Error "Backup failed!"
+            }
+        }
+        "4" {
+            Write-Info "Available tables:"
+            docker exec agomsaaf_postgres_dev psql -U agomsaaf -d agomsaaf -c "\dt" | Write-Host
+
+            $tables = Read-Host "`nEnter table names (comma separated)"
+            $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+            $backupFile = "$ProjectRoot\backup-tables-$timestamp.sql"
+
+            Write-Info "Creating table backup..."
+            docker exec agomsaaf_postgres_dev pg_dump -U agomsaaf -d agomsaaf -t $tables > $backupFile
+
+            if (Test-Path $backupFile) {
+                $size = [math]::Round((Get-Item $backupFile).Length / 1KB, 2)
+                Write-Success "`nTable backup completed! Size: $size KB"
+                Write-Info "File: $backupFile"
+            }
+            else {
+                Write-Error "Backup failed!"
+            }
+        }
+        "5" {
+            Write-Header "`n=== Existing Backups ===`n"
+            $backupDir = "$ProjectRoot\backups"
+            if (Test-Path $backupDir) {
+                $files = Get-ChildItem $backupDir -Filter "*.sql" | Sort-Object LastWriteTime -Descending
+            }
+            else {
+                $files = Get-ChildItem $ProjectRoot -Filter "backup-*.sql" | Sort-Object LastWriteTime -Descending
+            }
+
+            if ($files.Count -eq 0) {
+                Write-Info "No backup files found in project directory"
+            }
+            else {
+                Write-Info "Found $($files.Count) backup file(s):`n"
+                foreach ($file in $files) {
+                    $size = [math]::Round($file.Length / 1KB, 2)
+                    Write-Info "  - $($file.Name)"
+                    Write-Info "    Size: $size KB | Date: $($file.LastWriteTime)"
+                }
+            }
+        }
+        "6" {
+            Write-Header "`n=== Delete Old Backups ===`n"
+            $backupDir = "$ProjectRoot\backups"
+            if (-not (Test-Path $backupDir)) {
+                $backupDir = $ProjectRoot
+            }
+
+            $files = Get-ChildItem $backupDir -Filter "backup-*.sql" | Sort-Object LastWriteTime -Descending
+
+            if ($files.Count -eq 0) {
+                Write-Info "No backup files found"
+                return
+            }
+
+            Write-Info "Found $($files.Count) backup file(s):`n"
+            for ($i = 0; $i -lt $files.Count; $i++) {
+                $file = $files[$i]
+                $size = [math]::Round($file.Length / 1KB, 2)
+                Write-Info "  [$($i + 1)] $($file.Name) - $size KB - $($file.LastWriteTime)"
+            }
+
+            Write-Warning "`nDelete backups older than days:"
+            Write-Info "1. 7 days"
+            Write-Info "2. 30 days"
+            Write-Info "3. 90 days"
+            Write-Info "4. All backups"
+            Write-Info "0. Cancel"
+
+            $deleteChoice = Read-Host "`nSelect option"
+
+            $days = switch ($deleteChoice) {
+                "1" { 7 }
+                "2" { 30 }
+                "3" { 90 }
+                "4" { 0 }
+                "0" { return }
+                default { return }
+            }
+
+            $cutoffDate = (Get-Date).AddDays(-$days)
+            $toDelete = @()
+
+            if ($days -eq 0) {
+                $toDelete = $files
+            }
+            else {
+                foreach ($file in $files) {
+                    if ($file.LastWriteTime -lt $cutoffDate) {
+                        $toDelete += $file
+                    }
+                }
+            }
+
+            if ($toDelete.Count -eq 0) {
+                Write-Info "No backups to delete"
+                return
+            }
+
+            Write-Warning "`nWill delete $($toDelete.Count) file(s):"
+            foreach ($file in $toDelete) {
+                Write-Error "  - $($file.Name)"
+            }
+
+            $confirm = Read-Host "`nConfirm deletion? (y/N)"
+            if ($confirm -eq "y" -or $confirm -eq "Y") {
+                foreach ($file in $toDelete) {
+                    Remove-Item $file.FullName
+                    Write-Info "Deleted: $($file.Name)"
+                }
+                Write-Success "`nDeleted $($toDelete.Count) file(s)"
+            }
+            else {
+                Write-Info "Cancelled"
+            }
+        }
+        "0" { return }
+        default { Write-Error "Invalid option" }
     }
 }
 
@@ -278,6 +441,75 @@ function Show-Urls {
     Write-Host ""
 }
 
+# Setup scheduled backup
+function Setup-ScheduledBackup {
+    Write-Header "`n=== Setup Scheduled Backup ===`n"
+
+    Write-Info "This will create a Windows Task Scheduler job for automatic backups"
+    Write-Info "Backups will be stored in: $ProjectRoot\backups"
+    Write-Host ""
+
+    Write-Info "Select backup frequency:"
+    Write-Info "1. Daily"
+    Write-Info "2. Weekly"
+    Write-Info "3. Custom"
+    Write-Info "0. Cancel"
+
+    $freqChoice = Read-Host "`nEnter choice"
+
+    $trigger = switch ($freqChoice) {
+        "1" { "Daily" }
+        "2" { "Weekly" }
+        "0" { return }
+        default { "Custom" }
+    }
+
+    $time = Read-Host "Enter time (24h format, e.g., 02:00)"
+    $keepDays = Read-Host "Keep backups for how many days? (default: 7)"
+
+    if ([string]::IsNullOrWhiteSpace($keepDays)) {
+        $keepDays = 7
+    }
+
+    $taskName = "AgomSAAF-AutoBackup"
+    $scriptPath = "$ProjectRoot\scripts\auto-backup.ps1"
+    $action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-ExecutionPolicy Bypass -File `"$scriptPath`" -KeepDays $keepDays"
+
+    Write-Info "`nCreating scheduled task..."
+
+    try {
+        switch ($trigger) {
+            "Daily" {
+                $triggerObj = New-ScheduledTaskTrigger -Daily -At $time
+            }
+            "Weekly" {
+                $day = Read-Host "Enter day (0=Sunday, 1=Monday, ..., 6=Saturday)"
+                $triggerObj = New-ScheduledTaskTrigger -Weekly -DaysOfWeek $day -At $time
+            }
+            "Custom" {
+                Write-Info "Custom schedule - you'll need to modify in Task Scheduler"
+                $triggerObj = New-ScheduledTaskTrigger -Once -At (Get-Date) -RecurInterval 1 -RepetitionDuration ([TimeSpan]::MaxValue)
+            }
+        }
+
+        Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $triggerObj -Description "AgomSAAF PostgreSQL automatic backup" -User $env:USERNAME
+
+        Write-Success "`nScheduled task created successfully!"
+        Write-Info "Task name: $taskName"
+        Write-Info "You can modify it in Task Scheduler (taskschd.msc)"
+        Write-Info "`nTo manage scheduled tasks:"
+        Write-Info "  - Open Task Scheduler: taskschd.msc"
+        Write-Info "  - Find: AgomSAAF-AutoBackup"
+        Write-Info "  - Run/Pause/Disable as needed"
+    }
+    catch {
+        Write-Error "Failed to create scheduled task: $_"
+        Write-Info "`nYou can create it manually in Task Scheduler:"
+        Write-Info "  Script: $scriptPath"
+        Write-Info "  Args: -ExecutionPolicy Bypass -File `"$scriptPath`" -KeepDays $keepDays"
+    }
+}
+
 # System info
 function Show-SystemInfo {
     Write-Header "`n=== System Information ===`n"
@@ -349,15 +581,17 @@ function Show-Menu {
     Write-MenuItem "  7. Create superuser"
     Write-MenuItem "  8. Connect to PostgreSQL"
     Write-MenuItem "  9. Connect to Redis"
-    Write-MenuItem " 10. Backup database"
+    Write-MenuItem " 10. Backup database (enhanced)"
     Write-MenuItem " 11. Restore database"
-    Write-MenuItem " 12. Reset database (DANGER!)"
+    Write-MenuItem " 12. Auto backup now"
+    Write-MenuItem " 13. Reset database (DANGER!)"
 
     Write-Header "`n--- Maintenance ---"
-    Write-MenuItem " 13. Clean Docker resources"
-    Write-MenuItem " 14. Container shell access"
-    Write-MenuItem " 15. System information"
-    Write-MenuItem " 16. Show service URLs"
+    Write-MenuItem " 14. Clean Docker resources"
+    Write-MenuItem " 15. Container shell access"
+    Write-MenuItem " 16. System information"
+    Write-MenuItem " 17. Show service URLs"
+    Write-MenuItem " 18. Setup scheduled backup"
 
     Write-Header "`n--- Other ---"
     Write-MenuItem "  0. Exit"
@@ -390,11 +624,16 @@ function Main {
             "9" { Connect-Redis }
             "10" { Backup-Database }
             "11" { Restore-Database }
-            "12" { Reset-Database }
-            "13" { Clean-Docker }
-            "14" { Shell-Access }
-            "15" { Show-SystemInfo }
-            "16" { Show-Urls }
+            "12" {
+                Write-Header "`n=== Auto Backup ===`n"
+                & "$ProjectRoot\scripts\auto-backup.ps1" -KeepDays 7
+            }
+            "13" { Reset-Database }
+            "14" { Clean-Docker }
+            "15" { Shell-Access }
+            "16" { Show-SystemInfo }
+            "17" { Show-Urls }
+            "18" { Setup-ScheduledBackup }
             "0" {
                 Write-Info "Exiting..."
                 exit 0
