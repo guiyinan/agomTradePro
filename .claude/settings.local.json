@@ -54,7 +54,8 @@
       "Bash(if not exist \"D:\\\\githv\\\\agomSAAF\\\\core\\\\templates\\\\fund\" mkdir \"D:\\\\githv\\\\agomSAAF\\\\core\\\\templates\\\\fund\")",
       "Bash(mv:*)",
       "Bash(set:*)",
-      "Bash(D:\\\\githv\\\\agomSAAF\\\\agomsaaf\\\\Scripts\\\\python.exe manage.py showmigrations:*)"
+      "Bash(D:\\\\githv\\\\agomSAAF\\\\agomsaaf\\\\Scripts\\\\python.exe manage.py showmigrations:*)",
+      "Bash(if not exist \"tests\\\\unit\\\\domain\\\\simulated_trading\" mkdir \"tests\\\\unit\\\\domain\\\\simulated_trading\")"
     ]
   }
 }

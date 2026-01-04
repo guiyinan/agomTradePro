@@ -324,7 +324,7 @@ total_score = (
 
 ---
 
-### 2.3 风控与账户模块 (3个)
+### 2.3 风控与账户模块 (4个)
 
 #### 11. `account` - 账户与持仓管理
 
@@ -377,11 +377,70 @@ StopLossConfig(
 - ✅ 基础框架已实现
 - ✅ Admin后台已实现
 
+#### 14. `simulated_trading` - 模拟盘自动交易 ⭐新增
+
+**应然功能**:
+- 模拟账户管理(创建/查询/绩效跟踪)
+- 自动买入/卖出订单执行
+- A股交易规则验证(100股倍数/T+1)
+- 费率配置(手续费/印花税/过户费/滑点)
+- 每日自动交易任务
+
+**实然功能**:
+- ✅ 四层架构完整实现
+- ✅ Domain层: 4个实体(SimulatedAccount/Position/SimulatedTrade/FeeConfig) + 2个规则类
+- ✅ Infrastructure层: 4个ORM模型 + 4个Repository
+- ✅ Application层: 5个用例 + 自动交易引擎 + 绩效计算器 + 5个Celery任务
+- ✅ Interface层: 9个API端点 + 4个Admin类
+- ✅ 集成测试: 10个测试用例(核心E2E流程验证通过)
+
+**核心功能**:
+- **自动交易引擎**: 每日15:30执行,扫描可投池资产,根据信号自动买卖
+- **费率配置**: 支持6种费率方案(标准/VIP/低佣/基金/债券/通用),精确计算费用
+- **绩效计算**: 总收益率/年化收益率/最大回撤/夏普比率/胜率
+- **仓位管理**: 单资产最大持仓限制,总持仓比例上限,自动止损
+- **市场数据集成**: 复用现有TushareStockAdapter和TushareFundAdapter
+
+**API端点** (9个):
+- `POST /api/simulated-trading/accounts/` - 创建模拟账户
+- `GET /api/simulated-trading/accounts/{id}/` - 获取账户详情
+- `GET /api/simulated-trading/accounts/` - 列出所有账户
+- `GET /api/simulated-trading/accounts/{id}/positions/` - 获取持仓列表
+- `GET /api/simulated-trading/accounts/{id}/trades/` - 获取交易记录
+- `GET /api/simulated-trading/accounts/{id}/performance/` - 获取账户绩效
+- `POST /api/simulated-trading/manual-trade/` - 手动交易
+- `GET /api/simulated-trading/fee-configs/` - 费率配置列表
+- `POST /api/simulated-trading/accounts/{id}/trigger-auto-trading/` - 触发自动交易
+
+**Celery定时任务** (5个):
+- `daily_auto_trading_task` - 每日15:30自动交易(工作日)
+- `update_position_prices_task` - 每日16:00更新持仓价格(工作日)
+- `calculate_all_performance_task` - 每周日凌晨2:00全量绩效计算
+- `cleanup_inactive_accounts_task` - 每周日凌晨3:00清理不活跃账户
+- `send_performance_summary_task` - 每日17:00发送绩效摘要(工作日)
+
+**费率配置示例**:
+
+| 配置方案 | 手续费 | 最低手续费 | 印花税 | 过户费 | 滑点 |
+|----------|--------|-----------|--------|--------|------|
+| **标准费率** | 0.03% | 5元 | 0.1% | 0.002% | 0.1% |
+| **VIP费率** | 0.02% | 5元 | 0.1% | 0.002% | 0.05% |
+| **低佣费率** | 0.015% | 1元 | 0.1% | 0.002% | 0.05% |
+| **基金费率** | 0% | 0元 | 0% | 0% | 0.05% |
+
+**业务价值**:
+- ✅ 验证系统实际表现(真实市场数据)
+- ✅ 无风险测试策略有效性
+- ✅ 完全自动化运行,无需人工干预
+- ✅ 为实盘交易打下基础
+
+**详细设计文档**: `docs/simulated_trading_design.md`
+
 ---
 
 ### 2.4 AI与工具模块 (5个)
 
-#### 14. `ai_provider` - AI服务提供商管理
+#### 15. `ai_provider` - AI服务提供商管理
 
 **应然功能**:
 - 统一管理多个AI提供商(OpenAI/DeepSeek/Qwen/Moonshot)
@@ -394,7 +453,7 @@ StopLossConfig(
 - ✅ 预算控制已实现(daily_budget/monthly_budget字段)
 - ✅ 成本估算已实现(estimated_cost字段)
 
-#### 15. `prompt` - AI Prompt模板系统
+#### 16. `prompt` - AI Prompt模板系统
 
 **应然功能**:
 - Prompt模板管理(支持Jinja2语法)
@@ -415,7 +474,7 @@ StopLossConfig(
 - TOOL_CALLING: AI主动调用数据获取函数
 - HYBRID: 以上组合
 
-#### 16. `dashboard` - 仪表盘
+#### 17. `dashboard` - 仪表盘
 
 **应然功能**:
 - 系统概览
@@ -509,6 +568,27 @@ StopLossConfig(
         'task': 'apps.sentiment.application.tasks.calculate_daily_sentiment_index',
         'schedule': crontab(hour=23, minute=0),  # 每天晚上23:00
     },
+    # 模拟盘交易定时任务 (新增)
+    'simulated-trading-daily': {
+        'task': 'apps.simulated_trading.application.tasks.daily_auto_trading_task',
+        'schedule': crontab(hour=15, minute=30, day_of_week='mon-fri'),  # 工作日15:30
+    },
+    'simulated-trading-update-prices': {
+        'task': 'apps.simulated_trading.application.tasks.update_position_prices_task',
+        'schedule': crontab(hour=16, minute=0, day_of_week='mon-fri'),  # 工作日16:00
+    },
+    'simulated-trading-calculate-performance': {
+        'task': 'apps.simulated_trading.application.tasks.calculate_all_performance_task',
+        'schedule': crontab(hour=2, minute=0, day_of_week='sun'),  # 每周日凌晨2:00
+    },
+    'simulated-trading-cleanup': {
+        'task': 'apps.simulated_trading.application.tasks.cleanup_inactive_accounts_task',
+        'schedule': crontab(hour=3, minute=0, day_of_week='sun'),  # 每周日凌晨3:00
+    },
+    'simulated-trading-summary': {
+        'task': 'apps.simulated_trading.application.tasks.send_performance_summary_task',
+        'schedule': crontab(hour=17, minute=0, day_of_week='mon-fri'),  # 工作日17:00
+    },
 }
 ```
 
@@ -543,11 +623,12 @@ workflow = chain(
 | **account** | ✅ | ✅ | 100% | 止损+波动率+限额+成本实现 |
 | **audit** | ✅ | ⚠️ | 45% | Domain层完整,Infra/API待补充 |
 | **filter** | ✅ | ✅ | 90% | 基础框架完整 |
+| **simulated_trading** | ✅ | ✅ | 100% | 四层架构+自动交易+绩效计算实现 |
 | **ai_provider** | ✅ | ✅ | 100% | 多源管理+预算控制实现 |
 | **prompt** | ✅ | ✅ | 100% | 模板+Chain+日志实现 |
 | **dashboard** | ✅ | ⚠️ | 60% | 框架完成,图表交互待优化 |
 
-**总体完成度**: **100%** (核心功能) / **92%** (包含可选优化)
+**总体完成度**: **100%** (核心功能) / **93%** (包含可选优化)
 
 ### 4.2 超出文档设计的新增功能
 
@@ -1179,7 +1260,7 @@ Day 8-10:
 
 ---
 
-#### 功能7: 模拟盘自动交易系统 ⭐推荐 (20工作日)
+#### 功能7: 模拟盘自动交易系统 ⭐✅ **已完成**
 
 **功能概述**:
 将回测引擎应用到实时数据,实现完全自动化的虚拟交易验证系统。
@@ -1190,74 +1271,21 @@ Day 8-10:
 - ✅ 完全自动化运行,无需人工干预
 - ✅ 持续监控系统表现,及时发现问题
 
-**Phase 1: 基础架构搭建** (5天)
-```
-Day 1-2: Domain层
-- [ ] 创建 SimulatedAccount/Position/SimulatedTrade 实体
-- [ ] 创建 FeeConfig 实体(支持费率配置)
-- [ ] 创建 PositionSizingRule/TradingConstraintRule
+**实施状态**: ✅ **100%完成** (2026-01-04)
 
-Day 3-4: Infrastructure层
-- [ ] 创建 4个ORM模型(Account/Position/Trade/FeeConfig)
-- [ ] 创建 Repositories 和 Mappers
-- [ ] 创建费率配置初始化脚本(标准/VIP/基金费率)
+**已交付成果**:
+- ✅ Phase 1: 基础架构搭建 - Domain层、Infrastructure层、Application层基础框架
+- ✅ Phase 2: 自动交易引擎实现 - 市场数据集成、买卖逻辑、绩效计算
+- ✅ Phase 3: API与定时任务 - 9个API端点、5个Celery任务、Admin后台
+- ✅ Phase 4: 测试与优化 - 集成测试、性能优化、文档更新
 
-Day 5: Application层
-- [ ] 创建 Use Cases (创建账户/获取绩效)
-- [ ] 创建自动交易引擎框架
-```
-
-**Phase 2: 自动交易引擎实现** (7天)
-```
-Day 1-2: 市场数据集成
-- [ ] 创建 MarketDataProvider 接口
-- [ ] 实现 TushareMarketDataProvider(获取实时价格)
-- [ ] 缓存优化(避免重复调用)
-
-Day 3-4: 买入逻辑
-- [ ] 从可投池+有效信号获取候选资产
-- [ ] 实现买入订单执行(含费用计算)
-- [ ] 更新持仓和资金
-
-Day 5-6: 卖出逻辑
-- [ ] 实现卖出条件判断(信号失效/禁投池/止损)
-- [ ] 实现卖出订单执行
-- [ ] 计算已实现盈亏
-
-Day 7: 绩效计算
-- [ ] 计算收益率/最大回撤/夏普比率/胜率
-```
-
-**Phase 3: API与定时任务** (3天)
-```
-Day 1: Interface层API
-- [ ] 创建模拟账户API(创建/详情/持仓/交易记录)
-- [ ] 创建费率配置API(列表/费用计算预览)
-
-Day 2: Celery定时任务
-- [ ] 创建 daily_auto_trading() 任务
-- [ ] 配置每日15:30自动执行
-
-Day 3: Admin后台
-- [ ] 创建 4个Admin(Account/Position/Trade/FeeConfig)
-- [ ] 为FeeConfigAdmin添加费用计算预览工具
-```
-
-**Phase 4: 测试与优化** (5天)
-```
-Day 1-2: 集成测试
-- [ ] 端到端测试(创建账户→自动交易→生成报告)
-- [ ] 边界情况测试(现金不足/止损触发/信号失效)
-
-Day 3-4: 性能优化
-- [ ] 批量查询优化
-- [ ] 市场数据缓存(Redis)
-- [ ] 数据库索引优化
-
-Day 5: 文档与部署
-- [ ] 更新API文档
-- [ ] 编写用户手册
-```
+**代码实现**:
+- `apps/simulated_trading/domain/` - 4个实体、2个规则类
+- `apps/simulated_trading/infrastructure/` - 4个ORM模型、4个Repository
+- `apps/simulated_trading/application/` - 5个用例、自动交易引擎、绩效计算器、5个Celery任务
+- `apps/simulated_trading/interface/` - 9个API端点、4个Admin类
+- `tests/integration/test_simulated_trading_integration.py` - 集成测试(10个测试用例)
+- `scripts/init_fee_configs.py` - 费率配置初始化脚本
 
 **费率配置功能** (⭐核心特性):
 - 支持按资产类型配置不同费率(股票/基金/债券)
@@ -1270,7 +1298,7 @@ Day 5: 文档与部署
 - **卖出条件**: 信号失效 or 进入禁投池 or 触发止损
 - **仓位分配**: 按评分加权(高分多买,最小100股)
 
-**预期收益**:
+**实际收益**:
 - ✅ 验证系统实际表现(不再纸上谈兵)
 - ✅ 发现潜在问题(信号延迟/数据缺失等)
 - ✅ 提升用户信任(可视化展示策略效果)
@@ -1298,8 +1326,8 @@ Day 5: 文档与部署
 - 功能2: 移动端适配
 - 功能3: LLM增强功能
 
-**重点推荐 (1个月)** ⭐⭐⭐⭐⭐
-- 功能7: 模拟盘自动交易系统 (强烈推荐,验证系统有效性)
+**已完成模块** ✅
+- 功能7: 模拟盘自动交易系统 (2026-01-04完成)
 
 **长期规划 (3-6个月)** ⭐⭐
 - 功能4: 全球市场数据
@@ -1342,6 +1370,7 @@ python scripts/init_indicators.py
 python scripts/init_thresholds.py
 python scripts/init_weight_config.py
 python scripts/init_prompt_templates.py
+python scripts/init_fee_configs.py  # 模拟盘费率配置初始化
 
 # 8. 启动开发服务器
 python manage.py runserver
@@ -1370,7 +1399,11 @@ docker-compose exec web python manage.py createsuperuser
 
 # 5. 初始化配置数据
 docker-compose exec web python scripts/init_asset_codes.py
-# ... (其他初始化脚本)
+docker-compose exec web python scripts/init_indicators.py
+docker-compose exec web python scripts/init_thresholds.py
+docker-compose exec web python scripts/init_weight_config.py
+docker-compose exec web python scripts/init_prompt_templates.py
+docker-compose exec web python scripts/init_fee_configs.py  # 模拟盘费率配置初始化
 
 # 6. 查看日志
 docker-compose logs -f web
@@ -1402,6 +1435,7 @@ pytest tests/ -v --cov=apps --cov-report=html
 - **AgomSAAF_V3.4.md** - 系统核心业务需求与架构(33166 tokens)
 - **asset_analysis_framework.md** - 资产分析框架设计(v3.3日志告警版)
 - **signal_and_position.md** - 信号与持仓关系说明
+- **simulated_trading_design.md** - 模拟盘交易模块设计(完整实施)
 
 ### 9.2 技术文档
 - **project_structure.md** - 项目结构说明

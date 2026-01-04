@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'apps.fund',           # 新增：基金分析模块
     'apps.asset_analysis', # 新增：通用资产分析模块
     'apps.sentiment',      # 新增：舆情情感分析模块
+    'apps.simulated_trading', # 新增：模拟盘自动交易模块
 ]
 
 MIDDLEWARE = [
@@ -207,6 +208,32 @@ CELERY_BEAT_SCHEDULE = {
     'daily-signal-summary': {
         'task': 'signal.daily_summary',
         'schedule': crontab(hour=9, minute=0),  # 每天上午 9:00
+    },
+    # ============================================
+
+    # ========== 模拟盘自动交易 ==========
+    'simulated-daily-auto-trading': {
+        'task': 'apps.simulated_trading.application.tasks.daily_auto_trading_task',
+        'schedule': crontab(hour=15, minute=30, day_of_week='mon-fri'),  # 每个交易日 15:30
+        'options': {
+            'expires': 7200,  # 2 小时超时
+        }
+    },
+    'simulated-update-prices': {
+        'task': 'apps.simulated_trading.application.tasks.update_position_prices_task',
+        'schedule': crontab(hour=16, minute=0, day_of_week='mon-fri'),  # 每个交易日 16:00
+    },
+    'simulated-weekly-performance': {
+        'task': 'apps.simulated_trading.application.tasks.calculate_all_performance_task',
+        'schedule': crontab(hour=2, minute=0, day_of_week='sun'),  # 每周日凌晨 2:00
+    },
+    'simulated-cleanup-accounts': {
+        'task': 'apps.simulated_trading.application.tasks.cleanup_inactive_accounts_task',
+        'schedule': crontab(hour=3, minute=0, day_of_week='sun'),  # 每周日凌晨 3:00
+    },
+    'simulated-daily-summary': {
+        'task': 'apps.simulated_trading.application.tasks.send_performance_summary_task',
+        'schedule': crontab(hour=17, minute=0, day_of_week='mon-fri'),  # 每个交易日 17:00
     },
     # ============================================
 }
