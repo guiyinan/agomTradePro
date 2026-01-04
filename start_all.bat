@@ -1,5 +1,5 @@
 @echo off
-REM AgomSAAF - Redis + Celery + Django Startup Script
+REM AgomSAAF - Docker (PostgreSQL + Redis) + Celery + Django Startup Script
 
 setlocal enabledelayedexpansion
 
@@ -7,6 +7,7 @@ REM Configuration
 set PYTHON_EXEC=agomsaaf\Scripts\python.exe
 set REDIS_PORT=6379
 set DJANGO_PORT=8000
+set COMPOSE_FILE=docker-compose-dev.yml
 
 echo.
 echo ====================================
@@ -25,42 +26,52 @@ if not exist "%PYTHON_EXEC%" (
 echo [OK] Virtual environment ready
 echo.
 
-REM ========== 2. Check Redis ==========
-echo [INFO] Checking Redis...
-where redis-server >nul 2>&1
+REM ========== 2. Check Docker ==========
+echo [INFO] Checking Docker...
+docker --version >nul 2>&1
 if errorlevel 1 (
-    echo [WARN] Redis not installed or not in PATH
-    echo.
-    echo Options:
-    echo   1. I have Redis installed, start it manually
-    echo   2. Skip Redis (Celery will not start)
-    echo   3. Cancel
-    echo.
-    choice /c 123 /n /m "Select [1-3]: "
-    if errorlevel 3 exit /b 1
-    if errorlevel 2 set SKIP_CELERY=1
-    if errorlevel 1 goto :run_django
-) else (
-    REM Check if Redis is running
-    redis-cli -p %REDIS_PORT% ping >nul 2>&1
-    if errorlevel 1 (
-        echo [INFO] Starting Redis...
-        start "Redis Server" redis-server --port %REDIS_PORT%
-        timeout /t 2 >nul
-        redis-cli -p %REDIS_PORT% ping >nul 2>&1
-        if errorlevel 1 (
-            echo [ERROR] Redis failed to start!
-            pause
-            exit /b 1
-        )
-        echo [OK] Redis started (port %REDIS_PORT%)
-    ) else (
-        echo [OK] Redis already running
-    )
+    echo [ERROR] Docker not installed or not in PATH!
+    echo Please install Docker Desktop first.
+    pause
+    exit /b 1
 )
+echo [OK] Docker found
 echo.
 
-REM ========== 3. Database Migration ==========
+REM ========== 3. Start Docker Services ==========
+echo [INFO] Checking Docker containers...
+docker ps --filter "name=agomsaaf_postgres_dev" --format "{{.Names}}" | findstr "agomsaaf_postgres_dev" >nul 2>&1
+if errorlevel 1 (
+    echo [INFO] Starting Docker services (PostgreSQL + Redis)...
+    docker-compose -f %COMPOSE_FILE% up -d
+    if errorlevel 1 (
+        echo [ERROR] Failed to start Docker services!
+        pause
+        exit /b 1
+    )
+    echo [OK] Docker services starting
+) else (
+    echo [OK] Docker containers already running
+)
+
+REM Wait for PostgreSQL to be ready
+echo [INFO] Waiting for PostgreSQL to be ready...
+:wait_postgres
+timeout /t 2 >nul
+docker exec agomsaaf_postgres_dev pg_isready -U agomsaaf -d agomsaaf >nul 2>&1
+if errorlevel 1 goto :wait_postgres
+echo [OK] PostgreSQL ready
+
+REM Wait for Redis to be ready
+echo [INFO] Waiting for Redis to be ready...
+:wait_redis
+timeout /t 1 >nul
+docker exec agomsaaf_redis_dev redis-cli ping >nul 2>&1
+if errorlevel 1 goto :wait_redis
+echo [OK] Redis ready
+echo.
+
+REM ========== 4. Database Migration ==========
 echo [INFO] Checking database migrations...
 "%PYTHON_EXEC%" manage.py migrate --skip-checks
 if errorlevel 1 (
@@ -70,7 +81,7 @@ if errorlevel 1 (
 echo [OK] Database ready
 echo.
 
-REM ========== 4. Start Celery Worker ==========
+REM ========== 5. Start Celery Worker ==========
 if not defined SKIP_CELERY (
     echo [INFO] Starting Celery Worker...
     start "Celery Worker" cmd /k "%PYTHON_EXEC% -m celery -A core worker -l info --pool=solo"
