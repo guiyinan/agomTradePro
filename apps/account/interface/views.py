@@ -6,16 +6,17 @@ Account Interface Views
 
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
 from django.db import models
+from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from decimal import Decimal
 
-from apps.account.infrastructure.models import AccountProfileModel, PortfolioModel, CapitalFlowModel
+from apps.account.infrastructure.models import AccountProfileModel, PortfolioModel, CapitalFlowModel, SystemSettingsModel
 from apps.account.infrastructure.repositories import (
     AccountRepository,
     PortfolioRepository,
@@ -23,6 +24,11 @@ from apps.account.infrastructure.repositories import (
     AssetMetadataRepository,
 )
 from apps.account.application.use_cases import CreatePositionFromBacktestUseCase, CreatePositionFromBacktestInput
+
+
+def is_admin_user(user):
+    """检查用户是否是管理员"""
+    return user.is_authenticated and user.is_superuser
 
 
 @require_http_methods(["GET", "POST"])
@@ -33,6 +39,9 @@ def register_view(request):
     GET: 显示注册表单
     POST: 处理注册请求
     """
+    # 获取系统配置
+    system_settings = SystemSettingsModel.get_settings()
+
     if request.method == "POST":
         username = request.POST.get("username")
         email = request.POST.get("email")
@@ -40,18 +49,41 @@ def register_view(request):
         password_confirm = request.POST.get("password_confirm")
         display_name = request.POST.get("display_name", username)
 
+        # 用户协议和风险提示确认
+        user_agreement = request.POST.get("user_agreement") == "on"
+        risk_warning = request.POST.get("risk_warning") == "on"
+
         # 验证
         if not username or not password:
             messages.error(request, "用户名和密码不能为空")
-            return render(request, "account/register.html")
+            return render(request, "account/register.html", {
+                "system_settings": system_settings,
+            })
 
         if password != password_confirm:
             messages.error(request, "两次输入的密码不一致")
-            return render(request, "account/register.html")
+            return render(request, "account/register.html", {
+                "system_settings": system_settings,
+            })
 
         if User.objects.filter(username=username).exists():
             messages.error(request, "用户名已存在")
-            return render(request, "account/register.html")
+            return render(request, "account/register.html", {
+                "system_settings": system_settings,
+            })
+
+        # 验证用户协议和风险提示
+        if not user_agreement:
+            messages.error(request, "请阅读并同意用户协议")
+            return render(request, "account/register.html", {
+                "system_settings": system_settings,
+            })
+
+        if not risk_warning:
+            messages.error(request, "请确认已阅读风险提示")
+            return render(request, "account/register.html", {
+                "system_settings": system_settings,
+            })
 
         # 创建用户
         try:
@@ -60,13 +92,42 @@ def register_view(request):
                 email=email,
                 password=password
             )
+            user.is_active = False  # 初始设为未激活，等待审批（或自动批准）
+
+            # 确定审批状态
+            from django.db.models import Q
+            has_admin = User.objects.filter(Q(is_superuser=True) | Q(is_staff=True)).exists()
+
+            if not system_settings.require_user_approval:
+                # 审批已关闭，自动批准
+                approval_status = "auto_approved"
+                user.is_active = True
+            elif not has_admin and system_settings.auto_approve_first_admin:
+                # 系统无管理员，自动成为管理员并获得批准
+                user.is_superuser = True
+                user.is_staff = True
+                user.is_active = True
+                approval_status = "auto_approved"
+            else:
+                # 需要管理员审批
+                approval_status = "pending"
+
+            user.save()
+
+            # 获取客户端IP
+            client_ip = get_client_ip(request)
 
             # 创建账户配置
             AccountProfileModel.objects.create(
                 user=user,
                 display_name=display_name,
                 initial_capital=Decimal("1000000.00"),
-                risk_tolerance="moderate"
+                risk_tolerance="moderate",
+                user_agreement_accepted=True,
+                risk_warning_acknowledged=True,
+                agreement_accepted_at=timezone.now(),
+                agreement_ip_address=client_ip,
+                approval_status=approval_status,
             )
 
             # 创建默认投资组合
@@ -76,20 +137,44 @@ def register_view(request):
                 is_active=True
             )
 
-            # 创建API Token
-            Token.objects.create(user=user)
+            # 创建API Token（仅已批准的用户）
+            if user.is_active:
+                Token.objects.create(user=user)
 
-            # 自动登录
-            login(request, user)
+            # 根据审批状态显示不同消息
+            if approval_status == "pending":
+                messages.info(
+                    request,
+                    f"注册成功！您的账户正在等待管理员审批，审批通过后即可登录。"
+                )
+                return redirect("/account/login/")
+            else:
+                # 自动登录
+                login(request, user)
 
-            messages.success(request, f"欢迎加入 AgomSAAF，{display_name}！")
-            return redirect("/dashboard/")
+                admin_msg = " 您已成为系统管理员。" if user.is_superuser else ""
+                messages.success(request, f"欢迎加入 AgomSAAF，{display_name}！{admin_msg}")
+                return redirect("/dashboard/")
 
         except Exception as e:
             messages.error(request, f"注册失败：{str(e)}")
-            return render(request, "account/register.html")
+            return render(request, "account/register.html", {
+                "system_settings": system_settings,
+            })
 
-    return render(request, "account/register.html")
+    return render(request, "account/register.html", {
+        "system_settings": system_settings,
+    })
+
+
+def get_client_ip(request):
+    """获取客户端IP地址"""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
 
 
 @require_http_methods(["GET", "POST"])
@@ -428,3 +513,195 @@ def portfolio_volatility_api_view(request):
             'success': False,
             'error': f'获取波动率数据失败：{str(e)}'
         }, status=500)
+
+
+# ============================================================
+# 用户管理视图（仅管理员）
+# ============================================================
+
+@login_required
+@user_passes_test(is_admin_user)
+@require_http_methods(["GET", "POST"])
+def user_management_view(request):
+    """
+    用户管理视图（仅管理员可用）
+
+    显示所有用户列表，支持审批操作。
+    """
+    system_settings = SystemSettingsModel.get_settings()
+
+    # 获取过滤参数
+    status_filter = request.GET.get("status", "")
+    search_query = request.GET.get("q", "")
+
+    # 构建查询
+    profiles = AccountProfileModel.objects.select_related('user', 'approved_by').all()
+
+    if status_filter:
+        profiles = profiles.filter(approval_status=status_filter)
+
+    if search_query:
+        profiles = profiles.filter(
+            models.Q(user__username__icontains=search_query) |
+            models.Q(user__email__icontains=search_query) |
+            models.Q(display_name__icontains=search_query)
+        )
+
+    # 排序
+    profiles = profiles.order_by('-created_at')
+
+    # 统计信息
+    total_count = profiles.count()
+    pending_count = profiles.filter(approval_status='pending').count()
+    approved_count = profiles.filter(approval_status__in=['approved', 'auto_approved']).count()
+    rejected_count = profiles.filter(approval_status='rejected').count()
+
+    context = {
+        "profiles": profiles,
+        "system_settings": system_settings,
+        "status_filter": status_filter,
+        "search_query": search_query,
+        "total_count": total_count,
+        "pending_count": pending_count,
+        "approved_count": approved_count,
+        "rejected_count": rejected_count,
+    }
+    return render(request, "account/user_management.html", context)
+
+
+@login_required
+@user_passes_test(is_admin_user)
+@require_http_methods(["POST"])
+def approve_user_view(request, user_id):
+    """
+    批准用户视图（仅管理员可用）
+    """
+    try:
+        target_user = User.objects.get(id=user_id)
+        profile = target_user.account_profile
+
+        if profile.approval_status == 'approved':
+            messages.warning(request, f"用户 {target_user.username} 已经被批准过了")
+        elif profile.approval_status == 'rejected':
+            messages.error(request, f"用户 {target_user.username} 已被拒绝，请先取消拒绝状态")
+        else:
+            # 激活用户
+            target_user.is_active = True
+            target_user.save()
+
+            # 更新审批状态
+            profile.approval_status = 'approved'
+            profile.approved_at = timezone.now()
+            profile.approved_by = request.user
+            profile.save()
+
+            # 创建API Token
+            Token.objects.get_or_create(user=target_user)
+
+            messages.success(request, f"已批准用户 {target_user.username}")
+
+    except User.DoesNotExist:
+        messages.error(request, "用户不存在")
+    except Exception as e:
+        messages.error(request, f"批准失败：{str(e)}")
+
+    return redirect("/account/admin/users/")
+
+
+@login_required
+@user_passes_test(is_admin_user)
+@require_http_methods(["POST"])
+def reject_user_view(request, user_id):
+    """
+    拒绝用户视图（仅管理员可用）
+    """
+    try:
+        target_user = User.objects.get(id=user_id)
+        profile = target_user.account_profile
+
+        # 确保不拒绝自己
+        if target_user.id == request.user.id:
+            messages.error(request, "不能拒绝自己")
+            return redirect("/account/admin/users/")
+
+        rejection_reason = request.POST.get("rejection_reason", "")
+
+        # 更新审批状态
+        profile.approval_status = 'rejected'
+        profile.rejection_reason = rejection_reason
+        profile.save()
+
+        messages.success(request, f"已拒绝用户 {target_user.username}")
+
+    except User.DoesNotExist:
+        messages.error(request, "用户不存在")
+    except Exception as e:
+        messages.error(request, f"拒绝失败：{str(e)}")
+
+    return redirect("/account/admin/users/")
+
+
+@login_required
+@user_passes_test(is_admin_user)
+@require_http_methods(["POST"])
+def reset_user_status_view(request, user_id):
+    """
+    重置用户状态视图（仅管理员可用）
+
+    将用户状态重置为待审批，允许重新审批。
+    """
+    try:
+        target_user = User.objects.get(id=user_id)
+        profile = target_user.account_profile
+
+        # 重置审批状态
+        profile.approval_status = 'pending'
+        profile.approved_at = None
+        profile.approved_by = None
+        profile.rejection_reason = ""
+        profile.save()
+
+        # 停用用户
+        target_user.is_active = False
+        target_user.save()
+
+        # 删除API Token
+        Token.objects.filter(user=target_user).delete()
+
+        messages.success(request, f"已重置用户 {target_user.username} 的状态")
+
+    except User.DoesNotExist:
+        messages.error(request, "用户不存在")
+    except Exception as e:
+        messages.error(request, f"重置失败：{str(e)}")
+
+    return redirect("/account/admin/users/")
+
+
+@login_required
+@user_passes_test(is_admin_user)
+@require_http_methods(["GET", "POST"])
+def system_settings_view(request):
+    """
+    系统配置视图（仅管理员可用）
+
+    管理系统配置，如审批开关、协议内容等。
+    """
+    system_settings = SystemSettingsModel.get_settings()
+
+    if request.method == "POST":
+        # 更新配置
+        system_settings.require_user_approval = request.POST.get("require_user_approval") == "on"
+        system_settings.auto_approve_first_admin = request.POST.get("auto_approve_first_admin") == "on"
+        system_settings.user_agreement_content = request.POST.get("user_agreement_content", "")
+        system_settings.risk_warning_content = request.POST.get("risk_warning_content", "")
+        system_settings.notes = request.POST.get("notes", "")
+        system_settings.save()
+
+        messages.success(request, "系统配置已更新")
+        return redirect("/account/admin/settings/")
+
+    context = {
+        "system_settings": system_settings,
+    }
+    return render(request, "account/system_settings.html", context)

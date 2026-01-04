@@ -10,9 +10,13 @@
         </div>
         <div class="data-source-selector">
             <label for="dateSelect">分析时点:</label>
-            <input type="date" id="dateSelect" value="{{ as_of_date|date:'Y-m-d' }}" onchange="changeAnalysisDate(this.value)">
+            <input type="date" id="dateSelect" data-datepicker value="{{ as_of_date|date:'Y-m-d' }}"
+                   hx-get="{% url 'regime:dashboard' %}" hx-trigger="change" hx-include="#dateSelect,#sourceSelect"
+                   hx-push-url="true" hx-indicator="#syncProgress">
             <label for="sourceSelect" style="margin-left: 16px;">数据源:</label>
-            <select id="sourceSelect" onchange="changeDataSource(this.value)">
+            <select id="sourceSelect"
+                    hx-get="{% url 'regime:dashboard' %}" hx-trigger="change" hx-include="#dateSelect,#sourceSelect"
+                    hx-push-url="true" hx-indicator="#syncProgress">
                 {% if available_sources %}
                     {% for source in available_sources %}
                     <option value="{{ source.source_type }}" {% if current_source == source.source_type %}selected{% endif %}>
@@ -41,6 +45,21 @@
 </div>
 
 <script>
+// 初始化 Flatpickr 日期选择器
+document.addEventListener('DOMContentLoaded', function() {
+    const dateInput = document.getElementById('dateSelect');
+    if (dateInput && typeof flatpickr !== 'undefined') {
+        flatpickr(dateInput, {
+            locale: 'zh',
+            dateFormat: 'Y-m-d',
+            maxDate: 'today',
+            onChange: function(selectedDates, dateStr, instance) {
+                // HTMX 会自动触发请求
+            }
+        });
+    }
+});
+
 // URL 配置
 const API_URLS = {
     macroQuickSync: "{% url 'macro:api_quick_sync' %}"
@@ -1341,7 +1360,7 @@ async function syncData() {
 
 <!-- ECharts JS -->
 {% load static %}
-<script src="{% static 'js/echarts.min.js' %}"></script>
+<script src="{% static 'vendor/js/echarts.min.js' %}"></script>
 <script>
 {% if raw_data_json and intermediate_data_json %}
 const rawData = {{ raw_data_json|safe }};

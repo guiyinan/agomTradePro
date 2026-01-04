@@ -1,0 +1,155 @@
+{% if error %}
+<div class="alert alert-error">
+    {{ error }}
+</div>
+{% else %}
+<div class="position-detail">
+    <div class="detail-grid">
+        <div class="detail-item">
+            <span class="detail-label">资产代码</span>
+            <span class="detail-value">{{ position.asset_code }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">资产名称</span>
+            <span class="detail-value">{{ position.asset_name|default:"-" }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">持仓数量</span>
+            <span class="detail-value">{{ position.quantity|floatformat:2 }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">平均成本</span>
+            <span class="detail-value">¥{{ position.avg_cost|floatformat:2 }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">当前价格</span>
+            <span class="detail-value">¥{{ position.current_price|floatformat:2 }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">市值</span>
+            <span class="detail-value">¥{{ position.market_value|floatformat:0 }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">未实现盈亏</span>
+            <span class="detail-value {% if position.unrealized_pnl >= 0 %}positive{% else %}negative{% endif %}">
+                ¥{{ position.unrealized_pnl|floatformat:0 }}
+            </span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">收益率</span>
+            <span class="detail-value {% if position.unrealized_pnl_pct >= 0 %}positive{% else %}negative{% endif %}">
+                {{ position.unrealized_pnl_pct|floatformat:2 }}%
+            </span>
+        </div>
+    </div>
+
+    {% if related_signals %}
+    <div class="related-signals">
+        <h4>相关投资信号</h4>
+        <div class="signal-list-compact">
+            {% for signal in related_signals %}
+            <div class="signal-item-compact">
+                <span class="signal-badge badge-{{ signal.direction|lower }}">{{ signal.direction }}</span>
+                <span class="signal-logic">{{ signal.logic_desc|truncatewords:20 }}</span>
+                <span class="signal-date">{{ signal.created_at|date:"Y-m-d" }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="detail-actions">
+        <button class="btn btn-secondary" onclick="closeModal('positionDetailModal')">关闭</button>
+        <a href="{% url 'account:profile' %}#positions" class="btn btn-primary">管理持仓</a>
+    </div>
+</div>
+{% endif %}
+
+<style>
+.position-detail {
+    padding: var(--spacing-md);
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.detail-label {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.detail-value {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.detail-value.positive {
+    color: var(--success-color);
+}
+
+.detail-value.negative {
+    color: var(--danger-color);
+}
+
+.related-signals {
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
+}
+
+.related-signations h4 {
+    margin-bottom: var(--spacing-md);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.signal-list-compact {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.signal-item-compact {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+}
+
+.signal-badge {
+    padding: 2px 8px;
+    font-size: 11px;
+    border-radius: 12px;
+}
+
+.signal-logic {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.signal-date {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.detail-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-lg);
+}
+</style>

@@ -38,6 +38,57 @@
         </div>
     </section>
 
+    <!-- 模拟仓概览（新增） -->
+    <section class="account-section">
+        <h2 class="section-title">我的模拟仓</h2>
+        <div class="account-stats">
+            {% if profile.real_account %}
+            <div class="stat-card stat-card-real">
+                <span class="stat-label">实仓</span>
+                <a href="{% url 'simulated_trading:my-account-detail' 'real' %}" class="stat-value-link">
+                    {{ profile.real_account.account_name }}
+                </a>
+                <span class="stat-sub">
+                    总资产: ¥{{ profile.real_account.total_value|floatformat:2 }}
+                </span>
+                <span class="stat-sub {% if profile.real_account.total_return >= 0 %}positive{% else %}negative{% endif %}">
+                    收益率: {{ profile.real_account.total_return|floatformat:2 }}%
+                </span>
+            </div>
+            {% else %}
+            <div class="stat-card stat-card-empty">
+                <span class="stat-label">实仓</span>
+                <span class="stat-value-empty">未创建</span>
+            </div>
+            {% endif %}
+
+            {% if profile.simulated_account %}
+            <div class="stat-card stat-card-simulated">
+                <span class="stat-label">模拟仓</span>
+                <a href="{% url 'simulated_trading:my-account-detail' 'simulated' %}" class="stat-value-link">
+                    {{ profile.simulated_account.account_name }}
+                </a>
+                <span class="stat-sub">
+                    总资产: ¥{{ profile.simulated_account.total_value|floatformat:2 }}
+                </span>
+                <span class="stat-sub {% if profile.simulated_account.total_return >= 0 %}positive{% else %}negative{% endif %}">
+                    收益率: {{ profile.simulated_account.total_return|floatformat:2 }}%
+                </span>
+            </div>
+            {% else %}
+            <div class="stat-card stat-card-empty">
+                <span class="stat-label">模拟仓</span>
+                <span class="stat-value-empty">未创建</span>
+            </div>
+            {% endif %}
+        </div>
+        <div class="mt-3">
+            <a href="{% url 'simulated_trading:my-accounts' %}" class="btn btn-primary btn-sm">
+                查看我的模拟仓详情
+            </a>
+        </div>
+    </section>
+
     <!-- 我的持仓 -->
     <section id="positions" class="account-section">
         <h2 class="section-title">我的持仓</h2>
@@ -410,6 +461,54 @@
     background: #dcfce7;
     color: #166534;
     border-left: 4px solid #22c55e;
+}
+
+/* 模拟仓概览样式（新增） */
+.stat-card-real {
+    background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+    border: 1px solid #81c784;
+}
+
+.stat-card-simulated {
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    border: 1px solid #64b5f6;
+}
+
+.stat-card-empty {
+    background: #f5f5f5;
+    border: 1px solid #e0e0e0;
+}
+
+.stat-value-link {
+    display: block;
+    font-size: 18px;
+    font-weight: 600;
+    color: #36C;
+    text-decoration: none;
+    margin-bottom: 4px;
+}
+
+.stat-value-link:hover {
+    text-decoration: underline;
+}
+
+.stat-value-empty {
+    display: block;
+    font-size: 16px;
+    font-weight: 500;
+    color: #999;
+    margin-bottom: 4px;
+}
+
+.stat-sub {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+}
+
+.mt-3 {
+    margin-top: 12px;
 }
 </style>
 

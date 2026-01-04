@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}账户详情 - AgomSAAF 模拟盘交易{% endblock %}
+
+{% block extra_css %}
+<!-- Chart.js -->
+<script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="account-container">
+    <div class="account-header">
+        <h1>模拟盘账户详情</h1>
+        <p class="subtitle">账户ID: {{ account_id }}</p>
+    </div>
+
+    <!-- 功能说明 -->
+    <section class="account-section">
+        <h2 class="section-title">账户详情</h2>
+        <div class="info-card">
+            <p>此页面显示模拟盘账户的详细信息。</p>
+            <p class="mt-3">
+                <strong>账户ID:</strong> {{ account_id }}<br>
+                请访问 <a href="{% url 'simulated_trading:my-accounts' %}">我的模拟仓</a> 查看您的账户。
+            </p>
+        </div>
+    </section>
+
+    <!-- 快捷操作 -->
+    <section class="account-section">
+        <h2 class="section-title">快捷操作</h2>
+        <div class="action-buttons">
+            <a href="{% url 'simulated_trading:my-accounts' %}" class="btn btn-primary">我的模拟仓</a>
+            <a href="{% url 'simulated_trading:dashboard' %}" class="btn btn-secondary">模拟盘首页</a>
+            <a href="{% url 'dashboard:index' %}" class="btn btn-secondary">返回仪表盘</a>
+        </div>
+    </section>
+</div>
+
+<style>
+.account-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.account-header {
+    margin-bottom: 24px;
+}
+
+.account-header h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.subtitle {
+    color: #54595D;
+    font-size: 14px;
+}
+
+.account-section {
+    background: #FFFFFF;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.info-card {
+    background: #F8F9FA;
+    padding: 16px;
+    border-radius: 4px;
+    border-left: 4px solid #36C;
+}
+
+.info-card a {
+    color: #36C;
+    text-decoration: none;
+}
+
+.info-card a:hover {
+    text-decoration: underline;
+}
+
+.mt-3 {
+    margin-top: 12px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: #36C;
+    color: white;
+    border: none;
+}
+
+.btn-primary:hover {
+    background: #25a;
+}
+
+.btn-secondary {
+    background: #F8F9FA;
+    color: #202122;
+    border: 1px solid #E0E0E0;
+}
+
+.btn-secondary:hover {
+    background: #e8e8e8;
+}
+</style>
+{% endblock %}

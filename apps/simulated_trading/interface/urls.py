@@ -6,6 +6,11 @@ from .views import (
     # 页面视图
     dashboard_page,
     account_detail_page,
+    # 用户专属视图（新增）
+    my_accounts_page,
+    my_account_detail_page,
+    my_positions_page,
+    my_trades_page,
     # API 视图
     AccountListAPIView,
     AccountDetailAPIView,
@@ -26,6 +31,12 @@ urlpatterns = [
     # ============================================================================
     path('dashboard/', dashboard_page, name='dashboard'),
     path('accounts/<int:account_id>/', account_detail_page, name='account-detail'),
+
+    # 用户专属路由（新增）
+    path('my-accounts/', my_accounts_page, name='my-accounts'),
+    path('my-accounts/<str:account_type>/', my_account_detail_page, name='my-account-detail'),
+    path('my-accounts/<str:account_type>/positions/', my_positions_page, name='my-positions'),
+    path('my-accounts/<str:account_type>/trades/', my_trades_page, name='my-trades'),
 
     # ============================================================================
     # API 路由

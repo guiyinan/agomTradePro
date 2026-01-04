@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}{{ account_type }}持仓 - AgomSAAF{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- 页面标题 -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'simulated_trading:my-accounts' %}">我的模拟仓</a></li>
+                            <li class="breadcrumb-item">
+                                <a href="{% url 'simulated_trading:my-account-detail' account_type_code %}">{{ account_type }}</a>
+                            </li>
+                            <li class="breadcrumb-item active">持仓</li>
+                        </ol>
+                    </nav>
+                    <h1>
+                        <i class="bi bi-layers"></i> {{ account.account_name }} - 当前持仓
+                    </h1>
+                </div>
+                <button class="btn btn-primary" onclick="window.location.reload()">
+                    <i class="bi bi-arrow-clockwise"></i> 刷新
+                </button>
+            </div>
+
+            <!-- 持仓统计 -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body text-center">
+                            <p class="text-muted mb-1">持仓数量</p>
+                            <h3>{{ positions.count }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body text-center">
+                            <p class="text-muted mb-1">持仓市值</p>
+                            <h3 class="text-primary">¥ {{ account.current_market_value|floatformat:2 }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body text-center">
+                            <p class="text-muted mb-1">总成本</p>
+                            <h3>¥ {% widthratio positions.count 0 0 %}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card shadow-sm">
+                        <div class="card-body text-center">
+                            <p class="text-muted mb-1">浮动盈亏</p>
+                            <h3 class="{% if account.total_return >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                ¥ {{ account.current_market_value|floatformat:2 }}
+                            </h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 持仓列表 -->
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">持仓明细</h5>
+                </div>
+                <div class="card-body">
+                    {% if positions %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>资产代码</th>
+                                        <th>资产名称</th>
+                                        <th>资产类型</th>
+                                        <th>持仓数量</th>
+                                        <th>可卖数量</th>
+                                        <th>平均成本</th>
+                                        <th>当前价格</th>
+                                        <th>总成本</th>
+                                        <th>市值</th>
+                                        <th>浮动盈亏</th>
+                                        <th>盈亏率</th>
+                                        <th>入场原因</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for position in positions %}
+                                    <tr>
+                                        <td><strong>{{ position.asset_code }}</strong></td>
+                                        <td>{{ position.asset_name }}</td>
+                                        <td>
+                                            {% if position.asset_type == 'equity' %}
+                                                <span class="badge bg-primary">股票</span>
+                                            {% elif position.asset_type == 'fund' %}
+                                                <span class="badge bg-info">基金</span>
+                                            {% elif position.asset_type == 'bond' %}
+                                                <span class="badge bg-warning">债券</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ position.quantity }}</td>
+                                        <td>{{ position.available_quantity }}</td>
+                                        <td>¥ {{ position.avg_cost|floatformat:2 }}</td>
+                                        <td>¥ {{ position.current_price|floatformat:2 }}</td>
+                                        <td>¥ {{ position.total_cost|floatformat:2 }}</td>
+                                        <td><strong>¥ {{ position.market_value|floatformat:2 }}</strong></td>
+                                        <td class="{% if position.unrealized_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                            <strong>¥ {{ position.unrealized_pnl|floatformat:2 }}</strong>
+                                        </td>
+                                        <td class="{% if position.unrealized_pnl_pct >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                            {{ position.unrealized_pnl_pct|floatformat:2 }}%
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">{{ position.entry_reason|default:"-" }}</small>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-inbox" style="font-size: 3rem; color: #ccc;"></i>
+                            <p class="text-muted mt-3">当前没有持仓</p>
+                            <a href="{% url 'simulated_trading:my-account-detail' account_type_code %}"
+                               class="btn btn-primary mt-2">
+                                <i class="bi bi-arrow-left"></i> 返回账户详情
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

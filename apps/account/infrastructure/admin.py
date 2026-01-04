@@ -16,6 +16,7 @@ from .models import (
     PortfolioModel, PositionModel, TransactionModel,
     CapitalFlowModel, AssetMetadataModel, AccountProfileModel,
     StopLossConfigModel, StopLossTriggerModel, TakeProfitConfigModel,
+    SystemSettingsModel,
 )
 
 
@@ -493,3 +494,57 @@ class TakeProfitConfigAdmin(admin.ModelAdmin):
             return levels
         return '全部止盈'
     partial_profit_levels_display.short_description = '分批止盈点位'
+
+
+# ============================================================
+# 系统配置管理
+# ============================================================
+
+@admin.register(SystemSettingsModel)
+class SystemSettingsAdmin(admin.ModelAdmin):
+    """系统配置管理（单例模式）"""
+
+    list_display = ['require_user_approval_display', 'auto_approve_first_admin', 'updated_at']
+    list_display_links = None  # 禁止从列表页进入编辑
+
+    fieldsets = (
+        ('用户审批配置', {
+            'fields': ('require_user_approval', 'auto_approve_first_admin')
+        }),
+        ('协议内容', {
+            'fields': ('user_agreement_content', 'risk_warning_content')
+        }),
+        ('其他', {
+            'fields': ('notes',)
+        }),
+        ('元数据', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    readonly_fields = ['created_at', 'updated_at']
+
+    def has_add_permission(self, request):
+        # 禁止添加新记录（单例模式）
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        # 禁止删除配置记录
+        return False
+
+    def require_user_approval_display(self, obj):
+        status = '开启' if obj.require_user_approval else '关闭'
+        color = 'green' if obj.require_user_approval else 'orange'
+        return format_html('<span style="color:{}">{}</span>', color, status)
+    require_user_approval_display.short_description = '审批开关'
+
+    def response_add(self, request, obj, post_url_continue=None):
+        """保存后重定向到列表页"""
+        self.message_user(request, '系统配置已更新', messages.SUCCESS)
+        return redirect('/admin/account/systemsettingsmodel/')
+
+    def response_change(self, request, obj):
+        """保存后重定向到列表页"""
+        self.message_user(request, '系统配置已更新', messages.SUCCESS)
+        return redirect('/admin/account/systemsettingsmodel/')

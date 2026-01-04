@@ -60,7 +60,8 @@
       "Bash(docker:*)",
       "Bash(docker-compose -f docker-compose-dev.yml down)",
       "Bash(docker-compose -f docker-compose-dev.yml pull)",
-      "Bash(docker-compose:*)"
+      "Bash(docker-compose:*)",
+      "Bash(if not exist:*)"
     ]
   }
 }

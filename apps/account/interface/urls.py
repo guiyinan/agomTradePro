@@ -34,6 +34,13 @@ urlpatterns = [
     path('capital-flow/', views.capital_flow_view, name='capital_flow'),
     path('backtest/<int:backtest_id>/apply/', views.apply_backtest_results_view, name='apply_backtest'),
 
+    # 管理员视图（用户管理）
+    path('admin/users/', views.user_management_view, name='user_management'),
+    path('admin/users/<int:user_id>/approve/', views.approve_user_view, name='approve_user'),
+    path('admin/users/<int:user_id>/reject/', views.reject_user_view, name='reject_user'),
+    path('admin/users/<int:user_id>/reset/', views.reset_user_status_view, name='reset_user_status'),
+    path('admin/settings/', views.system_settings_view, name='system_settings'),
+
     # API 视图
     path('api/profile/', api_views.AccountProfileView.as_view(), name='api_profile'),
     path('api/health/', api_views.AccountHealthView.as_view(), name='api_health'),

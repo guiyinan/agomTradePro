@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}模拟盘交易 - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+<!-- Chart.js -->
+<script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="simulated-container">
+    <div class="simulated-header">
+        <h1>模拟盘交易</h1>
+        <p class="subtitle">基于投资信号的自动交易系统</p>
+    </div>
+
+    <!-- 功能入口 -->
+    <section class="simulated-section">
+        <h2 class="section-title">我的账户</h2>
+        <div class="card-grid">
+            <a href="{% url 'simulated_trading:my-accounts' %}" class="card-link">
+                <div class="card">
+                    <div class="card-icon">👛</div>
+                    <div class="card-title">我的模拟仓</div>
+                    <div class="card-desc">查看您的实仓和模拟仓</div>
+                </div>
+            </a>
+        </div>
+    </section>
+
+    <!-- 系统状态 -->
+    <section class="simulated-section">
+        <h2 class="section-title">系统状态</h2>
+        <div class="status-grid">
+            <div class="status-item-card">
+                <div class="status-icon">🔄</div>
+                <div class="status-content">
+                    <div class="status-name">自动交易引擎</div>
+                    <div class="status-desc">每日 15:30 自动执行</div>
+                </div>
+                <div class="status-indicator status-ok"></div>
+            </div>
+            <div class="status-item-card">
+                <div class="status-icon">📊</div>
+                <div class="status-content">
+                    <div class="status-name">价格更新</div>
+                    <div class="status-desc">每日 16:00 更新持仓</div>
+                </div>
+                <div class="status-indicator status-ok"></div>
+            </div>
+            <div class="status-item-card">
+                <div class="status-icon">📈</div>
+                <div class="status-content">
+                    <div class="status-name">绩效计算</div>
+                    <div class="status-desc">每周日凌晨自动计算</div>
+                </div>
+                <div class="status-indicator status-ok"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 快捷操作 -->
+    <section class="simulated-section">
+        <h2 class="section-title">快捷操作</h2>
+        <div class="action-buttons">
+            <a href="{% url 'dashboard:index' %}" class="btn btn-secondary">返回仪表盘</a>
+            <a href="/admin/" class="btn btn-secondary">管理后台</a>
+        </div>
+    </section>
+</div>
+
+<style>
+.simulated-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.simulated-header {
+    margin-bottom: 32px;
+}
+
+.simulated-header h1 {
+    font-size: 32px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.subtitle {
+    color: #54595D;
+    font-size: 16px;
+}
+
+.simulated-section {
+    background: #FFFFFF;
+    border: 1px solid #E0E0E0;
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.section-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.card-link {
+    text-decoration: none;
+    color: inherit;
+}
+
+.card {
+    background: #F8F9FA;
+    border: 1px solid #E0E0E0;
+    border-radius: 8px;
+    padding: 24px;
+    transition: all 0.2s;
+}
+
+.card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+    border-color: #36C;
+}
+
+.card-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.card-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #202122;
+}
+
+.card-desc {
+    font-size: 14px;
+    color: #54595D;
+}
+
+.status-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.status-item-card {
+    background: #F8F9FA;
+    border: 1px solid #E0E0E0;
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.status-icon {
+    font-size: 32px;
+}
+
+.status-content {
+    flex: 1;
+}
+
+.status-name {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.status-desc {
+    font-size: 12px;
+    color: #54595D;
+}
+
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.status-ok {
+    background: #22c55e;
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
+}
+
+.action-buttons {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: #36C;
+    color: white;
+    border: none;
+}
+
+.btn-primary:hover {
+    background: #25a;
+}
+
+.btn-secondary {
+    background: #F8F9FA;
+    color: #202122;
+    border: 1px solid #E0E0E0;
+}
+
+.btn-secondary:hover {
+    background: #e8e8e8;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .simulated-container {
+        padding: 16px;
+    }
+
+    .card-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .status-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

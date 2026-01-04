@@ -624,5 +624,477 @@ const regimeQuadrants = {
 
 ---
 
-**文档版本**: V1.0
+## 14. HTMX 技术栈 (Phase 1 更新)
+
+### 14.1 集成的前端库
+
+系统已集成以下前端库（通过 CDN）：
+
+| 库名 | 版本 | 用途 |
+|------|------|------|
+| **HTMX** | 1.9.10 | 异步交互、无刷新页面更新 |
+| **Bootstrap Icons** | 1.11.3 | 图标库 |
+| **Flatpickr** | 6.0.7 | 日期选择器 |
+| **SweetAlert2** | 11.10.3 | 美化确认框 |
+| **Alpine.js** | 3.13.5 | 轻量级响应式交互 |
+
+### 14.2 HTMX 使用模式
+
+#### 列表分页
+
+```html
+<div id="item-list">
+    <!-- HTMX 加载内容 -->
+</div>
+
+<button hx-get="/items/?page=2"
+        hx-target="#item-list"
+        hx-swap="innerHTML"
+        hx-indicator="#loader">
+    加载更多
+</button>
+
+<div id="loader" class="htmx-indicator">加载中...</div>
+```
+
+#### 模态框表单
+
+```html
+<button hx-get="/items/create/"
+        hx-target="#modal"
+        hx-swap="innerHTML">
+    新建
+</button>
+
+<div id="modal" class="modal">
+    <!-- 表单内容 -->
+</div>
+```
+
+#### 实时搜索
+
+```html
+<input type="search"
+       name="q"
+       hx-get="/items/search/"
+       hx-trigger="keyup changed delay:500ms"
+       hx-target="#results">
+```
+
+#### 删除确认
+
+```html
+<button hx-delete="/items/1/"
+        hx-confirm="确定删除？"
+        hx-target="closest tr"
+        hx-swap="outerHTML">
+    删除
+</button>
+```
+
+### 14.3 HTMX 响应头
+
+服务器可以通过 HTTP 响应头控制 HTMX 行为：
+
+| 头部 | 用途 |
+|------|------|
+| `HX-Trigger` | 触发客户端事件 |
+| `HX-Redirect` | 客户端重定向 |
+| `HX-Refresh` | 刷新页面 |
+| `X-Success-Message` | 成功消息（自定义） |
+| `X-Error-Message` | 错误消息（自定义） |
+
+---
+
+## 15. 新增 CSS 组件 (Phase 1)
+
+### 15.1 模态框 (Modal)
+
+```html
+<div id="myModal" class="modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3 class="modal-title">标题</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            内容
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary">取消</button>
+            <button class="btn btn-primary">确定</button>
+        </div>
+    </div>
+</div>
+```
+
+### 15.2 标签页 (Tabs)
+
+```html
+<div class="tabs">
+    <ul class="tab-list">
+        <li class="tab-item active" data-target="tab1" data-content="content1">标签1</li>
+        <li class="tab-item" data-target="tab2" data-content="content2">标签2</li>
+    </ul>
+</div>
+
+<div id="content1" class="tab-content active">内容1</div>
+<div id="content2" class="tab-content">内容2</div>
+```
+
+### 15.3 手风琴 (Accordion)
+
+```html
+<div class="accordion">
+    <div class="accordion-item">
+        <div class="accordion-header">
+            <span class="accordion-title">标题</span>
+            <span class="accordion-icon">▼</span>
+        </div>
+        <div class="accordion-content">
+            <div class="accordion-body">内容</div>
+        </div>
+    </div>
+</div>
+```
+
+### 15.4 表单增强组件
+
+#### 滑块
+
+```html
+<div class="form-range">
+    <input type="range" min="1" max="100" value="50">
+    <span class="form-range-value">50</span>
+</div>
+```
+
+#### 开关
+
+```html
+<label class="form-switch">
+    <input type="checkbox">
+    <span class="switch-track"></span>
+    <span>启用</span>
+</label>
+```
+
+#### 搜索框
+
+```html
+<div class="search-box">
+    <input type="text" placeholder="搜索...">
+</div>
+```
+
+### 15.5 时间轴 (Timeline)
+
+```html
+<div class="timeline">
+    <div class="timeline-item">
+        <div class="timeline-date">2024-01-01</div>
+        <div class="timeline-content">事件内容</div>
+    </div>
+</div>
+```
+
+### 15.6 进度条 (Progress)
+
+```html
+<div class="progress">
+    <div class="progress-bar" style="width: 75%"></div>
+</div>
+```
+
+---
+
+## 16. JavaScript 工具库 (Phase 1)
+
+### 16.1 格式化函数
+
+```javascript
+// 数字格式化
+formatNumber(1234.56)  // "1,234.56"
+
+// 货币格式化
+formatCurrency(1234.56)  // "¥1,234.56"
+
+// 百分比格式化
+formatPercent(0.1234)  // "+12.34%"
+
+// 日期格式化
+formatDate(new Date())  // "2024-01-01"
+
+// 相对时间
+timeAgo('2024-01-01')  // "3天前"
+```
+
+### 16.2 SweetAlert2 封装
+
+```javascript
+// 成功提示
+alertSuccess('操作成功', '数据已保存')
+
+// 错误提示
+alertError('操作失败', '请稍后重试')
+
+// 确认对话框
+if (await confirmDialog('确定删除？', '此操作不可撤销')) {
+    // 执行删除
+}
+
+// 危险操作确认
+if (await confirmDanger('危险操作', '将永久删除数据')) {
+    // 执行操作
+}
+
+// 加载提示
+const swal = alertLoading('处理中...')
+// 完成后关闭
+Swal.close()
+```
+
+### 16.3 模态框操作
+
+```javascript
+// 打开/关闭模态框
+openModal('myModal')
+closeModal('myModal')
+```
+
+### 16.4 表单辅助
+
+```javascript
+// 序列化表单
+const data = serializeForm(form)
+
+// 重置表单
+resetForm(form)
+
+// 显示字段错误
+showFieldError(input, '该字段不能为空')
+
+// 清除字段错误
+clearFieldError(input)
+```
+
+### 16.5 表格操作
+
+```javascript
+// 排序表格
+sortTable(table, colIndex, 'number')
+
+// 过滤表格
+filterTable(table, colIndex, '关键词')
+```
+
+### 16.6 工具函数
+
+```javascript
+// 复制到剪贴板
+await copyToClipboard('要复制的文本')
+
+// 下载文件
+downloadFile('/path/to/file.pdf', 'document.pdf')
+
+// 下载 CSV
+downloadCSV(data, 'filename.csv')
+
+// 防抖
+const debouncedSearch = debounce(searchFunc, 300)
+
+// 节流
+const throttledScroll = throttle(scrollFunc, 200)
+```
+
+---
+
+## 17. Django 视图基类 (Phase 1)
+
+### 17.1 HTMX 视图基类
+
+#### HtmxTemplateView
+
+```python
+from apps.shared.interface.views import HtmxTemplateView
+
+class MyView(HtmxTemplateView):
+    template_name = 'my_template.html'
+    htmx_template_name = 'my_partial.html'  # HTMX 请求使用
+```
+
+#### HtmxListView
+
+```python
+from apps.shared.interface.views import HtmxListView
+
+class ItemListView(HtmxListView):
+    model = Item
+    template_name = 'items/list.html'
+    htmx_template_name = 'items/table.html'  # HTMX 只更新表格
+    paginate_by = 20
+    search_fields = ['name', 'description']  # 可搜索字段
+    ordering_fields = {'name': 'name', 'date': 'created_at'}  # 可排序字段
+```
+
+#### HtmxFormView
+
+```python
+from apps.shared.interface.views import HtmxFormView
+
+class ItemFormView(HtmxFormView):
+    template_name = 'items/form.html'
+    htmx_template_name = 'items/form_partial.html'
+    form_class = ItemForm
+    success_url = '/items/'
+    success_message = '保存成功'
+```
+
+#### HtmxDeleteView
+
+```python
+from apps.shared.interface.views import HtmxDeleteView
+
+class ItemDeleteView(HtmxDeleteView):
+    model = Item
+    success_url = '/items/'
+    success_message = '删除成功'
+```
+
+### 17.2 权限混合类
+
+```python
+from apps.shared.interface.views import StaffRequiredMixin, SuperuserRequiredMixin
+
+class AdminOnlyView(StaffRequiredMixin, TemplateView):
+    template_name = 'admin/page.html'
+
+class SuperuserView(SuperuserRequiredMixin, TemplateView):
+    template_name = 'superuser/page.html'
+```
+
+---
+
+## 18. 装饰器 (Phase 1)
+
+### 18.1 权限装饰器
+
+```python
+from apps.shared.interface.decorators import (
+    staff_required,
+    superuser_required,
+    login_htmx_view
+)
+
+@staff_required
+def admin_view(request):
+    # 只有管理员可访问
+    return render(request, 'admin/page.html')
+
+@login_htmx_view
+def protected_view(request):
+    # 需要登录，自动处理 HTMX
+    return render(request, 'protected/page.html')
+```
+
+### 18.2 HTMX 装饰器
+
+```python
+from apps.shared.interface.decorators import (
+    htmx_only,
+    htmx_trigger,
+    htmx_view
+)
+
+@htmx_only
+def htmx_only_view(request):
+    # 只接受 HTMX 请求
+    return render(request, 'partial.html')
+
+@htmx_trigger('updateList')
+def trigger_view(request):
+    # 响应后触发客户端事件
+    return render(request, 'partial.html')
+```
+
+### 18.3 消息装饰器
+
+```python
+from apps.shared.interface.decorators import (
+    success_message,
+    error_message
+)
+
+@success_message('操作成功')
+def my_view(request):
+    # 添加成功消息
+    return redirect('/somewhere/')
+```
+
+---
+
+## 19. HTMX 检测工具
+
+### 19.1 Python 端检测
+
+```python
+from apps.shared.interface.decorators import is_htmx
+
+def my_view(request):
+    if is_htmx(request):
+        # HTMX 请求
+        return render(request, 'partial.html')
+    else:
+        # 普通请求
+        return render(request, 'full.html')
+```
+
+### 19.2 模板中检测
+
+```django
+{% if is_htmx %}
+    <!-- HTMX 请求内容 -->
+{% else %}
+    <!-- 完整页面 -->
+{% endif %}
+```
+
+### 19.3 JavaScript 端检测
+
+```javascript
+document.body.addEventListener('htmx:afterRequest', function(evt) {
+    console.log('HTMX 请求完成');
+});
+```
+
+---
+
+## 20. 最佳实践
+
+### 20.1 HTMX 使用建议
+
+1. **渐进增强**：确保页面在没有 HTMX 的情况下也能正常工作
+2. **适当使用**：不是所有交互都需要 HTMX，简单操作可以直接用表单提交
+3. **错误处理**：始终处理 HTMX 请求失败的情况
+4. **性能考虑**：大量数据使用分页，避免一次性加载
+
+### 20.2 组件使用建议
+
+1. **模态框**：用于表单编辑、详情查看
+2. **标签页**：用于内容分组
+3. **手风琴**：用于折叠内容
+4. **加载状态**：为长时间操作添加加载指示器
+
+### 20.3 安全建议
+
+1. **CSRF 保护**：所有 HTMX 请求都应包含 CSRF Token
+2. **权限验证**：服务端必须验证用户权限
+3. **输入验证**：始终验证用户输入
+4. **XSS 防护**：注意动态内容的转义
+
+---
+
+**文档版本**: V2.0 (Phase 1 更新)
 **维护**: AgomSAAF Team
+**更新日期**: 2026-01-04

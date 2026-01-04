@@ -219,23 +219,34 @@
             <section class="content-card half">
                 <div class="section-header">
                     <h2 class="section-title">当前持仓</h2>
-                    <a href="/account/profile/#positions" class="section-link">管理 →</a>
+                    <div class="header-actions">
+                        <select id="positionSort" class="sort-select" hx-get="/dashboard/positions/"
+                                hx-trigger="change" hx-target="#positionList" hx-include="#positionSort">
+                            <option value="market_value">按市值</option>
+                            <option value="pnl_pct">按收益率</option>
+                            <option value="code">按代码</option>
+                        </select>
+                        <a href="/account/profile/#positions" class="section-link">管理 →</a>
+                    </div>
                 </div>
-                <div class="card-body">
+                <div class="card-body" id="positionList">
                     {% if positions %}
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>代码</th>
-                                <th>名称</th>
-                                <th>市值</th>
-                                <th>盈亏</th>
-                                <th>收益率</th>
+                                <th class="sortable" data-sort="code">代码</th>
+                                <th class="sortable" data-sort="name">名称</th>
+                                <th class="sortable" data-sort="market_value">市值</th>
+                                <th class="sortable" data-sort="pnl">盈亏</th>
+                                <th class="sortable" data-sort="pnl_pct">收益率</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody id="positionTableBody">
                             {% for pos in positions|slice:":5" %}
-                            <tr>
+                            <tr class="position-row" data-asset-code="{{ pos.asset_code }}"
+                                hx-get="/dashboard/position/{{ pos.asset_code }}/"
+                                hx-target="#positionDetailModal" hx-swap="innerHTML"
+                                style="cursor: pointer;">
                                 <td><strong>{{ pos.asset_code }}</strong></td>
                                 <td>{{ pos.asset_name|default:"-" }}</td>
                                 <td>¥{{ pos.market_value|floatformat:0 }}</td>
@@ -285,6 +296,41 @@
                     {% endif %}
                 </div>
             </section>
+        </div>
+
+        <!-- 资产配置图表 -->
+        <div class="content-row">
+            <section class="content-card half">
+                <div class="section-header">
+                    <h2 class="section-title">资产配置</h2>
+                </div>
+                <div class="card-body">
+                    <canvas id="allocationChart" width="400" height="300"></canvas>
+                </div>
+            </section>
+
+            <section class="content-card half">
+                <div class="section-header">
+                    <h2 class="section-title">收益趋势</h2>
+                </div>
+                <div class="card-body">
+                    <canvas id="performanceChart" width="400" height="300"></canvas>
+                </div>
+            </section>
+        </div>
+
+        <!-- 持仓详情模态框 -->
+        <div id="positionDetailModal" class="modal">
+            <div class="modal-backdrop" onclick="closeModal('positionDetailModal')"></div>
+            <div class="modal-dialog modal-lg">
+                <div class="modal-header">
+                    <h3 class="modal-title">持仓详情</h3>
+                    <button class="modal-close" onclick="closeModal('positionDetailModal')">&times;</button>
+                </div>
+                <div class="modal-body" id="positionDetailContent">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
         </div>
 
         <!-- 系统状态 -->
@@ -484,5 +530,364 @@ setInterval(() => {
             console.log('数据已更新');
         });
 }, 300000); // 每5分钟刷新一次
+
+// ========================================
+// 图表初始化
+// ========================================
+
+// 资产配置饼图
+const allocationCtx = document.getElementById('allocationChart');
+if (allocationCtx && {{ position_count|default:0 }} > 0) {
+    const allocationData = {{ allocation_data|default:"{}" }};
+    new Chart(allocationCtx, {
+        type: 'pie',
+        data: {
+            labels: Object.keys(allocationData),
+            datasets: [{
+                data: Object.values(allocationData),
+                backgroundColor: [
+                    '#A7C7F7', '#C8D8B8', '#F4C2C2',
+                    '#E8D5E2', '#F5DEB3', '#B8C8D8'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        generateLabels: function(chart) {
+                            const data = chart.data;
+                            if (data.labels.length && data.datasets.length) {
+                                return data.labels.map((label, i) => {
+                                    const value = data.datasets[0].data[i];
+                                    const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return {
+                                        text: `${label}: ${percentage}%`,
+                                        fillStyle: data.datasets[0].backgroundColor[i]
+                                    };
+                                });
+                            }
+                            return [];
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${label}: ¥${value.toLocaleString()} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 收益趋势图
+const performanceCtx = document.getElementById('performanceChart');
+if (performanceCtx) {
+    const performanceData = {{ performance_data|default:"[]" }};
+    if (performanceData.length > 0) {
+        new Chart(performanceCtx, {
+            type: 'line',
+            data: {
+                labels: performanceData.map(d => d.date),
+                datasets: [{
+                    label: '累计收益率',
+                    data: performanceData.map(d => d.return_pct),
+                    borderColor: '#36C',
+                    backgroundColor: 'rgba(51, 102, 204, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `收益率: ${context.parsed.y.toFixed(2)}%`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        performanceCtx.parentElement.innerHTML = '<p class="text-muted">暂无收益数据</p>';
+    }
+}
+
+// ========================================
+// 持仓排序功能
+// ========================================
+
+document.querySelectorAll('.sortable').forEach(th => {
+    th.style.cursor = 'pointer';
+    th.addEventListener('click', function() {
+        const sortBy = this.dataset.sort;
+        const table = this.closest('table');
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+
+        // 检查当前排序方向
+        const currentSort = tbody.dataset.sort;
+        const currentOrder = tbody.dataset.order || 'asc';
+        const newOrder = (currentSort === sortBy && currentOrder === 'asc') ? 'desc' : 'asc';
+
+        rows.sort((a, b) => {
+            let aVal, bVal;
+
+            switch(sortBy) {
+                case 'code':
+                    aVal = a.querySelector('td:first-child').textContent.trim();
+                    bVal = b.querySelector('td:first-child').textContent.trim();
+                    return aVal.localeCompare(bVal);
+                case 'name':
+                    aVal = a.children[1].textContent.trim();
+                    bVal = b.children[1].textContent.trim();
+                    return aVal.localeCompare(bVal, 'zh-CN');
+                case 'market_value':
+                    aVal = parseFloat(a.children[2].textContent.replace(/[¥,]/g, ''));
+                    bVal = parseFloat(b.children[2].textContent.replace(/[¥,]/g, ''));
+                    break;
+                case 'pnl':
+                    aVal = parseFloat(a.children[3].textContent.replace(/[¥,]/g, ''));
+                    bVal = parseFloat(b.children[3].textContent.replace(/[¥,]/g, ''));
+                    break;
+                case 'pnl_pct':
+                    aVal = parseFloat(a.children[4].textContent.replace('%', ''));
+                    bVal = parseFloat(b.children[4].textContent.replace('%', ''));
+                    break;
+            }
+
+            if (typeof aVal === 'number') {
+                return newOrder === 'asc' ? aVal - bVal : bVal - aVal;
+            }
+            return 0;
+        });
+
+        rows.forEach(row => tbody.appendChild(row));
+        tbody.dataset.sort = sortBy;
+        tbody.dataset.order = newOrder;
+
+        // 更新排序指示器
+        table.querySelectorAll('.sortable').forEach(h => {
+            h.classList.remove('sort-asc', 'sort-desc');
+        });
+        this.classList.add(newOrder === 'asc' ? 'sort-asc' : 'sort-desc');
+    });
+});
+
+// ========================================
+// AI 聊天流式响应优化
+// ========================================
+
+async function sendMessageStream() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+
+    chatInput.disabled = true;
+    chatSendBtn.disabled = true;
+
+    addMessage(text, false);
+    chatInput.value = '';
+
+    // 添加一个临时消息用于流式显示
+    const tempMsgDiv = document.createElement('div');
+    tempMsgDiv.className = 'message message-system';
+    const tempContentDiv = document.createElement('div');
+    tempContentDiv.className = 'message-content';
+    tempContentDiv.innerHTML = '<p class="streaming-text">...</p>';
+    tempMsgDiv.appendChild(tempContentDiv);
+    chatMessages.appendChild(tempMsgDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    try {
+        const response = await fetch(API_URLS.promptChat, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                message: text,
+                session_id: chatSessionId,
+                context: { history: chatHistory },
+                stream: true
+            })
+        });
+
+        if (response.ok) {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let fullReply = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value);
+                const lines = chunk.split('\n');
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = JSON.parse(line.slice(6));
+                        if (data.content) {
+                            fullReply += data.content;
+                            tempContentDiv.innerHTML = `<p>${fullReply}</p>`;
+                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                        }
+                        if (data.session_id) {
+                            chatSessionId = data.session_id;
+                        }
+                    }
+                }
+            }
+
+            chatHistory.push({ role: 'assistant', content: fullReply });
+        } else {
+            const data = await response.json();
+            const errorMsg = data.error || 'AI 服务暂时不可用';
+            tempContentDiv.innerHTML = `<p>⚠️ ${errorMsg}</p>`;
+        }
+    } catch (error) {
+        tempContentDiv.innerHTML = `<p>❌ 网络错误: ${error.message}</p>`;
+    } finally {
+        chatInput.disabled = false;
+        chatSendBtn.disabled = false;
+        chatInput.focus();
+    }
+}
+
+// 检查是否支持流式响应
+chatSendBtn.onclick = async function() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+
+    // 尝试使用流式响应
+    try {
+        await sendMessageStream();
+    } catch (e) {
+        // 降级到普通响应
+        await sendMessage();
+    }
+};
 </script>
+
+<style>
+/* 新增样式 */
+.sort-select {
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    background: var(--bg-primary);
+    cursor: pointer;
+}
+
+.sortable {
+    position: relative;
+    user-select: none;
+}
+
+.sortable:hover {
+    background-color: var(--bg-tertiary);
+}
+
+.sortable.sort-asc::after {
+    content: ' ▲';
+    position: absolute;
+    right: 8px;
+}
+
+.sortable.sort-desc::after {
+    content: ' ▼';
+    position: absolute;
+    right: 8px;
+}
+
+.loading-spinner {
+    width: 30px;
+    height: 30px;
+    margin: 20px auto;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.streaming-text {
+    color: var(--text-muted);
+}
+
+/* 响应式调整 */
+@media (max-width: 1200px) {
+    .content-row {
+        flex-direction: column;
+    }
+
+    .content-card.half {
+        width: 100%;
+    }
+
+    .home-chat {
+        position: fixed;
+        right: 0;
+        top: var(--header-height);
+        bottom: 0;
+        width: 320px;
+        transform: translateX(100%);
+        transition: transform 0.3s;
+        z-index: 999;
+    }
+
+    .home-chat.open {
+        transform: translateX(0);
+    }
+}
+
+@media (max-width: 768px) {
+    .home-layout {
+        flex-direction: column;
+    }
+
+    .home-sidebar {
+        width: 100%;
+        height: auto;
+    }
+
+    .metrics-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
 {% endblock %}

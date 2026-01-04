@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ account_type }}详情 - {{ account.account_name }} - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+<!-- Chart.js -->
+<script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="account-container">
+    <div class="account-header">
+        <div class="header-title-row">
+            <div>
+                <h1>{{ account.account_name }}</h1>
+                <p class="subtitle">{{ account_type }} - 账户详情</p>
+            </div>
+            <div class="header-actions">
+                <a href="{% url 'simulated_trading:my-accounts' %}" class="btn btn-secondary">返回账户列表</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 账户概览 -->
+    <section class="account-section">
+        <h2 class="section-title">账户概览</h2>
+        <div class="account-stats">
+            <div class="stat-card">
+                <span class="stat-label">账户类型</span>
+                <span class="stat-value">{{ account_type }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">总资产</span>
+                <span class="stat-value">¥{{ account.total_value|floatformat:2 }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">初始资金</span>
+                <span class="stat-value">¥{{ account.initial_capital|floatformat:2 }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">当前现金</span>
+                <span class="stat-value">¥{{ account.current_cash|floatformat:2 }}</span>
+            </div>
+            <div class="stat-card {% if account.total_return >= 0 %}stat-positive{% else %}stat-negative{% endif %}">
+                <span class="stat-label">总收益率</span>
+                <span class="stat-value">
+                    {% if account.total_return is None %}-{% else %}{{ account.total_return|floatformat:2 }}%{% endif %}
+                </span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">状态</span>
+                <span class="stat-value {% if account.is_active %}status-active{% else %}status-inactive{% endif %}">
+                    {% if account.is_active %}活跃{% else %}已停用{% endif %}
+                </span>
+            </div>
+        </div>
+    </section>
+
+    <!-- 持仓概览 -->
+    <section class="account-section">
+        <h2 class="section-title">持仓概览</h2>
+        {% if positions %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>资产代码</th>
+                    <th>资产名称</th>
+                    <th>数量</th>
+                    <th>成本价</th>
+                    <th>现价</th>
+                    <th>市值</th>
+                    <th>盈亏</th>
+                    <th>盈亏%</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for position in positions %}
+                <tr>
+                    <td><strong>{{ position.asset_code }}</strong></td>
+                    <td>{{ position.asset_name|default:"-" }}</td>
+                    <td>{{ position.quantity|floatformat:2 }}</td>
+                    <td>¥{{ position.avg_cost|floatformat:2 }}</td>
+                    <td>¥{{ position.current_price|floatformat:2 }}</td>
+                    <td>¥{{ position.market_value|floatformat:2 }}</td>
+                    <td class="{% if position.unrealized_pnl >= 0 %}positive{% else %}negative{% endif %}">
+                        ¥{{ position.unrealized_pnl|floatformat:2 }}
+                    </td>
+                    <td class="{% if position.unrealized_pnl_pct >= 0 %}positive{% else %}negative{% endif %}">
+                        {{ position.unrealized_pnl_pct|floatformat:2 }}%
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="mt-3">
+            <a href="{% url 'simulated_trading:my-positions' account_type_code %}" class="btn btn-secondary">查看全部持仓</a>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>暂无持仓</p>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- 交易记录 -->
+    <section class="account-section">
+        <h2 class="section-title">最近交易</h2>
+        {% if trades %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>日期</th>
+                    <th>资产代码</th>
+                    <th>方向</th>
+                    <th>数量</th>
+                    <th>价格</th>
+                    <th>金额</th>
+                    <th>盈亏</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for trade in trades %}
+                <tr>
+                    <td>{{ trade.execution_date|date:"Y-m-d" }}</td>
+                    <td><strong>{{ trade.asset_code }}</strong></td>
+                    <td>
+                        <span class="badge {% if trade.action == 'buy' %}badge-buy{% else %}badge-sell{% endif %}">
+                            {% if trade.action == 'buy' %}买入{% else %}卖出{% endif %}
+                        </span>
+                    </td>
+                    <td>{{ trade.quantity }}</td>
+                    <td>¥{{ trade.price|floatformat:2 }}</td>
+                    <td>¥{{ trade.amount|floatformat:2 }}</td>
+                    <td class="{% if trade.realized_pnl >= 0 %}positive{% else %}negative{% endif %}">
+                        {% if trade.realized_pnl %}¥{{ trade.realized_pnl|floatformat:2 }}{% else %}-{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="mt-3">
+            <a href="{% url 'simulated_trading:my-trades' account_type_code %}" class="btn btn-secondary">查看全部交易</a>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>暂无交易记录</p>
+        </div>
+        {% endif %}
+    </section>
+</div>
+
+<style>
+.account-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.account-header {
+    margin-bottom: 24px;
+}
+
+.header-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.account-header h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.subtitle {
+    color: #54595D;
+    font-size: 14px;
+}
+
+.header-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.account-section {
+    background: #FFFFFF;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.account-stats {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 16px;
+}
+
+.stat-card {
+    background: #F8F9FA;
+    padding: 16px;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.stat-positive {
+    background: #e8f5e9;
+    border: 1px solid #81c784;
+}
+
+.stat-negative {
+    background: #ffebee;
+    border: 1px solid #e57373;
+}
+
+.stat-label {
+    display: block;
+    font-size: 12px;
+    color: #54595D;
+    margin-bottom: 8px;
+}
+
+.stat-value {
+    display: block;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table thead {
+    background: #F8F9FA;
+}
+
+.table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.table td {
+    padding: 12px;
+    font-size: 14px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.positive { color: #14866D; }
+.negative { color: #D33; }
+
+.status-active { color: #14866D; }
+.status-inactive { color: #999; }
+
+.badge {
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.badge-buy { background: #D5FBDD; color: #14866D; }
+.badge-sell { background: #ffebee; color: #D33; }
+
+.btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-primary {
+    background: #36C;
+    color: white;
+    border: none;
+}
+
+.btn-secondary {
+    background: #F8F9FA;
+    color: #202122;
+    border: 1px solid #E0E0E0;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #54595D;
+}
+
+.mt-3 {
+    margin-top: 16px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .account-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .header-title-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+}
+</style>
+{% endblock %}

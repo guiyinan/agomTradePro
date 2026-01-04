@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+
+{% block title %}系统配置 - AgomSAAF{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <div class="page-header">
+        <div>
+            <h1>系统配置</h1>
+            <p class="text-muted">管理系统全局设置</p>
+        </div>
+        <div>
+            <a href="{% url 'account:user_management' %}" class="btn btn-secondary">
+                <i class="icon-users"></i> 返回用户管理
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post" class="settings-form">
+        {% csrf_token %}
+
+        <!-- 审批配置 -->
+        <div class="settings-section">
+            <h2>用户审批配置</h2>
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="require_user_approval" {% if system_settings.require_user_approval %}checked{% endif %}>
+                    <span>需要管理员审批新用户</span>
+                </label>
+                <p class="help-text">关闭后新用户注册将自动批准，无需管理员审批</p>
+            </div>
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="auto_approve_first_admin" {% if system_settings.auto_approve_first_admin %}checked{% endif %}>
+                    <span>自动批准首个管理员用户</span>
+                </label>
+                <p class="help-text">系统无管理员时，首个注册的用户自动成为管理员并获得批准</p>
+            </div>
+        </div>
+
+        <!-- 用户协议配置 -->
+        <div class="settings-section">
+            <h2>用户协议内容</h2>
+            <div class="form-group">
+                <label for="user_agreement_content">用户服务协议（支持 HTML）:</label>
+                <textarea id="user_agreement_content" name="user_agreement_content" class="form-control code-editor" rows="15">{{ system_settings.user_agreement_content }}</textarea>
+                <p class="help-text">用户注册时需要同意的协议内容，支持 HTML 格式</p>
+            </div>
+        </div>
+
+        <!-- 风险提示配置 -->
+        <div class="settings-section">
+            <h2>风险提示内容</h2>
+            <div class="form-group">
+                <label for="risk_warning_content">投资风险提示书（支持 HTML）:</label>
+                <textarea id="risk_warning_content" name="risk_warning_content" class="form-control code-editor" rows="15">{{ system_settings.risk_warning_content }}</textarea>
+                <p class="help-text">用户注册时需要确认的风险提示内容，支持 HTML 格式</p>
+            </div>
+        </div>
+
+        <!-- 其他配置 -->
+        <div class="settings-section">
+            <h2>其他配置</h2>
+            <div class="form-group">
+                <label for="notes">备注:</label>
+                <textarea id="notes" name="notes" class="form-control" rows="3">{{ system_settings.notes }}</textarea>
+                <p class="help-text">配置变更记录或说明</p>
+            </div>
+        </div>
+
+        <!-- 提交按钮 -->
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">保存配置</button>
+            <a href="{% url 'account:user_management' %}" class="btn btn-secondary">取消</a>
+        </div>
+    </form>
+
+    <!-- 预览区域 -->
+    <div class="preview-section">
+        <h2>协议预览</h2>
+        <div class="preview-tabs">
+            <button class="tab-button active" onclick="showTab('agreement')">用户协议</button>
+            <button class="tab-button" onclick="showTab('risk')">风险提示</button>
+        </div>
+        <div id="agreementPreview" class="preview-content active">
+            {{ system_settings.user_agreement_content|safe }}
+        </div>
+        <div id="riskPreview" class="preview-content">
+            {{ system_settings.risk_warning_content|safe }}
+        </div>
+    </div>
+</div>
+
+<style>
+.page-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.page-header h1 {
+    margin: 0 0 8px 0;
+    font-size: 24px;
+}
+
+.text-muted {
+    color: var(--color-text-secondary);
+}
+
+.alert {
+    padding: 12px 16px;
+    margin-bottom: 24px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+}
+
+.alert-success {
+    background: #D5FBDD;
+    color: #14866D;
+    border: 1px solid #9FE5B8;
+}
+
+.alert-error {
+    background: #FEE7E7;
+    color: #D33;
+    border: 1px solid #F8B4B4;
+}
+
+.alert-warning {
+    background: #FFF3CD;
+    color: #856404;
+    border: 1px solid #FFECB5;
+}
+
+.alert-info {
+    background: #D5EDFB;
+    color: #146698;
+    border: 1px solid #9BC8F8;
+}
+
+.settings-form {
+    background: var(--color-bg);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+}
+
+.settings-section {
+    padding: 24px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.settings-section:last-child {
+    border-bottom: none;
+}
+
+.settings-section h2 {
+    margin: 0 0 20px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--color-text-primary);
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.help-text {
+    margin: 8px 0 0 0;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(51, 102, 204, 0.1);
+}
+
+.code-editor {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+textarea.form-control {
+    resize: vertical;
+}
+
+.form-actions {
+    padding: 24px;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    background: var(--color-surface);
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-primary {
+    background: var(--color-primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--color-primary-hover);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.preview-section {
+    margin-top: 32px;
+    background: var(--color-bg);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+}
+
+.preview-section h2 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    font-weight: 600;
+    padding: 16px;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.preview-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.tab-button {
+    padding: 12px 20px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.tab-button:hover {
+    color: var(--color-primary);
+}
+
+.tab-button.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+}
+
+.preview-content {
+    display: none;
+    padding: 20px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.preview-content.active {
+    display: block;
+}
+
+.preview-content h2 {
+    font-size: 18px;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.preview-content h3 {
+    font-size: 16px;
+    margin-top: 16px;
+    margin-bottom: 8px;
+}
+
+.preview-content p {
+    line-height: 1.6;
+    margin-bottom: 10px;
+}
+
+.preview-content ul {
+    margin-left: 20px;
+    margin-bottom: 10px;
+}
+
+.preview-content li {
+    margin-bottom: 6px;
+    line-height: 1.6;
+}
+</style>
+
+<script>
+function showTab(tab) {
+    // 切换标签按钮状态
+    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+
+    // 切换预览内容
+    document.querySelectorAll('.preview-content').forEach(content => content.classList.remove('active'));
+    if (tab === 'agreement') {
+        document.getElementById('agreementPreview').classList.add('active');
+    } else {
+        document.getElementById('riskPreview').classList.add('active');
+    }
+}
+
+// 实时预览
+document.getElementById('user_agreement_content').addEventListener('input', function(e) {
+    document.getElementById('agreementPreview').innerHTML = e.target.value;
+});
+
+document.getElementById('risk_warning_content').addEventListener('input', function(e) {
+    document.getElementById('riskPreview').innerHTML = e.target.value;
+});
+</script>
+{% endblock %}

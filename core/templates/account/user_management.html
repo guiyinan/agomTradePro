@@ -1,0 +1,532 @@
+{% extends "base.html" %}
+
+{% block title %}用户管理 - AgomSAAF{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <div class="page-header">
+        <div>
+            <h1>用户管理</h1>
+            <p class="text-muted">管理系统用户和审批状态</p>
+        </div>
+        <div>
+            <a href="{% url 'account:system_settings' %}" class="btn btn-secondary">
+                <i class="icon-settings"></i> 系统配置
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- 统计卡片 -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ total_count }}</div>
+            <div class="stat-label">总用户数</div>
+        </div>
+        <div class="stat-card stat-warning">
+            <div class="stat-value">{{ pending_count }}</div>
+            <div class="stat-label">待审批</div>
+        </div>
+        <div class="stat-card stat-success">
+            <div class="stat-value">{{ approved_count }}</div>
+            <div class="stat-label">已批准</div>
+        </div>
+        <div class="stat-card stat-danger">
+            <div class="stat-value">{{ rejected_count }}</div>
+            <div class="stat-label">已拒绝</div>
+        </div>
+    </div>
+
+    <!-- 过滤器 -->
+    <div class="filter-bar">
+        <form method="get" class="filter-form">
+            <div class="filter-group">
+                <label>状态:</label>
+                <select name="status" class="form-control">
+                    <option value="">全部</option>
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>待审批</option>
+                    <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>已批准</option>
+                    <option value="auto_approved" {% if status_filter == 'auto_approved' %}selected{% endif %}>自动批准</option>
+                    <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>已拒绝</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>搜索:</label>
+                <input type="text" name="q" class="form-control" placeholder="用户名/邮箱/显示名称" value="{{ search_query }}">
+            </div>
+            <button type="submit" class="btn btn-primary">筛选</button>
+            <a href="{% url 'account:user_management' %}" class="btn btn-secondary">重置</a>
+        </form>
+    </div>
+
+    <!-- 用户列表 -->
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>用户名</th>
+                    <th>显示名称</th>
+                    <th>邮箱</th>
+                    <th>状态</th>
+                    <th>注册时间</th>
+                    <th>审批信息</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for profile in profiles %}
+                <tr>
+                    <td>
+                        <strong>{{ profile.user.username }}</strong>
+                        {% if profile.user.is_superuser %}
+                        <span class="badge badge-admin">管理员</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ profile.display_name }}</td>
+                    <td>{{ profile.user.email|default:"-" }}</td>
+                    <td>
+                        {% if profile.approval_status == 'pending' %}
+                            <span class="status-badge status-pending">待审批</span>
+                        {% elif profile.approval_status == 'approved' %}
+                            <span class="status-badge status-approved">已批准</span>
+                        {% elif profile.approval_status == 'auto_approved' %}
+                            <span class="status-badge status-auto">自动批准</span>
+                        {% elif profile.approval_status == 'rejected' %}
+                            <span class="status-badge status-rejected">已拒绝</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ profile.created_at|date:"Y-m-d H:i" }}</td>
+                    <td>
+                        {% if profile.approved_by %}
+                            {{ profile.approved_by.username }}
+                            <br>
+                            <small>{{ profile.approved_at|date:"Y-m-d H:i" }}</small>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            {% if profile.approval_status == 'pending' %}
+                                <form method="post" action="{% url 'account:approve_user' profile.user.id %}" style="display: inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('确定批准用户 {{ profile.user.username }} 吗？')">
+                                        批准
+                                    </button>
+                                </form>
+                                <button class="btn btn-sm btn-danger" onclick="showRejectModal({{ profile.user.id }}, '{{ profile.user.username }}')">
+                                    拒绝
+                                </button>
+                            {% elif profile.approval_status == 'rejected' %}
+                                <form method="post" action="{% url 'account:reset_user_status' profile.user.id %}" style="display: inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-secondary" onclick="return confirm('确定重置用户 {{ profile.user.username }} 的状态吗？')">
+                                        重置
+                                    </button>
+                                </form>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </div>
+                        {% if profile.rejection_reason %}
+                            <div class="rejection-reason">
+                                <small>拒绝原因: {{ profile.rejection_reason }}</small>
+                            </div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted">暂无用户数据</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 拒绝用户模态框 -->
+<div id="rejectModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>拒绝用户</h2>
+            <span class="close" onclick="closeRejectModal()">&times;</span>
+        </div>
+        <form method="post" id="rejectForm">
+            {% csrf_token %}
+            <input type="hidden" name="user_id" id="rejectUserId">
+            <div class="modal-body">
+                <p>确定拒绝用户 <strong id="rejectUsername"></strong> 吗？</p>
+                <div class="form-group">
+                    <label for="rejection_reason">拒绝原因（可选）:</label>
+                    <textarea id="rejection_reason" name="rejection_reason" class="form-control" rows="4" placeholder="请输入拒绝原因..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeRejectModal()">取消</button>
+                <button type="submit" class="btn btn-danger">确认拒绝</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.page-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.page-header h1 {
+    margin: 0 0 8px 0;
+    font-size: 24px;
+}
+
+.text-muted {
+    color: var(--color-text-secondary);
+}
+
+.alert {
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+}
+
+.alert-success {
+    background: #D5FBDD;
+    color: #14866D;
+    border: 1px solid #9FE5B8;
+}
+
+.alert-error {
+    background: #FEE7E7;
+    color: #D33;
+    border: 1px solid #F8B4B4;
+}
+
+.alert-warning {
+    background: #FFF3CD;
+    color: #856404;
+    border: 1px solid #FFECB5;
+}
+
+.alert-info {
+    background: #D5EDFB;
+    color: #146698;
+    border: 1px solid #9BC8F8;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: var(--color-bg);
+    padding: 20px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+.stat-label {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    margin-top: 4px;
+}
+
+.stat-warning .stat-value {
+    color: #FFA500;
+}
+
+.stat-success .stat-value {
+    color: #28A745;
+}
+
+.stat-danger .stat-value {
+    color: #DC3545;
+}
+
+.filter-bar {
+    background: var(--color-bg);
+    padding: 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    margin-bottom: 24px;
+}
+
+.filter-form {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-group label {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.table-container {
+    background: var(--color-bg);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.data-table th {
+    background: var(--color-surface);
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.data-table tbody tr:hover {
+    background: var(--color-surface);
+}
+
+.data-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.badge-admin {
+    background: #6F42C1;
+    color: white;
+    margin-left: 4px;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-pending {
+    background: #FFF3CD;
+    color: #856404;
+}
+
+.status-approved {
+    background: #D5FBDD;
+    color: #14866D;
+}
+
+.status-auto {
+    background: #D5EDFB;
+    color: #146698;
+}
+
+.status-rejected {
+    background: #FEE7E7;
+    color: #D33;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-primary {
+    background: var(--color-primary);
+    color: white;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-success {
+    background: #28A745;
+    color: white;
+}
+
+.btn-danger {
+    background: #DC3545;
+    color: white;
+}
+
+.btn-sm {
+    padding: 4px 12px;
+    font-size: 13px;
+}
+
+.form-control {
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.rejection-reason {
+    margin-top: 8px;
+    padding: 6px;
+    background: #FEE7E7;
+    border-radius: var(--radius-sm);
+}
+
+.text-center {
+    text-align: center;
+}
+
+/* Modal 样式 */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: var(--color-bg);
+    margin: 10% auto;
+    border-radius: var(--radius-md);
+    width: 90%;
+    max-width: 500px;
+}
+
+.modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.close {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+}
+
+.close:hover {
+    color: var(--color-text-primary);
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+textarea.form-control {
+    resize: vertical;
+    min-height: 80px;
+}
+</style>
+
+<script>
+function showRejectModal(userId, username) {
+    document.getElementById('rejectUserId').value = userId;
+    document.getElementById('rejectUsername').textContent = username;
+    document.getElementById('rejectForm').action = "{% url 'account:reject_user' 0 %}".replace('0', userId);
+    document.getElementById('rejectModal').style.display = 'block';
+}
+
+function closeRejectModal() {
+    document.getElementById('rejectModal').style.display = 'none';
+    document.getElementById('rejection_reason').value = '';
+}
+
+// 点击模态框外部关闭
+window.onclick = function(event) {
+    const modal = document.getElementById('rejectModal');
+    if (event.target == modal) {
+        closeRejectModal();
+    }
+}
+</script>
+{% endblock %}

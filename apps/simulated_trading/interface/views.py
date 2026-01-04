@@ -8,9 +8,10 @@
 """
 from typing import Optional
 from datetime import date, datetime
-
-from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, get_object_or_404
 from django.views.decorators.http import require_http_methods
+from django.http import Http404
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -53,6 +54,7 @@ from .serializers import (
     AutoTradingRunRequestSerializer,
     AutoTradingRunResponseSerializer,
 )
+from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
 
 # ============================================================================
@@ -80,6 +82,189 @@ def account_detail_page(request, account_id):
         'account_id': account_id
     }
     return render(request, 'simulated_trading/account_detail.html', context)
+
+
+# ============================================================================
+# 用户专属模拟仓视图（新增）
+# ============================================================================
+
+@login_required
+@require_http_methods(["GET"])
+def my_accounts_page(request):
+    """
+    我的模拟仓页面
+
+    显示当前用户的实仓和模拟仓列表
+    GET /simulated-trading/my-accounts/
+    """
+    # 获取用户的账户配置
+    from apps.account.infrastructure.models import AccountProfileModel
+
+    try:
+        profile = request.user.account_profile
+        accounts = []
+
+        # 添加实仓
+        if profile.real_account:
+            accounts.append({
+                'id': profile.real_account.id,
+                'name': profile.real_account.account_name,
+                'type': '实仓',
+                'type_code': 'real',
+                'initial_capital': float(profile.real_account.initial_capital),
+                'current_cash': float(profile.real_account.current_cash),
+                'total_value': float(profile.real_account.total_value),
+                'total_return': profile.real_account.total_return,
+                'is_active': profile.real_account.is_active,
+            })
+
+        # 添加模拟仓
+        if profile.simulated_account:
+            accounts.append({
+                'id': profile.simulated_account.id,
+                'name': profile.simulated_account.account_name,
+                'type': '模拟仓',
+                'type_code': 'simulated',
+                'initial_capital': float(profile.simulated_account.initial_capital),
+                'current_cash': float(profile.simulated_account.current_cash),
+                'total_value': float(profile.simulated_account.total_value),
+                'total_return': profile.simulated_account.total_return,
+                'is_active': profile.simulated_account.is_active,
+            })
+
+    except AccountProfileModel.DoesNotExist:
+        accounts = []
+
+    context = {
+        'accounts': accounts,
+        'user': request.user,
+    }
+    return render(request, 'simulated_trading/my_accounts.html', context)
+
+
+@login_required
+@require_http_methods(["GET"])
+def my_account_detail_page(request, account_type):
+    """
+    我的账户详情页面
+
+    显示用户指定账户（实仓或模拟仓）的详细信息
+    GET /simulated-trading/my-accounts/<account_type>/
+
+    Args:
+        account_type: 'real' 或 'simulated'
+    """
+    from apps.account.infrastructure.models import AccountProfileModel
+
+    # 获取用户的账户配置
+    try:
+        profile = request.user.account_profile
+    except AccountProfileModel.DoesNotExist:
+        raise Http404("账户配置不存在")
+
+    # 根据类型获取账户
+    if account_type == 'real':
+        account = profile.real_account
+        if not account:
+            raise Http404("实仓不存在")
+    elif account_type == 'simulated':
+        account = profile.simulated_account
+        if not account:
+            raise Http404("模拟仓不存在")
+    else:
+        raise Http404("无效的账户类型")
+
+    # 获取持仓和交易记录
+    positions = account.positions.all()[:10]  # 最近10条持仓
+    trades = account.trades.all()[:20]  # 最近20条交易
+
+    context = {
+        'account': account,
+        'account_type': '实仓' if account_type == 'real' else '模拟仓',
+        'account_type_code': account_type,
+        'positions': positions,
+        'trades': trades,
+        'user': request.user,
+    }
+    return render(request, 'simulated_trading/my_account_detail.html', context)
+
+
+@login_required
+@require_http_methods(["GET"])
+def my_positions_page(request, account_type):
+    """
+    我的持仓页面
+
+    显示用户指定账户的所有持仓
+    GET /simulated-trading/my-accounts/<account_type>/positions/
+    """
+    from apps.account.infrastructure.models import AccountProfileModel
+
+    try:
+        profile = request.user.account_profile
+    except AccountProfileModel.DoesNotExist:
+        raise Http404("账户配置不存在")
+
+    if account_type == 'real':
+        account = profile.real_account
+        if not account:
+            raise Http404("实仓不存在")
+    elif account_type == 'simulated':
+        account = profile.simulated_account
+        if not account:
+            raise Http404("模拟仓不存在")
+    else:
+        raise Http404("无效的账户类型")
+
+    positions = account.positions.all()
+
+    context = {
+        'account': account,
+        'account_type': '实仓' if account_type == 'real' else '模拟仓',
+        'account_type_code': account_type,
+        'positions': positions,
+        'user': request.user,
+    }
+    return render(request, 'simulated_trading/my_positions.html', context)
+
+
+@login_required
+@require_http_methods(["GET"])
+def my_trades_page(request, account_type):
+    """
+    我的交易记录页面
+
+    显示用户指定账户的所有交易记录
+    GET /simulated-trading/my-accounts/<account_type>/trades/
+    """
+    from apps.account.infrastructure.models import AccountProfileModel
+
+    try:
+        profile = request.user.account_profile
+    except AccountProfileModel.DoesNotExist:
+        raise Http404("账户配置不存在")
+
+    if account_type == 'real':
+        account = profile.real_account
+        if not account:
+            raise Http404("实仓不存在")
+    elif account_type == 'simulated':
+        account = profile.simulated_account
+        if not account:
+            raise Http404("模拟仓不存在")
+    else:
+        raise Http404("无效的账户类型")
+
+    trades = account.trades.all()[:100]  # 最近100条交易
+
+    context = {
+        'account': account,
+        'account_type': '实仓' if account_type == 'real' else '模拟仓',
+        'account_type_code': account_type,
+        'trades': trades,
+        'user': request.user,
+    }
+    return render(request, 'simulated_trading/my_trades.html', context)
 
 
 # ============================================================================

@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}我的模拟仓 - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+<!-- Chart.js -->
+<script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="account-container">
+    <div class="account-header">
+        <h1>我的模拟仓</h1>
+        <p class="subtitle">管理您的实仓和模拟仓投资账户</p>
+    </div>
+
+    <!-- 账户列表 -->
+    <section class="account-section">
+        <h2 class="section-title">我的账户</h2>
+        {% if accounts %}
+        <div class="accounts-grid">
+            {% for account in accounts %}
+            <div class="account-card {% if account.type_code == 'real' %}account-real{% else %}account-simulated{% endif %}">
+                <div class="account-card-header">
+                    <h3>{{ account.name }}</h3>
+                    <span class="badge {% if account.type_code == 'real' %}badge-real{% else %}badge-simulated{% endif %}">
+                        {{ account.type }}
+                    </span>
+                </div>
+                <div class="account-card-body">
+                    <div class="account-metric">
+                        <span class="metric-label">总资产</span>
+                        <span class="metric-value">¥{{ account.total_value|floatformat:2 }}</span>
+                    </div>
+                    <div class="account-metric">
+                        <span class="metric-label">初始资金</span>
+                        <span class="metric-value-sub">¥{{ account.initial_capital|floatformat:2 }}</span>
+                    </div>
+                    <div class="account-metric">
+                        <span class="metric-label">当前现金</span>
+                        <span class="metric-value-sub">¥{{ account.current_cash|floatformat:2 }}</span>
+                    </div>
+                    <div class="account-metric {% if account.total_return >= 0 %}positive{% else %}negative{% endif %}">
+                        <span class="metric-label">收益率</span>
+                        <span class="metric-value-return">
+                            {% if account.total_return is None %}-{% else %}{{ account.total_return|floatformat:2 }}%{% endif %}
+                        </span>
+                    </div>
+                    <div class="account-metric">
+                        <span class="metric-label">状态</span>
+                        <span class="metric-value-status {% if account.is_active %}status-active{% else %}status-inactive{% endif %}">
+                            {% if account.is_active %}活跃{% else %}已停用{% endif %}
+                        </span>
+                    </div>
+                </div>
+                <div class="account-card-footer">
+                    <a href="{% url 'simulated_trading:my-account-detail' account.type_code %}" class="btn btn-primary">
+                        查看详情
+                    </a>
+                    <a href="{% url 'simulated_trading:my-positions' account.type_code %}" class="btn btn-secondary">
+                        持仓
+                    </a>
+                    <a href="{% url 'simulated_trading:my-trades' account.type_code %}" class="btn btn-secondary">
+                        交易记录
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <p>您还没有创建任何模拟仓账户</p>
+            <p class="empty-hint">请先在<a href="{% url 'account:profile' %}">账户设置</a>中创建账户</p>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- 快捷操作 -->
+    <section class="account-section">
+        <h2 class="section-title">快捷操作</h2>
+        <div class="action-buttons">
+            <a href="{% url 'account:profile' %}" class="btn btn-primary">账户设置</a>
+            <a href="{% url 'dashboard:index' %}" class="btn btn-secondary">返回仪表盘</a>
+        </div>
+    </section>
+</div>
+
+<style>
+.account-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.account-header {
+    margin-bottom: 24px;
+}
+
+.account-header h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.subtitle {
+    color: #54595D;
+    font-size: 14px;
+}
+
+.account-section {
+    background: #FFFFFF;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.accounts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+}
+
+.account-card {
+    border: 1px solid #E0E0E0;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.account-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.account-card.account-real {
+    background: linear-gradient(135deg, #e8f5e9 0%, #f1f8f2 100%);
+    border-color: #81c784;
+}
+
+.account-card.account-simulated {
+    background: linear-gradient(135deg, #e3f2fd 0%, #f0f7ff 100%);
+    border-color: #64b5f6;
+}
+
+.account-card-header {
+    padding: 16px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.account-card-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.badge-real {
+    background: #4caf50;
+    color: white;
+}
+
+.badge-simulated {
+    background: #2196f3;
+    color: white;
+}
+
+.account-card-body {
+    padding: 16px;
+}
+
+.account-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.account-metric:last-child {
+    border-bottom: none;
+}
+
+.metric-label {
+    font-size: 13px;
+    color: #666;
+}
+
+.metric-value {
+    font-size: 20px;
+    font-weight: 600;
+    color: #202122;
+}
+
+.metric-value-sub {
+    font-size: 14px;
+    font-weight: 500;
+    color: #54595D;
+}
+
+.metric-value-return {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.metric-value-status {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.positive {
+    color: #14866D;
+}
+
+.negative {
+    color: #D33;
+}
+
+.status-active {
+    color: #14866D;
+}
+
+.status-inactive {
+    color: #999;
+}
+
+.account-card-footer {
+    padding: 16px;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: #36C;
+    color: white;
+    border: none;
+}
+
+.btn-primary:hover {
+    background: #25a;
+}
+
+.btn-secondary {
+    background: #F8F9FA;
+    color: #202122;
+    border: 1px solid #E0E0E0;
+}
+
+.btn-secondary:hover {
+    background: #e8e8e8;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #54595D;
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.empty-state a {
+    color: #36C;
+    text-decoration: none;
+}
+
+.empty-state a:hover {
+    text-decoration: underline;
+}
+
+.empty-hint {
+    font-size: 13px;
+    color: #888;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .account-container {
+        padding: 16px;
+    }
+
+    .accounts-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .account-card-footer {
+        flex-direction: column;
+    }
+
+    .account-card-footer .btn {
+        width: 100%;
+        text-align: center;
+    }
+}
+</style>
+{% endblock %}

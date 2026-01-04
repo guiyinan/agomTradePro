@@ -1,0 +1,36 @@
+{% if positions %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th class="sortable" data-sort="code">代码</th>
+            <th class="sortable" data-sort="name">名称</th>
+            <th class="sortable" data-sort="market_value">市值</th>
+            <th class="sortable" data-sort="pnl">盈亏</th>
+            <th class="sortable" data-sort="pnl_pct">收益率</th>
+        </tr>
+    </thead>
+    <tbody id="positionTableBody">
+        {% for pos in positions|slice:":5" %}
+        <tr class="position-row" data-asset-code="{{ pos.asset_code }}"
+            hx-get="{% url 'dashboard:position_detail' pos.asset_code %}"
+            hx-target="#positionDetailModal" hx-swap="innerHTML"
+            style="cursor: pointer;">
+            <td><strong>{{ pos.asset_code }}</strong></td>
+            <td>{{ pos.asset_name|default:"-" }}</td>
+            <td>¥{{ pos.market_value|floatformat:0 }}</td>
+            <td class="{% if pos.unrealized_pnl >= 0 %}positive{% else %}negative{% endif %}">
+                ¥{{ pos.unrealized_pnl|floatformat:0 }}
+            </td>
+            <td class="{% if pos.unrealized_pnl_pct >= 0 %}positive{% else %}negative{% endif %}">
+                {{ pos.unrealized_pnl_pct|floatformat:2 }}%
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">📭</div>
+    <p>暂无持仓记录</p>
+</div>
+{% endif %}

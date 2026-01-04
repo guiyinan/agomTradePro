@@ -143,6 +143,77 @@ class AccountProfileModel(models.Model):
         help_text="波动率超标时最大降仓比例，如0.5表示最多降50%"
     )
 
+    # 模拟仓关联（⭐新增）
+    real_account = models.ForeignKey(
+        'simulated_trading.SimulatedAccountModel',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='real_profile_users',
+        verbose_name="关联实仓",
+        help_text="用户的实仓账户"
+    )
+    simulated_account = models.ForeignKey(
+        'simulated_trading.SimulatedAccountModel',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='simulated_profile_users',
+        verbose_name="关联模拟仓",
+        help_text="用户的模拟仓账户"
+    )
+
+    # 用户协议和审批相关字段（⭐新增）
+    user_agreement_accepted = models.BooleanField(
+        default=False,
+        verbose_name="用户协议已接受"
+    )
+    risk_warning_acknowledged = models.BooleanField(
+        default=False,
+        verbose_name="风险提示已确认"
+    )
+    agreement_accepted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="协议接受时间"
+    )
+    agreement_ip_address = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        verbose_name="协议接受IP"
+    )
+
+    # 用户审批状态（⭐新增）
+    APPROVAL_STATUS_CHOICES = [
+        ('pending', '待审批'),
+        ('approved', '已批准'),
+        ('rejected', '已拒绝'),
+        ('auto_approved', '自动批准'),
+    ]
+    approval_status = models.CharField(
+        max_length=20,
+        choices=APPROVAL_STATUS_CHOICES,
+        default='pending',
+        verbose_name="审批状态"
+    )
+    approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="批准时间"
+    )
+    approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_users',
+        verbose_name="审批人"
+    )
+    rejection_reason = models.TextField(
+        blank=True,
+        verbose_name="拒绝原因"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
 
@@ -1002,3 +1073,143 @@ class StopLossTriggerModel(models.Model):
 
     def __str__(self):
         return f"{self.position.asset_code} - {self.get_trigger_type_display()} @ {self.trigger_price}"
+
+
+# ============================================================
+# 系统配置模型
+# ============================================================
+
+class SystemSettingsModel(models.Model):
+    """
+    系统配置表
+
+    存储全局系统配置，如用户审批开关等。
+    使用单例模式，只有一条记录。
+    """
+    # 用户审批配置
+    require_user_approval = models.BooleanField(
+        default=True,
+        verbose_name="需要管理员审批新用户",
+        help_text="关闭后新用户注册将自动批准"
+    )
+
+    auto_approve_first_admin = models.BooleanField(
+        default=True,
+        verbose_name="自动批准首个管理员用户",
+        help_text="系统无管理员时，首个注册的用户自动成为管理员并获得批准"
+    )
+
+    # 用户协议内容配置
+    user_agreement_content = models.TextField(
+        blank=True,
+        verbose_name="用户协议内容",
+        help_text="用户注册时需要同意的协议内容，支持HTML"
+    )
+
+    risk_warning_content = models.TextField(
+        blank=True,
+        verbose_name="风险提示内容",
+        help_text="用户注册时需要确认的风险提示内容，支持HTML"
+    )
+
+    # 默认值说明
+    notes = models.TextField(
+        blank=True,
+        verbose_name="备注"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = 'system_settings'
+        verbose_name = '系统配置'
+        verbose_name_plural = '系统配置'
+
+    def __str__(self):
+        return f"系统配置 (审批:{'开启' if self.require_user_approval else '关闭'})"
+
+    @classmethod
+    def get_settings(cls):
+        """获取系统配置（单例模式）"""
+        settings, created = cls.objects.get_or_create(
+            pk=1,
+            defaults={
+                'require_user_approval': True,
+                'auto_approve_first_admin': True,
+                'user_agreement_content': cls._get_default_agreement(),
+                'risk_warning_content': cls._get_default_risk_warning(),
+            }
+        )
+        return settings
+
+    @staticmethod
+    def _get_default_agreement():
+        """默认用户协议内容"""
+        return """
+<h2>AgomSAAF 用户服务协议</h2>
+<p>欢迎使用 AgomSAAF（宏观环境准入系统）！在使用本系统前，请仔细阅读以下条款：</p>
+
+<h3>一、服务说明</h3>
+<p>AgomSAAF 是一个辅助投资决策工具，通过宏观环境分析和策略回测帮助用户制定投资计划。本系统提供的所有信息仅供参考，不构成任何投资建议。</p>
+
+<h3>二、用户责任</h3>
+<ul>
+    <li>用户应妥善保管账户和密码，对账户下的所有行为负责</li>
+    <li>用户不得利用本系统进行任何违法或不当活动</li>
+    <li>用户应确保提供的信息真实、准确、完整</li>
+</ul>
+
+<h3>三、免责声明</h3>
+<ul>
+    <li>本系统基于历史数据分析，历史业绩不代表未来表现</li>
+    <li>投资有风险，决策需谨慎。本系统不对任何投资损失承担责任</li>
+    <li>系统可能因技术故障、数据延迟等原因出现误差</li>
+    <li>本系统保留随时修改或中断服务的权利</li>
+</ul>
+
+<h3>四、隐私保护</h3>
+<p>我们将严格保护用户隐私，不会向第三方泄露用户个人信息（法律法规另有规定的除外）。</p>
+
+<h3>五、协议修改</h3>
+<p>本系统有权随时修改本协议，修改后的协议一经公布即生效。</p>
+        """
+
+    @staticmethod
+    def _get_default_risk_warning():
+        """默认风险提示内容"""
+        return """
+<h2>投资风险提示书</h2>
+<p>在使用 AgomSAAF 进行投资决策前，请充分了解以下风险：</p>
+
+<h3>一、市场风险</h3>
+<ul>
+    <li><strong>价格波动风险：</strong>资产价格可能因市场变化而大幅波动，导致投资损失</li>
+    <li><strong>流动性风险：</strong>某些资产可能在特定时期难以以合理价格买卖</li>
+    <li><strong>系统性风险：</strong>宏观经济、政策变化等因素可能导致市场整体下跌</li>
+</ul>
+
+<h3>二、模型风险</h3>
+<ul>
+    <li><strong>历史局限性：</strong>本系统基于历史数据分析，历史规律未必在未来重复</li>
+    <li><strong>模型偏差：</strong>任何模型都有其适用范围和局限性，可能产生错误信号</li>
+    <li><strong>数据风险：</strong>数据来源、延迟、错误等因素可能影响分析结果</li>
+</ul>
+
+<h3>三、操作风险</h3>
+<ul>
+    <li><strong>执行偏差：</strong>实际交易可能与系统建议存在偏差</li>
+    <li><strong>过度依赖：</strong>过度依赖系统信号而忽视基本面分析可能导致损失</li>
+</ul>
+
+<h3>四、特别提示</h3>
+<ul>
+    <li>模拟交易收益不代表实际交易收益</li>
+    <li>回测结果是理想状态下的表现，实际交易存在滑点、手续费等成本</li>
+    <li>投资决策应综合考虑个人风险承受能力、投资目标等因素</li>
+    <li>建议在投资前咨询专业的投资顾问</li>
+</ul>
+
+<h3>五、风险自担</h3>
+<p><strong>我已充分了解投资风险，理解本系统提供的所有信息仅供参考，将自行承担所有投资决策带来的风险和损失。</strong></p>
+        """

@@ -6,9 +6,33 @@
     <title>{% block title %}AgomSAAF - 宏观环境准入系统{% endblock %}</title>
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <link rel="stylesheet" href="{% static 'css/components.css' %}">
+
+    <!-- HTMX (本地) -->
+    <script src="{% static 'vendor/js/htmx.min.js' %}"></script>
+
+    <!-- Bootstrap Icons (本地) -->
+    <link rel="stylesheet" href="{% static 'vendor/css/bootstrap-icons.css' %}">
+
+    <!-- Flatpickr 日期选择器 (本地) -->
+    <link rel="stylesheet" href="{% static 'vendor/css/flatpickr.min.css' %}">
+    <script src="{% static 'vendor/js/flatpickr.min.js' %}"></script>
+    <script src="{% static 'vendor/js/flatpickr.zh.js' %}"></script>
+
+    <!-- SweetAlert2 确认框 (本地) -->
+    <script src="{% static 'vendor/js/sweetalert2.all.min.js' %}"></script>
+
+    <!-- Alpine.js (轻量级响应式框架, 本地) -->
+    <script defer src="{% static 'vendor/js/alpine.min.js' %}"></script>
+
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body hx-ext="sse,remove-me,morph-swap" hx-indicator="#global-loader">
+    <!-- 全局加载指示器 -->
+    <div id="global-loader" class="global-loader" style="display: none;">
+        <div class="loader-spinner"></div>
+    </div>
+
     <!-- 顶部导航栏 - 系统级导航 -->
     <header class="header">
         <div class="header-container">
@@ -42,6 +66,10 @@
                     <div class="dropdown-menu">
                         <a href="{% url 'signal:manage' %}" class="dropdown-item">投资信号</a>
                         <a href="{% url 'backtest:list' %}" class="dropdown-item">回测引擎</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="{% url 'simulated_trading:my-accounts' %}" class="dropdown-item">
+                            <i class="bi bi-wallet2"></i> 我的模拟仓
+                        </a>
                         <a href="{% url 'account:profile' %}#positions" class="dropdown-item">我的持仓</a>
                     </div>
                 </div>
@@ -208,6 +236,55 @@
 
     // 全局 CSRF Token
     window.csrfToken = getCookie('csrftoken');
+
+    // ===== HTMX 配置 =====
+    document.body.addEventListener('htmx:configRequest', function(evt) {
+        // 为所有 HTMX 请求添加 CSRF Token
+        evt.detail.headers['X-CSRFToken'] = window.csrfToken;
+    });
+
+    document.body.addEventListener('htmx:beforeRequest', function(evt) {
+        // 请求前显示加载指示器
+        console.log('HTMX 请求:', evt.detail.pathInfo.requestPath);
+    });
+
+    document.body.addEventListener('htmx:afterRequest', function(evt) {
+        // 请求完成后隐藏加载指示器
+        if (evt.detail.xhr.status >= 400) {
+            // 处理错误
+            const errorMsg = evt.detail.xhr.responseText || '请求失败';
+            showToast(errorMsg, 'error');
+        }
+    });
+
+    document.body.addEventListener('htmx:afterSwap', function(evt) {
+        // DOM 更新后重新初始化组件
+        console.log('HTMX 内容已更新:', evt.detail.target.id);
+
+        // 重新初始化日期选择器
+        if (typeof flatpickr !== 'undefined') {
+            evt.detail.target.querySelectorAll('input[data-datepicker]').forEach(function(input) {
+                flatpickr(input, {
+                    locale: 'zh',
+                    dateFormat: 'Y-m-d'
+                });
+            });
+        }
+    });
+
+    // HTMX 错误处理
+    document.body.addEventListener('htmx:responseError', function(evt) {
+        showToast('服务器错误: ' + evt.detail.xhr.status, 'error');
+    });
+
+    // HTMX 超时处理
+    document.body.addEventListener('htmx:sendError', function(evt) {
+        showToast('网络错误，请检查连接', 'error');
+    });
+
+    // 前端工具函数库
+    <script src="{% static 'js/utils.js' %}"></script>
+    <script src="{% static 'js/htmx-config.js' %}"></script>
     </script>
 
     {% block extra_js %}{% endblock %}

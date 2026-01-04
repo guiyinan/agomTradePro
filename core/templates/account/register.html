@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="login-page">
-    <div class="login-card">
+    <div class="login-card register-card">
         <h1 class="login-title">注册 AgomSAAF</h1>
         <p class="login-subtitle">开启您的量化投资之旅</p>
 
@@ -14,7 +14,7 @@
             {% endfor %}
         {% endif %}
 
-        <form method="post" class="login-form">
+        <form method="post" class="login-form" id="registerForm">
             {% csrf_token %}
             <div class="form-group">
                 <label for="username">用户名</label>
@@ -36,6 +36,30 @@
                 <label for="password_confirm">确认密码</label>
                 <input type="password" id="password_confirm" name="password_confirm" class="form-control" required>
             </div>
+
+            <!-- 用户协议和风险提示 -->
+            <div class="agreement-section">
+                <div class="agreement-box">
+                    <div class="agreement-header">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="user_agreement" name="user_agreement" required>
+                            <span>我已阅读并同意</span>
+                        </label>
+                        <a href="javascript:void(0)" onclick="showAgreementModal()" class="agreement-link">《用户服务协议》</a>
+                    </div>
+                </div>
+
+                <div class="agreement-box">
+                    <div class="agreement-header">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="risk_warning" name="risk_warning" required>
+                            <span>我已阅读并确认</span>
+                        </label>
+                        <a href="javascript:void(0)" onclick="showRiskModal()" class="agreement-link">《投资风险提示书》</a>
+                    </div>
+                </div>
+            </div>
+
             <button type="submit" class="btn btn-primary btn-block">注册</button>
         </form>
 
@@ -45,22 +69,85 @@
     </div>
 </div>
 
+<!-- 用户协议弹窗 -->
+<div id="agreementModal" class="modal">
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h2>用户服务协议</h2>
+            <span class="close" onclick="closeAgreementModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            {% if system_settings.user_agreement_content %}
+                {{ system_settings.user_agreement_content|safe }}
+            {% else %}
+                <p>用户协议内容加载中...</p>
+            {% endif %}
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeAgreementModal()">关闭</button>
+            <button type="button" class="btn btn-primary" onclick="acceptAgreement()">我已阅读并同意</button>
+        </div>
+    </div>
+</div>
+
+<!-- 风险提示弹窗 -->
+<div id="riskModal" class="modal">
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h2>投资风险提示书</h2>
+            <span class="close" onclick="closeRiskModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            {% if system_settings.risk_warning_content %}
+                {{ system_settings.risk_warning_content|safe }}
+            {% else %}
+                <p>风险提示内容加载中...</p>
+            {% endif %}
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeRiskModal()">关闭</button>
+            <button type="button" class="btn btn-primary" onclick="acceptRisk()">我已了解风险</button>
+        </div>
+    </div>
+</div>
+
 <style>
+/* CSS 变量定义（兼容页面内样式） */
+:root {
+    --color-bg: #ffffff;
+    --color-surface: #f8fafc;
+    --color-border: #e2e8f0;
+    --color-text-primary: #0f172a;
+    --color-text-secondary: #475569;
+    --color-primary: #3366cc;
+    --color-primary-hover: #2952b3;
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
 .login-page {
     min-height: calc(100vh - 56px);
     display: flex;
     align-items: center;
     justify-content: center;
     background: var(--color-surface);
+    padding: 20px;
 }
 
 .login-card {
-    width: 400px;
+    width: 100%;
+    max-width: 420px;
     background: var(--color-bg);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     padding: 40px;
     box-shadow: var(--shadow-lg);
+}
+
+.register-card {
+    max-width: 480px;
 }
 
 .login-title {
@@ -96,6 +183,12 @@
     border: 1px solid #9FE5B8;
 }
 
+.alert-info {
+    background: #D5EDFB;
+    color: #146698;
+    border: 1px solid #9BC8F8;
+}
+
 .form-group {
     margin-bottom: 16px;
 }
@@ -123,6 +216,53 @@
     box-shadow: 0 0 0 3px rgba(51, 102, 204, 0.1);
 }
 
+.agreement-section {
+    margin: 20px 0;
+    padding: 16px;
+    background: var(--color-surface);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+}
+
+.agreement-box {
+    margin-bottom: 12px;
+}
+
+.agreement-box:last-child {
+    margin-bottom: 0;
+}
+
+.agreement-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.agreement-link {
+    color: var(--color-primary);
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.agreement-link:hover {
+    text-decoration: underline;
+}
+
 .btn {
     padding: 10px 20px;
     border: none;
@@ -140,6 +280,15 @@
 
 .btn-primary:hover {
     background: var(--color-primary-hover);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
 }
 
 .btn-block {
@@ -161,5 +310,163 @@
 .login-footer a:hover {
     text-decoration: underline;
 }
+
+/* Modal 样式 */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.75);
+}
+
+.modal-content {
+    background-color: var(--color-bg);
+    margin: 2% auto;
+    border-radius: var(--radius-md);
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-large {
+    max-width: 800px;
+}
+
+.modal-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.close {
+    font-size: 28px;
+    font-weight: bold;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+}
+
+.close:hover {
+    color: var(--color-text-primary);
+}
+
+.modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-body h2 {
+    font-size: 18px;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.modal-body h3 {
+    font-size: 16px;
+    margin-top: 16px;
+    margin-bottom: 8px;
+}
+
+.modal-body p {
+    line-height: 1.6;
+    margin-bottom: 10px;
+}
+
+.modal-body ul {
+    margin-left: 20px;
+    margin-bottom: 10px;
+}
+
+.modal-body li {
+    margin-bottom: 6px;
+    line-height: 1.6;
+}
+
+.modal-body strong {
+    font-weight: 600;
+}
+
+.modal-footer {
+    padding: 20px;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
 </style>
+
+<script>
+function showAgreementModal() {
+    document.getElementById('agreementModal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeAgreementModal() {
+    document.getElementById('agreementModal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+function acceptAgreement() {
+    document.getElementById('user_agreement').checked = true;
+    closeAgreementModal();
+}
+
+function showRiskModal() {
+    document.getElementById('riskModal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeRiskModal() {
+    document.getElementById('riskModal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+}
+
+function acceptRisk() {
+    document.getElementById('risk_warning').checked = true;
+    closeRiskModal();
+}
+
+// 点击模态框外部关闭
+window.onclick = function(event) {
+    const agreementModal = document.getElementById('agreementModal');
+    const riskModal = document.getElementById('riskModal');
+    if (event.target == agreementModal) {
+        closeAgreementModal();
+    }
+    if (event.target == riskModal) {
+        closeRiskModal();
+    }
+}
+
+// 表单验证
+document.getElementById('registerForm').addEventListener('submit', function(e) {
+    const userAgreement = document.getElementById('user_agreement').checked;
+    const riskWarning = document.getElementById('risk_warning').checked;
+
+    if (!userAgreement) {
+        e.preventDefault();
+        alert('请阅读并同意用户服务协议');
+        return false;
+    }
+
+    if (!riskWarning) {
+        e.preventDefault();
+        alert('请阅读并确认投资风险提示书');
+        return false;
+    }
+});
+</script>
 {% endblock %}
