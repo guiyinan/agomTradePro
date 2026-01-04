@@ -1,12 +1,12 @@
-# AgomSAAF 数据迁移脚本
-# 功能：将 SQLite 数据迁移到 PostgreSQL
+# AgomSAAF Data Migration Script
+# Migrate data from SQLite to PostgreSQL
 
 param(
     [switch]$SkipBackup,
     [string]$BackupFile = "sqlite-backup.json"
 )
 
-# 颜色输出函数
+# Color output functions
 function Write-ColorOutput($ForegroundColor) {
     $fc = $host.UI.RawUI.ForegroundColor
     $host.UI.RawUI.ForegroundColor = $ForegroundColor
@@ -21,69 +21,69 @@ function Write-Info { Write-ColorOutput Cyan $args }
 function Write-Warning { Write-ColorOutput Yellow $args }
 function Write-Error { Write-ColorOutput Red $args }
 
-# 获取脚本所在目录
+# Get script directory
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent $ScriptDir
 Set-Location $ProjectRoot
 
 Write-Info "`n=========================================="
-Write-Info " AgomSAAF SQLite -> PostgreSQL 迁移工具"
+Write-Info " AgomSAAF SQLite -> PostgreSQL Migration"
 Write-Info "==========================================`n"
 
 $composeFile = Join-Path $ProjectRoot "docker-compose-dev.yml"
 $pythonCmd = "agomsaaf/Scripts/python.exe"
 $pythonCmdAlt = "D:/githv/agomSAAF/agomsaaf/Scripts/python.exe"
 
-# 检测 Python 命令
+# Detect Python command
 if (Test-Path $pythonCmd) {
-    # 使用相对路径
+    # Use relative path
 }
 elseif (Test-Path $pythonCmdAlt) {
     $pythonCmd = $pythonCmdAlt
 }
 else {
-    # 尝试使用虚拟环境中的 python
+    # Try to use python in virtual environment
     $pythonCmd = "agomsaaf/Scripts/python.exe"
 }
 
 # ============================================
-# Step 1: 检查 SQLite 数据库
+# Step 1: Check SQLite database
 # ============================================
-Write-Info "[1/5] 检查 SQLite 数据库..."
+Write-Info "[1/5] Checking SQLite database..."
 
 $sqliteDb = Join-Path $ProjectRoot "db.sqlite3"
 
 if (-not (Test-Path $sqliteDb)) {
-    Write-Warning "  未找到 SQLite 数据库 (db.sqlite3)"
-    Write-Info "  如果这是全新安装，可以直接运行迁移创建空数据库"
-    $response = Read-Host "  是否继续？(y/N)"
+    Write-Warning "  SQLite database not found (db.sqlite3)"
+    Write-Info "  If this is a fresh install, you can run migration to create empty database"
+    $response = Read-Host "  Continue? (y/N)"
 
     if ($response -ne "y" -and $response -ne "Y") {
-        Write-Info "  已取消"
+        Write-Info "  Cancelled"
         exit 0
     }
 }
 else {
     $dbSize = (Get-Item $sqliteDb).Length / 1KB
-    Write-Success "  找到 SQLite 数据库 (大小: $([math]::Round($dbSize, 2)) KB)"
+    Write-Success "  SQLite database found (size: $([math]::Round($dbSize, 2)) KB)"
 }
 
 # ============================================
-# Step 2: 备份 SQLite 数据
+# Step 2: Backup SQLite data
 # ============================================
 if (-not $SkipBackup) {
-    Write-Info "`n[2/5] 备份 SQLite 数据..."
+    Write-Info "`n[2/5] Backing up SQLite data..."
 
     if (Test-Path $sqliteDb) {
         $backupPath = Join-Path $ProjectRoot $BackupFile
 
-        # 创建备份目录
+        # Create backup directory
         $backupDir = Split-Path -Parent $backupPath
         if (-not (Test-Path $backupDir)) {
             New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
         }
 
-        Write-Info "  导出数据到 $BackupFile ..."
+        Write-Info "  Exporting data to $BackupFile ..."
         $dumpCmd = "& `"$pythonCmd`" manage.py dumpdata --exclude contenttypes --exclude auth.Permission --indent 2 > `"$backupPath`""
 
         try {
@@ -91,67 +91,67 @@ if (-not $SkipBackup) {
 
             if (Test-Path $backupPath) {
                 $backupSize = (Get-Item $backupPath).Length / 1KB
-                Write-Success "  备份完成 (大小: $([math]::Round($backupSize, 2)) KB)"
-                Write-Info "  备份文件: $backupPath"
+                Write-Success "  Backup completed (size: $([math]::Round($backupSize, 2)) KB)"
+                Write-Info "  Backup file: $backupPath"
             }
             else {
-                Write-Error "  备份失败"
+                Write-Error "  Backup failed"
                 exit 1
             }
         }
         catch {
-            Write-Error "  备份失败: $_"
+            Write-Error "  Backup failed: $_"
             exit 1
         }
     }
     else {
-        Write-Info "  跳过备份（未找到 SQLite 数据库）"
+        Write-Info "  Skipping backup (SQLite database not found)"
     }
 }
 else {
-    Write-Info "`n[2/5] 跳过备份"
+    Write-Info "`n[2/5] Skipping backup"
 }
 
 # ============================================
-# Step 3: 检查 Docker 服务
+# Step 3: Check Docker services
 # ============================================
-Write-Info "`n[3/5] 检查 Docker 服务..."
+Write-Info "`n[3/5] Checking Docker services..."
 
 try {
     $null = docker ps 2>&1
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "  Docker 未运行"
+        Write-Error "  Docker not running"
         exit 1
     }
 
-    # 检查 PostgreSQL 容器是否运行
+    # Check if PostgreSQL container is running
     $pgRunning = docker ps --filter "name=agomsaaf_postgres_dev" --format "{{.Names}}" 2>&1
 
     if ($pgRunning -eq "agomsaaf_postgres_dev") {
-        Write-Success "  PostgreSQL 容器正在运行"
+        Write-Success "  PostgreSQL container is running"
     }
     else {
-        Write-Warning "  PostgreSQL 容器未运行"
-        Write-Info "  启动 Docker 服务..."
+        Write-Warning "  PostgreSQL container not running"
+        Write-Info "  Starting Docker services..."
 
         docker-compose -f $composeFile up -d 2>&1 | Out-Null
 
         if ($LASTEXITCODE -ne 0) {
-            Write-Error "  启动失败"
+            Write-Error "  Failed to start"
             exit 1
         }
 
-        Write-Info "  等待服务就绪..."
+        Write-Info "  Waiting for services to be ready..."
         Start-Sleep -Seconds 5
 
-        # 检查服务是否就绪
+        # Check if service is ready
         $maxAttempts = 30
         $attempt = 0
 
         while ($attempt -lt $maxAttempts) {
             $null = docker exec agomsaaf_postgres_dev pg_isready -U agomsaaf -d agomsaaf 2>&1
             if ($LASTEXITCODE -eq 0) {
-                Write-Success "  服务已就绪"
+                Write-Success "  Services are ready"
                 break
             }
             $attempt++
@@ -161,46 +161,46 @@ try {
     }
 }
 catch {
-    Write-Error "  错误: $_"
+    Write-Error "  Error: $_"
     exit 1
 }
 
 # ============================================
-# Step 4: 执行数据库迁移
+# Step 4: Execute database migration
 # ============================================
-Write-Info "`n[4/5] 执行数据库迁移..."
+Write-Info "`n[4/5] Executing database migration..."
 
-Write-Warning "  警告: 此操作将清空 PostgreSQL 数据库中的现有数据"
-$response = Read-Host "  是否继续？(y/N)"
+Write-Warning "  WARNING: This will clear existing data in PostgreSQL database"
+$response = Read-Host "  Continue? (y/N)"
 
 if ($response -ne "y" -and $response -ne "Y") {
-    Write-Info "  已取消"
+    Write-Info "  Cancelled"
     exit 0
 }
 
-# 先确保 .env 使用 PostgreSQL 连接
-Write-Info "  检查 .env 配置..."
+# Ensure .env uses PostgreSQL connection
+Write-Info "  Checking .env configuration..."
 
 $envFile = Join-Path $ProjectRoot ".env"
 if (Test-Path $envFile) {
     $envContent = Get-Content $envFile -Raw
 
-    # 确保使用 PostgreSQL
+    # Ensure PostgreSQL is used
     if ($envContent -match 'DATABASE_URL=sqlite:') {
-        Write-Warning "  .env 文件中仍使用 SQLite，正在更新..."
+        Write-Warning "  .env still uses SQLite, updating..."
 
         $envContent = $envContent -replace 'DATABASE_URL=sqlite:.*', 'DATABASE_URL=postgresql://agomsaaf:changeme@localhost:5432/agomsaaf'
         Set-Content -Path $envFile -Value $envContent
 
-        Write-Success "  已更新为 PostgreSQL 连接"
+        Write-Success "  Updated to PostgreSQL connection"
     }
     else {
-        Write-Success "  .env 配置正确"
+        Write-Success "  .env configuration is correct"
     }
 }
 
-# 执行迁移
-Write-Info "  运行数据库迁移..."
+# Execute migration
+Write-Info "  Running database migration..."
 
 try {
     & "$pythonCmd" manage.py migrate --noinput 2>&1 | ForEach-Object {
@@ -212,64 +212,64 @@ try {
         }
     }
 
-    Write-Success "  迁移完成"
+    Write-Success "  Migration completed"
 }
 catch {
-    Write-Error "  迁移失败: $_"
+    Write-Error "  Migration failed: $_"
     exit 1
 }
 
 # ============================================
-# Step 5: 恢复数据
+# Step 5: Restore data
 # ============================================
 if ((Test-Path $sqliteDb) -and -not $SkipBackup) {
-    Write-Info "`n[5/5] 恢复数据到 PostgreSQL..."
+    Write-Info "`n[5/5] Restoring data to PostgreSQL..."
 
     $backupPath = Join-Path $ProjectRoot $BackupFile
 
     if (Test-Path $backupPath) {
-        Write-Info "  从备份文件恢复数据..."
+        Write-Info "  Restoring data from backup file..."
 
         try {
             & "$pythonCmd" manage.py loaddata "`"$backupPath`"" 2>&1 | ForEach-Object {
                 Write-Host "      $_" -ForegroundColor Gray
             }
 
-            Write-Success "  数据恢复完成"
+            Write-Success "  Data restoration completed"
         }
         catch {
-            Write-Warning "  恢复失败: $_"
-            Write-Info "  请手动运行: python manage.py loaddata $BackupFile"
+            Write-Warning "  Restoration failed: $_"
+            Write-Info "  Please run manually: python manage.py loaddata $BackupFile"
         }
     }
     else {
-        Write-Warning "  未找到备份文件，跳过恢复"
+        Write-Warning "  Backup file not found, skipping restoration"
     }
 }
 else {
-    Write-Info "`n[5/5] 跳过数据恢复"
+    Write-Info "`n[5/5] Skipping data restoration"
 }
 
 # ============================================
-# 完成
+# Complete
 # ============================================
 Write-Success "`n=========================================="
-Write-Success " 迁移完成！"
+Write-Success " Migration Complete!"
 Write-Success "==========================================`n"
 
-Write-Info "下一步操作:"
-Write-Info "  1. 测试数据库连接:"
+Write-Info "Next Steps:"
+Write-Info "  1. Test database connection:"
 Write-Info "     python manage.py check"
-Write-Info "`n  2. 创建超级用户:"
+Write-Info "`n  2. Create superuser:"
 Write-Info "     python manage.py createsuperuser"
-Write-Info "`n  3. 启动开发服务器:"
+Write-Info "`n  3. Start development server:"
 Write-Info "     python manage.py runserver"
-Write-Info "`n  4. 访问应用: http://localhost:8000"
+Write-Info "`n  4. Access application: http://localhost:8000"
 
-Write-Info "`n备份文件位置:"
+Write-Info "`nBackup file location:"
 Write-Info "  $backupPath"
 
-Write-Warning "`n重要提示:"
-Write-Warning "  - SQLite 原始文件 (db.sqlite3) 仍然保留"
-Write-Warning "  - 建议保留备份一段时间，确认数据无误后再删除"
-Write-Warning "  - 如需回滚，修改 .env 中的 DATABASE_URL 为 sqlite:///db.sqlite3"
+Write-Warning "`nImportant notes:"
+Write-Warning "  - SQLite original file (db.sqlite3) is still preserved"
+Write-Warning "  - Recommended to keep backup for a while until data is verified"
+Write-Warning "  - To rollback, change DATABASE_URL in .env to sqlite:///db.sqlite3"

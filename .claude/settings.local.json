@@ -56,7 +56,11 @@
       "Bash(set:*)",
       "Bash(D:\\\\githv\\\\agomSAAF\\\\agomsaaf\\\\Scripts\\\\python.exe manage.py showmigrations:*)",
       "Bash(if not exist \"tests\\\\unit\\\\domain\\\\simulated_trading\" mkdir \"tests\\\\unit\\\\domain\\\\simulated_trading\")",
-      "Bash(powershell.exe:*)"
+      "Bash(powershell.exe:*)",
+      "Bash(docker:*)",
+      "Bash(docker-compose -f docker-compose-dev.yml down)",
+      "Bash(docker-compose -f docker-compose-dev.yml pull)",
+      "Bash(docker-compose:*)"
     ]
   }
 }
