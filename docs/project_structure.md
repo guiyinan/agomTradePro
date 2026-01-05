@@ -128,6 +128,33 @@ AgomSAAF/
 │       │   └── models.py        #     Django ORM 模型
 │       └── interface/
 │
+│   ├── simulated_trading/       # ⭐ 模拟盘/投资组合模块（重构）
+│   │   ├── domain/              #   实体和业务规则
+│   │   │   ├── entities.py      #     SimulatedAccount, Position, Trade, FeeConfig
+│   │   │   └── rules.py         #     仓位管理规则、交易约束规则
+│   │   ├── application/         #   用例编排
+│   │   │   ├── use_cases.py     #     创建账户、执行交易、计算绩效
+│   │   │   ├── auto_trading_engine.py  # 自动交易引擎
+│   │   │   ├── performance_calculator.py  # 绩效计算器
+│   │   │   ├── asset_pool_query_service.py  # 资产池查询
+│   │   │   └── tasks.py         #     Celery 定时任务
+│   │   ├── infrastructure/      #   基础设施层
+│   │   │   ├── models.py        #     SimulatedAccountModel, PositionModel, TradeModel, FeeConfigModel
+│   │   │   ├── repositories.py  #     数据仓储（含 get_by_user 方法）
+│   │   │   └── market_data_provider.py  # 市场数据提供者
+│   │   └── interface/           #   接口层
+│   │       ├── views.py         #     页面视图（my_accounts_page 等）
+│   │       ├── urls.py          #     URL 配置
+│   │       └── serializers.py   #     DRF 序列化器
+│   │
+│   ├── account/                 # ⭐ 账户管理模块（重构）
+│   │   ├── domain/
+│   │   ├── infrastructure/
+│   │   │   └── models.py        #     UserModel, AccountProfileModel（简化）
+│   │   └── interface/
+│   │       ├── views.py         #     页面视图
+│   │       └── urls.py          #     URL 配置
+│
 ├── core/                        # Django 核心配置
 │   ├── settings/                #   分环境配置
 │   │   ├── base.py              #     基础配置
@@ -158,7 +185,8 @@ AgomSAAF/
 │
 ├── scripts/                     # 脚本文件
 │   ├── run_backtest.py          #   运行回测
-│   └── validate_backtest.py     #   验证回测结果
+│   ├── validate_backtest.py     #   验证回测结果
+│   └── migrate_portfolio_to_investment_account.py  # ⭐ 数据迁移脚本
 │
 ├── tests/                       # 测试文件
 │   ├── unit/                    #   单元测试
@@ -169,7 +197,8 @@ AgomSAAF/
 │   ├── frontend_design_guide.md #   前端设计指南
 │   ├── admin_credentials.md     #   管理员凭证
 │   ├── implementation_tasks.md  #   实施任务清单
-│   └── ai_provider_requirements.md  # AI 服务商需求
+│   ├── ai_provider_requirements.md  # AI 服务商需求
+│   └── simulated_trading_design.md  # ⭐ 模拟盘设计文档（含重构更新）
 │
 ├── manage.py                    # Django 管理脚本
 ├── pyproject.toml               # Python 项目配置

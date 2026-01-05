@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'apps.asset_analysis', # 新增：通用资产分析模块
     'apps.sentiment',      # 新增：舆情情感分析模块
     'apps.simulated_trading', # 新增：模拟盘自动交易模块
+    'apps.strategy',       # 新增：投资组合策略系统
 ]
 
 MIDDLEWARE = [

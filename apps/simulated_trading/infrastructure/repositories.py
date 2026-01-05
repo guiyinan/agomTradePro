@@ -302,6 +302,38 @@ class DjangoSimulatedAccountRepository:
         models = SimulatedAccountModel.objects.all()
         return [SimulatedAccountMapper.to_entity(m) for m in models]
 
+    def get_by_user(self, user_id: int) -> List[SimulatedAccount]:
+        """
+        ⭐ 新增：根据用户ID获取所有投资组合
+
+        Args:
+            user_id: 用户ID
+
+        Returns:
+            用户的所有投资组合
+        """
+        models = SimulatedAccountModel.objects.filter(
+            user_id=user_id
+        ).order_by('-created_at')
+        return [SimulatedAccountMapper.to_entity(m) for m in models]
+
+    def get_by_user_and_type(self, user_id: int, account_type: str) -> List[SimulatedAccount]:
+        """
+        ⭐ 新增：根据用户ID和账户类型获取投资组合
+
+        Args:
+            user_id: 用户ID
+            account_type: 'real' 或 'simulated'
+
+        Returns:
+            用户的指定类型的投资组合
+        """
+        models = SimulatedAccountModel.objects.filter(
+            user_id=user_id,
+            account_type=account_type
+        ).order_by('-created_at')
+        return [SimulatedAccountMapper.to_entity(m) for m in models]
+
     def delete(self, account_id: int) -> bool:
         """删除账户"""
         try:

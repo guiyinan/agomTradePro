@@ -5,6 +5,7 @@ Application层核心组件：
 - 每日定时运行(Celery Beat)
 - 自动扫描账户、生成订单、更新持仓
 - 依赖Use Cases和Domain层服务
+- 集成策略系统（Phase 5）
 """
 import logging
 from typing import List, Optional, Protocol
@@ -60,6 +61,11 @@ class AutoTradingEngine:
     3. 从可投池+信号获取买入候选
     4. 执行买入/卖出订单
     5. 更新账户绩效
+
+    Phase 5 更新：
+    - 支持策略系统集成
+    - 如果账户绑定了策略，使用策略执行引擎
+    - 如果账户未绑定策略，使用原有逻辑（向后兼容）
     """
 
     def __init__(
@@ -73,7 +79,8 @@ class AutoTradingEngine:
         asset_pool_service: Optional[AssetPoolServiceProtocol] = None,
         signal_service: Optional[SignalServiceProtocol] = None,
         market_data_provider: Optional[MarketDataProviderProtocol] = None,
-        regime_service: Optional[RegimeServiceProtocol] = None
+        regime_service: Optional[RegimeServiceProtocol] = None,
+        strategy_executor: Optional['StrategyExecutor'] = None
     ):
         self.account_repo = account_repo
         self.position_repo = position_repo
@@ -85,6 +92,7 @@ class AutoTradingEngine:
         self.signal_service = signal_service
         self.market_data = market_data_provider
         self.regime_service = regime_service
+        self.strategy_executor = strategy_executor  # Phase 5: 策略执行引擎
 
     def run_daily_trading(self, trade_date: date) -> dict:
         """
@@ -126,12 +134,171 @@ class AutoTradingEngine:
         """
         处理单个账户的自动交易
 
+        Phase 5 更新：
+        - 检查账户是否绑定了策略
+        - 如果有策略，使用策略执行引擎
+        - 如果没有策略，使用原有逻辑（向后兼容）
+
         Returns:
             (买入次数, 卖出次数)
         """
         logger.info(f"\n处理账户: {account.account_name} (ID={account.account_id})")
         logger.info(f"  当前资金: {account.current_cash:.2f}元, 持仓市值: {account.current_market_value:.2f}元")
 
+        # Phase 5: 检查是否绑定了策略
+        active_strategy_id = self._get_account_strategy_id(account.account_id)
+
+        if active_strategy_id and self.strategy_executor:
+            logger.info(f"  账户绑定策略ID: {active_strategy_id}, 使用策略执行引擎")
+            return self._execute_strategy_based_trading(account, active_strategy_id, trade_date)
+        else:
+            logger.info(f"  账户未绑定策略或策略引擎未配置，使用原有逻辑")
+            return self._execute_legacy_trading(account, trade_date)
+
+    def _get_account_strategy_id(self, account_id: int) -> Optional[int]:
+        """
+        获取账户绑定的策略ID
+
+        Args:
+            account_id: 账户ID
+
+        Returns:
+            策略ID，如果未绑定则返回 None
+        """
+        try:
+            from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+            account_model = SimulatedAccountModel.objects.filter(id=account_id).first()
+            if account_model and account_model.active_strategy:
+                return account_model.active_strategy.id
+            return None
+        except Exception as e:
+            logger.warning(f"获取账户策略失败: {e}")
+            return None
+
+    def _execute_strategy_based_trading(
+        self,
+        account: SimulatedAccount,
+        strategy_id: int,
+        trade_date: date
+    ) -> tuple[int, int]:
+        """
+        使用策略执行引擎进行交易
+
+        Args:
+            account: 账户实体
+            strategy_id: 策略ID
+            trade_date: 交易日期
+
+        Returns:
+            (买入次数, 卖出次数)
+        """
+        buy_count = 0
+        sell_count = 0
+
+        try:
+            # 1. 执行策略，获取信号推荐
+            from apps.strategy.application.strategy_executor import StrategyExecutor
+            execution_result = self.strategy_executor.execute_strategy(strategy_id, account.account_id)
+
+            if not execution_result.is_success:
+                logger.error(f"策略执行失败: {execution_result.error_message}")
+                return 0, 0
+
+            logger.info(f"  策略执行成功，生成 {len(execution_result.signals)} 个信号")
+
+            # 2. 处理卖出信号
+            positions = self.position_repo.get_by_account(account.account_id)
+            held_codes = {p.asset_code for p in positions}
+
+            for signal in execution_result.signals:
+                if signal.action.value == 'sell' and signal.asset_code in held_codes:
+                    try:
+                        price = self._get_current_price(signal.asset_code, trade_date)
+                        if price is None:
+                            logger.warning(f"    无法获取 {signal.asset_code} 价格,跳过卖出")
+                            continue
+
+                        position = next(p for p in positions if p.asset_code == signal.asset_code)
+                        quantity = signal.quantity or position.quantity
+
+                        self.sell_use_case.execute(
+                            account_id=account.account_id,
+                            asset_code=signal.asset_code,
+                            quantity=quantity,
+                            price=price,
+                            reason=f"策略信号: {signal.reason}"
+                        )
+                        sell_count += 1
+                        logger.info(f"    ✓ 卖出: {signal.asset_name} x{quantity} @ {price:.2f} (原因: {signal.reason})")
+                    except Exception as e:
+                        logger.error(f"    ✗ 卖出失败: {signal.asset_code}, 错误: {e}")
+
+            # 3. 处理买入信号
+            for signal in execution_result.signals:
+                if signal.action.value == 'buy':
+                    try:
+                        # 检查是否已有持仓
+                        if signal.asset_code in held_codes:
+                            logger.info(f"    跳过 {signal.asset_code}: 已有持仓")
+                            continue
+
+                        price = self._get_current_price(signal.asset_code, trade_date)
+                        if price is None:
+                            logger.warning(f"    无法获取 {signal.asset_code} 价格,跳过")
+                            continue
+
+                        # 计算买入数量
+                        quantity = signal.quantity
+                        if quantity is None:
+                            # 根据权重计算数量
+                            positions = self.position_repo.get_by_account(account.account_id)
+                            quantity = PositionSizingRule.calculate_buy_quantity(
+                                account=account,
+                                asset_price=price,
+                                asset_score=signal.confidence * 100,
+                                existing_positions=positions
+                            )
+
+                        if quantity == 0:
+                            logger.info(f"    跳过 {signal.asset_code}: 计算买入数量为0")
+                            continue
+
+                        self.buy_use_case.execute(
+                            account_id=account.account_id,
+                            asset_code=signal.asset_code,
+                            asset_name=signal.asset_name,
+                            asset_type='equity',
+                            quantity=quantity,
+                            price=price,
+                            reason=f"策略信号: {signal.reason}",
+                            signal_id=None
+                        )
+                        buy_count += 1
+                        logger.info(f"    ✓ 买入: {signal.asset_name} x{quantity} @ {price:.2f} (原因: {signal.reason})")
+                    except Exception as e:
+                        logger.error(f"    ✗ 买入失败: {signal.asset_code}, 错误: {e}")
+
+            # 4. 更新账户绩效
+            self._update_account_performance(account.account_id, trade_date)
+
+            logger.info(f"  账户处理完成(策略模式): 买入{buy_count}次, 卖出{sell_count}次")
+
+        except Exception as e:
+            logger.error(f"策略执行异常: {e}", exc_info=True)
+
+        return buy_count, sell_count
+
+    def _execute_legacy_trading(self, account: SimulatedAccount, trade_date: date) -> tuple[int, int]:
+        """
+        使用原有逻辑进行交易（向后兼容）
+
+        Args:
+            account: 账户实体
+            trade_date: 交易日期
+
+        Returns:
+            (买入次数, 卖出次数)
+        """
         buy_count = 0
         sell_count = 0
 
@@ -174,7 +341,7 @@ class AutoTradingEngine:
         # 4. 更新账户绩效
         self._update_account_performance(account.account_id, trade_date)
 
-        logger.info(f"  账户处理完成: 买入{buy_count}次, 卖出{sell_count}次")
+        logger.info(f"  账户处理完成(原有模式): 买入{buy_count}次, 卖出{sell_count}次")
 
         return buy_count, sell_count
 

@@ -1,0 +1,510 @@
+<!--
+规则编辑器组件
+
+用于创建和编辑策略规则的组件
+支持：macro、regime、signal、technical、composite 五种规则类型
+-->
+<style>
+.rules-editor { background: #f8fafc; border-radius: 12px; padding: 20px; }
+.rules-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.rules-header h3 { margin: 0; font-size: 16px; }
+.rules-list { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; }
+
+.rule-card { background: white; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; }
+.rule-card-header { padding: 16px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+.rule-card-header-left { display: flex; align-items: center; gap: 12px; }
+.rule-number { width: 28px; height: 28px; background: #667eea; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; }
+.rule-name { font-size: 15px; font-weight: 600; color: #334155; }
+.rule-type { padding: 4px 10px; background: #dbeafe; color: #1e40af; border-radius: 12px; font-size: 11px; font-weight: 500; }
+.rule-actions { display: flex; gap: 6px; }
+.rule-btn { padding: 6px 10px; border: 1px solid #e2e8f0; background: white; border-radius: 4px; font-size: 12px; cursor: pointer; }
+.rule-btn:hover { background: #f1f5f9; }
+.rule-btn.delete:hover { background: #fee2e2; border-color: #ef4444; color: #dc2626; }
+
+.rule-card-body { padding: 16px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 12px; }
+.form-group { margin-bottom: 12px; }
+.form-group.full { grid-column: span 2; }
+.form-label { display: block; font-size: 13px; font-weight: 500; color: #334155; margin-bottom: 6px; }
+.form-input, .form-select, .form-textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 14px;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+.form-textarea { min-height: 80px; resize: vertical; font-family: monospace; }
+
+.condition-builder { background: #f8fafc; border-radius: 8px; padding: 16px; }
+.condition-builder-title { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: #334155; }
+.operator-row { display: flex; gap: 12px; margin-bottom: 12px; }
+.condition-rows { display: flex; flex-direction: column; gap: 8px; }
+.condition-row { display: flex; gap: 8px; align-items: center; }
+.add-condition-row { padding: 8px; border: 1px dashed #cbd5e1; border-radius: 6px; text-align: center; cursor: pointer; font-size: 13px; color: #64748b; }
+.add-condition-row:hover { border-color: #667eea; color: #667eea; }
+
+.json-preview { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-all; }
+
+.btn-add-rule { width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; }
+.btn-add-rule:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
+
+.hint { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+
+/* 宏观指标规则特定样式 */
+.macro-indicator-select { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; }
+.operator-select { flex: 1; }
+
+/* 资产选择 */
+.assets-selector { display: flex; flex-wrap: wrap; gap: 8px; }
+.asset-tag { padding: 6px 12px; background: #e2e8f0; border-radius: 16px; font-size: 12px; cursor: pointer; }
+.asset-tag.selected { background: #667eea; color: white; }
+.assets-input { flex: 1; min-width: 200px; }
+</style>
+
+<div class="rules-editor">
+    <div class="rules-header">
+        <h3>📐 规则配置</h3>
+        <button class="btn-add-rule" onclick="addNewRule()">
+            <i class="bi bi-plus-lg"></i> 添加规则
+        </button>
+    </div>
+
+    <div id="rulesList" class="rules-list">
+        <!-- 规则卡片将在这里动态生成 -->
+    </div>
+
+    <!-- 隐藏的输入，用于提交 -->
+    <input type="hidden" name="rules_data" id="rulesDataInput">
+</div>
+
+<script>
+// 规则数据
+let rules = [];
+
+// 宏观指标列表（示例数据）
+const macroIndicators = [
+    { code: 'CN_PMI_MANUFACTURING', name: '中国制造业PMI', unit: '指数' },
+    { code: 'CN_PMI_NON_MANUFACTURING', name: '中国非制造业PMI', unit: '指数' },
+    { code: 'CN_CPI_YOY', name: 'CPI同比', unit: '%' },
+    { code: 'CN_PPI_YOY', name: 'PPI同比', unit: '%' },
+    { code: 'CN_M2_YOY', name: 'M2同比', unit: '%' },
+    { code: 'US_FED_FUNDS_RATE', name: '美联储利率', unit: '%' },
+    { code: 'US_CPI_YOY', name: '美国CPI同比', unit: '%' },
+];
+
+// Regime 列表
+const regimes = ['Recovery', 'Overheat', 'Stagflation', 'Deflation'];
+
+// 运算符列表
+const operators = [
+    { value: 'gt', label: '>' },
+    { value: 'gte', label: '>=' },
+    { value: 'lt', label: '<' },
+    { value: 'lte', label: '<=' },
+    { value: 'eq', label: '=' },
+    { value: 'ne', label: '!=' },
+    { value: 'between', label: '区间' },
+    { value: 'trend', label: '趋势' },
+    { value: 'in', label: '包含' },
+];
+
+// 添加新规则
+function addNewRule() {
+    const rule = {
+        id: Date.now(),
+        rule_name: '',
+        rule_type: 'macro',
+        condition_json: { operator: 'gt', indicator: '', threshold: 0 },
+        action: 'BUY',
+        weight: 0.1,
+        target_assets: [],
+        priority: 10,
+        is_enabled: true
+    };
+    rules.push(rule);
+    renderRules();
+    updateRulesData();
+}
+
+// 删除规则
+function deleteRule(ruleId) {
+    if (!confirm('确认删除此规则？')) return;
+    rules = rules.filter(r => r.id !== ruleId);
+    renderRules();
+    updateRulesData();
+}
+
+// 渲染规则列表
+function renderRules() {
+    const container = document.getElementById('rulesList');
+
+    if (rules.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #94a3b8;">
+                <div style="font-size: 48px; margin-bottom: 12px;">📜</div>
+                <div>暂无规则</div>
+                <div style="font-size: 13px;">点击上方按钮添加第一条规则</div>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = rules.map((rule, index) => renderRuleCard(rule, index)).join('');
+}
+
+// 渲染单个规则卡片
+function renderRuleCard(rule, index) {
+    return `
+        <div class="rule-card" data-id="${rule.id}">
+            <div class="rule-card-header">
+                <div class="rule-card-header-left">
+                    <div class="rule-number">${index + 1}</div>
+                    <input type="text" class="form-input" style="width: 200px;"
+                           value="${rule.rule_name}"
+                           placeholder="规则名称"
+                           onchange="updateRule(${rule.id}, 'rule_name', this.value)">
+                    <select class="form-select" style="width: 120px;" onchange="updateRule(${rule.id}, 'rule_type', this.value)">
+                        <option value="macro" ${rule.rule_type === 'macro' ? 'selected' : ''}>宏观指标</option>
+                        <option value="regime" ${rule.rule_type === 'regime' ? 'selected' : ''}>Regime</option>
+                        <option value="signal" ${rule.rule_type === 'signal' ? 'selected' : ''}>投资信号</option>
+                        <option value="technical" ${rule.rule_type === 'technical' ? 'selected' : ''}>技术指标</option>
+                        <option value="composite" ${rule.rule_type === 'composite' ? 'selected' : ''}>组合条件</option>
+                    </select>
+                </div>
+                <div class="rule-actions">
+                    <button class="rule-btn" onclick="toggleRuleEnabled(${rule.id})">
+                        ${rule.is_enabled ? '启用' : '禁用'}
+                    </button>
+                    <button class="rule-btn delete" onclick="deleteRule(${rule.id})">删除</button>
+                </div>
+            </div>
+            <div class="rule-card-body">
+                ${renderRuleBody(rule)}
+            </div>
+        </div>
+    `;
+}
+
+// 渲染规则主体（根据不同类型）
+function renderRuleBody(rule) {
+    switch (rule.rule_type) {
+        case 'macro':
+            return renderMacroRuleBody(rule);
+        case 'regime':
+            return renderRegimeRuleBody(rule);
+        case 'signal':
+            return renderSignalRuleBody(rule);
+        case 'technical':
+            return renderTechnicalRuleBody(rule);
+        case 'composite':
+            return renderCompositeRuleBody(rule);
+        default:
+            return '<div class="hint">暂不支持此类型</div>';
+    }
+}
+
+// 宏观指标规则主体
+function renderMacroRuleBody(rule) {
+    const condition = rule.condition_json || {};
+    return `
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label">宏观指标</label>
+                <select class="form-select" onchange="updateCondition(${rule.id}, 'indicator', this.value)">
+                    <option value="">选择指标</option>
+                    ${macroIndicators.map(ind => `
+                        <option value="${ind.code}" ${condition.indicator === ind.code ? 'selected' : ''}>
+                            ${ind.name} (${ind.unit})
+                        </option>
+                    `).join('')}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">运算符</label>
+                <select class="form-select" onchange="updateCondition(${rule.id}, 'operator', this.value)">
+                    ${operators.map(op => `
+                        <option value="${op.value}" ${condition.operator === op.value ? 'selected' : ''}>${op.label}</option>
+                    `).join('')}
+                </select>
+            </div>
+        </div>
+        ${condition.operator === 'between' ? `
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">最小值</label>
+                    <input type="number" class="form-input" value="${condition.min_value || ''}"
+                           onchange="updateCondition(${rule.id}, 'min_value', parseFloat(this.value))">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">最大值</label>
+                    <input type="number" class="form-input" value="${condition.max_value || ''}"
+                           onchange="updateCondition(${rule.id}, 'max_value', parseFloat(this.value))">
+                </div>
+            </div>
+        ` : `
+            <div class="form-group">
+                <label class="form-label">阈值</label>
+                <input type="number" class="form-input" value="${condition.threshold || ''}"
+                       onchange="updateCondition(${rule.id}, 'threshold', parseFloat(this.value))">
+            </div>
+        `}
+        ${renderCommonRuleFields(rule)}
+    `;
+}
+
+// Regime 规则主体
+function renderRegimeRuleBody(rule) {
+    const condition = rule.condition_json || {};
+    return `
+        <div class="form-group">
+            <label class="form-label">Regime 状态</label>
+            <select class="form-select" onchange="updateCondition(${rule.id}, 'value', this.value)">
+                ${regimes.map(r => `
+                    <option value="${r}" ${condition.value === r ? 'selected' : ''}>${r}</option>
+                `).join('')}
+            </select>
+        </div>
+        ${renderCommonRuleFields(rule)}
+    `;
+}
+
+// 投资信号规则主体
+function renderSignalRuleBody(rule) {
+    const condition = rule.condition_json || {};
+    return `
+        <div class="condition-builder">
+            <div class="condition-builder-title">信号条件</div>
+            <div class="operator-row">
+                <select class="form-select operator-select" onchange="updateCondition(${rule.id}, 'operator', this.value)">
+                    <option value="AND" ${condition.operator === 'AND' ? 'selected' : ''}>AND (且)</option>
+                    <option value="OR" ${condition.operator === 'OR' ? 'selected' : ''}>OR (或)</option>
+                </select>
+            </div>
+            <div class="hint">示例: {"field": "regime_score", "operator": ">", "value": 60}</div>
+            <textarea class="form-textarea" onchange="updateConditionJson(${rule.id}, this.value)">${JSON.stringify(condition, null, 2)}</textarea>
+        </div>
+        ${renderCommonRuleFields(rule)}
+    `;
+}
+
+// 技术指标规则主体
+function renderTechnicalRuleBody(rule) {
+    const condition = rule.condition_json || {};
+    return `
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label">技术指标</label>
+                <select class="form-select" onchange="updateCondition(${rule.id}, 'indicator', this.value)">
+                    <option value="RSI" ${condition.indicator === 'RSI' ? 'selected' : ''}>RSI</option>
+                    <option value="MACD" ${condition.indicator === 'MACD' ? 'selected' : ''}>MACD</option>
+                    <option value="MA" ${condition.indicator === 'MA' ? 'selected' : ''}>移动平均线</option>
+                    <option value="BOLL" ${condition.indicator === 'BOLL' ? 'selected' : ''}>布林带</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">运算符</label>
+                <select class="form-select" onchange="updateCondition(${rule.id}, 'operator', this.value)">
+                    ${operators.slice(0, 6).map(op => `
+                        <option value="${op.value}" ${condition.operator === op.value ? 'selected' : ''}>${op.label}</option>
+                    `).join('')}
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">阈值</label>
+            <input type="number" class="form-input" value="${condition.threshold || ''}"
+                   onchange="updateCondition(${rule.id}, 'threshold', parseFloat(this.value))">
+        </div>
+        ${renderCommonRuleFields(rule)}
+    `;
+}
+
+// 组合条件规则主体
+function renderCompositeRuleBody(rule) {
+    const condition = rule.condition_json || {};
+    const conditions = condition.conditions || [];
+
+    return `
+        <div class="condition-builder">
+            <div class="condition-builder-title">组合条件</div>
+            <div class="operator-row">
+                <label class="form-label" style="margin: 0;">逻辑关系:</label>
+                <select class="form-select operator-select" onchange="updateCondition(${rule.id}, 'logic', this.value)">
+                    <option value="AND" ${condition.logic === 'AND' ? 'selected' : ''}>AND (且)</option>
+                    <option value="OR" ${condition.logic === 'OR' ? 'selected' : ''}>OR (或)</option>
+                </select>
+            </div>
+            <div class="condition-rows">
+                ${conditions.map((cond, i) => `
+                    <div class="condition-row">
+                        <input type="text" class="form-input" value="${JSON.stringify(cond)}"
+                               onchange="updateNestedCondition(${rule.id}, ${i}, this.value)"
+                               placeholder='条件 JSON'>
+                        <button class="rule-btn delete" onclick="removeCondition(${rule.id}, ${i})">删除</button>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="add-condition-row" onclick="addCondition(${rule.id})">
+                + 添加条件
+            </div>
+        </div>
+        ${renderCommonRuleFields(rule)}
+    `;
+}
+
+// 通用规则字段
+function renderCommonRuleFields(rule) {
+    return `
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label">动作</label>
+                <select class="form-select" onchange="updateRule(${rule.id}, 'action', this.value)">
+                    <option value="BUY" ${rule.action === 'BUY' ? 'selected' : ''}>买入</option>
+                    <option value="SELL" ${rule.action === 'SELL' ? 'selected' : ''}>卖出</option>
+                    <option value="HOLD" ${rule.action === 'HOLD' ? 'selected' : ''}>持有</option>
+                    <option value="WEIGHT" ${rule.action === 'WEIGHT' ? 'selected' : ''}>调整权重</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">权重</label>
+                <input type="number" class="form-input" value="${rule.weight}"
+                       min="0" max="1" step="0.01"
+                       onchange="updateRule(${rule.id}, 'weight', parseFloat(this.value))">
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">目标资产（可选，多个用逗号分隔）</label>
+            <input type="text" class="form-input" value="${rule.target_assets.join(', ')}"
+                   placeholder="例如: 000001.SZ, 000002.SZ"
+                   onchange="updateRuleAssets(${rule.id}, this.value)">
+        </div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="form-label">优先级</label>
+                <input type="number" class="form-input" value="${rule.priority}"
+                       min="1" max="100"
+                       onchange="updateRule(${rule.id}, 'priority', parseInt(this.value))">
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">JSON 预览</label>
+            <div class="json-preview">${JSON.stringify(rule.condition_json || {}, null, 2)}</div>
+        </div>
+    `;
+}
+
+// 更新规则字段
+function updateRule(ruleId, field, value) {
+    const rule = rules.find(r => r.id === ruleId);
+    if (rule) {
+        rule[field] = value;
+        updateRulesData();
+    }
+}
+
+// 更新条件
+function updateCondition(ruleId, field, value) {
+    const rule = rules.find(r => r.id === ruleId);
+    if (rule) {
+        if (!rule.condition_json) rule.condition_json = {};
+        rule.condition_json[field] = value;
+        updateRulesData();
+        // 重新渲染当前规则卡片
+        const container = document.querySelector(`.rule-card[data-id="${ruleId}"] .rule-card-body`);
+        if (container) {
+            container.innerHTML = renderRuleBody(rule);
+        }
+    }
+}
+
+// 更新条件 JSON
+function updateConditionJson(ruleId, jsonString) {
+    try {
+        const condition = JSON.parse(jsonString);
+        const rule = rules.find(r => r.id === ruleId);
+        if (rule) {
+            rule.condition_json = condition;
+            updateRulesData();
+        }
+    } catch (e) {
+        console.error('Invalid JSON:', e);
+    }
+}
+
+// 更新嵌套条件
+function updateNestedCondition(ruleId, index, value) {
+    const rule = rules.find(r => r.id === ruleId);
+    if (rule && rule.condition_json.conditions) {
+        try {
+            rule.condition_json.conditions[index] = JSON.parse(value);
+            updateRulesData();
+        } catch (e) {
+            console.error('Invalid JSON:', e);
+        }
+    }
+}
+
+// 添加嵌套条件
+function addCondition(ruleId) {
+    const rule = rules.find(r => r.id === ruleId);
+    if (rule) {
+        if (!rule.condition_json.conditions) rule.condition_json.conditions = [];
+        rule.condition_json.conditions.push({});
+        updateRulesData();
+        // 重新渲染当前规则卡片
+        const container = document.querySelector(`.rule-card[data-id="${ruleId}"] .rule-card-body`);
+        if (container) {
+            container.innerHTML = renderRuleBody(rule);
+        }
+    }
+}
+
+// 删除嵌套条件
+function removeCondition(ruleId, index) {
+    const rule = rules.find(r => r.id === ruleId);
+    if (rule && rule.condition_json.conditions) {
+        rule.condition_json.conditions.splice(index, 1);
+        updateRulesData();
+        // 重新渲染当前规则卡片
+        const container = document.querySelector(`.rule-card[data-id="${ruleId}"] .rule-card-body`);
+        if (container) {
+            container.innerHTML = renderRuleBody(rule);
+        }
+    }
+}
+
+// 更新目标资产
+function updateRuleAssets(ruleId, value) {
+    const rule = rules.find(r => r.id === ruleId);
+    if (rule) {
+        rule.target_assets = value.split(',').map(s => s.trim()).filter(s => s);
+        updateRulesData();
+    }
+}
+
+// 切换规则启用状态
+function toggleRuleEnabled(ruleId) {
+    const rule = rules.find(r => r.id === ruleId);
+    if (rule) {
+        rule.is_enabled = !rule.is_enabled;
+        renderRules();
+        updateRulesData();
+    }
+}
+
+// 更新隐藏的输入
+function updateRulesData() {
+    const input = document.getElementById('rulesDataInput');
+    if (input) {
+        input.value = JSON.stringify(rules);
+    }
+}
+
+// 初始化
+renderRules();
+</script>

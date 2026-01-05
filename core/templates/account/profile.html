@@ -26,65 +26,103 @@
             <div class="stat-card">
                 <span class="stat-label">当前总资产</span>
                 <span class="stat-value">¥{{ total_assets|floatformat:2|default:"0.00" }}</span>
+                {% if not profile.real_account %}
+                <span class="stat-hint">💡 创建实仓后可记录真实投资</span>
+                {% endif %}
             </div>
             <div class="stat-card">
                 <span class="stat-label">风险偏好</span>
                 <span class="stat-value">{{ profile.get_risk_tolerance_display }}</span>
             </div>
             <div class="stat-card">
-                <span class="stat-label">组合数量</span>
-                <span class="stat-value">{{ portfolios.count }}</span>
+                <span class="stat-label">投资组合</span>
+                <span class="stat-value">{{ portfolios.count }} 个</span>
             </div>
         </div>
+        {% if not investment_accounts and total_assets > 0 %}
+        <div class="info-notice">
+            <span class="notice-icon">ℹ️</span>
+            <span class="notice-text">当前显示的是旧系统的资产数据。创建投资组合后，账户概览将切换到新系统显示。</span>
+        </div>
+        {% endif %}
     </section>
 
-    <!-- 模拟仓概览（新增） -->
+    <!-- 投资组合概览（⭐ 重构：支持多个实仓/模拟仓） -->
     <section class="account-section">
-        <h2 class="section-title">我的模拟仓</h2>
+        <h2 class="section-title">我的投资组合</h2>
         <div class="account-stats">
-            {% if profile.real_account %}
-            <div class="stat-card stat-card-real">
-                <span class="stat-label">实仓</span>
-                <a href="{% url 'simulated_trading:my-account-detail' 'real' %}" class="stat-value-link">
-                    {{ profile.real_account.account_name }}
-                </a>
-                <span class="stat-sub">
-                    总资产: ¥{{ profile.real_account.total_value|floatformat:2 }}
-                </span>
-                <span class="stat-sub {% if profile.real_account.total_return >= 0 %}positive{% else %}negative{% endif %}">
-                    收益率: {{ profile.real_account.total_return|floatformat:2 }}%
-                </span>
-            </div>
-            {% else %}
-            <div class="stat-card stat-card-empty">
-                <span class="stat-label">实仓</span>
-                <span class="stat-value-empty">未创建</span>
-            </div>
-            {% endif %}
+            {% if investment_accounts %}
+                <!-- 实仓列表 -->
+                {% for account in investment_accounts %}
+                {% if account.account_type == 'real' %}
+                <div class="stat-card stat-card-real">
+                    <span class="stat-label">实仓</span>
+                    <a href="{% url 'simulated_trading:my-account-detail' account.id %}" class="stat-value-link">
+                        {{ account.account_name }}
+                    </a>
+                    <span class="stat-sub">
+                        总资产: ¥{{ account.total_value|floatformat:2 }}
+                    </span>
+                    <span class="stat-sub {% if account.total_return >= 0 %}positive{% else %}negative{% endif %}">
+                        收益率: {{ account.total_return|floatformat:2 }}%
+                    </span>
+                </div>
+                {% endif %}
+                {% endfor %}
 
-            {% if profile.simulated_account %}
-            <div class="stat-card stat-card-simulated">
-                <span class="stat-label">模拟仓</span>
-                <a href="{% url 'simulated_trading:my-account-detail' 'simulated' %}" class="stat-value-link">
-                    {{ profile.simulated_account.account_name }}
-                </a>
-                <span class="stat-sub">
-                    总资产: ¥{{ profile.simulated_account.total_value|floatformat:2 }}
-                </span>
-                <span class="stat-sub {% if profile.simulated_account.total_return >= 0 %}positive{% else %}negative{% endif %}">
-                    收益率: {{ profile.simulated_account.total_return|floatformat:2 }}%
-                </span>
-            </div>
+                <!-- 模拟仓列表 -->
+                {% for account in investment_accounts %}
+                {% if account.account_type == 'simulated' %}
+                <div class="stat-card stat-card-simulated">
+                    <span class="stat-label">模拟仓</span>
+                    <a href="{% url 'simulated_trading:my-account-detail' account.id %}" class="stat-value-link">
+                        {{ account.account_name }}
+                    </a>
+                    <span class="stat-sub">
+                        总资产: ¥{{ account.total_value|floatformat:2 }}
+                    </span>
+                    <span class="stat-sub {% if account.total_return >= 0 %}positive{% else %}negative{% endif %}">
+                        收益率: {{ account.total_return|floatformat:2 }}%
+                    </span>
+                </div>
+                {% endif %}
+                {% endfor %}
+
+                <!-- 创建新投资组合按钮 -->
+                <div class="stat-card stat-card-empty">
+                    <span class="stat-label">添加</span>
+                    <span class="stat-value-empty">创建新投资组合</span>
+                    <div class="mt-2">
+                        <a href="{% url 'simulated_trading:my-accounts' %}" class="btn btn-create-real">
+                            + 创建投资组合
+                        </a>
+                    </div>
+                </div>
             {% else %}
-            <div class="stat-card stat-card-empty">
-                <span class="stat-label">模拟仓</span>
-                <span class="stat-value-empty">未创建</span>
-            </div>
+                <!-- 未创建任何投资组合 -->
+                <div class="stat-card stat-card-empty">
+                    <span class="stat-label">实仓</span>
+                    <span class="stat-value-empty">未创建</span>
+                    <div class="mt-2">
+                        <a href="{% url 'simulated_trading:my-accounts' %}" class="btn btn-create-real">
+                            + 创建实仓
+                        </a>
+                    </div>
+                </div>
+                <div class="stat-card stat-card-empty">
+                    <span class="stat-label">模拟仓</span>
+                    <span class="stat-value-empty">未创建</span>
+                    <div class="mt-2">
+                        <a href="{% url 'simulated_trading:my-accounts' %}" class="btn btn-create-simulated">
+                            + 创建模拟仓
+                        </a>
+                    </div>
+                </div>
             {% endif %}
         </div>
         <div class="mt-3">
             <a href="{% url 'simulated_trading:my-accounts' %}" class="btn btn-primary btn-sm">
-                查看我的模拟仓详情
+                管理我的投资组合
             </a>
         </div>
     </section>
@@ -279,6 +317,35 @@
     display: block;
     font-size: 20px;
     font-weight: 600;
+}
+
+.stat-hint {
+    display: block;
+    font-size: 11px;
+    color: #888;
+    margin-top: 6px;
+    font-style: italic;
+}
+
+.info-notice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-top: 16px;
+}
+
+.notice-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.notice-text {
+    font-size: 13px;
+    color: #5d4037;
 }
 
 .table {
@@ -509,6 +576,49 @@
 
 .mt-3 {
     margin-top: 12px;
+}
+
+.mt-2 {
+    margin-top: 8px;
+}
+
+/* 创建按钮样式 */
+.btn-create-real {
+    display: inline-block;
+    padding: 6px 12px;
+    background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+    border: none;
+}
+
+.btn-create-real:hover {
+    background: linear-gradient(135deg, #43a047 0%, #5cb860 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.btn-create-simulated {
+    display: inline-block;
+    padding: 6px 12px;
+    background: linear-gradient(135deg, #2196f3 0%, #42a5f5 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+    border: none;
+}
+
+.btn-create-simulated:hover {
+    background: linear-gradient(135deg, #1e88e5 0%, #3d9bfd 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
 }
 </style>
 

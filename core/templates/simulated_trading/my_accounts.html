@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}我的模拟仓 - AgomSAAF{% endblock %}
+{% block title %}我的投资组合 - AgomSAAF{% endblock %}
 
 {% block extra_css %}
 <!-- Chart.js -->
@@ -11,21 +11,39 @@
 {% block content %}
 <div class="account-container">
     <div class="account-header">
-        <h1>我的模拟仓</h1>
-        <p class="subtitle">管理您的实仓和模拟仓投资账户</p>
+        <div class="header-title-row">
+            <div>
+                <h1>我的投资组合</h1>
+                <p class="subtitle">管理您的实仓和模拟仓投资账户</p>
+            </div>
+            <div class="header-actions">
+                <button onclick="showCreateModal()" class="btn btn-primary">+ 创建新投资组合</button>
+            </div>
+        </div>
     </div>
+
+    <!-- 总资产统计 -->
+    {% if accounts %}
+    <section class="account-section">
+        <h2 class="section-title">总资产统计</h2>
+        <div class="total-assets">
+            <div class="total-assets-value">¥{{ total_assets|floatformat:2 }}</div>
+            <div class="total-assets-label">总资产</div>
+        </div>
+    </section>
+    {% endif %}
 
     <!-- 账户列表 -->
     <section class="account-section">
-        <h2 class="section-title">我的账户</h2>
+        <h2 class="section-title">我的投资组合</h2>
         {% if accounts %}
         <div class="accounts-grid">
             {% for account in accounts %}
-            <div class="account-card {% if account.type_code == 'real' %}account-real{% else %}account-simulated{% endif %}">
+            <div class="account-card {% if account.account_type == 'real' %}account-real{% else %}account-simulated{% endif %}">
                 <div class="account-card-header">
-                    <h3>{{ account.name }}</h3>
-                    <span class="badge {% if account.type_code == 'real' %}badge-real{% else %}badge-simulated{% endif %}">
-                        {{ account.type }}
+                    <h3>{{ account.account_name }}</h3>
+                    <span class="badge {% if account.account_type == 'real' %}badge-real{% else %}badge-simulated{% endif %}">
+                        {% if account.account_type == 'real' %}实仓{% else %}模拟仓{% endif %}
                     </span>
                 </div>
                 <div class="account-card-body">
@@ -55,13 +73,13 @@
                     </div>
                 </div>
                 <div class="account-card-footer">
-                    <a href="{% url 'simulated_trading:my-account-detail' account.type_code %}" class="btn btn-primary">
+                    <a href="{% url 'simulated_trading:my-account-detail' account.id %}" class="btn btn-primary">
                         查看详情
                     </a>
-                    <a href="{% url 'simulated_trading:my-positions' account.type_code %}" class="btn btn-secondary">
+                    <a href="{% url 'simulated_trading:my-positions' account.id %}" class="btn btn-secondary">
                         持仓
                     </a>
-                    <a href="{% url 'simulated_trading:my-trades' account.type_code %}" class="btn btn-secondary">
+                    <a href="{% url 'simulated_trading:my-trades' account.id %}" class="btn btn-secondary">
                         交易记录
                     </a>
                 </div>
@@ -71,8 +89,8 @@
         {% else %}
         <div class="empty-state">
             <div class="empty-icon">📭</div>
-            <p>您还没有创建任何模拟仓账户</p>
-            <p class="empty-hint">请先在<a href="{% url 'account:profile' %}">账户设置</a>中创建账户</p>
+            <p>您还没有创建任何投资组合</p>
+            <p class="empty-hint">点击右上角"创建新投资组合"按钮开始</p>
         </div>
         {% endif %}
     </section>
@@ -81,10 +99,48 @@
     <section class="account-section">
         <h2 class="section-title">快捷操作</h2>
         <div class="action-buttons">
-            <a href="{% url 'account:profile' %}" class="btn btn-primary">账户设置</a>
+            <a href="{% url 'account:profile' %}" class="btn btn-secondary">账户设置</a>
             <a href="{% url 'dashboard:index' %}" class="btn btn-secondary">返回仪表盘</a>
         </div>
     </section>
+</div>
+
+<!-- 创建投资组合弹窗 -->
+<div id="createModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>创建新投资组合</h2>
+            <span class="close" onclick="closeCreateModal()">&times;</span>
+        </div>
+        <form method="post" action="{% url 'simulated_trading:my-accounts' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="account_name">账户名称</label>
+                <input type="text" id="account_name" name="account_name" placeholder="例如：我的实仓" required maxlength="100">
+            </div>
+            <div class="form-group">
+                <label for="account_type">账户类型</label>
+                <select id="account_type" name="account_type" required>
+                    <option value="real">实仓（真实投资）</option>
+                    <option value="simulated">模拟仓（策略测试）</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="initial_capital">初始资金（元）</label>
+                <input type="number" id="initial_capital" name="initial_capital" value="100000" min="1000" step="0.01" required>
+            </div>
+            <div class="form-quick-options">
+                <button type="button" class="quick-option-btn" onclick="setCapital(50000)">5万</button>
+                <button type="button" class="quick-option-btn" onclick="setCapital(100000)">10万</button>
+                <button type="button" class="quick-option-btn" onclick="setCapital(500000)">50万</button>
+                <button type="button" class="quick-option-btn" onclick="setCapital(1000000)">100万</button>
+            </div>
+            <div class="modal-footer">
+                <button type="button" onclick="closeCreateModal()" class="btn btn-secondary">取消</button>
+                <button type="submit" class="btn btn-primary">创建</button>
+            </div>
+        </form>
+    </div>
 </div>
 
 <style>
@@ -309,6 +365,136 @@
     color: #888;
 }
 
+/* 总资产统计 */
+.total-assets {
+    text-align: center;
+    padding: 24px;
+    background: linear-gradient(135deg, #e8f5e9 0%, #f1f8f2 100%);
+    border-radius: 8px;
+    border: 1px solid #81c784;
+}
+
+.total-assets-value {
+    font-size: 36px;
+    font-weight: 700;
+    color: #2e7d32;
+    margin-bottom: 8px;
+}
+
+.total-assets-label {
+    font-size: 14px;
+    color: #555;
+}
+
+/* 弹窗样式 */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 10% auto;
+    padding: 0;
+    border: 1px solid #888;
+    width: 90%;
+    max-width: 500px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.close {
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close:hover {
+    color: #000;
+}
+
+/* 表单样式 */
+.form-group {
+    margin-bottom: 16px;
+    padding: 0 24px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #36C;
+    box-shadow: 0 0 0 2px rgba(51, 102, 204, 0.1);
+}
+
+.form-quick-options {
+    display: flex;
+    gap: 8px;
+    padding: 0 24px;
+    margin-bottom: 16px;
+}
+
+.quick-option-btn {
+    padding: 6px 12px;
+    background: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.quick-option-btn:hover {
+    background: #e0e0e0;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 24px;
+    border-top: 1px solid #e0e0e0;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
     .account-container {
@@ -329,4 +515,26 @@
     }
 }
 </style>
+
+<script>
+function showCreateModal() {
+    document.getElementById('createModal').style.display = 'block';
+}
+
+function closeCreateModal() {
+    document.getElementById('createModal').style.display = 'none';
+}
+
+function setCapital(amount) {
+    document.getElementById('initial_capital').value = amount;
+}
+
+// 点击弹窗外部关闭
+window.onclick = function(event) {
+    const modal = document.getElementById('createModal');
+    if (event.target == modal) {
+        modal.style.display = 'none';
+    }
+}
+</script>
 {% endblock %}

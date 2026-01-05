@@ -61,7 +61,9 @@
       "Bash(docker-compose -f docker-compose-dev.yml down)",
       "Bash(docker-compose -f docker-compose-dev.yml pull)",
       "Bash(docker-compose:*)",
-      "Bash(if not exist:*)"
+      "Bash(if not exist:*)",
+      "Bash(Select-Object -Last 20)",
+      "Bash(D:/githv/agomSAAF/agomsaaf/Scripts/pip.exe install:*)"
     ]
   }
 }

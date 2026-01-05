@@ -64,6 +64,9 @@
                 <div class="dropdown">
                     <span class="top-nav-item">投资管理</span>
                     <div class="dropdown-menu">
+                        <a href="{% url 'strategy:list' %}" class="dropdown-item">
+                            <i class="bi bi-diagram-3"></i> 策略管理
+                        </a>
                         <a href="{% url 'signal:manage' %}" class="dropdown-item">投资信号</a>
                         <a href="{% url 'backtest:list' %}" class="dropdown-item">回测引擎</a>
                         <div class="dropdown-divider"></div>

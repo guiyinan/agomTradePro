@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}创建{{ account_type_display }} - AgomSAAF{% endblock %}
+
+{% block content %}
+<div class="create-account-container">
+    <div class="create-account-header">
+        <h1>创建{{ account_type_display }}</h1>
+        <p class="subtitle">设置您的{{ account_type_display }}账户</p>
+    </div>
+
+    <div class="create-account-card">
+        <form method="post" class="account-form">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="account_name" class="form-label">
+                    <span class="label-text">账户名称</span>
+                    <span class="label-required">*</span>
+                </label>
+                <input
+                    type="text"
+                    id="account_name"
+                    name="account_name"
+                    class="form-control"
+                    placeholder="例如：我的{{ account_type_display }}"
+                    required
+                    maxlength="100"
+                >
+                <div class="form-hint">为您的账户起一个易于识别的名称</div>
+            </div>
+
+            <div class="form-group">
+                <label for="initial_capital" class="form-label">
+                    <span class="label-text">初始资金（元）</span>
+                    <span class="label-required">*</span>
+                </label>
+                <input
+                    type="number"
+                    id="initial_capital"
+                    name="initial_capital"
+                    class="form-control"
+                    placeholder="100000"
+                    required
+                    min="1000"
+                    step="0.01"
+                    value="100000"
+                >
+                <div class="form-hint">设置账户的初始资金金额</div>
+            </div>
+
+            <div class="form-quick-options">
+                <div class="quick-option-label">快捷选择：</div>
+                <button type="button" class="quick-option-btn" data-value="50000">5万</button>
+                <button type="button" class="quick-option-btn" data-value="100000">10万</button>
+                <button type="button" class="quick-option-btn" data-value="500000">50万</button>
+                <button type="button" class="quick-option-btn" data-value="1000000">100万</button>
+            </div>
+
+            <div class="form-info">
+                <div class="info-icon">ℹ️</div>
+                <div class="info-text">
+                    <strong>关于{{ account_type_display }}</strong>
+                    {% if account_type == 'real' %}
+                    <p>实仓用于记录您在真实市场的投资交易，可以与您的实际券商账户对应。</p>
+                    {% else %}
+                    <p>模拟仓用于策略回测和模拟交易，可以在不影响真实资金的情况下测试投资策略。</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    {% if account_type == 'real' %}
+                    🟢 创建实仓
+                    {% else %}
+                    🔵 创建模拟仓
+                    {% endif %}
+                </button>
+                <a href="{% url 'account:profile' %}" class="btn btn-secondary btn-lg">取消</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.create-account-container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.create-account-header {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.create-account-header h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.subtitle {
+    color: #54595D;
+    font-size: 14px;
+}
+
+.create-account-card {
+    background: #FFFFFF;
+    border: 1px solid #E0E0E0;
+    border-radius: 8px;
+    padding: 32px;
+}
+
+.account-form {
+    max-width: 450px;
+    margin: 0 auto;
+}
+
+.form-group {
+    margin-bottom: 24px;
+}
+
+.form-label {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.label-text {
+    font-size: 14px;
+    font-weight: 500;
+    color: #202122;
+}
+
+.label-required {
+    color: #D33;
+    margin-left: 4px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    transition: border-color 0.2s;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #36C;
+    box-shadow: 0 0 0 3px rgba(51, 102, 204, 0.1);
+}
+
+.form-hint {
+    font-size: 12px;
+    color: #54595D;
+    margin-top: 6px;
+}
+
+.form-quick-options {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.quick-option-label {
+    font-size: 13px;
+    color: #666;
+}
+
+.quick-option-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+    background: #F8F9FA;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.quick-option-btn:hover {
+    background: #e8e8e8;
+    border-color: #ccc;
+}
+
+.form-info {
+    display: flex;
+    gap: 12px;
+    background: #f0f7ff;
+    border: 1px solid #bbdefb;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 24px;
+}
+
+.info-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.info-text {
+    font-size: 13px;
+    color: #54595D;
+}
+
+.info-text strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #202122;
+}
+
+.info-text p {
+    margin: 0;
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.btn {
+    padding: 10px 24px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    display: inline-block;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.btn-lg {
+    padding: 12px 32px;
+    font-size: 15px;
+}
+
+.btn-primary {
+    background: #36C;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #25a;
+}
+
+.btn-secondary {
+    background: #F8F9FA;
+    color: #202122;
+    border: 1px solid #E0E0E0;
+}
+
+.btn-secondary:hover {
+    background: #e8e8e8;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .create-account-container {
+        padding: 16px;
+    }
+
+    .create-account-card {
+        padding: 20px;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .form-actions .btn {
+        width: 100%;
+    }
+}
+</style>
+
+<script>
+// 快捷选择按钮功能
+document.querySelectorAll('.quick-option-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const value = this.dataset.value;
+        document.getElementById('initial_capital').value = value;
+    });
+});
+</script>
+{% endblock %}

@@ -34,6 +34,9 @@ urlpatterns = [
     path('capital-flow/', views.capital_flow_view, name='capital_flow'),
     path('backtest/<int:backtest_id>/apply/', views.apply_backtest_results_view, name='apply_backtest'),
 
+    # ⭐ 创建投资组合功能已移至 simulated_trading 模块
+    # 访问路径：/simulated-trading/my-accounts/
+
     # 管理员视图（用户管理）
     path('admin/users/', views.user_management_view, name='user_management'),
     path('admin/users/<int:user_id>/approve/', views.approve_user_view, name='approve_user'),

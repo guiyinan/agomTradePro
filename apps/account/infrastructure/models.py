@@ -100,6 +100,11 @@ class AccountProfileModel(models.Model):
     用户账户配置表
 
     扩展 Django User 模型，存储投资偏好和初始资金。
+
+    ⭐ 重构说明（2026-01-04）：
+    - 删除了 real_account 和 simulated_account 外键
+    - 用户投资组合统一由 SimulatedAccountModel 管理
+    - 通过 user.investment_accounts 查询所有投资组合
     """
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='account_profile', verbose_name="用户")
 
@@ -143,27 +148,7 @@ class AccountProfileModel(models.Model):
         help_text="波动率超标时最大降仓比例，如0.5表示最多降50%"
     )
 
-    # 模拟仓关联（⭐新增）
-    real_account = models.ForeignKey(
-        'simulated_trading.SimulatedAccountModel',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='real_profile_users',
-        verbose_name="关联实仓",
-        help_text="用户的实仓账户"
-    )
-    simulated_account = models.ForeignKey(
-        'simulated_trading.SimulatedAccountModel',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='simulated_profile_users',
-        verbose_name="关联模拟仓",
-        help_text="用户的模拟仓账户"
-    )
-
-    # 用户协议和审批相关字段（⭐新增）
+    # 用户协议和审批相关字段
     user_agreement_accepted = models.BooleanField(
         default=False,
         verbose_name="用户协议已接受"

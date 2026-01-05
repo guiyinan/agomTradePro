@@ -1,23 +1,53 @@
 """
-模拟盘 ORM 模型
+投资组合 ORM 模型
 
 Infrastructure层:
 - 使用Django ORM定义数据表
 - 对应Domain层的实体
 - 包含索引优化和约束
+
+⭐ 统一的投资组合系统：
+- 支持多个实仓（real）
+- 支持多个模拟仓（simulated）
+- 通过 user 外键关联用户
 """
 from django.db import models
+from django.conf import settings
 
 
 class SimulatedAccountModel(models.Model):
-    """模拟账户模型"""
+    """
+    投资组合账户模型（统一）
 
-    account_name = models.CharField("账户名称", max_length=100, unique=True)
+    ⭐ 重构说明：
+    - 统一管理实仓和模拟仓
+    - 用户可以创建多个投资组合
+    - 每个投资组合可以选择类型：real（实仓）或 simulated（模拟仓）
+    - 替代老的 PortfolioModel 系统
+    """
+
+    # ⭐ 新增：用户外键
+    # TODO: 创建迁移后需要数据迁移为现有数据分配用户，然后改为 null=False
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='investment_accounts',
+        verbose_name="用户",
+        db_index=True,
+        null=True,
+        blank=True
+    )
+
+    account_name = models.CharField("账户名称", max_length=100)  # ⭐ 删除 unique 约束
     account_type = models.CharField(
         "账户类型",
         max_length=20,
-        choices=[("real", "真实账户"), ("simulated", "模拟账户")],
-        default="simulated"
+        choices=[
+            ("real", "实仓"),
+            ("simulated", "模拟仓"),
+        ],
+        default="simulated",
+        db_index=True
     )
 
     # 资金信息
@@ -48,6 +78,18 @@ class SimulatedAccountModel(models.Model):
     max_total_position_pct = models.FloatField("总持仓比例上限(%)", default=95.0)
     stop_loss_pct = models.FloatField("止损比例(%)", null=True, blank=True)
 
+    # 关联策略（可选）
+    active_strategy = models.ForeignKey(
+        'strategy.StrategyModel',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='portfolios',
+        verbose_name="激活策略",
+        help_text="绑定策略后，自动交易将使用策略引擎执行",
+        db_index=True
+    )
+
     # 费用配置
     commission_rate = models.FloatField("手续费率", default=0.0003)
     slippage_rate = models.FloatField("滑点率", default=0.001)
@@ -58,16 +100,21 @@ class SimulatedAccountModel(models.Model):
 
     class Meta:
         db_table = "simulated_account"
-        verbose_name = "模拟账户"
-        verbose_name_plural = "模拟账户"
+        verbose_name = "投资组合账户"
+        verbose_name_plural = "投资组合账户"
         ordering = ["-created_at"]
         indexes = [
+            models.Index(fields=["user", "-created_at"]),
+            models.Index(fields=["user", "account_type"]),
+            models.Index(fields=["user", "is_active"]),
             models.Index(fields=["is_active", "auto_trading_enabled"]),
             models.Index(fields=["-start_date"]),
+            models.Index(fields=["active_strategy", "is_active"]),
         ]
 
     def __str__(self):
-        return f"{self.account_name} (模拟盘)"
+        type_label = "实仓" if self.account_type == "real" else "模拟仓"
+        return f"{self.account_name} ({type_label})"
 
 
 class PositionModel(models.Model):

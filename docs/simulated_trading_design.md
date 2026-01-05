@@ -1633,6 +1633,108 @@ urlpatterns = [
 
 ---
 
-**文档版本**: V1.0
+## 八、重构更新（2026-01-04）
+
+### 8.1 架构升级：统一投资组合系统
+
+**重构原因：**
+原系统存在双轨并行问题：
+- PortfolioModel（老系统）- 功能简单
+- SimulatedAccountModel（新系统）- 功能完善
+- AccountProfile.real_account/simulated_account 只能各一个
+
+**新架构设计：**
+
+```
+用户 → SimulatedAccountModel (统一的投资组合)
+  ├── account_type: real/simulated
+  ├── user: ForeignKey (新增)
+  └── 支持多个投资组合
+```
+
+**核心改动：**
+
+1. **SimulatedAccountModel 更新**
+   - 添加 `user` 外键
+   - 删除 `account_name` 的 unique 约束
+   - 更新 Meta 索引
+
+2. **AccountProfileModel 简化**
+   - 删除 `real_account` 外键
+   - 删除 `simulated_account` 外键
+
+3. **视图重构**
+   - `my_accounts_page` - 支持创建多个投资组合
+   - URL 从 `account_type` 改为 `account_id`
+
+4. **Repository 扩展**
+   - `get_by_user(user_id)` - 获取用户所有投资组合
+   - `get_by_user_and_type(user_id, type)` - 按类型查询
+
+### 8.2 数据模型更新
+
+```python
+# ⭐ 新增：用户外键
+class SimulatedAccountModel(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='investment_accounts',
+        verbose_name="用户",
+        db_index=True
+    )
+
+    account_name = models.CharField("账户名称", max_length=100)  # ⭐ 删除 unique
+
+    account_type = models.CharField(
+        "账户类型",
+        choices=[
+            ("real", "实仓"),           # 改名
+            ("simulated", "模拟仓"),    # 改名
+        ],
+    )
+```
+
+### 8.3 用户界面更新
+
+**个人资料页面 (`/account/profile/`)**
+- 显示用户的所有投资组合（实仓+模拟仓）
+- 每个投资组合卡片显示：名称、类型、总资产、收益率
+- 支持创建多个投资组合
+
+**投资组合页面 (`/simulated-trading/my-accounts/`)**
+- 投资组合列表（卡片式布局）
+- 实仓用绿色 🟢，模拟仓用蓝色 🔵
+- 弹窗创建新投资组合
+
+### 8.4 URL 变更
+
+| 旧 URL | 新 URL | 说明 |
+|--------|--------|------|
+| `/account/create/<str:account_type>/` | `/simulated-trading/my-accounts/` | 创建移到投资组合页面 |
+| `/simulated-trading/my-accounts/<str:account_type>/` | `/simulated-trading/my-accounts/<int:account_id>/` | 改用 account_id |
+
+### 8.5 数据迁移
+
+**迁移脚本：** `scripts/migrate_portfolio_to_investment_account.py`
+
+```bash
+# 执行迁移
+python scripts/migrate_portfolio_to_investment_account.py
+
+# 验证结果
+python scripts/migrate_portfolio_to_investment_account.py --verify-only
+```
+
+### 8.6 向后兼容
+
+- 保留 PortfolioModel（标记为废弃）
+- 优先使用 SimulatedAccountModel
+- 如果没有投资组合，仍显示 Portfolio 数据
+
+---
+
+**文档版本**: V1.1
 **最后更新**: 2026-01-04
+**重构版本**: 2026-01-04 v1.1 - 统一投资组合系统
 **审核人**: 待定

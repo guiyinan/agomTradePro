@@ -81,6 +81,7 @@ urlpatterns = [
     path('fund/', include('apps.fund.interface.urls')),
     path('asset-analysis/', include('apps.asset_analysis.interface.urls')),
     path('simulated-trading/', include('apps.simulated_trading.interface.urls')),
+    path('strategy/', include('apps.strategy.interface.urls')),
 
     # Policy Management (包含页面和API)
     path('policy/', include('apps.policy.interface.urls')),

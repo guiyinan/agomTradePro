@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block title %}{{ strategy.name }} - 策略详情 - AgomSAAF{% endblock %}
+
+{% block content %}
+<style>
+.detail-container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+.detail-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 24px; }
+.detail-title h1 { font-size: 28px; margin: 0 0 8px 0; }
+.detail-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+.badge { padding: 6px 12px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+.badge-type { background: #dbeafe; color: #1e40af; }
+.badge-type.rule { background: #dbeafe; color: #1e40af; }
+.badge-type.script { background: #f3e8ff; color: #6b21a8; }
+.badge-type.hybrid { background: #ffedd5; color: #9a3412; }
+.badge-type.ai { background: #dcfce7; color: #166534; }
+.badge-status { background: #d1fae5; color: #065f46; }
+.badge-status.inactive { background: #f3f4f6; color: #6b7280; }
+.badge-version { background: #f1f5f9; color: #64748b; }
+
+.section { background: white; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 20px; overflow: hidden; }
+.section-header { padding: 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+.section-title { font-size: 18px; font-weight: 600; margin: 0; }
+.section-body { padding: 20px; }
+
+.info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.info-item { }
+.info-label { font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+.info-value { font-size: 16px; font-weight: 500; color: #334155; }
+
+.rules-list { display: flex; flex-direction: column; gap: 12px; }
+.rule-card { padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
+.rule-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.rule-name { font-size: 15px; font-weight: 600; color: #334155; }
+.rule-badge { padding: 4px 10px; background: #e2e8f0; border-radius: 12px; font-size: 11px; }
+.rule-condition { font-size: 13px; color: #64748b; font-family: monospace; background: white; padding: 10px; border-radius: 4px; margin-top: 8px; }
+.rule-meta { display: flex; gap: 12px; margin-top: 12px; font-size: 12px; color: #94a3b8; }
+
+.execution-log { max-height: 400px; overflow-y: auto; }
+.log-item { padding: 12px; border-bottom: 1px solid #f1f5f9; }
+.log-item:last-child { border-bottom: none; }
+.log-time { font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+.log-status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 8px; }
+.log-status.success { background: #d1fae5; color: #065f46; }
+.log-status.error { background: #fee2e2; color: #991b1b; }
+.log-signals { font-size: 13px; color: #64748b; margin-top: 8px; }
+
+.btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; }
+.btn-primary { background: #667eea; color: white; }
+.btn-primary:hover { background: #5a67d8; }
+.btn-secondary { background: white; color: #64748b; border: 1px solid #cbd5e1; }
+.btn-secondary:hover { background: #f8fafc; }
+.btn-danger { background: #ef4444; color: white; }
+.btn-danger:hover { background: #dc2626; }
+
+.actions { display: flex; gap: 8px; }
+.empty-state { text-align: center; padding: 40px; color: #94a3b8; }
+</style>
+
+<div class="detail-container">
+    <!-- 头部 -->
+    <div class="detail-header">
+        <div class="detail-title">
+            <h1>{{ strategy.name }}</h1>
+            <div class="detail-badges">
+                <span class="badge badge-type {{ strategy.strategy_type }}">
+                    {% if strategy.strategy_type == 'rule_based' %}规则驱动
+                    {% elif strategy.strategy_type == 'script_based' %}脚本驱动
+                    {% elif strategy.strategy_type == 'hybrid' %}混合模式
+                    {% elif strategy.strategy_type == 'ai_driven' %}AI驱动{% endif %}
+                </span>
+                <span class="badge badge-version">v{{ strategy.version }}</span>
+                <span class="badge badge-status {% if not strategy.is_active %}inactive{% endif %}">
+                    {% if strategy.is_active %}激活中{% else %}已停用{% endif %}
+                </span>
+            </div>
+        </div>
+        <div class="actions">
+            <button class="btn btn-secondary" onclick="location.href='{% url 'strategy:edit' strategy.id %}'">
+                <i class="bi bi-pencil"></i> 编辑
+            </button>
+            <button class="btn btn-secondary" onclick="executeStrategy({{ strategy.id }})">
+                <i class="bi bi-play"></i> 执行
+            </button>
+            <button class="btn {% if strategy.is_active %}btn-danger{% else %}btn-primary{% endif %}" onclick="toggleStatus()">
+                {% if strategy.is_active %}停用{% else %}激活{% endif %}
+            </button>
+        </div>
+    </div>
+
+    <!-- 基本信息 -->
+    <div class="section">
+        <div class="section-header">
+            <h2 class="section-title">📋 基本信息</h2>
+        </div>
+        <div class="section-body">
+            <div style="margin-bottom: 16px; color: #64748b;">
+                {{ strategy.description|default:"暂无描述" }}
+            </div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">创建者</div>
+                    <div class="info-value">{{ strategy.created_by.username }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">创建时间</div>
+                    <div class="info-value">{{ strategy.created_at|date:"Y-m-d H:i" }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">更新时间</div>
+                    <div class="info-value">{{ strategy.updated_at|date:"Y-m-d H:i" }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 风控参数 -->
+    <div class="section">
+        <div class="section-header">
+            <h2 class="section-title">🛡️ 风控参数</h2>
+        </div>
+        <div class="section-body">
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">单资产最大持仓</div>
+                    <div class="info-value">{{ strategy.max_position_pct }}%</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">总持仓上限</div>
+                    <div class="info-value">{{ strategy.max_total_position_pct }}%</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">止损比例</div>
+                    <div class="info-value">{{ strategy.stop_loss_pct|default:"未设置" }}%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 规则配置 -->
+    {% if strategy.strategy_type == 'rule_based' or strategy.strategy_type == 'hybrid' %}
+    <div class="section">
+        <div class="section-header">
+            <h2 class="section-title">📐 规则配置</h2>
+            <span class="badge badge-version">{{ rules|length }} 条规则</span>
+        </div>
+        <div class="section-body">
+            {% if rules %}
+            <div class="rules-list">
+                {% for rule in rules %}
+                <div class="rule-card">
+                    <div class="rule-header">
+                        <span class="rule-name">{{ rule.rule_name }}</span>
+                        <div>
+                            <span class="rule-badge">{{ rule.get_rule_type_display }}</span>
+                            <span class="rule-badge">{{ rule.get_action_display }}</span>
+                        </div>
+                    </div>
+                    <div class="rule-condition">{{ rule.condition_json }}</div>
+                    <div class="rule-meta">
+                        <span>权重: {{ rule.weight }}</span>
+                        <span>优先级: {{ rule.priority }}</span>
+                        {% if rule.target_assets %}
+                        <span>目标: {{ rule.target_assets|join:", " }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">暂无规则</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 执行日志 -->
+    <div class="section">
+        <div class="section-header">
+            <h2 class="section-title">📊 执行日志</h2>
+            <button class="btn btn-secondary" onclick="location.reload()">刷新</button>
+        </div>
+        <div class="section-body">
+            <div class="execution-log">
+                {% if execution_logs %}
+                {% for log in execution_logs %}
+                <div class="log-item">
+                    <div class="log-time">
+                        {{ log.execution_time|date:"Y-m-d H:i:s" }}
+                        <span class="log-status {% if log.is_success %}success{% else %}error{% endif %}">
+                            {% if log.is_success %}成功{% else %}失败{% endif %}
+                        </span>
+                    </div>
+                    {% if log.error_message %}
+                    <div style="color: #ef4444; font-size: 13px;">{{ log.error_message }}</div>
+                    {% endif %}
+                    <div class="log-signals">
+                        生成 {{ log.signals_generated }} 个信号 | 耗时 {{ log.execution_duration_ms }}ms
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="empty-state">暂无执行记录</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function toggleStatus() {
+    const isActive = {{ 'true' if strategy.is_active else 'false' }};
+    const action = isActive ? '停用' : '激活';
+    if (!confirm(`确认${action}此策略？`)) return;
+
+    const formData = new FormData();
+    formData.append('action', isActive ? 'deactivate' : 'activate');
+
+    try {
+        const res = await fetch(`/api/strategy/{{ strategy.id }}/toggle-status/`, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            showToast(`${action}成功`);
+            location.reload();
+        } else {
+            showToast(`${action}失败: ${data.error}`, 'error');
+        }
+    } catch (e) {
+        showToast(`操作失败: ${e.message}`, 'error');
+    }
+}
+
+async function executeStrategy(id) {
+    if (!confirm('确认立即执行此策略？\n\n这将为所有绑定此策略的投资组合生成交易信号。')) return;
+
+    try {
+        showToast('正在执行策略...', 'info');
+        const res = await fetch(`/api/strategy/${id}/execute/`, {
+            method: 'POST'
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            showToast(`执行成功，生成 ${data.signals_count} 个信号`);
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            showToast('执行失败: ' + (data.error || '未知错误'), 'error');
+        }
+    } catch (e) {
+        showToast('执行失败: ' + e.message, 'error');
+    }
+}
+
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 9999;
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = 'all 0.3s';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+</script>
+{% endblock %}

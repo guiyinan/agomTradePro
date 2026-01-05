@@ -219,24 +219,37 @@ def profile_view(request):
 
     显示和编辑用户账户配置。
     """
-    from apps.account.infrastructure.repositories import PortfolioRepository
+    from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
     profile = request.user.account_profile
     portfolios = request.user.portfolios.all()
 
-    # 计算当前总资产（使用 Repository 方法，包含现金余额）
-    total_assets = 0.0
-    portfolio_repo = PortfolioRepository()
+    # ⭐ 重构：直接从 SimulatedAccountModel 获取用户的投资组合
+    investment_accounts = SimulatedAccountModel.objects.filter(
+        user=request.user
+    )
 
-    for portfolio in portfolios.filter(is_active=True):
-        snapshot = portfolio_repo.get_portfolio_snapshot(portfolio.id)
-        if snapshot:
-            total_assets += float(snapshot.total_value)
+    # 计算当前总资产（优先从投资组合获取）
+    total_assets = 0.0
+
+    # 优先使用投资组合的资产
+    if investment_accounts.exists():
+        for account in investment_accounts:
+            total_assets += float(account.total_value)
+    else:
+        # 如果没有投资组合，使用Portfolio系统（向后兼容）
+        from apps.account.infrastructure.repositories import PortfolioRepository
+        portfolio_repo = PortfolioRepository()
+        for portfolio in portfolios.filter(is_active=True):
+            snapshot = portfolio_repo.get_portfolio_snapshot(portfolio.id)
+            if snapshot:
+                total_assets += float(snapshot.total_value)
 
     context = {
         "user": request.user,
         "profile": profile,
         "portfolios": portfolios,
+        "investment_accounts": investment_accounts,
         "total_assets": total_assets,
     }
     return render(request, "account/profile.html", context)
@@ -705,3 +718,17 @@ def system_settings_view(request):
         "system_settings": system_settings,
     }
     return render(request, "account/system_settings.html", context)
+
+
+# ============================================================
+# 注释：创建实仓和模拟仓视图已移除
+# ============================================================
+#
+# ⭐ 重构说明（2026-01-04）：
+# create_simulated_account_view 已删除
+#
+# 新架构下：
+# - 用户可以创建多个投资组合（实仓/模拟仓）
+# - 创建功能移至 simulated_trading 模块的 my_accounts_page
+# - 访问路径：/simulated-trading/my-accounts/
+#

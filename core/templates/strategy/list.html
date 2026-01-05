@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+
+{% block title %}策略管理 - AgomSAAF{% endblock %}
+
+{% block content %}
+<style>
+.strategy-container { max-width: 1600px; margin: 0 auto; padding: 20px; }
+.strategy-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.strategy-header h1 { font-size: 28px; margin: 0; }
+.btn-create { padding: 12px 24px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; }
+.btn-create:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
+
+.stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
+.stat-card { padding: 20px; background: linear-gradient(135deg, #f8fafc, #f1f5f9); border-radius: 12px; text-align: center; }
+.stat-value { font-size: 32px; font-weight: 700; margin-bottom: 4px; }
+.stat-label { font-size: 13px; color: #64748b; font-weight: 500; }
+.stat-card.total .stat-value { color: #667eea; }
+.stat-card.active .stat-value { color: #10b981; }
+.stat-card.inactive .stat-value { color: #94a3b8; }
+.stat-card.rule .stat-value { color: #3b82f6; }
+.stat-card.script .stat-value { color: #8b5cf6; }
+
+.filter-bar { display: flex; gap: 12px; margin-bottom: 20px; padding: 16px; background: #f8fafc; border-radius: 8px; }
+.filter-select { padding: 10px 16px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; background: white; }
+.filter-select:focus { outline: none; border-color: #667eea; }
+
+.strategy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 20px; }
+.strategy-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; transition: all 0.3s; }
+.strategy-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.1); }
+.card-header { padding: 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: start; }
+.card-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+.card-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+.badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+.badge-type { background: #e0f2fe; color: #0369a1; }
+.badge-type.rule { background: #dbeafe; color: #1e40af; }
+.badge-type.script { background: #f3e8ff; color: #6b21a8; }
+.badge-type.hybrid { background: #ffedd5; color: #9a3412; }
+.badge-type.ai { background: #dcfce7; color: #166534; }
+.badge-status { background: #d1fae5; color: #065f46; }
+.badge-status.inactive { background: #f3f4f6; color: #6b7280; }
+.badge-version { background: #f1f5f9; color: #64748b; }
+
+.card-body { padding: 20px; }
+.card-desc { font-size: 14px; color: #64748b; margin-bottom: 16px; line-height: 1.6; }
+.card-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+.card-stat { text-align: center; padding: 12px; background: #f8fafc; border-radius: 8px; }
+.card-stat-value { font-size: 18px; font-weight: 600; color: #334155; }
+.card-stat-label { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+.card-rules { font-size: 12px; color: #64748b; }
+.rule-item { padding: 6px 10px; background: #f1f5f9; border-radius: 4px; margin-bottom: 6px; }
+
+.card-footer { padding: 16px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+.card-actions { display: flex; gap: 8px; }
+.btn-action { padding: 8px 16px; border: 1px solid #e2e8f0; background: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.btn-action:hover { background: #f1f5f9; }
+.btn-action.primary { background: #667eea; color: white; border-color: #667eea; }
+.btn-action.primary:hover { background: #5a67d8; }
+.btn-action.danger:hover { background: #fee2e2; border-color: #ef4444; color: #dc2626; }
+.card-date { font-size: 12px; color: #94a3b8; }
+
+.empty-state { text-align: center; padding: 80px 20px; color: #94a3b8; }
+.empty-icon { font-size: 64px; margin-bottom: 16px; }
+.empty-text { font-size: 16px; margin-bottom: 8px; }
+.empty-hint { font-size: 14px; }
+</style>
+
+<div class="strategy-container">
+    <!-- 头部 -->
+    <div class="strategy-header">
+        <h1>📊 策略管理</h1>
+        <button class="btn-create" onclick="location.href='{% url 'strategy:create' %}'">
+            <i class="bi bi-plus-lg"></i> 创建新策略
+        </button>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="stats-grid">
+        <div class="stat-card total">
+            <div class="stat-value">{{ stats.total }}</div>
+            <div class="stat-label">总策略数</div>
+        </div>
+        <div class="stat-card active">
+            <div class="stat-value">{{ stats.active }}</div>
+            <div class="stat-label">激活中</div>
+        </div>
+        <div class="stat-card inactive">
+            <div class="stat-value">{{ stats.inactive }}</div>
+            <div class="stat-label">已停用</div>
+        </div>
+        <div class="stat-card rule">
+            <div class="stat-value">{{ stats.by_type.rule_based }}</div>
+            <div class="stat-label">规则策略</div>
+        </div>
+        <div class="stat-card script">
+            <div class="stat-value">{{ stats.by_type.script_based }}</div>
+            <div class="stat-label">脚本策略</div>
+        </div>
+    </div>
+
+    <!-- 筛选栏 -->
+    <div class="filter-bar">
+        <select id="filterType" class="filter-select" onchange="filterStrategies()">
+            <option value="">所有类型</option>
+            <option value="rule_based">规则驱动</option>
+            <option value="script_based">脚本驱动</option>
+            <option value="hybrid">混合模式</option>
+            <option value="ai_driven">AI驱动</option>
+        </select>
+        <select id="filterStatus" class="filter-select" onchange="filterStrategies()">
+            <option value="">所有状态</option>
+            <option value="active">激活</option>
+            <option value="inactive">停用</option>
+        </select>
+        <input type="text" id="searchInput" class="filter-select" placeholder="搜索策略名称..." style="flex: 1;" oninput="filterStrategies()">
+    </div>
+
+    <!-- 策略列表 -->
+    <div class="strategy-grid" id="strategyGrid">
+        {% for strategy in strategies %}
+        <div class="strategy-card" data-type="{{ strategy.strategy_type }}" data-status="{% if strategy.is_active %}active{% else %}inactive{% endif %}" data-name="{{ strategy.name|lower }}">
+            <div class="card-header">
+                <div>
+                    <div class="card-title">{{ strategy.name }}</div>
+                    <div class="card-meta">
+                        <span class="badge badge-type {{ strategy.strategy_type }}">
+                            {% if strategy.strategy_type == 'rule_based' %}规则驱动
+                            {% elif strategy.strategy_type == 'script_based' %}脚本驱动
+                            {% elif strategy.strategy_type == 'hybrid' %}混合模式
+                            {% elif strategy.strategy_type == 'ai_driven' %}AI驱动{% endif %}
+                        </span>
+                        <span class="badge badge-version">v{{ strategy.version }}</span>
+                        <span class="badge badge-status {% if not strategy.is_active %}inactive{% endif %}">
+                            {% if strategy.is_active %}激活中{% else %}已停用{% endif %}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-actions">
+                    <button class="btn-action" onclick="toggleStatus({{ strategy.id }}, {% if strategy.is_active %}false{% else %}true{% endif %})">
+                        {% if strategy.is_active %}停用{% else %}激活{% endif %}
+                    </button>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div class="card-desc">{{ strategy.description|default:"暂无描述" }}</div>
+
+                <div class="card-stats">
+                    <div class="card-stat">
+                        <div class="card-stat-value">{{ strategy.rule_count }}</div>
+                        <div class="card-stat-label">规则数</div>
+                    </div>
+                    <div class="card-stat">
+                        <div class="card-stat-value">{{ strategy.execution_count }}</div>
+                        <div class="card-stat-label">执行次数</div>
+                    </div>
+                    <div class="card-stat">
+                        <div class="card-stat-value">{{ strategy.portfolio_count }}</div>
+                        <div class="card-stat-label">绑定账户</div>
+                    </div>
+                </div>
+
+                {% if strategy.rule_summary %}
+                <div class="card-rules">
+                    <strong>规则:</strong>
+                    {% for rule in strategy.rule_summary %}
+                    <div class="rule-item">{{ rule.rule_name }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="card-footer">
+                <div class="card-date">
+                    <i class="bi bi-clock"></i> {{ strategy.updated_at|date:"Y-m-d H:i" }}
+                </div>
+                <div class="card-actions">
+                    <button class="btn-action" onclick="location.href='{% url 'strategy:detail' strategy.id %}'">
+                        <i class="bi bi-eye"></i> 查看
+                    </button>
+                    <button class="btn-action" onclick="location.href='{% url 'strategy:edit' strategy.id %}'">
+                        <i class="bi bi-pencil"></i> 编辑
+                    </button>
+                    <button class="btn-action danger" onclick="deleteStrategy({{ strategy.id }}, '{{ strategy.name }}')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if not strategies %}
+    <div class="empty-state">
+        <div class="empty-icon">📊</div>
+        <div class="empty-text">暂无策略</div>
+        <div class="empty-hint">点击上方按钮创建您的第一个策略</div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// 筛选策略
+function filterStrategies() {
+    const typeFilter = document.getElementById('filterType').value;
+    const statusFilter = document.getElementById('filterStatus').value;
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+
+    const cards = document.querySelectorAll('.strategy-card');
+    cards.forEach(card => {
+        const type = card.dataset.type;
+        const status = card.dataset.status;
+        const name = card.dataset.name;
+
+        const typeMatch = !typeFilter || type === typeFilter;
+        const statusMatch = !statusFilter || status === statusFilter;
+        const nameMatch = !searchTerm || name.includes(searchTerm);
+
+        card.style.display = typeMatch && statusMatch && nameMatch ? 'block' : 'none';
+    });
+}
+
+// 切换状态
+async function toggleStatus(id, activate) {
+    const action = activate ? '激活' : '停用';
+    if (!confirm(`确认${action}此策略？`)) return;
+
+    const formData = new FormData();
+    formData.append('action', activate ? 'activate' : 'deactivate');
+
+    try {
+        const res = await fetch(`/api/strategy/${id}/toggle-status/`, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            showToast(`${action}成功`);
+            location.reload();
+        } else {
+            showToast(`${action}失败: ${data.error}`, 'error');
+        }
+    } catch (e) {
+        showToast(`操作失败: ${e.message}`, 'error');
+    }
+}
+
+// 删除策略
+async function deleteStrategy(id, name) {
+    if (!confirm(`确认删除策略 "${name}"？\n\n此操作不可恢复！`)) return;
+
+    try {
+        const res = await fetch(`/api/strategy/${id}/`, {
+            method: 'DELETE'
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            showToast('删除成功');
+            location.reload();
+        } else {
+            showToast(`删除失败: ${data.error}`, 'error');
+        }
+    } catch (e) {
+        showToast(`删除失败: ${e.message}`, 'error');
+    }
+}
+
+// Toast 提示
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: ${type === 'success' ? '#10b981' : '#ef4444'};
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 9999;
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = 'all 0.3s';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+</script>
+{% endblock %}
