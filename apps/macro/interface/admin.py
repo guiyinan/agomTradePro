@@ -3,7 +3,13 @@ Django Admin configuration for Macro Data.
 """
 
 from django.contrib import admin
-from apps.macro.infrastructure.models import MacroIndicator, DataSourceConfig
+from django.contrib import messages
+from django.shortcuts import redirect
+from django.utils.html import format_html
+
+from apps.macro.infrastructure.models import (
+    MacroIndicator, DataSourceConfig, DataProviderSettings, IndicatorUnitConfig
+)
 
 
 @admin.register(DataSourceConfig)
@@ -70,3 +76,115 @@ class MacroIndicatorAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+
+@admin.register(DataProviderSettings)
+class DataProviderSettingsAdmin(admin.ModelAdmin):
+    """数据源设置管理（单例模式）"""
+
+    list_display = [
+        'default_data_source_display', 'enable_failover_display',
+        'failover_tolerance_display', 'updated_at'
+    ]
+    list_display_links = None  # 禁止从列表页进入编辑
+    list_filter = []
+
+    fieldsets = (
+        ('数据源选择', {
+            'fields': ('default_data_source', 'enable_failover')
+        }),
+        ('容错配置', {
+            'fields': ('failover_tolerance',)
+        }),
+        ('说明', {
+            'fields': ('description',)
+        }),
+        ('元数据', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    readonly_fields = ['created_at', 'updated_at']
+
+    def has_add_permission(self, request):
+        """禁止添加新记录（单例模式）"""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """禁止删除配置记录"""
+        return False
+
+    def default_data_source_display(self, obj):
+        """显示默认数据源"""
+        colors = {'akshare': 'green', 'tushare': 'blue', 'failover': 'orange'}
+        color = colors.get(obj.default_data_source, 'black')
+        return format_html(
+            '<span style="color:{}; font-weight:bold">{}</span>',
+            color,
+            obj.get_default_data_source_display()
+        )
+    default_data_source_display.short_description = '默认数据源'
+
+    def enable_failover_display(self, obj):
+        """显示容错状态"""
+        status = '开启' if obj.enable_failover else '关闭'
+        color = 'green' if obj.enable_failover else 'orange'
+        return format_html('<span style="color:{}">{}</span>', color, status)
+    enable_failover_display.short_description = '自动容错'
+
+    def failover_tolerance_display(self, obj):
+        """显示容差"""
+        return f'{obj.failover_tolerance * 100:.1f}%'
+    failover_tolerance_display.short_description = '容差比例'
+
+    def response_add(self, request, obj, post_url_continue=None):
+        """保存后重定向并清除缓存"""
+        obj.clear_secrets_cache()
+        self.message_user(request, '数据源设置已更新', messages.SUCCESS)
+        return redirect('/admin/macro/dataprovidersettings/')
+
+    def response_change(self, request, obj):
+        """保存后重定向并清除缓存"""
+        obj.clear_secrets_cache()
+        self.message_user(request, '数据源设置已更新', messages.SUCCESS)
+        return redirect('/admin/macro/dataprovidersettings/')
+
+
+@admin.register(IndicatorUnitConfig)
+class IndicatorUnitConfigAdmin(admin.ModelAdmin):
+    """指标单位配置管理"""
+
+    list_display = [
+        'indicator_code', 'source', 'original_unit',
+        'is_currency_display', 'priority', 'is_active'
+    ]
+    list_filter = ['source', 'is_currency', 'is_active']
+    search_fields = ['indicator_code', 'original_unit', 'description']
+    list_editable = ['is_active']
+    ordering = ['-priority', 'indicator_code']
+
+    fieldsets = (
+        ('基本信息', {
+            'fields': ('indicator_code', 'source', 'original_unit')
+        }),
+        ('设置', {
+            'fields': ('is_currency', 'priority', 'is_active')
+        }),
+        ('说明', {
+            'fields': ('description',)
+        }),
+        ('元数据', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    readonly_fields = ['created_at', 'updated_at']
+
+    def is_currency_display(self, obj):
+        """显示是否为货币类指标"""
+        status = '是' if obj.is_currency else '否'
+        color = 'green' if obj.is_currency else 'gray'
+        return format_html('<span style="color:{}">{}</span>', color, status)
+    is_currency_display.short_description = '货币类'

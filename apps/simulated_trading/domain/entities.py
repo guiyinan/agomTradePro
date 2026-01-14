@@ -194,7 +194,10 @@ class SimulatedAccount:
 
 @dataclass
 class Position:
-    """持仓信息"""
+    """持仓信息
+
+    包含基本的持仓信息和证伪条件跟踪。
+    """
     account_id: int
     asset_code: str
     asset_name: str
@@ -223,6 +226,27 @@ class Position:
     # 关联信号
     signal_id: Optional[int] = None
     entry_reason: str = ""
+
+    # ==================== 证伪条件跟踪 ====================
+    # 从信号继承的证伪条件（副本，即使信号被删除也不影响）
+    invalidation_rule_json: Optional[str] = None      # JSON 格式的证伪规则
+    invalidation_description: Optional[str] = None    # 人类可读的证伪描述
+
+    # 证伪状态
+    is_invalidated: bool = False                     # 是否已被证伪
+    invalidation_reason: Optional[str] = None         # 证伪原因
+    invalidation_checked_at: Optional[datetime] = None  # 最后检查时间
+    # =====================================================
+
+    @property
+    def has_invalidation_rule(self) -> bool:
+        """是否有证伪规则"""
+        return self.invalidation_rule_json is not None
+
+    @property
+    def should_close(self) -> bool:
+        """是否应该平仓（已证伪）"""
+        return self.is_invalidated
 
 
 @dataclass

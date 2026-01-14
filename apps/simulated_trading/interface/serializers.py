@@ -125,6 +125,13 @@ class PositionResponseSerializer(serializers.Serializer):
     signal_id = serializers.IntegerField(allow_null=True)
     entry_reason = serializers.CharField(allow_null=True)
 
+    # 证伪跟踪相关字段
+    invalidation_description = serializers.CharField(allow_null=True, required=False)
+    invalidation_rule = serializers.JSONField(source='invalidation_rule_json', allow_null=True, required=False)
+    is_invalidated = serializers.BooleanField(required=False)
+    invalidation_reason = serializers.CharField(allow_null=True, required=False)
+    invalidation_checked_at = serializers.DateTimeField(allow_null=True, required=False)
+
 
 class PositionListResponseSerializer(serializers.Serializer):
     """持仓列表响应序列化器"""

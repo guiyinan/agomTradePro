@@ -13,7 +13,7 @@ from apps.signal.application.use_cases import (
     GetRecommendedAssetsUseCase,
     ValidateSignalRequest,
 )
-from apps.signal.application.invalidation_checker import SignalInvalidationService
+from apps.signal.application.invalidation_checker import InvalidationCheckService
 from apps.signal.domain.rules import Eligibility, get_eligibility_matrix
 from django.db.models import Count, Q
 from datetime import date
@@ -296,15 +296,15 @@ def delete_signal_view(request, signal_id):
 @require_http_methods(["POST"])
 def check_invalidation_view(request, signal_id):
     """手动触发证伪检查"""
-    service = SignalInvalidationService()
-    result = service.check_signal_by_id(signal_id)
+    service = InvalidationCheckService()
+    result = service.check_signal(signal_id)
 
     if result:
         return JsonResponse({
             'success': True,
             'is_invalidated': result.is_invalidated,
             'reason': result.reason,
-            'details': result.details,
+            'details': result.checked_conditions,
         })
     else:
         return JsonResponse({

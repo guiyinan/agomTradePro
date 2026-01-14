@@ -239,6 +239,30 @@ CELERY_BEAT_SCHEDULE = {
     },
     # ============================================
 
+    # ========== 持仓证伪检查 ==========
+    'simulated-check-position-invalidation-morning': {
+        'task': 'apps.simulated_trading.application.tasks.check_position_invalidation_task',
+        'schedule': crontab(hour=10, minute=0, day_of_week='mon-fri'),  # 每个交易日 10:00
+        'options': {
+            'expires': 1800,  # 30 分钟超时
+        }
+    },
+    'simulated-check-position-invalidation-afternoon': {
+        'task': 'apps.simulated_trading.application.tasks.check_position_invalidation_task',
+        'schedule': crontab(hour=14, minute=0, day_of_week='mon-fri'),  # 每个交易日 14:00
+        'options': {
+            'expires': 1800,  # 30 分钟超时
+        }
+    },
+    'simulated-notify-invalidated-positions': {
+        'task': 'apps.simulated_trading.application.tasks.notify_invalidated_positions_task',
+        'schedule': crontab(hour=10, minute=5, day_of_week='mon-fri'),  # 每个交易日 10:05
+        'options': {
+            'expires': 600,  # 10 分钟超时
+        }
+    },
+    # ============================================
+
     # ========== 实时价格监控 ==========
     'realtime-update-prices-after-close': {
         'task': 'apps.simulated_trading.application.tasks.update_all_prices_after_close',

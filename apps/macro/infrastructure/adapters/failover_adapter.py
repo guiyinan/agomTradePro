@@ -251,42 +251,93 @@ class MultiSourceAdapter(MacroAdapterProtocol):
         return merged_data
 
 
-def create_default_adapter(tushare_token: Optional[str] = None) -> FailoverAdapter:
+def create_default_adapter(tushare_token: Optional[str] = None) -> "MacroAdapterProtocol":
     """
-    创建默认的容错适配器配置
+    创建默认的容错适配器配置（从数据库读取设置）
 
     Args:
-        tushare_token: Tushare Token（可选）
+        tushare_token: Tushare Token（可选，优先从数据库读取）
 
     Returns:
-        FailoverAdapter: 配置好的容错适配器
+        MacroAdapterProtocol: 配置好的适配器（可能是单个或 FailoverAdapter）
     """
     from .tushare_adapter import TushareAdapter
     from .akshare_adapter import AKShareAdapter
 
-    adapters = []
-
-    # 优先使用 Tushare（需要 Token）
+    # 尝试从数据库加载设置
     try:
-        tushare = TushareAdapter(token=tushare_token)
-        adapters.append(tushare)
-        logger.info("已添加 Tushare 适配器")
+        import django
+        from django.conf import settings
+        if settings.configured:
+            django.setup()
+            from apps.macro.infrastructure.models import DataProviderSettings
+            settings_obj = DataProviderSettings.load()
+
+            default_source = settings_obj.default_data_source
+            enable_failover = settings_obj.enable_failover
+            tolerance = settings_obj.failover_tolerance
+
+            logger.info(
+                f"从数据库加载数据源设置: default={default_source}, "
+                f"failover={enable_failover}, tolerance={tolerance}"
+            )
+        else:
+            # Django 未配置，使用默认值
+            default_source = 'akshare'
+            enable_failover = True
+            tolerance = 0.01
+            logger.warning("Django 未配置，使用默认数据源设置")
     except Exception as e:
-        logger.warning(f"Tushare 适配器初始化失败: {e}")
+        # 数据库未初始化或其他错误，使用默认值
+        default_source = 'akshare'
+        enable_failover = True
+        tolerance = 0.01
+        logger.warning(f"无法从数据库读取设置，使用默认值: {e}")
 
-    # AKShare 作为备用源（无需 Token）
+    # 初始化适配器
+    akshare_adapter = None
+    tushare_adapter = None
+
     try:
-        akshare = AKShareAdapter()
-        adapters.append(akshare)
-        logger.info("已添加 AKShare 适配器")
+        akshare_adapter = AKShareAdapter()
+        logger.info("已初始化 AKShare 适配器")
     except Exception as e:
         logger.warning(f"AKShare 适配器初始化失败: {e}")
 
+    try:
+        tushare_adapter = TushareAdapter(token=tushare_token)
+        logger.info("已初始化 Tushare 适配器")
+    except Exception as e:
+        logger.warning(f"Tushare 适配器初始化失败: {e}")
+
+    # 根据设置返回适配器
+    if default_source == 'akshare':
+        primary, backup = akshare_adapter, tushare_adapter
+        primary_name = "AKShare"
+    elif default_source == 'tushare':
+        primary, backup = tushare_adapter, akshare_adapter
+        primary_name = "Tushare"
+    else:  # failover 模式，默认 AKShare 优先
+        primary, backup = akshare_adapter, tushare_adapter
+        primary_name = "AKShare"
+
+    # 如果不启用容错或没有备用源，直接返回主适配器
+    if not enable_failover or backup is None:
+        if primary is None:
+            raise DataSourceUnavailableError("无法初始化任何数据源适配器")
+        logger.info(f"使用单一数据源: {primary_name}")
+        return primary
+
+    # 构建适配器列表
+    adapters = [a for a in [primary, backup] if a is not None]
     if not adapters:
         raise DataSourceUnavailableError("无法初始化任何数据源适配器")
 
+    logger.info(
+        f"创建容错适配器: 优先级={' → '.join([a.source_name for a in adapters])}"
+    )
     return FailoverAdapter(
         adapters=adapters,
         validate_consistency=True,
-        tolerance=0.01
+        tolerance=tolerance
     )

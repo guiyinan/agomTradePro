@@ -418,6 +418,112 @@ def send_performance_summary_task(account_ids: Optional[list] = None) -> Dict[st
 
 
 # ============================================================================
+# 持仓证伪检查任务
+# ============================================================================
+
+@shared_task
+def check_position_invalidation_task() -> Dict[str, Any]:
+    """
+    持仓证伪检查任务
+
+    定期检查所有持仓的证伪条件是否满足，满足时标记并提示平仓。
+
+    建议执行时间：每个交易日 10:00, 14:00（盘中检查）
+
+    Returns:
+        检查结果
+    """
+    logger.info("=" * 60)
+    logger.info("开始持仓证伪检查")
+    logger.info("=" * 60)
+
+    try:
+        from apps.simulated_trading.application.position_invalidation_checker import (
+            check_and_invalidate_positions,
+            get_invalidated_positions_summary
+        )
+
+        # 检查并证伪满足条件的持仓
+        result = check_and_invalidate_positions()
+
+        logger.info(f"证伪检查完成:")
+        logger.info(f"  检查持仓: {result['checked']} 个")
+        logger.info(f"  证伪数量: {result['invalidated']} 个")
+
+        # 如果有新的证伪持仓，记录详细信息
+        if result['invalidated'] > 0:
+            logger.warning(f"新证伪持仓列表:")
+            for pos in result['positions']:
+                logger.warning(
+                    f"  - 账户 {pos['account_id']}: {pos['asset_code']} ({pos['asset_name']})"
+                    f" | 原因: {pos['reason']}"
+                )
+
+        logger.info("=" * 60)
+
+        return {
+            'success': True,
+            'checked': result['checked'],
+            'invalidated': result['invalidated'],
+            'positions': result['positions'],
+        }
+
+    except Exception as e:
+        logger.exception(f"持仓证伪检查任务失败: {e}")
+        return {
+            'success': False,
+            'error': str(e),
+        }
+
+
+@shared_task
+def notify_invalidated_positions_task() -> Dict[str, Any]:
+    """
+    证伪持仓通知任务
+
+    获取所有已证伪持仓的摘要，可用于通知或生成报告。
+
+    建议执行时间：每个交易日 10:05（证伪检查后5分钟）
+
+    Returns:
+        证伪持仓摘要
+    """
+    logger.info("开始获取证伪持仓摘要")
+
+    try:
+        from apps.simulated_trading.application.position_invalidation_checker import (
+            get_invalidated_positions_summary
+        )
+
+        positions = get_invalidated_positions_summary()
+
+        logger.info(f"已证伪持仓: {len(positions)} 个")
+
+        for pos in positions:
+            logger.info(
+                f"  - {pos['account_name']}: {pos['asset_code']} ({pos['asset_name']})"
+                f" | 数量: {pos['quantity']}"
+                f" | 原因: {pos['invalidation_reason']}"
+            )
+
+        # TODO: 实现通知功能（邮件/消息推送）
+        # 目前只记录日志
+
+        return {
+            'success': True,
+            'count': len(positions),
+            'positions': positions,
+        }
+
+    except Exception as e:
+        logger.exception(f"获取证伪持仓摘要失败: {e}")
+        return {
+            'success': False,
+            'error': str(e),
+        }
+
+
+# ============================================================================
 # 实时价格监控任务（集成 realtime 模块）
 # ============================================================================
 

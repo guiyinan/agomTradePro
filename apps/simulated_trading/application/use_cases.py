@@ -273,8 +273,15 @@ class ExecuteBuyOrderUseCase:
 
         # 6. 更新或创建持仓
         existing_position = self.position_repo.get_position(account_id, asset_code)
+
+        # 从信号获取证伪条件（如果有 signal_id）
+        invalidation_rule_json = None
+        invalidation_description = None
+        if signal_id:
+            invalidation_rule_json, invalidation_description = self._get_signal_invalidation(signal_id)
+
         if existing_position:
-            # 加仓：更新持仓
+            # 加仓：更新持仓（保留原有的证伪条件）
             new_quantity = existing_position.quantity + quantity
             new_avg_cost = (
                 (existing_position.avg_cost * existing_position.quantity + price * quantity) /
@@ -298,11 +305,17 @@ class ExecuteBuyOrderUseCase:
                 first_buy_date=existing_position.first_buy_date,
                 last_update_date=date.today(),
                 signal_id=signal_id,
-                entry_reason=reason or existing_position.entry_reason
+                entry_reason=reason or existing_position.entry_reason,
+                # 保留原有的证伪条件
+                invalidation_rule_json=existing_position.invalidation_rule_json,
+                invalidation_description=existing_position.invalidation_description,
+                is_invalidated=existing_position.is_invalidated,
+                invalidation_reason=existing_position.invalidation_reason,
+                invalidation_checked_at=existing_position.invalidation_checked_at,
             )
             self.position_repo.save(updated_position)
         else:
-            # 新建持仓
+            # 新建持仓 - 从信号继承证伪条件
             position = Position(
                 account_id=account_id,
                 asset_code=asset_code,
@@ -319,7 +332,10 @@ class ExecuteBuyOrderUseCase:
                 first_buy_date=date.today(),
                 last_update_date=date.today(),
                 signal_id=signal_id,
-                entry_reason=reason
+                entry_reason=reason,
+                # 从信号继承证伪条件
+                invalidation_rule_json=invalidation_rule_json,
+                invalidation_description=invalidation_description,
             )
             self.position_repo.save(position)
 
@@ -340,6 +356,39 @@ class ExecuteBuyOrderUseCase:
         )
 
         return trade
+
+    def _get_signal_invalidation(self, signal_id: int):
+        """
+        从信号获取证伪条件
+
+        Args:
+            signal_id: 信号ID
+
+        Returns:
+            (invalidation_rule_json, invalidation_description) 或 (None, None)
+        """
+        try:
+            from apps.signal.infrastructure.models import InvestmentSignalModel
+            import json
+
+            signal = InvestmentSignalModel.objects.get(id=signal_id)
+
+            # 获取证伪规则（JSON 格式）
+            invalidation_rule_json = None
+            if signal.invalidation_rule_json:
+                invalidation_rule_json = json.dumps(signal.invalidation_rule_json, ensure_ascii=False)
+
+            # 获取证伪描述
+            invalidation_description = signal.invalidation_description
+
+            return invalidation_rule_json, invalidation_description
+
+        except InvestmentSignalModel.DoesNotExist:
+            # 信号不存在，返回 None
+            return None, None
+        except Exception:
+            # 其他错误，返回 None
+            return None, None
 
 
 class ExecuteSellOrderUseCase:

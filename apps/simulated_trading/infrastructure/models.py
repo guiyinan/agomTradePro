@@ -163,6 +163,40 @@ class PositionModel(models.Model):
     signal_id = models.IntegerField("关联信号ID", null=True, blank=True)
     entry_reason = models.CharField("入场原因", max_length=200, blank=True)
 
+    # ==================== 证伪条件跟踪 ====================
+    # 从信号继承的证伪条件（副本，即使信号被删除也不影响）
+    invalidation_rule_json = models.JSONField(
+        "证伪规则",
+        null=True,
+        blank=True,
+        help_text="从信号继承的结构化证伪规则"
+    )
+    invalidation_description = models.TextField(
+        "证伪描述",
+        blank=True,
+        help_text="人类可读的证伪条件描述"
+    )
+
+    # 证伪状态
+    is_invalidated = models.BooleanField(
+        "是否已证伪",
+        default=False,
+        db_index=True,
+        help_text="证伪条件已满足，建议平仓"
+    )
+    invalidation_reason = models.TextField(
+        "证伪原因",
+        blank=True,
+        help_text="证伪原因说明"
+    )
+    invalidation_checked_at = models.DateTimeField(
+        "最后检查时间",
+        null=True,
+        blank=True,
+        help_text="最后一次检查证伪条件的时间"
+    )
+    # =====================================================
+
     # 元数据
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updated_at = models.DateTimeField("更新时间", auto_now=True)
@@ -176,6 +210,8 @@ class PositionModel(models.Model):
         indexes = [
             models.Index(fields=["account", "asset_code"]),
             models.Index(fields=["-market_value"]),
+            models.Index(fields=["account", "is_invalidated"]),  # 证伪状态查询
+            models.Index(fields=["is_invalidated", "invalidation_checked_at"]),  # 定期检查
         ]
 
     def __str__(self):

@@ -97,6 +97,12 @@ class PositionMapper:
     @staticmethod
     def to_entity(model: PositionModel) -> Position:
         """ORM模型 → Domain实体"""
+        # 将 JSON 字段转换为字符串
+        import json
+        invalidation_json = None
+        if model.invalidation_rule_json:
+            invalidation_json = json.dumps(model.invalidation_rule_json, ensure_ascii=False)
+
         return Position(
             account_id=model.account_id,
             asset_code=model.asset_code,
@@ -113,12 +119,23 @@ class PositionMapper:
             first_buy_date=model.first_buy_date,
             last_update_date=model.last_update_date,
             signal_id=model.signal_id,
-            entry_reason=model.entry_reason
+            entry_reason=model.entry_reason,
+            # 证伪相关字段
+            invalidation_rule_json=invalidation_json,
+            invalidation_description=model.invalidation_description,
+            is_invalidated=model.is_invalidated,
+            invalidation_reason=model.invalidation_reason,
+            invalidation_checked_at=model.invalidation_checked_at,
         )
 
     @staticmethod
     def to_model(entity: Position) -> PositionModel:
         """Domain实体 → ORM模型"""
+        import json
+        invalidation_json = None
+        if entity.invalidation_rule_json:
+            invalidation_json = json.loads(entity.invalidation_rule_json)
+
         return PositionModel(
             account_id=entity.account_id,
             asset_code=entity.asset_code,
@@ -135,7 +152,13 @@ class PositionMapper:
             first_buy_date=entity.first_buy_date,
             last_update_date=entity.last_update_date,
             signal_id=entity.signal_id,
-            entry_reason=entity.entry_reason
+            entry_reason=entity.entry_reason,
+            # 证伪相关字段
+            invalidation_rule_json=invalidation_json,
+            invalidation_description=entity.invalidation_description,
+            is_invalidated=entity.is_invalidated,
+            invalidation_reason=entity.invalidation_reason,
+            invalidation_checked_at=entity.invalidation_checked_at,
         )
 
 

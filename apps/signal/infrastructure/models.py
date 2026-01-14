@@ -41,13 +41,31 @@ class InvestmentSignalModel(models.Model):
     direction = models.CharField(max_length=10, choices=DIRECTION_CHOICES)
     logic_desc = models.TextField()
 
-    # 文本描述（保留用于显示）
-    invalidation_logic = models.TextField()
-    invalidation_threshold = models.FloatField(null=True, blank=True)
+    # ==================== 证伪规则字段重构 ====================
+    # 新的证伪规则字段（使用 InvalidationRule.to_dict() 格式）
+    invalidation_rule_json = models.JSONField(
+        null=True, blank=True,
+        help_text="结构化证伪规则 (InvalidationRule.to_dict())"
+    )
+    invalidation_description = models.TextField(
+        blank=True,
+        help_text="证伪逻辑的人类可读描述"
+    )
 
-    # 结构化证伪规则（新增）
-    invalidation_rules = models.JSONField(default=dict, blank=True, null=True,
-        help_text="结构化证伪规则，格式: {conditions: [...], logic: 'AND/OR'}")
+    # 旧字段保留用于兼容性和迁移（标记为 deprecated）
+    invalidation_logic = models.TextField(
+        blank=True,
+        help_text="[DEPRECATED] 请使用 invalidation_description"
+    )
+    invalidation_threshold = models.FloatField(
+        null=True, blank=True,
+        help_text="[DEPRECATED] 请使用 invalidation_rule_json"
+    )
+    invalidation_rules = models.JSONField(
+        default=dict, blank=True, null=True,
+        help_text="[DEPRECATED] 请使用 invalidation_rule_json"
+    )
+    # ==========================================================
 
     target_regime = models.CharField(max_length=20)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -89,14 +107,43 @@ class InvestmentSignalModel(models.Model):
 
     def clean(self):
         """验证证伪规则格式"""
-        if self.invalidation_rules:
+        # 优先验证新格式
+        if self.invalidation_rule_json:
+            try:
+                self._validate_new_format(self.invalidation_rule_json)
+            except ValueError as e:
+                raise ValidationError({'invalidation_rule_json': str(e)})
+        # 兼容旧格式
+        elif self.invalidation_rules:
             try:
                 self._validate_rules(self.invalidation_rules)
             except ValueError as e:
                 raise ValidationError({'invalidation_rules': str(e)})
 
+    def _validate_new_format(self, rule_dict):
+        """验证新格式的规则结构"""
+        if not isinstance(rule_dict, dict):
+            raise ValueError("规则必须是字典格式")
+
+        if 'conditions' not in rule_dict:
+            raise ValueError("规则必须包含 conditions 字段")
+
+        if not isinstance(rule_dict['conditions'], list) or len(rule_dict['conditions']) == 0:
+            raise ValueError("conditions 必须是非空列表")
+
+        for idx, condition in enumerate(rule_dict['conditions']):
+            if not isinstance(condition, dict):
+                raise ValueError(f"条件 {idx} 必须是字典")
+
+            required_keys = {'indicator_code', 'indicator_type', 'operator', 'threshold'}
+            if not required_keys.issubset(condition.keys()):
+                raise ValueError(f"条件 {idx} 缺少必要字段: {required_keys}")
+
+            if condition['operator'] not in ['lt', 'lte', 'gt', 'gte', 'eq']:
+                raise ValueError(f"条件 {idx} 的 operator 必须是 lt/lte/gt/gte/eq 之一")
+
     def _validate_rules(self, rules):
-        """验证规则结构"""
+        """验证旧格式的规则结构（兼容性）"""
         if not isinstance(rules, dict):
             raise ValueError("规则必须是字典格式")
 
@@ -117,27 +164,97 @@ class InvestmentSignalModel(models.Model):
             if condition['condition'] not in ['lt', 'lte', 'gt', 'gte', 'eq']:
                 raise ValueError(f"条件 {idx} 的 condition 必须是 lt/lte/gt/gte/eq 之一")
 
+    def to_domain_entity(self):
+        """转换为 Domain 实体"""
+        from apps.signal.domain.entities import InvestmentSignal, SignalStatus
+        from apps.signal.domain.invalidation import InvalidationRule
+
+        invalidation_rule = None
+        if self.invalidation_rule_json:
+            try:
+                invalidation_rule = InvalidationRule.from_dict(self.invalidation_rule_json)
+            except (KeyError, ValueError):
+                # 如果新格式解析失败，尝试旧格式
+                pass
+
+        return InvestmentSignal(
+            id=str(self.id),
+            asset_code=self.asset_code,
+            asset_class=self.asset_class,
+            direction=self.direction,
+            logic_desc=self.logic_desc,
+            invalidation_rule=invalidation_rule,
+            invalidation_description=self.invalidation_description or self.invalidation_logic,
+            target_regime=self.target_regime,
+            created_at=self.created_at.date() if self.created_at else None,
+            status=SignalStatus(self.status),
+            rejection_reason=self.rejection_reason,
+            backtest_performance_score=self.backtest_performance_score,
+            avg_backtest_return=self.avg_backtest_return,
+        )
+
+    @classmethod
+    def from_domain_entity(cls, signal):
+        """从 Domain 实体创建 ORM 模型"""
+        return cls(
+            asset_code=signal.asset_code,
+            asset_class=signal.asset_class,
+            direction=signal.direction,
+            logic_desc=signal.logic_desc,
+            invalidation_rule_json=signal.invalidation_rule.to_dict() if signal.invalidation_rule else None,
+            invalidation_description=signal.invalidation_description,
+            target_regime=signal.target_regime,
+            status=signal.status.value,
+            rejection_reason=signal.rejection_reason,
+            backtest_performance_score=signal.backtest_performance_score,
+            avg_backtest_return=signal.avg_backtest_return,
+        )
+
     def get_human_readable_rules(self):
         """生成人类可读的规则描述"""
-        if not self.invalidation_rules:
-            return self.invalidation_logic
+        # 优先使用新格式
+        if self.invalidation_rule_json:
+            conditions = []
+            for cond in self.invalidation_rule_json.get('conditions', []):
+                indicator = cond.get('indicator_code', '')
+                op = cond.get('operator', '')
+                threshold = cond.get('threshold', '')
 
-        conditions = []
-        for cond in self.invalidation_rules.get('conditions', []):
-            indicator = cond.get('indicator', '')
-            op = cond.get('condition', '')
-            threshold = cond.get('threshold', '')
+                op_map = {'lt': '<', 'lte': '≤', 'gt': '>', 'gte': '≥', 'eq': '='}
+                cond_str = f"{indicator} {op_map.get(op, op)} {threshold}"
 
-            op_map = {'lt': '<', 'lte': '≤', 'gt': '>', 'gte': '≥', 'eq': '='}
-            cond_str = f"{indicator} {op_map.get(op, op)} {threshold}"
+                if cond.get('duration'):
+                    cond_str += f" 连续{cond['duration']}期"
+                if cond.get('compare_with'):
+                    cond_str += f" (较{cond['compare_with']})"
 
-            if cond.get('duration'):
-                cond_str += f" 连续{cond['duration']}期"
-            if cond.get('compare_with'):
-                cond_str += f" (较{cond['compare_with']})"
+                conditions.append(cond_str)
 
-            conditions.append(cond_str)
+            logic = self.invalidation_rule_json.get('logic', 'AND')
+            logic_text = ' 且 ' if logic == 'AND' else ' 或 '
+            return f"证伪条件: {logic_text.join(conditions)}"
 
-        logic = self.invalidation_rules.get('logic', 'AND')
-        logic_text = ' 且 ' if logic == 'AND' else ' 或 '
-        return f"证伪条件: {'当' + logic_text.join(conditions) + '时证伪'}"
+        # 回退到旧格式
+        elif self.invalidation_rules:
+            conditions = []
+            for cond in self.invalidation_rules.get('conditions', []):
+                indicator = cond.get('indicator', '')
+                op = cond.get('condition', '')
+                threshold = cond.get('threshold', '')
+
+                op_map = {'lt': '<', 'lte': '≤', 'gt': '>', 'gte': '≥', 'eq': '='}
+                cond_str = f"{indicator} {op_map.get(op, op)} {threshold}"
+
+                if cond.get('duration'):
+                    cond_str += f" 连续{cond['duration']}期"
+                if cond.get('compare_with'):
+                    cond_str += f" (较{cond['compare_with']})"
+
+                conditions.append(cond_str)
+
+            logic = self.invalidation_rules.get('logic', 'AND')
+            logic_text = ' 且 ' if logic == 'AND' else ' 或 '
+            return f"证伪条件: {logic_text.join(conditions)}"
+
+        # 最后使用描述文本
+        return self.invalidation_description or self.invalidation_logic

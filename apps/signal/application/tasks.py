@@ -45,13 +45,13 @@ def check_single_signal_invalidation(signal_id: int):
 
     用于手动触发或信号状态变化时检查
     """
-    from apps.signal.application.invalidation_checker import SignalInvalidationService
+    from apps.signal.application.invalidation_checker import InvalidationCheckService
 
     logger.info(f"检查信号 {signal_id} 的证伪状态...")
 
     try:
-        service = SignalInvalidationService()
-        result = service.check_signal_by_id(signal_id)
+        service = InvalidationCheckService()
+        result = service.check_signal(signal_id)
 
         if result:
             if result.is_invalidated:

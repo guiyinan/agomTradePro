@@ -66,7 +66,10 @@
       "Bash(D:/githv/agomSAAF/agomsaaf/Scripts/pip.exe install:*)",
       "Bash(\"D:\\\\githv\\\\agomSAAF\\\\.venv\\\\Scripts\\\\python.exe\":*)",
       "Bash(echo:*)",
-      "Bash(agomsaafScriptsactivate:*)"
+      "Bash(agomsaafScriptsactivate:*)",
+      "Bash(.venvScriptspython.exe:*)",
+      "Bash(D:githvagomSAAFagomsaafScriptspython.exe manage.py makemigrations macro)",
+      "Bash(\"agomsaaf\\\\Scripts\\\\python.exe\":*)"
     ]
   }
 }

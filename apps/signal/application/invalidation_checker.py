@@ -1,306 +1,199 @@
 """
-自动证伪检查服务
+证伪检查服务
 
-定期检查所有已批准的信号，根据结构化规则判断是否需要证伪
+Application 层：编排 Domain 层业务逻辑和 Infrastructure 层数据获取。
+
+架构说明：
+- Domain 层：evaluate_rule() 纯函数评估证伪规则
+- Infrastructure 层：获取指标数据
+- Application 层：编排两者，提供检查服务
 """
 
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass
+from datetime import datetime
+from typing import Dict, List, Optional
+
 from django.utils import timezone
+
+from apps.signal.domain.invalidation import (
+    InvalidationRule,
+    InvalidationCheckResult,
+    IndicatorValue,
+    evaluate_rule,
+)
 from apps.signal.infrastructure.models import InvestmentSignalModel
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
 
 
-@dataclass
-class InvalidationResult:
-    """证伪检查结果"""
-    is_invalidated: bool
-    reason: str
-    details: Dict[str, Any]
+class InvalidationCheckService:
+    """证伪检查服务
 
-
-class MacroIndicatorFetcher:
-    """宏观经济指标数据获取器"""
-
-    # 指标代码映射
-    INDICATOR_CODES = {
-        'PMI': 'CN_PMI_MANUFACTURING',
-        'CPI': 'CN_CPI_YOY',
-        'PPI': 'CN_PPI_YOY',
-        'M2': 'CN_M2_YOY',
-        'SHIBOR': 'SHIBOR_1M',
-        'GDP': 'CN_GDP_YOY',
-    }
+    负责检查投资信号的证伪条件，并在满足条件时更新信号状态。
+    """
 
     def __init__(self):
-        self.repo = DjangoMacroRepository()
+        """初始化服务"""
+        # 延迟导入避免循环依赖
+        from apps.macro.infrastructure.repositories import DjangoMacroRepository
+        self.macro_repo = DjangoMacroRepository()
 
-    def get_current_value(self, indicator: str) -> Optional[float]:
-        """获取指标最新值"""
-        code = self.INDICATOR_CODES.get(indicator)
-        if not code:
+    def check_signal(self, signal_id: int) -> Optional[InvalidationCheckResult]:
+        """检查单个信号的证伪状态
+
+        Args:
+            signal_id: 信号ID
+
+        Returns:
+            InvalidationCheckResult 或 None（如果信号不存在或无需检查）
+        """
+        try:
+            signal = InvestmentSignalModel.objects.get(id=signal_id)
+            return self._check_signal_model(signal)
+        except InvestmentSignalModel.DoesNotExist:
             return None
 
-        try:
-            data = self.repo.get_by_code_and_date(code, datetime.now().date())
-            return data.value if data else None
-        except:
+    def _check_signal_model(self, signal: InvestmentSignalModel) -> Optional[InvalidationCheckResult]:
+        """检查信号模型的证伪状态
+
+        Args:
+            signal: InvestmentSignalModel 实例
+
+        Returns:
+            InvalidationCheckResult 或 None
+        """
+        # 转换为 Domain 实体
+        entity = signal.to_domain_entity()
+
+        # 检查是否有证伪规则
+        if not entity.invalidation_rule:
             return None
 
-    def get_history_values(self, indicator: str, periods: int = 12) -> List[float]:
-        """获取指标历史值"""
-        code = self.INDICATOR_CODES.get(indicator)
-        if not code:
-            return []
+        # 只检查已批准的信号
+        if entity.status.value != 'approved':
+            return None
 
-        try:
-            end_date = datetime.now().date()
-            start_date = end_date - timedelta(days=periods * 35)  # 粗略估算
+        # 获取指标值
+        indicator_values = self._fetch_indicator_values(entity.invalidation_rule)
 
-            # 获取该指标的所有数据
-            from apps.macro.infrastructure.models import MacroIndicator as MacroModel
-            data_points = MacroModel.objects.filter(
-                code=code,
-                observed_at__gte=start_date,
-                observed_at__lte=end_date
-            ).order_by('-observed_at')[:periods]
+        # 评估规则（Domain 层纯函数）
+        result = evaluate_rule(entity.invalidation_rule, indicator_values)
 
-            return [d.value for d in data_points]
-        except:
-            return []
-
-    def get_previous_value(self, indicator: str) -> Optional[float]:
-        """获取指标上一期值"""
-        history = self.get_history_values(indicator, periods=2)
-        return history[1] if len(history) > 1 else None
-
-
-class InvalidationRuleChecker:
-    """证伪规则检查器"""
-
-    def __init__(self):
-        self.fetcher = MacroIndicatorFetcher()
-
-    def check_condition(self, condition: Dict[str, Any]) -> bool:
-        """
-        检查单个条件是否满足
-
-        condition 格式:
-        {
-            "indicator": "PMI",
-            "condition": "lt",  # lt, lte, gt, gte, eq
-            "threshold": 50,
-            "duration": 2,      # 可选: 连续N期
-            "compare_with": "prev_value"  # 可选: 与前值比较
-        }
-        """
-        indicator = condition.get('indicator')
-        op = condition.get('condition')
-        threshold = condition.get('threshold')
-        duration = condition.get('duration', 1)
-        compare_with = condition.get('compare_with')
-
-        # 获取当前值
-        current_value = self.fetcher.get_current_value(indicator)
-        if current_value is None:
-            return False
-
-        # 需要与历史值比较
-        if compare_with == 'prev_value':
-            prev_value = self.fetcher.get_previous_value(indicator)
-            if prev_value is None:
-                return False
-            actual_value = current_value - prev_value  # 计算变化量
-        else:
-            actual_value = current_value
-
-        # 基础比较
-        result = self._compare(actual_value, op, threshold)
-
-        # 检查持续时间
-        if result and duration > 1:
-            history = self.fetcher.get_history_values(indicator, periods=duration + 1)
-            if len(history) < duration + 1:
-                return False
-
-            # 检查连续N期是否都满足条件
-            consecutive_count = 0
-            for value in history[:duration]:
-                if self._compare(value, op, threshold):
-                    consecutive_count += 1
-                else:
-                    break
-
-            result = consecutive_count >= duration
+        # 如果证伪，更新信号状态
+        if result.is_invalidated:
+            self._invalidate_signal(signal, result)
 
         return result
 
-    def _compare(self, value: float, op: str, threshold: float) -> bool:
-        """执行比较操作"""
-        if op == 'lt':
-            return value < threshold
-        elif op == 'lte':
-            return value <= threshold
-        elif op == 'gt':
-            return value > threshold
-        elif op == 'gte':
-            return value >= threshold
-        elif op == 'eq':
-            return abs(value - threshold) < 0.001
-        return False
+    def _fetch_indicator_values(self, rule: InvalidationRule) -> Dict[str, IndicatorValue]:
+        """获取规则中所有指标的当前值
 
-    def check_rules(self, rules: Dict[str, Any]) -> InvalidationResult:
+        Args:
+            rule: 证伪规则
+
+        Returns:
+            Dict[str, IndicatorValue]: 指标值字典
         """
-        检查规则组合
+        values = {}
 
-        rules 格式:
-        {
-            "conditions": [
-                {"indicator": "PMI", "condition": "lt", "threshold": 50},
-                {"indicator": "CPI", "condition": "gt", "threshold": 3}
-            ],
-            "logic": "AND"  # 或 "OR"
-        }
-        """
-        conditions = rules.get('conditions', [])
-        logic = rules.get('logic', 'AND')
+        for condition in rule.conditions:
+            code = condition.indicator_code
 
-        if not conditions:
-            return InvalidationResult(
-                is_invalidated=False,
-                reason="无证伪规则",
-                details={}
-            )
-
-        results = []
-        details = {}
-
-        for idx, cond in enumerate(conditions):
-            is_met = self.check_condition(cond)
-            results.append(is_met)
-
-            # 记录详细信息
-            indicator = cond.get('indicator')
-            details[f'condition_{idx}'] = {
-                'indicator': indicator,
-                'condition': cond.get('condition'),
-                'threshold': cond.get('threshold'),
-                'current_value': self.fetcher.get_current_value(indicator),
-                'is_met': is_met
-            }
-
-        # 根据逻辑判断整体结果
-        if logic == 'AND':
-            is_invalidated = all(results)
-        else:  # OR
-            is_invalidated = any(results)
-
-        if is_invalidated:
-            reason = self._generate_reason(rules, details)
-        else:
-            reason = "证伪条件未满足"
-
-        return InvalidationResult(
-            is_invalidated=is_invalidated,
-            reason=reason,
-            details=details
-        )
-
-    def _generate_reason(self, rules: Dict, details: Dict) -> str:
-        """生成证伪原因描述"""
-        conditions = rules.get('conditions', [])
-        logic = rules.get('logic', 'AND')
-
-        parts = []
-        for idx, cond in enumerate(conditions):
-            detail = details.get(f'condition_{idx}', {})
-            if not detail.get('is_met'):
+            # 避免重复获取
+            if code in values:
                 continue
 
-            indicator = cond.get('indicator')
-            op = cond.get('condition')
-            threshold = cond.get('threshold')
-            current = detail.get('current_value', 'N/A')
+            # 从数据库获取指标数据
+            try:
+                latest = self.macro_repo.get_latest_by_code(code)
+                if latest:
+                    history = self.macro_repo.get_history_by_code(code, periods=12)
+                    values[code] = IndicatorValue(
+                        code=code,
+                        current_value=latest.value,
+                        history_values=[d.value for d in history],
+                        unit=latest.unit or "",
+                        last_updated=latest.observed_at.isoformat() if latest.observed_at else None,
+                    )
+                else:
+                    values[code] = IndicatorValue(
+                        code=code,
+                        current_value=None,
+                        history_values=[],
+                        unit="",
+                        last_updated=None,
+                    )
+            except Exception:
+                # 获取失败，使用空值
+                values[code] = IndicatorValue(
+                    code=code,
+                    current_value=None,
+                    history_values=[],
+                    unit="",
+                    last_updated=None,
+                )
 
-            op_map = {'lt': '<', 'lte': '≤', 'gt': '>', 'gte': '≥', 'eq': '='}
-            parts.append(f"{indicator}={current} {op_map.get(op, op)} {threshold}")
+        return values
 
-        logic_text = ' 且 ' if logic == 'AND' else ' 或 '
-        return f"证伪条件满足: {logic_text.join(parts)}"
+    def _invalidate_signal(self, signal: InvestmentSignalModel, result: InvalidationCheckResult):
+        """标记信号为已证伪
 
-
-class SignalInvalidationService:
-    """信号证伪服务"""
-
-    def __init__(self):
-        self.checker = InvalidationRuleChecker()
-
-    def check_signal(self, signal: InvestmentSignalModel) -> InvalidationResult:
-        """检查单个信号"""
-        if not signal.invalidation_rules:
-            return InvalidationResult(
-                is_invalidated=False,
-                reason="未配置结构化证伪规则",
-                details={}
-            )
-
-        if signal.status != 'approved':
-            return InvalidationResult(
-                is_invalidated=False,
-                reason=f"信号状态为 {signal.status}，无需检查",
-                details={}
-            )
-
-        return self.checker.check_rules(signal.invalidation_rules)
-
-    def invalidate_signal(self, signal: InvestmentSignalModel, result: InvalidationResult):
-        """执行证伪"""
+        Args:
+            signal: 信号模型
+            result: 证伪检查结果
+        """
         signal.status = 'invalidated'
         signal.invalidated_at = timezone.now()
         signal.invalidation_details = {
             'reason': result.reason,
-            'details': result.details,
-            'checked_at': timezone.now().isoformat()
+            'checked_conditions': result.checked_conditions,
         }
         signal.rejection_reason = result.reason
         signal.save()
 
     def check_all_approved_signals(self) -> List[InvestmentSignalModel]:
-        """检查所有已批准的信号，返回需要证伪的信号列表"""
+        """检查所有已批准的信号
+
+        返回需要证伪的信号列表，并自动更新其状态。
+
+        Returns:
+            List[InvestmentSignalModel]: 被证伪的信号列表
+        """
+        # 获取所有有证伪规则的已批准信号
         approved_signals = InvestmentSignalModel.objects.filter(
             status='approved',
-            invalidation_rules__isnull=False
-        ).exclude(invalidation_rules={})
+            invalidation_rule_json__isnull=False
+        ).exclude(invalidation_rule_json={})
 
         invalidated_signals = []
 
         for signal in approved_signals:
-            result = self.check_signal(signal)
-            if result.is_invalidated:
-                self.invalidate_signal(signal, result)
+            result = self._check_signal_model(signal)
+            if result and result.is_invalidated:
                 invalidated_signals.append(signal)
 
         return invalidated_signals
 
-    def check_signal_by_id(self, signal_id: int) -> Optional[InvalidationResult]:
-        """通过ID检查信号"""
-        try:
-            signal = InvestmentSignalModel.objects.get(id=signal_id)
-            result = self.check_signal(signal)
+    def check_signal_by_id(self, signal_id: int) -> Optional[InvalidationCheckResult]:
+        """通过ID检查信号（别名，保持向后兼容）
 
-            if result.is_invalidated:
-                self.invalidate_signal(signal, result)
+        Args:
+            signal_id: 信号ID
 
-            return result
-        except InvestmentSignalModel.DoesNotExist:
-            return None
+        Returns:
+            InvalidationCheckResult 或 None
+        """
+        return self.check_signal(signal_id)
 
 
-# 导出函数，供 Celery 任务使用
-def check_and_invalidate_signals():
-    """检查并证伪满足条件的信号"""
-    service = SignalInvalidationService()
+# ==================== 导出函数，供 Celery 任务使用 ====================
+
+def check_and_invalidate_signals() -> Dict:
+    """检查并证伪满足条件的信号
+
+    这是一个导出函数，供 Celery 任务调用。
+
+    Returns:
+        Dict: 包含统计信息
+    """
+    service = InvalidationCheckService()
     invalidated = service.check_all_approved_signals()
 
     return {
