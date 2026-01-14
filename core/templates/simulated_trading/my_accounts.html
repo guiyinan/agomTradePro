@@ -71,6 +71,26 @@
                             {% if account.is_active %}活跃{% else %}已停用{% endif %}
                         </span>
                     </div>
+                    <!-- 策略信息 -->
+                    <div class="account-metric">
+                        <span class="metric-label">绑定策略</span>
+                        <div class="metric-strategy">
+                            {% if account.active_strategy %}
+                                <span class="strategy-badge strategy-{{ account.active_strategy.strategy_type }}">
+                                    {% if account.active_strategy.strategy_type == 'rule_based' %}规则驱动
+                                    {% elif account.active_strategy.strategy_type == 'script_based' %}脚本驱动
+                                    {% elif account.active_strategy.strategy_type == 'hybrid' %}混合模式
+                                    {% elif account.active_strategy.strategy_type == 'ai_driven' %}AI驱动{% endif %}
+                                </span>
+                                <span class="strategy-name">{{ account.active_strategy.name }}</span>
+                                <span class="strategy-status {% if account.active_strategy.is_active %}status-active{% else %}status-inactive{% endif %}">
+                                    {% if account.active_strategy.is_active %}激活中{% else %}已停用{% endif %}
+                                </span>
+                            {% else %}
+                                <span class="no-strategy">未绑定</span>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
                 <div class="account-card-footer">
                     <a href="{% url 'simulated_trading:my-account-detail' account.id %}" class="btn btn-primary">
@@ -82,6 +102,15 @@
                     <a href="{% url 'simulated_trading:my-trades' account.id %}" class="btn btn-secondary">
                         交易记录
                     </a>
+                    {% if account.active_strategy %}
+                        <button class="btn btn-danger" onclick="unbindStrategy({{ account.id }})">
+                            解绑策略
+                        </button>
+                    {% else %}
+                        <button class="btn btn-strategy" onclick="showBindStrategyModal({{ account.id }}, '{{ account.account_name }}')">
+                            绑定策略
+                        </button>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -140,6 +169,45 @@
                 <button type="submit" class="btn btn-primary">创建</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- 绑定策略弹窗 -->
+<div id="bindStrategyModal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h2>绑定策略</h2>
+            <span class="close" onclick="closeBindStrategyModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom: 16px;">选择要绑定到 <strong id="targetAccountName"></strong> 的策略：</p>
+
+            <!-- 策略筛选 -->
+            <div class="form-group">
+                <input type="text" id="strategySearch" placeholder="搜索策略名称..." oninput="filterStrategies()">
+            </div>
+
+            <div class="form-group">
+                <select id="strategyTypeFilter" onchange="filterStrategies()">
+                    <option value="">全部类型</option>
+                    <option value="rule_based">规则驱动</option>
+                    <option value="script_based">脚本驱动</option>
+                    <option value="hybrid">混合模式</option>
+                    <option value="ai_driven">AI驱动</option>
+                </select>
+            </div>
+
+            <!-- 策略列表 -->
+            <div id="strategyList" class="strategy-list">
+                <div class="loading">正在加载策略列表...</div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" onclick="closeBindStrategyModal()" class="btn btn-secondary">取消</button>
+            <button type="button" onclick="confirmBindStrategy()" class="btn btn-primary" id="confirmBindBtn" disabled>
+                确认绑定
+            </button>
+        </div>
     </div>
 </div>
 
@@ -340,6 +408,26 @@
     background: #e8e8e8;
 }
 
+.btn-danger {
+    background: #D33;
+    color: white;
+    border: none;
+}
+
+.btn-danger:hover {
+    background: #b22;
+}
+
+.btn-strategy {
+    background: #667eea;
+    color: white;
+    border: none;
+}
+
+.btn-strategy:hover {
+    background: #5568d3;
+}
+
 .empty-state {
     text-align: center;
     padding: 40px;
@@ -495,6 +583,117 @@
     border-top: 1px solid #e0e0e0;
 }
 
+/* 策略绑定相关样式 */
+.modal-body {
+    padding: 16px 24px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.strategy-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.strategy-option {
+    padding: 12px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.strategy-option:hover {
+    border-color: #667eea;
+    background: #f8fafc;
+}
+
+.strategy-option.selected {
+    border-color: #667eea;
+    background: #eff6ff;
+}
+
+.strategy-option-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.strategy-option-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.strategy-option-badges {
+    display: flex;
+    gap: 6px;
+}
+
+.strategy-option-desc {
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+.metric-strategy {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.strategy-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.strategy-badge.strategy-rule_based {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.strategy-badge.strategy-script_based {
+    background: #f3e8ff;
+    color: #6b21a8;
+}
+
+.strategy-badge.strategy-hybrid {
+    background: #ffedd5;
+    color: #9a3412;
+}
+
+.strategy-badge.strategy-ai_driven {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.strategy-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #334155;
+}
+
+.strategy-status {
+    font-size: 12px;
+}
+
+.no-strategy {
+    font-size: 13px;
+    color: #94a3b8;
+}
+
+.loading {
+    text-align: center;
+    padding: 20px;
+    color: #94a3b8;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
     .account-container {
@@ -517,6 +716,11 @@
 </style>
 
 <script>
+// 全局变量
+let currentAccountId = null;
+let availableStrategies = [];
+let selectedStrategyId = null;
+
 function showCreateModal() {
     document.getElementById('createModal').style.display = 'block';
 }
@@ -529,12 +733,379 @@ function setCapital(amount) {
     document.getElementById('initial_capital').value = amount;
 }
 
-// 点击弹窗外部关闭
-window.onclick = function(event) {
-    const modal = document.getElementById('createModal');
-    if (event.target == modal) {
-        modal.style.display = 'none';
+// 策略绑定相关函数
+function showBindStrategyModal(accountId, accountName) {
+    currentAccountId = accountId;
+    selectedStrategyId = null;
+    document.getElementById('targetAccountName').textContent = accountName;
+    document.getElementById('bindStrategyModal').style.display = 'block';
+    document.getElementById('confirmBindBtn').disabled = true;
+
+    // 加载策略列表
+    loadStrategies();
+}
+
+function closeBindStrategyModal() {
+    document.getElementById('bindStrategyModal').style.display = 'none';
+    currentAccountId = null;
+    selectedStrategyId = null;
+}
+
+async function loadStrategies() {
+    const strategyList = document.getElementById('strategyList');
+    strategyList.innerHTML = '<div class="loading">正在加载策略列表...</div>';
+
+    try {
+        const res = await fetch('/api/strategy/my-strategies/');
+        const data = await res.json();
+
+        if (Array.isArray(data)) {
+            availableStrategies = data;
+            renderStrategies(availableStrategies);
+        } else {
+            strategyList.innerHTML = '<div class="loading">加载失败</div>';
+        }
+    } catch (e) {
+        strategyList.innerHTML = '<div class="loading">加载失败: ' + e.message + '</div>';
     }
 }
+
+function renderStrategies(strategies) {
+    const strategyList = document.getElementById('strategyList');
+
+    if (strategies.length === 0) {
+        strategyList.innerHTML = '<div class="loading">暂无可用策略，请先创建策略</div>';
+        return;
+    }
+
+    strategyList.innerHTML = strategies.map(strategy => `
+        <div class="strategy-option" onclick="selectStrategy(${strategy.id})" data-strategy-id="${strategy.id}">
+            <div class="strategy-option-header">
+                <span class="strategy-option-name">${strategy.name}</span>
+                <div class="strategy-option-badges">
+                    <span class="strategy-badge strategy-${strategy.strategy_type}">
+                        ${getStrategyTypeName(strategy.strategy_type)}
+                    </span>
+                    <span class="strategy-badge ${strategy.is_active ? 'status-active' : 'status-inactive'}">
+                        ${strategy.is_active ? '激活中' : '已停用'}
+                    </span>
+                </div>
+            </div>
+            <div class="strategy-option-desc">${strategy.description || '暂无描述'}</div>
+        </div>
+    `).join('');
+}
+
+function getStrategyTypeName(type) {
+    const names = {
+        'rule_based': '规则驱动',
+        'script_based': '脚本驱动',
+        'hybrid': '混合模式',
+        'ai_driven': 'AI驱动'
+    };
+    return names[type] || type;
+}
+
+function selectStrategy(strategyId) {
+    selectedStrategyId = strategyId;
+
+    // 更新选中状态
+    document.querySelectorAll('.strategy-option').forEach(el => {
+        el.classList.remove('selected');
+        if (parseInt(el.dataset.strategyId) === strategyId) {
+            el.classList.add('selected');
+        }
+    });
+
+    // 启用确认按钮
+    document.getElementById('confirmBindBtn').disabled = false;
+}
+
+function filterStrategies() {
+    const search = document.getElementById('strategySearch').value.toLowerCase();
+    const typeFilter = document.getElementById('strategyTypeFilter').value;
+
+    const filtered = availableStrategies.filter(strategy => {
+        const matchSearch = !search || strategy.name.toLowerCase().includes(search);
+        const matchType = !typeFilter || strategy.strategy_type === typeFilter;
+        return matchSearch && matchType;
+    });
+
+    renderStrategies(filtered);
+}
+
+async function confirmBindStrategy() {
+    if (!currentAccountId || !selectedStrategyId) {
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/strategy/bind-strategy/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                portfolio_id: currentAccountId,
+                strategy_id: selectedStrategyId
+            })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            showToast('策略绑定成功');
+            closeBindStrategyModal();
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast('绑定失败: ' + (data.error || '未知错误'), 'error');
+        }
+    } catch (e) {
+        showToast('绑定失败: ' + e.message, 'error');
+    }
+}
+
+async function unbindStrategy(accountId) {
+    if (!confirm('确认解绑此账户的策略？\n\n解绑后，该账户将不再自动执行策略。')) {
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/strategy/unbind-strategy/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                portfolio_id: accountId
+            })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            showToast('策略已解绑');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast('解绑失败: ' + (data.error || '未知错误'), 'error');
+        }
+    } catch (e) {
+        showToast('解绑失败: ' + e.message, 'error');
+    }
+}
+
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: ${type === 'success' ? '#10b981' : '#ef4444'};
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 9999;
+        font-size: 14px;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = 'all 0.3s';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// 点击弹窗外部关闭
+window.onclick = function(event) {
+    const createModal = document.getElementById('createModal');
+    const bindModal = document.getElementById('bindStrategyModal');
+
+    if (event.target == createModal) {
+        createModal.style.display = 'none';
+    }
+    if (event.target == bindModal) {
+        bindModal.style.display = 'none';
+    }
+}
+
+// ============================================================================
+// 实时价格轮询功能
+// ============================================================================
+
+// 价格轮询配置
+const PRICE_POLLING_CONFIG = {
+    enabled: true,           // 是否启用轮询
+    interval: 30000,         // 轮询间隔（毫秒），默认30秒
+    apiEndpoint: '/api/realtime/prices/',  // 价格API端点
+};
+
+// 存储轮询定时器ID
+let pricePollingTimer = null;
+let isPolling = false;
+
+/**
+ * 启动价格轮询
+ */
+function startPricePolling() {
+    if (!PRICE_POLLING_CONFIG.enabled) {
+        console.log('价格轮询功能已禁用');
+        return;
+    }
+
+    if (isPolling) {
+        console.log('价格轮询已在运行中');
+        return;
+    }
+
+    console.log(`启动价格轮询，间隔: ${PRICE_POLLING_CONFIG.interval / 1000}秒`);
+    isPolling = true;
+
+    // 立即执行一次
+    updatePrices();
+
+    // 启动定时轮询
+    pricePollingTimer = setInterval(updatePrices, PRICE_POLLING_CONFIG.interval);
+}
+
+/**
+ * 停止价格轮询
+ */
+function stopPricePolling() {
+    if (pricePollingTimer) {
+        clearInterval(pricePollingTimer);
+        pricePollingTimer = null;
+        isPolling = false;
+        console.log('价格轮询已停止');
+    }
+}
+
+/**
+ * 更新价格数据
+ */
+async function updatePrices() {
+    try {
+        // 获取所有持仓资产代码
+        const assetCodes = getHeldAssetCodes();
+
+        if (assetCodes.length === 0) {
+            console.log('没有持仓资产，跳过价格更新');
+            return;
+        }
+
+        // 请求价格数据
+        const response = await fetch(`${PRICE_POLLING_CONFIG.apiEndpoint}?assets=${assetCodes.join(',')}`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        // 更新UI
+        updateUIWithPrices(data.prices || []);
+
+        console.log(`价格更新完成: ${data.success || 0}/${data.total || 0} 个资产`);
+
+    } catch (error) {
+        console.error('价格更新失败:', error);
+    }
+}
+
+/**
+ * 获取所有持仓资产代码
+ */
+function getHeldAssetCodes() {
+    const codes = [];
+    const accountCards = document.querySelectorAll('.account-card');
+
+    accountCards.forEach(card => {
+        const assetCodes = card.getAttribute('data-asset-codes');
+        if (assetCodes) {
+            codes.push(...assetCodes.split(','));
+        }
+    });
+
+    return [...new Set(codes)];  // 去重
+}
+
+/**
+ * 使用价格数据更新UI
+ */
+function updateUIWithPrices(prices) {
+    // 创建价格映射表
+    const priceMap = {};
+    prices.forEach(price => {
+        priceMap[price.asset_code] = price;
+    });
+
+    // 更新每个账户卡片
+    const accountCards = document.querySelectorAll('.account-card');
+
+    accountCards.forEach(card => {
+        const accountId = card.getAttribute('data-account-id');
+        const assetCodes = card.getAttribute('data-asset-codes');
+
+        if (!assetCodes) return;
+
+        const codes = assetCodes.split(',');
+        let totalMarketValue = 0;
+
+        // 更新持仓列表中的价格
+        const positionItems = card.querySelectorAll('.position-item');
+        positionItems.forEach(item => {
+            const assetCode = item.getAttribute('data-asset-code');
+            const price = priceMap[assetCode];
+
+            if (price) {
+                // 更新价格显示
+                const priceEl = item.querySelector('.position-price');
+                if (priceEl) {
+                    const oldPrice = parseFloat(priceEl.textContent.replace('¥', ''));
+                    const newPrice = price.price;
+
+                    priceEl.textContent = `¥${newPrice.toFixed(2)}`;
+
+                    // 高亮价格变化
+                    if (newPrice > oldPrice) {
+                        priceEl.style.color = '#ef4444';  // 红色表示上涨
+                        setTimeout(() => priceEl.style.color = '', 2000);
+                    } else if (newPrice < oldPrice) {
+                        priceEl.style.color = '#10b981';  // 绿色表示下跌
+                        setTimeout(() => priceEl.style.color = '', 2000);
+                    }
+                }
+
+                // 更新市值
+                const quantityEl = item.querySelector('.position-quantity');
+                if (quantityEl) {
+                    const quantity = parseFloat(quantityEl.textContent.replace(/[^0-9.-]+/g, ''));
+                    totalMarketValue += newPrice * quantity;
+                }
+            }
+        });
+
+        // 更新账户总市值（可选，需要从后端获取完整数据）
+        const totalValueEl = card.querySelector('.total-value');
+        if (totalValueEl && totalMarketValue > 0) {
+            // 这里可以添加动画效果
+            console.log(`账户 ${accountId} 市值更新: ${totalMarketValue.toFixed(2)}`);
+        }
+    });
+}
+
+// 页面加载完成后启动价格轮询
+document.addEventListener('DOMContentLoaded', function() {
+    // 延迟3秒后启动轮询，避免页面加载时过于频繁的请求
+    setTimeout(startPricePolling, 3000);
+});
+
+// 页面卸载时停止轮询
+window.addEventListener('beforeunload', function() {
+    stopPricePolling();
+});
 </script>
 {% endblock %}

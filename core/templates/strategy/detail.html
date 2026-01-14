@@ -10,13 +10,18 @@
 .detail-badges { display: flex; gap: 8px; flex-wrap: wrap; }
 .badge { padding: 6px 12px; border-radius: 12px; font-size: 12px; font-weight: 500; }
 .badge-type { background: #dbeafe; color: #1e40af; }
-.badge-type.rule { background: #dbeafe; color: #1e40af; }
-.badge-type.script { background: #f3e8ff; color: #6b21a8; }
-.badge-type.hybrid { background: #ffedd5; color: #9a3412; }
-.badge-type.ai { background: #dcfce7; color: #166534; }
 .badge-status { background: #d1fae5; color: #065f46; }
 .badge-status.inactive { background: #f3f4f6; color: #6b7280; }
 .badge-version { background: #f1f5f9; color: #64748b; }
+
+/* 标签页样式 */
+.tabs { display: flex; border-bottom: 2px solid #e2e8f0; margin-bottom: 20px; }
+.tab { padding: 12px 24px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; font-size: 14px; font-weight: 500; color: #64748b; }
+.tab:hover { color: #334155; }
+.tab.active { border-bottom-color: #667eea; color: #667eea; }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
 
 .section { background: white; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 20px; overflow: hidden; }
 .section-header { padding: 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
@@ -34,16 +39,71 @@
 .rule-name { font-size: 15px; font-weight: 600; color: #334155; }
 .rule-badge { padding: 4px 10px; background: #e2e8f0; border-radius: 12px; font-size: 11px; }
 .rule-condition { font-size: 13px; color: #64748b; font-family: monospace; background: white; padding: 10px; border-radius: 4px; margin-top: 8px; }
-.rule-meta { display: flex; gap: 12px; margin-top: 12px; font-size: 12px; color: #94a3b8; }
 
-.execution-log { max-height: 400px; overflow-y: auto; }
-.log-item { padding: 12px; border-bottom: 1px solid #f1f5f9; }
-.log-item:last-child { border-bottom: none; }
-.log-time { font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
-.log-status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 8px; }
+/* 测试界面样式 */
+.test-panel { display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
+.test-sidebar { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+.test-main { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+
+.test-form-group { margin-bottom: 16px; }
+.test-label { display: block; font-size: 13px; font-weight: 500; color: #334155; margin-bottom: 8px; }
+.test-select, .test-input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
+.test-select:focus, .test-input:focus { outline: none; border-color: #667eea; }
+
+.test-results { margin-top: 20px; }
+.test-result-item { padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px; }
+.test-result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.test-result-asset { font-weight: 600; color: #334155; }
+.test-result-action { padding: 4px 10px; border-radius: 12px; font-size: 11px; }
+.test-result-action.buy { background: #d1fae5; color: #065f46; }
+.test-result-action.sell { background: #fee2e2; color: #991b1b; }
+.test-result-details { font-size: 13px; color: #64748b; }
+
+/* 日志样式 */
+.execution-log { max-height: 600px; overflow-y: auto; }
+.log-item { border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 12px; background: white; overflow: hidden; transition: all 0.2s; }
+.log-item:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.log-item.hidden { display: none; }
+
+.log-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+.log-time { font-size: 13px; color: #334155; font-weight: 500; }
+.log-status { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; margin-left: 8px; font-weight: 500; }
 .log-status.success { background: #d1fae5; color: #065f46; }
 .log-status.error { background: #fee2e2; color: #991b1b; }
-.log-signals { font-size: 13px; color: #64748b; margin-top: 8px; }
+.log-expand-icon { font-size: 10px; color: #94a3b8; transition: transform 0.2s; }
+.log-item.expanded .log-expand-icon { transform: rotate(180deg); }
+
+.log-error { padding: 12px 16px; background: #fef2f2; color: #991b1b; font-size: 13px; border-bottom: 1px solid #fecaca; }
+
+.log-details { padding: 16px; }
+.log-section { margin-bottom: 20px; }
+.log-section:last-child { margin-bottom: 0; }
+
+/* 信号卡片 */
+.signals-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.signal-card { padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; }
+.signal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.signal-asset { font-weight: 600; color: #334155; font-size: 14px; }
+.signal-action { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+.signal-action.signal-buy { background: #d1fae5; color: #065f46; }
+.signal-action.signal-sell { background: #fee2e2; color: #991b1b; }
+.signal-action.signal-hold { background: #e2e8f0; color: #64748b; }
+.signal-info { display: flex; gap: 16px; margin-bottom: 8px; }
+.signal-detail { display: flex; align-items: center; gap: 6px; }
+.signal-label { font-size: 11px; color: #94a3b8; }
+.signal-value { font-size: 13px; color: #334155; font-weight: 500; }
+.signal-reason { font-size: 12px; color: #64748b; line-height: 1.4; }
+
+/* 执行结果 */
+.execution-result-json { display: flex; flex-direction: column; gap: 12px; }
+.result-item { padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; }
+.result-tag { display: inline-block; padding: 4px 10px; background: white; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; margin-right: 8px; margin-bottom: 4px; }
+
+/* 性能指标 */
+.performance-metrics { display: flex; gap: 20px; }
+.metric-item { display: flex; align-items: center; gap: 8px; }
+.metric-label { font-size: 12px; color: #94a3b8; }
+.metric-value { font-size: 14px; font-weight: 600; color: #334155; }
 
 .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; }
 .btn-primary { background: #667eea; color: white; }
@@ -52,6 +112,7 @@
 .btn-secondary:hover { background: #f8fafc; }
 .btn-danger { background: #ef4444; color: white; }
 .btn-danger:hover { background: #dc2626; }
+.btn-full { width: 100%; }
 
 .actions { display: flex; gap: 8px; }
 .empty-state { text-align: center; padding: 40px; color: #94a3b8; }
@@ -63,7 +124,7 @@
         <div class="detail-title">
             <h1>{{ strategy.name }}</h1>
             <div class="detail-badges">
-                <span class="badge badge-type {{ strategy.strategy_type }}">
+                <span class="badge badge-type">
                     {% if strategy.strategy_type == 'rule_based' %}规则驱动
                     {% elif strategy.strategy_type == 'script_based' %}脚本驱动
                     {% elif strategy.strategy_type == 'hybrid' %}混合模式
@@ -76,131 +137,306 @@
             </div>
         </div>
         <div class="actions">
-            <button class="btn btn-secondary" onclick="location.href='{% url 'strategy:edit' strategy.id %}'">
-                <i class="bi bi-pencil"></i> 编辑
-            </button>
-            <button class="btn btn-secondary" onclick="executeStrategy({{ strategy.id }})">
-                <i class="bi bi-play"></i> 执行
-            </button>
+            <button class="btn btn-secondary" onclick="location.href='{% url 'strategy:edit' strategy.id %}'">编辑</button>
+            <button class="btn btn-secondary" onclick="executeStrategy({{ strategy.id }})">执行</button>
             <button class="btn {% if strategy.is_active %}btn-danger{% else %}btn-primary{% endif %}" onclick="toggleStatus()">
                 {% if strategy.is_active %}停用{% else %}激活{% endif %}
             </button>
         </div>
     </div>
 
-    <!-- 基本信息 -->
-    <div class="section">
-        <div class="section-header">
-            <h2 class="section-title">📋 基本信息</h2>
-        </div>
-        <div class="section-body">
-            <div style="margin-bottom: 16px; color: #64748b;">
-                {{ strategy.description|default:"暂无描述" }}
-            </div>
-            <div class="info-grid">
-                <div class="info-item">
-                    <div class="info-label">创建者</div>
-                    <div class="info-value">{{ strategy.created_by.username }}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">创建时间</div>
-                    <div class="info-value">{{ strategy.created_at|date:"Y-m-d H:i" }}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">更新时间</div>
-                    <div class="info-value">{{ strategy.updated_at|date:"Y-m-d H:i" }}</div>
-                </div>
-            </div>
-        </div>
+    <!-- 标签页导航 -->
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('info')">基本信息</div>
+        <div class="tab" onclick="switchTab('rules')">规则配置</div>
+        <div class="tab" onclick="switchTab('test')">执行测试</div>
+        <div class="tab" onclick="switchTab('logs')">执行日志</div>
     </div>
 
-    <!-- 风控参数 -->
-    <div class="section">
-        <div class="section-header">
-            <h2 class="section-title">🛡️ 风控参数</h2>
+    <!-- 基本信息 -->
+    <div id="tab-info" class="tab-content active">
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">📋 基本信息</h2>
+            </div>
+            <div class="section-body">
+                <div style="margin-bottom: 16px; color: #64748b;">{{ strategy.description|default:"暂无描述" }}</div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">创建者</div>
+                        <div class="info-value">{{ strategy.created_by.username }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">创建时间</div>
+                        <div class="info-value">{{ strategy.created_at|date:"Y-m-d H:i" }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">更新时间</div>
+                        <div class="info-value">{{ strategy.updated_at|date:"Y-m-d H:i" }}</div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="section-body">
-            <div class="info-grid">
-                <div class="info-item">
-                    <div class="info-label">单资产最大持仓</div>
-                    <div class="info-value">{{ strategy.max_position_pct }}%</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">总持仓上限</div>
-                    <div class="info-value">{{ strategy.max_total_position_pct }}%</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">止损比例</div>
-                    <div class="info-value">{{ strategy.stop_loss_pct|default:"未设置" }}%</div>
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">🛡️ 风控参数</h2>
+            </div>
+            <div class="section-body">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">单资产最大持仓</div>
+                        <div class="info-value">{{ strategy.max_position_pct }}%</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">总持仓上限</div>
+                        <div class="info-value">{{ strategy.max_total_position_pct }}%</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">止损比例</div>
+                        <div class="info-value">{{ strategy.stop_loss_pct|default:"未设置" }}%</div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- 规则配置 -->
-    {% if strategy.strategy_type == 'rule_based' or strategy.strategy_type == 'hybrid' %}
-    <div class="section">
-        <div class="section-header">
-            <h2 class="section-title">📐 规则配置</h2>
-            <span class="badge badge-version">{{ rules|length }} 条规则</span>
-        </div>
-        <div class="section-body">
-            {% if rules %}
-            <div class="rules-list">
-                {% for rule in rules %}
-                <div class="rule-card">
-                    <div class="rule-header">
-                        <span class="rule-name">{{ rule.rule_name }}</span>
-                        <div>
-                            <span class="rule-badge">{{ rule.get_rule_type_display }}</span>
-                            <span class="rule-badge">{{ rule.get_action_display }}</span>
-                        </div>
-                    </div>
-                    <div class="rule-condition">{{ rule.condition_json }}</div>
-                    <div class="rule-meta">
-                        <span>权重: {{ rule.weight }}</span>
-                        <span>优先级: {{ rule.priority }}</span>
-                        {% if rule.target_assets %}
-                        <span>目标: {{ rule.target_assets|join:", " }}</span>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endfor %}
+    <div id="tab-rules" class="tab-content">
+        {% if strategy.strategy_type == 'rule_based' or strategy.strategy_type == 'hybrid' %}
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">📐 规则配置</h2>
+                <span class="badge badge-version">{{ rules|length }} 条规则</span>
             </div>
-            {% else %}
-            <div class="empty-state">暂无规则</div>
-            {% endif %}
+            <div class="section-body">
+                {% if rules %}
+                <div class="rules-list">
+                    {% for rule in rules %}
+                    <div class="rule-card">
+                        <div class="rule-header">
+                            <span class="rule-name">{{ rule.rule_name }}</span>
+                            <div>
+                                <span class="rule-badge">{{ rule.get_rule_type_display }}</span>
+                                <span class="rule-badge">{{ rule.get_action_display }}</span>
+                            </div>
+                        </div>
+                        <div class="rule-condition">{{ rule.condition_json }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">暂无规则</div>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-state">此策略类型不使用规则配置</div>
+        {% endif %}
+    </div>
+
+    <!-- 执行测试 -->
+    <div id="tab-test" class="tab-content">
+        <div class="test-panel">
+            <div class="test-sidebar">
+                <h3 style="margin-top: 0;">测试配置</h3>
+
+                <div class="test-form-group">
+                    <label class="test-label">测试账户</label>
+                    <select id="testAccount" class="test-select">
+                        <option value="">选择账户...</option>
+                    </select>
+                </div>
+
+                <div class="test-form-group">
+                    <label class="test-label">测试日期</label>
+                    <input type="date" id="testDate" class="test-input" value="{% now 'Y-m-d' %}">
+                </div>
+
+                <button class="btn btn-primary btn-full" onclick="runStrategyTest()">运行测试</button>
+
+                <div style="margin-top: 20px; padding: 12px; background: #fff3cd; border-radius: 6px; font-size: 12px; color: #856404;">
+                    <strong>提示：</strong><br>
+                    测试功能使用模拟数据运行策略，不会实际执行交易。
+                </div>
+            </div>
+
+            <div class="test-main">
+                <h3 style="margin-top: 0;">测试结果</h3>
+
+                <div id="testStatus" style="margin-bottom: 16px;">
+                    <div style="color: #94a3b8;">点击"运行测试"开始</div>
+                </div>
+
+                <div id="testResults" class="test-results">
+                    <!-- 测试结果将在这里动态生成 -->
+                </div>
+            </div>
         </div>
     </div>
-    {% endif %}
 
     <!-- 执行日志 -->
-    <div class="section">
-        <div class="section-header">
-            <h2 class="section-title">📊 执行日志</h2>
-            <button class="btn btn-secondary" onclick="location.reload()">刷新</button>
-        </div>
-        <div class="section-body">
-            <div class="execution-log">
-                {% if execution_logs %}
-                {% for log in execution_logs %}
-                <div class="log-item">
-                    <div class="log-time">
-                        {{ log.execution_time|date:"Y-m-d H:i:s" }}
-                        <span class="log-status {% if log.is_success %}success{% else %}error{% endif %}">
-                            {% if log.is_success %}成功{% else %}失败{% endif %}
-                        </span>
-                    </div>
-                    {% if log.error_message %}
-                    <div style="color: #ef4444; font-size: 13px;">{{ log.error_message }}</div>
-                    {% endif %}
-                    <div class="log-signals">
-                        生成 {{ log.signals_generated }} 个信号 | 耗时 {{ log.execution_duration_ms }}ms
-                    </div>
+    <div id="tab-logs" class="tab-content">
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">📊 执行日志</h2>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-secondary" onclick="location.reload()">刷新</button>
+                    <button class="btn btn-secondary" onclick="exportLogs()">导出</button>
                 </div>
-                {% endfor %}
-                {% else %}
-                <div class="empty-state">暂无执行记录</div>
+            </div>
+            <div class="section-body">
+                <!-- 筛选器 -->
+                <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+                    <select id="logStatusFilter" class="test-select" style="width: auto;" onchange="filterLogs()">
+                        <option value="">全部状态</option>
+                        <option value="success">成功</option>
+                        <option value="error">失败</option>
+                    </select>
+                    <select id="logPortfolioFilter" class="test-select" style="width: auto;" onchange="filterLogs()">
+                        <option value="">全部组合</option>
+                    </select>
+                    <input type="date" id="logDateFilter" class="test-input" style="width: auto;" onchange="filterLogs()">
+                </div>
+
+                <!-- 日志列表 -->
+                <div class="execution-log" id="logsList">
+                    {% if execution_logs %}
+                    {% for log in execution_logs %}
+                    <div class="log-item" data-log-id="{{ log.id }}" data-status="{% if log.is_success %}success{% else %}error{% endif %}" data-portfolio="{{ log.portfolio_id }}" data-date="{{ log.execution_time|date:'Y-m-d' }}">
+                        <div class="log-header" onclick="toggleLogDetails({{ log.id }})" style="cursor: pointer;">
+                            <div class="log-time">
+                                {{ log.execution_time|date:"Y-m-d H:i:s" }}
+                                <span class="log-status {% if log.is_success %}success{% else %}error{% endif %}">
+                                    {% if log.is_success %}成功{% else %}失败{% endif %}
+                                </span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="font-size: 13px; color: #64748b;">
+                                    {{ log.portfolio.account_name }} | 生成 {{ log.signals_generated|length }} 个信号 | 耗时 {{ log.execution_duration_ms }}ms
+                                </div>
+                                <span class="log-expand-icon">▼</span>
+                            </div>
+                        </div>
+
+                        <!-- 错误信息 -->
+                        {% if log.error_message %}
+                        <div class="log-error">
+                            <strong>错误：</strong>{{ log.error_message }}
+                            {% if log.error_traceback %}
+                            <details style="margin-top: 8px;">
+                                <summary style="cursor: pointer; color: #64748b;">查看堆栈跟踪</summary>
+                                <pre style="background: #1e293b; color: #e2e8f0; padding: 12px; border-radius: 6px; margin-top: 8px; font-size: 11px; overflow-x: auto;">{{ log.error_traceback }}</pre>
+                            </details>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        <!-- 详细信息（可展开） -->
+                        <div class="log-details" id="logDetails{{ log.id }}" style="display: none;">
+                            <!-- 信号列表 -->
+                            {% if log.signals_generated %}
+                            <div class="log-section">
+                                <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #334155;">生成的信号 ({{ log.signals_generated|length }})</h4>
+                                <div class="signals-grid">
+                                    {% for signal in log.signals_generated %}
+                                    <div class="signal-card">
+                                        <div class="signal-header">
+                                            <span class="signal-asset">{{ signal.asset_code }}</span>
+                                            <span class="signal-action signal-{{ signal.action|lower }}">{{ signal.action }}</span>
+                                        </div>
+                                        <div class="signal-info">
+                                            <div class="signal-detail">
+                                                <span class="signal-label">权重</span>
+                                                <span class="signal-value">{{ signal.weight|default:"-" }}</span>
+                                            </div>
+                                            <div class="signal-detail">
+                                                <span class="signal-label">置信度</span>
+                                                <span class="signal-value">{{ signal.confidence|default:"-" }}</span>
+                                            </div>
+                                        </div>
+                                        {% if signal.reason %}
+                                        <div class="signal-reason">{{ signal.reason }}</div>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- 执行结果 -->
+                            {% if log.execution_result %}
+                            <div class="log-section">
+                                <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #334155;">执行结果</h4>
+                                <div class="execution-result-json">
+                                    {% if log.execution_result.rules_matched %}
+                                    <div class="result-item">
+                                        <strong>匹配的规则：</strong>
+                                        <div style="margin-top: 4px;">
+                                            {% for rule in log.execution_result.rules_matched %}
+                                            <span class="result-tag">{{ rule }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% if log.execution_result.macro_indicators %}
+                                    <div class="result-item">
+                                        <strong>宏观数据：</strong>
+                                        <div style="margin-top: 4px;">
+                                            {% for key, value in log.execution_result.macro_indicators.items %}
+                                            <span class="result-tag">{{ key }}: {{ value }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% if log.execution_result.regime_state %}
+                                    <div class="result-item">
+                                        <strong>Regime状态：</strong>
+                                        <span class="result-tag">{{ log.execution_result.regime_state }}</span>
+                                    </div>
+                                    {% endif %}
+                                    {% if log.execution_result.script_output %}
+                                    <div class="result-item">
+                                        <strong>脚本输出：</strong>
+                                        <pre style="background: #f8fafc; padding: 8px; border-radius: 4px; margin-top: 4px; font-size: 11px; overflow-x: auto;">{{ log.execution_result.script_output }}</pre>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- 性能指标 -->
+                            <div class="log-section">
+                                <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #334155;">性能指标</h4>
+                                <div class="performance-metrics">
+                                    <div class="metric-item">
+                                        <span class="metric-label">执行时长</span>
+                                        <span class="metric-value">{{ log.execution_duration_ms }}ms</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="metric-label">信号数量</span>
+                                        <span class="metric-value">{{ log.signals_generated|length }}</span>
+                                    </div>
+                                    {% if log.execution_result.total_assets_scanned %}
+                                    <div class="metric-item">
+                                        <span class="metric-label">扫描资产</span>
+                                        <span class="metric-value">{{ log.execution_result.total_assets_scanned }}</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div class="empty-state">暂无执行记录</div>
+                    {% endif %}
+                </div>
+
+                <!-- 加载更多 -->
+                {% if execution_logs|length >= 20 %}
+                <div style="text-align: center; margin-top: 20px;">
+                    <button class="btn btn-secondary" onclick="loadMoreLogs()">加载更多</button>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -208,6 +444,21 @@
 </div>
 
 <script>
+// 标签页切换
+function switchTab(tabName) {
+    // 更新标签状态
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    event.currentTarget.classList.add('active');
+
+    // 更新内容显示
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById('tab-' + tabName).classList.add('active');
+}
+
 async function toggleStatus() {
     const isActive = {{ 'true' if strategy.is_active else 'false' }};
     const action = isActive ? '停用' : '激活';
@@ -255,29 +506,281 @@ async function executeStrategy(id) {
     }
 }
 
+async function runStrategyTest() {
+    const accountId = document.getElementById('testAccount').value;
+    const testDate = document.getElementById('testDate').value;
+
+    if (!accountId) {
+        showToast('请选择测试账户', 'error');
+        return;
+    }
+
+    const statusDiv = document.getElementById('testStatus');
+    const resultsDiv = document.getElementById('testResults');
+
+    statusDiv.innerHTML = '<div style="color: #667eea;">正在测试...</div>';
+    resultsDiv.innerHTML = '';
+
+    try {
+        const res = await fetch(`/api/strategy/{{ strategy.id }}/test/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                portfolio_id: parseInt(accountId),
+                test_date: testDate
+            })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            statusDiv.innerHTML = `<div style="color: #10b981;">测试完成 | 耗时: ${data.execution_time}ms | 生成信号: ${data.signals_count} 个</div>`;
+
+            if (data.signals && data.signals.length > 0) {
+                resultsDiv.innerHTML = data.signals.map(signal => `
+                    <div class="test-result-item">
+                        <div class="test-result-header">
+                            <span class="test-result-asset">${signal.asset_code} - ${signal.asset_name}</span>
+                            <span class="test-result-action ${signal.action.toLowerCase()}">${signal.action}</span>
+                        </div>
+                        <div class="test-result-details">
+                            权重: ${signal.weight || '-'} | 置信度: ${signal.confidence || '-'}<br>
+                            理由: ${signal.reason || '-'}
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                resultsDiv.innerHTML = '<div class="empty-state">未生成任何信号</div>';
+            }
+        } else {
+            statusDiv.innerHTML = '<div style="color: #ef4444;">测试失败</div>';
+            resultsDiv.innerHTML = `<div style="color: #ef4444;">${data.error || '未知错误'}</div>`;
+        }
+    } catch (e) {
+        statusDiv.innerHTML = '<div style="color: #ef4444;">测试失败</div>';
+        resultsDiv.innerHTML = `<div style="color: #ef4444;">${e.message}</div>`;
+    }
+}
+
+// 日志详情展开/收起
+function toggleLogDetails(logId) {
+    const details = document.getElementById(`logDetails${logId}`);
+    const logItem = document.querySelector(`[data-log-id="${logId}"]`);
+
+    if (details.style.display === 'none') {
+        details.style.display = 'block';
+        logItem.classList.add('expanded');
+    } else {
+        details.style.display = 'none';
+        logItem.classList.remove('expanded');
+    }
+}
+
+// 筛选日志
+function filterLogs() {
+    const statusFilter = document.getElementById('logStatusFilter').value;
+    const portfolioFilter = document.getElementById('logPortfolioFilter').value;
+    const dateFilter = document.getElementById('logDateFilter').value;
+
+    document.querySelectorAll('.log-item').forEach(item => {
+        const status = item.dataset.status;
+        const portfolio = item.dataset.portfolio;
+        const date = item.dataset.date;
+
+        let show = true;
+
+        if (statusFilter && status !== statusFilter) {
+            show = false;
+        }
+        if (portfolioFilter && portfolio !== portfolioFilter) {
+            show = false;
+        }
+        if (dateFilter && date !== dateFilter) {
+            show = false;
+        }
+
+        if (show) {
+            item.classList.remove('hidden');
+        } else {
+            item.classList.add('hidden');
+        }
+    });
+}
+
+// 加载更多日志
+let logsOffset = 20;
+async function loadMoreLogs() {
+    try {
+        const res = await fetch(`/api/strategy/{{ strategy.id }}/execution-logs/?offset=${logsOffset}&limit=20`);
+        const data = await res.json();
+
+        if (data.results && data.results.length > 0) {
+            const logsList = document.getElementById('logsList');
+
+            data.results.forEach(log => {
+                const logItem = createLogItem(log);
+                logsList.appendChild(logItem);
+            });
+
+            logsOffset += data.results.length;
+
+            if (data.results.length < 20) {
+                event.target.style.display = 'none';
+            }
+        } else {
+            event.target.style.display = 'none';
+        }
+    } catch (e) {
+        showToast('加载失败: ' + e.message, 'error');
+    }
+}
+
+// 创建日志项 DOM 元素
+function createLogItem(log) {
+    const div = document.createElement('div');
+    div.className = 'log-item';
+    div.dataset.logId = log.id;
+    div.dataset.status = log.is_success ? 'success' : 'error';
+    div.dataset.portfolio = log.portfolio;
+    div.dataset.date = log.execution_time.split('T')[0];
+
+    const statusClass = log.is_success ? 'success' : 'error';
+    const statusText = log.is_success ? '成功' : '失败';
+
+    let errorHtml = '';
+    if (log.error_message) {
+        errorHtml = `
+            <div class="log-error">
+                <strong>错误：</strong>${log.error_message}
+                ${log.error_traceback ? `
+                    <details style="margin-top: 8px;">
+                        <summary style="cursor: pointer; color: #64748b;">查看堆栈跟踪</summary>
+                        <pre style="background: #1e293b; color: #e2e8f0; padding: 12px; border-radius: 6px; margin-top: 8px; font-size: 11px; overflow-x: auto;">${log.error_traceback}</pre>
+                    </details>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    let signalsHtml = '';
+    if (log.signals_generated && log.signals_generated.length > 0) {
+        signalsHtml = `
+            <div class="log-section">
+                <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #334155;">生成的信号 (${log.signals_generated.length})</h4>
+                <div class="signals-grid">
+                    ${log.signals_generated.map(signal => `
+                        <div class="signal-card">
+                            <div class="signal-header">
+                                <span class="signal-asset">${signal.asset_code}</span>
+                                <span class="signal-action signal-${signal.action.toLowerCase()}">${signal.action}</span>
+                            </div>
+                            <div class="signal-info">
+                                <div class="signal-detail">
+                                    <span class="signal-label">权重</span>
+                                    <span class="signal-value">${signal.weight || '-'}</span>
+                                </div>
+                                <div class="signal-detail">
+                                    <span class="signal-label">置信度</span>
+                                    <span class="signal-value">${signal.confidence || '-'}</span>
+                                </div>
+                            </div>
+                            ${signal.reason ? `<div class="signal-reason">${signal.reason}</div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    div.innerHTML = `
+        <div class="log-header" onclick="toggleLogDetails(${log.id})" style="cursor: pointer;">
+            <div class="log-time">
+                ${new Date(log.execution_time).toLocaleString('zh-CN')}
+                <span class="log-status ${statusClass}">${statusText}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="font-size: 13px; color: #64748b;">
+                    组合 ${log.portfolio} | 生成 ${log.signals_generated ? log.signals_generated.length : 0} 个信号 | 耗时 ${log.execution_duration_ms}ms
+                </div>
+                <span class="log-expand-icon">▼</span>
+            </div>
+        </div>
+        ${errorHtml}
+        <div class="log-details" id="logDetails${log.id}" style="display: none;">
+            ${signalsHtml}
+        </div>
+    `;
+
+    return div;
+}
+
+// 导出日志
+function exportLogs() {
+    const logs = [];
+    document.querySelectorAll('.log-item:not(.hidden)').forEach(item => {
+        const logId = item.dataset.logId;
+        const header = item.querySelector('.log-header');
+        logs.push({
+            id: logId,
+            time: header.querySelector('.log-time').textContent.trim(),
+            status: item.dataset.status
+        });
+    });
+
+    if (logs.length === 0) {
+        showToast('没有可导出的日志', 'error');
+        return;
+    }
+
+    const csv = ['ID,时间,状态\n', ...logs.map(l => `${l.id},${l.time},${l.status}\n`)].join('');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `strategy_logs_{{ strategy.id }}_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+}
+
 function showToast(message, type = 'success') {
     const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
     toast.textContent = message;
     toast.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        padding: 12px 20px;
+        position: fixed; bottom: 20px; right: 20px; padding: 12px 20px;
         background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
-        color: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 9999;
+        color: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999;
     `;
     document.body.appendChild(toast);
-
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(10px)';
-        toast.style.transition = 'all 0.3s';
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    setTimeout(() => toast.remove(), 3000);
 }
+
+// 加载测试账户列表和投资组合筛选器
+document.addEventListener('DOMContentLoaded', async function() {
+    // 加载测试账户
+    const select = document.getElementById('testAccount');
+    try {
+        const res = await fetch('/api/simulated-trading/my-accounts/');
+        const data = await res.json();
+        if (Array.isArray(data)) {
+            data.forEach(account => {
+                const option = document.createElement('option');
+                option.value = account.id;
+                option.textContent = account.account_name;
+                select.appendChild(option);
+            });
+
+            // 同时填充投资组合筛选器
+            const portfolioFilter = document.getElementById('logPortfolioFilter');
+            data.forEach(account => {
+                const option = document.createElement('option');
+                option.value = account.id;
+                option.textContent = account.account_name;
+                portfolioFilter.appendChild(option);
+            });
+        }
+    } catch (e) {
+        console.error('Failed to load accounts:', e);
+    }
+});
 </script>
 {% endblock %}

@@ -1,0 +1,534 @@
+<!-- Rule Templates Component -->
+<style>
+.templates-container {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    gap: 20px;
+    height: 500px;
+}
+
+.templates-sidebar {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.templates-sidebar-header {
+    padding: 16px;
+    background: #f1f5f9;
+    border-bottom: 1px solid #e2e8f0;
+    font-weight: 600;
+    color: #334155;
+    font-size: 14px;
+}
+
+.templates-nav {
+    padding: 12px;
+}
+
+.templates-nav-item {
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-bottom: 4px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.templates-nav-item:hover {
+    background: #e2e8f0;
+}
+
+.templates-nav-item.active {
+    background: #667eea;
+    color: white;
+}
+
+.templates-nav-icon {
+    font-size: 16px;
+}
+
+.templates-nav-text {
+    font-size: 13px;
+}
+
+.templates-nav-count {
+    margin-left: auto;
+    background: rgba(255,255,255,0.3);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+}
+
+.templates-main {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+.templates-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.template-card {
+    padding: 16px;
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.template-card:hover {
+    border-color: #667eea;
+    background: #f1f5f9;
+}
+
+.template-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.template-icon {
+    font-size: 24px;
+}
+
+.template-info {
+    flex: 1;
+}
+
+.template-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 4px;
+}
+
+.template-type {
+    font-size: 11px;
+    color: #64748b;
+}
+
+.template-desc {
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.4;
+    margin-bottom: 10px;
+}
+
+.template-preview {
+    background: #1e293b;
+    color: #e2e8f0;
+    padding: 10px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 11px;
+    overflow-x: auto;
+}
+
+.template-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.btn-template {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-template:hover {
+    background: #f1f5f9;
+}
+
+.btn-template-primary {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.btn-template-primary:hover {
+    background: #5568d3;
+}
+
+.empty-templates {
+    text-align: center;
+    padding: 40px;
+    color: #94a3b8;
+}
+
+.search-box {
+    margin-bottom: 16px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+</style>
+
+<div class="templates-container">
+    <!-- 侧边栏 -->
+    <div class="templates-sidebar">
+        <div class="templates-sidebar-header">模板分类</div>
+        <div class="templates-nav">
+            <div class="templates-nav-item active" data-category="all" onclick="filterTemplates('all')">
+                <span class="templates-nav-icon">📋</span>
+                <span class="templates-nav-text">全部模板</span>
+                <span class="templates-nav-count">8</span>
+            </div>
+            <div class="templates-nav-item" data-category="macro" onclick="filterTemplates('macro')">
+                <span class="templates-nav-icon">📊</span>
+                <span class="templates-nav-text">宏观指标</span>
+                <span class="templates-nav-count">3</span>
+            </div>
+            <div class="templates-nav-item" data-category="regime" onclick="filterTemplates('regime')">
+                <span class="templates-nav-icon">🔄</span>
+                <span class="templates-nav-text">Regime</span>
+                <span class="templates-nav-count">2</span>
+            </div>
+            <div class="templates-nav-item" data-category="signal" onclick="filterTemplates('signal')">
+                <span class="templates-nav-icon">📈</span>
+                <span class="templates-nav-text">信号筛选</span>
+                <span class="templates-nav-count">2</span>
+            </div>
+            <div class="templates-nav-item" data-category="technical" onclick="filterTemplates('technical')">
+                <span class="templates-nav-icon">📉</span>
+                <span class="templates-nav-text">技术指标</span>
+                <span class="templates-nav-count">1</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="templates-main">
+        <div class="search-box">
+            <input type="text" class="search-input" placeholder="搜索模板..." id="templateSearch" oninput="searchTemplates()">
+        </div>
+
+        <div class="templates-grid" id="templatesGrid">
+            <!-- 模板卡片将通过 JS 动态生成 -->
+        </div>
+    </div>
+</div>
+
+<script>
+// 预定义规则模板
+const ruleTemplates = [
+    {
+        id: 'pmi_expansion_buy',
+        name: 'PMI扩张买入',
+        category: 'macro',
+        icon: '📊',
+        type: 'macro',
+        desc: '当PMI高于50（扩张区间）时，买入权益类资产',
+        condition: {
+            "operator": ">",
+            "indicator": "CN_PMI_MANUFACTURING",
+            "threshold": 50
+        },
+        action: 'BUY',
+        weight: 0.15,
+        target_assets: []
+    },
+    {
+        id: 'pmi_contraction_sell',
+        name: 'PMI收缩卖出',
+        category: 'macro',
+        icon: '📉',
+        type: 'macro',
+        desc: '当PMI低于50（收缩区间）时，降低权益仓位',
+        condition: {
+            "operator": "<",
+            "indicator": "CN_PMI_MANUFACTURING",
+            "threshold": 50
+        },
+        action: 'SELL',
+        weight: 0.1,
+        target_assets: []
+    },
+    {
+        id: 'cpi_control_buy',
+        name: 'CPI可控买入',
+        category: 'macro',
+        icon: '💰',
+        type: 'macro',
+        desc: '当CPI同比低于3%时，通胀可控，配置风险资产',
+        condition: {
+            "operator": "<",
+            "indicator": "CN_CPI_YOY",
+            "threshold": 3
+        },
+        action: 'BUY',
+        weight: 0.12,
+        target_assets: []
+    },
+    {
+        id: 'regime_hg_buy',
+        name: 'HG环境买入',
+        category: 'regime',
+        icon: '🚀',
+        type: 'regime',
+        desc: '高增长高通胀(HG)环境，配置周期股和商品',
+        condition: {
+            "operator": "==",
+            "value": "HG"
+        },
+        action: 'BUY',
+        weight: 0.2,
+        target_assets: []
+    },
+    {
+        id: 'regime_ld_defensive',
+        name: 'LD环境防御',
+        category: 'regime',
+        icon: '🛡️',
+        type: 'regime',
+        desc: '低增长低通胀(LD)环境，配置债券和防御性股票',
+        condition: {
+            "operator": "==",
+            "value": "LD"
+        },
+        action: 'BUY',
+        weight: 0.15,
+        target_assets: []
+    },
+    {
+        id: 'long_signal_buy',
+        name: '做多信号买入',
+        category: 'signal',
+        icon: '📈',
+        type: 'composite',
+        desc: '根据系统做多信号买入对应资产',
+        condition: {
+            "operator": "AND",
+            "conditions": [
+                {"field": "direction", "operator": "==", "value": "LONG"},
+                {"field": "regime_score", "operator": ">", "value": 60}
+            ]
+        },
+        action: 'BUY',
+        weight: 0.1,
+        target_assets: []
+    },
+    {
+        id: 'high_score_filter',
+        name: '高分资产筛选',
+        category: 'signal',
+        icon: '⭐',
+        type: 'composite',
+        desc: '筛选评分高于75的优质资产',
+        condition: {
+            "operator": "AND",
+            "conditions": [
+                {"field": "total_score", "operator": ">", "value": 75},
+                {"field": "regime_score", "operator": ">", "value": 70}
+            ]
+        },
+        action: 'BUY',
+        weight: 0.12,
+        target_assets: []
+    },
+    {
+        id: 'low_valuation_buy',
+        name: '低估值买入',
+        category: 'technical',
+        icon: '💎',
+        type: 'technical',
+        desc: '当资产估值处于历史低位时买入',
+        condition: {
+            "operator": "<=",
+            "field": "pe_percentile",
+            "value": 20
+        },
+        action: 'BUY',
+        weight: 0.15,
+        target_assets: []
+    }
+];
+
+let currentCategory = 'all';
+let filteredTemplates = [...ruleTemplates];
+
+// 初始化
+function initRuleTemplates() {
+    renderTemplates(ruleTemplates);
+    updateCategoryCounts();
+}
+
+// 渲染模板
+function renderTemplates(templates) {
+    const grid = document.getElementById('templatesGrid');
+
+    if (templates.length === 0) {
+        grid.innerHTML = '<div class="empty-templates">暂无模板</div>';
+        return;
+    }
+
+    grid.innerHTML = templates.map(template => `
+        <div class="template-card" data-template-id="${template.id}">
+            <div class="template-card-header">
+                <div class="template-icon">${template.icon}</div>
+                <div class="template-info">
+                    <div class="template-name">${template.name}</div>
+                    <div class="template-type">${getTypeName(template.type)}</div>
+                </div>
+            </div>
+            <div class="template-desc">${template.desc}</div>
+            <div class="template-preview">${JSON.stringify(template.condition, null, 2)}</div>
+            <div class="template-actions">
+                <button class="btn-template btn-template-primary" onclick="applyTemplate('${template.id}')">
+                    应用模板
+                </button>
+                <button class="btn-template" onclick="previewTemplate('${template.id}')">
+                    预览
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// 获取类型名称
+function getTypeName(type) {
+    const names = {
+        'macro': '宏观指标',
+        'regime': 'Regime',
+        'signal': '信号筛选',
+        'composite': '组合条件',
+        'technical': '技术指标'
+    };
+    return names[type] || type;
+}
+
+// 筛选模板
+function filterTemplates(category) {
+    currentCategory = category;
+
+    // 更新导航状态
+    document.querySelectorAll('.templates-nav-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.dataset.category === category) {
+            item.classList.add('active');
+        }
+    });
+
+    // 筛选模板
+    if (category === 'all') {
+        filteredTemplates = [...ruleTemplates];
+    } else {
+        filteredTemplates = ruleTemplates.filter(t => t.category === category);
+    }
+
+    // 应用搜索
+    const searchTerm = document.getElementById('templateSearch').value.toLowerCase();
+    if (searchTerm) {
+        filteredTemplates = filteredTemplates.filter(t =>
+            t.name.toLowerCase().includes(searchTerm) ||
+            t.desc.toLowerCase().includes(searchTerm)
+        );
+    }
+
+    renderTemplates(filteredTemplates);
+}
+
+// 搜索模板
+function searchTemplates() {
+    filterTemplates(currentCategory);
+}
+
+// 应用模板
+function applyTemplate(templateId) {
+    const template = ruleTemplates.find(t => t.id === templateId);
+    if (!template) return;
+
+    // 调用规则编辑器的添加规则函数
+    if (typeof addRuleFromTemplate === 'function') {
+        addRuleFromTemplate(template);
+        showToast('已应用模板: ' + template.name);
+    } else {
+        console.error('规则编辑器未找到，请确保在创建策略页面使用此组件');
+    }
+}
+
+// 预览模板
+function previewTemplate(templateId) {
+    const template = ruleTemplates.find(t => t.id === templateId);
+    if (!template) return;
+
+    alert(`模板预览：${template.name}\n\n描述：${template.desc}\n\n条件：\n${JSON.stringify(template.condition, null, 2)}\n\n动作：${template.action}\n权重：${template.weight}`);
+}
+
+// 更新分类计数
+function updateCategoryCounts() {
+    const counts = {
+        all: ruleTemplates.length,
+        macro: ruleTemplates.filter(t => t.category === 'macro').length,
+        regime: ruleTemplates.filter(t => t.category === 'regime').length,
+        signal: ruleTemplates.filter(t => t.category === 'signal').length,
+        technical: ruleTemplates.filter(t => t.category === 'technical').length
+    };
+
+    Object.keys(counts).forEach(key => {
+        const navItem = document.querySelector(`[data-category="${key}"]`);
+        if (navItem) {
+            navItem.querySelector('.templates-nav-count').textContent = counts[key];
+        }
+    });
+}
+
+// Toast 提示
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: ${type === 'success' ? '#10b981' : '#ef4444'};
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 9999;
+        font-size: 14px;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = 'all 0.3s';
+        setTimeout(() => toast.remove(), 300);
+    }, 2000);
+}
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    if (document.getElementById('templatesGrid')) {
+        initRuleTemplates();
+    }
+});
+</script>

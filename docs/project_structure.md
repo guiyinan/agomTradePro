@@ -128,6 +128,18 @@ AgomSAAF/
 │       │   └── models.py        #     Django ORM 模型
 │       └── interface/
 │
+│   ├── realtime/                # ⭐ 实时价格监控系统（新增）
+│   │   ├── domain/              #   实体：RealtimePrice, PriceUpdate, PriceSnapshot
+│   │   │   ├── entities.py      #     价格实体定义
+│   │   │   └── protocols.py     #     Protocol 接口定义
+│   │   ├── application/         #   应用层：价格轮询服务
+│   │   │   └── price_polling_service.py  # 价格轮询和更新用例
+│   │   ├── infrastructure/      #   基础设施层
+│   │   │   └── repositories.py  #     Redis仓储、Tushare数据提供者
+│   │   └── interface/           #   接口层
+│   │       ├── views.py         #     价格API视图
+│   │       └── urls.py          #     URL配置
+│   │
 │   ├── simulated_trading/       # ⭐ 模拟盘/投资组合模块（重构）
 │   │   ├── domain/              #   实体和业务规则
 │   │   │   ├── entities.py      #     SimulatedAccount, Position, Trade, FeeConfig
@@ -343,7 +355,30 @@ apps/macro/
 
 分析回测结果，归因收益来源。
 
-### 6.5 prompt 应用 - AI Prompt管理系统
+### 6.5 realtime 应用 - 实时价格监控系统 ⭐
+
+提供实时市场价格数据接入能力。
+
+**核心功能：**
+- 高频轮询：每30秒自动轮询持仓资产价格
+- Redis缓存：价格数据缓存5分钟
+- 自动更新：收盘后批量更新（16:30定时任务）
+- 前端实时展示：价格变化自动高亮
+
+**API端点：**
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/realtime/prices/` | GET | 查询价格（支持`?assets=`参数） |
+| `/api/realtime/prices/` | POST | 手动触发价格轮询 |
+| `/api/realtime/prices/{code}/` | GET | 查询单个资产价格 |
+| `/api/realtime/poll/` | POST | 触发轮询 |
+| `/api/realtime/health/` | GET | 健康检查 |
+
+**数据源：**
+- Tushare Pro（已实现）
+- FRED（待实现）
+
+### 6.6 prompt 应用 - AI Prompt管理系统
 
 统一的AI Prompt模板管理和链式调用系统。
 
@@ -642,3 +677,19 @@ agomsaaf/Scripts/pip install -r requirements.txt
 - [前端设计指南](doc/frontend_design_guide.md)
 - [项目开发规则](CLAUDE.md)
 - [AI Prompt系统使用文档](doc/ai_prompt_system.md)
+- [实时价格监控系统文档](realtime_data_system.md) ⭐
+
+## 15. 更新记录
+
+### 2026-01-14
+
+1. **新增 realtime 模块**
+   - 实现实时价格监控系统
+   - 支持 Tushare 数据源
+   - 前端每30秒自动轮询
+   - 收盘后自动批量更新（16:30）
+
+2. **更新项目结构文档**
+   - 添加 realtime 模块说明
+   - 添加 API 端点文档
+

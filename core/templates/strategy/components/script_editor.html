@@ -1,0 +1,721 @@
+<!-- Script Editor Component -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/selection/active-line.min.js"></script>
+
+<style>
+.script-editor-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 20px;
+    height: 650px;
+}
+
+.script-editor-main {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.CodeMirror {
+    height: 400px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.editor-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.toolbar-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-sm {
+    padding: 6px 16px;
+    font-size: 13px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-sm:hover {
+    background: #f1f5f9;
+}
+
+.btn-primary-sm {
+    padding: 6px 16px;
+    font-size: 13px;
+    border-radius: 6px;
+    border: none;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary-sm:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.test-panel {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.test-result {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 6px;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.test-result.success {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #86efac;
+}
+
+.test-result.error {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+}
+
+.api-docs-sidebar {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.api-docs-header {
+    padding: 16px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.api-docs-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #334155;
+    margin: 0 0 4px 0;
+}
+
+.api-docs-subtitle {
+    font-size: 12px;
+    color: #64748b;
+    margin: 0;
+}
+
+.api-docs-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+.api-function {
+    margin-bottom: 12px;
+    padding: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.api-function:hover {
+    background: #f1f5f9;
+    border-color: #667eea;
+}
+
+.api-function-name {
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: #667eea;
+    margin-bottom: 4px;
+}
+
+.api-function-desc {
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+.api-function-params {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #e2e8f0;
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.api-function-example {
+    margin-top: 8px;
+    padding: 8px;
+    background: #1e293b;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 11px;
+    color: #e2e8f0;
+    overflow-x: auto;
+}
+
+.template-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.template-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    border: 1px dashed #cbd5e1;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.template-btn:hover {
+    border-color: #667eea;
+    background: #f8fafc;
+}
+
+.security-mode-info {
+    padding: 12px;
+    background: #fef3c7;
+    border: 1px solid #fbbf24;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-size: 12px;
+    color: #92400e;
+}
+
+.security-mode-info strong {
+    display: block;
+    margin-bottom: 4px;
+}
+</style>
+
+<div class="script-editor-wrapper">
+    <!-- 主编辑器区域 -->
+    <div class="script-editor-main">
+        <!-- 脚本模板选择 -->
+        <div class="template-buttons">
+            <button type="button" class="template-btn" onclick="loadScriptTemplate('basic')">基础模板</button>
+            <button type="button" class="template-btn" onclick="loadScriptTemplate('macro')">宏观指标模板</button>
+            <button type="button" class="template-btn" onclick="loadScriptTemplate('regime')">Regime模板</button>
+            <button type="button" class="template-btn" onclick="loadScriptTemplate('signal')">信号筛选模板</button>
+            <button type="button" class="template-btn" onclick="loadScriptTemplate('advanced')">高级模板</button>
+        </div>
+
+        <!-- 编辑器工具栏 -->
+        <div class="editor-toolbar">
+            <div>
+                <span style="font-size: 13px; color: #64748b;">Python 3.11+ 沙箱环境</span>
+            </div>
+            <div class="toolbar-actions">
+                <button type="button" class="btn-sm" onclick="formatCode()">格式化代码</button>
+                <button type="button" class="btn-sm" onclick="clearCode()">清空</button>
+                <button type="button" class="btn-primary-sm" onclick="testScript()">测试脚本</button>
+            </div>
+        </div>
+
+        <!-- CodeMirror 编辑器 -->
+        <textarea id="scriptCodeEditor"></textarea>
+
+        <!-- 测试结果面板 -->
+        <div class="test-panel">
+            <div style="font-size: 13px; font-weight: 500; color: #334155; margin-bottom: 8px;">
+                测试结果
+            </div>
+            <div id="scriptTestResult" class="test-result" style="display: none;">
+                点击"测试脚本"按钮查看执行结果...
+            </div>
+        </div>
+
+        <!-- 隐藏的表单字段 -->
+        <input type="hidden" name="script_code" id="scriptCodeHidden">
+        <input type="hidden" name="script_language" value="python">
+    </div>
+
+    <!-- API 文档侧边栏 -->
+    <div class="api-docs-sidebar">
+        <div class="api-docs-header">
+            <h3 class="api-docs-title">脚本 API 文档</h3>
+            <p class="api-docs-subtitle">可用的内置函数</p>
+        </div>
+        <div class="api-docs-content">
+            <!-- get_macro_indicator -->
+            <div class="api-function">
+                <div class="api-function-name">get_macro_indicator(code)</div>
+                <div class="api-function-desc">获取宏观指标值</div>
+                <div class="api-function-params">
+                    参数: code - 指标代码 (如 'CN_PMI_MANUFACTURING')
+                </div>
+                <div class="api-function-example">pmi = get_macro_indicator('CN_PMI_MANUFACTURING')</div>
+            </div>
+
+            <!-- get_all_macro_indicators -->
+            <div class="api-function">
+                <div class="api-function-name">get_all_macro_indicators()</div>
+                <div class="api-function-desc">获取所有宏观指标</div>
+                <div class="api-function-params">返回: 指标代码到值的映射</div>
+                <div class="api-function-example">macros = get_all_macro_indicators()</div>
+            </div>
+
+            <!-- get_regime -->
+            <div class="api-function">
+                <div class="api-function-name">get_regime()</div>
+                <div class="api-function-desc">获取当前 Regime 状态</div>
+                <div class="api-function-params">
+                    返回: dominant_regime, confidence, growth_momentum_z, inflation_momentum_z
+                </div>
+                <div class="api-function-example">regime = get_regime()</div>
+            </div>
+
+            <!-- get_asset_pool -->
+            <div class="api-function">
+                <div class="api-function-name">get_asset_pool(min_score, limit)</div>
+                <div class="api-function-desc">获取可投资产池</div>
+                <div class="api-function-params">
+                    参数: min_score=60.0, limit=50<br>
+                    返回: 资产列表
+                </div>
+                <div class="api-function-example">assets = get_asset_pool(min_score=70, limit=10)</div>
+            </div>
+
+            <!-- get_valid_signals -->
+            <div class="api-function">
+                <div class="api-function-name">get_valid_signals()</div>
+                <div class="api-function-desc">获取有效信号列表</div>
+                <div class="api-function-params">返回: 信号列表</div>
+                <div class="api-function-example">signals = get_valid_signals()</div>
+            </div>
+
+            <!-- get_portfolio_positions -->
+            <div class="api-function">
+                <div class="api-function-name">get_portfolio_positions()</div>
+                <div class="api-function-desc">获取投资组合持仓</div>
+                <div class="api-function-params">返回: 持仓列表</div>
+                <div class="api-function-example">positions = get_portfolio_positions()</div>
+            </div>
+
+            <!-- get_portfolio_cash -->
+            <div class="api-function">
+                <div class="api-function-name">get_portfolio_cash()</div>
+                <div class="api-function-desc">获取投资组合现金余额</div>
+                <div class="api-function-params">返回: 现金余额</div>
+                <div class="api-function-example">cash = get_portfolio_cash()</div>
+            </div>
+
+            <!-- calculate_signal -->
+            <div class="api-function">
+                <div class="api-function-name">calculate_signal(...)</div>
+                <div class="api-function-desc">生成交易信号</div>
+                <div class="api-function-params">
+                    参数: asset_code, asset_name, action, weight, reason, confidence
+                </div>
+                <div class="api-function-example">
+calculate_signal('000001.SH', '上证指数', 'buy', weight=0.3, reason='PMI扩张', confidence=0.8)
+                </div>
+            </div>
+
+            <!-- 安全模式说明 -->
+            <div class="security-mode-info">
+                <strong>沙箱安全模式：Relaxed</strong>
+                允许的模块：math, datetime, statistics, pandas, numpy 等
+                <br><br>
+                禁止的操作：文件操作、网络请求、系统命令
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 初始化 CodeMirror 编辑器
+let editor = null;
+
+function initScriptEditor() {
+    editor = CodeMirror.fromTextArea(document.getElementById('scriptCodeEditor'), {
+        mode: { name: 'python', version: 3, singleLineStringErrors: false },
+        theme: 'dracula',
+        lineNumbers: true,
+        indentUnit: 4,
+        matchBrackets: true,
+        autoCloseBrackets: true,
+        styleActiveLine: true,
+        indentWithTabs: false,
+    });
+
+    // 同步到隐藏字段
+    editor.on('change', function() {
+        document.getElementById('scriptCodeHidden').value = editor.getValue();
+    });
+
+    // 加载默认模板
+    loadScriptTemplate('basic');
+}
+
+// 脚本模板
+const scriptTemplates = {
+    basic: `# 基础脚本策略模板
+# 获取可投资产池
+assets = get_asset_pool(min_score=60, limit=20)
+
+# 获取当前 Regime
+regime = get_regime()
+print(f"当前 Regime: {regime.get('dominant_regime')}")
+
+# 遍历资产，生成交易信号
+signals = []
+for asset in assets:
+    # 简单策略：评分高于 70 的资产买入
+    if asset['total_score'] > 70:
+        signal = calculate_signal(
+            asset_code=asset['asset_code'],
+            asset_name=asset['asset_name'],
+            action='buy',
+            weight=0.1,
+            reason=f"资产评分 {asset['total_score']} 高于 70",
+            confidence=0.7
+        )
+        signals.append(signal)
+
+return signals
+`,
+
+    macro: `# 宏观指标策略模板
+# 获取 PMI 指标
+pmi = get_macro_indicator('CN_PMI_MANUFACTURING')
+
+if pmi is None:
+    print("无法获取 PMI 数据")
+    return []
+
+print(f"PMI: {pmi}")
+
+# 获取可投资产池
+assets = get_asset_pool(min_score=60, limit=30)
+
+signals = []
+
+# PMI 扩张策略
+if pmi > 50:
+    # PMI 扩张，配置权益类资产
+    for asset in assets:
+        # 假设资产代码以 .SH 或 .SZ 结尾的是股票
+        if asset['asset_code'].endswith(('.SH', '.SZ')):
+            signal = calculate_signal(
+                asset_code=asset['asset_code'],
+                asset_name=asset['asset_name'],
+                action='buy',
+                weight=0.15,
+                reason=f"PMI 扩张 ({pmi})，配置权益资产",
+                confidence=0.75
+            )
+            signals.append(signal)
+else:
+    print("PMI 收缩，保持谨慎")
+
+return signals
+`,
+
+    regime: `# Regime 策略模板
+# 获取当前 Regime
+regime = get_regime()
+dominant_regime = regime.get('dominant_regime')
+confidence = regime.get('confidence', 0)
+
+print(f"主导 Regime: {dominant_regime}, 置信度: {confidence}")
+
+if not dominant_regime:
+    print("无法确定当前 Regime")
+    return []
+
+# 获取可投资产池
+assets = get_asset_pool(min_score=65, limit=20)
+
+signals = []
+
+# 根据 Regime 配置资产
+if dominant_regime == 'HG':  # 高增长高通胀
+    # 配置股票和商品
+    for asset in assets:
+        if confidence > 0.7:
+            signal = calculate_signal(
+                asset_code=asset['asset_code'],
+                asset_name=asset['asset_name'],
+                action='buy',
+                weight=0.12,
+                reason=f"HG 环境，权益资产占优",
+                confidence=confidence
+            )
+            signals.append(signal)
+
+elif dominant_regime == 'LG':  # 低增长高通胀
+    # 配置债券和黄金
+    print("LG 环境，防御性配置")
+
+elif dominant_regime == 'HD':  # 高增长低通胀
+    # 配置成长股
+    print("HD 环境，成长股占优")
+
+elif dominant_regime == 'LD':  # 低增长低通胀
+    # 配置债券
+    print("LD 环境，债券占优")
+
+return signals
+`,
+
+    signal: `# 信号筛选策略模板
+# 获取有效信号
+signals = get_valid_signals()
+print(f"有效信号数量: {len(signals)}")
+
+# 获取当前 Regime
+regime = get_regime()
+current_regime = regime.get('dominant_regime')
+
+# 筛选符合当前 Regime 的信号
+filtered_signals = []
+for sig in signals:
+    target_regime = sig.get('target_regime', '')
+    if not target_regime or target_regime == current_regime:
+        # 转换为交易信号
+        signal = calculate_signal(
+            asset_code=sig['asset_code'],
+            asset_name=sig.get('asset_name', sig['asset_code']),
+            action='buy' if sig['direction'] == 'LONG' else 'sell',
+            weight=0.1,
+            reason=sig.get('logic_desc', ''),
+            confidence=0.8
+        )
+        filtered_signals.append(signal)
+
+print(f"筛选后信号数量: {len(filtered_signals)}")
+return filtered_signals
+`,
+
+    advanced: `# 高级策略模板 - 综合多个因素
+import statistics
+
+# 1. 获取宏观指标
+pmi = get_macro_indicator('CN_PMI_MANUFACTURING')
+cpi = get_macro_indicator('CN_CPI_YOY')
+
+# 2. 获取 Regime
+regime = get_regime()
+dominant_regime = regime.get('dominant_regime')
+growth_z = regime.get('growth_momentum_z', 0)
+inflation_z = regime.get('inflation_momentum_z', 0)
+
+# 3. 获取可投资产池
+assets = get_asset_pool(min_score=60, limit=30)
+
+# 4. 获取当前持仓
+positions = get_portfolio_positions()
+cash = get_portfolio_cash()
+
+print(f"现金: {cash}, 持仓数: {len(positions)}")
+
+# 计算综合得分
+def calculate_asset_score(asset):
+    score = asset['total_score']
+
+    # Regime 加分
+    if dominant_regime == 'HG' and score > 70:
+        score *= 1.2
+    elif dominant_regime == 'LG' and score < 70:
+        score *= 0.8
+
+    # 宏观指标调整
+    if pmi and pmi > 50:
+        score *= 1.1
+
+    return score
+
+# 生成交易信号
+signals = []
+for asset in assets:
+    final_score = calculate_asset_score(asset)
+
+    if final_score > 75:
+        weight = min(final_score / 100, 0.2)  # 最高 20%
+        signal = calculate_signal(
+            asset_code=asset['asset_code'],
+            asset_name=asset['asset_name'],
+            action='buy',
+            weight=weight,
+            reason=f"综合评分 {final_score:.1f}",
+            confidence=0.8
+        )
+        signals.append(signal)
+
+return signals
+`
+};
+
+// 加载模板
+function loadScriptTemplate(templateName) {
+    if (editor && scriptTemplates[templateName]) {
+        editor.setValue(scriptTemplates[templateName]);
+        showToast('已加载' + getTemplateName(templateName), 'success');
+    }
+}
+
+function getTemplateName(name) {
+    const names = {
+        'basic': '基础模板',
+        'macro': '宏观指标模板',
+        'regime': 'Regime模板',
+        'signal': '信号筛选模板',
+        'advanced': '高级模板'
+    };
+    return names[name] || name;
+}
+
+// 格式化代码
+function formatCode() {
+    if (!editor) return;
+    // 简单格式化：确保缩进
+    const code = editor.getValue();
+    const lines = code.split('\n');
+    const formatted = lines.map(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return '';
+        // 简单的缩进修复
+        const indent = '    '.repeat(Math.floor((line.length - line.trimLeft().length) / 4));
+        return indent + trimmed;
+    }).join('\n');
+    editor.setValue(formatted);
+    showToast('代码已格式化');
+}
+
+// 清空代码
+function clearCode() {
+    if (editor) {
+        editor.setValue('');
+        showToast('代码已清空');
+    }
+}
+
+// 测试脚本
+async function testScript() {
+    const code = editor ? editor.getValue() : '';
+
+    if (!code.trim()) {
+        showTestResult('请先输入脚本代码', 'error');
+        return;
+    }
+
+    const resultPanel = document.getElementById('scriptTestResult');
+    resultPanel.style.display = 'block';
+    resultPanel.className = 'test-result';
+    resultPanel.textContent = '正在测试...';
+
+    try {
+        const res = await fetch('/api/strategy/test-script/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                script_code: code
+            })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            let output = '✓ 测试通过\n\n';
+            output += `执行时间: ${data.execution_time}ms\n`;
+            output += `生成信号数: ${data.signals_count}\n\n`;
+            if (data.output) {
+                output += '--- 输出 ---\n' + data.output;
+            }
+            if (data.signals && data.signals.length > 0) {
+                output += '\n--- 信号列表 ---\n';
+                data.signals.forEach(sig => {
+                    output += `${sig.asset_code}: ${sig.action} (${sig.weight})\n`;
+                });
+            }
+            resultPanel.className = 'test-result success';
+            resultPanel.textContent = output;
+        } else {
+            resultPanel.className = 'test-result error';
+            resultPanel.textContent = '✗ 测试失败\n\n' + (data.error || '未知错误');
+        }
+    } catch (e) {
+        resultPanel.className = 'test-result error';
+        resultPanel.textContent = '✗ 测试失败\n\n' + e.message;
+    }
+}
+
+// 显示测试结果
+function showTestResult(message, type = 'success') {
+    const resultPanel = document.getElementById('scriptTestResult');
+    resultPanel.style.display = 'block';
+    resultPanel.className = `test-result ${type}`;
+    resultPanel.textContent = message;
+}
+
+// Toast 提示
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: ${type === 'success' ? '#10b981' : '#ef4444'};
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 9999;
+        font-size: 14px;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = 'all 0.3s';
+        setTimeout(() => toast.remove(), 300);
+    }, 2000);
+}
+
+// 初始化
+document.addEventListener('DOMContentLoaded', function() {
+    initScriptEditor();
+});
+</script>

@@ -9,6 +9,9 @@ Interface层:
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
+# Application namespace for URL reversing
+app_name = 'strategy'
+
 from apps.strategy.interface.views import (
     StrategyViewSet,
     RuleConditionViewSet,
@@ -22,6 +25,10 @@ from apps.strategy.interface.views import (
     strategy_edit,
     strategy_toggle_status,
     strategy_execute,
+    bind_strategy,
+    unbind_strategy,
+    test_script,
+    test_strategy,
 )
 
 # 创建路由器
@@ -44,7 +51,11 @@ urlpatterns = [
     path('<int:strategy_id>/edit/', strategy_edit, name='edit'),
     path('<int:strategy_id>/toggle-status/', strategy_toggle_status, name='toggle-status'),
     path('<int:strategy_id>/execute/', strategy_execute, name='execute'),
+    path('<int:strategy_id>/test/', test_strategy, name='test-strategy'),
 
     # API 路由
     path('api/', include(router.urls)),
+    path('api/test-script/', test_script, name='test-script'),
+    path('api/bind-strategy/', bind_strategy, name='bind-strategy'),
+    path('api/unbind-strategy/', unbind_strategy, name='unbind-strategy'),
 ]

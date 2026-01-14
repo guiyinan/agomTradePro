@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'apps.sentiment',      # 新增：舆情情感分析模块
     'apps.simulated_trading', # 新增：模拟盘自动交易模块
     'apps.strategy',       # 新增：投资组合策略系统
+    'apps.realtime',       # 新增：实时价格监控模块
 ]
 
 MIDDLEWARE = [
@@ -235,6 +236,16 @@ CELERY_BEAT_SCHEDULE = {
     'simulated-daily-summary': {
         'task': 'apps.simulated_trading.application.tasks.send_performance_summary_task',
         'schedule': crontab(hour=17, minute=0, day_of_week='mon-fri'),  # 每个交易日 17:00
+    },
+    # ============================================
+
+    # ========== 实时价格监控 ==========
+    'realtime-update-prices-after-close': {
+        'task': 'apps.simulated_trading.application.tasks.update_all_prices_after_close',
+        'schedule': crontab(hour=16, minute=30, day_of_week='mon-fri'),  # 每个交易日 16:30
+        'options': {
+            'expires': 3600,  # 1 小时超时
+        }
     },
     # ============================================
 }

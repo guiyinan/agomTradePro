@@ -1,9 +1,10 @@
 # AgomSAAF 系统全景概览
 
-> **文档版本**: V1.0
+> **文档版本**: V1.1
 > **生成日期**: 2026-01-04
+> **最后更新**: 2026-01-14
 > **系统版本**: AgomSAAF V3.4
-> **项目完成度**: 100%
+> **项目完成度**: 98%
 > **文档目的**: 基于现有文档和代码库,梳理系统的模块、功能(应然和实然)及后续实施建议
 
 ---
@@ -15,9 +16,10 @@
 ### 核心特点
 
 - ✅ **四层架构** (Domain/Application/Infrastructure/Interface) - 严格遵循
-- ✅ **18个业务模块** - 384个Python文件,覆盖宏观分析、信号管理、回测归因全流程
+- ✅ **19个业务模块** - 覆盖宏观分析、信号管理、回测归因、实时数据全流程
 - ✅ **多维度资产分析** - 支持股票、基金、板块、债券、商品
-- ✅ **100%完成度** - 所有Phase (1-7) 核心任务已完成,测试通过率100%
+- ✅ **98%完成度** - 所有Phase (1-7) 核心任务已完成,测试通过率100%
+- ✅ **实时数据接入** - 价格监控系统已完成(2026-01-14新增)
 - ⚠️ **前端待完善** - Dashboard基础框架完成,图表交互需优化
 
 ---
@@ -436,11 +438,56 @@ StopLossConfig(
 
 **详细设计文档**: `docs/simulated_trading_design.md`
 
+#### 15. `realtime` - 实时价格监控系统 ⭐新增
+
+**应然功能**:
+- 实时市场价格数据接入
+- 高频轮询价格监控(每30秒)
+- Redis缓存(5分钟过期)
+- 收盘后自动批量更新(16:30)
+- 前端实时展示(价格变化高亮)
+
+**实然功能**:
+- ✅ 四层架构完整实现
+- ✅ Domain层: 4个实体(RealtimePrice/PriceUpdate/PricePollingConfig/PriceSnapshot)
+- ✅ Protocol接口: 4个协议(Repository/Provider/Notifier/Watchlist)
+- ✅ Application层: PricePollingService价格轮询服务
+- ✅ Infrastructure层: Redis仓储 + Tushare数据提供者 + 关注池提供者
+- ✅ Interface层: 5个API端点
+
+**API端点** (5个):
+- `GET /api/realtime/prices/` - 查询价格(支持`?assets=`参数)
+- `POST /api/realtime/prices/` - 手动触发价格轮询
+- `GET /api/realtime/prices/{code}/` - 查询单个资产价格
+- `POST /api/realtime/poll/` - 触发轮询
+- `GET /api/realtime/health/` - 健康检查
+
+**Celery定时任务** (1个):
+- `update_all_prices_after_close` - 每个交易日16:30收盘后批量更新价格
+
+**核心功能**:
+- **价格轮询**: 每30秒自动轮询持仓资产价格
+- **Redis缓存**: 价格数据缓存5分钟,减少API调用
+- **故障转移**: 支持多数据源自动切换
+- **前端集成**: 页面加载后自动开始轮询,价格变化高亮显示
+
+**数据源**:
+- Tushare Pro(已实现)
+- FRED(待实现)
+
+**业务价值**:
+- ✅ 解决"实时市场数据接入"问题
+- ✅ 支持持仓资产实时价格监控
+- ✅ 为策略执行提供最新价格数据
+- ✅ 用户体验提升(无需刷新页面)
+
+**详细设计文档**: `docs/realtime_data_system.md`
+
 ---
 
 ### 2.4 AI与工具模块 (5个)
 
-#### 15. `ai_provider` - AI服务提供商管理
+#### 16. `ai_provider` - AI服务提供商管理
 
 **应然功能**:
 - 统一管理多个AI提供商(OpenAI/DeepSeek/Qwen/Moonshot)

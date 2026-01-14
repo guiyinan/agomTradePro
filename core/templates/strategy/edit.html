@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}创建策略 - AgomSAAF{% endblock %}
+{% block title %}编辑策略 - {{ strategy.name }} - AgomSAAF{% endblock %}
 
 {% block content %}
 <style>
@@ -49,6 +49,7 @@
 .type-icon { font-size: 32px; margin-bottom: 8px; }
 .type-name { font-size: 14px; font-weight: 600; color: #334155; }
 .type-desc { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+.type-card.disabled { opacity: 0.5; cursor: not-allowed; }
 
 .risk-params { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 
@@ -77,7 +78,6 @@
 
 .actions { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; }
 
-/* 规则编辑器（将在下一步实现） */
 #rulesEditor { display: none; }
 #scriptEditor { display: none; }
 #aiEditor { display: none; }
@@ -86,56 +86,61 @@
 <div class="strategy-create-container">
     <!-- 页面头部 -->
     <div class="page-header">
-        <h1 class="page-title">创建新策略</h1>
-        <div class="page-subtitle">配置投资组合的自动交易策略</div>
+        <h1 class="page-title">编辑策略</h1>
+        <div class="page-subtitle">{{ strategy.name }}</div>
     </div>
 
     <form id="strategyForm" onsubmit="return false;">
         <!-- 基本信息 -->
         <div class="form-section">
             <div class="section-header">
-                <h2 class="section-title">📋 基本信息</h2>
+                <h2 class="section-title">基本信息</h2>
             </div>
             <div class="section-body">
                 <div class="form-grid">
                     <div class="form-group full">
                         <label class="form-label">策略名称</label>
-                        <input type="text" name="name" class="form-input" placeholder="例如：PMI扩张策略" required>
+                        <input type="text" name="name" class="form-input" value="{{ strategy.name }}" required>
                     </div>
 
                     <div class="form-group full">
                         <label class="form-label">策略类型</label>
                         <div class="type-selector">
                             <label class="type-card" onclick="selectType('rule_based')">
-                                <input type="radio" name="strategy_type" value="rule_based">
-                                <div class="type-icon">📜</div>
+                                <input type="radio" name="strategy_type" value="rule_based"
+                                    {% if strategy.strategy_type == 'rule_based' %}checked{% endif %}>
+                                <div class="type-icon"></div>
                                 <div class="type-name">规则驱动</div>
                                 <div class="type-desc">基于JSON规则</div>
                             </label>
                             <label class="type-card" onclick="selectType('script_based')">
-                                <input type="radio" name="strategy_type" value="script_based">
-                                <div class="type-icon">💻</div>
+                                <input type="radio" name="strategy_type" value="script_based"
+                                    {% if strategy.strategy_type == 'script_based' %}checked{% endif %}>
+                                <div class="type-icon"></div>
                                 <div class="type-name">脚本驱动</div>
                                 <div class="type-desc">Python脚本</div>
                             </label>
                             <label class="type-card" onclick="selectType('hybrid')">
-                                <input type="radio" name="strategy_type" value="hybrid">
-                                <div class="type-icon">🔧</div>
+                                <input type="radio" name="strategy_type" value="hybrid"
+                                    {% if strategy.strategy_type == 'hybrid' %}checked{% endif %}>
+                                <div class="type-icon"></div>
                                 <div class="type-name">混合模式</div>
                                 <div class="type-desc">规则+脚本</div>
                             </label>
                             <label class="type-card" onclick="selectType('ai_driven')">
-                                <input type="radio" name="strategy_type" value="ai_driven">
-                                <div class="type-icon">🤖</div>
+                                <input type="radio" name="strategy_type" value="ai_driven"
+                                    {% if strategy.strategy_type == 'ai_driven' %}checked{% endif %}>
+                                <div class="type-icon"></div>
                                 <div class="type-name">AI驱动</div>
                                 <div class="type-desc">AI智能决策</div>
                             </label>
                         </div>
+                        <div class="form-hint">注意：策略类型创建后不可修改</div>
                     </div>
 
                     <div class="form-group full">
                         <label class="form-label">策略描述</label>
-                        <textarea name="description" class="form-textarea" placeholder="描述策略的投资逻辑、适用场景等..."></textarea>
+                        <textarea name="description" class="form-textarea">{{ strategy.description }}</textarea>
                     </div>
                 </div>
             </div>
@@ -144,28 +149,29 @@
         <!-- 风控参数 -->
         <div class="form-section">
             <div class="section-header">
-                <h2 class="section-title">🛡️ 风控参数</h2>
+                <h2 class="section-title">风控参数</h2>
             </div>
             <div class="section-body">
                 <div class="risk-params">
                     <div class="form-group">
                         <label class="form-label">单资产最大持仓</label>
-                        <input type="number" name="max_position_pct" class="form-input" value="20" min="0" max="100" step="1">
+                        <input type="number" name="max_position_pct" class="form-input" value="{{ strategy.max_position_pct }}" min="0" max="100" step="1">
                         <div class="form-hint">%</div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">总持仓上限</label>
-                        <input type="number" name="max_total_position_pct" class="form-input" value="95" min="0" max="100" step="1">
+                        <input type="number" name="max_total_position_pct" class="form-input" value="{{ strategy.max_total_position_pct }}" min="0" max="100" step="1">
                         <div class="form-hint">%</div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">止损比例</label>
-                        <input type="number" name="stop_loss_pct" class="form-input" value="10" min="0" max="100" step="1">
+                        <input type="number" name="stop_loss_pct" class="form-input" value="{{ strategy.stop_loss_pct|default:'' }}" min="0" max="100" step="1">
                         <div class="form-hint">%（可选）</div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">版本号</label>
-                        <input type="number" name="version" class="form-input" value="1" min="1">
+                        <input type="number" name="version" class="form-input" value="{{ strategy.version }}" min="1" readonly>
+                        <div class="form-hint">保存后自动递增</div>
                     </div>
                 </div>
             </div>
@@ -174,7 +180,7 @@
         <!-- 策略配置区域（根据类型动态显示） -->
         <div id="rulesEditor" class="form-section">
             <div class="section-header">
-                <h2 class="section-title">📐 规则配置</h2>
+                <h2 class="section-title">规则配置</h2>
             </div>
             <div class="section-body">
                 {% include "strategy/components/rule_editor.html" %}
@@ -183,7 +189,7 @@
 
         <div id="scriptEditor" class="form-section">
             <div class="section-header">
-                <h2 class="section-title">💻 脚本配置</h2>
+                <h2 class="section-title">脚本配置</h2>
             </div>
             <div class="section-body">
                 {% include "strategy/components/script_editor.html" %}
@@ -192,7 +198,7 @@
 
         <div id="aiEditor" class="form-section">
             <div class="section-header">
-                <h2 class="section-title">🤖 AI配置</h2>
+                <h2 class="section-title">AI配置</h2>
             </div>
             <div class="section-body">
                 <div class="form-hint" style="margin-bottom: 16px;">
@@ -204,29 +210,38 @@
         <!-- 操作按钮 -->
         <div class="actions">
             <button type="button" class="btn-secondary" onclick="history.back()">取消</button>
-            <button type="submit" class="btn-primary" onclick="createStrategy()">创建策略</button>
+            <button type="submit" class="btn-primary" onclick="updateStrategy()">保存修改</button>
         </div>
     </form>
 </div>
 
 <script>
-// 选择策略类型
-function selectType(type) {
-    // 更新选中状态
-    document.querySelectorAll('.type-card').forEach(card => {
-        card.classList.remove('selected');
-    });
-    event.currentTarget.classList.add('selected');
+// 策略类型禁用（不可修改）
+const strategyType = '{{ strategy.strategy_type }}';
 
-    // 选中对应的radio
-    const radio = document.querySelector(`input[value="${type}"]`);
-    radio.checked = true;
+// 初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 禁用策略类型选择
+    document.querySelectorAll('.type-card').forEach(card => {
+        card.classList.add('disabled');
+    });
 
     // 显示对应的编辑器
-    document.getElementById('rulesEditor').style.display = 'none';
-    document.getElementById('scriptEditor').style.display = 'none';
-    document.getElementById('aiEditor').style.display = 'none';
+    showEditorForType(strategyType);
 
+    // 加载现有规则数据
+    {% if strategy.strategy_type == 'rule_based' or strategy.strategy_type == 'hybrid' %}
+    loadExistingRules();
+    {% endif %}
+
+    // 加载现有脚本代码
+    {% if strategy.script_config %}
+    loadExistingScript();
+    {% endif %}
+});
+
+// 显示对应的编辑器
+function showEditorForType(type) {
     if (type === 'rule_based' || type === 'hybrid') {
         document.getElementById('rulesEditor').style.display = 'block';
     }
@@ -236,41 +251,72 @@ function selectType(type) {
     if (type === 'ai_driven') {
         document.getElementById('aiEditor').style.display = 'block';
     }
+
+    // 选中对应的卡片
+    document.querySelectorAll('.type-card').forEach(card => {
+        const input = card.querySelector('input');
+        if (input.value === type) {
+            card.classList.add('selected');
+        }
+    });
 }
 
-// 创建策略
-async function createStrategy() {
+// 加载现有规则
+function loadExistingRules() {
+    // 从后端获取规则数据
+    fetch(`/api/strategy/{{ strategy.id }}/rules/`)
+        .then(res => res.json())
+        .then(rules => {
+            if (Array.isArray(rules)) {
+                // 填充规则编辑器
+                window.existingRules = rules;
+                // 如果有规则编辑器的初始化函数，调用它
+                if (typeof initRulesEditor === 'function') {
+                    initRulesEditor(rules);
+                }
+            }
+        })
+        .catch(e => console.error('加载规则失败:', e));
+}
+
+// 加载现有脚本
+function loadExistingScript() {
+    fetch(`/api/strategy/{{ strategy.id }}/script-config/`)
+        .then(res => res.json())
+        .then(config => {
+            if (config.script_code && window.editor) {
+                window.editor.setValue(config.script_code);
+            }
+        })
+        .catch(e => console.error('加载脚本失败:', e));
+}
+
+// 更新策略
+async function updateStrategy() {
     const form = document.getElementById('strategyForm');
     const formData = new FormData(form);
 
     // 验证
     const name = formData.get('name');
-    const type = formData.get('strategy_type');
-
     if (!name) {
         showToast('请输入策略名称', 'error');
         return;
     }
-    if (!type) {
-        showToast('请选择策略类型', 'error');
-        return;
-    }
 
     try {
-        const res = await fetch('/api/strategy/', {
-            method: 'POST',
-            body: formData
+        const res = await fetch(`/api/strategy/{{ strategy.id }}/`, {
+            method: 'PUT'  // 或 'PATCH'
         });
         const data = await res.json();
 
-        if (data.success || data.id) {
-            showToast('策略创建成功');
-            location.href = `/strategy/${data.id}/`;
+        if (res.ok) {
+            showToast('策略更新成功');
+            setTimeout(() => location.href = `/strategy/{{ strategy.id }}/`, 1500);
         } else {
-            showToast('创建失败: ' + (data.error || '未知错误'), 'error');
+            showToast('更新失败: ' + (data.error || '未知错误'), 'error');
         }
     } catch (e) {
-        showToast('创建失败: ' + e.message, 'error');
+        showToast('更新失败: ' + e.message, 'error');
     }
 }
 

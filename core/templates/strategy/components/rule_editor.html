@@ -69,9 +69,14 @@
 <div class="rules-editor">
     <div class="rules-header">
         <h3>📐 规则配置</h3>
-        <button class="btn-add-rule" onclick="addNewRule()">
-            <i class="bi bi-plus-lg"></i> 添加规则
-        </button>
+        <div style="display: flex; gap: 8px;">
+            <button class="btn-add-rule" style="background: #64748b;" onclick="showTemplatesModal()">
+                <i class="bi bi-collection"></i> 从模板添加
+            </button>
+            <button class="btn-add-rule" onclick="addNewRule()">
+                <i class="bi bi-plus-lg"></i> 添加规则
+            </button>
+        </div>
     </div>
 
     <div id="rulesList" class="rules-list">
@@ -82,9 +87,401 @@
     <input type="hidden" name="rules_data" id="rulesDataInput">
 </div>
 
+<!-- 模板选择弹窗 -->
+<div id="templatesModal" class="templates-modal" style="display: none;">
+    <div class="templates-modal-content">
+        <div class="templates-modal-header">
+            <h3>选择规则模板</h3>
+            <button class="templates-modal-close" onclick="closeTemplatesModal()">&times;</button>
+        </div>
+        <div class="templates-modal-body" id="templatesModalBody">
+            <!-- 模板列表将在这里动态生成 -->
+        </div>
+    </div>
+</div>
+
+<style>
+.templates-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.templates-modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    width: 90%;
+    max-width: 800px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.templates-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.templates-modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.templates-modal-close {
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    background: none;
+    border: none;
+}
+
+.templates-modal-close:hover {
+    color: #000;
+}
+
+.templates-modal-body {
+    padding: 24px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.templates-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.template-card {
+    padding: 16px;
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.template-card:hover {
+    border-color: #667eea;
+    background: #f1f5f9;
+}
+
+.template-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.template-icon {
+    font-size: 24px;
+}
+
+.template-info {
+    flex: 1;
+}
+
+.template-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 4px;
+}
+
+.template-type {
+    font-size: 11px;
+    color: #64748b;
+}
+
+.template-desc {
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.4;
+    margin-bottom: 10px;
+}
+
+.template-preview {
+    background: #1e293b;
+    color: #e2e8f0;
+    padding: 10px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 11px;
+    overflow-x: auto;
+}
+
+.template-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.btn-template {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-template:hover {
+    background: #f1f5f9;
+}
+
+.btn-template-primary {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.btn-template-primary:hover {
+    background: #5568d3;
+}
+</style>
+
 <script>
 // 规则数据
 let rules = [];
+
+// 规则模板数据
+const ruleTemplates = [
+    {
+        id: 'pmi_expansion_buy',
+        name: 'PMI扩张买入',
+        icon: '📊',
+        type: 'macro',
+        desc: '当PMI高于50（扩张区间）时，买入权益类资产',
+        condition: {
+            "operator": ">",
+            "indicator": "CN_PMI_MANUFACTURING",
+            "threshold": 50
+        },
+        action: 'BUY',
+        weight: 0.15,
+        target_assets: []
+    },
+    {
+        id: 'pmi_contraction_sell',
+        name: 'PMI收缩卖出',
+        icon: '📉',
+        type: 'macro',
+        desc: '当PMI低于50（收缩区间）时，降低权益仓位',
+        condition: {
+            "operator": "<",
+            "indicator": "CN_PMI_MANUFACTURING",
+            "threshold": 50
+        },
+        action: 'SELL',
+        weight: 0.1,
+        target_assets: []
+    },
+    {
+        id: 'cpi_control_buy',
+        name: 'CPI可控买入',
+        icon: '💰',
+        type: 'macro',
+        desc: '当CPI同比低于3%时，通胀可控，配置风险资产',
+        condition: {
+            "operator": "<",
+            "indicator": "CN_CPI_YOY",
+            "threshold": 3
+        },
+        action: 'BUY',
+        weight: 0.12,
+        target_assets: []
+    },
+    {
+        id: 'regime_hg_buy',
+        name: 'HG环境买入',
+        icon: '🚀',
+        type: 'regime',
+        desc: '高增长高通胀(HG)环境，配置周期股和商品',
+        condition: {
+            "operator": "==",
+            "value": "HG"
+        },
+        action: 'BUY',
+        weight: 0.2,
+        target_assets: []
+    },
+    {
+        id: 'regime_ld_defensive',
+        name: 'LD环境防御',
+        icon: '🛡️',
+        type: 'regime',
+        desc: '低增长低通胀(LD)环境，配置债券和防御性股票',
+        condition: {
+            "operator": "==",
+            "value": "LD"
+        },
+        action: 'BUY',
+        weight: 0.15,
+        target_assets: []
+    },
+    {
+        id: 'long_signal_buy',
+        name: '做多信号买入',
+        icon: '📈',
+        type: 'composite',
+        desc: '根据系统做多信号买入对应资产',
+        condition: {
+            "operator": "AND",
+            "conditions": [
+                {"field": "direction", "operator": "==", "value": "LONG"},
+                {"field": "regime_score", "operator": ">", "value": 60}
+            ]
+        },
+        action: 'BUY',
+        weight: 0.1,
+        target_assets: []
+    },
+    {
+        id: 'high_score_filter',
+        name: '高分资产筛选',
+        icon: '⭐',
+        type: 'composite',
+        desc: '筛选评分高于75的优质资产',
+        condition: {
+            "operator": "AND",
+            "conditions": [
+                {"field": "total_score", "operator": ">", "value": 75},
+                {"field": "regime_score", "operator": ">", "value": 70}
+            ]
+        },
+        action: 'BUY',
+        weight: 0.12,
+        target_assets: []
+    },
+    {
+        id: 'low_valuation_buy',
+        name: '低估值买入',
+        icon: '💎',
+        type: 'technical',
+        desc: '当资产估值处于历史低位时买入',
+        condition: {
+            "operator": "<=",
+            "field": "pe_percentile",
+            "value": 20
+        },
+        action: 'BUY',
+        weight: 0.15,
+        target_assets: []
+    }
+];
+
+// 显示模板弹窗
+function showTemplatesModal() {
+    const modal = document.getElementById('templatesModal');
+    const body = document.getElementById('templatesModalBody');
+    modal.style.display = 'block';
+
+    body.innerHTML = `
+        <div class="templates-grid">
+            ${ruleTemplates.map(template => `
+                <div class="template-card" onclick="applyTemplate('${template.id}')">
+                    <div class="template-card-header">
+                        <div class="template-icon">${template.icon}</div>
+                        <div class="template-info">
+                            <div class="template-name">${template.name}</div>
+                            <div class="template-type">${getTypeName(template.type)}</div>
+                        </div>
+                    </div>
+                    <div class="template-desc">${template.desc}</div>
+                    <div class="template-preview">${JSON.stringify(template.condition, null, 2)}</div>
+                    <div class="template-actions">
+                        <button class="btn-template btn-template-primary">应用模板</button>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+// 关闭模板弹窗
+function closeTemplatesModal() {
+    document.getElementById('templatesModal').style.display = 'none';
+}
+
+// 应用模板
+function applyTemplate(templateId) {
+    const template = ruleTemplates.find(t => t.id === templateId);
+    if (!template) return;
+
+    const rule = {
+        id: Date.now(),
+        rule_name: template.name,
+        rule_type: template.type,
+        condition_json: {...template.condition},
+        action: template.action,
+        weight: template.weight,
+        target_assets: [...template.target_assets],
+        priority: 10,
+        is_enabled: true
+    };
+
+    rules.push(rule);
+    renderRules();
+    updateRulesData();
+    closeTemplatesModal();
+    showToast('已应用模板: ' + template.name);
+}
+
+// 获取类型名称
+function getTypeName(type) {
+    const names = {
+        'macro': '宏观指标',
+        'regime': 'Regime',
+        'signal': '信号筛选',
+        'composite': '组合条件',
+        'technical': '技术指标'
+    };
+    return names[type] || type;
+}
+
+// Toast 提示
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: #10b981;
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 9999;
+        font-size: 14px;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = 'all 0.3s';
+        setTimeout(() => toast.remove(), 300);
+    }, 2000);
+}
+
+// 点击弹窗外部关闭
+window.onclick = function(event) {
+    const modal = document.getElementById('templatesModal');
+    if (event.target == modal) {
+        modal.style.display = 'none';
+    }
+}
 
 // 宏观指标列表（示例数据）
 const macroIndicators = [

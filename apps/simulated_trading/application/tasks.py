@@ -415,3 +415,63 @@ def send_performance_summary_task(account_ids: Optional[list] = None) -> Dict[st
             'success': False,
             'error': str(e),
         }
+
+
+# ============================================================================
+# 实时价格监控任务（集成 realtime 模块）
+# ============================================================================
+
+@shared_task(bind=True, max_retries=3)
+def update_all_prices_after_close(self, account_id: Optional[int] = None) -> Dict[str, Any]:
+    """
+    收盘后批量价格更新任务
+
+    使用 realtime 模块的价格轮询服务，更新所有持仓资产的最新价格。
+    建议执行时间：每个交易日 16:30（收盘后）
+
+    Args:
+        account_id: 指定账户ID（None表示全部账户）
+
+    Returns:
+        更新结果
+    """
+    logger.info("=" * 60)
+    logger.info("开始收盘后批量价格更新")
+    logger.info("=" * 60)
+
+    try:
+        from apps.realtime.application.price_polling_service import PricePollingUseCase
+
+        # 创建价格轮询用例
+        use_case = PricePollingUseCase()
+
+        # 执行价格轮询
+        snapshot = use_case.execute_price_polling()
+
+        logger.info("=" * 60)
+        logger.info("收盘后批量价格更新完成")
+        logger.info(f"  总资产数: {snapshot['total_assets']}")
+        logger.info(f"  成功: {snapshot['success_count']}")
+        logger.info(f"  失败: {snapshot['failed_count']}")
+        logger.info(f"  成功率: {snapshot.get('success_rate', 0) * 100:.2f}%")
+        logger.info("=" * 60)
+
+        return {
+            'success': True,
+            'snapshot': snapshot
+        }
+
+    except Exception as e:
+        logger.exception(f"收盘后价格更新任务失败: {e}")
+
+        # 重试逻辑
+        if self.request.retries < self.max_retries:
+            try:
+                raise self.retry(exc=e, countdown=60 * (2 ** self.request.retries))
+            except Exception as retry_error:
+                logger.warning(f"任务将在 {2 ** self.request.retries} 分钟后重试")
+
+        return {
+            'success': False,
+            'error': str(e),
+        }

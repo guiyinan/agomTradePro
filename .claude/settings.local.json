@@ -63,7 +63,10 @@
       "Bash(docker-compose:*)",
       "Bash(if not exist:*)",
       "Bash(Select-Object -Last 20)",
-      "Bash(D:/githv/agomSAAF/agomsaaf/Scripts/pip.exe install:*)"
+      "Bash(D:/githv/agomSAAF/agomsaaf/Scripts/pip.exe install:*)",
+      "Bash(\"D:\\\\githv\\\\agomSAAF\\\\.venv\\\\Scripts\\\\python.exe\":*)",
+      "Bash(echo:*)",
+      "Bash(agomsaafScriptsactivate:*)"
     ]
   }
 }
