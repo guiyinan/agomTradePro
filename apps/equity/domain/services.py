@@ -35,9 +35,12 @@ class StockScreener:
         """
         matched_stocks = []
 
+        # 预先收集全市场指标用于分位数归一化
+        market_metrics = self._collect_market_metrics(all_stocks)
+
         for stock_info, financial, valuation in all_stocks:
             if self._matches_rule(stock_info, financial, valuation, rule):
-                score = self._calculate_score(financial, valuation, rule)
+                score = self._calculate_score(financial, valuation, rule, market_metrics)
                 matched_stocks.append((stock_info.stock_code, score))
 
         # 按评分排序
@@ -45,6 +48,48 @@ class StockScreener:
 
         # 返回前 max_count 个
         return [code for code, score in matched_stocks[:rule.max_count]]
+
+    def _collect_market_metrics(
+        self,
+        all_stocks: List[Tuple[StockInfo, FinancialData, ValuationMetrics]]
+    ) -> Dict[str, List[float]]:
+        """
+        收集全市场指标用于分位数计算
+
+        Args:
+            all_stocks: 全市场股票数据
+
+        Returns:
+            包含各项指标的字典
+        """
+        revenue_growth = []
+        profit_growth = []
+        roe_list = []
+        pe_list = []
+
+        for stock_info, financial, valuation in all_stocks:
+            # 收集营收增长率（过滤负值和无效值）
+            if financial.revenue_growth >= 0:
+                revenue_growth.append(financial.revenue_growth)
+
+            # 收集净利润增长率（过滤负值和无效值）
+            if financial.net_profit_growth >= 0:
+                profit_growth.append(financial.net_profit_growth)
+
+            # 收集ROE（过滤负值和无效值）
+            if financial.roe >= 0:
+                roe_list.append(financial.roe)
+
+            # 收集PE（过滤负值、零值和无效值）
+            if valuation.pe > 0:
+                pe_list.append(valuation.pe)
+
+        return {
+            'revenue_growth': revenue_growth,
+            'profit_growth': profit_growth,
+            'roe': roe_list,
+            'pe': pe_list
+        }
 
     def _matches_rule(
         self,
@@ -82,39 +127,92 @@ class StockScreener:
         self,
         financial: FinancialData,
         valuation: ValuationMetrics,
-        rule: StockScreeningRule
+        rule: StockScreeningRule,
+        market_metrics: Dict[str, List[float]]
     ) -> float:
         """
-        计算综合评分
+        计算综合评分（使用分位数归一化法）
 
         评分规则：
-        - 成长性评分（40%）：营收增长率 + 净利润增长率
-        - 盈利能力评分（40%）：ROE
-        - 估值评分（20%）：PE 越低越好
+        - 成长性评分（40%）：营收增长率 + 净利润增长率的分位数平均
+        - 盈利能力评分（40%）：ROE 的分位数
+        - 估值评分（20%）：PE 的反向分位数（PE 越低分越高）
+
+        分位数归一化说明：
+        - 将每个指标转换为 [0, 1] 区间的分位数
+        - 0.5 表示市场平均水平
+        - 1.0 表示市场最优
+        - 0.0 表示市场最差
+
+        Args:
+            financial: 财务数据
+            valuation: 估值指标
+            rule: 筛选规则
+            market_metrics: 全市场指标数据
+
+        Returns:
+            综合评分（0-1 之间）
         """
-        # 成长性评分（40%）
-        growth_score = (
-            financial.revenue_growth * 0.5 +
-            financial.net_profit_growth * 0.5
+        # 1. 成长性分位数（营收和净利润增长率的平均分位数）
+        revenue_growth_percentile = self._percentile(
+            financial.revenue_growth,
+            market_metrics['revenue_growth']
+        )
+        profit_growth_percentile = self._percentile(
+            financial.net_profit_growth,
+            market_metrics['profit_growth']
+        )
+        growth_percentile = (revenue_growth_percentile + profit_growth_percentile) / 2
+
+        # 2. 盈利能力分位数（ROE 分位数）
+        profitability_percentile = self._percentile(
+            financial.roe,
+            market_metrics['roe']
         )
 
-        # 盈利能力评分（40%）
-        profitability_score = financial.roe
+        # 3. 估值分位数（PE 反向分位数：PE 越低分越高）
+        pe_percentile = self._percentile(
+            valuation.pe,
+            market_metrics['pe']
+        )
+        valuation_percentile = 1 - pe_percentile  # PE 越低，分位数越高
 
-        # 估值评分（20%）- PE 越低越好
-        if valuation.pe > 0:
-            valuation_score = 100 / valuation.pe
-        else:
-            valuation_score = 0
-
-        # 综合评分
+        # 4. 加权综合评分
         total_score = (
-            growth_score * 0.4 +
-            profitability_score * 0.4 +
-            valuation_score * 0.2
+            growth_percentile * 0.4 +
+            profitability_percentile * 0.4 +
+            valuation_percentile * 0.2
         )
 
         return total_score
+
+    def _percentile(self, value: float, reference: List[float]) -> float:
+        """
+        计算值在参考列表中的分位数 (0-1)
+
+        分位数定义为：小于当前值的元素占比
+
+        Args:
+            value: 当前值
+            reference: 参考列表（全市场该指标的值）
+
+        Returns:
+            分位数 (0-1)，0.5 表示中位数
+        """
+        if not reference:
+            return 0.5  # 无数据时返回中位数
+
+        # 如果值不在参考范围内（如负值），返回 0.5
+        if value < 0:
+            return 0.5
+
+        # 计算小于当前值的数量
+        lower_count = sum(1 for v in reference if v < value)
+
+        # 分位数 = 小于当前值的数量 / 总数量
+        percentile = lower_count / len(reference)
+
+        return percentile
 
 
 class ValuationAnalyzer:
