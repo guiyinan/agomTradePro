@@ -1,0 +1,14 @@
+{
+  "date": "2026-01-31",
+  "dominant_regime": "Overheat",
+  "confidence": 0.7130545788339141,
+  "growth_momentum_z": 0.35507007139210894,
+  "inflation_momentum_z": 1.7248798657895932,
+  "distribution": {
+    "Recovery": 0.016735251487493438,
+    "Overheat": 0.7130545788339141,
+    "Stagflation": 0.2590800146812674,
+    "Deflation": 0.01113015499732497
+  },
+  "warnings": []
+}

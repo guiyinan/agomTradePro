@@ -128,10 +128,8 @@ class PolicyStatusView(APIView):
                     "evidence_url": output.latest_event.evidence_url,
                 }
 
-            serializer = PolicyStatusSerializer(data=response_data)
-            serializer.is_valid(raise_exception=True)
-
-            return Response(serializer.validated_data, status=status.HTTP_200_OK)
+            # Return response_data directly (already formatted for JSON serialization)
+            return Response(response_data, status=status.HTTP_200_OK)
 
         except ValueError as e:
             return Response(

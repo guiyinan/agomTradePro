@@ -5,14 +5,16 @@ DRF Views and page views for regime calculation.
 """
 
 from django.shortcuts import render
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
 from datetime import date
-from apps.regime.application.use_cases import CalculateRegimeUseCase, CalculateRegimeRequest
+from apps.regime.application.use_cases import CalculateRegimeV2UseCase, CalculateRegimeV2Request
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from apps.macro.infrastructure.models import DataSourceConfig
 
 
 def regime_dashboard_view(request):
-    """Regime 判定仪表板页面"""
+    """Regime 判定仪表板页面（统一使用 V2 水平法）"""
     import json
 
     try:
@@ -31,34 +33,34 @@ def regime_dashboard_view(request):
         else:
             as_of_date = date.today()
 
-        repository = DjangoMacroRepository()
-        use_case = CalculateRegimeUseCase(repository)
+        # 是否跳过缓存（force_refresh 参数）
+        skip_cache = request.GET.get('force_refresh') == '1'
 
-        # 计算指定时点的 Regime
-        request_obj = CalculateRegimeRequest(
+        # 统一使用 V2 算法（水平判定法）
+        repository = DjangoMacroRepository()
+        use_case = CalculateRegimeV2UseCase(repository)
+        request_obj = CalculateRegimeV2Request(
             as_of_date=as_of_date,
-            use_pit=True,  # 使用Point-in-Time查询
+            use_pit=True,
             growth_indicator="PMI",
             inflation_indicator="CPI",
-            data_source=data_source
+            data_source=data_source,
+            skip_cache=skip_cache
         )
-
         response = use_case.execute(request_obj)
 
-        # 准备图表数据
+        # V2 结果格式
+        result_v2 = response.result if response.success else None
         raw_data_json = json.dumps(response.raw_data) if response.raw_data else None
-        intermediate_data_json = json.dumps(response.intermediate_data) if response.intermediate_data else None
 
         context = {
-            'snapshot': response.snapshot if response.success else None,
+            'result_v2': result_v2,
             'warnings': response.warnings if response.success else [],
             'error': response.error if not response.success else None,
             'current_date': date.today(),
             'as_of_date': as_of_date,
             'raw_data': response.raw_data if response.success else None,
-            'intermediate_data': response.intermediate_data if response.success else None,
             'raw_data_json': raw_data_json,
-            'intermediate_data_json': intermediate_data_json,
             'current_source': data_source,
             'available_sources': available_sources,
         }
@@ -75,17 +77,36 @@ def regime_dashboard_view(request):
             as_of_date = date.today()
 
         context = {
-            'snapshot': None,
+            'result_v2': None,
             'warnings': [],
             'error': str(e),
             'current_date': date.today(),
             'as_of_date': as_of_date,
             'raw_data': None,
-            'intermediate_data': None,
             'raw_data_json': None,
-            'intermediate_data_json': None,
             'current_source': data_source,
             'available_sources': available_sources,
         }
 
     return render(request, 'regime/dashboard.html', context)
+
+
+@require_http_methods(["POST"])
+def clear_regime_cache(request):
+    """清除 Regime 缓存的 API 接口"""
+    try:
+        from django.core.cache import cache
+        cache.clear()
+
+        from shared.infrastructure.cache_service import CacheService
+        CacheService.invalidate_regime()
+
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Regime 缓存已清除，请刷新页面查看最新数据'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': f'清除缓存失败: {str(e)}'
+        }, status=500)

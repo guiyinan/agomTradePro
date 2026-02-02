@@ -19,6 +19,8 @@ from .entities import (
     AttributionReport,
     PITDataConfig,
     DEFAULT_PUBLICATION_LAGS,
+    DataVersion,
+    DataVersionHistory,
 )
 
 from .services import (
@@ -40,6 +42,8 @@ __all__ = [
     "AttributionReport",
     "PITDataConfig",
     "DEFAULT_PUBLICATION_LAGS",
+    "DataVersion",
+    "DataVersionHistory",
     # Services
     "PITDataProcessor",
     "BacktestEngine",

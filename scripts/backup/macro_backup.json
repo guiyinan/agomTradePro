@@ -1,0 +1,75 @@
+Traceback (most recent call last):
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\postgresql\base.py", line 25, in <module>
+    import psycopg as Database
+ModuleNotFoundError: No module named 'psycopg'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\postgresql\base.py", line 27, in <module>
+    import psycopg2 as Database
+ModuleNotFoundError: No module named 'psycopg2'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\githv\agomSAAF\manage.py", line 22, in <module>
+    main()
+    ~~~~^^
+  File "D:\githv\agomSAAF\manage.py", line 18, in main
+    execute_from_command_line(sys.argv)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\core\management\__init__.py", line 442, in execute_from_command_line
+    utility.execute()
+    ~~~~~~~~~~~~~~~^^
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\core\management\__init__.py", line 416, in execute
+    django.setup()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\__init__.py", line 24, in setup
+    apps.populate(settings.INSTALLED_APPS)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\apps\registry.py", line 116, in populate
+    app_config.import_models()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\apps\config.py", line 269, in import_models
+    self.models_module = import_module(models_module_name)
+                         ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\contrib\auth\models.py", line 5, in <module>
+    from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\contrib\auth\base_user.py", line 43, in <module>
+    class AbstractBaseUser(models.Model):
+    ...<123 lines>...
+            )
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\base.py", line 145, in __new__
+    new_class.add_to_class("_meta", Options(meta, app_label))
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\base.py", line 373, in add_to_class
+    value.contribute_to_class(cls, name)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\models\options.py", line 238, in contribute_to_class
+    self.db_table, connection.ops.max_name_length()
+                   ^^^^^^^^^^^^^^
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\utils\connection.py", line 15, in __getattr__
+    return getattr(self._connections[self._alias], item)
+                   ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\utils\connection.py", line 62, in __getitem__
+    conn = self.create_connection(alias)
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\utils.py", line 193, in create_connection
+    backend = load_backend(db["ENGINE"])
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\utils.py", line 113, in load_backend
+    return import_module("%s.base" % backend_name)
+  File "C:\ProgramData\anaconda3\Lib\importlib\__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\db\backends\postgresql\base.py", line 29, in <module>
+    raise ImproperlyConfigured("Error loading psycopg2 or psycopg module")
+django.core.exceptions.ImproperlyConfigured: Error loading psycopg2 or psycopg module

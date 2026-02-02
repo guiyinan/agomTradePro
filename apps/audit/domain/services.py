@@ -6,84 +6,17 @@ Only uses Python standard library (no pandas/numpy).
 """
 
 import math
-from dataclasses import dataclass, field
 from datetime import date
 from typing import List, Dict, Optional, Tuple
-from enum import Enum
 
-
-class LossSource(Enum):
-    """损失来源归因"""
-    REGIME_TIMING_ERROR = "regime_timing"  # Regime 判断错误
-    ASSET_SELECTION_ERROR = "asset_selection"  # 资产选择错误
-    POLICY_INTERVENTION = "policy_intervention"  # 政策干预
-    MARKET_VOLATILITY = "market_volatility"  # 市场波动
-    TRANSACTION_COST = "transaction_cost"  # 交易成本
-    UNKNOWN = "unknown"
-
-
-class RegimeTransition(Enum):
-    """Regime 转换类型"""
-    SAME = "same"  # 保持不变
-    CORRECT_PREDICTION = "correct_prediction"  # 正确预测转换
-    MISSED_PREDICTION = "missed_prediction"  # 错过转换
-    WRONG_PREDICTION = "wrong_prediction"  # 错误预测
-
-
-@dataclass
-class RegimePeriod:
-    """Regime 周期"""
-    start_date: date
-    end_date: date
-    regime: str
-    actual_regime: Optional[str] = None  # 实际发生的 Regime（用于验证）
-    confidence: float = 0.0
-
-    @property
-    def duration_days(self) -> int:
-        return (self.end_date - self.start_date).days
-
-
-@dataclass
-class PeriodPerformance:
-    """周期表现"""
-    period: RegimePeriod
-    portfolio_return: float
-    benchmark_return: float
-    best_asset_return: float  # 该周期表现最好的资产收益
-    worst_asset_return: float  # 该周期表现最差的资产收益
-    asset_returns: Dict[str, float]  # 各资产收益
-
-
-@dataclass
-class AttributionResult:
-    """归因分析结果"""
-    # 收益归因
-    total_return: float
-    regime_timing_pnl: float  # 择时收益（Regime 判断正确带来的收益）
-    asset_selection_pnl: float  # 选资产收益（在正确 Regime 下选对资产）
-    interaction_pnl: float  # 交互收益
-    transaction_cost_pnl: float  # 交易成本
-
-    # 损失分析
-    loss_source: LossSource
-    loss_amount: float  # 损失金额
-    loss_periods: List[RegimePeriod]  # 亏损周期
-
-    # 经验总结
-    lesson_learned: str
-    improvement_suggestions: List[str]
-
-    # 详细分解
-    period_attributions: List[Dict]  # 每个周期的归因
-
-
-@dataclass
-class AttributionConfig:
-    """归因分析配置"""
-    risk_free_rate: float = 0.03  # 无风险利率
-    benchmark_return: float = 0.08  # 基准收益（年化）
-    min_confidence_threshold: float = 0.3  # 最低置信度阈值
+from .entities import (
+    LossSource,
+    RegimeTransition,
+    RegimePeriod,
+    PeriodPerformance,
+    AttributionResult,
+    AttributionConfig
+)
 
 
 def analyze_attribution(
@@ -117,8 +50,8 @@ def analyze_attribution(
         asset_returns
     )
 
-    # 3. 归因分析
-    timing_pnl, selection_pnl, interaction_pnl = _decompose_pnl(period_performances)
+    # 3. 归因分析（启发式分解）
+    timing_pnl, selection_pnl, interaction_pnl = _heuristic_pnl_decomposition(period_performances)
 
     # 4. 识别损失来源
     loss_source, loss_amount, loss_periods = _identify_loss_source(period_performances)
@@ -240,35 +173,47 @@ def _calculate_period_performances(
     return performances
 
 
-def _decompose_pnl(performances: List[PeriodPerformance]) -> Tuple[float, float, float]:
+def _heuristic_pnl_decomposition(performances: List[PeriodPerformance]) -> Tuple[float, float, float]:
     """
-    分解收益来源
+    启发式收益分解（非 Brinson 模型）
 
-    使用 Brinson 模型分解：
-    - 择时收益：正确判断 Regime 带来的收益
-    - 选资产收益：在正确 Regime 下选择最优资产带来的收益
-    - 交互收益：择时和选资产的交互作用
+    ⚠️ 注意：此函数使用简化的启发式规则分解收益，而非严格的 Brinson 模型
+
+    分解规则：
+    - 择时收益：正收益的 30% 归因于 Regime 择时
+    - 选资产收益：超额收益的 50% 归因于资产选择
+    - 交互收益：剩余部分
+
+    Args:
+        performances: 周期收益列表
+
+    Returns:
+        (timing_pnl, selection_pnl, interaction_pnl): 择时、选资产、交互收益
+
+    语义定义:
+        这是一个简化的归因方法，用于快速识别收益来源
+        如需严格归因，应使用完整的 Brinson 或多因子模型
     """
     if not performances:
         return 0.0, 0.0, 0.0
 
     total_return = sum(p.portfolio_return for p in performances)
 
-    # 择时收益：在正确 Regime 时的超额收益
+    # 择时收益：在正确 Regime 时的超额收益（启发式：30%）
     timing_pnl = 0.0
     for perf in performances:
         # 如果在正确 Regime 下，应该获得正收益
         if perf.portfolio_return > 0:
             timing_pnl += perf.portfolio_return * 0.3  # 假设 30% 归因于择时
 
-    # 选资产收益：选择表现最好 vs 平均
+    # 选资产收益：选择表现最好 vs 平均（启发式：50%）
     selection_pnl = 0.0
     for perf in performances:
         excess_return = perf.portfolio_return - perf.benchmark_return
         if excess_return > 0:
             selection_pnl += excess_return * 0.5  # 50% 归因于选资产
 
-    # 交互收益
+    # 交互收益：剩余部分
     interaction_pnl = total_return - timing_pnl - selection_pnl
 
     return timing_pnl, selection_pnl, interaction_pnl

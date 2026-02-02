@@ -31,12 +31,12 @@ class AKShareSectorAdapter:
 
     def fetch_sw_industry_classify(
         self,
-        level: str = 'SW1'
+        level: str = 'L1'
     ) -> pd.DataFrame:
         """获取申万行业分类
 
         Args:
-            level: 行业级别（SW1=一级, SW2=二级, SW3=三级）
+            level: 行业级别（L1=一级行业, L2=二级行业, L3=三级行业）
 
         Returns:
             DataFrame with columns:
@@ -47,43 +47,38 @@ class AKShareSectorAdapter:
 
         Examples:
             >>> adapter = AKShareSectorAdapter()
-            >>> df = adapter.fetch_sw_industry_classify(level='SW1')
+            >>> df = adapter.fetch_sw_industry_classify(level='L1')
             >>> print(df.head())
         """
         try:
-            if level == 'SW1':
-                # 申万一级行业
-                df = self.ak.sw_index_cons(symbol="申万一级")
-            elif level == 'SW2':
-                # 申万二级行业
-                df = self.ak.sw_index_cons(symbol="申万二级")
-            elif level == 'SW3':
-                # 申万三级行业
-                df = self.ak.sw_index_cons(symbol="申万三级")
-            else:
-                raise ValueError(f"不支持的级别: {level}")
+            # 使用东方财富行业板块接口
+            df = self.ak.stock_board_industry_name_em()
 
             if df is not None and not df.empty:
                 # 重命名列
-                df.rename(columns={
-                    '指数代码': 'sector_code',
-                    '行业名称': 'sector_name'
-                }, inplace=True)
+                df = df.rename(columns={
+                    '板块名称': 'sector_name',
+                    '板块代码': 'sector_code'
+                })
 
                 # 添加级别字段
                 df['level'] = level
-
-                # 提取父级代码（对于二、三级行业）
                 df['parent_code'] = None
-                if level in ['SW2', 'SW3']:
-                    # 申万二、三级代码的前 4 位是一级代码
-                    df['parent_code'] = df['sector_code'].str[:4] + '00'
 
-            return df
+                return df
 
         except Exception as e:
-            print(f"AKShare 获取申万行业分类失败: {e}")
-            return pd.DataFrame()
+            print(f"AKShare 获取行业分类失败: {e}")
+
+        return pd.DataFrame()
+
+    def fetch_sector_list(self) -> pd.DataFrame:
+        """获取板块/行业列表
+
+        Returns:
+            DataFrame with columns: sector_code, sector_name
+        """
+        return self.fetch_sw_industry_classify(level='L1')
 
     def fetch_sector_index_daily(
         self,
@@ -94,7 +89,7 @@ class AKShareSectorAdapter:
         """获取板块指数日线数据
 
         Args:
-            sector_code: 板块代码（如 '801010'）
+            sector_code: 板块代码（如 'BK0459'）
             start_date: 开始日期（'2024-01-01'）
             end_date: 结束日期（'2024-12-31'）
 
@@ -111,60 +106,49 @@ class AKShareSectorAdapter:
 
         Examples:
             >>> adapter = AKShareSectorAdapter()
-            >>> df = adapter.fetch_sector_index_daily('801010', '2024-01-01', '2024-12-31')
+            >>> df = adapter.fetch_sector_index_daily('BK0459', '2024-01-01', '2024-12-31')
             >>> print(df.head())
         """
         try:
-            # AKShare 的申万指数接口
-            df = self.ak.sw_index_daily(
+            # 使用东方财富板块历史数据接口
+            df = self.ak.stock_board_industry_hist_em(
                 symbol=sector_code,
-                start_date=start_date,
-                end_date=end_date
+                period="daily",
+                start_date=start_date.replace('-', ''),
+                end_date=end_date.replace('-', '')
             )
 
             if df is not None and not df.empty:
                 # 重命名列
-                df.rename(columns={
-                    'date': 'trade_date',
-                    'open': 'open_price',
-                    'volume': 'volume',
-                    'amount': 'amount',
-                    'turnover': 'turnover_rate'
-                }, inplace=True)
+                df = df.rename(columns={
+                    '日期': 'trade_date',
+                    '开盘': 'open',
+                    '收盘': 'close',
+                    '最高': 'high',
+                    '最低': 'low',
+                    '成交量': 'volume',
+                    '成交额': 'amount',
+                    '涨跌幅': 'change_pct',
+                })
 
                 # 转换日期格式
                 df['trade_date'] = pd.to_datetime(df['trade_date'])
 
-                # 计算涨跌幅
-                df['change_pct'] = df['close'].pct_change() * 100
-                df['change_pct'].fillna(0, inplace=True)
-
-                # 选择需要的列
-                columns = [
-                    'trade_date', 'open_price', 'high', 'low', 'close',
-                    'volume', 'amount', 'change_pct'
-                ]
-                if 'turnover_rate' in df.columns:
-                    columns.append('turnover_rate')
-
-                df = df[columns]
-
-            return df
+                return df
 
         except Exception as e:
             print(f"AKShare 获取板块 {sector_code} 指数数据失败: {e}")
-            return pd.DataFrame()
+
+        return pd.DataFrame()
 
     def fetch_sector_constituents(
         self,
-        sector_code: str,
-        date: Optional[str] = None
+        sector_name: str
     ) -> pd.DataFrame:
         """获取板块成分股
 
         Args:
-            sector_code: 板块代码
-            date: 查询日期（'2024-01-01'），默认为最新
+            sector_name: 板块名称（如 '银行'）
 
         Returns:
             DataFrame with columns:
@@ -173,31 +157,37 @@ class AKShareSectorAdapter:
 
         Examples:
             >>> adapter = AKShareSectorAdapter()
-            >>> df = adapter.fetch_sector_constituents('801010')
+            >>> df = adapter.fetch_sector_constituents('银行')
             >>> print(df.head())
         """
         try:
-            # AKShare 获取申万行业成分股
-            # 先获取板块成分股代码列表
-            df = self.ak.sw_index_cons(symbol=f"申万{sector_code[:2]}")
+            # 使用东方财富板块成分股接口
+            df = self.ak.stock_board_industry_cons_em(symbol=sector_name)
 
             if df is not None and not df.empty:
-                # 重命名列
-                df.rename(columns={
-                    '股票代码': 'stock_code',
-                    '股票名称': 'stock_name'
-                }, inplace=True)
+                # 查找代码和名称列
+                code_col = None
+                name_col = None
+                for col in df.columns:
+                    if '代码' in col or 'code' in col.lower():
+                        code_col = col
+                    if '名称' in col or 'name' in col.lower():
+                        name_col = col
 
-                # 选择需要的列
-                df = df[['stock_code', 'stock_name']]
+                if code_col and name_col:
+                    df = df.rename(columns={
+                        code_col: 'stock_code',
+                        name_col: 'stock_name'
+                    })
 
-            return df
+                    return df[['stock_code', 'stock_name']]
 
         except Exception as e:
-            print(f"AKShare 获取板块 {sector_code} 成分股失败: {e}")
-            return pd.DataFrame()
+            print(f"AKShare 获取板块 {sector_name} 成分股失败: {e}")
 
-    def fetch_all_sector_codes(self, level: str = 'SW1') -> List[str]:
+        return pd.DataFrame()
+
+    def fetch_all_sector_codes(self, level: str = 'L1') -> List[str]:
         """获取所有板块代码列表
 
         Args:
@@ -208,12 +198,28 @@ class AKShareSectorAdapter:
 
         Examples:
             >>> adapter = AKShareSectorAdapter()
-            >>> codes = adapter.fetch_all_sector_codes(level='SW1')
+            >>> codes = adapter.fetch_all_sector_codes(level='L1')
             >>> print(codes[:10])
         """
         df = self.fetch_sw_industry_classify(level=level)
 
         if df is not None and not df.empty:
             return df['sector_code'].tolist()
+
+        return []
+
+    def fetch_industry_stocks(self, industry_name: str) -> List[str]:
+        """获取行业成分股列表
+
+        Args:
+            industry_name: 行业名称
+
+        Returns:
+            List[str]: 股票代码列表
+        """
+        df = self.fetch_sector_constituents(industry_name)
+
+        if df is not None and not df.empty:
+            return df['stock_code'].tolist()
 
         return []

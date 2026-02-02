@@ -73,3 +73,7 @@ doc/passwords.md
 /screenshots
 sqlite-backup.json
 sqlite-backup-utf8.json
+
+# Celery beat schedule files
+celerybeat-schedule*
+

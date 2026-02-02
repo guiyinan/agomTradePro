@@ -63,7 +63,7 @@ def create_user_accounts(sender, instance, created, **kwargs):
                 profile.simulated_account = simulated_account
                 profile.save()
 
-                print(f"✅ 用户 {instance.username} 的实仓和模拟仓已创建")
+                print(f"[OK] User {instance.username} accounts created")
         except Exception as e:
-            print(f"❌ 创建用户账户失败: {e}")
+            print(f"[ERROR] Failed to create user accounts: {e}")
             # 事务会自动回滚

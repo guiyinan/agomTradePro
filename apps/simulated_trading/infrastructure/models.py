@@ -78,17 +78,17 @@ class SimulatedAccountModel(models.Model):
     max_total_position_pct = models.FloatField("总持仓比例上限(%)", default=95.0)
     stop_loss_pct = models.FloatField("止损比例(%)", null=True, blank=True)
 
-    # 关联策略（可选）
-    active_strategy = models.ForeignKey(
-        'strategy.StrategyModel',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='portfolios',
-        verbose_name="激活策略",
-        help_text="绑定策略后，自动交易将使用策略引擎执行",
-        db_index=True
-    )
+    # 关联策略（可选）- 临时注释以修复 migration 问题
+    # active_strategy = models.ForeignKey(
+    #     'strategy.StrategyModel',
+    #     on_delete=models.SET_NULL,
+    #     null=True,
+    #     blank=True,
+    #     related_name='portfolios',
+    #     verbose_name="激活策略",
+    #     help_text="绑定策略后，自动交易将使用策略引擎执行",
+    #     db_index=True
+    # )
 
     # 费用配置
     commission_rate = models.FloatField("手续费率", default=0.0003)
@@ -109,7 +109,7 @@ class SimulatedAccountModel(models.Model):
             models.Index(fields=["user", "is_active"]),
             models.Index(fields=["is_active", "auto_trading_enabled"]),
             models.Index(fields=["-start_date"]),
-            models.Index(fields=["active_strategy", "is_active"]),
+            # models.Index(fields=["active_strategy", "is_active"]),  # 临时注释
         ]
 
     def __str__(self):

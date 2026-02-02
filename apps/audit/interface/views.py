@@ -2,6 +2,8 @@
 Views for Audit API.
 """
 
+from django.views.generic import TemplateView
+from django.contrib.auth.mixins import LoginRequiredMixin
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -173,3 +175,11 @@ class AuditSummaryView(APIView):
 
         serializer = AttributionReportSerializer(response.reports, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# ========== HTML Page Views ==========
+
+class AuditPageView(LoginRequiredMixin, TemplateView):
+    """审计页面 - HTML 视图"""
+    template_name = 'audit/audit_page.html'
+    login_url = '/account/login/'

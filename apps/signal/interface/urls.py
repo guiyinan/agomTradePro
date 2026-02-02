@@ -2,6 +2,7 @@
 URL configuration for Signal app.
 """
 from django.urls import path, include
+from django.shortcuts import redirect
 from . import views
 from rest_framework.routers import DefaultRouter
 from .api_views import SignalViewSet, SignalHealthView
@@ -15,7 +16,15 @@ router = DefaultRouter()
 router.register(r'', SignalViewSet, basename='signal')
 
 
+def signal_home_redirect(request):
+    """Redirect root /signal/ to manage page"""
+    return redirect('signal:manage')
+
+
 urlpatterns = [
+    # Root route - redirect to manage page
+    path('', signal_home_redirect, name='home'),
+
     # Page routes
     path('manage/', views.signal_manage_view, name='manage'),
 

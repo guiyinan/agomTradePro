@@ -31,6 +31,9 @@
             <button id="syncBtn" class="sync-btn" onclick="syncData()" title="同步宏观数据">
                 <span class="sync-icon">⟳</span> <span id="syncBtnText">同步数据</span>
             </button>
+            <button id="clearCacheBtn" class="sync-btn" onclick="clearRegimeCache()" title="清除缓存并刷新">
+                <span>🔄</span> <span>强制刷新</span>
+            </button>
             <div id="syncProgress" class="sync-progress" style="display: none;">
                 <div class="progress-bar">
                     <div id="progressFill" class="progress-fill"></div>
@@ -45,6 +48,76 @@
 </div>
 
 <script>
+// CSRF Token 辅助函数
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// 设置全局 CSRF token
+window.csrfToken = getCookie('csrftoken');
+
+// Toast 消息提示
+function showToast(message, type = 'info') {
+    // 移除旧的 toast
+    const existingToast = document.querySelector('.toast-message');
+    if (existingToast) {
+        existingToast.remove();
+    }
+
+    // 创建新的 toast
+    const toast = document.createElement('div');
+    toast.className = `toast-message toast-${type}`;
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: ${type === 'success' ? '#22C55E' : type === 'error' ? '#EF4444' : '#3366CC'};
+        color: white;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10000;
+        animation: slideIn 0.3s ease-out;
+    `;
+
+    document.body.appendChild(toast);
+
+    // 3秒后自动消失
+    setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// 添加动画样式
+if (!document.querySelector('#toast-animations')) {
+    const style = document.createElement('style');
+    style.id = 'toast-animations';
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(400px); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
 // 初始化 Flatpickr 日期选择器
 document.addEventListener('DOMContentLoaded', function() {
     const dateInput = document.getElementById('dateSelect');
@@ -148,6 +221,43 @@ async function syncData() {
         showToast('同步失败: ' + error.message, 'error');
     }
 }
+
+async function clearRegimeCache() {
+    const btn = document.getElementById('clearCacheBtn');
+    const originalText = btn.innerHTML;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳</span> <span>清除中...</span>';
+
+    try {
+        const response = await fetch('{% url "regime:clear_cache" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': window.csrfToken
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            showToast('✓ ' + data.message, 'success');
+            // 刷新页面，使用 force_refresh 参数跳过缓存
+            setTimeout(() => {
+                const url = new URL(window.location);
+                url.searchParams.set('force_refresh', '1');
+                window.location.href = url.toString();
+            }, 500);
+        } else {
+            showToast('✗ ' + data.message, 'error');
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    } catch (error) {
+        showToast('清除缓存失败: ' + error.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
 </script>
 
 {% if error %}
@@ -167,135 +277,157 @@ async function syncData() {
 </div>
 {% endif %}
 
-{% if snapshot %}
+{% if result_v2 %}
 <div class="regime-dashboard-new">
-    <!-- 左侧主要内容区 -->
     <div class="main-panel">
-        <!-- Regime矩阵卡片 -->
+        <!-- Regime 状态卡片 -->
+        <div class="regime-status-card regime-{{ result_v2.regime.value.lower }}">
+            <div class="status-header">
+                <div class="status-icon">{{ result_v2.regime.value }}</div>
+                <div class="status-info">
+                    <h2>当前 Regime: {{ result_v2.regime.value }}</h2>
+                    <div class="confidence-bar">
+                        <div class="confidence-fill" style="width: {{ result_v2.confidence|floatformat:0 }}%"></div>
+                        <span class="confidence-label">置信度: {{ result_v2.confidence|floatformat:1 }}%</span>
+                    </div>
+                </div>
+            </div>
+            <div class="status-indicators">
+                <div class="indicator-item">
+                    <span class="indicator-label">PMI</span>
+                    <span class="indicator-val {{ result_v2.growth_state }}">{{ result_v2.growth_level }}</span>
+                    <span class="indicator-state state-{{ result_v2.growth_state }}">
+                        {% if result_v2.growth_state == 'expansion' %}扩张{% else %}收缩{% endif %}
+                    </span>
+                </div>
+                <div class="indicator-item">
+                    <span class="indicator-label">CPI</span>
+                    <span class="indicator-val {{ result_v2.inflation_state }}">{{ result_v2.inflation_level }}%</span>
+                    <span class="indicator-state state-{{ result_v2.inflation_state }}">
+                        {% if result_v2.inflation_state == 'high' %}高通胀
+                        {% elif result_v2.inflation_state == 'low' %}低通胀
+                        {% elif result_v2.inflation_state == 'deflation' %}通缩
+                        {% else %}温和{% endif %}
+                    </span>
+                </div>
+            </div>
+            <div class="status-actions">
+                <span class="algorithm-badge">水平判定法：PMI ≥ 50 为扩张，CPI > 2% 为高通胀</span>
+            </div>
+        </div>
+
+        <!-- 四象限分布 -->
         <div class="regime-matrix-card">
             <div class="matrix-compact">
-                <!-- 四象限 + 坐标轴 + 说明 -->
                 <div class="quad-wrapper">
-                    <!-- 左侧Y轴标签 -->
                     <div class="axis-y">
                         <span class="axis-label-top">增长↑</span>
                     </div>
-
-                    <!-- 四象限网格 -->
                     <div class="quad-grid">
-                        <!-- 复苏 (左上) -->
-                        <div class="quad-box {% if snapshot.dominant_regime == 'Recovery' %}quad-active-recovery{% endif %}">
+                        <div class="quad-box {% if result_v2.regime.value == 'Recovery' %}quad-active-recovery{% endif %}">
                             <div class="quad-title">复苏</div>
-                            <div class="quad-prob">{{ snapshot.distribution.Recovery|floatformat:2 }}</div>
+                            <div class="quad-prob">{{ result_v2.distribution.Recovery|floatformat:2 }}</div>
                             <div class="quad-hint">高增低胀</div>
                         </div>
-                        <!-- 过热 (右上) -->
-                        <div class="quad-box {% if snapshot.dominant_regime == 'Overheat' %}quad-active-overheat{% endif %}">
+                        <div class="quad-box {% if result_v2.regime.value == 'Overheat' %}quad-active-overheat{% endif %}">
                             <div class="quad-title">过热</div>
-                            <div class="quad-prob">{{ snapshot.distribution.Overheat|floatformat:2 }}</div>
+                            <div class="quad-prob">{{ result_v2.distribution.Overheat|floatformat:2 }}</div>
                             <div class="quad-hint">双高</div>
                         </div>
-                        <!-- 通缩 (左下) -->
-                        <div class="quad-box {% if snapshot.dominant_regime == 'Deflation' %}quad-active-deflation{% endif %}">
+                        <div class="quad-box {% if result_v2.regime.value == 'Deflation' %}quad-active-deflation{% endif %}">
                             <div class="quad-title">通缩</div>
-                            <div class="quad-prob">{{ snapshot.distribution.Deflation|floatformat:2 }}</div>
+                            <div class="quad-prob">{{ result_v2.distribution.Deflation|floatformat:2 }}</div>
                             <div class="quad-hint">双低</div>
                         </div>
-                        <!-- 滞胀 (右下) -->
-                        <div class="quad-box {% if snapshot.dominant_regime == 'Stagflation' %}quad-active-stagflation{% endif %}">
+                        <div class="quad-box {% if result_v2.regime.value == 'Stagflation' %}quad-active-stagflation{% endif %}">
                             <div class="quad-title">滞胀</div>
-                            <div class="quad-prob">{{ snapshot.distribution.Stagflation|floatformat:2 }}</div>
+                            <div class="quad-prob">{{ result_v2.distribution.Stagflation|floatformat:2 }}</div>
                             <div class="quad-hint">低增高胀</div>
                         </div>
                     </div>
-
-                    <!-- 右侧说明区 -->
                     <div class="quad-explanation">
-                        <div class="explain-header">📐 判定算法</div>
+                        <div class="explain-header">📐 Regime 判定算法</div>
                         <div class="explain-steps">
                             <div class="step-item">
                                 <span class="step-num">1</span>
                                 <div class="step-text">
-                                    <span class="step-title">HP滤波</span>
-                                    <span class="step-desc">去除趋势，提取周期项<br>λ=129600（月度数据标准参数）</span>
+                                    <span class="step-title">PMI 水平判定</span>
+                                    <span class="step-desc">PMI ≥ 50 为扩张<br>PMI < 50 为收缩</span>
                                 </div>
                             </div>
                             <div class="step-item">
                                 <span class="step-num">2</span>
                                 <div class="step-text">
-                                    <span class="step-title">动量计算</span>
-                                    <span class="step-desc">3个月差分：cycle_t - cycle_{t-3}<br>度量中期变化方向</span>
+                                    <span class="step-title">CPI 水平判定</span>
+                                    <span class="step-desc">CPI > 2% 高通胀<br>CPI < 1% 低通胀</span>
                                 </div>
                             </div>
                             <div class="step-item">
                                 <span class="step-num">3</span>
                                 <div class="step-text">
-                                    <span class="step-title">Z-Score标准化</span>
-                                    <span class="step-desc">60期滚动窗口计算均值/标准差<br>消除量纲，评估相对强弱</span>
-                                </div>
-                            </div>
-                            <div class="step-item">
-                                <span class="step-num">4</span>
-                                <div class="step-text">
-                                    <span class="step-title">概率转换</span>
-                                    <span class="step-desc">正态CDF映射到[0,1]<br>Z>0时概率>0.5，判定为"上行"</span>
+                                    <span class="step-title">象限映射</span>
+                                    <span class="step-desc">根据增长+通胀状态<br>映射到对应象限</span>
                                 </div>
                             </div>
                         </div>
-                        <div class="explain-footer">
-                            <span class="footer-label">数据来源</span>
-                            <span class="footer-value">PMI（增长） / CPI（通胀）</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 关键指标 -->
-                <div class="key-metrics">
-                    <div class="metric-item">
-                        <span class="metric-name">增长Z-Score</span>
-                        <span class="metric-val {% if snapshot.growth_momentum_z > 0 %}val-up{% else %}val-down{% endif %}">
-                            {{ snapshot.growth_momentum_z|floatformat:2 }}
-                        </span>
-                    </div>
-                    <div class="metric-item">
-                        <span class="metric-name">通胀Z-Score</span>
-                        <span class="metric-val {% if snapshot.inflation_momentum_z > 0 %}val-up{% else %}val-down{% endif %}">
-                            {{ snapshot.inflation_momentum_z|floatformat:2 }}
-                        </span>
-                    </div>
-                    <div class="metric-item">
-                        <span class="metric-name">主导象限</span>
-                        <span class="metric-val metric-dominant">
-                            {% if snapshot.dominant_regime == 'Recovery' %}复苏
-                            {% elif snapshot.dominant_regime == 'Overheat' %}过热
-                            {% elif snapshot.dominant_regime == 'Stagflation' %}滞胀
-                            {% elif snapshot.dominant_regime == 'Deflation' %}通缩
-                            {% endif %}
-                        </span>
-                    </div>
-                    <div class="metric-item">
-                        <span class="metric-name">数据时点</span>
-                        <span class="metric-val">{{ as_of_date|date:"Y-m-d" }}</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 图表区域 -->
-        <div class="charts-section">
-            <h3 class="section-title-alt">历史趋势</h3>
-            <div class="charts-grid">
-                <div class="chart-card">
-                    <div id="rawDataChart" class="chart-inner"></div>
+        <!-- 趋势指标面板 -->
+        {% if result_v2.trend_indicators %}
+        <div class="trend-panel">
+            <h3 class="section-title-alt">趋势指标（用于预测）</h3>
+            <div class="trend-grid">
+                {% for trend in result_v2.trend_indicators %}
+                <div class="trend-card">
+                    <div class="trend-header">
+                        <span class="trend-code">{{ trend.indicator_code }}</span>
+                        <span class="trend-value">{{ trend.current_value }}</span>
+                    </div>
+                    <div class="trend-details">
+                        <div class="trend-row">
+                            <span class="trend-label">动量</span>
+                            <span class="trend-momentum {% if trend.momentum > 0 %}up{% elif trend.momentum < 0 %}down{% else %}neutral{% endif %}">
+                                {% if trend.momentum > 0 %}+{% endif %}{{ trend.momentum|floatformat:2 }}
+                            </span>
+                        </div>
+                        <div class="trend-row">
+                            <span class="trend-label">方向</span>
+                            <span class="trend-direction trend-{{ trend.direction }}">
+                                {% if trend.direction == 'up' %}▲ 上升
+                                {% elif trend.direction == 'down' %}▼ 下降
+                                {% else %}▶ 持平{% endif %}
+                            </span>
+                        </div>
+                        <div class="trend-row">
+                            <span class="trend-label">强度</span>
+                            <span class="trend-strength strength-{{ trend.strength }}">
+                                {% if trend.strength == 'strong' %}强
+                                {% elif trend.strength == 'moderate' %}中
+                                {% else %}弱{% endif %}
+                            </span>
+                        </div>
+                    </div>
                 </div>
-                <div class="chart-card">
-                    <div id="momentumChart" class="chart-inner"></div>
-                </div>
-                <div class="chart-card">
-                    <div id="zscoreChart" class="chart-inner"></div>
-                </div>
+                {% endfor %}
             </div>
         </div>
+        {% endif %}
+
+        <!-- 预测提示 -->
+        {% if result_v2.prediction %}
+        <div class="prediction-card">
+            <div class="prediction-header">
+                <span class="prediction-icon">📊</span>
+                <span>趋势预测</span>
+            </div>
+            <div class="prediction-content">
+                {{ result_v2.prediction }}
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <!-- 右侧Tab面板 -->
@@ -306,13 +438,7 @@ async function syncData() {
                     <span class="tab-icon">📊</span>
                     原始数据
                 </button>
-                <button class="tab-button" data-tab="ai" onclick="switchTab('ai')">
-                    <span class="tab-icon">🤖</span>
-                    AI分析
-                </button>
             </div>
-
-            <!-- 原始数据Tab -->
             <div id="tab-data" class="tab-content active">
                 {% if raw_data %}
                 <div class="data-tab-content">
@@ -337,7 +463,6 @@ async function syncData() {
                             </table>
                         </div>
                     </div>
-
                     <div class="data-subsection">
                         <h4 class="subsection-title">通胀指标 (CPI)</h4>
                         <div class="table-wrapper">
@@ -359,26 +484,6 @@ async function syncData() {
                             </table>
                         </div>
                     </div>
-
-                    {% if intermediate_data %}
-                    <div class="data-subsection">
-                        <h4 class="subsection-title">计算过程</h4>
-                        <div class="calc-process">
-                            <div class="calc-step">
-                                <span class="step-label">步骤1: 动量</span>
-                                <span class="step-value">增长: {{ intermediate_data.growth_momentum|last|floatformat:4 }} / 通胀: {{ intermediate_data.inflation_momentum|last|floatformat:4 }}</span>
-                            </div>
-                            <div class="calc-step">
-                                <span class="step-label">步骤2: Z-Score</span>
-                                <span class="step-value">增长: {{ snapshot.growth_momentum_z|floatformat:3 }} / 通胀: {{ snapshot.inflation_momentum_z|floatformat:3 }}</span>
-                            </div>
-                            <div class="calc-step">
-                                <span class="step-label">步骤3: 概率转换</span>
-                                <span class="step-value">增长向上: {{ snapshot.distribution.Recovery|add:snapshot.distribution.Overheat|floatformat:2 }} / 通胀向上: {{ snapshot.distribution.Overheat|add:snapshot.distribution.Stagflation|floatformat:2 }}</span>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
                 </div>
                 {% else %}
                 <div class="empty-tab">
@@ -386,52 +491,6 @@ async function syncData() {
                     <p>暂无原始数据</p>
                 </div>
                 {% endif %}
-            </div>
-
-            <!-- AI分析Tab -->
-            <div id="tab-ai" class="tab-content">
-                <div class="ai-tab-content">
-                    <!-- AI分析输入 -->
-                    <div class="ai-input-section">
-                        <div class="input-prompt">
-                            <label for="aiQuestion">向AI提问:</label>
-                            <div class="quick-questions">
-                                <button class="quick-btn" onclick="askAI('当前Regime状态如何？')">当前Regime状态？</button>
-                                <button class="quick-btn" onclick="askAI('分析当前的增长和通胀趋势')">分析趋势</button>
-                                <button class="quick-btn" onclick="askAI('根据当前Regime，应该采取什么投资策略？')">投资建议</button>
-                                <button class="quick-btn" onclick="askAI('最近3个月Regime发生了什么变化？')">变化分析</button>
-                            </div>
-                            <textarea id="aiQuestion" class="ai-textarea" placeholder="输入您的问题，或点击上方快捷按钮..."></textarea>
-                            <button class="ai-submit-btn" onclick="submitAIQuestion()">
-                                <span class="btn-icon">🤖</span>
-                                分析
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- AI分析结果 -->
-                    <div class="ai-output-section">
-                        <div class="output-header">
-                            <span class="output-title">AI分析结果</span>
-                            <span class="output-status" id="aiStatus"></span>
-                        </div>
-                        <div id="aiResponse" class="ai-response">
-                            <div class="ai-placeholder">
-                                <div class="placeholder-icon">💭</div>
-                                <p>在上方提问，AI将基于当前Regime状态进行分析</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 分析历史 -->
-                    <div class="ai-history-section">
-                        <div class="history-header">
-                            <span>历史对话</span>
-                            <button class="clear-history-btn" onclick="clearHistory()">清空</button>
-                        </div>
-                        <div id="aiHistory" class="history-list"></div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -1356,145 +1415,267 @@ async function syncData() {
         gap: 8px;
     }
 }
-</style>
 
-<!-- ECharts JS -->
-{% load static %}
-<script src="{% static 'vendor/js/echarts.min.js' %}"></script>
-<script>
-{% if raw_data_json and intermediate_data_json %}
-const rawData = {{ raw_data_json|safe }};
-const intermediateData = {{ intermediate_data_json|safe }};
-const snapshotData = {
-    dominant_regime: "{{ snapshot.dominant_regime }}",
-    confidence: {{ snapshot.confidence }},
-    growth_momentum_z: {{ snapshot.growth_momentum_z }},
-    inflation_momentum_z: {{ snapshot.inflation_momentum_z }},
-    distribution: {{ snapshot.distribution|safe }}
-};
+/* ==================== Regime 组件样式 ==================== */
 
-// 初始化图表
-function initCharts() {
-    // 原始数据图表
-    const rawChart = echarts.init(document.getElementById('rawDataChart'));
-    rawChart.setOption({
-        title: { text: '原始指标时间序列', left: 'center', textStyle: { fontSize: 13 } },
-        tooltip: { trigger: 'axis' },
-        legend: { data: ['PMI', 'CPI'], top: 25, textStyle: { fontSize: 11 } },
-        grid: { left: '3%', right: '4%', bottom: '3%', top: 50, containLabel: true },
-        xAxis: {
-            type: 'category',
-            data: rawData.growth.map(item => item.date),
-            axisLabel: { rotate: 45, fontSize: 10 }
-        },
-        yAxis: [
-            { type: 'value', name: 'PMI', position: 'left', nameTextStyle: { fontSize: 10 } },
-            { type: 'value', name: 'CPI', position: 'right', nameTextStyle: { fontSize: 10 } }
-        ],
-        series: [
-            {
-                name: 'PMI',
-                type: 'line',
-                data: rawData.growth.map(item => item.value),
-                smooth: true,
-                itemStyle: { color: '#3366CC' },
-                lineStyle: { width: 2 }
-            },
-            {
-                name: 'CPI',
-                type: 'line',
-                yAxisIndex: 1,
-                data: rawData.inflation.map(item => item.value),
-                smooth: true,
-                itemStyle: { color: '#DC3912' },
-                lineStyle: { width: 2 }
-            }
-        ]
-    });
-
-    // 动量图表
-    const momentumChart = echarts.init(document.getElementById('momentumChart'));
-    momentumChart.setOption({
-        title: { text: '3个月动量', left: 'center', textStyle: { fontSize: 13 } },
-        tooltip: { trigger: 'axis' },
-        legend: { data: ['增长动量', '通胀动量'], top: 25, textStyle: { fontSize: 11 } },
-        grid: { left: '3%', right: '4%', bottom: '3%', top: 50, containLabel: true },
-        xAxis: {
-            type: 'category',
-            data: rawData.growth.map(item => item.date),
-            axisLabel: { rotate: 45, fontSize: 10 }
-        },
-        yAxis: { type: 'value', name: '动量', nameTextStyle: { fontSize: 10 } },
-        series: [
-            {
-                name: '增长动量',
-                type: 'line',
-                data: intermediateData.growth_momentum,
-                smooth: true,
-                itemStyle: { color: '#3366CC' },
-                lineStyle: { width: 2 }
-            },
-            {
-                name: '通胀动量',
-                type: 'line',
-                data: intermediateData.inflation_momentum,
-                smooth: true,
-                itemStyle: { color: '#DC3912' },
-                lineStyle: { width: 2 }
-            }
-        ]
-    });
-
-    // Z-Score图表
-    const zscoreChart = echarts.init(document.getElementById('zscoreChart'));
-    zscoreChart.setOption({
-        title: { text: 'Z-Score (60期滚动)', left: 'center', textStyle: { fontSize: 13 } },
-        tooltip: { trigger: 'axis' },
-        legend: { data: ['增长Z-Score', '通胀Z-Score'], top: 25, textStyle: { fontSize: 11 } },
-        grid: { left: '3%', right: '4%', bottom: '3%', top: 50, containLabel: true },
-        xAxis: {
-            type: 'category',
-            data: rawData.growth.map(item => item.date),
-            axisLabel: { rotate: 45, fontSize: 10 }
-        },
-        yAxis: { type: 'value', name: 'Z-Score', nameTextStyle: { fontSize: 10 } },
-        series: [
-            {
-                name: '增长Z-Score',
-                type: 'line',
-                data: intermediateData.growth_z_score,
-                smooth: true,
-                itemStyle: { color: '#3366CC' },
-                lineStyle: { width: 2 },
-                markLine: {
-                    data: [{ yAxis: 0, lineStyle: { color: '#999', type: 'dashed', width: 1 } }]
-                }
-            },
-            {
-                name: '通胀Z-Score',
-                type: 'line',
-                data: intermediateData.inflation_z_score,
-                smooth: true,
-                itemStyle: { color: '#DC3912' },
-                lineStyle: { width: 2 },
-                markLine: {
-                    data: [{ yAxis: 0, lineStyle: { color: '#999', type: 'dashed', width: 1 } }]
-                }
-            }
-        ]
-    });
-
-    // 响应式
-    window.addEventListener('resize', () => {
-        rawChart.resize();
-        momentumChart.resize();
-        zscoreChart.resize();
-    });
+/* Regime 状态卡片 */
+.regime-status-card {
+    background: var(--color-bg);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    margin-bottom: 20px;
 }
 
-// 页面加载后初始化图表
-document.addEventListener('DOMContentLoaded', initCharts);
-{% endif %}
+.regime-status-card.regime-recovery {
+    border-color: #22C55E;
+    background: rgba(34, 197, 94, 0.05);
+}
+
+.regime-status-card.regime-overheat {
+    border-color: #EF4444;
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.regime-status-card.regime-stagflation {
+    border-color: #F59E0B;
+    background: rgba(245, 158, 11, 0.05);
+}
+
+.regime-status-card.regime-deflation {
+    border-color: #3B82F6;
+    background: rgba(59, 130, 246, 0.05);
+}
+
+.status-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.status-icon {
+    font-size: 48px;
+    font-weight: 700;
+}
+
+.status-info h2 {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    color: var(--color-text-primary);
+}
+
+.confidence-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.confidence-fill {
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--color-primary), #22C55E);
+}
+
+.confidence-label {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    font-weight: 600;
+}
+
+.status-indicators {
+    display: flex;
+    gap: 24px;
+}
+
+.indicator-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.indicator-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+
+.indicator-val {
+    font-size: 20px;
+    font-weight: 700;
+    font-family: monospace;
+}
+
+.indicator-val.expansion { color: #22C55E; }
+.indicator-val.contraction { color: #EF4444; }
+.indicator-val.high { color: #EF4444; }
+.indicator-val.low { color: #3B82F6; }
+.indicator-val.deflation { color: #6366F1; }
+
+.indicator-state {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.state-expansion { background: rgba(34, 197, 94, 0.15); color: #15803D; }
+.state-contraction { background: rgba(239, 68, 68, 0.15); color: #991B1B; }
+.state-high { background: rgba(239, 68, 68, 0.15); color: #991B1B; }
+.state-low { background: rgba(59, 130, 246, 0.15); color: #1E40AF; }
+.state-deflation { background: rgba(99, 102, 241, 0.15); color: #4338CA; }
+
+.status-actions {
+    margin-top: 12px;
+}
+
+.algorithm-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+
+/* 趋势指标面板 */
+.trend-panel {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.trend-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.trend-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+}
+
+.trend-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.trend-code {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.trend-value {
+    font-size: 16px;
+    font-weight: 700;
+    font-family: monospace;
+}
+
+.trend-details {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.trend-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.trend-label {
+    font-size: 11px;
+    color: var(--color-text-secondary);
+}
+
+.trend-momentum {
+    font-size: 12px;
+    font-weight: 600;
+    font-family: monospace;
+}
+
+.trend-momentum.up { color: #22C55E; }
+.trend-momentum.down { color: #EF4444; }
+.trend-momentum.neutral { color: var(--color-text-muted); }
+
+.trend-direction {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.trend-up { color: #22C55E; }
+.trend-down { color: #EF4444; }
+.trend-neutral { color: var(--color-text-muted); }
+
+.trend-strength {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 600;
+}
+
+.strength-strong {
+    background: rgba(245, 158, 11, 0.2);
+    color: #B45309;
+}
+
+.strength-moderate {
+    background: rgba(251, 191, 36, 0.15);
+    color: #D97706;
+}
+
+.strength-weak {
+    background: rgba(156, 163, 175, 0.15);
+    color: #6B7280;
+}
+
+/* 预测卡片 */
+.prediction-card {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(99, 102, 241, 0.1));
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.prediction-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.prediction-icon {
+    font-size: 18px;
+}
+
+.prediction-content {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--color-text-primary);
+}
+</style>
+
+{% if raw_data_json %}
+<script>
+// V2 简化版：只显示原始数据表格，不需要复杂图表
+const rawData = {{ raw_data_json|safe }};
 
 // Tab切换
 function switchTab(tabName) {
@@ -1510,179 +1691,65 @@ function switchTab(tabName) {
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
     });
-    document.getElementById('tab-' + tabName).classList.add('active');
-}
-
-// AI分析功能
-const aiHistory = JSON.parse(localStorage.getItem('regimeAiHistory') || '[]');
-
-function renderHistory() {
-    const container = document.getElementById('aiHistory');
-    if (!container) return;
-
-    if (aiHistory.length === 0) {
-        container.innerHTML = '<div class="empty-tab"><div class="empty-icon">💬</div><p>暂无历史对话</p></div>';
-        return;
-    }
-
-    container.innerHTML = aiHistory.map((item, index) => `
-        <div class="history-item" onclick="loadHistory(${index})">
-            <div class="history-question">${item.question.substring(0, 50)}${item.question.length > 50 ? '...' : ''}</div>
-            <div class="history-time">${item.time}</div>
-        </div>
-    `).join('');
-}
-
-function loadHistory(index) {
-    const item = aiHistory[index];
-    document.getElementById('aiQuestion').value = item.question;
-    document.getElementById('aiResponse').innerHTML = `<div class="ai-response-content">${item.answer}</div>`;
-    switchTab('ai');
-}
-
-function clearHistory() {
-    if (confirm('确定清空历史对话吗？')) {
-        localStorage.removeItem('regimeAiHistory');
-        aiHistory.length = 0;
-        renderHistory();
+    const tabContent = document.getElementById('tab-' + tabName);
+    if (tabContent) {
+        tabContent.classList.add('active');
     }
 }
 
-function askAI(question) {
-    document.getElementById('aiQuestion').value = question;
-    submitAIQuestion();
-}
-
-async function submitAIQuestion() {
-    const question = document.getElementById('aiQuestion').value.trim();
-    if (!question) {
-        alert('请输入问题');
-        return;
-    }
-
-    const responseDiv = document.getElementById('aiResponse');
-    const statusSpan = document.getElementById('aiStatus');
-    const submitBtn = document.querySelector('.ai-submit-btn');
-
-    // 显示加载状态
-    statusSpan.textContent = '分析中...';
-    responseDiv.innerHTML = '<div class="ai-placeholder"><div class="placeholder-icon">⏳</div><p>AI正在分析当前Regime状态...</p></div>';
-    submitBtn.disabled = true;
-
-    try {
-        // 调用后端API
-        const response = await fetch('/api/prompt/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({
-                message: question,
-                context: {
-                    regime: snapshotData,
-                    raw_data: rawData,
-                    intermediate_data: intermediateData
-                }
-            })
-        });
-
-        const data = await response.json();
-
-        if (data.reply) {
-            // 显示结果
-            responseDiv.innerHTML = `<div class="ai-response-content">${data.reply}</div>`;
-            statusSpan.textContent = '';
-
-            // 保存到历史
-            const now = new Date();
-            const timeStr = `${now.getMonth() + 1}月${now.getDate()}日 ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-            aiHistory.unshift({
-                question: question,
-                answer: data.reply,
-                time: timeStr
-            });
-
-            // 只保留最近20条
-            if (aiHistory.length > 20) {
-                aiHistory.pop();
-            }
-
-            localStorage.setItem('regimeAiHistory', JSON.stringify(aiHistory));
-            renderHistory();
-        } else {
-            throw new Error('未收到回复');
-        }
-    } catch (error) {
-        console.error('AI分析失败:', error);
-        // 使用本地模拟回复
-        const mockReply = generateMockResponse(question);
-        responseDiv.innerHTML = `<div class="ai-response-content">${mockReply}</div>`;
-        statusSpan.textContent = '(模拟回复)';
-    }
-
-    submitBtn.disabled = false;
-}
-
-function generateMockResponse(question) {
-    const regime = snapshotData.dominant_regime;
-    const regimeNames = {
-        'Recovery': '复苏',
-        'Overheat': '过热',
-        'Stagflation': '滞胀',
-        'Deflation': '通缩'
-    };
-
-    const responses = {
-        '当前Regime状态如何？': `
-根据最新的数据分析，当前宏观环境处于<strong>${regimeNames[regime]}</strong>象限。
-
-关键指标：
-• 增长Z-Score: ${snapshotData.growth_momentum_z.toFixed(2)}
-• 通胀Z-Score: ${snapshotData.inflation_momentum_z.toFixed(2)}
-• 判定置信度: ${(snapshotData.confidence * 100).toFixed(1)}%
-
-这一状态意味着：
-${regime === 'Recovery' ? '• 经济处于扩张期，增长加速、通胀温和' : ''}
-${regime === 'Overheat' ? '• 经济过热风险，增长强劲、通胀压力上升' : ''}
-${regime === 'Stagflation' ? '• 经济滞胀风险，增长放缓、通胀压力仍存' : ''}
-${regime === 'Deflation' ? '• 经济面临通缩压力，增长和通胀双双下行' : ''}
-        `,
-        '分析趋势': `
-基于最近3个月的动量分析：
-
-增长动量: ${intermediateData.growth_momentum[intermediateData.growth_momentum.length - 1].toFixed(4)}
-通胀动量: ${intermediateData.inflation_momentum[intermediateData.inflation_momentum.length - 1].toFixed(4)}
-
-趋势判断：
-${intermediateData.growth_momentum[intermediateData.growth_momentum.length - 1] > 0 ? '✓ 增长动量为正，经济处于扩张通道' : '✗ 增长动量为负，经济面临下行压力'}
-${intermediateData.inflation_momentum[intermediateData.inflation_momentum.length - 1] > 0 ? '✓ 通胀动量为正，价格水平上升' : '✗ 通胀动量为负，价格水平下降'}
-        `,
-        default: `
-基于当前<strong>${regimeNames[regime]}</strong>象限状态，针对您的问题进行分析：
-
-核心数据：
-• 主导象限: ${regimeNames[regime]}
-• 增长Z-Score: ${snapshotData.growth_momentum_z.toFixed(2)}
-• 通胀Z-Score: ${snapshotData.inflation_momentum_z.toFixed(2)}
-• 置信度: ${(snapshotData.confidence * 100).toFixed(1)}%
-
-建议关注PMI和CPI的后续变化，以及Z-Score的移动趋势。
-        `
-    };
-
-    for (const [key, value] of Object.entries(responses)) {
-        if (question.includes(key) || key === 'default') {
-            return value;
-        }
-    }
-
-    return responses.default;
-}
-
-// 初始化历史记录
+// 初始化
 document.addEventListener('DOMContentLoaded', function() {
-    renderHistory();
+    // 日期选择器
+    const dateInput = document.getElementById('dateSelect');
+    if (dateInput && typeof flatpickr !== 'undefined') {
+        flatpickr(dateInput, {
+            locale: 'zh',
+            dateFormat: 'Y-m-d',
+            maxDate: 'today',
+            onChange: function(selectedDates, dateStr, instance) {
+                // HTMX 会自动触发请求
+            }
+        });
+    }
 });
 </script>
+{% else %}
+<script>
+// Tab切换（无数据时）
+function switchTab(tabName) {
+    // 更新按钮状态
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.tab === tabName) {
+            btn.classList.add('active');
+        }
+    });
+
+    // 更新内容显示
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    const tabContent = document.getElementById('tab-' + tabName);
+    if (tabContent) {
+        tabContent.classList.add('active');
+    }
+}
+
+// 初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 日期选择器
+    const dateInput = document.getElementById('dateSelect');
+    if (dateInput && typeof flatpickr !== 'undefined') {
+        flatpickr(dateInput, {
+            locale: 'zh',
+            dateFormat: 'Y-m-d',
+            maxDate: 'today',
+            onChange: function(selectedDates, dateStr, instance) {
+                // HTMX 会自动触发请求
+            }
+        });
+    }
+});
+</script>
+{% endif %}
 {% endblock %}

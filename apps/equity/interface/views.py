@@ -456,7 +456,7 @@ class EquityViewSet(viewsets.ViewSet):
         from datetime import datetime
         from apps.regime.infrastructure.repositories import DjangoRegimeRepository
         regime_repo = DjangoRegimeRepository()
-        latest_regime = regime_repo.get_latest_regime()
+        latest_regime = regime_repo.get_latest_snapshot()
 
         # 模拟股票数据
         mock_stocks = [

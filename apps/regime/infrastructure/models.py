@@ -22,3 +22,104 @@ class RegimeLog(models.Model):
 
     def __str__(self):
         return f"{self.observed_at}: {self.dominant_regime}"
+
+    def get_dominant_regime_display(self):
+        """获取 Regime 的中文显示名称"""
+        names = {
+            'Recovery': '复苏',
+            'Overheat': '过热',
+            'Stagflation': '滞胀',
+            'Deflation': '通缩'
+        }
+        return names.get(self.dominant_regime, self.dominant_regime)
+
+
+class RegimeThresholdConfig(models.Model):
+    """Regime 阈值配置（主表）"""
+
+    name = models.CharField("配置名称", max_length=100)
+    is_active = models.BooleanField("是否激活", default=True, db_index=True)
+
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        db_table = 'regime_regimethresholdconfig'
+        verbose_name = "Regime阈值配置"
+        verbose_name_plural = "Regime阈值配置"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        status = "激活" if self.is_active else "未激活"
+        return f"{self.name} ({status})"
+
+
+class RegimeIndicatorThreshold(models.Model):
+    """指标阈值配置"""
+
+    config = models.ForeignKey(
+        RegimeThresholdConfig,
+        on_delete=models.CASCADE,
+        related_name='thresholds',
+        verbose_name="配置"
+    )
+
+    indicator_code = models.CharField("指标代码", max_length=50)
+    indicator_name = models.CharField("指标名称", max_length=100)
+
+    # 阈值定义
+    level_low = models.FloatField(
+        "低水平阈值",
+        null=True,
+        blank=True,
+        help_text="低水平阈值（如 PMI < 50 为收缩）"
+    )
+    level_high = models.FloatField(
+        "高水平阈值",
+        null=True,
+        blank=True,
+        help_text="高水平阈值（如 PMI > 50 为扩张）"
+    )
+
+    description = models.TextField("说明", blank=True)
+
+    class Meta:
+        db_table = 'regime_regimeindicatorthreshold'
+        verbose_name = "指标阈值"
+        verbose_name_plural = "指标阈值"
+        ordering = ['indicator_code']
+
+    def __str__(self):
+        return f"{self.indicator_code}: low={self.level_low}, high={self.level_high}"
+
+
+class RegimeTrendIndicator(models.Model):
+    """趋势指标配置"""
+
+    config = models.ForeignKey(
+        RegimeThresholdConfig,
+        on_delete=models.CASCADE,
+        related_name='trend_indicators',
+        verbose_name="配置"
+    )
+
+    indicator_code = models.CharField("指标代码", max_length=50)
+    momentum_period = models.IntegerField(
+        "动量周期",
+        default=3,
+        help_text="动量计算周期（月）"
+    )
+    trend_weight = models.FloatField(
+        "趋势权重",
+        default=0.3,
+        help_text="趋势权重（0-1），用于调整 Regime 判定"
+    )
+
+    class Meta:
+        db_table = 'regime_regimetrendindicator'
+        verbose_name = "趋势指标"
+        verbose_name_plural = "趋势指标"
+        ordering = ['indicator_code']
+
+    def __str__(self):
+        return f"{self.indicator_code}: period={self.momentum_period}m, weight={self.trend_weight}"

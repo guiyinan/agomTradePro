@@ -8,5 +8,6 @@ class SignalConfig(AppConfig):
     verbose_name = 'Investment Signals'
 
     def ready(self):
-        """Import admin module when app is ready"""
+        """Import admin and tasks modules when app is ready"""
         import apps.signal.interface.admin  # noqa: F401
+        import apps.signal.application.tasks  # noqa: F401 - Import Celery tasks

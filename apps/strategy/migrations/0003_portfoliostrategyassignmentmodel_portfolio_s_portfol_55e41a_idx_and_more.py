@@ -7,7 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("account", "0011_systemsettingsmodel_and_more"),
-        ("simulated_trading", "0004_simulatedaccountmodel_active_strategy_and_more"),
+        ("simulated_trading", "0003_alter_simulatedaccountmodel_options_and_more"),
         ("strategy", "0002_fix_ai_provider_reference"),
     ]
 

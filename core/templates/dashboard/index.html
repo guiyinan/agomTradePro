@@ -5,9 +5,11 @@
 {% block title %}AgomSAAF - 投资指挥中心{% endblock %}
 
 {% block extra_css %}
-<!-- Chart.js -->
-<script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
+<!-- ECharts -->
+<script src="{% static 'vendor/js/echarts.min.js' %}"></script>
 <link rel="stylesheet" href="{% static 'css/home.css' %}">
+<!-- Teaching Module -->
+<link rel="stylesheet" href="{% static 'css/teaching.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -90,6 +92,11 @@
 
         <!-- 快捷状态 -->
         <div class="sidebar-footer">
+            <!-- 教学指南按钮 -->
+            <button class="teaching-toggle-btn" onclick="openTeachingModal()">
+                <span class="btn-icon">📚</span>
+                <span class="btn-text">教学指南</span>
+            </button>
             <div class="status-card">
                 <div class="status-item">
                     <span class="status-label">当前 Regime</span>
@@ -130,26 +137,26 @@
             <div class="metric-card">
                 <div class="metric-header">
                     <span class="metric-icon">📊</span>
-                    <span class="metric-title">增长 Z-Score</span>
+                    <span class="metric-title">PMI (增长)</span>
                 </div>
-                <div class="metric-value {% if growth_momentum_z > 0 %}positive{% else %}negative{% endif %}">
-                    {{ growth_momentum_z|default:"0.00"|floatformat:2 }}
+                <div class="metric-value {% if pmi_value and pmi_value >= 50 %}positive{% else %}negative{% endif %}">
+                    {{ pmi_value|default:"-"|floatformat:1 }}
                 </div>
                 <div class="metric-footer">
-                    <span class="metric-label">PMI: {{ pmi_value|default:"-" }}</span>
+                    <span class="metric-label">{% if pmi_value and pmi_value >= 50 %}扩张{% elif pmi_value %}收缩{% else %}-{% endif %}</span>
                 </div>
             </div>
 
             <div class="metric-card">
                 <div class="metric-header">
                     <span class="metric-icon">📈</span>
-                    <span class="metric-title">通胀 Z-Score</span>
+                    <span class="metric-title">CPI (通胀)</span>
                 </div>
-                <div class="metric-value {% if inflation_momentum_z > 0 %}positive{% else %}negative{% endif %}">
-                    {{ inflation_momentum_z|default:"0.00"|floatformat:2 }}
+                <div class="metric-value {% if cpi_value and cpi_value > 2 %}positive{% else %}negative{% endif %}">
+                    {{ cpi_value|default:"-"|floatformat:1 }}%
                 </div>
                 <div class="metric-footer">
-                    <span class="metric-label">CPI: {{ cpi_value|default:"-" }}</span>
+                    <span class="metric-label">{% if cpi_value > 2 %}高通胀{% elif cpi_value >= 1 %}温和通胀{% elif cpi_value >= 0 %}低通胀{% elif cpi_value is not none %}通缩{% else %}-{% endif %}</span>
                 </div>
             </div>
 
@@ -212,6 +219,85 @@
                 </div>
             </div>
         </section>
+
+        <!-- 资产配置建议（新增） -->
+        {% if allocation_advice %}
+        <section class="allocation-advice-section">
+            <div class="section-header">
+                <h2 class="section-title">🎯 资产配置建议</h2>
+                <span class="advice-badge">{{ allocation_advice.risk_profile_display }}</span>
+            </div>
+            <div class="allocation-advice-content">
+                <!-- 配置对比 -->
+                <div class="allocation-compare">
+                    <div class="allocation-col current">
+                        <h3>当前配置</h3>
+                        <div class="allocation-bars">
+                            {% for asset_class, value in allocation_advice.current_allocation.items %}
+                            <div class="allocation-bar-item">
+                                <span class="bar-label">{% if asset_class == 'equity' %}权益{% elif asset_class == 'fixed_income' %}债券{% elif asset_class == 'commodity' %}商品{% elif asset_class == 'cash' %}现金{% else %}{{ asset_class }}{% endif %}</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill bar-current" style="width: {{ value|floatformat:0 }}%"></div>
+                                </div>
+                                <span class="bar-value">{{ value|floatformat:1 }}%</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="allocation-arrow">→</div>
+                    <div class="allocation-col target">
+                        <h3>目标配置</h3>
+                        <div class="allocation-bars">
+                            {% for asset_class, value in allocation_advice.target_allocation.items %}
+                            <div class="allocation-bar-item">
+                                <span class="bar-label">{% if asset_class == 'equity' %}权益{% elif asset_class == 'fixed_income' %}债券{% elif asset_class == 'commodity' %}商品{% elif asset_class == 'cash' %}现金{% else %}{{ asset_class }}{% endif %}</span>
+                                <div class="bar-track">
+                                    <div class="bar-fill bar-target" style="width: {{ value }}%"></div>
+                                </div>
+                                <span class="bar-value">{{ value }}%</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 配置摘要 -->
+                <div class="allocation-summary">
+                    <p>{{ allocation_advice.summary }}</p>
+                    {% if allocation_advice.expected_return %}
+                    <div class="expected-metrics">
+                        <span>预期年化: <strong>{{ allocation_advice.expected_return|floatformat:1 }}%</strong></span>
+                        <span>预期波动: <strong>{{ allocation_advice.expected_volatility|floatformat:1 }}%</strong></span>
+                        <span>夏普比率: <strong>{{ allocation_advice.sharpe_ratio|floatformat:2 }}</strong></span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- 具体操作 -->
+                {% if allocation_advice.trade_actions %}
+                <div class="trade-actions">
+                    <h4>具体操作建议</h4>
+                    <div class="action-list">
+                        {% for action in allocation_advice.trade_actions %}
+                        <div class="action-item action-{{ action.action }}">
+                            <span class="action-badge badge-{{ action.action }}">
+                                {{ action.action|upper }}
+                            </span>
+                            <div class="action-details">
+                                <div class="action-main">
+                                    <strong>{{ action.asset_code }}</strong> {{ action.asset_name }}
+                                    <span class="action-amount">¥{{ action.amount|floatformat:0 }}</span>
+                                </div>
+                                <div class="action-reason">{{ action.reason }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+        {% endif %}
 
         <!-- 持仓和信号 -->
         <div class="content-row">
@@ -532,111 +618,105 @@ setInterval(() => {
 }, 300000); // 每5分钟刷新一次
 
 // ========================================
-// 图表初始化
+// 图表初始化 (ECharts)
 // ========================================
 
 // 资产配置饼图
 const allocationCtx = document.getElementById('allocationChart');
-if (allocationCtx && {{ position_count|default:0 }} > 0) {
-    const allocationData = {{ allocation_data|default:"{}" }};
-    new Chart(allocationCtx, {
-        type: 'pie',
-        data: {
-            labels: Object.keys(allocationData),
-            datasets: [{
-                data: Object.values(allocationData),
-                backgroundColor: [
-                    '#A7C7F7', '#C8D8B8', '#F4C2C2',
-                    '#E8D5E2', '#F5DEB3', '#B8C8D8'
-                ],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        generateLabels: function(chart) {
-                            const data = chart.data;
-                            if (data.labels.length && data.datasets.length) {
-                                return data.labels.map((label, i) => {
-                                    const value = data.datasets[0].data[i];
-                                    const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
-                                    const percentage = ((value / total) * 100).toFixed(1);
-                                    return {
-                                        text: `${label}: ${percentage}%`,
-                                        fillStyle: data.datasets[0].backgroundColor[i]
-                                    };
-                                });
-                            }
-                            return [];
-                        }
-                    }
+if (allocationCtx) {
+    const allocationData = {{ allocation_data|safe }};
+    const dataKeys = Object.keys(allocationData);
+    const dataValues = Object.values(allocationData);
+    const hasData = dataValues.some(v => v > 0);
+
+    if (hasData) {
+        const allocationChart = echarts.init(allocationCtx);
+        allocationChart.setOption({
+            tooltip: {
+                trigger: 'item',
+                formatter: '{b}: ¥{c} ({d}%)'
+            },
+            legend: {
+                top: '5%',
+                left: 'center'
+            },
+            series: [{
+                type: 'pie',
+                radius: ['40%', '70%'],
+                data: dataKeys.map((name, i) => ({ name, value: dataValues[i] })),
+                itemStyle: {
+                    borderRadius: 10,
+                    borderColor: '#fff',
+                    borderWidth: 2
                 },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return `${label}: ¥${value.toLocaleString()} (${percentage}%)`;
-                        }
-                    }
+                label: {
+                    formatter: '{b}\n{d}%'
                 }
-            }
-        }
-    });
+            }]
+        });
+        window.addEventListener('resize', () => allocationChart.resize());
+    } else {
+        allocationCtx.parentElement.innerHTML = '<p class="text-muted">暂无资产配置数据</p>';
+    }
 }
 
 // 收益趋势图
 const performanceCtx = document.getElementById('performanceChart');
 if (performanceCtx) {
-    const performanceData = {{ performance_data|default:"[]" }};
-    if (performanceData.length > 0) {
-        new Chart(performanceCtx, {
-            type: 'line',
-            data: {
-                labels: performanceData.map(d => d.date),
-                datasets: [{
-                    label: '累计收益率',
-                    data: performanceData.map(d => d.return_pct),
-                    borderColor: '#36C',
-                    backgroundColor: 'rgba(51, 102, 204, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                }]
+    const performanceData = {{ performance_data|safe }};
+    if (performanceData && performanceData.length > 0) {
+        const performanceChart = echarts.init(performanceCtx);
+        performanceChart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                formatter: '{b}<br/>收益率: {c}%'
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                scales: {
-                    y: {
-                        beginAtZero: false,
-                        ticks: {
-                            callback: function(value) {
-                                return value + '%';
-                            }
-                        }
+            xAxis: {
+                type: 'category',
+                data: performanceData.map(d => d.date),
+                axisLine: { lineStyle: { color: '#999' } },
+                axisLabel: { color: '#666' }
+            },
+            yAxis: {
+                type: 'value',
+                axisLabel: {
+                    formatter: '{value}%'
+                },
+                axisLine: { lineStyle: { color: '#999' } },
+                axisLabel: { color: '#666' },
+                splitLine: { lineStyle: { color: '#eee' } }
+            },
+            series: [{
+                type: 'line',
+                data: performanceData.map(d => d.return_pct),
+                smooth: true,
+                symbolSize: 6,
+                lineStyle: {
+                    color: '#3366CC',
+                    width: 2
+                },
+                itemStyle: {
+                    color: '#3366CC'
+                },
+                areaStyle: {
+                    color: {
+                        type: 'linear',
+                        x: 0, y: 0, x2: 0, y2: 1,
+                        colorStops: [
+                            { offset: 0, color: 'rgba(51, 102, 204, 0.3)' },
+                            { offset: 1, color: 'rgba(51, 102, 204, 0.05)' }
+                        ]
                     }
                 },
-                plugins: {
-                    legend: {
-                        display: false
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return `收益率: ${context.parsed.y.toFixed(2)}%`;
-                            }
-                        }
-                    }
+                markPoint: {
+                    data: [
+                        { type: 'max', name: '最高' },
+                        { type: 'min', name: '最低' }
+                    ]
                 }
-            }
+            }]
         });
+        window.addEventListener('resize', () => performanceChart.resize());
     } else {
         performanceCtx.parentElement.innerHTML = '<p class="text-muted">暂无收益数据</p>';
     }
@@ -889,5 +969,198 @@ chatSendBtn.onclick = async function() {
         grid-template-columns: 1fr;
     }
 }
+
+/* 资产配置建议样式 */
+.allocation-advice-section {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.allocation-advice-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.allocation-compare {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.allocation-col {
+    flex: 1;
+}
+
+.allocation-col h3 {
+    font-size: 16px;
+    margin-bottom: 12px;
+    color: var(--text-secondary);
+}
+
+.allocation-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.allocation-bar-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.bar-label {
+    min-width: 80px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.bar-track {
+    flex: 1;
+    height: 20px;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.bar-current {
+    background: linear-gradient(90deg, #A7C7F7, #7BA3D4);
+}
+
+.bar-target {
+    background: linear-gradient(90deg, #C8E6C9, #81C784);
+}
+
+.bar-value {
+    min-width: 45px;
+    text-align: right;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.allocation-arrow {
+    font-size: 24px;
+    color: var(--text-muted);
+}
+
+.allocation-summary {
+    background: var(--bg-tertiary);
+    padding: 15px;
+    border-radius: var(--radius-sm);
+}
+
+.allocation-summary p {
+    margin: 0 0 10px 0;
+    line-height: 1.6;
+}
+
+.expected-metrics {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.expected-metrics span {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.advice-badge {
+    padding: 4px 12px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+}
+
+.trade-actions {
+    background: var(--bg-tertiary);
+    padding: 15px;
+    border-radius: var(--radius-sm);
+}
+
+.trade-actions h4 {
+    margin: 0 0 12px 0;
+    font-size: 15px;
+}
+
+.action-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.action-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+}
+
+.action-badge {
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-weight: bold;
+    min-width: 50px;
+    text-align: center;
+}
+
+.badge-buy {
+    background: #E8F5E9;
+    color: #2E7D32;
+}
+
+.badge-sell {
+    background: #FFEBEE;
+    color: #C62828;
+}
+
+.action-details {
+    flex: 1;
+}
+
+.action-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.action-amount {
+    margin-left: auto;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.action-reason {
+    font-size: 13px;
+    color: var(--text-muted);
+}
 </style>
+
+<!-- Teaching Module Scripts -->
+<script src="{% static 'js/teaching/teaching-modal.js' %}"></script>
+<script src="{% static 'js/teaching/regime-calculator.js' %}"></script>
+<script src="{% static 'js/teaching/policy-simulator.js' %}"></script>
+<!-- Phase 2 & 3 Enhancements -->
+<script src="{% static 'js/teaching/policy-simulator-enhanced.js' %}"></script>
+<script src="{% static 'js/teaching/cases-library.js' %}"></script>
+<script src="{% static 'js/teaching/learning-progress.js' %}"></script>
+<script src="{% static 'js/teaching/interactive-charts.js' %}"></script>
+<script src="{% static 'js/teaching/bilingual-support.js' %}"></script>
+
+<!-- Teaching Modal Template -->
+{% include "dashboard/teaching_modal.html" %}
 {% endblock %}

@@ -8,5 +8,6 @@ class MacroConfig(AppConfig):
     verbose_name = 'Macro Data'
 
     def ready(self):
-        """Import admin module when app is ready"""
+        """Import admin and tasks modules when app is ready"""
         import apps.macro.interface.admin  # noqa: F401
+        import apps.macro.application.tasks  # noqa: F401 - Import Celery tasks

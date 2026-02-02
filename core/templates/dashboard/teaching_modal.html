@@ -1,0 +1,1082 @@
+<!-- Teaching Modal - AgomSaaS 教学指南 -->
+<div id="teachingModal" class="modal teaching-modal">
+    <div class="modal-backdrop" onclick="closeTeachingModal()"></div>
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h3 class="modal-title">
+                <span>📚</span>
+                <span>AgomSAAF 宏观经济教学指南</span>
+            </h3>
+            <button class="modal-close" onclick="closeTeachingModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <!-- 侧边栏导航 -->
+            <div class="teaching-sidebar">
+                <nav class="teaching-nav">
+                    <button class="teaching-nav-item active" data-target="basics">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-text">宏观经济基础</span>
+                    </button>
+                    <button class="teaching-nav-item" data-target="regime">
+                        <span class="nav-icon">🎯</span>
+                        <span class="nav-text">Regime 判定</span>
+                    </button>
+                    <button class="teaching-nav-item" data-target="policy">
+                        <span class="nav-icon">📰</span>
+                        <span class="nav-text">Policy 档位</span>
+                    </button>
+                    <button class="teaching-nav-item" data-target="allocation">
+                        <span class="nav-icon">💼</span>
+                        <span class="nav-text">资产配置</span>
+                    </button>
+                    <button class="teaching-nav-item" data-target="cases">
+                        <span class="nav-icon">📖</span>
+                        <span class="nav-text">历史案例</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- 主内容区 -->
+            <div class="teaching-content">
+                <!-- 1️⃣ 宏观经济基础 -->
+                <div class="teaching-section active" id="section-basics">
+                    <h2>宏观经济基础</h2>
+                    <div class="accordion">
+                        <!-- PMI -->
+                        <div class="accordion-item">
+                            <button class="accordion-header" onclick="toggleAccordion(this)">
+                                <span class="accordion-title">什么是 PMI (采购经理人指数)?</span>
+                                <span class="accordion-icon">▼</span>
+                            </button>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <p><strong>PMI (Purchasing Managers' Index)</strong> 是衡量经济健康状况的领先指标，通过调查采购经理人获得。</p>
+
+                                    <h4>关键要点：</h4>
+                                    <ul>
+                                        <li><strong>分界线是 50</strong>：PMI ≥ 50 表示经济扩张，PMI < 50 表示经济收缩</li>
+                                        <li><strong>领先性</strong>：PMI 通常比 GDP 数据提前 1-2 个月反映经济变化</li>
+                                        <li><strong>构成</strong>：新订单、生产、就业、供应商配送、库存五个分项</li>
+                                        <li><strong>解读</strong>：数值代表扩张程度，PMI=55 比 PMI=51 扩张更快</li>
+                                    </ul>
+
+                                    <div class="info-box">
+                                        <strong>💡 小知识：</strong>PMI 是基于问卷调查的扩散指数，而非绝对值。
+                                        数值为 50 表示本月与上月相比没有变化，大于 50 表示改善的企业多于恶化。
+                                    </div>
+
+                                    <h4>PMI 与经济周期：</h4>
+                                    <table class="data-table">
+                                        <tr><th>PMI 水平</th><th>经济状态</th><th>投资含义</th></tr>
+                                        <tr><td>> 52</td><td>强劲扩张</td><td>利好权益资产</td></tr>
+                                        <tr><td>50 - 52</td><td>温和扩张</td><td>可增配风险资产</td></tr>
+                                        <tr><td>48 - 50</td><td>温和收缩</td><td>保持防御</td></tr>
+                                        <tr><td>< 48</td><td>深度收缩</td><td>回避风险资产</td></tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CPI -->
+                        <div class="accordion-item">
+                            <button class="accordion-header" onclick="toggleAccordion(this)">
+                                <span class="accordion-title">什么是 CPI (消费者物价指数)?</span>
+                                <span class="accordion-icon">▼</span>
+                            </button>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <p><strong>CPI (Consumer Price Index)</strong> 是衡量通货膨胀水平的主要指标，反映一篮子消费品和服务价格的变化。</p>
+
+                                    <h4>通胀等级划分：</h4>
+                                    <table class="data-table">
+                                        <tr><th>CPI 水平</th><th>通胀状态</th><th>经济含义</th><th>投资影响</th></tr>
+                                        <tr><td>> 3%</td><td>高通胀</td><td>物价上涨压力</td><td>利空债券</td></tr>
+                                        <tr><td>1% - 3%</td><td>温和通胀</td><td>健康经济增长</td><td>利好权益</td></tr>
+                                        <tr><td>< 1%</td><td>低通胀</td><td>需求不足</td><td>利好债券</td></tr>
+                                        <tr><td>< 0%</td><td>通缩</td><td>经济衰退风险</td><td>现金为王</td></tr>
+                                    </table>
+
+                                    <h4>CPI 的投资含义：</h4>
+                                    <ul>
+                                        <li><strong>高通胀 (>3%)</strong>：央行可能加息，债券价格下跌，商品可能受益</li>
+                                        <li><strong>温和通胀 (1-3%)</strong>：企业盈利改善，股票表现较好</li>
+                                        <li><strong>通缩 (<0%)</strong>：实际债务负担加重，经济前景恶化</li>
+                                    </ul>
+
+                                    <div class="warning-box">
+                                        <strong>⚠️ 注意：</strong>中国央行通胀目标为 2% 左右，适度通胀有利于经济。
+                                        CPI 只是衡量消费价格，PPI (生产者物价指数) 衡量生产端价格变化。
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 经济周期 -->
+                        <div class="accordion-item">
+                            <button class="accordion-header" onclick="toggleAccordion(this)">
+                                <span class="accordion-title">经济周期的四个阶段</span>
+                                <span class="accordion-icon">▼</span>
+                            </button>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <p>经济周期是经济活动围绕长期趋势的波动。AgomSAAF 使用<strong>增长动量</strong>和<strong>通胀动量</strong>两个维度来划分经济周期。</p>
+
+                                    <h4>四象限模型：</h4>
+                                    <div class="regime-quadrant-mini">
+                                        <div class="quad quad-recovery">
+                                            <strong>复苏</strong>
+                                            <small>增长↑ 通胀↓</small>
+                                        </div>
+                                        <div class="quad quad-overheat">
+                                            <strong>过热</strong>
+                                            <small>增长↑ 通胀↑</small>
+                                        </div>
+                                        <div class="quad quad-deflation">
+                                            <strong>通缩</strong>
+                                            <small>增长↓ 通胀↓</small>
+                                        </div>
+                                        <div class="quad quad-stagflation">
+                                            <strong>滞胀</strong>
+                                            <small>增长↓ 通胀↑</small>
+                                        </div>
+                                    </div>
+
+                                    <h4>各阶段特征：</h4>
+                                    <table class="data-table">
+                                        <tr><th>阶段</th><th>增长</th><th>通胀</th><th>典型特征</th></tr>
+                                        <tr class="row-recovery"><td><strong>复苏</strong></td><td>扩张</td><td>低</td><td>经济恢复，需求回升</td></tr>
+                                        <tr class="row-overheat"><td><strong>过热</strong></td><td>扩张</td><td>高</td><td>需求过热，价格压力</td></tr>
+                                        <tr class="row-stagflation"><td><strong>滞胀</strong></td><td>收缩</td><td>高</td><td>增长停滞，通胀高企</td></tr>
+                                        <tr class="row-deflation"><td><strong>通缩</strong></td><td>收缩</td><td>低</td><td>需求不足，价格下跌</td></tr>
+                                    </table>
+
+                                    <div class="success-box">
+                                        <strong>✨ 投资启示：</strong>不同经济阶段适合不同的资产配置。
+                                        复苏期增配权益，过热期关注商品，滞胀期现金为王，通缩期债券为主。
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 动量概念 -->
+                        <div class="accordion-item">
+                            <button class="accordion-header" onclick="toggleAccordion(this)">
+                                <span class="accordion-title">什么是"动量"（Momentum）？</span>
+                                <span class="accordion-icon">▼</span>
+                            </button>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <p><strong>动量 (Momentum)</strong> 衡量经济指标的<strong>变化趋势</strong>，而非绝对水平。这是 AgomSAAF 判定系统的核心概念。</p>
+
+                                    <h4>为什么关注动量？</h4>
+                                    <ul>
+                                        <li><strong>前瞻性</strong>：动量变化先于绝对值变化，更能预测趋势转折</li>
+                                        <li><strong>可比性</strong>：不同指标的绝对值不可比，但动量可以统一比较</li>
+                                        <li><strong>稳定性</strong>：动量指标经过平滑，减少短期波动干扰</li>
+                                    </ul>
+
+                                    <h4>动量计算方法：</h4>
+                                    <ul>
+                                        <li><strong>水平动量</strong>：当前值与长期趋势的偏离程度</li>
+                                        <li><strong>变化率动量</strong>：当前值相对于前期值的变化幅度</li>
+                                        <li><strong>Z-Score 标准化</strong>：动量值转化为标准分数，便于判断置信度</li>
+                                    </ul>
+
+                                    <div class="info-box">
+                                        <strong>📊 示例：</strong>PMI 从 49 上升到 50，虽然仍低于 50（收缩区间），
+                                        但<strong>动量为正</strong>，表明经济正在改善。这种改善趋势比绝对水平更重要。
+                                    </div>
+
+                                    <h4>动量判定规则：</h4>
+                                    <table class="data-table">
+                                        <tr><th>Z-Score</th><th>动量状态</th><th>判定</th></tr>
+                                        <tr><td>> 1.0</td><td>强劲动量</td><td>高置信度</td></tr>
+                                        <tr><td>0.5 - 1.0</td><td>温和动量</td><td>中等置信度</td></tr>
+                                        <tr><td>-0.5 - 0.5</td><td>动量微弱</td><td>低置信度</td></tr>
+                                        <tr><td>< -0.5</td><td>负向动量</td><td>反向趋势</td></tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2️⃣ Regime 判定系统 -->
+                <div class="teaching-section" id="section-regime">
+                    <h2>Regime 判定系统</h2>
+                    <div class="accordion">
+                        <!-- 四象限划分 -->
+                        <div class="accordion-item">
+                            <button class="accordion-header" onclick="toggleAccordion(this)">
+                                <span class="accordion-title">Regime 四象限划分</span>
+                                <span class="accordion-icon">▼</span>
+                            </button>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <p>AgomSAAF 根据<strong>增长水平</strong>和<strong>通胀水平</strong>，将宏观环境划分为四个象限（Regime），每个象限对应不同的投资策略。</p>
+
+                                    <div class="regime-table">
+                                        <table>
+                                            <thead>
+                                                <tr><th>象限</th><th>增长</th><th>通胀</th><th>投资策略</th><th>核心逻辑</th></tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr class="row-recovery">
+                                                    <td><strong>Recovery<br><small>(复苏)</small></strong></td>
+                                                    <td>扩张</td>
+                                                    <td>低</td>
+                                                    <td>增配权益</td>
+                                                    <td>经济复苏，企业盈利改善</td>
+                                                </tr>
+                                                <tr class="row-overheat">
+                                                    <td><strong>Overheat<br><small>(过热)</small></strong></td>
+                                                    <td>扩张</td>
+                                                    <td>高</td>
+                                                    <td>增配商品</td>
+                                                    <td>通胀上升，实物资产保值</td>
+                                                </tr>
+                                                <tr class="row-stagflation">
+                                                    <td><strong>Stagflation<br><small>(滞胀)</small></strong></td>
+                                                    <td>收缩</td>
+                                                    <td>高</td>
+                                                    <td>现金为王</td>
+                                                    <td>增长停滞，通胀侵蚀收益</td>
+                                                </tr>
+                                                <tr class="row-deflation">
+                                                    <td><strong>Deflation<br><small>(通缩)</small></strong></td>
+                                                    <td>收缩</td>
+                                                    <td>低</td>
+                                                    <td>增配国债</td>
+                                                    <td>利率下行，债券价格上涨</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <div class="warning-box">
+                                        <strong>⚠️ 重要：</strong>Regime 判定基于 PMI 和 CPI 的<strong>绝对水平</strong>，而非动量趋势。
+                                        使用水平判定更符合经济直觉：PMI ≥ 50 为扩张，PMI < 50 为收缩；CPI > 2% 为高通胀，CPI ≤ 2% 为低通胀。
+                                    </div>
+
+                                    <h4>判定逻辑（V2 水平法）：</h4>
+                                    <ul>
+                                        <li><strong>增长判定</strong>：PMI ≥ 50 → 经济扩张，PMI < 50 → 经济收缩</li>
+                                        <li><strong>通胀判定</strong>：CPI > 2% → 高通胀，CPI ≤ 2% → 低通胀/通缩</li>
+                                        <li><strong>置信度</strong>：基于当前值与各象限中心的距离计算</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 水平判定方法 -->
+                        <div class="accordion-item">
+                            <button class="accordion-header" onclick="toggleAccordion(this)">
+                                <span class="accordion-title">V2 水平判定方法</span>
+                                <span class="accordion-icon">▼</span>
+                            </button>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <p>AgomSAAF V2 使用<strong>绝对水平判定</strong>方法，基于 PMI 和 CPI 的当前值直接判定 Regime，更符合经济直觉。</p>
+
+                                    <h4>为什么选择水平判定？</h4>
+                                    <ul>
+                                        <li><strong>符合直觉</strong>：PMI ≥ 50 表示经济扩张，PMI < 50 表示收缩</li>
+                                        <li><strong>可解释性强</strong>：判定规则简单明确，易于理解和验证</li>
+                                        <li><strong>稳定性高</strong>：不受短期波动影响，避免误判</li>
+                                    </ul>
+
+                                    <h4>判定规则：</h4>
+                                    <table class="data-table">
+                                        <tr><th>指标</th><th>阈值</th><th>状态</th><th>含义</th></tr>
+                                        <tr>
+                                            <td><strong>PMI</strong></td>
+                                            <td>≥ 50</td>
+                                            <td>扩张</td>
+                                            <td>经济增长，制造业景气</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>PMI</strong></td>
+                                            <td>< 50</td>
+                                            <td>收缩</td>
+                                            <td>经济放缓，制造业低迷</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>CPI</strong></td>
+                                            <td>> 2%</td>
+                                            <td>高通胀</td>
+                                            <td>物价上涨压力</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>CPI</strong></td>
+                                            <td>≤ 2%</td>
+                                            <td>低通胀/通缩</td>
+                                            <td>通胀受控或物价下跌</td>
+                                        </tr>
+                                    </table>
+
+                                    <h4>四象限判定：</h4>
+                                    <ul>
+                                        <li><strong>PMI ≥ 50 且 CPI ≤ 2%</strong> → Recovery（复苏）</li>
+                                        <li><strong>PMI ≥ 50 且 CPI > 2%</strong> → Overheat（过热）</li>
+                                        <li><strong>PMI < 50 且 CPI > 2%</strong> → Stagflation（滞胀）</li>
+                                        <li><strong>PMI < 50 且 CPI ≤ 2%</strong> → Deflation（通缩）</li>
+                                    </ul>
+
+                                    <div class="info-box">
+                                        <strong>📊 置信度计算：</strong>基于当前值与各象限"理想中心"的距离计算概率分布。
+                                        距离越近，概率越高，判定置信度越高。
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 置信度的含义 -->
+                        <div class="accordion-item">
+                            <button class="accordion-header" onclick="toggleAccordion(this)">
+                                <span class="accordion-title">置信度的含义</span>
+                                <span class="accordion-icon">▼</span>
+                            </button>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <p><strong>置信度</strong>表示 Regime 判定的可靠性程度。高置信度意味着当前宏观环境清晰明确，低置信度则表示环境模糊，需要谨慎决策。</p>
+
+                                    <h4>置信度计算：</h4>
+                                    <ul>
+                                        <li>基于 Z-Score 的绝对值：|Z-Score| 越大，置信度越高</li>
+                                        <li>综合增长和通胀两个维度的置信度</li>
+                                        <li>归一化为 0-100% 的百分比</li>
+                                    </ul>
+
+                                    <h4>置信度等级：</h4>
+                                    <table class="data-table">
+                                        <tr><th>置信度</th><th>判定可靠性</th><th>投资建议</th></tr>
+                                        <tr><td>> 80%</td><td>高度可靠</td><td>可积极调整配置</td></tr>
+                                        <tr><td>60% - 80%</td><td>较为可靠</td><td>可适度调整配置</td></tr>
+                                        <tr><td>40% - 60%</td><td>可靠性一般</td><td>保持观望，小幅调整</td></tr>
+                                        <tr><td>< 40%</td><td>可靠性不足</td><td>暂不调整，等待信号明确</td></tr>
+                                    </table>
+
+                                    <div class="warning-box">
+                                        <strong>⚠️ 注意：</strong>低置信度并不代表"没有 Regime"，而是当前宏观环境处于过渡期或模糊期。
+                                        这种情况下应该<strong>降低配置调整幅度</strong>，而不是完全停止投资。
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Regime 计算器 -->
+                        <div class="accordion-item open">
+                            <button class="accordion-header" onclick="toggleAccordion(this)">
+                                <span class="accordion-title">🎮 Regime 计算器 (试一试!)</span>
+                                <span class="accordion-icon">▼</span>
+                            </button>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <p>输入 PMI 和 CPI，查看 Regime 判定结果。这是基于 V2 水平法的简化判定，与系统实际算法一致。</p>
+
+                                    <div class="regime-calculator">
+                                        <div class="calculator-inputs">
+                                            <div class="input-group">
+                                                <label for="calcPMI">PMI (采购经理人指数)</label>
+                                                <input type="number" id="calcPMI" min="40" max="60" step="0.1" value="49.3">
+                                                <small>正常范围: 45-55，50 为分界线</small>
+                                            </div>
+                                            <div class="input-group">
+                                                <label for="calcCPI">CPI (消费者物价指数 %)</label>
+                                                <input type="number" id="calcCPI" min="-2" max="10" step="0.1" value="0.8">
+                                                <small>正常范围: -1% - 5%，2% 为温和通胀线</small>
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-primary" onclick="calculateRegime()" style="margin-top: 16px;">
+                                            计算 Regime
+                                        </button>
+
+                                        <div class="calculator-result" id="regimeResult" style="display:none;">
+                                            <h4>计算结果：</h4>
+                                            <div class="result-regime" id="resultRegime"></div>
+                                            <div class="result-description" id="resultDescription"></div>
+                                            <div class="result-advice" id="resultAdvice" style="margin-top: 16px; padding: 16px; background: var(--color-surface, #f8fafc); border-radius: var(--radius-sm, 6px);"></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="info-box">
+                                        <strong>💡 说明：</strong>此计算器使用 V2 水平判定法（PMI=50, CPI=2%），
+                                        与系统实际算法一致。Regime 判定基于绝对水平，更符合经济直觉。
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3️⃣ Policy 档位系统 -->
+                <div class="teaching-section" id="section-policy">
+                    <h2>Policy 档位系统</h2>
+                    <div class="accordion">
+                        <!-- P0-P3 档位说明 -->
+                        <div class="accordion-item">
+                            <button class="accordion-header" onclick="toggleAccordion(this)">
+                                <span class="accordion-title">P0-P3 档位说明</span>
+                                <span class="accordion-icon">▼</span>
+                            </button>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <p><strong>Policy 档位</strong>代表当前政策环境对投资的支持程度。档位从 P0（最支持）到 P3（最收紧），反映了政策制定者的态度和可能采取的行动。</p>
+
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 20px 0;">
+                                        <div style="padding: 20px; background: #dcfce7; border-radius: var(--radius-md, 10px); text-align: center;">
+                                            <div style="font-size: 36px; font-weight: 700; color: #166534; margin-bottom: 8px;">P0</div>
+                                            <div style="font-weight: 600; color: #166534; margin-bottom: 8px;">强力支持</div>
+                                            <div style="font-size: 13px; color: #475569;">大幅宽松、降息降准</div>
+                                        </div>
+                                        <div style="padding: 20px; background: #fef3c7; border-radius: var(--radius-md, 10px); text-align: center;">
+                                            <div style="font-size: 36px; font-weight: 700; color: #92400e; margin-bottom: 8px;">P1</div>
+                                            <div style="font-weight: 600; color: #92400e; margin-bottom: 8px;">温和支持</div>
+                                            <div style="font-size: 13px; color: #475569;">定向宽松、结构性政策</div>
+                                        </div>
+                                        <div style="padding: 20px; background: #fed7aa; border-radius: var(--radius-md, 10px); text-align: center;">
+                                            <div style="font-size: 36px; font-weight: 700; color: #9a3412; margin-bottom: 8px;">P2</div>
+                                            <div style="font-weight: 600; color: #9a3412; margin-bottom: 8px;">政策收紧</div>
+                                            <div style="font-size: 13px; color: #475569;">适度收紧、去杠杆</div>
+                                        </div>
+                                        <div style="padding: 20px; background: #fee2e2; border-radius: var(--radius-md, 10px); text-align: center;">
+                                            <div style="font-size: 36px; font-weight: 700; color: #991b1b; margin-bottom: 8px;">P3</div>
+                                            <div style="font-weight: 600; color: #991b1b; margin-bottom: 8px;">强力收紧</div>
+                                            <div style="font-size: 13px; color: #475569;">大幅加息、严监管</div>
+                                        </div>
+                                    </div>
+
+                                    <h4>各档位特征：</h4>
+                                    <table class="data-table">
+                                        <tr><th>档位</th><th>政策态度</th><th>典型措施</th><th>市场影响</th></tr>
+                                        <tr><td><strong>P0</strong></td><td>强力支持经济</td><td>降息、降准、财政刺激</td><td>利好风险资产</td></tr>
+                                        <tr><td><strong>P1</strong></td><td>温和支持</td><td>定向降准、结构性工具</td><td>中性偏多</td></tr>
+                                        <tr><td><strong>P2</strong></td><td>开始收紧</td><td>回笼流动性、严监管</td><td>利空风险资产</td></tr>
+                                        <tr><td><strong>P3</strong></td><td>强力收紧</td><td>加息、提高准备金</td><td>全面利空</td></tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 政策事件分类 -->
+                        <div class="accordion-item">
+                            <button class="accordion-header" onclick="toggleAccordion(this)">
+                                <span class="accordion-title">政策事件分类</span>
+                                <span class="accordion-icon">▼</span>
+                            </button>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <p>AgomSAAF 跟踪的政策事件主要分为<strong>货币政策</strong>和<strong>财政政策</strong>两大类，每类事件有不同的市场影响。</p>
+
+                                    <h4>货币政策事件：</h4>
+                                    <ul>
+                                        <li><strong>利率调整</strong>：LPR、MLF、逆回购利率变动</li>
+                                        <li><strong>存款准备金</strong>：降准/升准释放/回笼流动性</li>
+                                        <li><strong>公开市场操作</strong>：逆回购、MLF 投放力度</li>
+                                        <li><strong>定向工具</strong>：再贷款、再贴现等结构性工具</li>
+                                    </ul>
+
+                                    <h4>财政政策事件：</h4>
+                                    <ul>
+                                        <li><strong>减税降费</strong>：增值税、所得税税率调整</li>
+                                        <li><strong>政府支出</strong>：基建投资、民生保障支出</li>
+                                        <li><strong>国债发行</strong>：特别国债、地方专项债</li>
+                                        <li><strong>产业政策</strong>：行业扶持、补贴政策</li>
+                                    </ul>
+
+                                    <h4>监管政策事件：</h4>
+                                    <ul>
+                                        <li><strong>金融监管</strong>：去杠杆、影子银行整治</li>
+                                        <li><strong>行业监管</strong>：平台经济、房地产调控</li>
+                                        <li><strong>资本市场</strong>：IPO 节奏、再融资政策</li>
+                                    </ul>
+
+                                    <div class="info-box">
+                                        <strong>📊 影响权重：</strong>货币政策 > 财政政策 > 监管政策。
+                                        货币政策直接流动性影响最大，财政政策有滞后效应，监管政策多为结构性行情。
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 档位响应规则 -->
+                        <div class="accordion-item">
+                            <button class="accordion-header" onclick="toggleAccordion(this)">
+                                <span class="accordion-title">档位响应规则</span>
+                                <span class="accordion-icon">▼</span>
+                            </button>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <p>Policy 档位是<strong>累加计算</strong>的：每个政策事件都有影响分值（-2 到 +2），最终档位由总分决定。</p>
+
+                                    <h4>事件影响分值：</h4>
+                                    <table class="data-table">
+                                        <tr><th>分值</th><th>方向</th><th>力度</th><th>示例事件</th></tr>
+                                        <tr><td>+2</td><td>宽松</td><td>强力</td><td>全面降准、大幅降息</td></tr>
+                                        <tr><td>+1</td><td>宽松</td><td>温和</td><td>定向降准、小幅降息</td></tr>
+                                        <tr><td>0</td><td>中性</td><td>-</td><td>政策维持现状</td></tr>
+                                        <tr><td>-1</td><td>收紧</td><td>温和</td><td>回笼流动性、严监管表态</td></tr>
+                                        <tr><td>-2</td><td>收紧</td><td>强力</td><td>加息、升准、强力去杠杆</td></tr>
+                                    </table>
+
+                                    <h4>档位计算：</h4>
+                                    <ul>
+                                        <li><strong>总分 ≥ 3</strong> → P0（强力支持）</li>
+                                        <li><strong>总分 1-2</strong> → P1（温和支持）</li>
+                                        <li><strong>总分 -1 至 0</strong> → P2（政策收紧）</li>
+                                        <li><strong>总分 ≤ -2</strong> → P3（强力收紧）</li>
+                                    </ul>
+
+                                    <h4>时间衰减：</h4>
+                                    <ul>
+                                        <li>政策事件影响随时间衰减</li>
+                                        <li>近 3 个月内事件权重 100%</li>
+                                        <li>3-6 个月事件权重 50%</li>
+                                        <li>6 个月以上事件权重 25%</li>
+                                    </ul>
+
+                                    <div class="warning-box">
+                                        <strong>⚠️ 注意：</strong>Policy 档位是<strong>增量概念</strong>，反映政策变化方向。
+                                        即使政策本身仍然宽松（如利率处于低位），如果开始收紧（如停止降准），档位会上升。
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Policy 模拟器 -->
+                        <div class="accordion-item open">
+                            <button class="accordion-header" onclick="toggleAccordion(this)">
+                                <span class="accordion-title">🎮 Policy 模拟器 (试一试!)</span>
+                                <span class="accordion-icon">▼</span>
+                            </button>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <p>选择政策事件，查看对 Policy 档位的影响。帮助理解不同政策如何叠加形成最终的档位判定。</p>
+
+                                    <div class="policy-simulator">
+                                        <h4>选择政策事件：</h4>
+                                        <div class="policy-events-list">
+                                            <label class="policy-event-item" data-impact="2">
+                                                <input type="checkbox" class="event-checkbox" value="2" onchange="updatePolicyLevel()">
+                                                <div class="event-info">
+                                                    <div class="event-name">全面降准 50bp</div>
+                                                    <div class="event-impact">影响: +2 (强力宽松)</div>
+                                                </div>
+                                                <span class="event-direction positive">宽松</span>
+                                            </label>
+                                            <label class="policy-event-item" data-impact="1">
+                                                <input type="checkbox" class="event-checkbox" value="1" onchange="updatePolicyLevel()">
+                                                <div class="event-info">
+                                                    <div class="event-name">LPR 下调 10bp</div>
+                                                    <div class="event-impact">影响: +1 (温和宽松)</div>
+                                                </div>
+                                                <span class="event-direction positive">宽松</span>
+                                            </label>
+                                            <label class="policy-event-item" data-impact="-1">
+                                                <input type="checkbox" class="event-checkbox" value="-1" onchange="updatePolicyLevel()">
+                                                <div class="event-info">
+                                                    <div class="event-name">金融监管加强表态</div>
+                                                    <div class="event-impact">影响: -1 (温和收紧)</div>
+                                                </div>
+                                                <span class="event-direction negative">收紧</span>
+                                            </label>
+                                            <label class="policy-event-item" data-impact="-2">
+                                                <input type="checkbox" class="event-checkbox" value="-2" onchange="updatePolicyLevel()">
+                                                <div class="event-info">
+                                                    <div class="event-name">加息 25bp</div>
+                                                    <div class="event-impact">影响: -2 (强力收紧)</div>
+                                                </div>
+                                                <span class="event-direction negative">收紧</span>
+                                            </label>
+                                            <label class="policy-event-item" data-impact="1">
+                                                <input type="checkbox" class="event-checkbox" value="1" onchange="updatePolicyLevel()">
+                                                <div class="event-info">
+                                                    <div class="event-name">万亿特别国债发行</div>
+                                                    <div class="event-impact">影响: +1 (财政刺激)</div>
+                                                </div>
+                                                <span class="event-direction positive">宽松</span>
+                                            </label>
+                                            <label class="policy-event-item" data-impact="0">
+                                                <input type="checkbox" class="event-checkbox" value="0" onchange="updatePolicyLevel()">
+                                                <div class="event-info">
+                                                    <div class="event-name">政策维持现状</div>
+                                                    <div class="event-impact">影响: 0 (中性)</div>
+                                                </div>
+                                                <span class="event-direction neutral">中性</span>
+                                            </label>
+                                        </div>
+
+                                        <div class="policy-result" id="policyResult" style="display:none;">
+                                            <div class="policy-level-display">
+                                                <div class="current-level level-P0" id="policyLevelDisplay">P0</div>
+                                                <div class="level-description">
+                                                    <h4 id="policyLevelName">强力支持</h4>
+                                                    <p id="policyLevelDesc">政策环境高度宽松，流动性充裕，可积极配置风险资产</p>
+                                                </div>
+                                            </div>
+                                            <div class="policy-actions">
+                                                <h5>建议操作：</h5>
+                                                <div class="action-tags" id="policyActionTags">
+                                                    <span class="action-tag">增配权益</span>
+                                                    <span class="action-tag">关注成长股</span>
+                                                    <span class="action-tag">适度杠杆</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4️⃣ 资产配置策略 -->
+                <div class="teaching-section" id="section-allocation">
+                    <h2>资产配置策略</h2>
+                    <div class="accordion">
+                        <!-- 准入矩阵应用 -->
+                        <div class="accordion-item">
+                            <button class="accordion-header" onclick="toggleAccordion(this)">
+                                <span class="accordion-title">Regime × Policy 准入矩阵</span>
+                                <span class="accordion-icon">▼</span>
+                            </button>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <p><strong>准入矩阵</strong>是 AgomSAAF 的核心决策工具，结合 Regime 和 Policy 两个维度，给出不同资产类别的配置建议。</p>
+
+                                    <div class="allocation-matrix">
+                                        <table class="matrix-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>资产 \ Regime×Policy</th>
+                                                    <th>P0<br><small>强力支持</small></th>
+                                                    <th>P1<br><small>温和支持</small></th>
+                                                    <th>P2<br><small>政策收紧</small></th>
+                                                    <th>P3<br><small>强力收紧</small></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td><strong>Recovery<br><small>(复苏)</small></strong></td>
+                                                    <td><span class="matrix-cell matrix-recommended">强烈推荐</span></td>
+                                                    <td><span class="matrix-cell matrix-recommended">推荐</span></td>
+                                                    <td><span class="matrix-cell matrix-neutral">中性</span></td>
+                                                    <td><span class="matrix-cell matrix-avoid">回避</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Overheat<br><small>(过热)</small></strong></td>
+                                                    <td><span class="matrix-cell matrix-recommended">推荐</span></td>
+                                                    <td><span class="matrix-cell matrix-neutral">中性</span></td>
+                                                    <td><span class="matrix-cell matrix-neutral">中性</span></td>
+                                                    <td><span class="matrix-cell matrix-avoid">回避</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Deflation<br><small>(通缩)</small></strong></td>
+                                                    <td><span class="matrix-cell matrix-neutral">中性</span></td>
+                                                    <td><span class="matrix-cell matrix-neutral">中性</span></td>
+                                                    <td><span class="matrix-cell matrix-recommended">推荐债券</span></td>
+                                                    <td><span class="matrix-cell matrix-recommended">强烈推荐债券</span></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Stagflation<br><small>(滞胀)</small></strong></td>
+                                                    <td><span class="matrix-cell matrix-neutral">现金为主</span></td>
+                                                    <td><span class="matrix-cell matrix-neutral">现金+黄金</span></td>
+                                                    <td><span class="matrix-cell matrix-avoid">回避风险资产</span></td>
+                                                    <td><span class="matrix-cell matrix-avoid">现金为王</span></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    <h4>矩阵解读：</h4>
+                                    <ul>
+                                        <li><strong>绿色单元格</strong>：该环境下的优势资产，可超配</li>
+                                        <li><strong>灰色单元格</strong>：中性配置，跟随基准</li>
+                                        <li><strong>红色单元格</strong>：劣势资产，应低配或回避</li>
+                                    </ul>
+
+                                    <div class="success-box">
+                                        <strong>💡 核心逻辑：</strong>Recovery + P0 是股票投资的黄金组合（经济复苏+政策支持），
+                                        而 Stagflation + P3 是最差环境（经济停滞+政策收紧），应该现金为王。
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 资产类别特性 -->
+                        <div class="accordion-item">
+                            <button class="accordion-header" onclick="toggleAccordion(this)">
+                                <span class="accordion-title">资产类别特性</span>
+                                <span class="accordion-icon">▼</span>
+                            </button>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <p>了解不同资产类别的特性，有助于更好地理解准入矩阵的逻辑。</p>
+
+                                    <h4>权益资产 (股票)：</h4>
+                                    <ul>
+                                        <li><strong>受益环境</strong>：经济复苏、低利率、政策宽松</li>
+                                        <li><strong>受损环境</strong>：经济衰退、高通胀、政策收紧</li>
+                                        <li><strong>敏感因素</strong>：企业盈利（增长）、利率水平（估值）、风险偏好</li>
+                                        <li><strong>最佳 Regime</strong>：Recovery（复苏期盈利改善+估值提升）</li>
+                                    </ul>
+
+                                    <h4>固定收益 (债券)：</h4>
+                                    <ul>
+                                        <li><strong>受益环境</strong>：经济增长放缓、通胀下行、降息</li>
+                                        <li><strong>受损环境</strong>：经济过热、通胀上升、加息</li>
+                                        <li><strong>敏感因素</strong>：利率水平、信用风险、通胀预期</li>
+                                        <li><strong>最佳 Regime</strong>：Deflation（通缩期利率下行+避险需求）</li>
+                                    </ul>
+
+                                    <h4>商品资产：</h4>
+                                    <ul>
+                                        <li><strong>受益环境</strong>：经济过热、通胀上升、供给冲击</li>
+                                        <li><strong>受损环境</strong>：经济衰退、通缩、需求萎缩</li>
+                                        <li><strong>敏感因素</strong>：供需关系、通胀预期、美元走势</li>
+                                        <li><strong>最佳 Regime</strong>：Overheat（过热期通胀上升+实物保值）</li>
+                                    </ul>
+
+                                    <h4>现金类资产：</h4>
+                                    <ul>
+                                        <li><strong>受益环境</strong>：高利率、高波动、不确定性高</li>
+                                        <li><strong>受损环境</strong>：低利率、高通胀（购买力侵蚀）</li>
+                                        <li><strong>作用</strong>：流动性储备、防御性配置、等待机会</li>
+                                        <li><strong>最佳 Regime</strong>：Stagflation（滞胀期等待环境明朗）</li>
+                                    </ul>
+
+                                    <div class="info-box">
+                                        <strong>📊 相关性：</strong>债券与股票通常负相关（经济好利空债券/利好股票），
+                                        商品与股票在通胀时期正相关（经济过热利好股票和商品），通缩时期负相关。
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 风险控制原则 -->
+                        <div class="accordion-item">
+                            <button class="accordion-header" onclick="toggleAccordion(this)">
+                                <span class="accordion-title">风险控制原则</span>
+                                <span class="accordion-icon">▼</span>
+                            </button>
+                            <div class="accordion-content">
+                                <div class="accordion-body">
+                                    <p>AgomSAAF 的核心目标是在不同宏观环境下控制风险，实现长期稳健收益。</p>
+
+                                    <h4>准入控制：</h4>
+                                    <ul>
+                                        <li><strong>不在错误的环境下下注</strong>：避免在不利环境中强推交易</li>
+                                        <li><strong>置信度门槛</strong>：低置信度时降低配置幅度</li>
+                                        <li><strong>双重过滤</strong>：Regime 和 Policy 都有利才积极配置</li>
+                                    </ul>
+
+                                    <h4>仓位管理：</h4>
+                                    <ul>
+                                        <li><strong>环境匹配</strong>：Recovery+P0 可高仓位，Stagflation+P3 应低仓位</li>
+                                        <li><strong>分散配置</strong>：避免过度集中单一资产类别</li>
+                                        <li><strong>动态调整</strong>：跟随 Regime 和 Policy 变化调整仓位</li>
+                                    </ul>
+
+                                    <h4>止损机制：</h4>
+                                    <ul>
+                                        <li><strong>信号失效止损</strong>：当证伪条件触发时退出</li>
+                                        <li><strong>环境变化止损</strong>：当 Regime 或 Policy 逆转时调整</li>
+                                        <li><strong>波动率控制</strong>：根据市场波动调整仓位规模</li>
+                                    </ul>
+
+                                    <div class="warning-box">
+                                        <strong>⚠️ 重要原则：</strong>AgomSAAF 是<strong>宏观环境准入系统</strong>，不是择时系统。
+                                        它的核心价值是告诉你"现在是否适合投资某类资产"，而不是预测明天涨跌。
+                                    </div>
+
+                                    <h4>典型错误：</h4>
+                                    <ul>
+                                        <li>❌ 在 Stagflation+P3 环境下满仓股票</li>
+                                        <li>❌ 看到信号就全仓买入，不顾宏观环境</li>
+                                        <li>❌ 忽视置信度，在模糊环境下大举配置</li>
+                                        <li>❌ 只看 Regime 不看 Policy（或反之）</li>
+                                    </ul>
+
+                                    <div class="success-box">
+                                        <strong>✅ 正确做法：</strong>在 Recovery+P0 且高置信度时积极配置权益，
+                                        在 Stagflation+P3 时现金为王等待机会，在低置信度时降低配置幅度。
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5️⃣ 历史案例库 -->
+                <div class="teaching-section" id="section-cases">
+                    <h2>历史案例库</h2>
+                    <p style="color: var(--color-text-secondary, #475569); margin-bottom: 20px;">
+                        通过真实历史案例，理解 Regime 和 Policy 如何影响投资决策。
+                    </p>
+
+                    <!-- 案例列表 -->
+                    <div class="cases-list" id="casesList">
+                        <!-- 2020 疫情危机 -->
+                        <div class="case-card" onclick="showCaseDetail('case2020')">
+                            <div class="case-card-header">
+                                <div class="case-year">2020</div>
+                                <div class="case-title">新冠疫情危机与复苏</div>
+                                <span class="case-regime recovery">Recovery → Deflation</span>
+                            </div>
+                            <div class="case-card-body">
+                                <p class="case-summary">
+                                    2020年初新冠疫情爆发，全球经济陷入休克。中国迅速控制疫情后，经济率先复苏。
+                                    学习如何应对突发黑天鹅事件。
+                                </p>
+                                <div class="case-key-metrics">
+                                    <div class="key-metric">
+                                        <div class="key-metric-label">PMI 低点</div>
+                                        <div class="key-metric-value">35.7</div>
+                                    </div>
+                                    <div class="key-metric">
+                                        <div class="key-metric-label">Policy 档位</div>
+                                        <div class="key-metric-value">P0</div>
+                                    </div>
+                                    <div class="key-metric">
+                                        <div class="key-metric-label">股市表现</div>
+                                        <div class="key-metric-value">V型反转</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2022 通胀压力 -->
+                        <div class="case-card" onclick="showCaseDetail('case2022')">
+                            <div class="case-card-header">
+                                <div class="case-year">2022</div>
+                                <div class="case-title">全球通胀压力</div>
+                                <span class="case-regime stagflation">Stagflation → Overheat</span>
+                            </div>
+                            <div class="case-card-body">
+                                <p class="case-summary">
+                                    2022年全球通胀高企，美联储激进加息。中国面临"内冷外热"的复杂局面。
+                                    学习通胀环境下的资产配置策略。
+                                </p>
+                                <div class="case-key-metrics">
+                                    <div class="key-metric">
+                                        <div class="key-metric-label">CPI 高点</div>
+                                        <div class="key-metric-value">2.8%</div>
+                                    </div>
+                                    <div class="key-metric">
+                                        <div class="key-metric-label">Policy 档位</div>
+                                        <div class="key-metric-value">P2</div>
+                                    </div>
+                                    <div class="key-metric">
+                                        <div class="key-metric-label">股市表现</div>
+                                        <div class="key-metric-value">震荡下行</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2023 中国经济 -->
+                        <div class="case-card" onclick="showCaseDetail('case2023')">
+                            <div class="case-card-header">
+                                <div class="case-year">2023</div>
+                                <div class="case-title">中国经济"波浪式复苏"</div>
+                                <span class="case-regime deflation">Deflation → Recovery</span>
+                            </div>
+                            <div class="case-card-body">
+                                <p class="case-summary">
+                                    2023年中国经济呈现"波浪式发展、曲折式前进"特征，通缩压力显现。
+                                    学习在低通胀环境下的投资策略。
+                                </p>
+                                <div class="case-key-metrics">
+                                    <div class="key-metric">
+                                        <div class="key-metric-label">CPI 低点</div>
+                                        <div class="key-metric-value">-0.3%</div>
+                                    </div>
+                                    <div class="key-metric">
+                                        <div class="key-metric-label">Policy 档位</div>
+                                        <div class="key-metric-value">P1</div>
+                                    </div>
+                                    <div class="key-metric">
+                                        <div class="key-metric-label">股市表现</div>
+                                        <div class="key-metric-value">结构分化</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 案例详情 (初始隐藏) -->
+                    <div class="case-detail" id="caseDetail2020">
+                        <div class="case-detail-header">
+                            <button class="case-back-btn" onclick="hideCaseDetail()">
+                                <span>←</span>
+                                <span>返回案例列表</span>
+                            </button>
+                            <h3 style="margin: 0;">2020 疫情危机案例详情</h3>
+                        </div>
+                        <div class="case-detail-content">
+                            <div class="case-timeline">
+                                <div class="timeline-item">
+                                    <div class="timeline-date">2020年1月</div>
+                                    <div class="timeline-content">
+                                        <h4>疫情爆发，经济停摆</h4>
+                                        <p>PMI 从 50 暴跌至 35.7，创历史新低。全国封锁，经济活动几乎停滞。</p>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-date">2020年2-3月</div>
+                                    <div class="timeline-content">
+                                        <h4>政策强力应对，档位降至 P0</h4>
+                                        <p>央行降准降息，财政推出万亿级刺激计划。Policy 档位迅速降至 P0（强力支持）。</p>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-date">2020年4-6月</div>
+                                    <div class="timeline-content">
+                                        <h4>中国率先控制疫情，经济复苏</h4>
+                                        <p>PMI 回升至 50 以上，进入扩张区间。Regime 从 Deflation 转为 Recovery。</p>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-date">2020年下半年</div>
+                                    <div class="timeline-content">
+                                        <h4>出口超预期，股市V型反转</h4>
+                                        <p>中国填补全球供应链缺口，出口强劲。上证综指从低点反弹超 30%。</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="case-lessons">
+                                <h4>经验教训</h4>
+                                <div class="lesson-item">
+                                    <p><strong>黑天鹅冲击</strong>：突发外部冲击会迅速改变 Regime，需快速响应。2020年1-2月从 Recovery 直接跌入 Deflation。</p>
+                                </div>
+                                <div class="lesson-item">
+                                    <p><strong>政策缓冲</strong>：P0 档位强力支持可以有效对冲外部冲击。中国快速推出刺激政策，避免了更深的衰退。</p>
+                                </div>
+                                <div class="lesson-item">
+                                    <p><strong>配置时机</strong>：Recovery + P0 是黄金配置窗口。2020年二季度是股票配置的最佳时机。</p>
+                                </div>
+                                <div class="lesson-item">
+                                    <p><strong>动态跟踪</strong>：Regime 变化领先于市场。PMI 回升时市场仍在观望，果断配置获得超额收益。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="case-detail" id="caseDetail2022">
+                        <div class="case-detail-header">
+                            <button class="case-back-btn" onclick="hideCaseDetail()">
+                                <span>←</span>
+                                <span>返回案例列表</span>
+                            </button>
+                            <h3 style="margin: 0;">2022 通胀压力案例详情</h3>
+                        </div>
+                        <div class="case-detail-content">
+                            <div class="case-timeline">
+                                <div class="timeline-item">
+                                    <div class="timeline-date">2022年初</div>
+                                    <div class="timeline-content">
+                                        <h4>全球通胀抬头</h4>
+                                        <p>美联储开始加息周期，全球流动性收紧。中国 CPI 逐步上升至 2% 以上。</p>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-date">2022年4-6月</div>
+                                    <div class="timeline-content">
+                                        <h4>国内疫情反复，增长放缓</h4>
+                                        <p>上海等地疫情封控，PMI 跌破 50。出现"滞胀"苗头（增长放缓+通胀上升）。</p>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-date">2022年下半年</div>
+                                    <div class="timeline-content">
+                                        <h4>政策相对克制，档位 P2</h4>
+                                        <p>与美国激进加息不同，中国保持定力，政策相对收紧（P2 档位）。</p>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-date">2022年底</div>
+                                    <div class="timeline-content">
+                                        <h4>股市全年调整，债券结构分化</h4>
+                                        <p>上证综指全年下跌 15%。利率债受益于宽松预期，信用债受房地产拖累。</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="case-lessons">
+                                <h4>经验教训</h4>
+                                <div class="lesson-item">
+                                    <p><strong>内外分化</strong>：中美经济周期错位，美国 Overheat 需要加息，中国 Stagflation 可以保持宽松。</p>
+                                </div>
+                                <div class="lesson-item">
+                                    <p><strong>通胀敏感性</strong>：CPI 突破 2% 后对权益资产压力明显。通胀预期影响估值和盈利。</p>
+                                </div>
+                                <div class="lesson-item">
+                                    <p><strong>P2 档位</strong>：政策收紧但不极端（P2）的环境下，权益资产承压但并非完全无机会。</p>
+                                </div>
+                                <div class="lesson-item">
+                                    <p><strong>结构机会</strong>：即使整体环境不利，仍有结构性机会（如新能源、军工等政策支持领域）。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="case-detail" id="caseDetail2023">
+                        <div class="case-detail-header">
+                            <button class="case-back-btn" onclick="hideCaseDetail()">
+                                <span>←</span>
+                                <span>返回案例列表</span>
+                            </button>
+                            <h3 style="margin: 0;">2023 "波浪式复苏"案例详情</h3>
+                        </div>
+                        <div class="case-detail-content">
+                            <div class="case-timeline">
+                                <div class="timeline-item">
+                                    <div class="timeline-date">2023年1-2月</div>
+                                    <div class="timeline-content">
+                                        <h4>疫情后重启预期</h4>
+                                        <p>疫情防控政策调整，市场预期强劲复苏。PMI 回升至 50 以上。</p>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-date">2023年4-7月</div>
+                                    <div class="timeline-content">
+                                        <h4>复苏不及预期，通缩压力</h4>
+                                        <p>PMI 震荡回落，CPI 跌破 0（通缩）。经济"内冷外热"特征明显。</p>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-date">2023年8-10月</div>
+                                    <div class="timeline-content">
+                                        <h4>政策托底，档位 P1</h4>
+                                        <p>降准、降息等宽松政策推出，但力度温和。Policy 档位维持在 P1。</p>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-date">2023年底</div>
+                                    <div class="timeline-content">
+                                        <h4>股市分化，债券牛市</h4>
+                                        <p>A股整体低迷但结构分化（红利、科技表现好）。债市受益于低通胀和宽松预期。</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="case-lessons">
+                                <h4>经验教训</h4>
+                                <div class="lesson-item">
+                                    <p><strong>通缩压力</strong>：CPI 为负的环境下，企业盈利承压，风险资产表现受限。</p>
+                                </div>
+                                <div class="lesson-item">
+                                    <p><strong>P1 档位</strong>：温和支持（P1）可以托底经济，但不足以推动强劲复苏。需要更多政策配合。</p>
+                                </div>
+                                <div class="lesson-item">
+                                    <p><strong>债券机会</strong>：Deflation + P1 是债券的友好环境。利率下行预期推动债券牛市。</p>
+                                </div>
+                                <div class="lesson-item">
+                                    <p><strong>结构分化</strong>：弱复苏环境下，整体机会有限但结构性机会丰富（高股息、科技成长）。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

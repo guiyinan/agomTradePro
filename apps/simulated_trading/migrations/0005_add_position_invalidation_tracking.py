@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('simulated_trading', '0004_simulatedaccountmodel_active_strategy_and_more'),
+        ('simulated_trading', '0003_alter_simulatedaccountmodel_options_and_more'),
     ]
 
     operations = [

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Optional, List, Dict, Set
 
-from ..domain.services import RegimeCalculator, calculate_momentum, calculate_rolling_zscore
+from ..domain.services import RegimeCalculator, calculate_momentum, calculate_absolute_momentum, calculate_rolling_zscore
 from ..domain.entities import RegimeSnapshot
 
 logger = logging.getLogger(__name__)
@@ -28,6 +28,7 @@ class CalculateRegimeRequest:
     growth_indicator: str = "PMI"
     inflation_indicator: str = "CPI"
     data_source: Optional[str] = None  # 数据源过滤（akshare, tushare等）
+    skip_cache: bool = False  # 跳过缓存，强制重新计算
 
 
 @dataclass
@@ -236,7 +237,7 @@ class CalculateRegimeUseCase:
 
     def execute(self, request: CalculateRegimeRequest) -> CalculateRegimeResponse:
         """
-        执行 Regime 计算（带容错机制）
+        执行 Regime 计算（带容错机制 + 缓存优化）
 
         Args:
             request: 计算请求
@@ -245,6 +246,42 @@ class CalculateRegimeUseCase:
             CalculateRegimeResponse: 计算结果
         """
         warnings_list = []
+
+        # 易用性改进 - Redis缓存层：优先检查缓存（除非跳过缓存）
+        if not request.skip_cache:
+            try:
+                from shared.infrastructure.cache_service import CacheService
+
+                cached_data = CacheService.get_regime(
+                    as_of_date=request.as_of_date.isoformat(),
+                    growth_indicator=request.growth_indicator,
+                    inflation_indicator=request.inflation_indicator,
+                )
+
+                if cached_data:
+                    logger.info(f"Regime缓存命中: {request.as_of_date}, {request.growth_indicator}/{request.inflation_indicator}")
+                    # 从缓存恢复RegimeSnapshot对象
+                    snapshot = RegimeSnapshot(
+                        growth_momentum_z=cached_data['growth_momentum_z'],
+                        inflation_momentum_z=cached_data['inflation_momentum_z'],
+                        distribution=cached_data['distribution'],
+                        dominant_regime=cached_data['dominant_regime'],
+                        confidence=cached_data['confidence'],
+                        observed_at=date.fromisoformat(cached_data['observed_at']),
+                    )
+                    return CalculateRegimeResponse(
+                        success=True,
+                        snapshot=snapshot,
+                        warnings=cached_data.get('warnings', []),
+                        error=None,
+                        raw_data=cached_data.get('raw_data'),
+                        intermediate_data=cached_data.get('intermediate_data'),
+                        history_data=cached_data.get('history_data'),
+                    )
+            except ImportError:
+                logger.warning("CacheService不可用，跳过缓存检查")
+            except Exception as e:
+                logger.warning(f"缓存检查失败: {e}，继续正常计算")
 
         try:
             # 转换指标代码
@@ -358,9 +395,11 @@ class CalculateRegimeUseCase:
             else:
                 actual_observed_at = request.as_of_date
 
-            # 9. 计算中间值
+            # 9. 计算中间值（用于详细展示）
+            # 增长指标：使用相对动量
             growth_momentums = calculate_momentum(growth_series, period=3)
-            inflation_momentums = calculate_momentum(inflation_series, period=3)
+            # 通胀指标：使用绝对差值动量（避免低基数扭曲）
+            inflation_momentums = calculate_absolute_momentum(inflation_series, period=3)
             growth_z_scores = calculate_rolling_zscore(growth_momentums, window=60, min_periods=24)
             inflation_z_scores = calculate_rolling_zscore(inflation_momentums, window=60, min_periods=24)
 
@@ -400,7 +439,7 @@ class CalculateRegimeUseCase:
                 observed_at=actual_observed_at  # 使用实际数据日期
             )
 
-            return CalculateRegimeResponse(
+            response = CalculateRegimeResponse(
                 success=True,
                 snapshot=corrected_snapshot,
                 warnings=result.warnings + warnings_list,
@@ -408,6 +447,34 @@ class CalculateRegimeUseCase:
                 raw_data=raw_data,
                 intermediate_data=intermediate_data
             )
+
+            # 易用性改进 - Redis缓存层：缓存计算结果
+            try:
+                from shared.infrastructure.cache_service import CacheService
+
+                cache_data = {
+                    'growth_momentum_z': corrected_snapshot.growth_momentum_z,
+                    'inflation_momentum_z': corrected_snapshot.inflation_momentum_z,
+                    'distribution': corrected_snapshot.distribution,
+                    'dominant_regime': corrected_snapshot.dominant_regime,
+                    'confidence': corrected_snapshot.confidence,
+                    'observed_at': corrected_snapshot.observed_at.isoformat(),
+                    'warnings': result.warnings + warnings_list,
+                    'raw_data': raw_data,
+                    'intermediate_data': intermediate_data,
+                }
+
+                CacheService.set_regime(
+                    as_of_date=request.as_of_date.isoformat(),
+                    growth_indicator=request.growth_indicator,
+                    inflation_indicator=request.inflation_indicator,
+                    data=cache_data,
+                )
+                logger.info(f"Regime计算结果已缓存: {request.as_of_date}")
+            except Exception as e:
+                logger.warning(f"缓存设置失败: {e}，不影响结果返回")
+
+            return response
 
         except RegimeCalculationError as e:
             # 降级方案失败
@@ -470,3 +537,185 @@ class CalculateRegimeUseCase:
             results.append(result)
 
         return results
+
+
+# ==================== V2 Use Case (Level-based) ====================
+
+@dataclass
+class CalculateRegimeV2Request:
+    """计算 Regime V2 的请求 DTO"""
+    as_of_date: date
+    use_pit: bool = False
+    growth_indicator: str = "PMI"
+    inflation_indicator: str = "CPI"
+    data_source: Optional[str] = None
+    skip_cache: bool = False
+
+
+@dataclass
+class CalculateRegimeV2Response:
+    """计算 Regime V2 的响应 DTO"""
+    success: bool
+    result: Optional["RegimeCalculationResult"]
+    warnings: List[str]
+    error: Optional[str] = None
+    raw_data: Optional[Dict] = None
+
+
+class CalculateRegimeV2UseCase:
+    """
+    计算 Regime V2 的用例（基于绝对水平）
+
+    职责：
+    1. 使用 V2 服务（水平判定法）计算 Regime
+    2. 从数据库读取阈值配置
+    3. 返回包含趋势预测的结果
+    """
+
+    MIN_DATA_POINTS = 3  # V2 只需要最近的数据
+
+    def __init__(self, repository):
+        self.repository = repository
+
+    def _load_threshold_config(self) -> "ThresholdConfig":
+        """从数据库加载阈值配置"""
+        from ..domain.services_v2 import ThresholdConfig
+        from ..infrastructure.models import RegimeThresholdConfig, RegimeIndicatorThreshold
+
+        try:
+            # 获取激活的配置
+            config_model = RegimeThresholdConfig.objects.filter(is_active=True).first()
+
+            if config_model:
+                # 读取各指标的阈值
+                thresholds = {
+                    t.indicator_code: t
+                    for t in config_model.thresholds.all()
+                }
+
+                # 获取 PMI 阈值
+                pmi_threshold = thresholds.get('PMI')
+                pmi_expansion = pmi_threshold.level_high if pmi_threshold else 50.0
+                pmi_contraction = pmi_threshold.level_low if pmi_threshold else 50.0
+
+                # 获取 CPI 阈值
+                cpi_threshold = thresholds.get('CPI')
+                if cpi_threshold:
+                    cpi_high = cpi_threshold.level_high
+                    cpi_low = cpi_threshold.level_low
+                    cpi_deflation = 0.0  # 默认值
+                else:
+                    cpi_high = 2.0
+                    cpi_low = 1.0
+                    cpi_deflation = 0.0
+
+                # 获取趋势权重
+                trend_config = config_model.trend_indicators.filter(indicator_code='PMI').first()
+                momentum_weight = trend_config.trend_weight if trend_config else 0.3
+
+                return ThresholdConfig(
+                    pmi_expansion=pmi_expansion,
+                    pmi_contraction=pmi_contraction,
+                    cpi_high=cpi_high,
+                    cpi_low=cpi_low,
+                    cpi_deflation=cpi_deflation,
+                    momentum_weight=momentum_weight
+                )
+        except Exception as e:
+            logger.warning(f"Failed to load threshold config from database: {e}, using defaults")
+
+        # 返回默认配置
+        return ThresholdConfig()
+
+    def execute(self, request: CalculateRegimeV2Request) -> CalculateRegimeV2Response:
+        """执行 Regime V2 计算"""
+        warnings_list = []
+
+        try:
+            from ..domain.services_v2 import RegimeCalculatorV2
+
+            # 转换指标代码
+            growth_code = self.repository.GROWTH_INDICATORS.get(request.growth_indicator, request.growth_indicator)
+            inflation_code = self.repository.INFLATION_INDICATORS.get(request.inflation_indicator, request.inflation_indicator)
+
+            # 获取数据序列（只需要最近的数据）
+            growth_series = self.repository.get_growth_series(
+                indicator_code=request.growth_indicator,
+                end_date=request.as_of_date,
+                use_pit=request.use_pit,
+                source=request.data_source
+            )
+
+            inflation_series = self.repository.get_inflation_series(
+                indicator_code=request.inflation_indicator,
+                end_date=request.as_of_date,
+                use_pit=request.use_pit,
+                source=request.data_source
+            )
+
+            if not growth_series or not inflation_series:
+                return CalculateRegimeV2Response(
+                    success=False,
+                    result=None,
+                    warnings=[],
+                    error=f"数据不足：需要 PMI 和 CPI 数据"
+                )
+
+            # 加载阈值配置
+            config = self._load_threshold_config()
+
+            # 使用 V2 计算器
+            calculator = RegimeCalculatorV2(config=config)
+            result = calculator.calculate(
+                pmi_series=growth_series,
+                cpi_series=inflation_series,
+                as_of_date=request.as_of_date
+            )
+
+            # 获取完整数据用于展示
+            growth_full = self.repository.get_growth_series_full(
+                indicator_code=request.growth_indicator,
+                end_date=request.as_of_date,
+                use_pit=request.use_pit,
+                source=request.data_source
+            )
+            inflation_full = self.repository.get_inflation_series_full(
+                indicator_code=request.inflation_indicator,
+                end_date=request.as_of_date,
+                use_pit=request.use_pit,
+                source=request.data_source
+            )
+
+            raw_data = {
+                'growth': [
+                    {
+                        'date': ind.reporting_period.isoformat(),
+                        'value': ind.value,
+                        'code': ind.code
+                    } for ind in growth_full
+                ],
+                'inflation': [
+                    {
+                        'date': ind.reporting_period.isoformat(),
+                        'value': ind.value,
+                        'code': ind.code
+                    } for ind in inflation_full
+                ]
+            }
+
+            return CalculateRegimeV2Response(
+                success=True,
+                result=result,
+                warnings=result.warnings + warnings_list,
+                error=None,
+                raw_data=raw_data
+            )
+
+        except Exception as e:
+            logger.exception(f"Unexpected error during regime V2 calculation: {e}")
+            return CalculateRegimeV2Response(
+                success=False,
+                result=None,
+                warnings=warnings_list,
+                error=f"计算失败: {str(e)}"
+            )

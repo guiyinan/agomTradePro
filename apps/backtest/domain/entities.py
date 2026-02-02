@@ -215,3 +215,101 @@ DEFAULT_PUBLICATION_LAGS = {
     "SHIBOR": timedelta(days=1),
     "GDP": timedelta(days=60),
 }
+
+
+@dataclass(frozen=True)
+class DataVersion:
+    """
+    数据版本实体（用于追踪数据修订）
+
+    虽然当前系统未实现完整的数据修订追踪，
+    但此实体为未来扩展预留了接口。
+
+    Attributes:
+        indicator_code: 指标代码
+        observed_at: 数据观测期（报告期）
+        value: 数据值
+        version: 版本号（1=初值，2=第一次修订，...）
+        published_at: 该版本的发布日期
+        is_final: 是否为最终值（不再修订）
+        revision_note: 修订说明（可选）
+
+    使用场景:
+        1. GDP 数据：初值 -> 第一次修订 -> 第二次修订 -> 最终值
+        2. PMI 数据：初值可能在大样本调查后修订
+        3. 就业数据：初值和修正值常有差异
+
+    示例:
+        DataVersion("GDP", date(2024,1,1), 5.2, 1, date(2024,3,1), False, "初值")
+        DataVersion("GDP", date(2024,1,1), 5.3, 2, date(2024,4,1), False, "修订值")
+        DataVersion("GDP", date(2024,1,1), 5.3, 3, date(2024,5,1), True, "最终值")
+    """
+    indicator_code: str
+    observed_at: date
+    value: float
+    version: int
+    published_at: date
+    is_final: bool = False
+    revision_note: str = ""
+
+    @property
+    def version_type(self) -> str:
+        """返回版本类型描述"""
+        if self.version == 1:
+            return "初值"
+        elif self.is_final:
+            return "最终值"
+        else:
+            return f"修订值{self.version - 1}"
+
+    def is_available_on(self, query_date: date) -> bool:
+        """检查该版本在指定日期是否已发布"""
+        return self.published_at <= query_date
+
+
+@dataclass(frozen=True)
+class DataVersionHistory:
+    """
+    数据版本历史（包含所有版本）
+
+    用于回测时获取"as-of"某个日期可用的数据版本。
+
+    Attributes:
+        indicator_code: 指标代码
+        observed_at: 数据观测期
+        versions: 该数据的所有版本，按发布时间排序
+
+    方法:
+        get_version_on(date): 获取指定日期可用的最新版本
+    """
+    indicator_code: str
+    observed_at: date
+    versions: Tuple[DataVersion, ...]  # 按版本号排序
+
+    def get_version_on(self, query_date: date) -> Optional[DataVersion]:
+        """
+        获取在指定日期可用的最新版本
+
+        Args:
+            query_date: 查询日期（回测当前日期）
+
+        Returns:
+            Optional[DataVersion]: 可用的最新版本，如果没有则返回 None
+
+        示例:
+            回测日期为2024-03-15，GDP版本历史为：
+            - v1: 初值，2024-03-01发布
+            - v2: 修订值，2024-04-01发布
+            返回 v1（初值）
+        """
+        for version in reversed(self.versions):  # 从最新版本开始查找
+            if version.published_at <= query_date:
+                return version
+        return None
+
+    def get_final_value(self) -> Optional[DataVersion]:
+        """获取最终值版本"""
+        for version in reversed(self.versions):
+            if version.is_final:
+                return version
+        return None

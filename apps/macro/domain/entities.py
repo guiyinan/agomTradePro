@@ -7,7 +7,7 @@ No Django, Pandas, or external dependencies allowed.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple
 from enum import Enum
 
 
@@ -24,26 +24,46 @@ UNIT_CONVERSION_FACTORS: Dict[str, float] = {
 }
 
 
-def normalize_currency_unit(value: float, unit: str) -> tuple[float, str]:
+def normalize_currency_unit(
+    value: float,
+    unit: str,
+    exchange_rate: float = 1.0
+) -> Tuple[float, str]:
     """
     将货币类数据统一转换为"元"层级
 
     Args:
         value: 原始值
         unit: 原始单位
+        exchange_rate: USD/CNY 汇率（仅对美元单位有效）
+                     ⚠️ 默认值 1.0 仅用于系统兜底，不用于历史回测的精确分析
+                     回测场景必须使用历史汇率！
 
     Returns:
         tuple: (转换后的值, "元")
 
     Examples:
-        >>> normalize_currency_unit(100, "万元")
-        (1000000.0, "元")
+        >>> normalize_currency_unit(1.0, "亿美元", exchange_rate=7.2)
+        (720000000.0, "元")
         >>> normalize_currency_unit(1.5, "亿元")
         (150000000.0, "元")
+
+    语义定义:
+        exchange_rate: USD/CNY 汇率，表示 1 美元兑换多少人民币
+                     如 7.2 表示 1 美元 = 7.2 人民币
     """
     if unit in UNIT_CONVERSION_FACTORS:
         factor = UNIT_CONVERSION_FACTORS[unit]
+
+        # 🔧 修复：美元单位需要额外乘汇率
+        if "美元" in unit or "USD" in unit.upper():
+            converted_value = value * factor * exchange_rate
+            return (converted_value, "元")
+
+        # 人民币单位直接转换
         return (value * factor, "元")
+
+    # 未知单位，保持原值
     return (value, unit)
 
 

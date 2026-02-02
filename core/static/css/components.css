@@ -484,8 +484,53 @@
 }
 
 /* ========================================
-   响应式调整
+   状态网格 (Status Grid)
    ======================================== */
+.status-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: var(--spacing-md);
+}
+
+.status-item {
+    background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary));
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg) var(--spacing-md);
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+}
+
+.status-item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary-color);
+}
+
+.status-icon {
+    font-size: 28px;
+    color: var(--primary-color);
+    margin-bottom: var(--spacing-sm);
+}
+
+.status-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.status-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+/* 响应式调整 */
 @media (max-width: 768px) {
     .modal-dialog {
         margin: var(--spacing-md);
@@ -503,5 +548,9 @@
 
     .timeline {
         padding-left: 30px;
+    }
+
+    .status-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
 }

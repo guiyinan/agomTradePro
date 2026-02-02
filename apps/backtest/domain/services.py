@@ -23,37 +23,54 @@ from .entities import (
 
 class PITDataProcessor:
     """
-    Point-in-Time 数据处理器
+    Point-in-Time 数据处理器（增强版）
 
     确保回测时只使用当时已经发布的数据，避免未来函数。
+
+    功能:
+    1. 处理发布滞后：数据观测后需要一段时间才发布
+    2. 数据版本追踪：支持获取"as-of"某个日期可用的数据版本
+    3. 数据过滤：从候选数据中筛选出在指定日期已发布的数据
+
+    局限性:
+    - 当前版本不处理数据修订（如 GDP 初值 vs 终值）
+    - 假设发布滞后是固定的，不考虑特殊情况（如节假日）
+    - 数据修订需要额外的版本管理系统
+
+    TODO:
+    - 实现数据修订版本追踪
+    - 支持动态发布滞后（考虑节假日）
+    - 添加数据修订的影响分析
     """
 
     def __init__(self, publication_lags: Dict[str, timedelta]):
         """
         Args:
             publication_lags: {indicator_code: lag_timedelta}
+                             例如: {"PMI": timedelta(days=35), "CPI": timedelta(days=10)}
         """
         self.publication_lags = publication_lags
 
-    def get_available_as_of_date(
+    def get_publication_date(
         self,
         observed_at: date,
         indicator_code: str
-    ) -> Optional[date]:
+    ) -> date:
         """
-        获取指定观测日期在某个参考日期是否可用
+        获取数据观测日期对应的发布日期
 
         Args:
-            observed_at: 数据观测日期
+            observed_at: 数据观测日期（报告期）
             indicator_code: 指标代码
-            reference_date: 参考日期（回测当前日期）
 
         Returns:
-            Optional[date]: 如果数据可用，返回发布日期；否则返回 None
+            date: 数据发布日期
+
+        示例:
+            PMI 在 1月31日观测，滞后35天，发布日期为 3月7日
         """
         lag = self.publication_lags.get(indicator_code, timedelta(days=0))
-        published_at = observed_at + lag
-        return published_at
+        return observed_at + lag
 
     def is_data_available(
         self,
@@ -71,9 +88,85 @@ class PITDataProcessor:
 
         Returns:
             bool: 数据是否可用
+
+        示例:
+            PMI(1月) 在3月7日发布，回测日期为3月1日时不可用
+            PMI(1月) 在3月7日发布，回测日期为3月10日时可用
         """
-        published_at = self.get_available_as_of_date(observed_at, indicator_code)
-        return published_at is not None and published_at <= as_of_date
+        published_at = self.get_publication_date(observed_at, indicator_code)
+        return published_at <= as_of_date
+
+    def filter_data_by_availability(
+        self,
+        data_points: List[Tuple[date, float]],  # [(observed_at, value), ...]
+        indicator_code: str,
+        as_of_date: date
+    ) -> List[Tuple[date, float]]:
+        """
+        筛选出在指定日期已发布的所有数据点
+
+        Args:
+            data_points: 数据点列表，格式为 [(观测日期, 值), ...]
+            indicator_code: 指标代码
+            as_of_date: 回测当前日期
+
+        Returns:
+            List[Tuple[date, float]]: 已发布的数据点列表
+
+        示例:
+            回测日期为2024-03-10，PMI滞后35天
+            [(2024-01-31, 50.1), (2024-02-29, 49.8)]  # 1月和2月数据都已发布
+            [(2024-03-31, 51.2)]  # 3月数据尚未发布（5月5日才发布）
+        """
+        available = []
+        for observed_at, value in data_points:
+            if self.is_data_available(observed_at, indicator_code, as_of_date):
+                available.append((observed_at, value))
+        return available
+
+    def get_latest_available_value(
+        self,
+        data_points: List[Tuple[date, float]],
+        indicator_code: str,
+        as_of_date: date
+    ) -> Optional[Tuple[date, float]]:
+        """
+        获取指定日期可用的最新数据点
+
+        Args:
+            data_points: 数据点列表，按观测日期排序
+            indicator_code: 指标代码
+            as_of_date: 回测当前日期
+
+        Returns:
+            Optional[Tuple[date, float]]: 最新的可用数据点，如果没有则返回 None
+
+        示例:
+            回测日期为2024-03-10，PMI滞后35天
+            返回 (2024-02-29, 49.8)  # 2月数据是最新可用的
+        """
+        available = self.filter_data_by_availability(data_points, indicator_code, as_of_date)
+        return available[-1] if available else None
+
+    def warn_if_revision_not_supported(self) -> str:
+        """
+        生成关于数据修订的警告信息
+
+        Returns:
+            str: 警告信息
+
+        注意:
+            此方法用于提醒用户当前版本不支持数据修订处理
+            经济数据（如GDP）经常在初次发布后进行修订
+            在历史回测中，应该使用当时可用的数据版本，而非最终修订值
+        """
+        return (
+            "⚠️  PIT数据处理器警告:\n"
+            "当前版本不支持数据修订追踪。\n"
+            "经济数据（如GDP、PMI等）常在初次发布后修订，\n"
+            "严格的历史回测应使用当时可用的数据版本。\n"
+            "如需数据修订支持，请实现版本管理系统。"
+        )
 
 
 class BacktestEngine:

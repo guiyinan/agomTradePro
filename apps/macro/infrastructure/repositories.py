@@ -34,8 +34,11 @@ class DjangoMacroRepository:
     }
 
     # 通胀指标代码映射
+    # 注意：CPI 需要使用同比增长率（百分比形式），而非指数形式
+    # CN_CPI: 指数形式（上年同月=100），值如 100.8
+    # CN_CPI_NATIONAL_YOY: 同比增长率（百分比），值如 0.008（即 0.8%）
     INFLATION_INDICATORS = {
-        "CPI": "CN_CPI",
+        "CPI": "CN_CPI_NATIONAL_YOY",  # 使用同比增长率（百分比形式）
         "PPI": "CN_PPI",
         "GDP平减指数": "CN_GDP_DEFLATOR",
     }

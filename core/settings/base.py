@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # Third-party apps
+    'jazzmin',  # Django Admin 美化主题
     'rest_framework',
     'rest_framework.authtoken',  # Token 认证
     'drf_spectacular',
@@ -123,6 +124,31 @@ TEMPLATES = [
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Cache Configuration (易用性改进 - Redis缓存层)
+# 优先使用 Redis，开发环境可降级为内存缓存
+if env('REDIS_URL', default=None):
+    # 生产环境：使用 Redis
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': env('REDIS_URL', default='redis://127.0.0.1:6379/1'),
+            'TIMEOUT': 900,  # 默认15分钟
+            'KEY_PREFIX': 'agomsaaf',
+        }
+    }
+else:
+    # 开发环境：使用内存缓存（同步模式，不需要Redis服务）
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'agomsaaf-cache',
+            'TIMEOUT': 900,  # 默认15分钟
+            'OPTIONS': {
+                'MAX_ENTRIES': 1000,
+            }
+        }
+    }
+
 # Admin Site Configuration
 ADMIN_TITLE = 'AgomSAAF 管理后台'
 ADMIN_HEADER = 'AgomSAAF'
@@ -158,6 +184,19 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'Agom Strategic Asset Allocation Framework API',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+    # Performance optimizations
+    'SCHEMA_PATH_PREFIX': '/api/',
+    'COMPONENT_SPLIT_REQUEST': True,
+    'COMPONENT_NO_READ_ONLY_REQUIRED': True,
+    # UI optimizations
+    'SWAGGER_UI_SETTINGS': {
+        'defaultModelsExpandDepth': 1,
+        'defaultModelExpandDepth': 1,
+        'docExpansion': 'none',
+        'filter': True,
+        'showRequestHeaders': True,
+        'persistAuthorization': True,
+    },
 }
 
 # Celery settings

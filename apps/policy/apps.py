@@ -8,5 +8,6 @@ class PolicyConfig(AppConfig):
     verbose_name = 'Policy Events'
 
     def ready(self):
-        """Import admin module when app is ready"""
+        """Import admin and tasks modules when app is ready"""
         import apps.policy.interface.admin  # noqa: F401
+        import apps.policy.application.tasks  # noqa: F401 - Import Celery tasks

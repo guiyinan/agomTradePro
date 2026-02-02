@@ -1,5 +1,8 @@
 """
-Django Admin for Regime.
+Django Admin for Regime Interface.
+
+注意：主要的 Admin 配置在 infrastructure/admin.py
+此文件保留用于 Interface 层的模型管理。
 """
 
 from django.contrib import admin

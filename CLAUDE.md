@@ -4,6 +4,12 @@
 
 ## 项目概述
 
+> **最后更新**: 2026-02-01
+> **系统版本**: AgomSAAF V3.4
+> **项目完成度**: 98%
+> **业务模块**: 19个
+> **测试覆盖**: 263个测试用例，100%通过率
+
 AgomSAAF (Agom Strategic Asset Allocation Framework) 是一个宏观环境准入系统，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
 
 ## 技术栈
@@ -57,14 +63,26 @@ AgomSAAF/
 │   │   └── production.py
 │   ├── urls.py
 │   └── celery.py
-├── apps/
+├── apps/                     # 19个业务模块
 │   ├── macro/                # 宏观数据采集
 │   ├── regime/               # Regime 判定引擎
 │   ├── policy/               # 政策事件管理
 │   ├── signal/               # 投资信号管理
 │   ├── backtest/             # 回测引擎
 │   ├── audit/                # 事后审计
-│   └── asset_analysis/       # 通用资产分析（独立业务模块）
+│   ├── asset_analysis/       # 通用资产分析框架
+│   ├── equity/               # 个股分析
+│   ├── fund/                 # 基金分析
+│   ├── sector/               # 板块分析
+│   ├── sentiment/            # 舆情情感分析
+│   ├── account/              # 账户与持仓管理
+│   ├── simulated_trading/    # 模拟盘自动交易
+│   ├── realtime/             # 实时价格监控
+│   ├── strategy/             # 策略系统
+│   ├── ai_provider/          # AI 服务商管理
+│   ├── prompt/               # AI Prompt 模板
+│   ├── dashboard/            # 仪表盘
+│   └── filter/               # 筛选器管理
 ├── shared/                   # 跨 App 共享（仅技术性组件）
 │   ├── domain/interfaces.py  # Protocol 定义
 │   ├── infrastructure/       # 通用算法实现（如 Kalman 滤波）
@@ -289,19 +307,32 @@ ak.macro_china_money_supply()
 
 ## 当前开发阶段
 
-Phase 1: 基础搭建（本地开发）
-- [ ] Django 项目骨架
-- [ ] Domain 层 Entities
-- [ ] Tushare 适配器
-- [ ] AKShare 适配器
+**项目状态**: 核心功能已完成 (98%)
+
+**Phase 1-7 已完成** ✅:
+- ✅ Django 项目骨架
+- ✅ Domain 层 Entities
+- ✅ Tushare 适配器
+- ✅ AKShare 适配器
+- ✅ 完整四层架构
+- ✅ 模拟盘自动交易
+- ✅ 实时价格监控
+
+**Phase 8: 功能完善** (进行中):
+- [ ] Audit 模块补全 (45% → 100%)
+- [ ] Dashboard 图表优化 (60% → 100%)
+- [ ] 定时任务监控完善
 
 ## 注意事项
 
 1. **不要创建 docker 相关文件**，Phase 1-3 全程本地开发
 2. **先写 Domain 层**，再写其他层
 3. **先写测试**，再写实现（TDD 友好）
-4. 遇到不确定的金融逻辑，参考 `docs/AgomSAAF_V3.4.md`
+4. 遇到不确定的金融逻辑，参考 `docs/business/AgomSAAF_V3.4.md`
 5. 拒绝硬编码，对于资产类型、数据指标代码等，应该写在数据库里，然后有初始化脚本。
-6.每步工作后，更新docs下的对应文档
-python的虚拟环境为agomsaaf
-powershell脚本必须使用英文
+6. 每步工作后，更新 docs 下的对应文档
+7. **快速参考**: 查看 `docs/development/quick-reference.md` 获取常用命令和 API 端点
+
+**环境配置**:
+- python 虚拟环境为 `agomsaaf`
+- PowerShell 脚本必须使用英文

@@ -63,6 +63,13 @@ class DashboardData:
     # AI建议
     ai_insights: List[str]
 
+    # 资产配置建议（新增）
+    allocation_advice: Optional[Dict] = None
+
+    # 图表数据（用于前端渲染）
+    allocation_data: Dict[str, float] = None  # 资产配置饼图数据
+    performance_data: List[Dict] = None  # 收益趋势图数据
+
     # 有默认值的字段放最后
     # 政策环境（新增）
     current_policy_level: str = None
@@ -79,6 +86,10 @@ class DashboardData:
     def __post_init__(self):
         if self.recent_policies is None:
             self.recent_policies = []
+        if self.allocation_data is None:
+            self.allocation_data = {}
+        if self.performance_data is None:
+            self.performance_data = []
 
 
 class GetDashboardDataUseCase:
@@ -116,14 +127,19 @@ class GetDashboardDataUseCase:
             # 自动创建默认账户配置
             profile = self.account_repo.create_default_profile(user_id)
 
-        # 2. 实时计算当前Regime（与/regime/dashboard/保持一致）
-        from apps.regime.application.use_cases import CalculateRegimeUseCase, CalculateRegimeRequest
+        # 2. 实时计算当前Regime（使用 V2 水平法）
+        # V2 水平法：基于 PMI/CPI 的绝对水平判定
+        # - PMI >= 50 → 经济扩张
+        # - CPI > 2% → 高通胀
+        # 判定矩阵：Recovery (PMI>50, CPI<=2%), Overheat (PMI>50, CPI>2%),
+        #          Stagflation (PMI<50, CPI>2%), Deflation (PMI<50, CPI<=2%)
+        from apps.regime.application.use_cases import CalculateRegimeV2UseCase, CalculateRegimeV2Request
         from apps.macro.infrastructure.repositories import DjangoMacroRepository
 
         macro_repo = DjangoMacroRepository()
-        regime_use_case = CalculateRegimeUseCase(macro_repo)
+        regime_use_case = CalculateRegimeV2UseCase(macro_repo)
 
-        regime_request = CalculateRegimeRequest(
+        regime_request = CalculateRegimeV2Request(
             as_of_date=date.today(),
             use_pit=False,
             growth_indicator="PMI",
@@ -132,13 +148,14 @@ class GetDashboardDataUseCase:
 
         regime_response = regime_use_case.execute(regime_request)
 
-        if regime_response.success and regime_response.snapshot:
-            current_regime = regime_response.snapshot.dominant_regime
-            regime_date = regime_response.snapshot.observed_at
-            regime_confidence = regime_response.snapshot.confidence
-            growth_momentum_z = regime_response.snapshot.growth_momentum_z
-            inflation_momentum_z = regime_response.snapshot.inflation_momentum_z
-            regime_distribution = regime_response.snapshot.distribution
+        if regime_response.success and regime_response.result:
+            current_regime = regime_response.result.regime.value
+            regime_date = date.today()  # V2 返回结果中没有 observed_at
+            regime_confidence = regime_response.result.confidence
+            # V2 返回趋势指标而非动量 Z-score
+            growth_momentum_z = 0.0
+            inflation_momentum_z = 0.0
+            regime_distribution = regime_response.result.distribution
         else:
             current_regime = "Unknown"
             regime_date = date.today()
@@ -183,6 +200,19 @@ class GetDashboardDataUseCase:
         current_policy_level, current_policy_date, pending_review_count, recent_policies = \
             self._get_policy_environment(user_id)
 
+        # 10. 生成资产配置建议（新增）
+        allocation_advice = self._generate_allocation_advice(
+            current_regime=current_regime,
+            policy_level=current_policy_level,
+            profile=profile,
+            total_assets=float(snapshot.total_value),
+            positions=snapshot.positions,
+        )
+
+        # 11. 生成图表数据
+        allocation_data = self._generate_allocation_chart_data(asset_allocation)
+        performance_data = self._generate_performance_chart_data(portfolio_id)
+
         return DashboardData(
             user_id=user_id,
             username="",  # 由视图层填充
@@ -210,10 +240,13 @@ class GetDashboardDataUseCase:
             signal_stats=signal_stats,
             asset_allocation=asset_allocation,
             ai_insights=ai_insights,
+            allocation_advice=allocation_advice,  # 新增
             current_policy_level=current_policy_level,
             current_policy_date=current_policy_date,
             pending_review_count=pending_review_count,
             recent_policies=recent_policies,
+            allocation_data=allocation_data,
+            performance_data=performance_data,
         )
 
     def _format_positions(self, positions: List[Position]) -> List[Dict]:
@@ -316,6 +349,7 @@ class GetDashboardDataUseCase:
         snapshot,
         match_analysis: RegimeMatchAnalysis,
         active_signals: List[Dict],
+        policy_level: str = None,
     ) -> List[str]:
         """调用 AI 生成投资建议"""
         import requests
@@ -333,6 +367,7 @@ class GetDashboardDataUseCase:
             "regime_match_score": match_analysis.total_match_score,
             "position_count": len(snapshot.positions),
             "active_signal_count": len(active_signals),
+            "policy_level": policy_level or "P0",
         }
 
         # 如果有敌对资产，添加到上下文
@@ -351,6 +386,7 @@ class GetDashboardDataUseCase:
 
 【宏观环境】
 - 当前 Regime: {current_regime}
+- 政策档位: {policy_level or 'P0'}
 - Regime 匹配度: {match_analysis.total_match_score:.0f} 分
 
 【资产组合】
@@ -373,7 +409,9 @@ class GetDashboardDataUseCase:
 
             if not provider:
                 # 如果没有配置 AI，使用数据库规则作为后备
-                return self._fallback_insights(current_regime, snapshot, match_analysis, active_signals)
+                return self._enhanced_fallback_insights(
+                    current_regime, snapshot, match_analysis, active_signals, policy_level
+                )
 
             # 构建 API 请求
             api_url = provider.get_api_url()
@@ -449,11 +487,215 @@ class GetDashboardDataUseCase:
                     return insights
 
         except Exception as e:
-            # AI 调用失败，使用后备方案
-            logger.warning(f"AI 调用失败: {e}，使用数据库规则")
+            # AI 调用失败，使用增强后备方案
+            logger.warning(f"AI 调用失败: {e}，使用增强数据库规则")
 
-        # 后备方案：使用数据库规则
-        return self._fallback_insights(current_regime, snapshot, match_analysis, active_signals)
+        # 后备方案：使用增强数据库规则
+        return self._enhanced_fallback_insights(
+            current_regime, snapshot, match_analysis, active_signals, policy_level
+        )
+
+    def _enhanced_fallback_insights(
+        self,
+        current_regime: str,
+        snapshot,
+        match_analysis: RegimeMatchAnalysis,
+        active_signals: List[Dict],
+        policy_level: str = None,
+    ) -> List[str]:
+        """
+        从数据库规则生成投资建议（AI 失败时的增强后备方案）
+
+        易用性改进 - AI助手降级增强：
+        - 支持Regime+Policy组合规则
+        - 支持匹配度+仓位组合规则
+        - 支持多层规则优先级
+        - 永不空白，至少返回静态建议
+        """
+        from apps.account.infrastructure.models import InvestmentRuleModel
+
+        insights = []
+        invested_ratio = snapshot.get_invested_ratio()
+        match_score = match_analysis.total_match_score
+
+        # Policy档位转换为数字（用于比较）
+        policy_level_num = self._policy_to_numeric(policy_level or "P0")
+
+        # 获取所有启用的全局规则
+        all_rules = InvestmentRuleModel.objects.filter(
+            is_active=True,
+            user__isnull=True  # 全局规则
+        ).order_by('priority', 'id')
+
+        # ==================== Level 1: 组合规则（最高优先级） ====================
+
+        # 1. Regime + Policy 组合规则
+        combo_rules = all_rules.filter(rule_type='regime_policy_combo')
+        for rule in combo_rules:
+            conditions = rule.conditions
+            if conditions.get('regime') == current_regime:
+                min_policy = conditions.get('min_policy_level', 0)
+                if policy_level_num >= min_policy:
+                    advice = rule.advice_template.format(
+                        regime=current_regime,
+                        policy_level=policy_level or "P0",
+                        match_score=f"{match_score:.0f}",
+                        invested_ratio=f"{invested_ratio*100:.0f}%",
+                    )
+                    insights.append(advice)
+                    break  # 只取第一个匹配的
+
+        # 2. 匹配度 + 仓位 组合规则
+        if not insights:  # 只在前面没有匹配时检查
+            match_pos_rules = all_rules.filter(rule_type='match_position_combo')
+            for rule in match_pos_rules:
+                conditions = rule.conditions
+                max_match = conditions.get('max_match_score', 100)
+                min_invested = conditions.get('min_invested_ratio', 0)
+                max_invested = conditions.get('max_invested_ratio', 1)
+
+                if match_score <= max_match and min_invested <= invested_ratio <= max_invested:
+                    advice = rule.advice_template.format(
+                        match_score=f"{match_score:.0f}",
+                        invested_ratio=f"{invested_ratio*100:.0f}%",
+                    )
+                    insights.append(advice)
+                    break
+
+        # 3. Regime + 仓位 组合规则
+        if not insights:
+            regime_pos_rules = all_rules.filter(rule_type='regime_position_combo')
+            for rule in regime_pos_rules:
+                conditions = rule.conditions
+                if conditions.get('regime') == current_regime:
+                    min_invested = conditions.get('min_invested_ratio', 0)
+                    max_invested = conditions.get('max_invested_ratio', 1)
+                    if min_invested <= invested_ratio <= max_invested:
+                        advice = rule.advice_template.format(
+                            regime=current_regime,
+                            invested_ratio=f"{invested_ratio*100:.0f}%",
+                        )
+                        insights.append(advice)
+                        break
+
+        # ==================== Level 2: 单维度规则 ====================
+
+        # 4. Regime环境建议
+        if len(insights) < 3:  # 限制建议数量
+            regime_rules = all_rules.filter(rule_type='regime_advice')
+            for rule in regime_rules:
+                conditions = rule.conditions
+                if conditions.get('regime') == current_regime:
+                    advice = rule.advice_template.format(
+                        regime=current_regime,
+                        growth_direction="↑" if current_regime in ['Recovery', 'Overheat'] else "↓",
+                        inflation_direction="↑" if current_regime in ['Overheat', 'Stagflation'] else "↓",
+                    )
+                    insights.append(advice)
+                    break
+
+        # 5. Policy档位建议
+        if len(insights) < 3:
+            policy_rules = all_rules.filter(rule_type='policy_advice')
+            for rule in policy_rules:
+                conditions = rule.conditions
+                min_policy = conditions.get('min_policy_level', 0)
+                max_policy = conditions.get('max_policy_level', 3)
+                if min_policy <= policy_level_num <= max_policy:
+                    advice = rule.advice_template.format(
+                        policy_level=policy_level or "P0",
+                    )
+                    insights.append(advice)
+                    break
+
+        # 6. 仓位建议
+        if len(insights) < 3:
+            position_rules = all_rules.filter(rule_type='position_advice')
+            for rule in position_rules:
+                conditions = rule.conditions
+                min_invested = conditions.get('min_invested_ratio', 0)
+                max_invested = conditions.get('max_invested_ratio', 1)
+                if min_invested <= invested_ratio <= max_invested:
+                    advice = rule.advice_template.format(
+                        invested_ratio=f"{invested_ratio*100:.0f}%",
+                        cash_ratio=f"{(1-invested_ratio)*100:.0f}%",
+                    )
+                    insights.append(advice)
+                    break
+
+        # 7. 匹配度建议
+        if len(insights) < 3:
+            match_rules = all_rules.filter(rule_type='match_advice')
+            for rule in match_rules:
+                conditions = rule.conditions
+                min_match = conditions.get('min_match_score', 0)
+                max_match = conditions.get('max_match_score', 100)
+                if min_match <= match_score <= max_match:
+                    advice = rule.advice_template.format(
+                        match_score=f"{match_score:.0f}",
+                    )
+                    insights.append(advice)
+                    break
+
+            # 如果有敌对资产，添加额外提示
+            if match_analysis.hostile_assets and match_score < 50:
+                hostile_codes = [a.split()[0] for a in match_analysis.hostile_assets[:3]]
+                insights.append(f"建议关注: {', '.join(hostile_codes)} 与当前环境不匹配")
+
+        # 8. 信号建议
+        if len(insights) < 3:
+            signal_rules = all_rules.filter(rule_type='signal_advice')
+            for rule in signal_rules:
+                conditions = rule.conditions
+                min_count = conditions.get('min_signal_count', 0)
+                has_active = conditions.get('has_active_signals', True)
+
+                match = False
+                if has_active and len(active_signals) >= min_count:
+                    match = True
+                elif not has_active and len(active_signals) == 0:
+                    match = True
+
+                if match:
+                    advice = rule.advice_template.format(
+                        signal_count=len(active_signals),
+                    )
+                    insights.append(advice)
+                    break
+
+        # 9. 风险提示
+        if len(insights) < 3:
+            risk_rules = all_rules.filter(rule_type='risk_alert')
+            for rule in risk_rules:
+                conditions = rule.conditions
+                min_return = conditions.get('min_return_pct', -100)
+                max_return = conditions.get('max_return_pct', 100)
+                if min_return <= snapshot.total_return_pct <= max_return:
+                    advice = rule.advice_template.format(
+                        return_pct=f"{snapshot.total_return_pct:.0f}",
+                    )
+                    insights.append(advice)
+                    break
+
+        # ==================== Level 3: 静态保底规则（永不空白） ====================
+
+        if len(insights) < 2:
+            static_rules = all_rules.filter(rule_type='static_advice')
+            for rule in static_rules:
+                insights.append(rule.advice_template)
+                if len(insights) >= 2:
+                    break
+
+        # 确保至少有一条建议
+        if not insights:
+            insights.append("定期查看持仓与Regime的匹配度，关注市场变化")
+
+        return insights[:5]  # 最多返回5条建议
+
+    def _policy_to_numeric(self, policy_level: str) -> int:
+        """将Policy档位转换为数字"""
+        policy_map = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
+        return policy_map.get(policy_level, 0)
 
     def _fallback_insights(
         self,
@@ -462,96 +704,10 @@ class GetDashboardDataUseCase:
         match_analysis: RegimeMatchAnalysis,
         active_signals: List[Dict],
     ) -> List[str]:
-        """从数据库规则生成投资建议（AI 失败时的后备方案）"""
-        from apps.account.infrastructure.models import InvestmentRuleModel
-        import logging
-
-        logger = logging.getLogger(__name__)
-        insights = []
-        invested_ratio = snapshot.get_invested_ratio()
-
-        # 获取所有启用的规则
-        all_rules = InvestmentRuleModel.objects.filter(is_active=True).order_by('priority', 'id')
-
-        # 1. Regime环境建议
-        regime_rules = all_rules.filter(rule_type='regime_advice')
-        for rule in regime_rules:
-            conditions = rule.conditions
-            # 检查regime条件
-            if conditions.get('regime') == current_regime:
-                # 替换模板变量
-                advice = rule.advice_template.format(
-                    regime=current_regime,
-                    growth_direction="↑" if current_regime in ['Recovery', 'Overheat'] else "↓",
-                    inflation_direction="↑" if current_regime in ['Overheat', 'Stagflation'] else "↓",
-                )
-                insights.append(advice)
-
-        # 如果没有匹配的Regime规则，添加默认说明
-        if not any(r for r in insights if "象限" in r):
-            insights.append(f"当前处于【{current_regime}】象限")
-
-        # 2. 仓位建议
-        position_rules = all_rules.filter(rule_type='position_advice')
-        for rule in position_rules:
-            conditions = rule.conditions
-            min_invested = conditions.get('min_invested_ratio', 0)
-            max_invested = conditions.get('max_invested_ratio', 1)
-
-            if min_invested <= invested_ratio <= max_invested:
-                advice = rule.advice_template.format(
-                    invested_ratio=f"{invested_ratio*100:.0f}%",
-                    cash_ratio=f"{(1-invested_ratio)*100:.0f}%",
-                )
-                insights.append(advice)
-
-        # 3. Regime匹配度建议
-        match_rules = all_rules.filter(rule_type='match_advice')
-        for rule in match_rules:
-            conditions = rule.conditions
-            max_match_score = conditions.get('max_match_score', 100)
-
-            if match_analysis.total_match_score <= max_match_score:
-                advice = rule.advice_template.format(
-                    match_score=f"{match_analysis.total_match_score:.0f}",
-                )
-                insights.append(advice)
-
-                # 如果有敌对资产，添加建议
-                if match_analysis.hostile_assets:
-                    hostile_codes = [a.split()[0] for a in match_analysis.hostile_assets[:3]]
-                    insights.append(f"建议关注: {', '.join(hostile_codes)} 与当前环境不匹配")
-
-        # 4. 信号建议
-        signal_rules = all_rules.filter(rule_type='signal_advice')
-        for rule in signal_rules:
-            conditions = rule.conditions
-            has_active = conditions.get('has_active_signals', True)
-
-            if (active_signals and has_active) or (not active_signals and not has_active):
-                advice = rule.advice_template.format(
-                    signal_count=len(active_signals),
-                )
-                insights.append(advice)
-
-        # 5. 风险提示
-        risk_rules = all_rules.filter(rule_type='risk_alert')
-        for rule in risk_rules:
-            conditions = rule.conditions
-            min_return = conditions.get('min_return_pct', -100)
-            max_return = conditions.get('max_return_pct', 100)
-
-            if min_return <= snapshot.total_return_pct <= max_return:
-                advice = rule.advice_template.format(
-                    return_pct=f"{snapshot.total_return_pct:.0f}",
-                )
-                insights.append(advice)
-
-        # 如果没有任何建议，返回默认提示
-        if not insights:
-            insights.append("暂无特殊建议，请关注市场变化")
-
-        return insights
+        """从数据库规则生成投资建议（AI 失败时的后备方案）- 保留兼容性"""
+        return self._enhanced_fallback_insights(
+            current_regime, snapshot, match_analysis, active_signals, None
+        )
 
     def _get_latest_macro_values(self) -> tuple:
         """获取最新的 PMI 和 CPI 值"""
@@ -566,7 +722,7 @@ class GetDashboardDataUseCase:
                 end_date=date.today(),
                 use_pit=False
             )
-            pmi_value = float(pmi_series[-1].value) if pmi_series else None
+            pmi_value = float(pmi_series[-1]) if pmi_series else None
         except Exception:
             pmi_value = None
 
@@ -577,7 +733,7 @@ class GetDashboardDataUseCase:
                 end_date=date.today(),
                 use_pit=False
             )
-            cpi_value = float(cpi_series[-1].value) if cpi_series else None
+            cpi_value = float(cpi_series[-1]) if cpi_series else None
         except Exception:
             cpi_value = None
 
@@ -635,3 +791,95 @@ class GetDashboardDataUseCase:
             pass
 
         return current_policy_level, current_policy_date, pending_review_count, recent_policies
+
+    def _generate_allocation_advice(
+        self,
+        current_regime: str,
+        policy_level: str,
+        profile,
+        total_assets: float,
+        positions,
+    ) -> Optional[Dict]:
+        """生成资产配置建议"""
+        try:
+            from apps.strategy.application.allocation_service import AllocationService
+
+            # 获取用户风险偏好
+            risk_profile = profile.risk_tolerance  # conservative/moderate/aggressive
+
+            # 调用AllocationService计算建议
+            advice = AllocationService.calculate_allocation_advice(
+                current_regime=current_regime,
+                risk_profile=risk_profile,
+                policy_level=policy_level,
+                total_assets=total_assets,
+                positions=positions,
+            )
+
+            # 转换为字典格式
+            return {
+                "current_allocation": advice.current_allocation,
+                "target_allocation": advice.target_allocation,
+                "allocation_diff": advice.allocation_diff,
+                "trade_actions": [
+                    {
+                        "asset_code": a.asset_code,
+                        "asset_name": a.asset_name,
+                        "action": a.action,
+                        "amount": round(a.amount, 2),
+                        "reason": a.reason,
+                        "asset_class": a.asset_class,
+                        "asset_class_display": self._get_asset_class_display(a.asset_class),
+                        "priority": a.priority,
+                    }
+                    for a in advice.trade_actions
+                ],
+                "summary": advice.summary,
+                "expected_return": advice.expected_return,
+                "expected_volatility": advice.expected_volatility,
+                "sharpe_ratio": advice.sharpe_ratio,
+                "regime": advice.regime,
+                "risk_profile_display": profile.get_risk_tolerance_display(),
+            }
+        except Exception as e:
+            logger.warning(f"生成资产配置建议失败: {e}")
+            return None
+
+    def _generate_allocation_chart_data(self, asset_allocation: List[Dict]) -> Dict[str, float]:
+        """
+        生成资产配置图表数据
+
+        Args:
+            asset_allocation: 资产配置列表
+
+        Returns:
+            Dict[str, float]: {"股票": 100000, "债券": 50000, ...}
+        """
+        allocation_chart_data = {}
+        for alloc in asset_allocation:
+            dimension_display = alloc.get('dimension_display', alloc.get('dimension_value', 'Unknown'))
+            market_value = alloc.get('market_value', 0)
+            allocation_chart_data[dimension_display] = market_value
+        return allocation_chart_data
+
+    def _generate_performance_chart_data(
+        self,
+        portfolio_id: int,
+        days: int = 30
+    ) -> List[Dict]:
+        """
+        生成收益趋势图表数据
+
+        Args:
+            portfolio_id: 投资组合ID
+            days: 获取最近N天的数据
+
+        Returns:
+            List[Dict]: [{"date": "2026-01-01", "return_pct": 5.2}, ...]
+
+        Note: 当前版本暂不支持历史快照，返回空列表
+              前端会显示"暂无收益数据"的占位提示
+        """
+        # 暂时返回空列表，等待历史快照功能实现
+        # TODO: 实现历史快照存储后，从数据库读取历史收益数据
+        return []

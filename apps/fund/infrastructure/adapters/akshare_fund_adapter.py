@@ -9,7 +9,6 @@ AKShare 基金数据适配器
 AKShare 提供了更丰富的基金数据接口，适合作为 Tushare 的补充
 """
 
-import akshare as ak
 import pandas as pd
 from typing import Optional, List
 from datetime import datetime, date
@@ -18,6 +17,14 @@ from datetime import datetime, date
 class AkShareFundAdapter:
     """AKShare 基金数据适配器"""
 
+    def __init__(self):
+        """初始化适配器"""
+        try:
+            import akshare as ak
+            self.ak = ak
+        except ImportError:
+            raise ImportError("请安装 akshare: pip install akshare")
+
     def fetch_fund_list_em(self) -> pd.DataFrame:
         """获取全部基金列表（东方财富）
 
@@ -25,10 +32,8 @@ class AkShareFundAdapter:
             DataFrame with columns: 代码, 名称, 基金类型, etc.
         """
         try:
-            df = ak.fund_open_fund_info_em(
-                fund="",  # 空字符串表示获取全部基金
-                indicator="单位净值走势"
-            )
+            # 使用新的API获取基金列表
+            df = self.ak.fund_open_fund_info_em(symbol='710001', indicator='单位净值走势', period='日K')
             return df
         except Exception as e:
             print(f"AKShare 获取基金列表失败: {e}")
@@ -38,15 +43,16 @@ class AkShareFundAdapter:
         """获取单个基金详细信息（东方财富）
 
         Args:
-            fund_code: 基金代码（如 '110011'）
+            fund_code: 基金代码（如 '005827'）
 
         Returns:
             DataFrame with columns: 基金代码, 基金名称, 基金类型, etc.
         """
         try:
-            df = ak.fund_open_fund_info_em(
-                fund=fund_code,
-                indicator="单位净值走势"
+            df = self.ak.fund_open_fund_info_em(
+                symbol=fund_code,
+                indicator='单位净值走势',
+                period='日K'
             )
             return df
         except Exception as e:
@@ -63,15 +69,24 @@ class AkShareFundAdapter:
             DataFrame with columns: 净值日期, 单位净值, etc.
         """
         try:
-            df = ak.fund_open_fund_info_em(
-                fund=fund_code,
-                indicator="单位净值走势"
+            df = self.ak.fund_open_fund_info_em(
+                symbol=fund_code,
+                indicator='单位净值走势',
+                period='日K'
             )
 
             if df is not None and not df.empty:
                 # 转换列名和日期格式
-                df = df.rename(columns={'净值日期': 'nav_date', '单位净值': 'unit_nav'})
-                df['nav_date'] = pd.to_datetime(df['nav_date'])
+                # 查找日期列和净值列
+                for col in df.columns:
+                    if '日期' in col or 'date' in col.lower():
+                        date_col = col
+                    if '净值' in col or 'nav' in col.lower():
+                        nav_col = col
+
+                if date_col in df.columns and nav_col in df.columns:
+                    df = df.rename(columns={date_col: 'nav_date', nav_col: 'unit_nav'})
+                    df['nav_date'] = pd.to_datetime(df['nav_date'])
 
             return df
         except Exception as e:

@@ -45,29 +45,85 @@ def sigmoid(x: float, k: float = 2.0) -> float:
 def calculate_regime_distribution(
     growth_z: float,
     inflation_z: float,
-    k: float = 2.0
+    k: float = 2.0,
+    correlation: float = 0.3
 ) -> Dict[str, float]:
     """
     计算四象限 Regime 的模糊权重分布
 
     使用 Sigmoid 函数将 Z-score 转换为概率，
-    得到四个象限的归一化权重。
+    考虑增长和通胀的相关性，得到四个象限的归一化权重。
 
     Args:
         growth_z: 增长动量的 Z-score
         inflation_z: 通胀动量的 Z-score
         k: Sigmoid 斜率参数
+        correlation: 增长和通胀的相关系数 (-1 到 1)
+                    正相关表示高增长伴随高通胀（经济周期常态）
+                    负相关表示高增长伴随低通胀（供给冲击场景）
+                    0 表示独立（原始简化假设）
 
     Returns:
         Dict[str, float]: 四个象限的概率分布，总和为 1
+
+    语义定义:
+        correlation: 增长与通胀的相关性系数
+                   - 正值 (0.0 ~ 1.0): 增强过热和通缩，抑制滞胀和复苏
+                   - 负值 (-1.0 ~ 0.0): 增强滞胀和复苏，抑制过热和通缩
+                   - 0.0: 独立假设（原始版本）
+
+    经济含义:
+        - 历史数据显示增长和通胀通常呈正相关（约0.3-0.5）
+        - 正相关时期：经济繁荣伴随通胀，衰退伴随通缩
+        - 负相关时期：供给冲击导致滞胀（高通胀低增长）
     """
+    # 边界检查
+    correlation = max(-1.0, min(1.0, correlation))
+
     p_growth_up = sigmoid(growth_z, k)
     p_inflation_up = sigmoid(inflation_z, k)
 
-    recovery = p_growth_up * (1 - p_inflation_up)
-    overheat = p_growth_up * p_inflation_up
-    stagflation = (1 - p_growth_up) * p_inflation_up
-    deflation = (1 - p_growth_up) * (1 - p_inflation_up)
+    # 基础概率（独立假设）
+    recovery_independent = p_growth_up * (1 - p_inflation_up)
+    overheat_independent = p_growth_up * p_inflation_up
+    stagflation_independent = (1 - p_growth_up) * p_inflation_up
+    deflation_independent = (1 - p_growth_up) * (1 - p_inflation_up)
+
+    if abs(correlation) < 0.01:
+        # 相关性接近0，使用独立假设
+        recovery = recovery_independent
+        overheat = overheat_independent
+        stagflation = stagflation_independent
+        deflation = deflation_independent
+    else:
+        # 应用相关性调整
+        # 正相关：增强同向场景（过热+通缩），抑制反向场景（复苏+滞胀）
+        # 负相关：增强反向场景（复苏+滞胀），抑制同向场景（过热+通缩）
+
+        # 计算调整因子
+        # 对于正相关（correlation > 0）：
+        # - 同向概率（过热、通缩）增加
+        # - 反向概率（复苏、滞胀）减少
+        adjustment = correlation * 0.5  # 系数0.5控制调整幅度
+
+        if correlation > 0:
+            # 正相关：增强过热和通缩
+            overheat = overheat_independent * (1 + adjustment)
+            deflation = deflation_independent * (1 + adjustment)
+            recovery = recovery_independent * (1 - adjustment)
+            stagflation = stagflation_independent * (1 - adjustment)
+        else:
+            # 负相关：增强复苏和滞胀
+            recovery = recovery_independent * (1 - adjustment)  # adjustment为负，实际是增加
+            stagflation = stagflation_independent * (1 - adjustment)
+            overheat = overheat_independent * (1 + adjustment)  # adjustment为负，实际是减少
+            deflation = deflation_independent * (1 + adjustment)
+
+        # 确保非负
+        recovery = max(0.0, recovery)
+        overheat = max(0.0, overheat)
+        stagflation = max(0.0, stagflation)
+        deflation = max(0.0, deflation)
 
     total = recovery + overheat + stagflation + deflation
 
@@ -93,14 +149,17 @@ def calculate_momentum(
     period: int = 3
 ) -> List[float]:
     """
-    计算时间序列的动量（周期变化）
+    计算时间序列的动量（周期变化）- 相对动量
+
+    适用于：绝对值指标（如 PMI、工业增加值等）
+    动量 = (当前值 - 过去值) / |过去值|
 
     Args:
         series: 时间序列值
         period: 计算周期（月），默认 3 个月
 
     Returns:
-        List[float]: 动量值序列（前面 period-1 个值为 None）
+        List[float]: 动量值序列
     """
     n = len(series)
     if n < period:
@@ -118,6 +177,46 @@ def calculate_momentum(
                 momentum = (current - past) / abs(past)
             else:
                 momentum = 0.0
+            momentums.append(momentum)
+
+    return momentums
+
+
+def calculate_absolute_momentum(
+    series: List[float],
+    period: int = 3
+) -> List[float]:
+    """
+    计算时间序列的动量（周期变化）- 绝对差值动量
+
+    适用于：比率型指标（如 CPI、PPI 等百分比数据）
+    动量 = 当前值 - 过去值（百分点差值）
+
+    使用绝对差值而非相对变化，避免低基数时的扭曲：
+    - 例如：CPI 从 0.1% 涨到 0.3%，绝对动量 = 0.2pp（而非 200%）
+    - 例如：CPI 从 2.0% 涨到 2.5%，绝对动量 = 0.5pp
+
+    Args:
+        series: 时间序列值（百分比形式，如 0.5 表示 0.5%）
+        period: 计算周期（月），默认 3 个月
+
+    Returns:
+        List[float]: 动量值序列（百分点差值）
+    """
+    n = len(series)
+    if n < period:
+        return [0.0] * n
+
+    momentums = []
+
+    for i in range(n):
+        if i < period:
+            momentums.append(0.0)
+        else:
+            current = series[i]
+            past = series[i - period]
+            # 直接使用差值，不除以基数
+            momentum = current - past
             momentums.append(momentum)
 
     return momentums
@@ -185,26 +284,50 @@ class RegimeCalculator:
 
     输入：增长指标序列、通胀指标序列
     输出：RegimeSnapshot（包含 Z-score 和分布）
+
+    动量计算策略：
+    - 增长指标（如 PMI）：使用相对动量 calculate_momentum()
+    - 通胀指标（如 CPI）：使用绝对差值动量 calculate_absolute_momentum()
+
+    相关性处理：
+    - 考虑增长和通胀的历史相关性，而非假设独立
+    - 默认相关性为 0.3（基于历史数据的典型值）
     """
 
     def __init__(
         self,
         momentum_period: int = 3,
-        zscore_window: int = 60,
-        zscore_min_periods: int = 24,
-        sigmoid_k: float = 2.0
+        zscore_window: int = 24,
+        zscore_min_periods: int = 12,
+        sigmoid_k: float = 2.0,
+        use_absolute_inflation_momentum: bool = True,
+        correlation: float = 0.3
     ):
         """
         Args:
             momentum_period: 动量计算周期（月）
-            zscore_window: Z-score 滚动窗口
-            zscore_min_periods: Z-score 最小计算周期
+            zscore_window: Z-score 滚动窗口（默认24，适应有限数据）
+            zscore_min_periods: Z-score 最小计算周期（默认12，适应有限数据）
             sigmoid_k: Sigmoid 斜率参数
+            use_absolute_inflation_momentum: 是否对通胀使用绝对差值动量（默认True）
+            correlation: 增长和通胀的相关系数，范围 [-1, 1]
+                        默认 0.3 表示适度的正相关（经济周期常态）
+                        0 表示独立假设（原始简化版本）
+
+        Note: 默认参数适用于有限数据场景（20-40条记录）。
+              当数据量充足（60+条）时，建议使用 zscore_window=60, zscore_min_periods=24
+
+        相关性说明:
+            - 正相关 (0.0 ~ 1.0): 经济繁荣时通胀上升，衰退时通胀下降
+            - 负相关 (-1.0 ~ 0.0): 供给冲击导致高通胀低增长（滞胀）
+            - 历史经验: 发达经济体增长与通胀相关性约为 0.3-0.5
         """
         self.momentum_period = momentum_period
         self.zscore_window = zscore_window
         self.zscore_min_periods = zscore_min_periods
         self.sigmoid_k = sigmoid_k
+        self.use_absolute_inflation_momentum = use_absolute_inflation_momentum
+        self.correlation = max(-1.0, min(1.0, correlation))  # 限制在 [-1, 1]
 
     def calculate(
         self,
@@ -237,14 +360,23 @@ class RegimeCalculator:
             warnings.append(f"数据不足，需要至少 {self.zscore_min_periods} 个观测值")
 
         # 1. 计算动量
+        # 增长指标：使用相对动量
         growth_momentums = calculate_momentum(
             growth_series,
             period=self.momentum_period
         )
-        inflation_momentums = calculate_momentum(
-            inflation_series,
-            period=self.momentum_period
-        )
+
+        # 通胀指标：根据配置使用绝对差值动量或相对动量
+        if self.use_absolute_inflation_momentum:
+            inflation_momentums = calculate_absolute_momentum(
+                inflation_series,
+                period=self.momentum_period
+            )
+        else:
+            inflation_momentums = calculate_momentum(
+                inflation_series,
+                period=self.momentum_period
+            )
 
         # 2. 计算 Z-score
         growth_z_scores = calculate_rolling_zscore(
@@ -262,11 +394,12 @@ class RegimeCalculator:
         growth_z = growth_z_scores[-1] if growth_z_scores else 0.0
         inflation_z = inflation_z_scores[-1] if inflation_z_scores else 0.0
 
-        # 3. 计算 Regime 分布
+        # 3. 计算 Regime 分布（考虑相关性）
         distribution = calculate_regime_distribution(
             growth_z,
             inflation_z,
-            k=self.sigmoid_k
+            k=self.sigmoid_k,
+            correlation=self.correlation
         )
 
         # 4. 找到主导 Regime

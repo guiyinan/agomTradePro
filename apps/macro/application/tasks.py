@@ -56,13 +56,16 @@ def sync_macro_data(
         end_date = date.today()
         start_date = end_date - timedelta(days=days_back)
 
-        # 执行同步
-        result = use_case.execute(
-            source=source,
-            indicator=indicator,
+        # 构建请求对象
+        from apps.macro.application.use_cases import SyncMacroDataRequest
+        request = SyncMacroDataRequest(
             start_date=start_date,
-            end_date=end_date
+            end_date=end_date,
+            indicators=[indicator] if indicator else None
         )
+
+        # 执行同步
+        result = use_case.execute(request)
 
         logger.info(f"Macro data sync completed: {result}")
 
@@ -70,9 +73,9 @@ def sync_macro_data(
             'status': 'success',
             'source': source,
             'indicator': indicator,
-            'records_added': result.get('records_added', 0),
-            'records_updated': result.get('records_updated', 0),
-            'warnings': result.get('warnings', [])
+            'synced_count': result.synced_count,
+            'skipped_count': result.skipped_count,
+            'errors': result.errors
         }
 
     except Exception as exc:

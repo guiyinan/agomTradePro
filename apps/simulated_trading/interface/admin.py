@@ -24,7 +24,7 @@ class FeeConfigAdmin(admin.ModelAdmin):
     """费率配置管理"""
 
     list_display = [
-        'config_id',
+        'id',
         'config_name',
         'asset_type',
         'commission_rate_buy_display',
@@ -35,7 +35,7 @@ class FeeConfigAdmin(admin.ModelAdmin):
     ]
     list_filter = ['asset_type', 'is_active']
     search_fields = ['config_name', 'description']
-    readonly_fields = ['config_id', 'created_at', 'updated_at']
+    readonly_fields = ['id', 'created_at', 'updated_at']
 
     fieldsets = (
         ('基础信息', {
@@ -88,7 +88,7 @@ class SimulatedAccountAdmin(admin.ModelAdmin):
     """模拟账户管理"""
 
     list_display = [
-        'account_id',
+        'id',
         'account_name',
         'account_type_display',
         'initial_capital_display',
@@ -104,7 +104,7 @@ class SimulatedAccountAdmin(admin.ModelAdmin):
     list_filter = ['account_type', 'is_active', 'auto_trading_enabled', 'start_date']
     search_fields = ['account_name']
     readonly_fields = [
-        'account_id',
+        'id',
         'current_cash',
         'current_market_value',
         'total_value',
@@ -231,7 +231,7 @@ class SimulatedPositionAdmin(admin.ModelAdmin):
     """持仓管理"""
 
     list_display = [
-        'position_id',
+        'id',
         'account_link',
         'asset_code',
         'asset_name',
@@ -248,7 +248,7 @@ class SimulatedPositionAdmin(admin.ModelAdmin):
     list_filter = ['asset_type', 'first_buy_date', 'last_update_date']
     search_fields = ['asset_code', 'asset_name', 'account__account_name']
     readonly_fields = [
-        'position_id',
+        'id',
         'market_value',
         'unrealized_pnl',
         'unrealized_pnl_pct',
@@ -344,7 +344,7 @@ class SimulatedTradeAdmin(admin.ModelAdmin):
     """交易记录管理"""
 
     list_display = [
-        'trade_id',
+        'id',
         'account_link',
         'asset_code',
         'asset_name',
@@ -362,7 +362,7 @@ class SimulatedTradeAdmin(admin.ModelAdmin):
     list_filter = ['action', 'asset_type', 'status', 'execution_date']
     search_fields = ['asset_code', 'asset_name', 'account__account_name', 'reason']
     readonly_fields = [
-        'trade_id',
+        'id',
         'amount',
         'commission',
         'slippage',
@@ -559,7 +559,7 @@ def dashboard_view(request):
         'today_sell_count': today_sell_count,
         'total_capital': total_capital,
         'total_pnl': total_pnl,
-        'site_header': self.site_header,
+        'site_header': SimulatedTradingAdminSite.site_header,
     }
 
     return render(request, 'admin/simulated_trading/dashboard.html', context)

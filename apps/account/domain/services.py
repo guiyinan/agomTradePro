@@ -459,18 +459,43 @@ class StopLossService:
             entry_price: 开仓价格
             current_price: 当前价格
             highest_price: 持仓期间最高价
-            stop_loss_pct: 止损百分比（负数，如 -0.10）
+            stop_loss_pct: 止损百分比（正数，如 0.10 表示 10% 止损）
             stop_loss_type: 止损类型 (fixed/trailing/time_based)
-            trailing_stop_pct: 移动止损百分比
+            trailing_stop_pct: 移动止损百分比（正数）
 
         Returns:
             StopLossCheckResult: 检查结果
+
+        Raises:
+            ValueError: 如果止损百分比为负数或超过 1
+
+        语义定义:
+            stop_loss_pct: 正数语义，如 0.10 表示亏损达到 10% 时止损
         """
+        # 🔒 安全校验：止损百分比必须为正数
+        if stop_loss_pct < 0:
+            raise ValueError(
+                f"stop_loss_pct 必须为正数或零，当前值: {stop_loss_pct}。"
+                f"本项目统一使用正数语义（如 0.10 表示 10% 止损）。"
+            )
+        if stop_loss_pct > 1:
+            raise ValueError(f"stop_loss_pct 不能超过 100%，当前值: {stop_loss_pct}")
+
+        # 对于 trailing_stop_pct，同样使用正数语义
+        if trailing_stop_pct is not None:
+            if trailing_stop_pct < 0:
+                raise ValueError(f"trailing_stop_pct 必须为正数或零，当前值: {trailing_stop_pct}")
+            if trailing_stop_pct > 1:
+                raise ValueError(f"trailing_stop_pct 不能超过 100%，当前值: {trailing_stop_pct}")
+
+        # 内部转换为负数用于计算
+        stop_loss_pct_negative = -stop_loss_pct
+
         unrealized_pnl_pct = (current_price / entry_price - 1)
 
         if stop_loss_type == "fixed":
             # 固定止损：当前价格跌破止损线
-            stop_price = entry_price * (1 + stop_loss_pct)
+            stop_price = entry_price * (1 + stop_loss_pct_negative)
             should_trigger = current_price <= stop_price
             reason = f"固定止损触发：当前价 {current_price:.2f} 跌破止损价 {stop_price:.2f}"
 
@@ -484,7 +509,7 @@ class StopLossService:
         else:
             # 其他类型暂不处理
             should_trigger = False
-            stop_price = entry_price * (1 + stop_loss_pct)
+            stop_price = entry_price * (1 + stop_loss_pct_negative)
             reason = "未触发"
 
         return StopLossCheckResult(
@@ -747,8 +772,23 @@ class VolatilityTargetService:
 
         Returns:
             VolatilityAdjustmentResult: 调整建议
+
+        Raises:
+            ValueError: 如果波动率为负数或目标波动率非正
+
+        ⚠️ Domain 层校验：宁可炸，也不要容错
         """
-        volatility_ratio = current_volatility / target_volatility if target_volatility > 0 else 1.0
+        # 🔒 安全校验：波动率不能为负
+        if current_volatility < 0:
+            raise ValueError(
+                f"current_volatility 不能为负数，当前值: {current_volatility}。"
+                f"这通常是上游计算错误的信号，请检查数据源。"
+            )
+
+        if target_volatility <= 0:
+            raise ValueError(f"target_volatility 必须大于0，当前值: {target_volatility}")
+
+        volatility_ratio = current_volatility / target_volatility
 
         # 判断是否需要降仓（超过容忍度）
         should_reduce = volatility_ratio > (1 + tolerance)
@@ -757,9 +797,11 @@ class VolatilityTargetService:
         if should_reduce:
             # 目标：使实际波动率回到目标水平
             # 公式：new_position = current_position * (target_vol / actual_vol)
-            suggested_multiplier = min(
+            # 修复：使用 max() 而非 min()，确保不低于最大降仓限制
+            lower_bound = 1.0 - max_reduction  # hard floor
+            suggested_multiplier = max(
                 target_volatility / current_volatility,
-                1.0 - max_reduction,  # 最大降仓限制
+                lower_bound,
             )
             reduction_reason = (
                 f"当前波动率 {current_volatility:.2%} 超过目标波动率 {target_volatility:.2%} "

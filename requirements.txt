@@ -3,6 +3,7 @@ Django>=5.0,<6.0
 djangorestframework
 django-environ
 django-cors-headers
+django-jazzmin>=3.0  # Django Admin 美化主题
 
 # Celery
 celery[redis]

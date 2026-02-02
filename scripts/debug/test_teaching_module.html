@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teaching Module Test - AgomSAAF</title>
+
+    <!-- ECharts -->
+    <script src="/static/vendor/js/echarts.min.js"></script>
+
+    <!-- Teaching CSS -->
+    <link rel="stylesheet" href="/static/css/teaching.css">
+    <link rel="stylesheet" href="/static/css/main.css">
+
+    <style>
+        body {
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .test-btn {
+            padding: 16px 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        .test-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+        }
+        .test-status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+        }
+        .test-status.success {
+            background: #dcfce7;
+            color: #166534;
+            border-left: 4px solid #22c55e;
+        }
+        .test-status.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+        .file-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .file-item {
+            padding: 12px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+        .file-item.loaded {
+            border-left: 4px solid #22c55e;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 AgomSAAF 教学模块测试</h1>
+        <p>此页面用于测试教学模块的各项功能。</p>
+
+        <button class="test-btn" onclick="openTeachingModal()">
+            📚 打开教学指南
+        </button>
+
+        <div id="testResults"></div>
+
+        <h3>📁 文件加载状态</h3>
+        <div class="file-list" id="fileList"></div>
+    </div>
+
+    <!-- Teaching Modal Template (inline for testing) -->
+    <div id="teachingModal" class="modal teaching-modal">
+        <div class="modal-backdrop" onclick="closeTeachingModal()"></div>
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <span>📚</span>
+                    <span>AgomSAAF 宏观经济教学指南</span>
+                </h3>
+                <button class="modal-close" onclick="closeTeachingModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- 侧边栏导航 -->
+                <div class="teaching-sidebar">
+                    <nav class="teaching-nav">
+                        <button class="teaching-nav-item active" data-target="basics">
+                            <span class="nav-icon">📊</span>
+                            <span class="nav-text">宏观经济基础</span>
+                        </button>
+                        <button class="teaching-nav-item" data-target="regime">
+                            <span class="nav-icon">🎯</span>
+                            <span class="nav-text">Regime 判定</span>
+                        </button>
+                        <button class="teaching-nav-item" data-target="policy">
+                            <span class="nav-icon">📰</span>
+                            <span class="nav-text">Policy 档位</span>
+                        </button>
+                        <button class="teaching-nav-item" data-target="allocation">
+                            <span class="nav-icon">💼</span>
+                            <span class="nav-text">资产配置</span>
+                        </button>
+                        <button class="teaching-nav-item" data-target="cases">
+                            <span class="nav-icon">📖</span>
+                            <span class="nav-text">历史案例</span>
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- 主内容区 -->
+                <div class="teaching-content">
+                    <!-- 1️⃣ 宏观经济基础 -->
+                    <div class="teaching-section active" id="section-basics">
+                        <h2>宏观经济基础</h2>
+                        <div class="accordion">
+                            <div class="accordion-item open">
+                                <button class="accordion-header" onclick="toggleAccordion(this)">
+                                    <span class="accordion-title">什么是 PMI?</span>
+                                    <span class="accordion-icon">▼</span>
+                                </button>
+                                <div class="accordion-content">
+                                    <div class="accordion-body">
+                                        <p><strong>PMI (Purchasing Managers' Index)</strong> 是衡量经济健康状况的领先指标。</p>
+                                        <h4>关键要点：</h4>
+                                        <ul>
+                                            <li><strong>分界线是 50</strong>：PMI ≥ 50 表示经济扩张</li>
+                                            <li><strong>领先性</strong>：PMI 通常比 GDP 数据提前 1-2 个月反映经济变化</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2️⃣ Regime 判定 -->
+                    <div class="teaching-section" id="section-regime">
+                        <h2>Regime 判定系统</h2>
+                        <div class="accordion">
+                            <div class="accordion-item open">
+                                <button class="accordion-header" onclick="toggleAccordion(this)">
+                                    <span class="accordion-title">🎮 Regime 计算器</span>
+                                    <span class="accordion-icon">▼</span>
+                                </button>
+                                <div class="accordion-content">
+                                    <div class="accordion-body">
+                                        <div class="regime-calculator">
+                                            <div class="calculator-inputs">
+                                                <div class="input-group">
+                                                    <label>PMI</label>
+                                                    <input type="number" id="calcPMI" value="49.3">
+                                                </div>
+                                                <div class="input-group">
+                                                    <label>CPI (%)</label>
+                                                    <input type="number" id="calcCPI" value="0.8">
+                                                </div>
+                                            </div>
+                                            <button class="btn btn-primary" onclick="calculateRegime()">计算 Regime</button>
+                                            <div class="calculator-result" id="regimeResult" style="display:none;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3️⃣ Policy 档位 -->
+                    <div class="teaching-section" id="section-policy">
+                        <h2>Policy 档位系统</h2>
+                        <p>Policy 档位内容...</p>
+                    </div>
+
+                    <!-- 4️⃣ 资产配置 -->
+                    <div class="teaching-section" id="section-allocation">
+                        <h2>资产配置策略</h2>
+                        <p>资产配置内容...</p>
+                    </div>
+
+                    <!-- 5️⃣ 历史案例 -->
+                    <div class="teaching-section" id="section-cases">
+                        <h2>历史案例库</h2>
+                        <p>历史案例内容...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teaching Scripts -->
+    <script src="/static/js/teaching/teaching-modal.js"></script>
+    <script src="/static/js/teaching/regime-calculator.js"></script>
+    <script src="/static/js/teaching/policy-simulator.js"></script>
+    <script src="/static/js/teaching/policy-simulator-enhanced.js"></script>
+    <script src="/static/js/teaching/cases-library.js"></script>
+    <script src="/static/js/teaching/learning-progress.js"></script>
+    <script src="/static/js/teaching/interactive-charts.js"></script>
+    <script src="/static/js/teaching/bilingual-support.js"></script>
+
+    <script>
+        // Test script to verify all files loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            const results = document.getElementById('testResults');
+            const fileList = document.getElementById('fileList');
+
+            const files = [
+                { name: 'teaching.css', path: '/static/css/teaching.css' },
+                { name: 'teaching-modal.js', path: '/static/js/teaching/teaching-modal.js' },
+                { name: 'regime-calculator.js', path: '/static/js/teaching/regime-calculator.js' },
+                { name: 'policy-simulator.js', path: '/static/js/teaching/policy-simulator.js' },
+                { name: 'policy-simulator-enhanced.js', path: '/static/js/teaching/policy-simulator-enhanced.js' },
+                { name: 'cases-library.js', path: '/static/js/teaching/cases-library.js' },
+                { name: 'learning-progress.js', path: '/static/js/teaching/learning-progress.js' },
+                { name: 'interactive-charts.js', path: '/static/js/teaching/interactive-charts.js' },
+                { name: 'bilingual-support.js', path: '/static/js/teaching/bilingual-support.js' }
+            ];
+
+            let loadedCount = 0;
+            fileList.innerHTML = files.map(file =>
+                `<div class="file-item" id="file-${file.name.replace('.', '-')}">
+                    <strong>${file.name}</strong><br>
+                    <small>${file.path}</small>
+                </div>`
+            ).join('');
+
+            // Check if key functions exist
+            setTimeout(() => {
+                const tests = [
+                    { name: 'openTeachingModal 函数', check: () => typeof openTeachingModal === 'function' },
+                    { name: 'calculateRegime 函数', check: () => typeof calculateRegime === 'function' },
+                    { name: 'toggleAccordion 函数', check: () => typeof toggleAccordion === 'function' },
+                    { name: 'updatePolicyLevelEnhanced 函数', check: () => typeof updatePolicyLevelEnhanced === 'function' },
+                    { name: 'renderCasesLibrary 函数', check: () => typeof renderCasesLibrary === 'function' },
+                    { name: 'initRegimeQuadrantChart 函数', check: () => typeof initRegimeQuadrantChart === 'function' },
+                    { name: 't 翻译函数', check: () => typeof t === 'function' }
+                ];
+
+                let passed = 0;
+                let failed = 0;
+                let output = '<h3>🧪 功能测试结果</h3>';
+
+                tests.forEach(test => {
+                    try {
+                        test.check();
+                        output += `<div class="test-status success">✅ ${test.name} - 正常</div>`;
+                        passed++;
+                    } catch (e) {
+                        output += `<div class="test-status error">❌ ${test.name} - 失败: ${e.message}</div>`;
+                        failed++;
+                    }
+                });
+
+                output += `<div style="margin-top:20px;"><strong>总计: ${passed} 通过, ${failed} 失败</strong></div>`;
+                results.innerHTML = output;
+
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

@@ -78,6 +78,8 @@ def dashboard_view(request):
         "asset_allocation": data.asset_allocation,
         # AI建议
         "ai_insights": data.ai_insights,
+        # 资产配置建议（新增）
+        "allocation_advice": data.allocation_advice,
         # 新增：图表数据
         "allocation_data": data.allocation_data if hasattr(data, 'allocation_data') else {},
         "performance_data": data.performance_data if hasattr(data, 'performance_data') else [],
@@ -135,6 +137,11 @@ def positions_list_htmx(request):
 
     支持排序和筛选的持仓列表，用于动态更新。
     """
+    # If not accessed via HTMX, redirect to main dashboard
+    if 'HX-Request' not in request.headers:
+        from django.shortcuts import redirect
+        return redirect('dashboard:index')
+
     use_case = GetDashboardDataUseCase(
         account_repo=AccountRepository(),
         portfolio_repo=PortfolioRepository(),

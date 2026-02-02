@@ -69,7 +69,25 @@
       "Bash(agomsaafScriptsactivate:*)",
       "Bash(.venvScriptspython.exe:*)",
       "Bash(D:githvagomSAAFagomsaafScriptspython.exe manage.py makemigrations macro)",
-      "Bash(\"agomsaaf\\\\Scripts\\\\python.exe\":*)"
+      "Bash(\"agomsaaf\\\\Scripts\\\\python.exe\":*)",
+      "Bash(pip install:*)",
+      "Bash(setx:*)",
+      "Bash(reg query:*)",
+      "Bash(where:*)",
+      "Bash(sqlite3:*)",
+      "Bash(psql:*)",
+      "Bash(D:githvagomSAAFvenScriptspython.exe -c \"import django; django.setup\\(\\); from apps.policy.infrastructure.models import RSSSourceConfigModel; sources = RSSSourceConfigModel.objects.all\\(\\); print\\(''ID | Name | Category | RSSHub Route | Status''\\); print\\(''-'' * 100\\); [print\\(f''{s.id} | {s.name} | {s.category} | {s.rsshub_route_path} | {s.last_fetch_status}''\\) for s in sources]\")",
+      "Bash(D:/githv/agomSAAF/ven/Scripts/python.exe:*)",
+      "Bash(./venv.bat)",
+      "Bash(cmd.exe:*)",
+      "Bash(/c/ProgramData/anaconda3/python.exe:*)",
+      "Bash(pip show:*)",
+      "Bash(1 <<'PYTHON_CODE'\nfrom apps.regime.infrastructure.models import RegimeLogModel\n\nprint\\('=== Regime Data from PostgreSQL ===\\\\n'\\)\n\n# Total count\ntotal = RegimeLogModel.objects.count\\(\\)\nprint\\(f'Total regime records: {total}'\\)\nprint\\(\\)\n\n# Get recent records\nrecent = RegimeLogModel.objects.order_by\\('-observed_at'\\)[:30]\nprint\\(f'Recent 30 records:\\\\n'\\)\n\nfor r in recent:\n    print\\(f'ID:{r.id:4d} | Observed:{r.observed_at} | Regime:{r.dominant_regime:12s} | Conf:{r.confidence:.3f} | Z:\\({r.growth_momentum_z:+.2f}, {r.inflation_momentum_z:+.2f}\\)'\\)\n    if r.distribution:\n        print\\(f'       Distribution: {r.distribution}'\\)\n\n# Group by dominant regime\nprint\\('\\\\n=== Regime Distribution ===\\\\n'\\)\nfrom django.db.models import Count\nregime_counts = RegimeLogModel.objects.values\\('dominant_regime'\\).annotate\\(count=Count\\('id'\\)\\).order_by\\('-count'\\)\nfor item in regime_counts:\n    print\\(f\"{item['dominant_regime']:12s}: {item['count']}\"\\)\n\n# Check for any anomalies\nprint\\('\\\\n=== Potential Issues ===\\\\n'\\)\n\n# Check for records with very low confidence\nlow_conf = RegimeLogModel.objects.filter\\(confidence__lt=0.3\\).count\\(\\)\nprint\\(f'Records with low confidence \\(<0.3\\): {low_conf}'\\)\n\n# Check for records with very high confidence\nhigh_conf = RegimeLogModel.objects.filter\\(confidence__gt=0.95\\).count\\(\\)\nprint\\(f'Records with very high confidence \\(>0.95\\): {high_conf}'\\)\n\n# Check date range\nfrom django.db.models import Min, Max\ndates = RegimeLogModel.objects.aggregate\\(Min\\('observed_at'\\), Max\\('observed_at'\\)\\)\nprint\\(f'Date range: {dates}'\\)\nPYTHON_CODE)",
+      "Bash(DJANGO_SETTINGS_MODULE=core.settings.development_sqlite python manage.py migrate:*)",
+      "Bash(docker-compose-dev up:*)",
+      "Bash(for file in \"teaching.css\" \"teaching-modal.js\" \"regime-calculator.js\" \"policy-simulator-enhanced.js\" \"cases-library.js\" \"learning-progress.js\" \"interactive-charts.js\" \"bilingual-support.js\")",
+      "Bash(do echo -n \"$file: \")",
+      "Bash(# Check remaining files in root ls -la *.py *.json *.sql *.html)"
     ]
   }
 }

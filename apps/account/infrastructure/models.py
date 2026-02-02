@@ -521,13 +521,26 @@ class InvestmentRuleModel(models.Model):
     投资规则配置表
 
     存储系统生成的投资建议规则，支持动态配置。
+
+    易用性改进 - AI助手降级增强：
+    - 新增组合规则类型（regime_policy_combo, match_position_combo等）
+    - 支持Policy档位建议
+    - 支持静态保底规则
     """
     RULE_TYPE_CHOICES = [
+        # 组合规则（最高优先级）
+        ('regime_policy_combo', 'Regime+Policy组合'),
+        ('match_position_combo', '匹配度+仓位组合'),
+        ('regime_position_combo', 'Regime+仓位组合'),
+        # 单维度规则
         ('regime_advice', 'Regime环境建议'),
+        ('policy_advice', 'Policy档位建议'),
         ('position_advice', '仓位建议'),
         ('match_advice', 'Regime匹配度建议'),
         ('signal_advice', '投资信号建议'),
         ('risk_alert', '风险提示'),
+        # 静态保底规则
+        ('static_advice', '静态建议'),
     ]
 
     user = models.ForeignKey(
@@ -542,7 +555,7 @@ class InvestmentRuleModel(models.Model):
     name = models.CharField(max_length=100, verbose_name="规则名称")
 
     rule_type = models.CharField(
-        max_length=20,
+        max_length=30,  # 易用性改进：增加到30以支持新的规则类型
         choices=RULE_TYPE_CHOICES,
         verbose_name="规则类型"
     )

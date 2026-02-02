@@ -1,0 +1,93 @@
+[
+  {
+    "observed_at": "2025-12-01",
+    "growth_momentum_z": 0.43049944722482425,
+    "inflation_momentum_z": 2.0705461091409676,
+    "dominant_regime": "Overheat",
+    "confidence": 0.6918648739293639
+  },
+  {
+    "observed_at": "2025-11-01",
+    "growth_momentum_z": -0.04690233546433427,
+    "inflation_momentum_z": 2.247226538417419,
+    "dominant_regime": "Stagflation",
+    "confidence": 0.5176514122167397
+  },
+  {
+    "observed_at": "2025-10-01",
+    "growth_momentum_z": -0.14419898613944204,
+    "inflation_momentum_z": 0.5714764260375256,
+    "dominant_regime": "Stagflation",
+    "confidence": 0.43340228273866294
+  },
+  {
+    "observed_at": "2025-09-01",
+    "growth_momentum_z": 0.2318039709841186,
+    "inflation_momentum_z": -0.6750797245980045,
+    "dominant_regime": "Recovery",
+    "confidence": 0.48750814243066737
+  },
+  {
+    "observed_at": "2025-08-01",
+    "growth_momentum_z": 0.050144378567300724,
+    "inflation_momentum_z": -0.48301483448550114,
+    "dominant_regime": "Recovery",
+    "confidence": 0.38030897804924946
+  },
+  {
+    "observed_at": "2025-07-01",
+    "growth_momentum_z": 0.419637649855768,
+    "inflation_momentum_z": 0.32861299683256845,
+    "dominant_regime": "Overheat",
+    "confidence": 0.45993447210139227
+  },
+  {
+    "observed_at": "2025-06-01",
+    "growth_momentum_z": -0.5525861305503071,
+    "inflation_momentum_z": 0.5371628218857384,
+    "dominant_regime": "Stagflation",
+    "confidence": 0.5599793538474078
+  },
+  {
+    "observed_at": "2025-05-01",
+    "growth_momentum_z": -0.48175708891728647,
+    "inflation_momentum_z": 1.3487962547762509,
+    "dominant_regime": "Stagflation",
+    "confidence": 0.6781402349159402
+  },
+  {
+    "observed_at": "2025-04-01",
+    "growth_momentum_z": 0.02534661452590128,
+    "inflation_momentum_z": -1.0159281922178856,
+    "dominant_regime": "Recovery",
+    "confidence": 0.4532528052778276
+  },
+  {
+    "observed_at": "2025-03-01",
+    "growth_momentum_z": 0.45365884249972116,
+    "inflation_momentum_z": -0.24259503000322596,
+    "dominant_regime": "Recovery",
+    "confidence": 0.44098768341902606
+  },
+  {
+    "observed_at": "2025-02-01",
+    "growth_momentum_z": 0.04534333348015994,
+    "inflation_momentum_z": -1.64594713815904,
+    "dominant_regime": "Recovery",
+    "confidence": 0.5039187557156678
+  },
+  {
+    "observed_at": "2025-01-01",
+    "growth_momentum_z": -0.694009457965336,
+    "inflation_momentum_z": 0.5021692075819517,
+    "dominant_regime": "Stagflation",
+    "confidence": 0.58573041657088
+  },
+  {
+    "observed_at": "2024-12-01",
+    "growth_momentum_z": 0.37868100766083973,
+    "inflation_momentum_z": -0.5135485380339047,
+    "dominant_regime": "Recovery",
+    "confidence": 0.50129473620116
+  }
+]

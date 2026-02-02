@@ -9,16 +9,23 @@ import os
 DEBUG = True
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
 
-# Database
+# Database - 使用 PostgreSQL (从 .env 读取 DATABASE_URL)
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': env.db('DATABASE_URL', default='sqlite:///db.sqlite3')
 }
 
 # CORS settings (for development)
 CORS_ALLOW_ALL_ORIGINS = True
+
+# CSRF trusted origins (for development)
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost',
+    'http://localhost:8000',
+    'http://127.0.0.1',
+    'http://127.0.0.1:8000',
+]
+# Allow cookie to work across localhost variants
+CSRF_COOKIE_SAMESITE = 'Lax'
 
 # Logging
 LOGGING = {

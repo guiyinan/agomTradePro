@@ -11,113 +11,50 @@
 <!-- 总体统计 -->
 <div class="status-grid" style="margin-bottom: 24px;">
     <div class="status-item">
-        <div class="status-label">总提供商</div>
-        <div class="status-value">{{ overall_stats.total_providers }}</div>
-    </div>
-    <div class="status-item">
-        <div class="status-label">启用</div>
-        <div class="status-value" style="color: var(--color-success);">
-            {{ overall_stats.active_providers }}
+        <div class="status-icon">
+            <i class="bi bi-server"></i>
         </div>
+        <div class="status-label">总提供商</div>
+        <div class="status-value" id="stat-total-providers">-</div>
     </div>
     <div class="status-item">
+        <div class="status-icon" style="color: var(--success-color);">
+            <i class="bi bi-check-circle-fill"></i>
+        </div>
+        <div class="status-label">启用</div>
+        <div class="status-value" style="color: var(--success-color);" id="stat-active-providers">-</div>
+    </div>
+    <div class="status-item">
+        <div class="status-icon" style="color: var(--primary-color);">
+            <i class="bi bi-graph-up-arrow"></i>
+        </div>
         <div class="status-label">今日请求</div>
-        <div class="status-value">{{ overall_stats.total_requests_today }}</div>
+        <div class="status-value" id="stat-today-requests">-</div>
     </div>
     <div class="status-item">
+        <div class="status-icon" style="color: var(--warning-color);">
+            <i class="bi bi-currency-dollar"></i>
+        </div>
         <div class="status-label">今日成本</div>
-        <div class="status-value">${{ overall_stats.total_cost_today|floatformat:4 }}</div>
+        <div class="status-value" id="stat-today-cost">-</div>
     </div>
 </div>
 
 <!-- 操作栏 -->
 <div style="margin-bottom: 24px; display: flex; gap: 16px; align-items: center;">
-    <a href="/admin/ai_provider/aiproviderconfig/add/" class="tag" style="text-decoration: none; background: var(--color-success); color: white;">+ 添加AI配置</a>
+    <button id="btn-add-provider" class="tag" style="background: var(--success-color); color: white; border: none; cursor: pointer;">+ 添加AI配置</button>
     <a href="{% url 'ai_provider:logs' %}" class="tag">查看调用日志</a>
 </div>
 
 <!-- 提供商列表 -->
 <div class="section">
     <h2 class="section-title">AI提供商列表</h2>
-
-    {% if providers_with_stats %}
-        {% for item in providers_with_stats %}
-        <div class="card" style="margin-bottom: 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: start;">
-                <div>
-                    <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">
-                        {{ item.provider.name }}
-                        {% if item.provider.is_active %}
-                            <span class="tag tag-success">启用</span>
-                        {% else %}
-                            <span class="tag tag-error">禁用</span>
-                        {% endif %}
-                        <span class="tag">{{ item.provider.get_provider_type_display }}</span>
-                    </h3>
-                    <p style="color: var(--color-text-secondary); margin-bottom: 4px;">
-                        <strong>模型:</strong> {{ item.provider.default_model }}
-                    </p>
-                    <p style="color: var(--color-text-secondary); margin-bottom: 4px;">
-                        <strong>Base URL:</strong> {{ item.provider.base_url }}
-                    </p>
-                    <p style="color: var(--color-text-secondary); margin-bottom: 4px;">
-                        <strong>优先级:</strong> {{ item.provider.priority }}
-                    </p>
-                    {% if item.provider.description %}
-                    <p style="color: var(--color-text-secondary); margin-bottom: 8px;">
-                        {{ item.provider.description }}
-                    </p>
-                    {% endif %}
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <a href="{% url 'ai_provider:detail' item.provider.id %}" class="tag">详情</a>
-                    <a href="/admin/ai_provider/aiproviderconfig/{{ item.provider.id }}/change/" class="tag">编辑</a>
-                </div>
-            </div>
-
-            <!-- 使用统计 -->
-            <div class="status-grid" style="margin-top: 16px;">
-                <div>
-                    <div class="status-label">今日请求</div>
-                    <div class="status-value">{{ item.today_requests }}</div>
-                </div>
-                <div>
-                    <div class="status-label">今日成本</div>
-                    <div class="status-value">${{ item.today_cost|floatformat:4 }}</div>
-                </div>
-                <div>
-                    <div class="status-label">本月请求</div>
-                    <div class="status-value">{{ item.month_requests }}</div>
-                </div>
-                <div>
-                    <div class="status-label">本月成本</div>
-                    <div class="status-value">${{ item.month_cost|floatformat:2 }}</div>
-                </div>
-            </div>
-
-            <!-- 预算提示 -->
-            {% if item.provider.daily_budget_limit %}
-                {% if item.today_cost >= item.provider.daily_budget_limit %}
-                    <div style="margin-top: 12px; padding: 8px; background: var(--color-error-bg); border-left: 3px solid var(--color-error); color: var(--color-error);">
-                        ⚠️ 已达到每日预算限制 (${{ item.provider.daily_budget_limit }})
-                    </div>
-                {% endif %}
-            {% endif %}
-            {% if item.provider.monthly_budget_limit %}
-                {% if item.month_cost >= item.provider.monthly_budget_limit %}
-                    <div style="margin-top: 12px; padding: 8px; background: var(--color-error-bg); border-left: 3px solid var(--color-error); color: var(--color-error);">
-                        ⚠️ 已达到每月预算限制 (${{ item.provider.monthly_budget_limit }})
-                    </div>
-                {% endif %}
-            {% endif %}
-        </div>
-        {% endfor %}
-    {% else %}
+    <div id="providers-container">
+        <!-- 动态加载 -->
         <div class="card" style="text-align: center; padding: 40px;">
-            <p style="color: var(--color-text-secondary);">暂无AI提供商配置</p>
-            <a href="/admin/ai_provider/aiproviderconfig/add/" class="tag" style="display: inline-block; margin-top: 16px;">+ 添加第一个配置</a>
+            <p style="color: var(--text-secondary);">加载中...</p>
         </div>
-    {% endif %}
+    </div>
 </div>
 
 <!-- 预设配置提示 -->
@@ -127,7 +64,7 @@
         <p style="margin-bottom: 12px;">常用AI提供商的Base URL参考：</p>
         <table style="width: 100%; border-collapse: collapse;">
             <thead>
-                <tr style="border-bottom: 1px solid var(--color-border);">
+                <tr style="border-bottom: 1px solid var(--border-color);">
                     <th style="padding: 8px; text-align: left;">提供商</th>
                     <th style="padding: 8px; text-align: left;">类型</th>
                     <th style="padding: 8px; text-align: left;">Base URL</th>
@@ -135,19 +72,19 @@
                 </tr>
             </thead>
             <tbody>
-                <tr style="border-bottom: 1px solid var(--color-border-light);">
+                <tr style="border-bottom: 1px solid var(--border-light);">
                     <td style="padding: 8px;">OpenAI</td>
                     <td style="padding: 8px;"><code>openai</code></td>
                     <td style="padding: 8px;"><code>https://api.openai.com/v1</code></td>
                     <td style="padding: 8px;"><code>gpt-3.5-turbo</code></td>
                 </tr>
-                <tr style="border-bottom: 1px solid var(--color-border-light);">
+                <tr style="border-bottom: 1px solid var(--border-light);">
                     <td style="padding: 8px;">DeepSeek</td>
                     <td style="padding: 8px;"><code>deepseek</code></td>
                     <td style="padding: 8px;"><code>https://api.deepseek.com/v1</code></td>
                     <td style="padding: 8px;"><code>deepseek-chat</code></td>
                 </tr>
-                <tr style="border-bottom: 1px solid var(--color-border-light);">
+                <tr style="border-bottom: 1px solid var(--border-light);">
                     <td style="padding: 8px;">通义千问</td>
                     <td style="padding: 8px;"><code>qwen</code></td>
                     <td style="padding: 8px;"><code>https://dashscope.aliyuncs.com/compatible-mode/v1</code></td>
@@ -164,4 +101,705 @@
     </div>
 </div>
 
+<!-- 模态窗口 -->
+<div id="provider-modal" class="ai-modal">
+    <div class="ai-modal-content">
+        <div class="ai-modal-header">
+            <h3 id="modal-title">添加AI配置</h3>
+            <span class="ai-modal-close">&times;</span>
+        </div>
+        <form id="provider-form" class="ai-modal-body">
+            <input type="hidden" id="provider-id" name="id">
+
+            <div class="ai-form-group">
+                <label for="name" class="ai-form-label">配置名称 *</label>
+                <input type="text" id="name" name="name" class="ai-form-input" placeholder="如: openai-main" required>
+                <small class="ai-form-hint">唯一标识符，只能包含字母、数字和连字符</small>
+            </div>
+
+            <div class="ai-form-group">
+                <label for="provider_type" class="ai-form-label">提供商类型 *</label>
+                <select id="provider_type" name="provider_type" class="ai-form-select" required>
+                    <option value="">选择类型</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="deepseek">DeepSeek</option>
+                    <option value="qwen">通义千问</option>
+                    <option value="moonshot">Moonshot</option>
+                    <option value="custom">自定义</option>
+                </select>
+            </div>
+
+            <div class="ai-form-row">
+                <div class="ai-form-group">
+                    <label for="base_url" class="ai-form-label">API Base URL *</label>
+                    <input type="url" id="base_url" name="base_url" class="ai-form-input" placeholder="https://api.openai.com/v1" required>
+                </div>
+                <div class="ai-form-group">
+                    <label for="default_model" class="ai-form-label">默认模型 *</label>
+                    <input type="text" id="default_model" name="default_model" class="ai-form-input" placeholder="gpt-3.5-turbo" required>
+                </div>
+            </div>
+
+            <div class="ai-form-group">
+                <label for="api_key" class="ai-form-label">API Key *</label>
+                <input type="password" id="api_key" name="api_key" class="ai-form-input" placeholder="sk-..." required>
+                <small class="ai-form-hint">编辑时留空表示不修改</small>
+            </div>
+
+            <div class="ai-form-row">
+                <div class="ai-form-group">
+                    <label for="priority" class="ai-form-label">优先级</label>
+                    <input type="number" id="priority" name="priority" class="ai-form-input" value="10" min="1" max="100">
+                    <small class="ai-form-hint">数字越小越优先（用于failover）</small>
+                </div>
+                <div class="ai-form-group">
+                    <label class="ai-form-label">
+                        <input type="checkbox" id="is_active" name="is_active" checked>
+                        启用此配置
+                    </label>
+                </div>
+            </div>
+
+            <div class="ai-form-row">
+                <div class="ai-form-group">
+                    <label for="daily_budget_limit" class="ai-form-label">每日预算限制 (USD)</label>
+                    <input type="number" id="daily_budget_limit" name="daily_budget_limit" class="ai-form-input" step="0.01" min="0" placeholder="不限制则留空">
+                </div>
+                <div class="ai-form-group">
+                    <label for="monthly_budget_limit" class="ai-form-label">每月预算限制 (USD)</label>
+                    <input type="number" id="monthly_budget_limit" name="monthly_budget_limit" class="ai-form-input" step="0.01" min="0" placeholder="不限制则留空">
+                </div>
+            </div>
+
+            <div class="ai-form-group">
+                <label for="description" class="ai-form-label">描述</label>
+                <textarea id="description" name="description" class="ai-form-textarea" rows="2" placeholder="配置说明（可选）"></textarea>
+            </div>
+
+            <div class="ai-modal-footer">
+                <button type="button" class="ai-btn ai-btn-secondary" id="btn-cancel">取消</button>
+                <button type="submit" class="ai-btn ai-btn-primary" id="btn-save">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 删除确认模态窗口 -->
+<div id="delete-modal" class="ai-modal">
+    <div class="ai-modal-content" style="max-width: 400px;">
+        <div class="ai-modal-header">
+            <h3>确认删除</h3>
+            <span class="ai-modal-close delete-modal-close">&times;</span>
+        </div>
+        <div class="ai-modal-body">
+            <p>确定要删除AI配置 "<strong id="delete-provider-name"></strong>" 吗？</p>
+            <p style="color: var(--danger-color); font-size: 14px;">此操作无法撤销！</p>
+        </div>
+        <div class="ai-modal-footer">
+            <button type="button" class="ai-btn ai-btn-secondary" id="btn-delete-cancel">取消</button>
+            <button type="button" class="ai-btn ai-btn-danger" id="btn-delete-confirm">删除</button>
+        </div>
+    </div>
+</div>
+
+<style>
+/* 模态窗口样式 */
+.ai-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+}
+
+.ai-modal.show {
+    display: flex;
+}
+
+.ai-modal-content {
+    background-color: var(--bg-primary);
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.ai-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ai-modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.ai-modal-close {
+    font-size: 28px;
+    font-weight: bold;
+    color: var(--text-secondary);
+    cursor: pointer;
+    line-height: 1;
+}
+
+.ai-modal-close:hover {
+    color: var(--text-primary);
+}
+
+.ai-modal-body {
+    padding: 24px;
+}
+
+.ai-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* 表单样式 */
+.ai-form-group {
+    margin-bottom: 16px;
+}
+
+.ai-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.ai-form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.ai-form-input,
+.ai-form-select,
+.ai-form-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 14px;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    box-sizing: border-box;
+}
+
+.ai-form-input:focus,
+.ai-form-select:focus,
+.ai-form-textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.ai-form-textarea {
+    resize: vertical;
+    min-height: 60px;
+    font-family: inherit;
+}
+
+.ai-form-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* 按钮样式 */
+.ai-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ai-btn-primary {
+    background-color: var(--primary-color, #3b82f6);
+    color: white;
+}
+
+.ai-btn-primary:hover {
+    background-color: var(--primary-hover, #2563eb);
+}
+
+.ai-btn-secondary {
+    background-color: var(--bg-secondary, #f3f4f6);
+    color: var(--text-primary);
+}
+
+.ai-btn-secondary:hover {
+    background-color: var(--border-color);
+}
+
+.ai-btn-danger {
+    background-color: var(--danger-color, #ef4444);
+    color: white;
+}
+
+.ai-btn-danger:hover {
+    background-color: #dc2626;
+}
+
+.ai-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* 状态标签 */
+.provider-status {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.provider-status.active {
+    background-color: #d1fae5;
+    color: var(--success-color, #059669);
+}
+
+.provider-status.inactive {
+    background-color: #fee2e2;
+    color: var(--danger-color, #dc2626);
+}
+
+.provider-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.provider-actions button {
+    padding: 6px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.provider-actions button:hover {
+    background: var(--bg-secondary);
+}
+
+.provider-actions button.btn-delete:hover {
+    background: #fee2e2;
+    border-color: var(--danger-color);
+    color: var(--danger-color);
+}
+
+/* 响应式 */
+@media (max-width: 600px) {
+    .ai-form-row {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+// API 基础路径（因为 app 在 /ai/ 下引入，所以是 /ai/api/providers）
+const API_BASE = '/ai/api/providers/';
+
+// 当前编辑的提供商ID
+let currentEditId = null;
+let deleteTargetId = null;
+
+// DOM 元素
+const modal = document.getElementById('provider-modal');
+const deleteModal = document.getElementById('delete-modal');
+const form = document.getElementById('provider-form');
+const providersContainer = document.getElementById('providers-container');
+
+// 初始化
+document.addEventListener('DOMContentLoaded', () => {
+    loadProviders();
+    loadOverallStats();
+    setupEventListeners();
+});
+
+// 设置事件监听
+function setupEventListeners() {
+    // 添加按钮
+    document.getElementById('btn-add-provider').addEventListener('click', () => {
+        openModal();
+    });
+
+    // 关闭模态窗口
+    document.querySelector('.ai-modal-close').addEventListener('click', closeModal);
+    document.getElementById('btn-cancel').addEventListener('click', closeModal);
+    document.querySelector('.delete-modal-close').addEventListener('click', closeDeleteModal);
+    document.getElementById('btn-delete-cancel').addEventListener('click', closeDeleteModal);
+
+    // 点击外部关闭
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    deleteModal.addEventListener('click', (e) => {
+        if (e.target === deleteModal) closeDeleteModal();
+    });
+
+    // 表单提交
+    form.addEventListener('submit', handleSubmit);
+
+    // 删除确认
+    document.getElementById('btn-delete-confirm').addEventListener('click', handleDelete);
+
+    // 类型选择自动填充
+    document.getElementById('provider_type').addEventListener('change', autoFillPreset);
+}
+
+// 加载提供商列表
+async function loadProviders() {
+    try {
+        const response = await fetch(API_BASE);
+        const providers = await response.json();
+        renderProviders(providers);
+    } catch (error) {
+        console.error('加载提供商列表失败:', error);
+        providersContainer.innerHTML = `
+            <div class="card" style="text-align: center; padding: 40px;">
+                <p style="color: var(--danger-color);">加载失败，请刷新页面重试</p>
+            </div>
+        `;
+    }
+}
+
+// 渲染提供商列表
+function renderProviders(providers) {
+    if (providers.length === 0) {
+        providersContainer.innerHTML = `
+            <div class="card" style="text-align: center; padding: 40px;">
+                <p style="color: var(--text-secondary);">暂无AI提供商配置</p>
+                <button onclick="openModal()" class="tag" style="display: inline-block; margin-top: 16px; background: var(--success-color); color: white; border: none; cursor: pointer;">+ 添加第一个配置</button>
+            </div>
+        `;
+        return;
+    }
+
+    const html = providers.map(item => {
+        const p = item;
+        const statusClass = p.is_active ? 'active' : 'inactive';
+        const statusText = p.is_active ? '启用' : '禁用';
+
+        // 预算警告
+        let budgetWarning = '';
+        if (p.daily_budget_limit && parseFloat(p.today_cost) >= parseFloat(p.daily_budget_limit)) {
+            budgetWarning += `<div style="margin-top: 8px; padding: 8px; background: #fee2e2; border-left: 3px solid var(--danger-color); color: var(--danger-color); font-size: 13px;">
+                ⚠️ 已达到每日预算限制 ($${p.daily_budget_limit})
+            </div>`;
+        }
+        if (p.monthly_budget_limit && parseFloat(p.month_cost) >= parseFloat(p.monthly_budget_limit)) {
+            budgetWarning += `<div style="margin-top: 8px; padding: 8px; background: #fee2e2; border-left: 3px solid var(--danger-color); color: var(--danger-color); font-size: 13px;">
+                ⚠️ 已达到每月预算限制 ($${p.monthly_budget_limit})
+            </div>`;
+        }
+
+        return `
+            <div class="card" style="margin-bottom: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 16px;">
+                    <div style="flex: 1; min-width: 0;">
+                        <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">
+                            ${p.name}
+                            <span class="provider-status ${statusClass}">${statusText}</span>
+                            <span class="tag">${getProviderTypeLabel(p.provider_type)}</span>
+                        </h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 4px; font-size: 14px;">
+                            <strong>模型:</strong> ${p.default_model}
+                        </p>
+                        <p style="color: var(--text-secondary); margin-bottom: 4px; font-size: 14px;">
+                            <strong>Base URL:</strong> <code>${p.base_url}</code>
+                        </p>
+                        <p style="color: var(--text-secondary); margin-bottom: 4px; font-size: 14px;">
+                            <strong>优先级:</strong> ${p.priority}
+                        </p>
+                        ${p.description ? `<p style="color: var(--text-secondary); margin-bottom: 8px; font-size: 14px;">${p.description}</p>` : ''}
+                    </div>
+                    <div class="provider-actions">
+                        <button onclick="editProvider(${p.id})">编辑</button>
+                        <button onclick="toggleActive(${p.id})">${p.is_active ? '禁用' : '启用'}</button>
+                        <button class="btn-delete" onclick="confirmDelete(${p.id}, '${p.name}')">删除</button>
+                        <a href="/ai/detail/${p.id}/" class="tag" style="padding: 6px 12px; text-decoration: none;">详情</a>
+                    </div>
+                </div>
+
+                <div class="status-grid" style="margin-top: 16px;">
+                    <div>
+                        <div class="status-label">今日请求</div>
+                        <div class="status-value">${p.today_requests}</div>
+                    </div>
+                    <div>
+                        <div class="status-label">今日成本</div>
+                        <div class="status-value">$${parseFloat(p.today_cost).toFixed(4)}</div>
+                    </div>
+                    <div>
+                        <div class="status-label">本月请求</div>
+                        <div class="status-value">${p.month_requests}</div>
+                    </div>
+                    <div>
+                        <div class="status-label">本月成本</div>
+                        <div class="status-value">$${parseFloat(p.month_cost).toFixed(2)}</div>
+                    </div>
+                </div>
+                ${budgetWarning}
+            </div>
+        `;
+    }).join('');
+
+    providersContainer.innerHTML = html;
+}
+
+// 获取提供商类型标签
+function getProviderTypeLabel(type) {
+    const labels = {
+        'openai': 'OpenAI',
+        'deepseek': 'DeepSeek',
+        'qwen': '通义千问',
+        'moonshot': 'Moonshot',
+        'custom': '自定义'
+    };
+    return labels[type] || type;
+}
+
+// 加载总体统计
+async function loadOverallStats() {
+    try {
+        const response = await fetch(`${API_BASE}overall_stats/`);
+        const stats = await response.json();
+
+        document.getElementById('stat-total-providers').textContent = stats.total_providers;
+        document.getElementById('stat-active-providers').textContent = stats.active_providers;
+        document.getElementById('stat-today-requests').textContent = stats.total_requests_today;
+        document.getElementById('stat-today-cost').textContent = '$' + stats.total_cost_today.toFixed(4);
+    } catch (error) {
+        console.error('加载统计失败:', error);
+    }
+}
+
+// 打开模态窗口
+function openModal(provider = null) {
+    currentEditId = provider ? provider.id : null;
+
+    if (provider) {
+        document.getElementById('modal-title').textContent = '编辑AI配置';
+        document.getElementById('provider-id').value = provider.id;
+        document.getElementById('name').value = provider.name;
+        document.getElementById('provider_type').value = provider.provider_type;
+        document.getElementById('base_url').value = provider.base_url;
+        document.getElementById('default_model').value = provider.default_model;
+        document.getElementById('api_key').value = '';
+        document.getElementById('api_key').placeholder = '留空表示不修改';
+        document.getElementById('priority').value = provider.priority;
+        document.getElementById('is_active').checked = provider.is_active;
+        document.getElementById('daily_budget_limit').value = provider.daily_budget_limit || '';
+        document.getElementById('monthly_budget_limit').value = provider.monthly_budget_limit || '';
+        document.getElementById('description').value = provider.description || '';
+    } else {
+        document.getElementById('modal-title').textContent = '添加AI配置';
+        form.reset();
+        document.getElementById('priority').value = 10;
+        document.getElementById('is_active').checked = true;
+    }
+
+    modal.classList.add('show');
+}
+
+// 关闭模态窗口
+function closeModal() {
+    modal.classList.remove('show');
+    currentEditId = null;
+    form.reset();
+}
+
+// 自动填充预设配置
+function autoFillPreset() {
+    const type = document.getElementById('provider_type').value;
+    const presets = {
+        'openai': {
+            base_url: 'https://api.openai.com/v1',
+            default_model: 'gpt-3.5-turbo'
+        },
+        'deepseek': {
+            base_url: 'https://api.deepseek.com/v1',
+            default_model: 'deepseek-chat'
+        },
+        'qwen': {
+            base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+            default_model: 'qwen-turbo'
+        },
+        'moonshot': {
+            base_url: 'https://api.moonshot.cn/v1',
+            default_model: 'moonshot-v1-8k'
+        }
+    };
+
+    if (presets[type]) {
+        document.getElementById('base_url').value = presets[type].base_url;
+        document.getElementById('default_model').value = presets[type].default_model;
+    }
+}
+
+// 处理表单提交
+async function handleSubmit(e) {
+    e.preventDefault();
+
+    const saveBtn = document.getElementById('btn-save');
+    saveBtn.disabled = true;
+    saveBtn.textContent = '保存中...';
+
+    const formData = new FormData(form);
+    const data = {
+        name: formData.get('name'),
+        provider_type: formData.get('provider_type'),
+        base_url: formData.get('base_url'),
+        default_model: formData.get('default_model'),
+        priority: parseInt(formData.get('priority')) || 10,
+        is_active: formData.get('is_active') === 'on',
+        description: formData.get('description') || ''
+    };
+
+    // API Key
+    const apiKey = formData.get('api_key');
+    if (apiKey && apiKey.trim()) {
+        data.api_key = apiKey.trim();
+    }
+
+    // 预算限制
+    const dailyBudget = formData.get('daily_budget_limit');
+    const monthlyBudget = formData.get('monthly_budget_limit');
+    if (dailyBudget) data.daily_budget_limit = parseFloat(dailyBudget);
+    if (monthlyBudget) data.monthly_budget_limit = parseFloat(monthlyBudget);
+
+    try {
+        const url = currentEditId ? `${API_BASE}${currentEditId}/` : API_BASE;
+        const method = currentEditId ? 'PUT' : 'POST';
+
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            closeModal();
+            loadProviders();
+            loadOverallStats();
+        } else {
+            const error = await response.json();
+            alert('保存失败: ' + JSON.stringify(error));
+        }
+    } catch (error) {
+        console.error('保存失败:', error);
+        alert('保存失败，请重试');
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = '保存';
+    }
+}
+
+// 编辑提供商
+async function editProvider(id) {
+    try {
+        const response = await fetch(`${API_BASE}${id}/`);
+        const provider = await response.json();
+        openModal(provider);
+    } catch (error) {
+        console.error('加载提供商详情失败:', error);
+        alert('加载失败，请重试');
+    }
+}
+
+// 切换启用状态
+async function toggleActive(id) {
+    try {
+        const response = await fetch(`${API_BASE}${id}/toggle_active/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        });
+
+        if (response.ok) {
+            loadProviders();
+            loadOverallStats();
+        }
+    } catch (error) {
+        console.error('切换状态失败:', error);
+        alert('操作失败，请重试');
+    }
+}
+
+// 确认删除
+function confirmDelete(id, name) {
+    deleteTargetId = id;
+    document.getElementById('delete-provider-name').textContent = name;
+    deleteModal.classList.add('show');
+}
+
+// 关闭删除确认
+function closeDeleteModal() {
+    deleteModal.classList.remove('show');
+    deleteTargetId = null;
+}
+
+// 执行删除
+async function handleDelete() {
+    if (!deleteTargetId) return;
+
+    try {
+        const response = await fetch(`${API_BASE}${deleteTargetId}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        });
+
+        if (response.ok) {
+            closeDeleteModal();
+            loadProviders();
+            loadOverallStats();
+        } else {
+            alert('删除失败，请重试');
+        }
+    } catch (error) {
+        console.error('删除失败:', error);
+        alert('删除失败，请重试');
+    }
+}
+
+// 获取 CSRF Token
+function getCsrfToken() {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {
+            return decodeURIComponent(value);
+        }
+    }
+    return '';
+}
+</script>
 {% endblock %}

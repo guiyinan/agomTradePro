@@ -1,0 +1,28 @@
+{
+  "update_date": "2026-01-31",
+  "data_points": {
+    "CN_PMI": 36,
+    "CN_CPI": 36,
+    "CN_PPI": 36
+  },
+  "latest_values": {
+    "CN_PMI": {
+      "indicator": "CN_PMI",
+      "value": 49.3,
+      "date": "2026-01-01",
+      "source": "akshare"
+    },
+    "CN_CPI": {
+      "indicator": "CN_CPI",
+      "value": 0.8,
+      "date": "2025-12-01",
+      "source": "akshare"
+    },
+    "CN_PPI": {
+      "indicator": "CN_PPI",
+      "value": -1.9,
+      "date": "2025-12-01",
+      "source": "akshare"
+    }
+  }
+}
