@@ -8,6 +8,7 @@ from apps.equity.infrastructure.models import (
     StockDailyModel,
     FinancialDataModel,
     ValuationModel,
+    ScoringWeightConfigModel,
 )
 
 
@@ -163,3 +164,71 @@ class ValuationAdmin(admin.ModelAdmin):
             return f"{obj.circ_mv / 10000:.0f}万"
         return '-'
     circ_mv_display.short_description = '流通市值'
+
+
+@admin.register(ScoringWeightConfigModel)
+class ScoringWeightConfigAdmin(admin.ModelAdmin):
+    """Admin interface for ScoringWeightConfig"""
+
+    list_display = [
+        'name', 'is_active', 'total_weight_check',
+        'growth_weight', 'profitability_weight', 'valuation_weight',
+        'created_at', 'updated_at'
+    ]
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['name', 'description']
+    readonly_fields = ['created_at', 'updated_at']
+
+    fieldsets = (
+        ('基本信息', {
+            'fields': ('name', 'description', 'is_active')
+        }),
+        ('评分维度权重（总和必须为 1.0）', {
+            'fields': (
+                'growth_weight',
+                'profitability_weight',
+                'valuation_weight'
+            )
+        }),
+        ('成长性内部权重（总和必须为 1.0）', {
+            'fields': (
+                'revenue_growth_weight',
+                'profit_growth_weight'
+            )
+        }),
+        ('元数据', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+    def total_weight_check(self, obj):
+        """显示权重总和检查"""
+        dimension_total = obj.growth_weight + obj.profitability_weight + obj.valuation_weight
+        growth_total = obj.revenue_growth_weight + obj.profit_growth_weight
+
+        dimension_status = "✓" if abs(dimension_total - 1.0) < 0.01 else f"✗ ({dimension_total:.2f})"
+        growth_status = "✓" if abs(growth_total - 1.0) < 0.01 else f"✗ ({growth_total:.2f})"
+
+        return f"维度: {dimension_status} | 成长性: {growth_status}"
+    total_weight_check.short_description = '权重检查'
+
+    def save_model(self, request, obj, form, change):
+        """保存前确保只有一个启用的配置"""
+        if obj.is_active:
+            # 将其他配置设为不启用
+            ScoringWeightConfigModel.objects.filter(
+                is_active=True
+            ).exclude(pk=obj.pk).update(is_active=False)
+        super().save_model(request, obj, form, change)
+
+    def response_add(self, request, obj, post_url_continue=None):
+        """添加后提示用户如果需要启用该配置"""
+        if not obj.is_active:
+            from django.contrib import messages
+            messages.info(
+                request,
+                '配置已保存。如需启用此配置，请在编辑页面勾选"是否启用" '
+                '（这会将其他配置设为不启用状态）。'
+            )
+        return super().response_add(request, obj, post_url_continue)

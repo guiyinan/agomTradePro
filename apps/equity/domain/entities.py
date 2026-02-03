@@ -346,3 +346,111 @@ class EquityAssetScore:
             ma60=technical.ma60 if technical else None,
             rsi=technical.rsi if technical else None,
         )
+
+
+@dataclass(frozen=True)
+class ScoringWeightConfig:
+    """股票筛选评分权重配置（值对象）
+
+    定义股票筛选时各评分维度的权重分配。
+    从数据库加载，支持通过 Django Admin 动态调整。
+
+    Attributes:
+        name: 配置名称（用于标识不同的配置方案）
+        description: 配置描述
+        is_active: 是否启用（当前使用的配置）
+
+        评分权重（总和应为 1.0）:
+        growth_weight: 成长性评分权重（营收增长率 + 净利润增长率）
+        profitability_weight: 盈利能力评分权重（ROE）
+        valuation_weight: 估值评分权重（PE 反向分位数）
+
+        成长性内部权重:
+        revenue_growth_weight: 营收增长率在成长性评分中的权重
+        profit_growth_weight: 净利润增长率在成长性评分中的权重
+    """
+    name: str
+    description: str = "默认评分权重配置"
+    is_active: bool = True
+
+    # 评分维度权重（总和应为 1.0）
+    growth_weight: float = 0.4
+    profitability_weight: float = 0.4
+    valuation_weight: float = 0.2
+
+    # 成长性内部权重（总和应为 1.0）
+    revenue_growth_weight: float = 0.5
+    profit_growth_weight: float = 0.5
+
+    def __post_init__(self):
+        """验证权重配置的合法性"""
+        # 检查维度权重总和
+        total_dimension_weight = (
+            self.growth_weight +
+            self.profitability_weight +
+            self.valuation_weight
+        )
+        if abs(total_dimension_weight - 1.0) > 0.01:
+            raise ValueError(
+                f"评分维度权重总和必须为 1.0，当前为 {total_dimension_weight}"
+            )
+
+        # 检查成长性内部权重总和
+        total_growth_weight = (
+            self.revenue_growth_weight +
+            self.profit_growth_weight
+        )
+        if abs(total_growth_weight - 1.0) > 0.01:
+            raise ValueError(
+                f"成长性内部权重总和必须为 1.0，当前为 {total_growth_weight}"
+            )
+
+        # 检查权重范围
+        for weight_name, weight_value in [
+            ("growth_weight", self.growth_weight),
+            ("profitability_weight", self.profitability_weight),
+            ("valuation_weight", self.valuation_weight),
+            ("revenue_growth_weight", self.revenue_growth_weight),
+            ("profit_growth_weight", self.profit_growth_weight),
+        ]:
+            if not (0.0 <= weight_value <= 1.0):
+                raise ValueError(
+                    f"{weight_name} 必须在 [0.0, 1.0] 范围内，当前为 {weight_value}"
+                )
+
+    def get_total_score(
+        self,
+        revenue_growth_percentile: float,
+        profit_growth_percentile: float,
+        roe_percentile: float,
+        pe_percentile: float
+    ) -> float:
+        """
+        根据配置计算综合评分
+
+        Args:
+            revenue_growth_percentile: 营收增长率分位数
+            profit_growth_percentile: 净利润增长率分位数
+            roe_percentile: ROE 分位数
+            pe_percentile: PE 分位数
+
+        Returns:
+            综合评分（0-1 之间）
+        """
+        # 成长性评分（内部加权）
+        growth_percentile = (
+            revenue_growth_percentile * self.revenue_growth_weight +
+            profit_growth_percentile * self.profit_growth_weight
+        )
+
+        # 估值评分（PE 反向）
+        valuation_percentile = 1 - pe_percentile
+
+        # 综合评分
+        total_score = (
+            growth_percentile * self.growth_weight +
+            roe_percentile * self.profitability_weight +
+            valuation_percentile * self.valuation_weight
+        )
+
+        return total_score

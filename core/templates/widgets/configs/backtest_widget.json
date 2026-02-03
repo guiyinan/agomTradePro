@@ -1,0 +1,90 @@
+{
+    "widgetId": "backtest-detail",
+    "title": "回测指标指南",
+    "icon": "📈",
+    "position": "bottom-right",
+    "sections": [
+        {
+            "id": "overview",
+            "title": "回测功能",
+            "type": "content",
+            "content": "<p>回测引擎可以验证投资策略在历史数据上的表现，帮助评估策略的有效性和风险收益特征。</p><div class=\"info-box\"><strong>提示：</strong>历史表现不代表未来收益，回测结果仅供参考。</div>"
+        },
+        {
+            "id": "metrics",
+            "title": "关键指标解释",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "夏普比率 (Sharpe Ratio)",
+                    "content": "<p><strong>定义：</strong>衡量单位风险下的超额收益</p><p><strong>公式：</strong>(策略收益 - 无风险收益) / 策略标准差</p><p><strong>解读：</strong></p><ul><li>> 1：优秀</li><li>0.5 - 1：良好</li><li>< 0.5：较差</li></ul><div class=\"success-box\">夏普比率越高，风险调整后收益越好</div>"
+                },
+                {
+                    "title": "最大回撤 (Max Drawdown)",
+                    "content": "<p><strong>定义：</strong>从历史最高点到最低点的最大跌幅</p><p><strong>公式：</strong>(峰值 - 谷值) / 峰值</p><p><strong>解读：</strong></p><ul><li>< 10%：低风险</li><li>10% - 20%：中等风险</li><li>> 20%：高风险</li></ul><div class=\"warning-box\">最大回撤反映了最坏情况下的亏损幅度</div>"
+                },
+                {
+                    "title": "年化收益 (Annual Return)",
+                    "content": "<p><strong>定义：</strong>策略按年复利计算的收益率</p><p><strong>解读：</strong></p><ul><li>> 20%：优秀</li><li>10% - 20%：良好</li><li>0% - 10%：一般</li><li>< 0%：亏损</li></ul><div class=\"info-box\">需结合风险指标（如夏普比率）综合评估</div>"
+                },
+                {
+                    "title": "胜率 (Win Rate)",
+                    "content": "<p><strong>定义：</strong>盈利交易次数占总交易次数的比例</p><p><strong>公式：</strong>盈利次数 / 总交易次数</p><p><strong>解读：</strong></p><ul><li>> 60%：高胜率</li><li>50% - 60%：中等胜率</li><li>< 50%：低胜率</li></ul><div class=\"info-box\">胜率并非越高越好，需结合盈亏比综合分析</div>"
+                },
+                {
+                    "title": "盈亏比 (Risk-Reward Ratio)",
+                    "content": "<p><strong>定义：</strong>平均盈利与平均亏损的比值</p><p><strong>公式：</strong>平均盈利 / 平均亏损（绝对值）</p><p><strong>解读：</strong></p><ul><li>> 2：优秀</li><li>1 - 2：良好</li><li>< 1：较差</li></ul><div class=\"success-box\">盈亏比高意味着单笔盈利能覆盖多笔亏损</div>"
+                },
+                {
+                    "title": "波动率 (Volatility)",
+                    "content": "<p><strong>定义：</strong>策略收益率的标准差，衡量收益波动程度</p><p><strong>解读：</strong></p><ul><li>< 15%：低波动</li><li>15% - 25%：中等波动</li><li>> 25%：高波动</li></ul><div class=\"warning-box\">波动率过高意味着策略风险较大</div>"
+                },
+                {
+                    "title": "卡尔玛比率 (Calmar Ratio)",
+                    "content": "<p><strong>定义：</strong>年化收益与最大回撤的比值</p><p><strong>公式：</strong>年化收益 / 最大回撤（绝对值）</p><p><strong>解读：</strong></p><ul><li>> 1：优秀</li><li>0.5 - 1：良好</li><li>< 0.5：较差</li></ul><div class=\"info-box\">卡尔玛比率综合考虑收益和最大回撤</div>"
+                }
+            ]
+        },
+        {
+            "id": "interpretation",
+            "title": "结果解读指南",
+            "type": "content",
+            "content": "<p><strong>1. 综合评估：</strong>不要只看收益率，要结合风险指标综合判断。</p><p><strong>2. 对比基准：</strong>将策略表现与市场指数（如沪深300）对比。</p><p><strong>3. 关注回撤：</strong>最大回撤决定了你是否能扛过最困难的时期。</p><p><strong>4. 稳定性：</strong>关注不同时间段的表现是否稳定。</p><div class=\"warning-box\"><strong>避免过拟合：</strong>如果回测结果过于完美，可能是过拟合导致的。</div>"
+        },
+        {
+            "id": "pitfalls",
+            "title": "常见陷阱",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "前视偏差 (Look-ahead Bias)",
+                    "content": "<p>在回测时使用了未来才能知道的数据。</p><p><strong>避免方法：</strong></p><ul><li>确保数据对齐正确</li><li>避免使用未来函数</li><li>检查信号是否使用了未来信息</li></ul>"
+                },
+                {
+                    "title": "生存偏差 (Survivor Bias)",
+                    "content": "<p>只考虑了现存股票，忽略了退市股票。</p><p><strong>避免方法：</strong></p><ul><li>使用完整的股票池数据</li><li>包含退市股票的历史数据</li></ul>"
+                },
+                {
+                    "title": "交易成本忽略",
+                    "content": "<p>忽略了佣金、印花税、滑点等交易成本。</p><p><strong>避免方法：</strong></p><ul><li>在回测中设置合理的交易成本</li><li>考虑买卖价差</li><li>大额交易需考虑市场冲击</li></ul>"
+                },
+                {
+                    "title": "过拟合 (Overfitting)",
+                    "content": "<p>策略参数过度优化，只适合历史数据。</p><p><strong>避免方法：</strong></p><ul><li>使用样本外测试</li><li>避免过多参数</li><li>使用简单的逻辑</li></ul><div class=\"warning-box\">如果在历史数据上表现完美，很可能过拟合了</div>"
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "label": "新建回测",
+            "icon": "➕",
+            "url": "/backtest/create/"
+        },
+        {
+            "label": "回测列表",
+            "icon": "📋",
+            "url": "/backtest/list/"
+        }
+    ]
+}

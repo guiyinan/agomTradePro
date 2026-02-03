@@ -16,6 +16,16 @@ function openTeachingModal() {
         modal.classList.add('show');
         // 阻止背景滚动
         document.body.style.overflow = 'hidden';
+        console.log('[Teaching] Modal opened, initializing accordions...');
+
+        // 延迟初始化，确保DOM完全准备好
+        setTimeout(() => {
+            initAccordions();
+
+            // 验证初始化
+            const headers = document.querySelectorAll('.accordion-header');
+            console.log('[Teaching] After init - accordion headers found:', headers.length);
+        }, 200);
     }
 }
 
@@ -83,6 +93,17 @@ function initTeachingNav() {
                 targetSection.classList.add('active');
                 // 滚动到顶部
                 targetSection.scrollTop = 0;
+
+                // 重新初始化该章节中的手风琴（确保已展开项有正确的maxHeight）
+                setTimeout(() => {
+                    const openItems = targetSection.querySelectorAll('.accordion-item.open');
+                    openItems.forEach(item => {
+                        const content = item.querySelector('.accordion-content');
+                        if (content) {
+                            content.style.maxHeight = content.scrollHeight + 'px';
+                        }
+                    });
+                }, 50);
             }
         });
     });
@@ -96,33 +117,69 @@ function initTeachingNav() {
  * 切换手风琴展开/折叠状态
  * @param {HTMLElement} header - 点击的 accordion-header 元素
  */
-function toggleAccordion(header) {
+window.toggleAccordion = function(header) {
+    console.log('[Teaching] toggleAccordion called', header);
     const item = header.closest('.accordion-item');
+    if (!item) {
+        console.error('[Teaching] accordion-item not found');
+        return;
+    }
+
     const isOpen = item.classList.contains('open');
+    const content = item.querySelector('.accordion-content');
+    if (!content) {
+        console.error('[Teaching] accordion-content not found');
+        return;
+    }
+
+    console.log('[Teaching] Current state:', isOpen, 'scrollHeight:', content.scrollHeight);
 
     // 如果是手风琴模式（同时只能展开一个），关闭其他所有
     const accordion = header.closest('.accordion');
-    const siblings = accordion.querySelectorAll('.accordion-item.open');
-    siblings.forEach(sibling => {
-        if (sibling !== item) {
-            sibling.classList.remove('open');
-        }
-    });
+    if (accordion) {
+        const siblings = accordion.querySelectorAll('.accordion-item.open');
+        siblings.forEach(sibling => {
+            if (sibling !== item) {
+                sibling.classList.remove('open');
+                const siblingContent = sibling.querySelector('.accordion-content');
+                if (siblingContent) {
+                    siblingContent.style.maxHeight = '';
+                }
+            }
+        });
+    }
 
     // 切换当前项
     item.classList.toggle('open', !isOpen);
-}
+
+    // 设置 max-height 以实现动画效果
+    if (!isOpen) {
+        content.style.maxHeight = content.scrollHeight + 'px';
+        console.log('[Teaching] Opening accordion, max-height:', content.scrollHeight);
+    } else {
+        content.style.maxHeight = '';
+        console.log('[Teaching] Closing accordion');
+    }
+};
 
 /**
  * 初始化所有手风琴
  */
 function initAccordions() {
+    console.log('[Teaching] initAccordions called');
+
+    // 不使用 addEventListener，只处理初始状态
+    // inline onclick 会自动调用 toggleAccordion
+
     // 默认展开第一个手风琴项（如果有 .open 类）
     const openItems = document.querySelectorAll('.accordion-item.open');
+    console.log('[Teaching] Found open items:', openItems.length);
+
     openItems.forEach(item => {
         const content = item.querySelector('.accordion-content');
         if (content) {
             content.style.maxHeight = content.scrollHeight + 'px';
+            console.log('[Teaching] Set initial max-height for open item:', content.scrollHeight);
         }
     });
 }
@@ -188,29 +245,36 @@ function toggleMobileSidebar() {
  * DOM 加载完成后初始化
  */
 document.addEventListener('DOMContentLoaded', function() {
-    initTeachingNav();
-    initAccordions();
+    console.log('[Teaching] DOMContentLoaded fired');
 
-    // 添加动画效果到模态窗打开
+    // 等待一小段时间确保DOM完全准备好
+    setTimeout(() => {
+        initTeachingNav();
+        initAccordions();
+
+        // 验证函数是否可用
+        console.log('[Teaching] toggleAccordion function:', typeof window.toggleAccordion);
+    }, 100);
+
+    // 添加动画效果到模态窗打开（使用 once: true 避免多次触发）
     const modal = document.getElementById('teachingModal');
     if (modal) {
         modal.addEventListener('transitionend', function() {
             if (this.classList.contains('show')) {
-                // 模态窗打开后的操作
-                console.log('Teaching modal opened');
+                console.log('[Teaching] Modal transitionend - opened');
             }
-        });
+        }, { once: true });
     }
 });
 
 // ========================================
-// 导出全局函数（供 HTML 调用）
+// 其他全局函数（供 HTML 调用）
 // ========================================
 
 // 确保 HTML 中的 onclick 可以调用这些函数
 window.openTeachingModal = openTeachingModal;
 window.closeTeachingModal = closeTeachingModal;
-window.toggleAccordion = toggleAccordion;
+// toggleAccordion 已经在定义时直接赋值到 window
 window.showCaseDetail = showCaseDetail;
 window.hideCaseDetail = hideCaseDetail;
 

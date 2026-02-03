@@ -783,4 +783,20 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 });
 </script>
+
+<!-- Floating Widget Config -->
+<script>
+    // Load floating widget config from JSON file
+    fetch('{% static "widgets/configs/strategy_widget.json" %}')
+        .then(response => response.json())
+        .then(config => {
+            window.floatingWidgetConfig = config;
+            // Trigger initialization manually since DOM is already loaded
+            if (window.initFloatingWidget) {
+                window.initFloatingWidget(config);
+            }
+        })
+        .catch(err => console.error('Failed to load widget config:', err));
+</script>
+
 {% endblock %}

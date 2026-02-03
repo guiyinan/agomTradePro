@@ -369,31 +369,32 @@ document.addEventListener('DOMContentLoaded', function() {
 /**
  * 添加样式
  */
-const style = document.createElement('style');
-style.textContent = `
-    /* 语言切换器 */
-    .language-switcher {
-        display: inline-flex;
-        background: white;
-        border: 1px solid var(--color-border, #e2e8f0);
-        border-radius: var(--radius-sm, 6px);
-        overflow: hidden;
-        box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.08));
-    }
+(function() {
+    const style = document.createElement('style');
+    style.textContent = `
+        /* 语言切换器 */
+        .language-switcher {
+            display: inline-flex;
+            background: white;
+            border: 1px solid var(--color-border, #e2e8f0);
+            border-radius: var(--radius-sm, 6px);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.08));
+        }
 
-    .lang-btn {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 14px;
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        font-size: 13px;
-    }
+        .lang-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 13px;
+        }
 
-    .lang-btn:hover {
+        .lang-btn:hover {
         background: var(--color-surface, #f8fafc);
     }
 
@@ -432,5 +433,6 @@ style.textContent = `
             display: inline;
         }
     }
-`;
-document.head.appendChild(style);
+    `;
+    document.head.appendChild(style);
+})();

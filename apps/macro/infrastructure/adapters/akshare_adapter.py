@@ -24,6 +24,9 @@ from .fetchers import (
     TradeIndicatorFetcher,
     FinancialIndicatorFetcher,
     OtherIndicatorFetcher,
+    HighFrequencyIndicatorFetcher,
+    WeeklyIndicatorFetcher,
+    PMISubitemsFetcher,
 )
 
 logger = logging.getLogger(__name__)
@@ -87,6 +90,36 @@ class AKShareAdapter(BaseMacroAdapter):
         "CN_NEW_CREDIT": "新增信贷",
         "CN_RMB_DEPOSIT": "人民币存款",
         "CN_RMB_LOAN": "人民币贷款",
+
+        # ============ 高频指标（Regime 滞后性改进 Phase 1）============
+        "CN_BOND_10Y": "10年期国债收益率",
+        "CN_BOND_5Y": "5年期国债收益率",
+        "CN_BOND_2Y": "2年期国债收益率",
+        "CN_BOND_1Y": "1年期国债收益率",
+        "CN_TERM_SPREAD_10Y1Y": "期限利差(10Y-1Y)",
+        "CN_TERM_SPREAD_10Y2Y": "期限利差(10Y-2Y)",
+        "CN_CORP_YIELD_AAA": "AAA级企业债收益率",
+        "CN_CORP_YIELD_AA": "AA级企业债收益率",
+        "CN_CREDIT_SPREAD": "信用利差(AA-AAA)",
+        "CN_NHCI": "南华商品指数",
+        "CN_FX_CENTER": "人民币中间价",
+        "US_BOND_10Y": "美国10年期国债",
+        "USD_INDEX": "美元指数",
+        "VIX_INDEX": "VIX波动率指数",
+
+        # ============ 周度指标（Regime 滞后性改进 Phase 2）============
+        "CN_POWER_GEN": "发电量",
+        "CN_BLAST_FURNACE": "高炉开工率",
+        "CN_CCFI": "集装箱运价指数(CCFI)",
+        "CN_SCFI": "上海出口运价指数(SCFI)",
+
+        # ============ PMI 分项指标（Regime 滞后性改进 Phase 3）============
+        "CN_PMI_NEW_ORDER": "PMI新订单指数",
+        "CN_PMI_INVENTORY": "PMI产成品库存指数",
+        "CN_PMI_RAW_MAT": "PMI原材料库存指数",
+        "CN_PMI_PURCHASE": "PMI采购量指数",
+        "CN_PMI_PRODUCTION": "PMI生产指数",
+        "CN_PMI_EMPLOYMENT": "PMI从业人员指数",
     }
 
     def __init__(self):
@@ -97,6 +130,9 @@ class AKShareAdapter(BaseMacroAdapter):
         self._trade_fetcher = None
         self._financial_fetcher = None
         self._other_fetcher = None
+        self._high_frequency_fetcher = None
+        self._weekly_fetcher = None
+        self._pmi_subitems_fetcher = None
 
     @property
     def ak(self):
@@ -156,6 +192,33 @@ class AKShareAdapter(BaseMacroAdapter):
                 self.ak, self.source_name, self._validate_data_point, self._sort_and_deduplicate
             )
         return self._other_fetcher
+
+    @property
+    def high_frequency_fetcher(self):
+        """高频指标获取器"""
+        if self._high_frequency_fetcher is None:
+            self._high_frequency_fetcher = HighFrequencyIndicatorFetcher(
+                self.ak, self.source_name, self._validate_data_point, self._sort_and_deduplicate
+            )
+        return self._high_frequency_fetcher
+
+    @property
+    def weekly_fetcher(self):
+        """周度指标获取器"""
+        if self._weekly_fetcher is None:
+            self._weekly_fetcher = WeeklyIndicatorFetcher(
+                self.ak, self.source_name, self._validate_data_point, self._sort_and_deduplicate
+            )
+        return self._weekly_fetcher
+
+    @property
+    def pmi_subitems_fetcher(self):
+        """PMI分项指标获取器（手动维护数据文件）"""
+        if self._pmi_subitems_fetcher is None:
+            self._pmi_subitems_fetcher = PMISubitemsFetcher(
+                self.ak, self.source_name, self._validate_data_point, self._sort_and_deduplicate
+            )
+        return self._pmi_subitems_fetcher
 
     def supports(self, indicator_code: str) -> bool:
         """检查是否支持指定指标"""
@@ -240,6 +303,54 @@ class AKShareAdapter(BaseMacroAdapter):
                 return self.financial_fetcher.fetch_rmb_deposit(start_date, end_date)
             elif indicator_code == "CN_RMB_LOAN":
                 return self.financial_fetcher.fetch_rmb_loan(start_date, end_date)
+
+            # ============ 高频指标（Regime 滞后性改进 Phase 1）============
+            elif indicator_code in ["CN_BOND_10Y", "CN_BOND_5Y", "CN_BOND_2Y", "CN_BOND_1Y"]:
+                term = indicator_code.split("_")[-1]  # 10Y, 5Y, 2Y, 1Y
+                return self.high_frequency_fetcher.fetch_bond_yield(term, start_date, end_date)
+            elif indicator_code == "CN_TERM_SPREAD_10Y1Y":
+                return self.high_frequency_fetcher.fetch_term_spread("10Y", "1Y", start_date, end_date)
+            elif indicator_code == "CN_TERM_SPREAD_10Y2Y":
+                return self.high_frequency_fetcher.fetch_term_spread("10Y", "2Y", start_date, end_date)
+            elif indicator_code in ["CN_CORP_YIELD_AAA", "CN_CORP_YIELD_AA"]:
+                rating = indicator_code.split("_")[-1]  # AAA, AA
+                return self.high_frequency_fetcher.fetch_corp_bond_yield(rating, start_date, end_date)
+            elif indicator_code == "CN_CREDIT_SPREAD":
+                return self.high_frequency_fetcher.fetch_credit_spread(start_date, end_date)
+            elif indicator_code == "CN_NHCI":
+                return self.high_frequency_fetcher.fetch_nhci(start_date, end_date)
+            elif indicator_code == "CN_FX_CENTER":
+                return self.high_frequency_fetcher.fetch_fx_center_rate(start_date, end_date)
+            elif indicator_code == "US_BOND_10Y":
+                return self.high_frequency_fetcher.fetch_us_bond_10y(start_date, end_date)
+            elif indicator_code == "USD_INDEX":
+                return self.high_frequency_fetcher.fetch_usd_index(start_date, end_date)
+            elif indicator_code == "VIX_INDEX":
+                return self.high_frequency_fetcher.fetch_vix_index(start_date, end_date)
+
+            # ============ 周度指标（Regime 滞后性改进 Phase 2）============
+            elif indicator_code == "CN_POWER_GEN":
+                return self.weekly_fetcher.fetch_power_generation(start_date, end_date)
+            elif indicator_code == "CN_BLAST_FURNACE":
+                return self.weekly_fetcher.fetch_blast_furnace_utilization(start_date, end_date)
+            elif indicator_code == "CN_CCFI":
+                return self.weekly_fetcher.fetch_ccfi(start_date, end_date)
+            elif indicator_code == "CN_SCFI":
+                return self.weekly_fetcher.fetch_scfi(start_date, end_date)
+
+            # ============ PMI 分项指标（Regime 滞后性改进 Phase 3）============
+            elif indicator_code == "CN_PMI_NEW_ORDER":
+                return self.pmi_subitems_fetcher.fetch_pmi_new_order(start_date, end_date)
+            elif indicator_code == "CN_PMI_INVENTORY":
+                return self.pmi_subitems_fetcher.fetch_pmi_inventory(start_date, end_date)
+            elif indicator_code == "CN_PMI_RAW_MAT":
+                return self.pmi_subitems_fetcher.fetch_pmi_raw_material(start_date, end_date)
+            elif indicator_code == "CN_PMI_PURCHASE":
+                return self.pmi_subitems_fetcher.fetch_pmi_purchase(start_date, end_date)
+            elif indicator_code == "CN_PMI_PRODUCTION":
+                return self.pmi_subitems_fetcher.fetch_pmi_production(start_date, end_date)
+            elif indicator_code == "CN_PMI_EMPLOYMENT":
+                return self.pmi_subitems_fetcher.fetch_pmi_employment(start_date, end_date)
             else:
                 return []
 

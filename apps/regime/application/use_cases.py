@@ -7,12 +7,528 @@ Application layer orchestrating the workflow of calculating Regime.
 import logging
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Optional, List, Dict, Set
+from typing import Optional, List, Dict, Set, Tuple
 
 from ..domain.services import RegimeCalculator, calculate_momentum, calculate_absolute_momentum, calculate_rolling_zscore
 from ..domain.entities import RegimeSnapshot
 
 logger = logging.getLogger(__name__)
+
+
+# ==================== High-Frequency Signal Use Cases ====================
+
+class SpreadCalculationError(Exception):
+    """Spread calculation exception"""
+    pass
+
+
+@dataclass
+class CalculateTermSpreadRequest:
+    """Calculate term spread request DTO"""
+    as_of_date: date
+    long_term: str = "10Y"  # 10Y, 5Y
+    short_term: str = "2Y"  # 2Y, 1Y
+    country: str = "CN"  # CN or US
+
+
+@dataclass
+class CalculateTermSpreadResponse:
+    """Calculate term spread response DTO"""
+    success: bool
+    spread_value: Optional[float]  # BP (基点)
+    long_yield: Optional[float]  # %
+    short_yield: Optional[float]  # %
+    is_inverted: bool
+    inversion_severity: float  # BP (0 if not inverted)
+    curve_shape: str  # INVERTED, FLAT, NORMAL, STEEP
+    error: Optional[str] = None
+
+
+class CalculateTermSpreadUseCase:
+    """
+    Calculate term spread use case
+
+    Term spread = long_term_yield - short_term_yield
+    Expressed in basis points (BP), where 1% = 100 BP
+
+    Economic meaning:
+    - Positive spread: Normal yield curve (market expects growth)
+    - Negative spread (inverted): Recession warning
+    - Flat spread: Uncertainty or transition period
+    """
+
+    def __init__(self, repository):
+        self.repository = repository
+
+    def execute(self, request: CalculateTermSpreadRequest) -> CalculateTermSpreadResponse:
+        """
+        Calculate term spread for a given date
+
+        Args:
+            request: Calculation request
+
+        Returns:
+            CalculateTermSpreadResponse: Calculation result
+        """
+        try:
+            # Build indicator codes
+            long_code = f"{request.country}_BOND_{request.long_term}"
+            short_code = f"{request.country}_BOND_{request.short_term}"
+
+            # Get yields for the date (use latest available if exact date not found)
+            long_yield_data = self.repository.get_by_code_and_date(
+                code=long_code,
+                observed_at=request.as_of_date
+            )
+
+            short_yield_data = self.repository.get_by_code_and_date(
+                code=short_code,
+                observed_at=request.as_of_date
+            )
+
+            if not long_yield_data or not short_yield_data:
+                # Try to get latest available data
+                long_yield_data = self.repository.get_latest_observation(
+                    code=long_code,
+                    before_date=request.as_of_date
+                )
+                short_yield_data = self.repository.get_latest_observation(
+                    code=short_code,
+                    before_date=request.as_of_date
+                )
+
+            if not long_yield_data or not short_yield_data:
+                return CalculateTermSpreadResponse(
+                    success=False,
+                    spread_value=None,
+                    long_yield=None,
+                    short_yield=None,
+                    is_inverted=False,
+                    inversion_severity=0.0,
+                    curve_shape="NO_DATA",
+                    error=f"Bond yield data not available for {long_code} or {short_code}"
+                )
+
+            long_yield = long_yield_data.value
+            short_yield = short_yield_data.value
+
+            # Calculate spread in basis points
+            spread_pct = long_yield - short_yield
+            spread_bp = spread_pct * 100  # Convert to BP
+
+            # Determine curve characteristics
+            is_inverted = spread_bp < 0
+            inversion_severity = abs(spread_bp) if is_inverted else 0.0
+
+            if is_inverted:
+                curve_shape = "INVERTED"
+            elif abs(spread_bp) < 0.5:  # Less than 0.5 BP
+                curve_shape = "FLAT"
+            elif spread_bp > 1.5:  # More than 1.5 BP
+                curve_shape = "STEEP"
+            else:
+                curve_shape = "NORMAL"
+
+            return CalculateTermSpreadResponse(
+                success=True,
+                spread_value=spread_bp,
+                long_yield=long_yield,
+                short_yield=short_yield,
+                is_inverted=is_inverted,
+                inversion_severity=inversion_severity,
+                curve_shape=curve_shape,
+                error=None
+            )
+
+        except Exception as e:
+            logger.exception(f"Error calculating term spread: {e}")
+            return CalculateTermSpreadResponse(
+                success=False,
+                spread_value=None,
+                long_yield=None,
+                short_yield=None,
+                is_inverted=False,
+                inversion_severity=0.0,
+                curve_shape="ERROR",
+                error=str(e)
+            )
+
+
+@dataclass
+class HighFrequencySignalRequest:
+    """Generate high-frequency signal request DTO"""
+    as_of_date: date
+    lookback_days: int = 30  # Days to look back for trend calculation
+
+
+@dataclass
+class HighFrequencySignalResponse:
+    """High-frequency signal response DTO"""
+    success: bool
+    signal_direction: Optional[str]  # BULLISH, BEARISH, NEUTRAL
+    signal_strength: float  # 0-1
+    confidence: float  # 0-1
+    contributing_indicators: List[Dict]  # Indicators that contributed to the signal
+    warning_signals: List[str]  # Any warning signals (e.g., yield curve inversion)
+    error: Optional[str] = None
+
+
+class HighFrequencySignalUseCase:
+    """
+    Generate high-frequency regime signal use case
+
+    Uses daily/weekly high-frequency indicators to generate early warning signals
+    for regime changes. This reduces lag from 3-6 months to 1-2 weeks.
+    """
+
+    def __init__(self, repository):
+        self.repository = repository
+
+    def execute(self, request: HighFrequencySignalRequest) -> HighFrequencySignalResponse:
+        """
+        Generate high-frequency regime signal
+
+        Args:
+            request: Signal generation request
+
+        Returns:
+            HighFrequencySignalResponse: Generated signal
+        """
+        try:
+            from apps.macro.domain.entities import RegimeSensitivity
+
+            contributing_indicators = []
+            warning_signals = []
+            signal_scores = []  # List of (score, weight) tuples
+
+            # 1. Check term spread (10Y-2Y) - HIGH sensitivity
+            term_spread_result = self._evaluate_term_spread(request.as_of_date)
+            if term_spread_result['success']:
+                contributing_indicators.append({
+                    'code': 'CN_TERM_SPREAD_10Y2Y',
+                    'value': term_spread_result['spread_value'],
+                    'signal': term_spread_result['signal'],
+                    'sensitivity': 'HIGH'
+                })
+
+                # Score: -1 (bearish) to +1 (bullish)
+                # Normalized: spread > 100 BP = +1, spread < 0 BP = -1
+                spread_bp = term_spread_result['spread_value']
+                if spread_bp > 100:
+                    score = 1.0
+                elif spread_bp < 0:
+                    score = -1.0
+                else:
+                    score = (spread_bp / 100)  # Linear interpolation
+                signal_scores.append((score, 1.0))  # Weight 1.0 for term spread
+
+                if term_spread_result['is_inverted']:
+                    warning_signals.append("YIELD_CURVE_INVERTED")
+
+            # 2. Check NHCI (南华商品指数) - MEDIUM sensitivity
+            nhci_result = self._evaluate_nhci(request.as_of_date, request.lookback_days)
+            if nhci_result['success']:
+                contributing_indicators.append({
+                    'code': 'CN_NHCI',
+                    'value': nhci_result['current_value'],
+                    'change_pct': nhci_result['change_pct'],
+                    'signal': nhci_result['signal'],
+                    'sensitivity': 'MEDIUM'
+                })
+
+                # Score based on momentum
+                signal_scores.append((nhci_result['score'], 0.8))
+
+            # 3. Check US 10Y bond - MEDIUM sensitivity
+            us_bond_result = self._evaluate_us_bond(request.as_of_date)
+            if us_bond_result['success']:
+                contributing_indicators.append({
+                    'code': 'US_BOND_10Y',
+                    'value': us_bond_result['value'],
+                    'signal': us_bond_result['signal'],
+                    'sensitivity': 'MEDIUM'
+                })
+
+                signal_scores.append((us_bond_result['score'], 0.7))
+
+            # 4. Aggregate signals
+            if not signal_scores:
+                return HighFrequencySignalResponse(
+                    success=False,
+                    signal_direction=None,
+                    signal_strength=0.0,
+                    confidence=0.0,
+                    contributing_indicators=[],
+                    warning_signals=[],
+                    error="No high-frequency indicators available"
+                )
+
+            # Weighted average of scores
+            total_weight = sum(weight for _, weight in signal_scores)
+            weighted_score = sum(score * weight for score, weight in signal_scores) / total_weight
+
+            # Determine signal direction
+            if weighted_score > 0.3:
+                signal_direction = "BULLISH"
+            elif weighted_score < -0.3:
+                signal_direction = "BEARISH"
+            else:
+                signal_direction = "NEUTRAL"
+
+            # Signal strength is the absolute value of the weighted score
+            signal_strength = min(abs(weighted_score), 1.0)
+
+            # Confidence based on number of indicators and agreement
+            num_indicators = len(contributing_indicators)
+            if num_indicators >= 3:
+                base_confidence = 0.7
+            elif num_indicators >= 2:
+                base_confidence = 0.5
+            else:
+                base_confidence = 0.3
+
+            # Boost confidence if indicators agree
+            all_agree = all(
+                ind['signal'] == signal_direction
+                for ind in contributing_indicators
+            )
+            if all_agree and num_indicators > 1:
+                confidence = min(base_confidence + 0.2, 1.0)
+            else:
+                confidence = base_confidence
+
+            return HighFrequencySignalResponse(
+                success=True,
+                signal_direction=signal_direction,
+                signal_strength=signal_strength,
+                confidence=confidence,
+                contributing_indicators=contributing_indicators,
+                warning_signals=warning_signals,
+                error=None
+            )
+
+        except Exception as e:
+            logger.exception(f"Error generating high-frequency signal: {e}")
+            return HighFrequencySignalResponse(
+                success=False,
+                signal_direction=None,
+                signal_strength=0.0,
+                confidence=0.0,
+                contributing_indicators=[],
+                warning_signals=[],
+                error=str(e)
+            )
+
+    def _evaluate_term_spread(self, as_of_date: date) -> Dict:
+        """Evaluate term spread indicator"""
+        try:
+            from apps.macro.infrastructure.repositories import DjangoMacroRepository
+
+            repo = DjangoMacroRepository()
+
+            # Get latest term spread data
+            spread_data = repo.get_latest_observation(
+                code='CN_TERM_SPREAD_10Y2Y',
+                before_date=as_of_date
+            )
+
+            if not spread_data:
+                return {'success': False}
+
+            spread_bp = spread_data.value  # Already in BP
+            is_inverted = spread_bp < 0
+
+            if is_inverted:
+                signal = 'BEARISH'
+            elif spread_bp > 100:
+                signal = 'BULLISH'
+            else:
+                signal = 'NEUTRAL'
+
+            return {
+                'success': True,
+                'spread_value': spread_bp,
+                'is_inverted': is_inverted,
+                'signal': signal
+            }
+        except Exception as e:
+            logger.warning(f"Error evaluating term spread: {e}")
+            return {'success': False}
+
+    def _evaluate_nhci(self, as_of_date: date, lookback_days: int) -> Dict:
+        """Evaluate NHCI (南华商品指数) indicator"""
+        try:
+            from apps.macro.infrastructure.repositories import DjangoMacroRepository
+
+            repo = DjangoMacroRepository()
+
+            # Get current and historical NHCI
+            current_data = repo.get_latest_observation(
+                code='CN_NHCI',
+                before_date=as_of_date
+            )
+
+            if not current_data:
+                return {'success': False}
+
+            # Get data from lookback_days ago
+            from datetime import timedelta
+            past_date = as_of_date - timedelta(days=lookback_days)
+            past_data = repo.get_latest_observation(
+                code='CN_NHCI',
+                before_date=past_date
+            )
+
+            if not past_data:
+                return {'success': False}
+
+            current_value = current_data.value
+            past_value = past_data.value
+            change_pct = ((current_value - past_value) / past_value) * 100
+
+            # NHCI rising indicates industrial demand (bullish for growth)
+            # NHCI falling indicates slowing demand (bearish)
+            if change_pct > 5:
+                signal = 'BULLISH'
+                score = 1.0
+            elif change_pct < -5:
+                signal = 'BEARISH'
+                score = -1.0
+            else:
+                signal = 'NEUTRAL'
+                score = change_pct / 5  # Linear interpolation
+
+            return {
+                'success': True,
+                'current_value': current_value,
+                'change_pct': change_pct,
+                'signal': signal,
+                'score': score
+            }
+        except Exception as e:
+            logger.warning(f"Error evaluating NHCI: {e}")
+            return {'success': False}
+
+    def _evaluate_us_bond(self, as_of_date: date) -> Dict:
+        """Evaluate US 10Y bond yield indicator"""
+        try:
+            from apps.macro.infrastructure.repositories import DjangoMacroRepository
+
+            repo = DjangoMacroRepository()
+
+            # Get latest US 10Y bond
+            us_bond_data = repo.get_latest_observation(
+                code='US_BOND_10Y',
+                before_date=as_of_date
+            )
+
+            if not us_bond_data:
+                return {'success': False}
+
+            us_yield = us_bond_data.value  # In percent
+
+            # US bond yield interpretation for China regime:
+            # - Rising US yields -> capital outflow pressure -> BEARISH for China
+            # - Falling US yields -> easing pressure -> BULLISH for China
+            # - Threshold around 3.5% (historical average)
+            if us_yield > 4.5:
+                signal = 'BEARISH'
+                score = -1.0
+            elif us_yield < 3.0:
+                signal = 'BULLISH'
+                score = 1.0
+            else:
+                signal = 'NEUTRAL'
+                # Linear interpolation between 3.0% and 4.5%
+                score = 1.0 - ((us_yield - 3.0) / 1.5) * 2
+
+            return {
+                'success': True,
+                'value': us_yield,
+                'signal': signal,
+                'score': score
+            }
+        except Exception as e:
+            logger.warning(f"Error evaluating US bond: {e}")
+            return {'success': False}
+
+
+@dataclass
+class ResolveSignalConflictRequest:
+    """Resolve signal conflict request DTO"""
+    daily_signal: str  # BULLISH, BEARISH, NEUTRAL
+    daily_confidence: float
+    daily_duration_days: int  # How many days daily signal has persisted
+    monthly_signal: str
+    monthly_confidence: float
+    weekly_signal: Optional[str] = None  # Optional weekly signal
+
+
+@dataclass
+class ResolveSignalConflictResponse:
+    """Resolve signal conflict response DTO"""
+    final_signal: str
+    final_confidence: float
+    resolution_reason: str
+    source: str  # DAILY_ONLY, MONTHLY_DEFAULT, DAILY_PERSISTENT, DAILY_WEEKLY_CONSISTENT, ALL_CONSISTENT
+
+
+class ResolveSignalConflictUseCase:
+    """
+    Resolve signal conflicts between daily high-frequency and monthly traditional indicators
+
+    Rules:
+    1. Daily == Monthly: High confidence (0.9)
+    2. Daily persists >= 10 days: Use daily (0.7 confidence)
+    3. Daily + Weekly一致 (both differ from monthly): Consider switching (0.6 confidence)
+    4. Default: Use monthly, lower confidence (0.5)
+    """
+
+    def execute(self, request: ResolveSignalConflictRequest) -> ResolveSignalConflictResponse:
+        """
+        Resolve signal conflict using predefined rules
+
+        Args:
+            request: Conflict resolution request
+
+        Returns:
+            ResolveSignalConflictResponse: Resolution result
+        """
+        # Rule 1: Daily and Monthly一致
+        if request.daily_signal == request.monthly_signal:
+            avg_confidence = (request.daily_confidence + request.monthly_confidence) / 2
+            return ResolveSignalConflictResponse(
+                final_signal=request.daily_signal,
+                final_confidence=min(avg_confidence + 0.2, 1.0),  # Boost confidence
+                resolution_reason="Daily and monthly signals一致",
+                source="ALL_CONSISTENT"
+            )
+
+        # Rule 2: Daily signal persists for >= 10 days
+        if request.daily_duration_days >= 10:
+            return ResolveSignalConflictResponse(
+                final_signal=request.daily_signal,
+                final_confidence=min(request.daily_confidence + 0.1, 1.0),
+                resolution_reason=f"Daily signal persisted for {request.daily_duration_days} days",
+                source="DAILY_PERSISTENT"
+            )
+
+        # Rule 3: Daily + Weekly一致 (both differ from monthly)
+        if request.weekly_signal and request.weekly_signal == request.daily_signal:
+            return ResolveSignalConflictResponse(
+                final_signal=request.daily_signal,
+                final_confidence=0.6,
+                resolution_reason="Daily and weekly signals一致，monthly differs",
+                source="DAILY_WEEKLY_CONSISTENT"
+            )
+
+        # Rule 4: Default - Use monthly signal, lower confidence
+        return ResolveSignalConflictResponse(
+            final_signal=request.monthly_signal,
+            final_confidence=max(request.monthly_confidence * 0.8, 0.4),
+            resolution_reason="Default: Use monthly signal, reduce confidence due to conflicting daily signal",
+            source="MONTHLY_DEFAULT"
+        )
 
 
 class RegimeCalculationError(Exception):

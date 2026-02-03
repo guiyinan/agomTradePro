@@ -6,7 +6,14 @@ from typing import List, Optional
 from datetime import date
 from django.db.models import QuerySet
 
-from .models import AttributionReport, LossAnalysis, ExperienceSummary
+from .models import (
+    AttributionReport,
+    LossAnalysis,
+    ExperienceSummary,
+    IndicatorPerformanceModel,
+    IndicatorThresholdConfigModel,
+    ValidationSummaryModel,
+)
 from apps.backtest.infrastructure.models import BacktestResultModel
 
 
@@ -164,3 +171,132 @@ class DjangoAuditRepository:
             'regime_actual': report.regime_actual,
             'created_at': report.created_at.isoformat(),
         }
+
+    # ============ 指标表现评估相关方法 ============
+
+    def get_indicator_performance(
+        self,
+        indicator_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> List[dict]:
+        """获取指标在指定时间段内的表现记录"""
+        performances = IndicatorPerformanceModel.objects.filter(
+            indicator_code=indicator_code,
+            evaluation_period_start__gte=start_date,
+            evaluation_period_end__lte=end_date,
+        ).order_by('-evaluation_period_end')
+
+        return [
+            {
+                'id': p.id,
+                'indicator_code': p.indicator_code,
+                'evaluation_period_start': p.evaluation_period_start.isoformat(),
+                'evaluation_period_end': p.evaluation_period_end.isoformat(),
+                'f1_score': float(p.f1_score) if p.f1_score else None,
+                'stability_score': float(p.stability_score),
+                'recommended_action': p.recommended_action,
+                'recommended_weight': float(p.recommended_weight),
+                'confidence_level': float(p.confidence_level),
+                'created_at': p.created_at.isoformat(),
+            }
+            for p in performances
+        ]
+
+    def get_latest_indicator_performance(self, indicator_code: str) -> Optional[dict]:
+        """获取指标最新的表现记录"""
+        try:
+            performance = IndicatorPerformanceModel.objects.filter(
+                indicator_code=indicator_code
+            ).latest('evaluation_period_end')
+
+            return {
+                'id': performance.id,
+                'indicator_code': performance.indicator_code,
+                'evaluation_period_start': performance.evaluation_period_start.isoformat(),
+                'evaluation_period_end': performance.evaluation_period_end.isoformat(),
+                'f1_score': float(performance.f1_score) if performance.f1_score else None,
+                'stability_score': float(performance.stability_score),
+                'recommended_action': performance.recommended_action,
+                'recommended_weight': float(performance.recommended_weight),
+                'confidence_level': float(performance.confidence_level),
+                'created_at': performance.created_at.isoformat(),
+            }
+        except IndicatorPerformanceModel.DoesNotExist:
+            return None
+
+    def get_active_threshold_configs(self) -> List[dict]:
+        """获取所有激活的阈值配置"""
+        configs = IndicatorThresholdConfigModel.objects.filter(
+            is_active=True
+        ).order_by('category', 'indicator_code')
+
+        return [
+            {
+                'indicator_code': c.indicator_code,
+                'indicator_name': c.indicator_name,
+                'category': c.category,
+                'level_low': float(c.level_low) if c.level_low is not None else None,
+                'level_high': float(c.level_high) if c.level_high is not None else None,
+                'base_weight': float(c.base_weight),
+                'min_weight': float(c.min_weight),
+                'max_weight': float(c.max_weight),
+                'decay_threshold': float(c.decay_threshold),
+                'decay_penalty': float(c.decay_penalty),
+                'improvement_threshold': float(c.improvement_threshold),
+                'improvement_bonus': float(c.improvement_bonus),
+                'action_thresholds': c.action_thresholds,
+                'validation_periods': c.validation_periods,
+                'description': c.description,
+            }
+            for c in configs
+        ]
+
+    def get_validation_summary(self, validation_run_id: str) -> Optional[dict]:
+        """获取验证摘要"""
+        try:
+            summary = ValidationSummaryModel.objects.get(
+                validation_run_id=validation_run_id
+            )
+
+            return {
+                'validation_run_id': summary.validation_run_id,
+                'run_date': summary.run_date.isoformat(),
+                'evaluation_period_start': summary.evaluation_period_start.isoformat(),
+                'evaluation_period_end': summary.evaluation_period_end.isoformat(),
+                'total_indicators': summary.total_indicators,
+                'approved_indicators': summary.approved_indicators,
+                'rejected_indicators': summary.rejected_indicators,
+                'pending_indicators': summary.pending_indicators,
+                'avg_f1_score': float(summary.avg_f1_score) if summary.avg_f1_score else None,
+                'avg_stability_score': float(summary.avg_stability_score) if summary.avg_stability_score else None,
+                'overall_recommendation': summary.overall_recommendation,
+                'status': summary.status,
+                'is_shadow_mode': summary.is_shadow_mode,
+                'error_message': summary.error_message,
+            }
+        except ValidationSummaryModel.DoesNotExist:
+            return None
+
+    def get_recent_validations(self, limit: int = 10) -> List[dict]:
+        """获取最近的验证记录"""
+        summaries = ValidationSummaryModel.objects.all().order_by('-run_date')[:limit]
+
+        return [
+            {
+                'validation_run_id': s.validation_run_id,
+                'run_date': s.run_date.isoformat(),
+                'evaluation_period_start': s.evaluation_period_start.isoformat(),
+                'evaluation_period_end': s.evaluation_period_end.isoformat(),
+                'total_indicators': s.total_indicators,
+                'approved_indicators': s.approved_indicators,
+                'rejected_indicators': s.rejected_indicators,
+                'pending_indicators': s.pending_indicators,
+                'avg_f1_score': float(s.avg_f1_score) if s.avg_f1_score else None,
+                'avg_stability_score': float(s.avg_stability_score) if s.avg_stability_score else None,
+                'overall_recommendation': s.overall_recommendation,
+                'status': s.status,
+                'is_shadow_mode': s.is_shadow_mode,
+            }
+            for s in summaries
+        ]

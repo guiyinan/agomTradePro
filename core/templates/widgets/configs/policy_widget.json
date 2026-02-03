@@ -1,0 +1,85 @@
+{
+    "widgetId": "policy-dashboard",
+    "title": "政策跟踪指南",
+    "icon": "📰",
+    "position": "bottom-right",
+    "sections": [
+        {
+            "id": "overview",
+            "title": "政策跟踪系统",
+            "type": "content",
+            "content": "<p>政策跟踪系统通过RSS订阅和关键词监控，实时获取重要政策新闻，并自动评估政策对投资环境的影响。</p><div class=\"info-box\"><strong>核心价值：</strong>政策变化是影响市场的重要因素，及时跟踪可以提前布局或规避风险</div>"
+        },
+        {
+            "id": "policy-grades",
+            "title": "政策档位说明",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "P0 - 强烈利好",
+                    "content": "<p><strong>定义：</strong>对市场有重大积极影响的政策</p><p><strong>示例：</strong></p><ul><li>大幅降准降息</li><li>大规模财政刺激</li><li>重大改革政策落地</li></ul><p><strong>投资建议：</strong>积极加仓，重点配置受益板块</p><div class=\"success-box\">市场信心将显著提升</div>"
+                },
+                {
+                    "title": "P1 - 温和利好",
+                    "content": "<p><strong>定义：</strong>对市场有一定积极影响的政策</p><p><strong>示例：</strong></p><ul><li>定向降准</li><li>行业扶持政策</li><li>税收优惠</li></ul><p><strong>投资建议：</strong>适度加仓，关注相关板块</p><div class=\"info-box\">市场情绪将有所改善</div>"
+                },
+                {
+                    "title": "P2 - 中性/观望",
+                    "content": "<p><strong>定义：</strong>对市场影响有限或方向不明确</p><p><strong>示例：</strong></p><ul><li>常规监管政策</li><li>数据发布</li><li>官员讲话</li></ul><p><strong>投资建议：</strong>维持现有仓位，继续观察</p><div class=\"info-box\">等待更明确的信号</div>"
+                },
+                {
+                    "title": "P3 - 利空/风险",
+                    "content": "<p><strong>定义：</strong>对市场有负面影响的政策</p><p><strong>示例：</strong></p><ul><li>加息或缩表</li><li>加强监管</li><li>去杠杆政策</li></ul><p><strong>投资建议：</strong>降低仓位，提高防御</p><div class=\"warning-box\">市场可能面临调整压力</div>"
+                }
+            ]
+        },
+        {
+            "id": "rss-sources",
+            "title": "RSS 源管理",
+            "type": "content",
+            "content": "<p><strong>系统内置源：</strong></p><ul><li>中国人民银行官网</li><li>国家统计局</li><li>证监会</li><li>发改委</li><li>财政部</li></ul><p><strong>自定义源：</strong></p><ul><li>支持添加任何RSS源</li><li>建议添加财经媒体RSS</li><li>定期验证源的有效性</li></ul><div class=\"info-box\"><strong>建议：</strong>至少配置5-10个RSS源以确保覆盖全面</div>"
+        },
+        {
+            "id": "keywords",
+            "title": "关键词规则",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "利好关键词",
+                    "content": "<p><strong>货币政策类：</strong>降准、降息、宽松、流动性</p><p><strong>财政政策类：</strong>减税、基建、刺激、投资</p><p><strong>改革类：</strong>开放、改革、自贸区、注册制</p><p><strong>产业类：</strong>支持、鼓励、扶持、发展</p>"
+                },
+                {
+                    "title": "利空关键词",
+                    "content": "<p><strong>货币政策类：</strong>加息、缩表、收紧、流动性</p><p><strong>监管类：</strong>整顿、查处、处罚、限制</p><p><strong>风险类：</strong>风险、泡沫、过热、调控</p><p><strong>产业类：</strong>限制、禁止、淘汰、去产能</p>"
+                },
+                {
+                    "title": "权重配置",
+                    "content": "<p>不同关键词可以设置不同的权重：</p><ul><li><strong>高权重：</strong>降准、降息、加息等</li><li><strong>中权重：</strong>减税、基建等</li><li><strong>低权重：</strong>一般性表述</li></ul><p>权重越高，对政策评分的影响越大</p>"
+                }
+            ]
+        },
+        {
+            "id": "usage",
+            "title": "使用建议",
+            "type": "content",
+            "content": "<p><strong>1. 每日检查：</strong>建议每天查看最新政策动态</p><p><strong>2. 关注趋势：</strong>不要只看单一政策，要关注政策趋势</p><p><strong>3. 结合Regime：</strong>政策效果与当前Regime环境相关</p><p><strong>4. 验证真伪：</strong>重要消息需通过官方渠道验证</p><p><strong>5. 理解背景：</strong>理解政策出台的背景和目的</p><div class=\"success-box\"><strong>最佳实践：</strong>将政策跟踪与Regime判定结合，形成完整的宏观判断</div>"
+        }
+    ],
+    "actions": [
+        {
+            "label": "RSS源管理",
+            "icon": "📡",
+            "url": "/policy/rss-manage/"
+        },
+        {
+            "label": "关键词规则",
+            "icon": "🔑",
+            "url": "/policy/rss-keywords/"
+        },
+        {
+            "label": "抓取日志",
+            "icon": "📋",
+            "url": "/policy/rss-logs/"
+        }
+    ]
+}

@@ -1,0 +1,84 @@
+{
+    "widgetId": "fund-dashboard",
+    "title": "基金分析指南",
+    "icon": "💰",
+    "position": "bottom-right",
+    "sections": [
+        {
+            "id": "overview",
+            "title": "基金分析系统",
+            "type": "content",
+            "content": "<p>基金分析系统提供全面的基金评估工具，包括基金筛选、业绩评价、风格分析、持仓分析等功能，帮助投资者选择优质的公募基金。</p><div class=\"info-box\"><strong>优势：</strong>相对于个股，基金具有专业管理、风险分散的优势</div>"
+        },
+        {
+            "id": "fund-types",
+            "title": "基金类型说明",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "股票型基金",
+                    "content": "<p><strong>定义：</strong>80%以上资产投资于股票</p><p><strong>特点：</strong></p><ul><li>收益潜力高</li><li>波动风险大</li><li>适合长期投资</li></ul><p><strong>适用环境：</strong>复苏期、过热期</p><div class=\"info-box\">适合看好股市但不想选股的投资者</div>"
+                },
+                {
+                    "title": "债券型基金",
+                    "content": "<p><strong>定义：</strong>80%以上资产投资于债券</p><p><strong>特点：</strong></p><ul><li>收益稳定</li><li>风险较低</li><li>流动性好</li></ul><p><strong>适用环境：</strong>通缩期、滞胀期</p><div class=\"success-box\">保守投资者的首选</div>"
+                },
+                {
+                    "title": "混合型基金",
+                    "content": "<p><strong>定义：</strong>股债比例灵活配置</p><p><strong>特点：</strong></p><ul><li>攻守兼备</li><li>灵活调整</li><li>风格多样</li></ul><p><strong>适用环境：</strong>适合大多数市场环境</p><div class=\"info-box\">适合不想自己择时的投资者</div>"
+                },
+                {
+                    "title": "指数型基金",
+                    "content": "<p><strong>定义：</strong>跟踪特定指数</p><p><strong>特点：</strong></p><ul><li>费用低廉</li><li>风格稳定</li><li>透明度高</li></ul><p><strong>适用场景：</strong></p><ul><li>长期定投</li><li>资产配置</li></ul><div class=\"success-box\">巴菲特推荐普通投资者选择指数基金</div>"
+                }
+            ]
+        },
+        {
+            "id": "evaluation",
+            "title": "基金评价指标",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "收益率指标",
+                    "content": "<p><strong>近1年/3年/5年收益：</strong>不同时间维度的收益表现</p><p><strong>年化收益：</strong>按年复利计算的收益率</p><p><strong>基准比较：</strong></p><ul><li>超越基准越多越好</li><li>牛市应跑赢基准</li><li>熊市应少跌</li></ul><div class=\"warning-box\">不要只看短期收益，关注长期表现</div>"
+                },
+                {
+                    "title": "风险指标",
+                    "content": "<p><strong>标准差：</strong>衡量收益波动程度，越小越好</p><p><strong>最大回撤：</strong>历史最大跌幅，越小越好</p><p><strong>下行风险：</strong>下跌时的波动率</p><p><strong>Beta：</strong>相对市场的波动性</p><ul><li>>1：比市场波动大</li><li><1：比市场波动小</li></ul>"
+                },
+                {
+                    "title": "风险调整收益",
+                    "content": "<p><strong>夏普比率：</strong>单位风险的超额收益</p><ul><li>>1：优秀</li><li>0-1：一般</li><li><0：较差</li></ul><p><strong>索提诺比率：</strong>只考虑下行风险</p><p><strong>信息比率：</strong>超越基准的能力</p><div class=\"success-box\">优先选择夏普比率高的基金</div>"
+                },
+                {
+                    "title": "基金经理",
+                    "content": "<p><strong>从业经验：</strong>至少3年以上</p><p><strong>管理规模：</strong>规模适中最好</p><p><strong>历史业绩：</strong>管理其他基金的表现</p><p><strong>投资风格：</strong></p><ul><li>价值/成长</li><li>大盘/小盘</li><li>集中/分散</li></ul><div class=\"info-box\">优秀的基金经理是基金的灵魂</div>"
+                }
+            ]
+        },
+        {
+            "id": "selection",
+            "title": "选基策略",
+            "type": "content",
+            "content": "<p><strong>步骤1：确定类型</strong></p><p>根据当前Regime选择基金类型</p><ul><li>复苏期：股票型</li><li>过热期：混合型</li><li>通缩期：债券型</li><li>滞胀期：货币型/债券型</li></ul><p><strong>步骤2：筛选基金</strong></p><ul><li>成立时间>3年</li><li>规模>5亿</li><li>夏普比率>1</li><li>最大回撤<20%</li></ul><p><strong>步骤3：深入研究</strong></p><ul><li>查看持仓</li><li>了解风格</li><li>研究基金经理</li></ul><div class=\"success-box\">选择3-5只不同风格的基金构建组合</div>"
+        },
+        {
+            "id": "allocation",
+            "title": "基金配置建议",
+            "type": "content",
+            "content": "<p><strong>核心-卫星策略：</strong></p><ul><li><strong>核心（70%）：</strong>指数基金，获取市场平均收益</li><li><strong>卫星（30%）：</strong>主动基金，追求超额收益</li></ul><p><strong>股债配置：</strong></p><ul><li>根据风险偏好调整股债比例</li><li>年龄越大，债券比例越高</li></ul><p><strong>再平衡：</strong></p><ul><li>每季度或半年检查一次</li><li>偏离目标10%以上时调整</li></ul><div class=\"warning-box\">不要频繁买卖基金，长期持有更重要</div>"
+        }
+    ],
+    "actions": [
+        {
+            "label": "筛选基金",
+            "icon": "🔍",
+            "url": "/fund/screen/"
+        },
+        {
+            "label": "自选基金",
+            "icon": "⭐",
+            "url": "/fund/watchlist/"
+        }
+    ]
+}

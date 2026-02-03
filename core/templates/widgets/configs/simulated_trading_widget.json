@@ -1,0 +1,95 @@
+{
+    "widgetId": "simulated-trading",
+    "title": "模拟交易指南",
+    "icon": "🎮",
+    "position": "bottom-right",
+    "sections": [
+        {
+            "id": "overview",
+            "title": "模拟交易系统",
+            "type": "content",
+            "content": "<p>模拟交易系统提供真实市场的虚拟交易环境，允许用户在不承担真实资金风险的情况下，验证投资策略和交易方法，积累实战经验。</p><div class="success-box\"><strong>核心价值：</strong>零成本试错，快速积累交易经验</div>"
+        },
+        {
+            "id": "create",
+            "title": "创建模拟账户",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "账户设置",
+                    "content": "<p><strong>初始资金：</strong>建议设置与真实资金相当的金额</p><ul><li>小额：10万-50万</li><li>中额：50万-200万</li><li>大额：200万以上</li></ul><p><strong>账户名称：</strong>给账户起一个有意义的名字</p><ul><li>如：保守策略账户、激进策略账户</li></ul><p><strong>交易规则：</strong></p><ul><li>与真实市场相同的交易时间</li><li>相同的T+1规则</li><li>相同的涨跌停限制</li></ul>"
+                },
+                {
+                    "title": "交易品种",
+                    "content": "<p><strong>A股股票：</strong></p><ul><li>主板、中小板、创业板、科创板</li><li>支持全部A股</li></ul><p><strong>指数基金：</strong></p><ul><li>ETF、LOF</li><li>指数基金</li></ul><p><strong>可交易品种：</strong></p><ul><li>股票：正常交易的A股</li><li>基金：ETF、LOF</li><li>债券：可转债（部分）</li></ul><div class=\"info-box\">模拟交易品种尽可能覆盖真实可交易品种</div>"
+                },
+                {
+                    "title": "手续费设置",
+                    "content": "<p><strong>佣金：</strong>万2.5（默认）</p><p><strong>印花税：</strong>千分之一（卖出时）</p><p><strong>过户费：</strong>万0.2（沪市）</p><p><strong>最小收费：</strong>5元</p><div class=\"warning-box\">手续费设置应与真实账户一致，避免低估成本</div>"
+                }
+            ]
+        },
+        {
+            "id": "trading",
+            "title": "模拟交易",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "买入操作",
+                    "content": "<p><strong>买入方式：</strong></p><ul><li><strong>市价买入：</strong>按当前市价立即成交</li><li><strong>限价买入：</strong>设定价格，达到价格后成交</li></ul><p><strong>买入数量：</strong></p><ul><li>股票：100股的整数倍（1手）</li><li>基金：1份或100份的整数倍</li></ul><p><strong>仓位控制：</strong></p><ul><li>单只股票不超过总资金的20%</li><li>保留至少10%现金</li></ul><div class=\"success-box\">严格执行仓位控制，避免重仓单一股票</div>"
+                },
+                {
+                    "title": "卖出操作",
+                    "content": "<p><strong>卖出方式：</strong></p><ul><li><strong>市价卖出：</strong>按当前市价立即成交</li><li><strong>限价卖出：</strong>设定价格，达到价格后成交</li></ul><p><strong>卖出策略：</strong></p><ul><li>止盈：达到目标收益</li><li>止损：达到最大亏损</li><li>调仓：更换持仓标的</li></ul><p><strong>分批卖出：</strong></p><ul><li>避免一次性卖出</li><li>分批降低仓位</li></ul>"
+                },
+                {
+                    "title": "交易规则",
+                    "content": "<p><strong>T+1规则：</strong></p><ul><li>今天买入的股票，明天才能卖出</li></ul><p><strong>涨跌停限制：</strong></p><ul><li>主板：±10%</li><li>创业板/科创板：±20%</li><li>ST股票：±5%</li></ul><p><strong>交易时间：</strong></p><ul><li>上午：9:30-11:30</li><li>下午：13:00-15:00</li></ul><div class=\"info-box\">模拟交易完全遵循真实交易规则</div>"
+                }
+            ]
+        },
+        {
+            "id": "analysis",
+            "title": "绩效分析",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "收益分析",
+                    "content": "<p><strong>总收益：</strong>从开户到现在的累计收益</p><p><strong>年化收益：</strong>按年复利计算的收益率</p><p><strong>日收益：</strong>每日收益分布</p><p><strong>月度收益：</strong>每月收益统计</p><p><strong>基准比较：</strong></p><ul><li>相对沪深300收益</li><li>相对中证500收益</li></ul>"
+                },
+                {
+                    "title": "风险分析",
+                    "content": "<p><strong>最大回撤：</strong>历史最大跌幅</p><p><strong>波动率：</strong>收益波动程度</p><p><strong>夏普比率：</strong>风险调整后收益</p><p><strong>持仓集中度：</strong></p><ul><li>前5大持仓占比</li><li>单只股票最大占比</li></ul><div class=\"warning-box\">重点关注最大回撤，评估最坏情况</div>"
+                },
+                {
+                    "title": "交易分析",
+                    "content": "<p><strong>交易次数：</strong>总交易笔数</p><p><strong>胜率：</strong>盈利交易占比</p><p><strong>平均盈利：</strong>盈利交易平均收益</p><p><strong>平均亏损：</strong>亏损交易平均亏损</p><p><strong>盈亏比：</strong>平均盈利/平均亏损</p><p><strong>交易频率：</strong>月均交易次数</p><div class=\"info-box\">高盈亏比比高胜率更重要</div>"
+                }
+            ]
+        },
+        {
+            "id": "transition",
+            "title": "模拟转实盘",
+            "type": "content",
+            "content": "<p><strong>何时可以转实盘？</strong></p><ul><li>模拟交易至少3个月</li><li>年化收益稳定在10%以上</li><li>最大回撤控制在15%以内</li><li>交易策略成熟稳定</li></ul><p><strong>转实盘建议：</strong></p><ul><li>从小资金开始（1-5万）</li><li>继续执行模拟中的策略</li><li>保持交易纪律</li><li>定期回顾和调整</li></ul><div class=\"warning-box\"><strong>切记：</strong>模拟盈利不等于实盘盈利，实盘有心理压力</div>"
+        },
+        {
+            "id": "best-practices",
+            "title": "最佳实践",
+            "type": "content",
+            "content": "<p><strong>1. 认真对待：</strong>把模拟交易当成实盘来做</p><p><strong>2. 记录日志：</strong>详细记录每笔交易的理由</p><p><strong>3. 定期复盘：</strong>每周/每月回顾交易记录</p><p><strong>4. 控制风险：</strong>严格执行止损规则</p><p><strong>5. 保持耐心：</strong>不要急于转实盘</p><div class=\"success-box\"><strong>黄金法则：</strong>模拟交易的目的不是赚钱，而是积累经验</div>"
+        }
+    ],
+    "actions": [
+        {
+            "label": "创建账户",
+            "icon": "➕",
+            "url": "/simulated_trading/create/"
+        },
+        {
+            "label": "我的账户",
+            "icon": "📊",
+            "url": "/simulated_trading/my-accounts/"
+        }
+    ]
+}

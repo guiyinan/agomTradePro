@@ -83,3 +83,162 @@ class AttributionConfig:
     risk_free_rate: float = 0.03  # 无风险利率
     benchmark_return: float = 0.08  # 基准收益（年化）
     min_confidence_threshold: float = 0.3  # 最低置信度阈值
+
+
+# ============ 指标表现评估相关实体 ============
+
+class ValidationStatus(Enum):
+    """验证状态"""
+    PENDING = "pending"  # 待验证
+    IN_PROGRESS = "in_progress"  # 验证中
+    PASSED = "passed"  # 通过验证
+    FAILED = "failed"  # 未通过验证
+    SHADOW_RUN = "shadow_run"  # 影子模式运行
+
+
+class RecommendedAction(Enum):
+    """建议操作"""
+    KEEP = "keep"  # 保持当前配置
+    INCREASE = "increase"  # 增加权重
+    DECREASE = "decrease"  # 降低权重
+    REMOVE = "remove"  # 移除指标
+
+
+@dataclass(frozen=True)
+class IndicatorPerformanceReport:
+    """指标表现报告
+
+    评估单个指标对 Regime 判断的预测能力。
+    """
+    indicator_code: str
+    evaluation_period_start: date
+    evaluation_period_end: date
+
+    # 混淆矩阵
+    true_positive_count: int
+    false_positive_count: int
+    true_negative_count: int
+    false_negative_count: int
+
+    # 统计指标
+    precision: float
+    recall: float
+    f1_score: float
+    accuracy: float
+
+    # 领先时间（月）
+    lead_time_mean: float
+    lead_time_std: float
+
+    # 稳定性（分段相关性）
+    pre_2015_correlation: Optional[float]
+    post_2015_correlation: Optional[float]
+    stability_score: float
+
+    # 建议
+    recommended_action: str  # "KEEP" / "INCREASE" / "DECREASE" / "REMOVE"
+    recommended_weight: float
+    confidence_level: float
+
+    # 详细分析
+    decay_rate: float = 0.0  # 信号衰减率
+    signal_strength: float = 0.0  # 信号强度
+
+
+@dataclass(frozen=True)
+class IndicatorThresholdConfig:
+    """指标阈值配置（Domain 层值对象）"""
+    indicator_code: str
+    indicator_name: str
+
+    # 阈值定义
+    level_low: Optional[float]
+    level_high: Optional[float]
+
+    # 权重配置
+    base_weight: float = 1.0
+    min_weight: float = 0.0
+    max_weight: float = 1.0
+
+    # 验证阈值（可调整）
+    decay_threshold: float = 0.2  # F1 分数低于此值视为衰减
+    decay_penalty: float = 0.5  # 衰减惩罚系数
+    improvement_threshold: float = 0.1  # 改进阈值
+    improvement_bonus: float = 1.2  # 改进奖励系数
+
+    # 行为阈值
+    keep_min_f1: float = 0.6  # 保持当前权重的最低 F1
+    reduce_min_f1: float = 0.4  # 降低权重的最高 F1
+    remove_max_f1: float = 0.3  # 建议移除的最高 F1
+
+
+@dataclass(frozen=True)
+class ThresholdValidationReport:
+    """阈值验证报告
+
+    验证历史阈值配置的表现。
+    """
+    validation_run_id: str
+    run_date: date
+    evaluation_period_start: date
+    evaluation_period_end: date
+
+    total_indicators: int
+    approved_indicators: int  # 通过验证
+    rejected_indicators: int  # 未通过验证
+    pending_indicators: int  # 需要更多数据
+
+    # 各指标的详细报告
+    indicator_reports: List[IndicatorPerformanceReport]
+
+    # 总体建议
+    overall_recommendation: str
+
+    # 验证状态
+    status: ValidationStatus
+
+
+@dataclass(frozen=True)
+class DynamicWeightConfig:
+    """动态权重配置
+
+    根据指标表现动态调整权重。
+    """
+    indicator_code: str
+    current_weight: float
+    original_weight: float
+
+    # 调整依据
+    f1_score: float
+    stability_score: float
+    decay_rate: float
+
+    # 调整参数
+    adjustment_factor: float  # 调整系数
+    new_weight: float  # 调整后权重
+
+    # 调整原因
+    reason: str
+    confidence: float
+
+
+@dataclass(frozen=True)
+class SignalEvent:
+    """信号事件"""
+    indicator_code: str
+    signal_date: date
+    signal_type: str  # "BULLISH" / "BEARISH" / "NEUTRAL"
+    signal_value: float
+    threshold_used: float
+    confidence: float
+
+
+@dataclass(frozen=True)
+class RegimeSnapshot:
+    """Regime 快照（用于验证）"""
+    observed_at: date
+    dominant_regime: str
+    confidence: float
+    growth_momentum_z: float
+    inflation_momentum_z: float
+    distribution: Dict[str, float]  # 各 Regime 的概率分布

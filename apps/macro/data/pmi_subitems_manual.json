@@ -1,0 +1,65 @@
+{
+  "metadata": {
+    "name": "PMI分项指标手动维护数据",
+    "description": "每月从国家统计局网站手动更新PMI分项数据",
+    "data_source": "国家统计局 http://www.stats.gov.cn",
+    "last_updated": "2025-02-03",
+    "update_frequency": "月度",
+    "maintainer": "系统管理员"
+  },
+  "data": [
+    {
+      "date": "2025-01",
+      "reporting_period": "2025-01-31",
+      "new_order": 49.2,
+      "production": 51.1,
+      "employment": 48.1,
+      "inventory_finished": 47.8,
+      "inventory_raw_material": 48.6,
+      "purchase": 49.0,
+      "supplier_delivery": 49.5
+    },
+    {
+      "date": "2024-12",
+      "reporting_period": "2024-12-31",
+      "new_order": 49.0,
+      "production": 50.3,
+      "employment": 48.1,
+      "inventory_finished": 47.9,
+      "inventory_raw_material": 48.2,
+      "purchase": 48.8,
+      "supplier_delivery": 49.3
+    },
+    {
+      "date": "2024-11",
+      "reporting_period": "2024-11-30",
+      "new_order": 50.1,
+      "production": 50.4,
+      "employment": 48.2,
+      "inventory_finished": 47.7,
+      "inventory_raw_material": 48.4,
+      "purchase": 49.5,
+      "supplier_delivery": 50.2
+    },
+    {
+      "date": "2024-10",
+      "reporting_period": "2024-10-31",
+      "new_order": 49.5,
+      "production": 50.1,
+      "employment": 48.0,
+      "inventory_finished": 47.2,
+      "inventory_raw_material": 48.1,
+      "purchase": 49.2,
+      "supplier_delivery": 49.8
+    }
+  ],
+  "notes": [
+    "新订单指数：反映市场需求状况的先行指标",
+    "生产指数：反映生产活动活跃度",
+    "从业人员指数：反映就业状况",
+    "产成品库存指数：反映企业库存周期",
+    "原材料库存指数：反映企业采购意愿",
+    "采购量指数：反映生产预期",
+    "供应商配送时间指数：反映供应链效率"
+  ]
+}

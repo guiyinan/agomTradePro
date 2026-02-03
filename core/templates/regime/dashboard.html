@@ -1,6 +1,11 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Regime 判定 - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/teaching.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -43,6 +48,10 @@
             <a href="{% url 'macro:datasources' %}" class="config-link" title="配置数据源">
                 <span>⚙️</span>
             </a>
+            <button class="teaching-toggle-btn" onclick="openTeachingModal()" title="学习Regime判定系统">
+                <span class="btn-icon">📚</span>
+                <span class="btn-text">学习Regime判定</span>
+            </button>
         </div>
     </div>
 </div>
@@ -1752,4 +1761,33 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endif %}
+
+<!-- Teaching Modal Template -->
+{% include "dashboard/teaching_modal.html" %}
+
+<!-- Teaching Module Scripts -->
+<script src="{% static 'js/teaching/teaching-modal.js' %}"></script>
+<script src="{% static 'js/teaching/regime-calculator.js' %}"></script>
+<script src="{% static 'js/teaching/policy-simulator.js' %}"></script>
+<script src="{% static 'js/teaching/policy-simulator-enhanced.js' %}"></script>
+<script src="{% static 'js/teaching/cases-library.js' %}"></script>
+<script src="{% static 'js/teaching/learning-progress.js' %}"></script>
+<script src="{% static 'js/teaching/interactive-charts.js' %}"></script>
+<script src="{% static 'js/teaching/bilingual-support.js' %}"></script>
+
+<!-- Floating Widget Config -->
+<script>
+    // Load floating widget config from JSON file
+    fetch('{% static "widgets/configs/regime_widget.json" %}')
+        .then(response => response.json())
+        .then(config => {
+            window.floatingWidgetConfig = config;
+            // Trigger initialization manually since DOM is already loaded
+            if (window.initFloatingWidget) {
+                window.initFloatingWidget(config);
+            }
+        })
+        .catch(err => console.error('Failed to load widget config:', err));
+</script>
+
 {% endblock %}

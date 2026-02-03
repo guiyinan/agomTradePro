@@ -286,6 +286,307 @@ def cleanup_old_data(days_to_keep: int = 365 * 10) -> dict:
         raise
 
 
+# ==================== High-Frequency Data Sync Tasks ====================
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=300,
+    autoretry_for=(Exception,),
+    retry_backoff=True
+)
+def sync_high_frequency_bonds(
+    self,
+    source: str = 'akshare',
+    years_back: int = 1
+) -> dict:
+    """
+    同步高频债券收益率数据任务
+
+    定时任务，从 AKShare 同步最新的国债收益率数据。
+    建议运行时间：每个交易日 16:30（收盘后）
+
+    Args:
+        source: 数据源（当前仅支持 akshare）
+        years_back: 回溯年数（默认1年，用于首次同步）
+
+    Returns:
+        dict: 同步结果统计
+    """
+    try:
+        logger.info(f"Starting high-frequency bond data sync from {source}, years_back={years_back}")
+
+        from datetime import timedelta
+
+        # 高频债券指标
+        bond_indicators = [
+            'CN_BOND_10Y',
+            'CN_BOND_5Y',
+            'CN_BOND_2Y',
+            'US_BOND_10Y',
+            'CN_TERM_SPREAD_10Y2Y'
+        ]
+
+        end_date = date.today()
+        start_date = end_date - timedelta(days=365 * years_back)
+
+        repository = DjangoMacroRepository()
+        use_case = SyncMacroDataUseCase(repository)
+
+        from apps.macro.application.use_cases import SyncMacroDataRequest
+        request = SyncMacroDataRequest(
+            start_date=start_date,
+            end_date=end_date,
+            indicators=bond_indicators
+        )
+
+        result = use_case.execute(request)
+
+        logger.info(f"High-frequency bond sync completed: {result.synced_count} records")
+
+        return {
+            'status': 'success',
+            'synced_count': result.synced_count,
+            'errors': result.errors,
+            'indicators': bond_indicators
+        }
+
+    except Exception as exc:
+        logger.error(f"High-frequency bond sync failed: {exc}")
+        raise
+
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=300,
+    autoretry_for=(Exception,),
+    retry_backoff=True
+)
+def sync_high_frequency_commodities(
+    self,
+    source: str = 'akshare',
+    years_back: int = 1
+) -> dict:
+    """
+    同步高频商品指数数据任务
+
+    定时任务，从 AKShare 同步最新的南华商品指数数据。
+    建议运行时间：每个交易日 16:30（收盘后）
+
+    Args:
+        source: 数据源（当前仅支持 akshare）
+        years_back: 回溯年数
+
+    Returns:
+        dict: 同步结果统计
+    """
+    try:
+        logger.info(f"Starting high-frequency commodity data sync from {source}")
+
+        from datetime import timedelta
+
+        commodity_indicators = ['CN_NHCI']
+
+        end_date = date.today()
+        start_date = end_date - timedelta(days=365 * years_back)
+
+        repository = DjangoMacroRepository()
+        use_case = SyncMacroDataUseCase(repository)
+
+        from apps.macro.application.use_cases import SyncMacroDataRequest
+        request = SyncMacroDataRequest(
+            start_date=start_date,
+            end_date=end_date,
+            indicators=commodity_indicators
+        )
+
+        result = use_case.execute(request)
+
+        logger.info(f"High-frequency commodity sync completed: {result.synced_count} records")
+
+        return {
+            'status': 'success',
+            'synced_count': result.synced_count,
+            'errors': result.errors,
+            'indicators': commodity_indicators
+        }
+
+    except Exception as exc:
+        logger.error(f"High-frequency commodity sync failed: {exc}")
+        raise
+
+
+@shared_task
+def generate_daily_regime_signal(
+    as_of_date: Optional[str] = None
+) -> dict:
+    """
+    生成日度 Regime 信号任务
+
+    基于高频指标生成每日 Regime 信号，减少判定滞后。
+    建议运行时间：每个交易日 17:00（高频数据同步后）
+
+    Args:
+        as_of_date: 分析时点 (YYYY-MM-DD，None 表示今天)
+
+    Returns:
+        dict: 日度信号结果
+    """
+    try:
+        from apps.regime.application.use_cases import HighFrequencySignalRequest, HighFrequencySignalUseCase
+
+        target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
+
+        logger.info(f"Generating daily regime signal for {target_date}")
+
+        repository = DjangoMacroRepository()
+        use_case = HighFrequencySignalUseCase(repository)
+
+        request = HighFrequencySignalRequest(
+            as_of_date=target_date,
+            lookback_days=30
+        )
+
+        result = use_case.execute(request)
+
+        if result.success:
+            logger.info(
+                f"Daily regime signal generated: {result.signal_direction}, "
+                f"strength={result.signal_strength:.2f}, "
+                f"confidence={result.confidence:.2f}"
+            )
+
+            # 检查是否有警告信号
+            if result.warning_signals:
+                logger.warning(f"Warning signals detected: {result.warning_signals}")
+
+            return {
+                'status': 'success',
+                'as_of_date': str(target_date),
+                'signal_direction': result.signal_direction,
+                'signal_strength': result.signal_strength,
+                'confidence': result.confidence,
+                'contributing_indicators': result.contributing_indicators,
+                'warning_signals': result.warning_signals
+            }
+        else:
+            logger.error(f"Daily regime signal generation failed: {result.error}")
+            return {
+                'status': 'error',
+                'error': result.error
+            }
+
+    except Exception as exc:
+        logger.error(f"Daily regime signal generation failed: {exc}")
+        raise
+
+
+@shared_task
+def recalculate_regime_with_daily_signal(
+    as_of_date: Optional[str] = None,
+    use_pit: bool = True
+) -> dict:
+    """
+    重新计算 Regime（融合日度信号）
+
+    结合传统月度指标和高频日度指标重新计算 Regime。
+    建议运行时间：每个交易日 17:30
+
+    Args:
+        as_of_date: 分析时点 (YYYY-MM-DD，None 表示今天)
+        use_pit: 是否使用 Point-in-Time 数据
+
+    Returns:
+        dict: Regime 计算结果（融合日度信号）
+    """
+    try:
+        from apps.regime.application.use_cases import (
+            CalculateRegimeUseCase, CalculateRegimeRequest,
+            HighFrequencySignalUseCase, HighFrequencySignalRequest,
+            ResolveSignalConflictUseCase, ResolveSignalConflictRequest
+        )
+
+        target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
+
+        logger.info(f"Recalculating regime with daily signal for {target_date}")
+
+        repository = DjangoMacroRepository()
+
+        # 1. 计算传统月度 Regime
+        monthly_use_case = CalculateRegimeUseCase(repository)
+        monthly_request = CalculateRegimeRequest(
+            as_of_date=target_date,
+            use_pit=use_pit,
+            growth_indicator="PMI",
+            inflation_indicator="CPI",
+            data_source="akshare"
+        )
+        monthly_response = monthly_use_case.execute(monthly_request)
+
+        # 2. 生成日度信号
+        daily_use_case = HighFrequencySignalUseCase(repository)
+        daily_request = HighFrequencySignalRequest(
+            as_of_date=target_date,
+            lookback_days=30
+        )
+        daily_response = daily_use_case.execute(daily_request)
+
+        if not monthly_response.success:
+            return {
+                'status': 'error',
+                'error': f"Monthly regime calculation failed: {monthly_response.error}"
+            }
+
+        if not daily_response.success:
+            # 日度信号失败，直接返回月度结果
+            logger.warning(f"Daily signal generation failed, using monthly only: {daily_response.error}")
+            return {
+                'status': 'success',
+                'as_of_date': str(target_date),
+                'final_regime': monthly_response.snapshot.dominant_regime,
+                'final_confidence': monthly_response.snapshot.confidence,
+                'source': 'MONTHLY_ONLY',
+                'monthly_signal': monthly_response.snapshot.dominant_regime,
+                'daily_signal': None
+            }
+
+        # 3. 解决信号冲突
+        resolver = ResolveSignalConflictUseCase()
+        conflict_request = ResolveSignalConflictRequest(
+            daily_signal=daily_response.signal_direction,
+            daily_confidence=daily_response.confidence,
+            daily_duration_days=1,  # TODO: 追踪实际持续天数
+            monthly_signal=monthly_response.snapshot.dominant_regime,
+            monthly_confidence=monthly_response.snapshot.confidence
+        )
+        resolution = resolver.execute(conflict_request)
+
+        logger.info(
+            f"Regime recalculation completed: final={resolution.final_signal}, "
+            f"reason={resolution.resolution_reason}"
+        )
+
+        return {
+            'status': 'success',
+            'as_of_date': str(target_date),
+            'final_regime': resolution.final_signal,
+            'final_confidence': resolution.final_confidence,
+            'source': resolution.source,
+            'resolution_reason': resolution.resolution_reason,
+            'monthly_signal': monthly_response.snapshot.dominant_regime,
+            'monthly_confidence': monthly_response.snapshot.confidence,
+            'daily_signal': daily_response.signal_direction,
+            'daily_confidence': daily_response.confidence,
+            'daily_contributors': daily_response.contributing_indicators,
+            'warning_signals': daily_response.warning_signals
+        }
+
+    except Exception as exc:
+        logger.error(f"Regime recalculation with daily signal failed: {exc}")
+        raise
+
+
 # Celery Beat 调度配置建议
 # 在 Django Admin 的 Periodic Tasks 中配置：
 #

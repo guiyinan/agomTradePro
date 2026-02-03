@@ -641,3 +641,112 @@ class DjangoStockRepository:
         ).values_list('sector', flat=True).distinct()
 
         return list(sectors)
+
+
+class ScoringWeightConfigRepository:
+    """股票评分权重配置仓储"""
+
+    def get_active_config(self):
+        """
+        获取当前启用的评分权重配置
+
+        Returns:
+            ScoringWeightConfig 实体，如果没有启用配置则返回默认配置
+        """
+        from .models import ScoringWeightConfigModel
+
+        try:
+            model = ScoringWeightConfigModel.objects.filter(
+                is_active=True
+            ).first()
+
+            if model:
+                return model.to_domain_entity()
+
+            # 没有启用配置时返回默认配置
+            return self._get_default_config()
+
+        except Exception:
+            # 发生错误时返回默认配置
+            return self._get_default_config()
+
+    def get_config_by_name(self, name: str):
+        """
+        根据名称获取评分权重配置
+
+        Args:
+            name: 配置名称
+
+        Returns:
+            ScoringWeightConfig 实体，不存在则返回 None
+        """
+        from .models import ScoringWeightConfigModel
+
+        try:
+            model = ScoringWeightConfigModel.objects.filter(
+                name=name
+            ).first()
+
+            if model:
+                return model.to_domain_entity()
+
+            return None
+
+        except Exception:
+            return None
+
+    def get_all_configs(self):
+        """
+        获取所有评分权重配置
+
+        Returns:
+            ScoringWeightConfig 实体列表
+        """
+        from .models import ScoringWeightConfigModel
+
+        try:
+            models = ScoringWeightConfigModel.objects.all().order_by('-is_active', '-created_at')
+            return [m.to_domain_entity() for m in models]
+        except Exception:
+            return []
+
+    def save_config(self, config_entity):
+        """
+        保存评分权重配置
+
+        Args:
+            config_entity: ScoringWeightConfig 实体
+        """
+        from .models import ScoringWeightConfigModel
+
+        ScoringWeightConfigModel.objects.update_or_create(
+            name=config_entity.name,
+            defaults={
+                'description': config_entity.description,
+                'is_active': config_entity.is_active,
+                'growth_weight': config_entity.growth_weight,
+                'profitability_weight': config_entity.profitability_weight,
+                'valuation_weight': config_entity.valuation_weight,
+                'revenue_growth_weight': config_entity.revenue_growth_weight,
+                'profit_growth_weight': config_entity.profit_growth_weight,
+            }
+        )
+
+    def _get_default_config(self):
+        """
+        获取默认评分权重配置
+
+        当数据库中没有配置或配置加载失败时使用此默认值。
+        """
+        from apps.equity.domain.entities import ScoringWeightConfig
+
+        return ScoringWeightConfig(
+            name="默认配置",
+            description="系统默认评分权重配置（当数据库配置不可用时使用）",
+            is_active=True,
+            growth_weight=0.4,
+            profitability_weight=0.4,
+            valuation_weight=0.2,
+            revenue_growth_weight=0.5,
+            profit_growth_weight=0.5
+        )

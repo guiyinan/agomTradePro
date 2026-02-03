@@ -1163,4 +1163,25 @@ chatSendBtn.onclick = async function() {
 
 <!-- Teaching Modal Template -->
 {% include "dashboard/teaching_modal.html" %}
+
+<!-- Floating Widget Config -->
+<script>
+    // Load floating widget config from JSON file
+    fetch('{% static "widgets/configs/dashboard_widget.json" %}')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(config => {
+            window.floatingWidgetConfig = config;
+            // Trigger initialization manually since DOM is already loaded
+            if (window.initFloatingWidget) {
+                window.initFloatingWidget(config);
+            }
+        })
+        .catch(err => console.error('Failed to load widget config:', err));
+</script>
+
 {% endblock %}

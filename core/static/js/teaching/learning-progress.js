@@ -250,8 +250,8 @@ function unlockAchievement(achievement) {
     unlocked.push(achievement.id);
     localStorage.setItem('teaching_achievements', JSON.stringify(unlocked));
 
-    // 显示成就通知
-    showAchievementNotification(achievement);
+    // 成就通知已禁用，不再弹出
+    // showAchievementNotification(achievement);
 }
 
 /**
@@ -562,31 +562,32 @@ document.addEventListener('DOMContentLoaded', function() {
 /**
  * 添加样式
  */
-const style = document.createElement('style');
-style.textContent = `
-    /* 学习进度面板 */
-    .learning-progress-panel {
-        padding: 20px;
-        background: var(--color-surface, #f8fafc);
-        border-radius: var(--radius-md, 10px);
-        margin: 20px 0;
-    }
+(function() {
+    const style = document.createElement('style');
+    style.textContent = `
+        /* 学习进度面板 */
+        .learning-progress-panel {
+            padding: 20px;
+            background: var(--color-surface, #f8fafc);
+            border-radius: var(--radius-md, 10px);
+            margin: 20px 0;
+        }
 
-    .panel-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-    }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
 
-    .panel-header h3 {
-        margin: 0;
-        font-size: 18px;
-        color: var(--color-text-primary, #0f172a);
-    }
+        .panel-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: var(--color-text-primary, #0f172a);
+        }
 
-    .reset-btn {
-        padding: 6px 12px;
+        .reset-btn {
+            padding: 6px 12px;
         background: white;
         border: 1px solid var(--color-border, #e2e8f0);
         border-radius: var(--radius-sm, 6px);
@@ -884,5 +885,6 @@ style.textContent = `
             min-width: auto;
         }
     }
-`;
-document.head.appendChild(style);
+    `;
+    document.head.appendChild(style);
+})();

@@ -1,0 +1,68 @@
+{
+    "widgetId": "regime-dashboard",
+    "title": "Regime 判定指南",
+    "icon": "📊",
+    "position": "bottom-right",
+    "sections": [
+        {
+            "id": "overview",
+            "title": "功能概述",
+            "type": "content",
+            "content": "<p>Regime 判定系统是 AgomSAAF 的核心功能，通过分析<strong>PMI（采购经理指数）</strong>和<strong>CPI（消费者物价指数）</strong>，将宏观经济环境划分为四个象限，帮助投资者在正确的环境中下注。</p>"
+        },
+        {
+            "id": "algorithm",
+            "title": "判定算法",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "PMI 水平判定",
+                    "content": "<p><strong>PMI ≥ 50：</strong>经济处于<strong>扩张期</strong>，企业景气度高，就业增长。</p><p><strong>PMI < 50：</strong>经济处于<strong>收缩期</strong>，企业景气度低，就业压力增大。</p><div class=\"info-box\"><strong>注意：</strong>PMI 是增长维度的核心指标，反映制造业景气状况。</div>"
+                },
+                {
+                    "title": "CPI 水平判定",
+                    "content": "<p><strong>CPI > 2%：</strong>处于<strong>高通胀</strong>环境，物价上涨压力较大。</p><p><strong>1% ≤ CPI ≤ 2%：</strong>处于<strong>温和通胀</strong>环境，经济健康。</p><p><strong>CPI < 1%：</strong>处于<strong>低通胀/通缩</strong>环境，需求不足。</p><div class=\"warning-box\"><strong>注意：</strong>通胀过高会侵蚀购买力，过低则反映需求疲软。</div>"
+                },
+                {
+                    "title": "四象限映射",
+                    "content": "<p>根据增长和通胀状态，将经济映射到四个象限：</p><ul><li><strong>复苏（Recovery）：</strong>高增长 + 低通胀</li><li><strong>过热（Overheat）：</strong>高增长 + 高通胀</li><li><strong>通缩（Deflation）：</strong>低增长 + 低通胀</li><li><strong>滞胀（Stagflation）：</strong>低增长 + 高通胀</li></ul>"
+                }
+            ]
+        },
+        {
+            "id": "investment",
+            "title": "投资建议",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "复苏象限",
+                    "content": "<p><strong>配置策略：</strong>进攻型资产</p><ul><li>股票：推荐配置，特别是周期股</li><li>债券：低配</li><li>现金：低配</li></ul><div class=\"success-box\">最佳股票投资时机</div>"
+                },
+                {
+                    "title": "过热象限",
+                    "content": "<p><strong>配置策略：</strong>防御为主</p><ul><li>股票：标配或略降</li><li>商品：推荐配置（对冲通胀）</li><li>现金：适当提高</li></ul><div class=\"warning-box\">通胀风险上升，需警惕</div>"
+                },
+                {
+                    "title": "通缩象限",
+                    "content": "<p><strong>配置策略：</strong>防守为主</p><ul><li>债券：超配（利率下行利好）</li><li>股票：低配</li><li>现金：提高配置</li></ul><div class=\"info-box\">利率下行期，债券表现最佳</div>"
+                },
+                {
+                    "title": "滞胀象限",
+                    "content": "<p><strong>配置策略：</strong>现金为王</p><ul><li>现金：高配</li><li>黄金：推荐配置（避险）</li><li>股票：低配</li><li>债券：低配</li></ul><div class=\"warning-box\">最困难的宏观环境，需谨慎</div>"
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "label": "完整教程",
+            "icon": "📚",
+            "action": "openTeachingModal"
+        },
+        {
+            "label": "查看历史",
+            "icon": "📈",
+            "action": "showRegimeHistory"
+        }
+    ]
+}

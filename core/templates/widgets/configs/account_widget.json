@@ -1,0 +1,89 @@
+{
+    "widgetId": "account-profile",
+    "title": "账户管理指南",
+    "icon": "👤",
+    "position": "bottom-right",
+    "sections": [
+        {
+            "id": "overview",
+            "title": "账户管理系统",
+            "type": "content",
+            "content": "<p>账户管理系统提供完整的个人账户管理功能，包括持仓管理、交易记录、收益分析、风险监控等，帮助投资者全面掌控投资状况。</p><div class="info-box\"><strong>核心功能：</strong>一站式管理所有投资账户和持仓</div>"
+        },
+        {
+            "id": "portfolio",
+            "title": "持仓管理",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "持仓概览",
+                    "content": "<p><strong>功能：</strong>查看所有持仓资产</p><p><strong>信息：</strong></p><ul><li>持仓数量和成本</li><li>当前市值和盈亏</li><li>盈亏比例</li><li>持仓占比</li></ul><p><strong>用途：</strong></p><ul><li>了解整体持仓情况</li><li>监控盈亏变化</li><li>评估资产配置</li></ul><div class=\"success-box\">定期检查持仓，确保符合投资策略</div>"
+                },
+                {
+                    "title": "持仓分析",
+                    "content": "<p><strong>资产分布：</strong></p><ul><li>股票、债券、商品、现金的比例</li><li>行业分布</li><li>市值分布</li></ul><p><strong>风险分析：</strong></p><ul><li>组合波动率</li><li>最大回撤</li><li>风险价值(VaR)</li></ul><p><strong>收益分析：</strong></p><ul><li>总收益</li><li>年化收益</li><li>相对基准收益</li></ul>"
+                },
+                {
+                    "title": "持仓调整",
+                    "content": "<p><strong>调仓信号：</strong></p><ul><li>单个持仓占比过高(>20%)</li><li>行业集中度过高</li><li>与宏观环境不匹配</li><li>达到止盈/止损条件</li></ul><p><strong>调仓方法：</strong></p><ul><li>逐步调整，避免一次性大额交易</li><li>优先卖出亏损持仓</li><li>保留优质持仓</li></ul><div class=\"warning-box\">不要频繁调仓，保持策略一致性</div>"
+                }
+            ]
+        },
+        {
+            "id": "performance",
+            "title": "收益分析",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "收益指标",
+                    "content": "<p><strong>总收益：</strong>从开始投资到现在的累计收益</p><p><strong>年化收益：</strong>按年复利计算的收益率</p><p><strong>相对收益：</strong>相对基准指数的超额收益</p><p><strong>月度收益：</strong>每月的收益分布</p><div class=\"info-box\">重点关注年化收益和最大回撤</div>"
+                },
+                {
+                    "title": "收益归因",
+                    "content": "<p><strong>资产配置贡献：</strong></p><p>各资产类别对总收益的贡献</p><p><strong>个股贡献：</strong></p><p>各持仓股票对总收益的贡献</p><p><strong>择时贡献：</strong></p><p>进出时机对收益的影响</p><div class=\"success-box\">了解收益来源，优化投资策略</div>"
+                },
+                {
+                    "title": "收益评估",
+                    "content": "<p><strong>与基准比较：</strong></p><ul><li>是否跑赢大盘</li><li>是否获得超额收益</li></ul><p><strong>风险调整后收益：</strong></p><ul><li>夏普比率</li><li>索提诺比率</li></ul><p><strong>收益稳定性：</strong></p><ul><li>月度胜率</li><li>收益波动率</li></ul>"
+                }
+            ]
+        },
+        {
+            "id": "risk",
+            "title": "风险监控",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "集中度风险",
+                    "content": "<p><strong>单股占比：</strong></p><ul><li>单只股票不超过10%</li><li>前5大持仓不超过50%</li></ul><p><strong>行业集中度：</strong></p><ul><li>单个行业不超过30%</li></ul><p><strong>资产类别集中度：</strong></p><ul><li>股票不超过80%</li><li>保留至少10%现金</li></ul><div class=\"warning-box\">过度集中是最大的风险来源</div>"
+                },
+                {
+                    "title": "流动性风险",
+                    "content": "<p><strong>持仓流动性：</strong></p><ul><li>大盘股：流动性好</li><li>小盘股：流动性较差</li></ul><p><strong>应对：</strong></p><ul><li>控制小盘股仓位</li><li>分批买卖小盘股</li><li>避免持有流动性差的股票</li></ul>"
+                },
+                {
+                    "title": "止损监控",
+                    "content": "<p><strong>单股止损：</strong></p><ul><li>亏损达到15%考虑止损</li><li>基本面恶化立即止损</li></ul><p><strong>组合止损：</strong></p><ul><li>总回撤达到20%考虑减仓</li><li>市场环境恶化时降低仓位</li></ul><p><strong>止损纪律：</strong></p><ul><li>严格执行止损策略</li><li>不要因情绪而犹豫</li></ul>"
+                }
+            ]
+        },
+        {
+            "id": "settings",
+            "title": "账户设置",
+            "type": "content",
+            "content": "<p><strong>个人信息：</strong>修改昵称、头像、联系方式</p><p><strong>风险偏好：</strong></p><ul><li>保守型：以固定收益为主</li><li>稳健型：股债平衡配置</li><li>激进型：以股票为主</li></ul><p><strong>交易设置：</strong></p><ul><li>默认交易账户</li><li>佣金费率</li><li>滑点设置</li></ul><p><strong>通知设置：</strong></p><ul><li>价格提醒</li><li>止损提醒</li><li>交易通知</li></ul><div class=\"success-box\">根据实际情况调整账户设置，优化投资体验</div>"
+        }
+    ],
+    "actions": [
+        {
+            "label": "账户设置",
+            "icon": "⚙️",
+            "url": "/account/settings/"
+        },
+        {
+            "label": "交易记录",
+            "icon": "📋",
+            "url": "/account/trades/"
+        }
+    ]
+}

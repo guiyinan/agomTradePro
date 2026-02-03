@@ -9,6 +9,9 @@ from .economic_fetchers import EconomicIndicatorFetcher
 from .trade_fetchers import TradeIndicatorFetcher
 from .financial_fetchers import FinancialIndicatorFetcher
 from .other_fetchers import OtherIndicatorFetcher
+from .high_frequency_fetchers import HighFrequencyIndicatorFetcher
+from .weekly_indicators_fetchers import WeeklyIndicatorFetcher
+from .pmi_subitems_fetchers import PMISubitemsFetcher
 
 __all__ = [
     'BaseIndicatorFetcher',
@@ -16,4 +19,7 @@ __all__ = [
     'TradeIndicatorFetcher',
     'FinancialIndicatorFetcher',
     'OtherIndicatorFetcher',
+    'HighFrequencyIndicatorFetcher',
+    'WeeklyIndicatorFetcher',
+    'PMISubitemsFetcher',
 ]

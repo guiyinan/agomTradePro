@@ -26,6 +26,9 @@
     <script defer src="{% static 'vendor/js/alpine.min.js' %}"></script>
 
     {% block extra_css %}{% endblock %}
+
+    <!-- Floating Widget CSS -->
+    <link rel="stylesheet" href="{% static 'css/floating-widget.css' %}">
 </head>
 <body hx-ext="sse,remove-me,morph-swap" hx-indicator="#global-loader">
     <!-- 全局加载指示器 -->
@@ -286,11 +289,14 @@
     });
 
     // 前端工具函数库
+    </script>
     <script src="{% static 'js/utils.js' %}"></script>
     <script src="{% static 'js/htmx-config.js' %}"></script>
-    </script>
 
     {% block extra_js %}{% endblock %}
+
+    <!-- Floating Widget JS -->
+    <script src="{% static 'js/components/floating-widget.js' %}"></script>
 </body>
 </html>
 

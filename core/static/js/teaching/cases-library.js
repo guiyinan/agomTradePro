@@ -649,31 +649,32 @@ window.historicalCases = historicalCases;
 /**
  * 添加样式
  */
-const style = document.createElement('style');
-style.textContent = `
-    /* 案例库增强样式 */
-    .cases-library {
-        padding: 20px 0;
-    }
+(function() {
+    const style = document.createElement('style');
+    style.textContent = `
+        /* 案例库增强样式 */
+        .cases-library {
+            padding: 20px 0;
+        }
 
-    .cases-filters {
-        margin-bottom: 24px;
-    }
+        .cases-filters {
+            margin-bottom: 24px;
+        }
 
-    .search-box input {
-        width: 100%;
-        padding: 12px 16px;
-        border: 1px solid var(--color-border, #e2e8f0);
-        border-radius: var(--radius-md, 10px);
-        font-size: 14px;
-        margin-bottom: 16px;
-    }
+        .search-box input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--color-border, #e2e8f0);
+            border-radius: var(--radius-md, 10px);
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
 
-    .search-box input:focus {
-        outline: none;
-        border-color: var(--color-primary, #3366cc);
-        box-shadow: 0 0 0 3px rgba(51, 102, 204, 0.1);
-    }
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--color-primary, #3366cc);
+            box-shadow: 0 0 0 3px rgba(51, 102, 204, 0.1);
+        }
 
     .filter-tabs {
         display: flex;
@@ -1038,5 +1039,6 @@ style.textContent = `
             padding: 8px;
         }
     }
-`;
-document.head.appendChild(style);
+    `;
+    document.head.appendChild(style);
+})();

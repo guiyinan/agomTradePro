@@ -482,31 +482,32 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // 添加样式
-const style = document.createElement('style');
-style.textContent = `
-    /* 场景选择器 */
-    .scenario-selector {
-        margin: 20px 0;
-    }
+(function() {
+    const style = document.createElement('style');
+    style.textContent = `
+        /* 场景选择器 */
+        .scenario-selector {
+            margin: 20px 0;
+        }
 
-    .scenario-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-        gap: 10px;
-    }
+        .scenario-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+        }
 
-    .scenario-card {
-        padding: 12px;
-        background: white;
-        border: 1px solid var(--color-border, #e2e8f0);
-        border-radius: var(--radius-sm, 6px);
-        cursor: pointer;
-        transition: all 0.2s ease;
-        text-align: center;
-    }
+        .scenario-card {
+            padding: 12px;
+            background: white;
+            border: 1px solid var(--color-border, #e2e8f0);
+            border-radius: var(--radius-sm, 6px);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
 
-    .scenario-card:hover {
-        border-color: var(--color-primary, #3366cc);
+        .scenario-card:hover {
+            border-color: var(--color-primary, #3366cc);
         background: rgba(51, 102, 204, 0.05);
         transform: translateY(-2px);
     }
@@ -845,5 +846,6 @@ style.textContent = `
         font-size: 18px;
         color: var(--color-text-muted, #94a3b8);
     }
-`;
-document.head.appendChild(style);
+    `;
+    document.head.appendChild(style);
+})();

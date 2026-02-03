@@ -103,8 +103,13 @@ class ScreenStocksUseCase:
             if not all_stocks:
                 raise ValueError("没有找到股票数据，请先运行数据采集任务")
 
-            # 4. 筛选（调用 Domain 服务）
-            screener = StockScreener()
+            # 4. 获取评分权重配置
+            from apps.equity.infrastructure.repositories import ScoringWeightConfigRepository
+            config_repo = ScoringWeightConfigRepository()
+            scoring_config = config_repo.get_active_config()
+
+            # 5. 筛选（调用 Domain 服务，传入评分配置）
+            screener = StockScreener(scoring_config=scoring_config)
             stock_codes = screener.screen(all_stocks, rule)
 
             # 5. 返回结果

@@ -444,3 +444,783 @@ class RegimeCalculator:
         full_inflation = list(inflation_history) + [inflation_value]
 
         return self.calculate(full_growth, full_inflation, as_of_date)
+
+
+# ==================== Phase 1: High-Frequency Signal Integration ====================
+
+@dataclass
+class DailySignalContext:
+    """日度信号上下文"""
+    signal_direction: str  # BULLISH, BEARISH, NEUTRAL
+    signal_strength: float  # 0-1
+    confidence: float  # 0-1
+    persist_days: int  # 持续天数
+    contributing_indicators: List[Dict]
+    warning_signals: List[str]
+
+
+@dataclass
+class HybridRegimeResult:
+    """混合 Regime 计算结果"""
+    snapshot: "RegimeSnapshot"
+    source: str  # MONTHLY_ONLY, DAILY_ONLY, HYBRID_WEIGHTED, DAILY_OVERRIDE
+    daily_context: Optional[DailySignalContext]
+    monthly_confidence: float
+    daily_confidence: float
+    final_confidence: float
+
+
+class HybridRegimeCalculator:
+    """
+    混合 Regime 计算器（融合高频信号）
+
+    职责：
+    1. 结合传统月度指标和高频日度信号
+    2. 应用冲突解决规则
+    3. 输出带有数据源标识的 Regime 结果
+
+    Signal Conflict Resolution Rules:
+    1. Daily == Monthly: High confidence (0.9)
+    2. Daily persists >= 10 days: Use daily (0.7 confidence)
+    3. Daily + Weekly一致 (both differ from monthly): Consider switching (0.6 confidence)
+    4. Default: Use monthly, lower confidence (0.5)
+    """
+
+    # Regime direction mapping
+    BULLISH_REGIMES = {"Recovery", "Overheat"}
+    BEARISH_REGIMES = {"Stagflation", "Deflation"}
+
+    def __init__(
+        self,
+        monthly_calculator: Optional[RegimeCalculator] = None,
+        daily_persist_threshold: int = 10,
+        hybrid_weight_daily: float = 0.3,
+        hybrid_weight_monthly: float = 0.7
+    ):
+        """
+        Args:
+            monthly_calculator: 月度 Regime 计算器
+            daily_persist_threshold: 日度信号持续阈值（天）
+            hybrid_weight_daily: 混合模式中日度信号权重
+            hybrid_weight_monthly: 混合模式中月度信号权重
+        """
+        self.monthly_calculator = monthly_calculator or RegimeCalculator()
+        self.daily_persist_threshold = daily_persist_threshold
+        self.hybrid_weight_daily = hybrid_weight_daily
+        self.hybrid_weight_monthly = hybrid_weight_monthly
+
+    def calculate_hybrid(
+        self,
+        growth_series: List[float],
+        inflation_series: List[float],
+        daily_context: Optional[DailySignalContext],
+        as_of_date: date
+    ) -> HybridRegimeResult:
+        """
+        计算混合 Regime（融合月度和日度信号）
+
+        Args:
+            growth_series: 增长指标序列
+            inflation_series: 通胀指标序列
+            daily_context: 日度信号上下文
+            as_of_date: 截止日期
+
+        Returns:
+            HybridRegimeResult: 混合 Regime 结果
+        """
+        from .entities import RegimeSnapshot
+
+        # 1. 计算月度 Regime
+        monthly_result = self.monthly_calculator.calculate(
+            growth_series=growth_series,
+            inflation_series=inflation_series,
+            as_of_date=as_of_date
+        )
+        monthly_snapshot = monthly_result.snapshot
+        monthly_regime = monthly_snapshot.dominant_regime
+        monthly_confidence = monthly_snapshot.confidence
+
+        # 2. 如果没有日度信号，直接返回月度结果
+        if not daily_context:
+            return HybridRegimeResult(
+                snapshot=monthly_snapshot,
+                source="MONTHLY_ONLY",
+                daily_context=None,
+                monthly_confidence=monthly_confidence,
+                daily_confidence=0.0,
+                final_confidence=monthly_confidence
+            )
+
+        # 3. 解析日度信号
+        daily_signal = daily_context.signal_direction
+        daily_confidence = daily_context.confidence
+        persist_days = daily_context.persist_days
+
+        # 4. 映射日度信号到 Regime
+        daily_regime = self._map_signal_to_regime(daily_signal, monthly_snapshot.distribution)
+
+        # 5. 应用冲突解决规则
+        resolution = self._resolve_signal_conflict(
+            monthly_regime=monthly_regime,
+            monthly_confidence=monthly_confidence,
+            daily_regime=daily_regime,
+            daily_confidence=daily_confidence,
+            persist_days=persist_days
+        )
+
+        # 6. 生成最终结果
+        if resolution['source'] == 'MONTHLY_DEFAULT':
+            # 使用月度信号，降低置信度
+            final_snapshot = RegimeSnapshot(
+                growth_momentum_z=monthly_snapshot.growth_momentum_z,
+                inflation_momentum_z=monthly_snapshot.inflation_momentum_z,
+                distribution=monthly_snapshot.distribution,
+                dominant_regime=monthly_regime,
+                confidence=resolution['confidence'],
+                observed_at=as_of_date
+            )
+        elif resolution['source'] in ['DAILY_PERSISTENT', 'ALL_CONSISTENT']:
+            # 使用日度信号对应的 Regime
+            final_snapshot = RegimeSnapshot(
+                growth_momentum_z=monthly_snapshot.growth_momentum_z,  # 保留月度 Z-score
+                inflation_momentum_z=monthly_snapshot.inflation_momentum_z,
+                distribution=self._adjust_distribution_for_daily(
+                    monthly_snapshot.distribution,
+                    daily_regime,
+                    daily_context.signal_strength
+                ),
+                dominant_regime=daily_regime,
+                confidence=resolution['confidence'],
+                observed_at=as_of_date
+            )
+        else:
+            # HYBRID_WEIGHTED: 加权融合
+            final_snapshot = RegimeSnapshot(
+                growth_momentum_z=monthly_snapshot.growth_momentum_z,
+                inflation_momentum_z=monthly_snapshot.inflation_momentum_z,
+                distribution=self._blend_distributions(
+                    monthly_snapshot.distribution,
+                    daily_regime,
+                    self.hybrid_weight_monthly,
+                    self.hybrid_weight_daily
+                ),
+                dominant_regime=resolution['final_regime'],
+                confidence=resolution['confidence'],
+                observed_at=as_of_date
+            )
+
+        return HybridRegimeResult(
+            snapshot=final_snapshot,
+            source=resolution['source'],
+            daily_context=daily_context,
+            monthly_confidence=monthly_confidence,
+            daily_confidence=daily_confidence,
+            final_confidence=resolution['confidence']
+        )
+
+    def _map_signal_to_regime(
+        self,
+        signal_direction: str,
+        current_distribution: Dict[str, float]
+    ) -> str:
+        """
+        将日度信号方向映射到 Regime
+
+        规则：
+        - BULLISH -> 选择 Recovery 或 Overheat 中权重更高的
+        - BEARISH -> 选择 Stagflation 或 Deflation 中权重更高的
+        - NEUTRAL -> 保持当前分布的主导 Regime
+        """
+        if signal_direction == "NEUTRAL":
+            # 保持当前主导 Regime
+            dominant = max(current_distribution.items(), key=lambda x: x[1])
+            return dominant[0]
+
+        if signal_direction == "BULLISH":
+            # 在看多象限中选择权重更高的
+            bullish_regime = max(
+                {k: v for k, v in current_distribution.items() if k in self.BULLISH_REGIMES}.items(),
+                key=lambda x: x[1],
+                default=("Recovery", 0.5)
+            )
+            return bullish_regime[0]
+
+        if signal_direction == "BEARISH":
+            # 在看空象限中选择权重更高的
+            bearish_regime = max(
+                {k: v for k, v in current_distribution.items() if k in self.BEARISH_REGIMES}.items(),
+                key=lambda x: x[1],
+                default=("Deflation", 0.5)
+            )
+            return bearish_regime[0]
+
+        # 默认返回 Recovery
+        return "Recovery"
+
+    def _resolve_signal_conflict(
+        self,
+        monthly_regime: str,
+        monthly_confidence: float,
+        daily_regime: str,
+        daily_confidence: float,
+        persist_days: int
+    ) -> Dict:
+        """
+        解决信号冲突
+
+        Returns:
+            Dict: {
+                'source': str,
+                'final_regime': str,
+                'confidence': float
+            }
+        """
+        # Rule 1: Daily and Monthly一致
+        if daily_regime == monthly_regime:
+            avg_confidence = (daily_confidence + monthly_confidence) / 2
+            return {
+                'source': 'ALL_CONSISTENT',
+                'final_regime': daily_regime,
+                'confidence': min(avg_confidence + 0.2, 1.0)
+            }
+
+        # Rule 2: Daily signal persists for >= threshold days
+        if persist_days >= self.daily_persist_threshold:
+            return {
+                'source': 'DAILY_PERSISTENT',
+                'final_regime': daily_regime,
+                'confidence': min(daily_confidence + 0.1, 1.0)
+            }
+
+        # Rule 3: Check if signals are in the same direction (both bullish or both bearish)
+        monthly_bullish = monthly_regime in self.BULLISH_REGIMES
+        daily_bullish = daily_regime in self.BULLISH_REGIMES
+
+        if monthly_bullish == daily_bullish:
+            # Same direction, different specific regime - use weighted approach
+            return {
+                'source': 'HYBRID_WEIGHTED',
+                'final_regime': monthly_regime if monthly_confidence > daily_confidence else daily_regime,
+                'confidence': (monthly_confidence * self.hybrid_weight_monthly + daily_confidence * self.hybrid_weight_daily)
+            }
+
+        # Rule 4: Default - Use monthly signal, lower confidence
+        return {
+            'source': 'MONTHLY_DEFAULT',
+            'final_regime': monthly_regime,
+            'confidence': max(monthly_confidence * 0.8, 0.4)
+        }
+
+    def _adjust_distribution_for_daily(
+        self,
+        original_distribution: Dict[str, float],
+        daily_regime: str,
+        signal_strength: float
+    ) -> Dict[str, float]:
+        """
+        根据日度信号调整分布
+
+        Args:
+            original_distribution: 原始月度分布
+            daily_regime: 日度信号对应的 Regime
+            signal_strength: 信号强度 (0-1)
+
+        Returns:
+            Dict[str, float]: 调整后的分布
+        """
+        # 创建新的分布，提升日度 Regime 的权重
+        adjustment = signal_strength * 0.3  # 最多调整30%
+
+        new_distribution = {}
+        total_adjustment = 0.0
+
+        for regime, weight in original_distribution.items():
+            if regime == daily_regime:
+                # 提升目标 Regime 的权重
+                new_weight = weight + adjustment
+                total_adjustment += adjustment
+            else:
+                new_weight = weight
+            new_distribution[regime] = new_weight
+
+        # 归一化
+        total = sum(new_distribution.values())
+        if total > 0:
+            new_distribution = {
+                k: v / total for k, v in new_distribution.items()
+            }
+
+        return new_distribution
+
+    def _blend_distributions(
+        self,
+        monthly_distribution: Dict[str, float],
+        daily_regime: str,
+        monthly_weight: float,
+        daily_weight: float
+    ) -> Dict[str, float]:
+        """
+        融合月度和日度分布
+
+        创建一个偏向日度 Regime 的加权分布
+        """
+        # 构建日度分布（100%集中在日度 Regime）
+        daily_distribution = {k: 0.0 for k in monthly_distribution.keys()}
+        daily_distribution[daily_regime] = 1.0
+
+        # 加权融合
+        blended = {}
+        for regime in monthly_distribution:
+            blended[regime] = (
+                monthly_distribution[regime] * monthly_weight +
+                daily_distribution[regime] * daily_weight
+            )
+
+        return blended
+
+
+# ==================== Phase 4: Probability Confidence Model ====================
+
+from typing import List as TypingList
+from .entities import (
+    ConfidenceConfig,
+    ConfidenceBreakdown,
+    IndicatorPredictivePower,
+    RegimeProbabilities,
+    SignalConflict,
+)
+
+
+def calculate_confidence(
+    base_confidence: float,
+    days_since_update: int,
+    has_daily_data: bool = False,
+    has_weekly_data: bool = False,
+    daily_consistent: bool = False,
+    config: Optional[ConfidenceConfig] = None
+) -> ConfidenceBreakdown:
+    """
+    计算基于数据新鲜度的置信度
+
+    置信度 = 基础置信度 × 新鲜度系数 + 数据类型加成
+
+    Args:
+        base_confidence: 基础置信度 (0-1)
+        days_since_update: 距上次更新天数
+        has_daily_data: 是否有日度数据支持
+        has_weekly_data: 是否有周度数据支持
+        daily_consistent: 日度数据是否与月度数据一致
+        config: 置信度配置（从数据库读取，默认使用默认配置）
+
+    Returns:
+        ConfidenceBreakdown: 置信度分解结果
+    """
+    if config is None:
+        config = ConfidenceConfig.defaults()
+
+    # 1. 计算新鲜度系数
+    if days_since_update <= 1:
+        freshness_coeff = config.day_0_coefficient
+    elif days_since_update <= 7:
+        freshness_coeff = config.day_7_coefficient
+    elif days_since_update <= 14:
+        freshness_coeff = config.day_14_coefficient
+    else:
+        freshness_coeff = config.day_30_coefficient
+
+    # 2. 计算基础置信度分量
+    base_component = base_confidence * freshness_coeff
+
+    # 3. 计算数据类型加成
+    data_type_bonus = 0.0
+    if has_daily_data:
+        data_type_bonus += config.daily_data_bonus
+    elif has_weekly_data:
+        data_type_bonus += config.weekly_data_bonus
+
+    # 4. 计算一致性加成
+    consistency_bonus = 0.0
+    if daily_consistent:
+        consistency_bonus += config.daily_consistency_bonus
+
+    # 5. 计算总置信度（限制在 [0, 1]）
+    total_confidence = min(1.0, max(0.0, base_component + data_type_bonus + consistency_bonus))
+
+    # 6. 分解各分量
+    data_freshness_component = base_component * freshness_coeff
+    predictive_power_component = data_type_bonus
+    consistency_component = consistency_bonus
+
+    return ConfidenceBreakdown(
+        total_confidence=total_confidence,
+        data_freshness_component=data_freshness_component,
+        predictive_power_component=predictive_power_component,
+        consistency_component=consistency_component,
+        base_component=base_confidence,
+        days_since_last_update=days_since_update,
+        has_daily_data=has_daily_data,
+        daily_consistent=daily_consistent,
+        indicators_count=1 if has_daily_data else 0,
+    )
+
+
+def calculate_bayesian_confidence(
+    indicators: TypingList[IndicatorPredictivePower],
+    base_prior: float = 0.5,
+    config: Optional[ConfidenceConfig] = None
+) -> RegimeProbabilities:
+    """
+    贝叶斯框架计算 Regime 概率
+
+    根据指标的历史预测能力赋权，而非简单的新鲜度加权。
+
+    Args:
+        indicators: 指标预测能力列表
+        base_prior: 先验概率（来自传统月度指标）
+        config: 置信度配置
+
+    Returns:
+        RegimeProbabilities: 包含各象限概率和置信度
+
+    贝叶斯更新公式:
+        P(H|E) = P(E|H) * P(H) / P(E)
+
+        其中:
+        - H: 假设（Regime 状态）
+        - E: 证据（指标信号）
+        - P(H|E): 后验概率
+        - P(H): 先验概率
+        - P(E|H): 似然性（指标预测能力）
+    """
+    if config is None:
+        config = ConfidenceConfig.defaults()
+
+    if not indicators:
+        # 无指标时，返回均匀分布
+        return RegimeProbabilities(
+            growth_reflation=0.25,
+            growth_disinflation=0.25,
+            stagnation_reflation=0.25,
+            stagnation_disinflation=0.25,
+            confidence=base_prior,
+            data_freshness_score=0.0,
+            predictive_power_score=0.0,
+            consistency_score=0.0,
+        )
+
+    # 1. 计算指标权重（基于历史预测能力）
+    # 权重 = F1分数 / (1 + 假阳性率) × 稳定性评分
+    weights = []
+    for ind in indicators:
+        weight = ind.f1_score / (1 + ind.false_positive_rate) * ind.stability_score
+        weights.append(weight)
+
+    total_weight = sum(weights)
+    if total_weight == 0:
+        weights = [1.0 / len(indicators)] * len(indicators)
+    else:
+        weights = [w / total_weight for w in weights]
+
+    # 2. 聚合信号方向
+    bullish_scores = []
+    bearish_scores = []
+
+    for i, ind in enumerate(indicators):
+        weight = weights[i]
+        if ind.current_signal == "BULLISH":
+            bullish_scores.append(weight * ind.reliability_score)
+        elif ind.current_signal == "BEARISH":
+            bearish_scores.append(weight * ind.reliability_score)
+
+    # 3. 计算概率分布
+    bullish_total = sum(bullish_scores)
+    bearish_total = sum(bearish_scores)
+    total = bullish_total + bearish_total
+
+    if total == 0:
+        # 无明确信号，返回均匀分布
+        distribution = {
+            "Overheat": 0.25,
+            "Recovery": 0.25,
+            "Stagflation": 0.25,
+            "Deflation": 0.25,
+        }
+        confidence = base_prior
+    else:
+        # 根据信号方向和强度分配概率
+        bullish_prob = bullish_total / total
+        bearish_prob = bearish_total / total
+
+        # 在看多象限（Recovery, Overheat）和看空象限（Stagflation, Deflation）之间分配
+        # 根据信号强度进一步细分
+        recovery_prob = bullish_prob * 0.5
+        overheat_prob = bullish_prob * 0.5
+        stagflation_prob = bearish_prob * 0.5
+        deflation_prob = bearish_prob * 0.5
+
+        distribution = {
+            "Overheat": overheat_prob,
+            "Recovery": recovery_prob,
+            "Stagflation": stagflation_prob,
+            "Deflation": deflation_prob,
+        }
+
+        # 置信度 = 基础置信度 × (1 + 平均预测能力)
+        avg_predictive_power = sum(ind.predictive_power_score for ind in indicators) / len(indicators)
+        confidence = min(1.0, base_prior * (1 + avg_predictive_power))
+
+    # 4. 计算元数据
+    avg_days_since_update = sum(ind.days_since_last_update for ind in indicators) / len(indicators)
+    has_daily_data = any(ind.days_since_last_update <= 7 for ind in indicators)
+
+    # 数据新鲜度评分（越新越高）
+    data_freshness_score = max(0.0, 1.0 - avg_days_since_update / 30)
+
+    # 预测能力评分
+    predictive_power_score = sum(ind.predictive_power_score for ind in indicators) / len(indicators)
+
+    # 一致性评分（信号方向一致性）
+    signal_directions = [ind.current_signal for ind in indicators if ind.current_signal != "NEUTRAL"]
+    if signal_directions:
+        consistency = max(
+            signal_directions.count("BULLISH") / len(signal_directions),
+            signal_directions.count("BEARISH") / len(signal_directions)
+        )
+    else:
+        consistency = 0.0
+
+    return RegimeProbabilities(
+        growth_reflation=distribution["Overheat"],
+        growth_disinflation=distribution["Recovery"],
+        stagnation_reflation=distribution["Stagflation"],
+        stagnation_disinflation=distribution["Deflation"],
+        confidence=confidence,
+        data_freshness_score=data_freshness_score,
+        predictive_power_score=predictive_power_score,
+        consistency_score=consistency,
+    )
+
+
+def resolve_signal_conflict(
+    daily_signal: str,
+    weekly_signal: Optional[str],
+    monthly_signal: str,
+    daily_confidence: float,
+    monthly_confidence: float,
+    daily_duration: int,
+    persist_threshold: int = 10,
+    hybrid_weight_daily: float = 0.3,
+    hybrid_weight_monthly: float = 0.7
+) -> SignalConflict:
+    """
+    解决信号冲突
+
+    处理规则：
+    1. Daily == Monthly: 高置信度 (0.9)
+    2. Daily 持续 >= 10 天: 使用日度信号 (0.7)
+    3. Daily + Weekly 一致: 考虑切换 (0.6)
+    4. Default: 使用月度信号 (0.5)
+
+    Args:
+        daily_signal: 日度信号方向
+        weekly_signal: 周度信号方向（可选）
+        monthly_signal: 月度信号方向
+        daily_confidence: 日度信号置信度
+        monthly_confidence: 月度信号置信度
+        daily_duration: 日度信号持续天数
+        persist_threshold: 持续阈值（默认10天）
+        hybrid_weight_daily: 混合模式日度权重
+        hybrid_weight_monthly: 混合模式月度权重
+
+    Returns:
+        SignalConflict: 冲突解决结果
+    """
+    # 判断信号方向是否一致
+    BULLISH_REGIMES = {"Recovery", "Overheat"}
+    BEARISH_REGIMES = {"Stagflation", "Deflation"}
+
+    def get_direction(signal: str) -> str:
+        if signal in BULLISH_REGIMES:
+            return "BULLISH"
+        elif signal in BEARISH_REGIMES:
+            return "BEARISH"
+        return "NEUTRAL"
+
+    daily_direction = get_direction(daily_signal)
+    monthly_direction = get_direction(monthly_signal)
+
+    # Rule 1: Daily and Monthly 一致
+    if daily_direction == monthly_direction:
+        avg_confidence = (daily_confidence + monthly_confidence) / 2
+        final_confidence = min(avg_confidence + 0.2, 1.0)
+        return SignalConflict(
+            daily_signal=daily_signal,
+            weekly_signal=weekly_signal,
+            monthly_signal=monthly_signal,
+            daily_confidence=daily_confidence,
+            monthly_confidence=monthly_confidence,
+            daily_duration=daily_duration,
+            final_signal=monthly_signal,
+            final_confidence=final_confidence,
+            resolution_source="ALL_CONSISTENT",
+            resolution_reason=f"日度和月度信号一致({daily_direction})，提升置信度",
+        )
+
+    # Rule 2: Daily signal 持续 >= 阈值天数
+    if daily_duration >= persist_threshold:
+        final_confidence = min(daily_confidence + 0.1, 1.0)
+        return SignalConflict(
+            daily_signal=daily_signal,
+            weekly_signal=weekly_signal,
+            monthly_signal=monthly_signal,
+            daily_confidence=daily_confidence,
+            monthly_confidence=monthly_confidence,
+            daily_duration=daily_duration,
+            final_signal=daily_signal,
+            final_confidence=final_confidence,
+            resolution_source="DAILY_PERSISTENT",
+            resolution_reason=f"日度信号持续{daily_duration}天（阈值{persist_threshold}天），采用日度信号",
+        )
+
+    # Rule 3: Daily + Weekly 一致（与月度反向）
+    if weekly_signal:
+        weekly_direction = get_direction(weekly_signal)
+        if daily_direction == weekly_direction and daily_direction != monthly_direction:
+            final_confidence = (daily_confidence * hybrid_weight_daily +
+                              monthly_confidence * hybrid_weight_monthly)
+            return SignalConflict(
+                daily_signal=daily_signal,
+                weekly_signal=weekly_signal,
+                monthly_signal=monthly_signal,
+                daily_confidence=daily_confidence,
+                monthly_confidence=monthly_confidence,
+                daily_duration=daily_duration,
+                final_signal=daily_signal,
+                final_confidence=final_confidence,
+                resolution_source="DAILY_WEEKLY_CONSISTENT",
+                resolution_reason=f"日度+周度信号一致({daily_direction})，与月度({monthly_direction})不同",
+            )
+
+    # Rule 4: Default - 使用月度信号，降低置信度
+    final_confidence = max(monthly_confidence * 0.8, 0.4)
+    return SignalConflict(
+        daily_signal=daily_signal,
+        weekly_signal=weekly_signal,
+        monthly_signal=monthly_signal,
+        daily_confidence=daily_confidence,
+        monthly_confidence=monthly_confidence,
+        daily_duration=daily_duration,
+        final_signal=monthly_signal,
+        final_confidence=final_confidence,
+        resolution_source="MONTHLY_DEFAULT",
+        resolution_reason=f"保持月度信号，降低置信度（日度{daily_direction} vs 月度{monthly_direction}）",
+    )
+
+
+def calculate_dynamic_weight(
+    base_weight: float,
+    f1_score: float,
+    decay_threshold: float = 0.2,
+    decay_penalty: float = 0.5,
+    improvement_threshold: float = 0.1,
+    improvement_bonus: float = 1.2,
+    min_weight: float = 0.0,
+    max_weight: float = 1.0
+) -> float:
+    """
+    根据指标表现动态计算权重
+
+    Args:
+        base_weight: 基础权重
+        f1_score: 当前 F1 分数
+        decay_threshold: 衰减阈值（F1 低于此值视为衰减）
+        decay_penalty: 衰减惩罚系数
+        improvement_threshold: 改进阈值（F1 提升超过此值给予奖励）
+        improvement_bonus: 改进奖励系数
+        min_weight: 最小权重
+        max_weight: 最大权重
+
+    Returns:
+        float: 动态调整后的权重
+    """
+    weight = base_weight
+
+    # 检测衰减：F1 分数低于阈值
+    if f1_score < decay_threshold:
+        weight *= decay_penalty
+
+    # 检测改进：F1 分数超过基准（假设基准为 0.6）
+    baseline_f1 = 0.6
+    if f1_score > baseline_f1 + improvement_threshold:
+        weight *= improvement_bonus
+
+    return max(min_weight, min(weight, max_weight))
+
+
+class ConfidenceCalculator:
+    """
+    置信度计算器
+
+    整合各种置信度计算方法，提供统一的接口。
+    """
+
+    def __init__(self, config: Optional[ConfidenceConfig] = None):
+        """
+        Args:
+            config: 置信度配置（从数据库读取）
+        """
+        self.config = config or ConfidenceConfig.defaults()
+
+    def calculate_from_freshness(
+        self,
+        days_since_update: int,
+        has_daily_data: bool = False,
+        has_weekly_data: bool = False,
+        daily_consistent: bool = False
+    ) -> ConfidenceBreakdown:
+        """
+        基于数据新鲜度计算置信度
+        """
+        return calculate_confidence(
+            base_confidence=self.config.base_confidence,
+            days_since_update=days_since_update,
+            has_daily_data=has_daily_data,
+            has_weekly_data=has_weekly_data,
+            daily_consistent=daily_consistent,
+            config=self.config
+        )
+
+    def calculate_bayesian(
+        self,
+        indicators: TypingList[IndicatorPredictivePower],
+        base_prior: float = 0.5
+    ) -> RegimeProbabilities:
+        """
+        贝叶斯框架计算概率分布
+        """
+        return calculate_bayesian_confidence(
+            indicators=indicators,
+            base_prior=base_prior,
+            config=self.config
+        )
+
+    def resolve_conflict(
+        self,
+        daily_signal: str,
+        weekly_signal: Optional[str],
+        monthly_signal: str,
+        daily_confidence: float,
+        monthly_confidence: float,
+        daily_duration: int
+    ) -> SignalConflict:
+        """
+        解决信号冲突
+        """
+        return resolve_signal_conflict(
+            daily_signal=daily_signal,
+            weekly_signal=weekly_signal,
+            monthly_signal=monthly_signal,
+            daily_confidence=daily_confidence,
+            monthly_confidence=monthly_confidence,
+            daily_duration=daily_duration
+        )

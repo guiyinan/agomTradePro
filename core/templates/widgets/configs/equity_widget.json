@@ -1,0 +1,82 @@
+{
+    "widgetId": "equity-screen",
+    "title": "个股筛选指南",
+    "icon": "🔍",
+    "position": "bottom-right",
+    "sections": [
+        {
+            "id": "overview",
+            "title": "筛选功能",
+            "type": "content",
+            "content": "<p>个股筛选系统通过多维度评分模型，从A股市场中筛选出符合特定条件的优质股票，帮助投资者构建投资组合。</p><div class=\"info-box\"><strong>核心逻辑：</strong>基本面 + 技术面 + 市场表现的综合评分</div>"
+        },
+        {
+            "id": "scoring",
+            "title": "评分公式详解",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "估值评分 (Valuation Score)",
+                    "content": "<p><strong>衡量标准：</strong>股票价格是否被低估</p><p><strong>主要指标：</strong></p><ul><li><strong>PE（市盈率）：</strong>越低越好</li><li><strong>PB（市净率）：</strong>越低越好</li><li><strong>PS（市销率）：</strong>越低越好</li></ul><p><strong>评分逻辑：</strong></p><ul><li>与历史分位数比较</li><li>与行业平均比较</li><li>综合考虑成长性</li></ul><div class=\"success-box\">低估值是安全边际的重要来源</div>"
+                },
+                {
+                    "title": "成长评分 (Growth Score)",
+                    "content": "<p><strong>衡量标准：</strong>公司业绩增长能力</p><p><strong>主要指标：</strong></p><ul><li><strong>营收增长率：</strong>越高越好</li><li><strong>净利润增长率：</strong>越高越好</li><li><strong>ROE（净资产收益率）：</strong>越高越好</li></ul><p><strong>评分逻辑：</strong></p><ul><li>近3年复合增长率</li><li>增长稳定性</li><li>行业相对表现</li></ul><div class=\"info-box\">高成长是股价上涨的核心驱动力</div>"
+                },
+                {
+                    "title": "盈利评分 (Quality Score)",
+                    "content": "<p><strong>衡量标准：</strong>公司盈利能力和质量</p><p><strong>主要指标：</strong></p><ul><li><strong>ROE：</strong>> 15% 为优秀</li><li><strong>ROA：</strong>> 8% 为优秀</li><li><strong>毛利率：</strong>行业比较</li><li><strong>净利率：</strong>稳定性</li></ul><p><strong>评分逻辑：</strong></p><ul><li>绝对水平评估</li><li>历史趋势分析</li><li>行业对比</li></ul><div class=\"success-box\">高ROE公司通常具有护城河</div>"
+                },
+                {
+                    "title": "技术评分 (Technical Score)",
+                    "content": "<p><strong>衡量标准：</strong>股价技术面表现</p><p><strong>主要指标：</strong></p><ul><li><strong>趋势：</strong>均线排列</li><li><strong>动量：</strong>相对强度</li><li><strong>成交量：</strong>资金流入</li><li><strong>波动率：</strong>风险控制</li></ul><p><strong>评分逻辑：</strong></p><ul><li>多时间周期分析</li><li>相对市场表现</li><li>量价配合度</li></ul><div class=\"warning-box\">技术面作为辅助，不能作为主要依据</div>"
+                },
+                {
+                    "title": "综合评分",
+                    "content": "<p><strong>计算公式：</strong></p><p style=\"font-family: monospace; background: var(--color-surface); padding: 8px; border-radius: 4px;\">综合评分 = W1×估值评分 + W2×成长评分 + W3×盈利评分 + W4×技术评分</p><p><strong>权重配置：</strong></p><ul><li>价值风格：W1=40%, W2=30%, W3=20%, W4=10%</li><li>成长风格：W1=20%, W2=40%, W3=30%, W4=10%</li><li>平衡风格：W1=30%, W2=30%, W3=30%, W4=10%</li></ul><div class=\"info-box\">权重可在系统设置中自定义调整</div>"
+                }
+            ]
+        },
+        {
+            "id": "filters",
+            "title": "筛选条件说明",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "市值筛选",
+                    "content": "<p><strong>大盘股：</strong>市值 > 500亿</p><p><strong>中盘股：</strong>100亿 < 市值 ≤ 500亿</p><p><strong>小盘股：</strong>市值 ≤ 100亿</p><div class=\"info-box\">大盘股稳定性好，小盘股成长性强</div>"
+                },
+                {
+                    "title": "行业筛选",
+                    "content": "<p>根据当前 Regime 环境选择优势行业：</p><ul><li><strong>复苏期：</strong>周期、金融</li><li><strong>过热期：</strong>能源、材料</li><li><strong>通缩期：</strong>消费、医药</li><li><strong>滞胀期：</strong>必需消费、公用事业</li></ul>"
+                },
+                {
+                    "title": "流动性筛选",
+                    "content": "<p><strong>日均成交额：</strong>确保股票有足够流动性</p><p><strong>建议：</strong></p><ul><li>大盘股：> 1亿</li><li>中盘股：> 5000万</li><li>小盘股：> 2000万</li></ul><div class=\"warning-box\">流动性不足可能导致卖出困难</div>"
+                },
+                {
+                    "title": "ST/退市风险",
+                    "content": "<p><strong>默认过滤：</strong></p><ul><li>ST 股票（特别处理）</li><li>*ST 股票（退市风险警示）</li><li>退市整理期股票</li></ul><p><strong>原因：</strong>这些股票风险过高，不适合一般投资者</p><div class=\"warning-box\">不建议一般投资者参与ST股票</div>"
+                }
+            ]
+        },
+        {
+            "id": "usage",
+            "title": "使用建议",
+            "type": "content",
+            "content": "<p><strong>1. 不要过度筛选：</strong>条件太多可能错过好股票</p><p><strong>2. 关注评分变化：</strong>定期跟踪股票评分变化</p><p><strong>3. 结合人工判断：</strong>系统只是工具，最终决策需要人工判断</p><p><strong>4. 控制仓位：</strong>单只股票不要超过总仓位的10%</p><p><strong>5. 分散投资：</strong>选择不同行业的股票分散风险</p><div class=\"success-box\"><strong>最佳实践：</strong>筛选出5-10只高分股票构建组合</div>"
+        }
+    ],
+    "actions": [
+        {
+            "label": "股票池管理",
+            "icon": "📊",
+            "url": "/equity/pool/"
+        },
+        {
+            "label": "自选股",
+            "icon": "⭐",
+            "url": "/equity/screen/?watchlist=true"
+        }
+    ]
+}

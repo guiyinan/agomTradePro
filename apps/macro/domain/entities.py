@@ -77,6 +77,20 @@ class PeriodType(Enum):
     YEAR = 'Y'     # 年度数据
 
 
+class RegimeSensitivity(Enum):
+    """指标对Regime变化的敏感度"""
+    HIGH = 'HIGH'      # 高敏感：期限利差、信用利差等
+    MEDIUM = 'MEDIUM'  # 中敏感：国债收益率、商品指数
+    LOW = 'LOW'        # 低敏感：辅助指标
+
+
+class SignalDirection(Enum):
+    """信号方向"""
+    BULLISH = 'BULLISH'      # 看多：增长预期上升
+    BEARISH = 'BEARISH'      # 看空：衰退预期上升
+    NEUTRAL = 'NEUTRAL'      # 中性：无明确信号
+
+
 @dataclass(frozen=True)
 class MacroIndicator:
     """宏观指标值对象
@@ -120,3 +134,172 @@ class MacroIndicator:
         if isinstance(self.period_type, str):
             # 如果传入的是字符串，转换为枚举
             object.__setattr__(self, 'period_type', PeriodType(self.period_type))
+
+
+@dataclass(frozen=True)
+class HighFrequencyIndicator:
+    """高频宏观指标值对象
+
+    用于日度/周度级别的高频宏观数据，如国债收益率、期限利差、信用利差等。
+    这些指标用于减少 Regime 判定的滞后性。
+
+    Attributes:
+        code: 指标代码（如 CN_BOND_10Y, CN_TERM_SPREAD_10Y2Y）
+        name: 指标名称（如 "10年期国债收益率"）
+        value: 指标值
+        unit: 单位（%, BP, 点）
+        date: 观测日期
+        period_type: 期间类型（D=日度, W=周度）
+        regime_sensitivity: Regime敏感度（HIGH/MEDIUM/LOW）
+        predictive_power: 预测能力评分（0-1，基于历史回测）
+        lead_time_months: 领先月数（如：6表示领先6个月）
+        source: 数据源（akshare, wind, etc.）
+    """
+    code: str
+    name: str
+    value: float
+    unit: str
+    date: date
+    period_type: PeriodType
+    regime_sensitivity: RegimeSensitivity
+    predictive_power: float = 0.5
+    lead_time_months: Optional[int] = None
+    source: str = "unknown"
+
+    def to_macro_indicator(self) -> MacroIndicator:
+        """转换为 MacroIndicator 实体（用于存储）"""
+        return MacroIndicator(
+            code=self.code,
+            value=self.value,
+            reporting_period=self.date,
+            period_type=self.period_type,
+            unit=self.unit,
+            original_unit=self.unit,
+            published_at=self.date,
+            source=self.source
+        )
+
+
+@dataclass(frozen=True)
+class RegimeSignal:
+    """Regime信号值对象
+
+    表示基于高频指标生成的 Regime 切换信号。
+
+    Attributes:
+        indicator_code: 触发信号的指标代码
+        direction: 信号方向（BULLISH/BEARISH/NEUTRAL）
+        strength: 信号强度（0-1）
+        confidence: 信号置信度（0-1）
+        signal_date: 信号生成日期
+        regime_sensitivity: 指标敏感度
+        lead_time_months: 领先月数
+        source: 信号来源（DAILY_HIGH_FREQ, WEEKLY, MONTHLY）
+    """
+    indicator_code: str
+    direction: SignalDirection
+    strength: float
+    confidence: float
+    signal_date: date
+    regime_sensitivity: RegimeSensitivity
+    lead_time_months: Optional[int] = None
+    source: str = "DAILY_HIGH_FREQ"
+
+    @property
+    def is_bullish(self) -> bool:
+        """是否为看多信号"""
+        return self.direction == SignalDirection.BULLISH
+
+    @property
+    def is_bearish(self) -> bool:
+        """是否为看空信号"""
+        return self.direction == SignalDirection.BEARISH
+
+    @property
+    def is_neutral(self) -> bool:
+        """是否为中性信号"""
+        return self.direction == SignalDirection.NEUTRAL
+
+    @property
+    def is_high_confidence(self) -> bool:
+        """是否为高置信度信号"""
+        return self.confidence >= 0.7
+
+    @property
+    def is_high_sensitivity(self) -> bool:
+        """是否来自高敏感度指标"""
+        return self.regime_sensitivity == RegimeSensitivity.HIGH
+
+
+@dataclass(frozen=True)
+class BondYieldCurve:
+    """国债收益率曲线值对象
+
+    表示某日的国债收益率曲线状态。
+
+    Attributes:
+        date: 观测日期
+        bond_10y: 10年期国债收益率
+        bond_5y: 5年期国债收益率
+        bond_2y: 2年期国债收益率
+        bond_1y: 1年期国债收益率（可选）
+        term_spread_10y2y: 期限利差(10Y-2Y)
+        term_spread_10y1y: 期限利差(10Y-1Y)
+        is_inverted: 曲线是否倒挂
+        inversion_severity: 倒挂严重程度（BP，0表示未倒挂）
+    """
+    date: date
+    bond_10y: float
+    bond_5y: float
+    bond_2y: float
+    bond_1y: Optional[float] = None
+    term_spread_10y2y: float = 0.0
+    term_spread_10y1y: Optional[float] = None
+    is_inverted: bool = False
+    inversion_severity: float = 0.0
+
+    @property
+    def curve_shape(self) -> str:
+        """收益率曲线形状"""
+        if self.is_inverted:
+            return "INVERTED"
+        elif self.term_spread_10y2y < 0.5:
+            return "FLAT"
+        elif self.term_spread_10y2y > 1.5:
+            return "STEEP"
+        else:
+            return "NORMAL"
+
+
+@dataclass(frozen=True)
+class CreditSpreadIndicator:
+    """信用利差指标值对象
+
+    表示某日的信用利差状态。
+
+    Attributes:
+        date: 观测日期
+        spread_10y: 10年期信用利差（BP）
+        aaa_yield: AAA级企业债收益率（%）
+        baa_yield: BAA级企业债收益率（%）
+        treasury_10y: 10年期国债收益率（%）
+        warning_level: 预警等级（NORMAL/WARNING/DANGER）
+        spread_percentile: 历史分位数（0-100）
+    """
+    date: date
+    spread_10y: float
+    aaa_yield: float
+    baa_yield: float
+    treasury_10y: float
+    warning_level: str = "NORMAL"
+    spread_percentile: float = 50.0
+
+    @property
+    def is_stressed(self) -> bool:
+        """信用市场是否压力状态"""
+        return self.warning_level in ["WARNING", "DANGER"]
+
+    @property
+    def stress_level(self) -> float:
+        """压力等级（0-1）"""
+        return self.spread_percentile / 100.0

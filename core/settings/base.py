@@ -61,6 +61,10 @@ INSTALLED_APPS = [
     'apps.simulated_trading', # 新增：模拟盘自动交易模块
     'apps.strategy',       # 新增：投资组合策略系统
     'apps.realtime',       # 新增：实时价格监控模块
+
+    # ========== 新模块：决策流程优化 ==========
+    'apps.decision_rhythm', # 决策频率约束模块（新增）
+    'apps.events',         # 事件总线模块（新增）
 ]
 
 MIDDLEWARE = [
@@ -251,6 +255,42 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(hour=9, minute=0),  # 每天上午 9:00
     },
     # ============================================
+
+    # ========== Phase 1: 高频数据同步（日度Regime信号）==========
+    'high-frequency-sync-bonds': {
+        'task': 'apps.macro.application.tasks.sync_high_frequency_bonds',
+        'schedule': crontab(hour=16, minute=30, day_of_week='mon-fri'),  # 每个交易日 16:30（收盘后）
+        'options': {
+            'source': 'akshare',
+            'years_back': 1,
+            'expires': 3600,  # 1 小时超时
+        }
+    },
+    'high-frequency-sync-commodities': {
+        'task': 'apps.macro.application.tasks.sync_high_frequency_commodities',
+        'schedule': crontab(hour=16, minute=35, day_of_week='mon-fri'),  # 每个交易日 16:35
+        'options': {
+            'source': 'akshare',
+            'years_back': 1,
+            'expires': 3600,
+        }
+    },
+    'high-frequency-generate-signal': {
+        'task': 'apps.macro.application.tasks.generate_daily_regime_signal',
+        'schedule': crontab(hour=17, minute=0, day_of_week='mon-fri'),  # 每个交易日 17:00
+        'options': {
+            'expires': 1800,  # 30 分钟超时
+        }
+    },
+    'high-frequency-recalculate-regime': {
+        'task': 'apps.macro.application.tasks.recalculate_regime_with_daily_signal',
+        'schedule': crontab(hour=17, minute=5, day_of_week='mon-fri'),  # 每个交易日 17:05
+        'options': {
+            'use_pit': True,
+            'expires': 1800,
+        }
+    },
+    # ============================================================
 
     # ========== 模拟盘自动交易 ==========
     'simulated-daily-auto-trading': {

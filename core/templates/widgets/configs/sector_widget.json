@@ -1,0 +1,84 @@
+{
+    "widgetId": "sector-analysis",
+    "title": "板块分析指南",
+    "icon": "🏢",
+    "position": "bottom-right",
+    "sections": [
+        {
+            "id": "overview",
+            "title": "板块分析系统",
+            "type": "content",
+            "content": "<p>板块分析系统帮助投资者识别当前市场中的强势和弱势板块，通过行业轮动策略，在不同宏观环境下配置优势板块。</p><div class=\"info-box\"><strong>核心理念：</strong>选择比努力更重要，在正确的时间选择正确的行业</div>"
+        },
+        {
+            "id": "regime-sector",
+            "title": "Regime与行业配置",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "复苏期配置",
+                    "content": "<p><strong>宏观特征：</strong>PMI>50，CPI低</p><p><strong>优势板块：</strong></p><ul><li><strong>金融：</strong>券商、银行（受益于经济复苏）</li><li><strong>周期：</strong>化工、建材、有色</li><li><strong>可选消费：</strong>家电、汽车</li></ul><p><strong>配置建议：</strong>进攻型配置，重点配置金融和周期</p><div class=\"success-box\">经济复苏期，早周期行业表现最佳</div>"
+                },
+                {
+                    "title": "过热期配置",
+                    "content": "<p><strong>宏观特征：</strong>PMI>50，CPI高</p><p><strong>优势板块：</strong></p><ul><li><strong>能源：</strong>石油、煤炭、天然气</li><li><strong>材料：</strong>钢铁、有色金属</li><li><strong>大宗商品：</strong>受益于通胀</li></ul><p><strong>配置建议：</strong>配置通胀受益板块，降低成长股仓位</p><div class=\"warning-box\">通胀高企时，大宗商品板块表现突出</div>"
+                },
+                {
+                    "title": "通缩期配置",
+                    "content": "<p><strong>宏观特征：</strong>PMI<50，CPI低</p><p><strong>优势板块：</strong></p><ul><li><strong>必选消费：</strong>食品饮料、医药</li><li><strong>公用事业：</strong>电力、水务</li><li><strong>高股息：</strong>银行、地产</li></ul><p><strong>配置建议：</strong>防御型配置，关注稳定收益板块</p><div class=\"info-box\">经济下行期，防御板块具有相对优势</div>"
+                },
+                {
+                    "title": "滞胀期配置",
+                    "content": "<p><strong>宏观特征：</strong>PMI<50，CPI高</p><p><strong>优势板块：</strong></p><ul><li><strong>黄金：</strong>避险资产</li><li><strong>现金：</strong>持有货币</li><li><strong>稳定行业：</strong>必需消费</li></ul><p><strong>配置建议：</strong>极度保守，以现金为主</p><div class=\"warning-box\">滞胀是最困难的宏观环境，现金为王</div>"
+                }
+            ]
+        },
+        {
+            "id": "rotation",
+            "title": "行业轮动策略",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "早周期行业",
+                    "content": "<p><strong>特征：</strong>对经济复苏敏感，率先受益</p><p><strong>代表行业：</strong></p><ul><li>银行、券商</li><li>地产、建材</li><li>可选消费</li></ul><p><strong>启动信号：</strong>PMI开始回升，利率开始下行</p><div class=\"success-box\">经济复苏初期，早周期行业率先启动</div>"
+                },
+                {
+                    "title": "中周期行业",
+                    "content": "<p><strong>特征：</strong>经济复苏确认后开始表现</p><p><strong>代表行业：</strong></p><ul><li>机械设备</li><li>化工</li><li>交通运输</li></ul><p><strong>启动信号：</strong>PMI持续高于50，企业盈利改善</p>"
+                },
+                {
+                    "title": "晚周期行业",
+                    "content": "<p><strong>特征：</strong>经济繁荣期表现最好</p><p><strong>代表行业：</strong></p><ul><li>能源、材料</li><li>信息技术</li></ul><p><strong>启动信号：</strong>经济过热，通胀上升</p>"
+                },
+                {
+                    "title": "防御型行业",
+                    "content": "<p><strong>特征：</strong>经济下行期相对抗跌</p><p><strong>代表行业：</strong></p><ul><li>必选消费</li><li>医药生物</li><li>公用事业</li></ul><p><strong>配置时机：</strong>经济下行风险加大</p><div class=\"info-box\">防御行业是熊市的避风港</div>"
+                }
+            ]
+        },
+        {
+            "id": "indicators",
+            "title": "板块强度指标",
+            "type": "content",
+            "content": "<p><strong>相对强度：</strong></p><p>板块相对大盘的表现，>1表示跑赢大盘</p><p><strong>资金流入：</strong></p><p>主力资金净流入，正流入表示资金看好</p><p><strong>涨跌幅：</strong></p><p>近期涨跌幅，涨幅居前表示市场热点</p><p><strong>换手率：</strong></p><p>交易活跃度，换手率高表示市场关注度高</p><div class=\"warning-box\">多个指标共同验证更可靠</div>"
+        },
+        {
+            "id": "strategy",
+            "title": "配置策略",
+            "type": "content",
+            "content": "<p><strong>策略1：单板块集中</strong></p><p>选择最强势的板块，集中配置30%-50%仓位</p><p><strong>策略2：多板块分散</strong></p><p>选择3-5个强势板块，每个配置10%-20%</p><p><strong>策略3：动态轮动</strong></p><p>根据板块强度变化，定期调整配置</p><div class=\"success-box\"><strong>建议：</strong>普通投资者适合多板块分散策略</div>"
+        }
+    ],
+    "actions": [
+        {
+            "label": "板块强度",
+            "icon": "📊",
+            "url": "/sector/strength/"
+        },
+        {
+            "label": "资金流向",
+            "icon": "💰",
+            "url": "/sector/flow/"
+        }
+    ]
+}

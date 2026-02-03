@@ -201,3 +201,374 @@ class ExperienceSummary(models.Model):
 
     def __str__(self):
         return f"{self.get_priority_display()}: {self.lesson[:50]}"
+
+
+# ============ 指标表现评估相关 Models ============
+
+class IndicatorPerformanceModel(models.Model):
+    """指标表现历史记录
+
+    存储指标的历史表现评估结果。
+    """
+
+    indicator_code = models.CharField(
+        max_length=50,
+        db_index=True,
+        verbose_name='指标代码'
+    )
+    evaluation_period_start = models.DateField(verbose_name='评估起始日期')
+    evaluation_period_end = models.DateField(verbose_name='评估结束日期')
+
+    # 混淆矩阵
+    true_positive_count = models.IntegerField(default=0, verbose_name='真阳性数')
+    false_positive_count = models.IntegerField(default=0, verbose_name='假阳性数')
+    true_negative_count = models.IntegerField(default=0, verbose_name='真阴性数')
+    false_negative_count = models.IntegerField(default=0, verbose_name='假阴性数')
+
+    # 统计指标
+    precision = models.FloatField(null=True, verbose_name='精确率')
+    recall = models.FloatField(null=True, verbose_name='召回率')
+    f1_score = models.FloatField(null=True, verbose_name='F1 分数')
+    accuracy = models.FloatField(null=True, verbose_name='准确率')
+
+    # 领先时间
+    lead_time_mean = models.FloatField(default=0.0, verbose_name='平均领先时间(月)')
+    lead_time_std = models.FloatField(default=0.0, verbose_name='领先时间标准差')
+
+    # 稳定性
+    pre_2015_correlation = models.FloatField(null=True, verbose_name='2015年前相关性')
+    post_2015_correlation = models.FloatField(null=True, verbose_name='2015年后相关性')
+    stability_score = models.FloatField(default=0.0, verbose_name='稳定性分数')
+
+    # 信号特征
+    decay_rate = models.FloatField(default=0.0, verbose_name='信号衰减率')
+    signal_strength = models.FloatField(default=0.0, verbose_name='信号强度')
+
+    # 建议
+    recommended_action = models.CharField(
+        max_length=20,
+        null=True,
+        verbose_name='建议操作'
+    )
+    recommended_weight = models.FloatField(default=0.0, verbose_name='建议权重')
+    confidence_level = models.FloatField(default=0.0, verbose_name='置信度')
+
+    # 元数据
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'audit_indicator_performance'
+        ordering = ['-evaluation_period_end', '-f1_score']
+        verbose_name = '指标表现记录'
+        verbose_name_plural = '指标表现记录'
+        indexes = [
+            models.Index(fields=['indicator_code', '-evaluation_period_end']),
+        ]
+
+    def __str__(self):
+        return f"{self.indicator_code}: F1={self.f1_score:.3f}"
+
+
+class IndicatorThresholdConfigModel(models.Model):
+    """指标阈值配置（所有阈值从数据库读取，不硬编码）
+
+    存储各指标的阈值配置、权重配置和验证参数。
+    """
+
+    indicator_code = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name='指标代码'
+    )
+    indicator_name = models.CharField(
+        max_length=100,
+        verbose_name='指标名称'
+    )
+
+    # 阈值定义
+    level_low = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name='低水平阈值',
+        help_text='低水平阈值（如 PMI < 50 为收缩）'
+    )
+    level_high = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name='高水平阈值',
+        help_text='高水平阈值（如 PMI > 50 为扩张）'
+    )
+
+    # 权重配置
+    base_weight = models.FloatField(
+        default=1.0,
+        verbose_name='基础权重',
+        help_text='指标的基础权重（0-1）'
+    )
+    min_weight = models.FloatField(
+        default=0.0,
+        verbose_name='最小权重'
+    )
+    max_weight = models.FloatField(
+        default=1.0,
+        verbose_name='最大权重'
+    )
+
+    # 验证阈值（可调整）
+    decay_threshold = models.FloatField(
+        default=0.2,
+        verbose_name='衰减阈值',
+        help_text='F1 分数低于此值视为衰减'
+    )
+    decay_penalty = models.FloatField(
+        default=0.5,
+        verbose_name='衰减惩罚系数'
+    )
+    improvement_threshold = models.FloatField(
+        default=0.1,
+        verbose_name='改进阈值'
+    )
+    improvement_bonus = models.FloatField(
+        default=1.2,
+        verbose_name='改进奖励系数'
+    )
+
+    # 行为阈值
+    action_thresholds = models.JSONField(
+        default=dict,
+        verbose_name='行为阈值配置',
+        help_text='{"keep_min_f1": 0.6, "reduce_min_f1": 0.4, "remove_max_f1": 0.3}'
+    )
+
+    # 分段验证配置
+    validation_periods = models.JSONField(
+        default=list,
+        verbose_name='分段验证配置',
+        help_text='[{"name": "刚兑时期", "start": "2005-01-01", "end": "2017-12-31"}]'
+    )
+
+    # 指标类别
+    category = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name='指标类别',
+        help_text='如 growth, inflation, sentiment'
+    )
+
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name='是否启用'
+    )
+
+    # 元数据
+    description = models.TextField(
+        blank=True,
+        verbose_name='说明'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'audit_indicator_threshold_config'
+        ordering = ['category', 'indicator_code']
+        verbose_name = '指标阈值配置'
+        verbose_name_plural = '指标阈值配置'
+
+    def __str__(self):
+        return f"{self.indicator_code}: low={self.level_low}, high={self.level_high}, weight={self.base_weight}"
+
+
+class ValidationSummaryModel(models.Model):
+    """验证摘要
+
+    记录每次验证运行的总体结果。
+    """
+
+    validation_run_id = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name='验证运行ID'
+    )
+    run_date = models.DateTimeField(auto_now_add=True, verbose_name='运行日期')
+
+    evaluation_period_start = models.DateField(verbose_name='评估起始日期')
+    evaluation_period_end = models.DateField(verbose_name='评估结束日期')
+
+    total_indicators = models.IntegerField(default=0, verbose_name='总指标数')
+    approved_indicators = models.IntegerField(default=0, verbose_name='通过指标数')
+    rejected_indicators = models.IntegerField(default=0, verbose_name='拒绝指标数')
+    pending_indicators = models.IntegerField(default=0, verbose_name='待定指标数')
+
+    # 总体统计
+    avg_f1_score = models.FloatField(null=True, verbose_name='平均F1分数')
+    avg_stability_score = models.FloatField(null=True, verbose_name='平均稳定性分数')
+
+    # 总体建议
+    overall_recommendation = models.TextField(
+        blank=True,
+        verbose_name='总体建议'
+    )
+
+    # 验证状态
+    STATUS_CHOICES = [
+        ('pending', '待验证'),
+        ('in_progress', '验证中'),
+        ('completed', '已完成'),
+        ('failed', '失败'),
+    ]
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        verbose_name='状态'
+    )
+
+    # 影子模式标记
+    is_shadow_mode = models.BooleanField(
+        default=False,
+        verbose_name='是否为影子模式'
+    )
+
+    # 错误信息
+    error_message = models.TextField(
+        blank=True,
+        verbose_name='错误信息'
+    )
+
+    class Meta:
+        db_table = 'audit_validation_summary'
+        ordering = ['-run_date']
+        verbose_name = '验证摘要'
+        verbose_name_plural = '验证摘要'
+
+    def __str__(self):
+        return f"Validation {self.validation_run_id}: {self.approved_indicators}/{self.total_indicators} passed"
+
+
+# ============ Phase 4: Confidence Configuration Models ============
+
+class ConfidenceConfigModel(models.Model):
+    """置信度配置（Phase 4）
+
+    存储置信度计算的所有可配置参数。
+    所有阈值从数据库读取，不硬编码。
+    """
+
+    # 新鲜度系数
+    day_0_coefficient = models.FloatField(
+        default=0.6,
+        verbose_name='发布当天系数',
+        help_text='数据发布当天的置信度系数'
+    )
+    day_7_coefficient = models.FloatField(
+        default=0.5,
+        verbose_name='发布1周后系数',
+        help_text='数据发布1周后的置信度系数'
+    )
+    day_14_coefficient = models.FloatField(
+        default=0.4,
+        verbose_name='发布2周后系数',
+        help_text='数据发布2周后的置信度系数'
+    )
+    day_30_coefficient = models.FloatField(
+        default=0.3,
+        verbose_name='发布1月后系数',
+        help_text='数据发布1个月后的置信度系数'
+    )
+
+    # 数据类型加成
+    daily_data_bonus = models.FloatField(
+        default=0.2,
+        verbose_name='日度数据加成',
+        help_text='有日度数据支持时的置信度加成'
+    )
+    weekly_data_bonus = models.FloatField(
+        default=0.1,
+        verbose_name='周度数据加成',
+        help_text='有周度数据支持时的置信度加成'
+    )
+    daily_consistency_bonus = models.FloatField(
+        default=0.1,
+        verbose_name='日度一致性加成',
+        help_text='日度数据与月度数据一致时的加成'
+    )
+
+    # 基础置信度
+    base_confidence = models.FloatField(
+        default=0.5,
+        verbose_name='基础置信度',
+        help_text='默认的基础置信度'
+    )
+
+    # 信号冲突解决阈值
+    daily_persist_threshold = models.IntegerField(
+        default=10,
+        verbose_name='日度持续阈值',
+        help_text='日度信号持续多少天后采用日度信号'
+    )
+    hybrid_weight_daily = models.FloatField(
+        default=0.3,
+        verbose_name='混合日度权重',
+        help_text='混合模式中日度信号的权重'
+    )
+    hybrid_weight_monthly = models.FloatField(
+        default=0.7,
+        verbose_name='混合月度权重',
+        help_text='混合模式中月度信号的权重'
+    )
+
+    # 权重动态调整参数
+    decay_threshold = models.FloatField(
+        default=0.2,
+        verbose_name='衰减阈值',
+        help_text='F1分数低于此值视为衰减'
+    )
+    decay_penalty = models.FloatField(
+        default=0.5,
+        verbose_name='衰减惩罚系数',
+        help_text='衰减后权重乘以该系数'
+    )
+    improvement_threshold = models.FloatField(
+        default=0.1,
+        verbose_name='改进阈值',
+        help_text='F1提升超过此值给予奖励'
+    )
+    improvement_bonus = models.FloatField(
+        default=1.2,
+        verbose_name='改进奖励系数',
+        help_text='改进后权重乘以该系数'
+    )
+
+    # 元数据
+    description = models.TextField(
+        blank=True,
+        verbose_name='说明'
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name='是否启用'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'audit_confidence_config'
+        verbose_name = '置信度配置'
+        verbose_name_plural = '置信度配置'
+
+    def __str__(self):
+        return f"ConfidenceConfig: base={self.base_confidence}, active={self.is_active}"
+
+    def to_domain_config(self):
+        """转换为 Domain 层的 ConfidenceConfig 实体"""
+        from apps.regime.domain.entities import ConfidenceConfig
+        return ConfidenceConfig(
+            day_0_coefficient=self.day_0_coefficient,
+            day_7_coefficient=self.day_7_coefficient,
+            day_14_coefficient=self.day_14_coefficient,
+            day_30_coefficient=self.day_30_coefficient,
+            daily_data_bonus=self.daily_data_bonus,
+            weekly_data_bonus=self.weekly_data_bonus,
+            daily_consistency_bonus=self.daily_consistency_bonus,
+            base_confidence=self.base_confidence,
+        )

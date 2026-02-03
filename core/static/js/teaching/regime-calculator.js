@@ -281,31 +281,33 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // 添加快捷按钮样式
-const style = document.createElement('style');
-style.textContent = `
-    .input-shortcuts {
-        display: flex;
-        gap: 8px;
-        margin-top: 8px;
-        flex-wrap: wrap;
-    }
-    .shortcut-btn {
-        padding: 4px 10px;
-        background: var(--color-bg, #ffffff);
-        border: 1px solid var(--color-border, #e2e8f0);
-        border-radius: 4px;
-        font-size: 12px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    .shortcut-btn:hover {
-        background: var(--color-surface, #f8fafc);
-        border-color: var(--color-primary, #3366cc);
-    }
-    .shortcut-btn.preset {
-        background: var(--color-primary-light, #e8f0fe);
-        border-color: var(--color-primary, #3366cc);
-        color: var(--color-primary, #3366cc);
-    }
-`;
-document.head.appendChild(style);
+(function() {
+    const style = document.createElement('style');
+    style.textContent = `
+        .input-shortcuts {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .shortcut-btn {
+            padding: 4px 10px;
+            background: var(--color-bg, #ffffff);
+            border: 1px solid var(--color-border, #e2e8f0);
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .shortcut-btn:hover {
+            background: var(--color-surface, #f8fafc);
+            border-color: var(--color-primary, #3366cc);
+        }
+        .shortcut-btn.preset {
+            background: var(--color-primary-light, #e8f0fe);
+            border-color: var(--color-primary, #3366cc);
+            color: var(--color-primary, #3366cc);
+        }
+    `;
+    document.head.appendChild(style);
+})();

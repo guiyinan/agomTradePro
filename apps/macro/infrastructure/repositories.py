@@ -49,7 +49,8 @@ class DjangoMacroRepository:
     def save_indicator(
         self,
         indicator: MacroIndicator,
-        revision_number: int = 1
+        revision_number: int = 1,
+        period_type_override: Optional[str] = None
     ) -> MacroIndicator:
         """
         保存单个指标
@@ -57,15 +58,19 @@ class DjangoMacroRepository:
         Args:
             indicator: 指标实体
             revision_number: 修订版本号
+            period_type_override: 覆盖 period_type 值（用于 ORM 层存储扩展类型如 10Y）
 
         Returns:
             MacroIndicator: 保存后的指标
         """
-        # 获取 period_type 值
-        period_type_value = (
-            indicator.period_type.value if isinstance(indicator.period_type, PeriodType)
-            else indicator.period_type
-        )
+        # 获取 period_type 值（使用 override 或从 entity 获取）
+        if period_type_override:
+            period_type_value = period_type_override
+        else:
+            period_type_value = (
+                indicator.period_type.value if isinstance(indicator.period_type, PeriodType)
+                else indicator.period_type
+            )
 
         # 检查是否已存在
         existing = self._model.objects.filter(
@@ -79,6 +84,7 @@ class DjangoMacroRepository:
             existing.value = indicator.value
             existing.published_at = indicator.published_at
             existing.source = indicator.source
+            # 使用 period_type_value（可能包含 override）
             existing.period_type = period_type_value
             existing.unit = indicator.unit
             existing.original_unit = indicator.original_unit
@@ -548,8 +554,16 @@ class DjangoMacroRepository:
     @staticmethod
     def _orm_to_entity(orm_obj: MacroIndicatorORM) -> MacroIndicator:
         """将 ORM 对象转换为 Domain 实体"""
-        # 将 period_type 字符串转换为枚举
-        period_type = PeriodType(orm_obj.period_type) if orm_obj.period_type else PeriodType.DAY
+        # 尝试将 period_type 字符串转换为枚举
+        # 如果失败（如扩展类型 10Y, 5Y 等），使用 PeriodType.DAY
+        try:
+            if orm_obj.period_type:
+                period_type = PeriodType(orm_obj.period_type)
+            else:
+                period_type = PeriodType.DAY
+        except (ValueError, KeyError):
+            # 扩展类型（如 10Y, 5Y 等）不匹配枚举，使用 DAY 作为默认
+            period_type = PeriodType.DAY
 
         return MacroIndicator(
             code=orm_obj.code,

@@ -86,4 +86,8 @@ urlpatterns = [
 
     # Policy Management (包含页面和API)
     path('policy/', include('apps.policy.interface.urls')),
+
+    # ========== 新模块：决策流程优化 ==========
+    # Decision Rhythm - 决策频率约束（新增）
+    path('', include('apps.decision_rhythm.interface.urls')),
 ]

@@ -1,0 +1,93 @@
+{
+    "widgetId": "strategy-detail",
+    "title": "策略系统指南",
+    "icon": "⚙️",
+    "position": "bottom-right",
+    "sections": [
+        {
+            "id": "overview",
+            "title": "策略系统",
+            "type": "content",
+            "content": "<p>策略系统允许用户创建自定义的投资策略，通过可视化规则编辑器定义买入/卖出条件，并支持回测验证和模拟盘实盘运行。</p><div class=\"info-box\"><strong>核心价值：</strong>将投资思路系统化、规则化，避免情绪化决策</div>"
+        },
+        {
+            "id": "create",
+            "title": "创建策略",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "策略基本信息",
+                    "content": "<p><strong>策略名称：</strong>简洁易记的名称</p><p><strong>策略描述：</strong>详细说明策略逻辑</p><p><strong>策略类型：</strong></p><ul><li>趋势跟踪</li><li>均值回归</li><li>动量策略</li><li>自定义</li></ul><p><strong>基准指数：</strong>用于对比表现的基准</p>"
+                },
+                {
+                    "title": "买入规则",
+                    "content": "<p><strong>规则类型：</strong></p><ul><li><strong>技术指标：</strong>MA、MACD、RSI等</li><li><strong>基本面：</strong>PE、PB、ROE等</li><li><strong>宏观数据：</strong>PMI、CPI等</li><li><strong>市场情绪：</strong>成交量、涨跌停等</li></ul><p><strong>逻辑运算：</strong></p><ul><li>支持AND、OR、NOT运算</li><li>支持括号分组</li><li>支持多条规则</li></ul><div class=\"success-box\">买入条件要明确、可量化</div>"
+                },
+                {
+                    "title": "卖出规则",
+                    "content": "<p><strong>止盈规则：</strong></p><ul><li>目标收益率</li><li>技术指标反转</li><li>基本面变化</li></ul><p><strong>止损规则：</strong></p><ul><li>最大亏损比例</li><li>技术指标破位</li><li>时间止损</li></ul><div class=\"warning-box\">必须设置止损规则，控制下行风险</div>"
+                },
+                {
+                    "title": "仓位管理",
+                    "content": "<p><strong>建仓方式：</strong></p><ul><li><strong>一次性建仓：</strong>信号触发后一次性买入</li><li><strong>分批建仓：</strong>分多次买入，降低成本</li></ul><p><strong>仓位大小：</strong></p><ul><li>固定金额</li><li>固定比例</li><li>基于波动率的动态仓位</li></ul><p><strong>最大仓位：</strong>单一策略的最大持仓限制</p>"
+                }
+            ]
+        },
+        {
+            "id": "test",
+            "title": "回测验证",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "回测参数设置",
+                    "content": "<p><strong>时间范围：</strong>至少覆盖一个完整市场周期</p><p><strong>初始资金：</strong>模拟起始资金</p><p><strong>交易成本：</strong></p><ul><li>佣金：万2.5</li><li>印花税：千分之一（卖出）</li><li>滑点：0.1%</li></ul><p><strong>基准指数：</strong>沪深300或中证500</p>"
+                },
+                {
+                    "title": "回测结果分析",
+                    "content": "<p><strong>关键指标：</strong></p><ul><li>年化收益率</li><li>夏普比率</li><li>最大回撤</li><li>胜率</li><li>盈亏比</li></ul><p><strong>对比分析：</strong></p><ul><li>与基准指数对比</li><li>不同时间段的表现</li><li>不同市场环境的表现</li></ul><div class=\"info-box\">重点关注最大回撤和夏普比率</div>"
+                },
+                {
+                    "title": "参数优化",
+                    "content": "<p><strong>注意事项：</strong></p><ul><li>避免过度优化</li><li>使用样本外数据验证</li><li>参数要有经济含义</li></ul><p><strong>优化方法：</strong></p><ul><li>网格搜索</li><li>遗传算法</li><li>贝叶斯优化</li></ul><div class=\"warning-box\">过度优化的策略实战表现会很差</div>"
+                }
+            ]
+        },
+        {
+            "id": "run",
+            "title": "实盘运行",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "模拟盘测试",
+                    "content": "<p><strong>目的：</strong>在真实市场环境中验证策略</p><p><strong>优势：</strong></p><ul><li>真实市场环境</li><li>零成本试错</li><li>发现实际问题</li></ul><p><strong>建议：</strong>模拟盘运行至少3个月再考虑实盘</p><div class=\"success-box\">模拟盘是策略上线前的必经步骤</div>"
+                },
+                {
+                    "title": "监控与调整",
+                    "content": "<p><strong>日常监控：</strong></p><ul><li>检查交易信号是否正常</li><li>查看持仓情况</li><li>关注盈亏变化</li></ul><p><strong>定期回顾：</strong></p><ul><li>每周回顾策略表现</li><li>每月分析交易记录</li><li>每季度评估策略有效性</li></ul><p><strong>调整时机：</strong></p><ul><li>市场环境发生重大变化</li><li>策略表现持续低于预期</li><li>发现逻辑缺陷</li></ul>"
+                },
+                {
+                    "title": "风险控制",
+                    "content": "<p><strong>单笔风险：</strong></p><ul><li>单笔交易不超过总资金的5%</li><li>严格执行止损</li></ul><p><strong>总仓位控制：</strong></p><ul><li>单策略不超过总资金的30%</li><li>保留足够现金</li></ul><p><strong>相关性控制：</strong></p><ul><li>避免使用高度相关的策略</li><li>分散策略类型</li></ul><div class=\"warning-box\">永远不要把所有资金押在一个策略上</div>"
+                }
+            ]
+        },
+        {
+            "id": "best-practices",
+            "title": "最佳实践",
+            "type": "content",
+            "content": "<p><strong>1. 简单优先：</strong>简单的策略往往更可靠</p><p><strong>2. 理解逻辑：</strong>只使用你完全理解的策略</p><p><strong>3. 风险第一：</strong>风险控制比收益更重要</p><p><strong>4. 持续改进：</strong>没有完美的策略，持续优化迭代</p><p><strong>5. 记录日志：</strong>详细记录每笔交易，便于复盘</p><div class=\"success-box\"><strong>黄金法则：</strong>策略是用来执行纪律的，不是用来预测未来的</div>"
+        }
+    ],
+    "actions": [
+        {
+            "label": "创建策略",
+            "icon": "➕",
+            "url": "/strategy/create/"
+        },
+        {
+            "label": "策略列表",
+            "icon": "📋",
+            "url": "/strategy/list/"
+        }
+    ]
+}

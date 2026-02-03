@@ -1,0 +1,65 @@
+{
+    "widgetId": "dashboard-index",
+    "title": "投资指挥中心",
+    "icon": "🎯",
+    "position": "bottom-right",
+    "sections": [
+        {
+            "id": "overview",
+            "title": "功能概述",
+            "type": "content",
+            "content": "<p>投资指挥中心是 AgomSAAF 的核心仪表盘，整合了宏观环境判定、政策跟踪、投资信号、持仓管理等功能，为投资决策提供一站式支持。</p><div class=\"success-box\"><strong>核心优势：</strong>在正确的宏观环境中做正确的投资决策</div>"
+        },
+        {
+            "id": "modules",
+            "title": "核心模块说明",
+            "type": "accordion",
+            "items": [
+                {
+                    "title": "Regime 状态",
+                    "content": "<p><strong>功能：</strong>显示当前宏观经济象限</p><p><strong>信息：</strong></p><ul><li>当前Regime（复苏/过热/通缩/滞胀）</li><li>PMI和CPI数值</li><li>置信度</li></ul><p><strong>作用：</strong>决定整体资产配置方向</p><div class=\"info-box\">Regime是所有投资决策的基础</div>"
+                },
+                {
+                    "title": "政策档位",
+                    "content": "<p><strong>功能：</strong>显示当前政策环境评估</p><p><strong>信息：</strong></p><ul><li>政策档位（P0-P3）</li><li>最新政策事件</li><li>政策趋势</li></ul><p><strong>作用：</strong>辅助判断市场情绪和资金面</p><div class=\"info-box\">政策变化往往领先于市场</div>"
+                },
+                {
+                    "title": "投资信号",
+                    "content": "<p><strong>功能：</strong>展示当前有效的投资信号</p><p><strong>信息：</strong></p><ul><li>信号类型（买入/卖出/观望）</li><li>标的资产</li><li>信号强度</li><li>证伪条件</li></ul><p><strong>作用：</strong>提供具体的投资机会提示</p><div class=\"warning-box\">注意检查证伪条件，及时止损</div>"
+                },
+                {
+                    "title": "我的持仓",
+                    "content": "<p><strong>功能：</strong>展示当前投资组合</p><p><strong>信息：</strong></p><ul><li>持仓列表</li><li>盈亏情况</li><li>仓位分布</li><li>风险提示</li></ul><p><strong>作用：</strong>实时监控投资组合状态</p><div class=\"success-box">定期检查持仓，确保与宏观环境匹配</div>"
+                },
+                {
+                    "title": "资产评分",
+                    "content": "<p><strong>功能：</strong>展示各资产类型的评分</p><p><strong>信息：</strong></p><ul><li>股票评分</li><li>债券评分</li><li>商品评分</li><li>现金评分</li></ul><p><strong>作用：</strong>指导资产配置决策</p><div class=\"info-box\">高分资产优先配置</div>"
+                }
+            ]
+        },
+        {
+            "id": "workflow",
+            "title": "使用流程",
+            "type": "content",
+            "content": "<p><strong>步骤1：查看Regime</strong></p><p>首先确认当前处于哪个宏观象限，这是所有决策的基础。</p><p><strong>步骤2：查看政策档位</strong></p><p>了解当前政策环境，判断是否有重大政策变化。</p><p><strong>步骤3：查看投资信号</strong></p><p>查看是否有新的投资信号，注意信号的证伪条件。</p><p><strong>步骤4：检查持仓</strong></p><p>确认当前持仓与宏观环境匹配，必要时调整仓位。</p><p><strong>步骤5：查看资产评分</strong></p><p>根据评分高低，优先配置高分资产。</p><div class=\"success-box\"><strong>黄金法则：</strong>不在错误的宏观环境中下注</div>"
+        },
+        {
+            "id": "principles",
+            "title": "核心原则",
+            "type": "content",
+            "content": "<p><strong>1. 环境优先：</strong>先看宏观环境，再选具体资产</p><p><strong>2. 趋势跟随：</strong>不要逆势而为，顺势而为更安全</p><p><strong>3. 风险控制：</strong>严格止损，控制单笔风险</p><p><strong>4. 分散投资：</strong>不要把所有鸡蛋放在一个篮子里</p><p><strong>5. 持续学习：</strong>定期查看教学模块，提升投资认知</p><div class=\"warning-box\"><strong>切记：</strong>市场永远是对的，不要与市场作对</div>"
+        }
+    ],
+    "actions": [
+        {
+            "label": "学习教程",
+            "icon": "📚",
+            "action": "openTeachingModal"
+        },
+        {
+            "label": "系统设置",
+            "icon": "⚙️",
+            "url": "/account/settings/"
+        }
+    ]
+}

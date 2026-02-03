@@ -318,23 +318,25 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // 添加选中状态样式
-const style = document.createElement('style');
-style.textContent = `
-    .policy-event-item.selected {
-        border-color: var(--color-primary, #3366cc) !important;
-        background: rgba(51, 102, 204, 0.05) !important;
-    }
+(function() {
+    const style = document.createElement('style');
+    style.textContent = `
+        .policy-event-item.selected {
+            border-color: var(--color-primary, #3366cc) !important;
+            background: rgba(51, 102, 204, 0.05) !important;
+        }
 
-    .policy-event-item {
-        cursor: pointer;
-        user-select: none;
-    }
+        .policy-event-item {
+            cursor: pointer;
+            user-select: none;
+        }
 
-    .event-checkbox {
-        cursor: pointer;
-    }
-`;
-document.head.appendChild(style);
+        .event-checkbox {
+            cursor: pointer;
+        }
+    `;
+    document.head.appendChild(style);
+})();
 
 /**
  * 扩展：添加更多政策事件

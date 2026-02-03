@@ -7,16 +7,28 @@
 - 所有金融逻辑必须在此层
 """
 
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, TYPE_CHECKING
 from decimal import Decimal
 from datetime import date
 
-from .entities import StockInfo, FinancialData, ValuationMetrics
+from .entities import StockInfo, FinancialData, ValuationMetrics, ScoringWeightConfig
 from .rules import StockScreeningRule
+
+if TYPE_CHECKING:
+    pass
 
 
 class StockScreener:
     """个股筛选服务（纯 Domain 层逻辑）"""
+
+    def __init__(self, scoring_config: Optional[ScoringWeightConfig] = None):
+        """
+        初始化筛选器
+
+        Args:
+            scoring_config: 评分权重配置（可选，不传则使用默认配置）
+        """
+        self.scoring_config = scoring_config or self._get_default_config()
 
     def screen(
         self,
@@ -133,7 +145,9 @@ class StockScreener:
         """
         计算综合评分（使用分位数归一化法）
 
-        评分规则：
+        评分权重由 ScoringWeightConfig 配置决定，支持动态调整。
+
+        默认评分规则：
         - 成长性评分（40%）：营收增长率 + 净利润增长率的分位数平均
         - 盈利能力评分（40%）：ROE 的分位数
         - 估值评分（20%）：PE 的反向分位数（PE 越低分越高）
@@ -153,7 +167,7 @@ class StockScreener:
         Returns:
             综合评分（0-1 之间）
         """
-        # 1. 成长性分位数（营收和净利润增长率的平均分位数）
+        # 1. 成长性分位数（营收和净利润增长率的分位数）
         revenue_growth_percentile = self._percentile(
             financial.revenue_growth,
             market_metrics['revenue_growth']
@@ -162,7 +176,12 @@ class StockScreener:
             financial.net_profit_growth,
             market_metrics['profit_growth']
         )
-        growth_percentile = (revenue_growth_percentile + profit_growth_percentile) / 2
+
+        # 成长性内部加权（使用配置）
+        growth_percentile = (
+            revenue_growth_percentile * self.scoring_config.revenue_growth_weight +
+            profit_growth_percentile * self.scoring_config.profit_growth_weight
+        )
 
         # 2. 盈利能力分位数（ROE 分位数）
         profitability_percentile = self._percentile(
@@ -177,11 +196,12 @@ class StockScreener:
         )
         valuation_percentile = 1 - pe_percentile  # PE 越低，分位数越高
 
-        # 4. 加权综合评分
-        total_score = (
-            growth_percentile * 0.4 +
-            profitability_percentile * 0.4 +
-            valuation_percentile * 0.2
+        # 4. 加权综合评分（使用配置的权重）
+        total_score = self.scoring_config.get_total_score(
+            revenue_growth_percentile=revenue_growth_percentile,
+            profit_growth_percentile=profit_growth_percentile,
+            roe_percentile=profitability_percentile,
+            pe_percentile=pe_percentile
         )
 
         return total_score
@@ -213,6 +233,27 @@ class StockScreener:
         percentile = lower_count / len(reference)
 
         return percentile
+
+    @staticmethod
+    def _get_default_config() -> ScoringWeightConfig:
+        """
+        获取默认评分权重配置
+
+        当没有传入配置时使用此默认值。
+
+        Returns:
+            默认的 ScoringWeightConfig
+        """
+        return ScoringWeightConfig(
+            name="默认配置",
+            description="系统默认评分权重配置",
+            is_active=True,
+            growth_weight=0.4,
+            profitability_weight=0.4,
+            valuation_weight=0.2,
+            revenue_growth_weight=0.5,
+            profit_growth_weight=0.5
+        )
 
 
 class ValuationAnalyzer:

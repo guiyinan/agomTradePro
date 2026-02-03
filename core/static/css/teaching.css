@@ -241,9 +241,7 @@
     transition: max-height 0.3s ease;
 }
 
-.accordion-item.open .accordion-content {
-    max-height: 2000px;
-}
+/* 由 JavaScript 动态控制 max-height，移除固定值 */
 
 .accordion-body {
     padding: 0 20px 20px 20px;

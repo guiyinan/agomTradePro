@@ -1,0 +1,39 @@
+{
+    "widgetId": "simulated-trading",
+    "title": "快捷操作",
+    "icon": "🎮",
+    "position": "bottom-right",
+    "content": {
+        "sections": [
+            {
+                "id": "quick-actions",
+                "title": "交易提示",
+                "type": "content",
+                "content": "<p><strong>买入:</strong> 市价单即时成交，限价单设定价格</p><p><strong>卖出:</strong> T+1 规则，今天买明天才能卖</p><p><strong>仓位:</strong> 单只股票不超过 20%</p>"
+            },
+            {
+                "id": "quick-links",
+                "title": "导航",
+                "type": "accordion",
+                "items": [
+                    {
+                        "title": "相关页面",
+                        "content": "<ul><li><a href=\"/equity/screen/\">个股筛选</a></li><li><a href=\"/signal/list/\">投资信号</a></li></ul>"
+                    }
+                ]
+            }
+        ],
+        "actions": [
+            {
+                "label": "创建账户",
+                "icon": "➕",
+                "url": "/simulated_trading/create/"
+            },
+            {
+                "label": "我的账户",
+                "icon": "📊",
+                "url": "/simulated_trading/my-accounts/"
+            }
+        ]
+    }
+}
