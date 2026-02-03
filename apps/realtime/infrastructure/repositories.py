@@ -28,7 +28,6 @@ from apps.realtime.domain.protocols import (
     WatchlistProviderProtocol
 )
 from apps.simulated_trading.infrastructure.models import PositionModel
-from apps.equity.infrastructure.models import EquityModel
 
 
 logger = logging.getLogger(__name__)
