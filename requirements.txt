@@ -37,3 +37,4 @@ mypy
 # Development
 ipython
 ipdb
+RestrictedPython  # 用于策略脚本的沙箱执行
