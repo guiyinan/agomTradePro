@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+{% load alpha_trigger_filters %}
+
+{% block title %}编辑 Alpha 触发器 - AgomSAAF{% endblock %}
+
+{% block content %}
+<style>
+.edit-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+.edit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.edit-header h1 { font-size: 24px; margin: 0; }
+.breadcrumb { display: flex; gap: 8px; font-size: 13px; color: #64748b; margin-bottom: 16px; }
+.breadcrumb a { color: #667eea; text-decoration: none; }
+.breadcrumb a:hover { text-decoration: underline; }
+
+/* 创建表单 */
+.form-builder { background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+.builder-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.builder-header h3 { margin: 0; font-size: 16px; }
+.form-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.form-row-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px; }
+.form-input, .form-select, .form-textarea { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
+.form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: #667eea; }
+.form-textarea { width: 100%; min-height: 80px; resize: vertical; font-family: inherit; }
+.form-input[disabled] { background: #f1f5f9; cursor: not-allowed; }
+.form-label { display: block; font-size: 13px; font-weight: 500; color: #475569; margin-bottom: 4px; }
+.form-label-readonly { font-size: 12px; color: #94a3b8; }
+
+/* 条件列表 */
+.conditions-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.condition-item { display: flex; align-items: center; gap: 8px; padding: 12px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; }
+.condition-text { flex: 1; font-size: 13px; }
+
+/* 触发条件编辑器 */
+.json-editor { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 13px; min-height: 120px; }
+
+/* 证伪条件展示 */
+.existing-conditions { background: #fef3c7; padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; }
+.existing-condition-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #fde68a; }
+.existing-condition-row:last-child { border-bottom: none; }
+
+/* 置信度滑块 */
+.confidence-slider { display: flex; align-items: center; gap: 12px; }
+.confidence-slider input[type="range"] { flex: 1; height: 6px; border-radius: 3px; background: #e2e8f0; }
+.confidence-slider input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #667eea; cursor: pointer; }
+.confidence-value { min-width: 50px; text-align: center; font-weight: 600; }
+
+/* 预览 */
+.rules-preview { background: #fef3c7; padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; }
+
+/* 按钮 */
+.btn-add { padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.btn-add:hover { background: #5a67d8; }
+.btn-remove { padding: 4px 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.btn-submit { width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
+.btn-submit:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
+.btn-cancel { padding: 14px; background: white; color: #64748b; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-right: 12px; }
+
+.error-banner { background: #fee2e2; color: #991b1b; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; }
+.success-banner { background: #d1fae5; color: #065f46; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; }
+</style>
+
+<div class="edit-container">
+    <!-- 面包屑 -->
+    <div class="breadcrumb">
+        <a href="{% url 'alpha_trigger:list' %}">Alpha 触发器</a>
+        <span>/</span>
+        <a href="{% url 'alpha_trigger:detail' trigger.trigger_id %}">{{ trigger.asset_code }}</a>
+        <span>/</span>
+        <span>编辑</span>
+    </div>
+
+    <!-- 头部 -->
+    <div class="edit-header">
+        <div>
+            <h1>编辑 Alpha 触发器</h1>
+            <p style="color: #64748b; margin-top: 4px;">{{ trigger.trigger_id }}</p>
+        </div>
+    </div>
+
+    <div style="margin-bottom: 20px; padding: 12px 16px; background: #eff6ff; border-radius: 8px; font-size: 13px; color: #1e40af;">
+        <i class="bi bi-info-circle"></i> 部分字段（如资产代码、触发器类型）不可修改，如需更改请重新创建触发器
+    </div>
+
+    <!-- 编辑表单 -->
+    <form id="editForm">
+        <div class="form-builder">
+            <div class="builder-header">
+                <h3>基本信息</h3>
+            </div>
+
+            <div class="form-row">
+                <div>
+                    <label class="form-label">资产代码</label>
+                    <input type="text" class="form-input" value="{{ trigger.asset_code }}" disabled>
+                    <span class="form-label-readonly">不可修改</span>
+                </div>
+                <div>
+                    <label class="form-label">资产类别</label>
+                    <select name="asset_class" class="form-select">
+                        {% for ac in all_asset_classes %}
+                        <option value="{{ ac }}" {% if ac == trigger.asset_class %}selected{% endif %}>{{ ac }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">触发器类型</label>
+                    <input type="text" class="form-input" value="{{ trigger.get_trigger_type_display }}" disabled>
+                    <span class="form-label-readonly">不可修改</span>
+                </div>
+                <div>
+                    <label class="form-label">方向</label>
+                    <select name="direction" class="form-select">
+                        <option value="LONG" {% if trigger.direction == "LONG" %}selected{% endif %}>做多</option>
+                        <option value="SHORT" {% if trigger.direction == "SHORT" %}selected{% endif %}>做空</option>
+                        <option value="NEUTRAL" {% if trigger.direction == "NEUTRAL" %}selected{% endif %}>中性</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row-2">
+                <div>
+                    <label class="form-label">置信度: <span id="confidenceValue">{{ trigger.confidence|floatformat:0 }}</span>%</label>
+                    <div class="confidence-slider">
+                        <input type="range" name="confidence" min="0" max="100" value="{{ trigger.confidence|floatformat:0 }}" oninput="updateConfidence(this.value)">
+                    </div>
+                </div>
+                <div>
+                    <label class="form-label">状态</label>
+                    <select name="status" class="form-select">
+                        <option value="ACTIVE" {% if trigger.status == "ACTIVE" %}selected{% endif %}>活跃</option>
+                        <option value="PAUSED" {% if trigger.status == "PAUSED" %}selected{% endif %}>暂停</option>
+                        <option value="CANCELLED" {% if trigger.status == "CANCELLED" %}selected{% endif %}>取消</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- 触发条件 -->
+        <div class="form-builder">
+            <div class="builder-header">
+                <h3>触发条件 (JSON)</h3>
+                <small style="color: #64748b;">定义触发条件的数据结构</small>
+            </div>
+            <textarea name="trigger_condition" class="json-editor" id="triggerCondition" placeholder='{"indicator": "..."}'>{{ trigger.trigger_condition|pprint_json }}</textarea>
+        </div>
+
+        <!-- 证伪条件 -->
+        <div class="form-builder">
+            <div class="builder-header">
+                <h3>证伪条件</h3>
+                <small style="color: #64748b;">当满足这些条件时，触发器将被证伪</small>
+            </div>
+
+            <!-- 显示现有条件 -->
+            {% if trigger.invalidation_conditions %}
+            <div class="existing-conditions">
+                <div style="font-weight: 600; margin-bottom: 8px;">当前证伪条件:</div>
+                {% for cond in trigger.invalidation_conditions %}
+                <div class="existing-condition-row">
+                    <span style="padding: 2px 6px; background: #fde68a; border-radius: 4px; font-size: 11px;">{{ cond.condition_type }}</span>
+                    <span>
+                        {% if cond.condition_type == "threshold_cross" %}
+                        {{ cond.indicator_code }} {% if cond.cross_direction == "lt" %}<{% elif cond.cross_direction == "lte" %}≤{% elif cond.cross_direction == "gt" %}>{% elif cond.cross_direction == "gte" %}≥{% endif %} {{ cond.threshold_value }}
+                        {% elif cond.condition_type == "time_decay" %}
+                        持仓超过 {{ cond.max_holding_days }} 天
+                        {% elif cond.condition_type == "regime_mismatch" %}
+                        Regime 不是 {{ cond.required_regime }}
+                        {% endif %}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div style="padding: 12px 16px; background: #f8fafc; border-radius: 8px; font-size: 13px; color: #64748b; margin-bottom: 16px;">
+                <i class="bi bi-info-circle"></i> 编辑时只能替换全部证伪条件，请在下方输入新的 JSON 数组
+            </div>
+
+            <textarea name="invalidation_conditions_json" class="json-editor" style="min-height: 100px;" placeholder='[{"condition_type": "threshold_cross", ...}]'>{{ trigger.invalidation_conditions|pprint_json }}</textarea>
+        </div>
+
+        <!-- 投资论点 -->
+        <div class="form-builder">
+            <div class="builder-header">
+                <h3>投资论点</h3>
+                <small style="color: #64748b;">描述触发该信号的投资逻辑</small>
+            </div>
+            <textarea name="thesis" class="form-textarea" placeholder="描述触发该信号的逻辑和原因...">{{ trigger.thesis }}</textarea>
+        </div>
+
+        <!-- 关联选项 -->
+        <div class="form-builder">
+            <div class="builder-header">
+                <h3>关联选项</h3>
+            </div>
+            <div class="form-row-2">
+                <div>
+                    <label class="form-label">关联 Regime</label>
+                    <select name="related_regime" class="form-select">
+                        <option value="">不限制</option>
+                        <option value="Recovery" {% if trigger.related_regime == "Recovery" %}selected{% endif %}>Recovery</option>
+                        <option value="Overheat" {% if trigger.related_regime == "Overheat" %}selected{% endif %}>Overheat</option>
+                        <option value="Stagflation" {% if trigger.related_regime == "Stagflation" %}selected{% endif %}>Stagflation</option>
+                        <option value="Deflation" {% if trigger.related_regime == "Deflation" %}selected{% endif %}>Deflation</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">关联 Policy 档位</label>
+                    <input type="number" name="related_policy_level" class="form-input" placeholder="0-5" min="0" max="5" value="{{ trigger.related_policy_level|default:"" }}">
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end;">
+            <button type="button" class="btn-cancel" onclick="window.history.back()">取消</button>
+            <button type="submit" class="btn-submit" style="width: auto;">保存修改</button>
+        </div>
+    </form>
+</div>
+
+<script>
+// 更新置信度显示
+function updateConfidence(value) {
+    document.getElementById('confidenceValue').textContent = value;
+}
+
+// 表单提交
+document.getElementById('editForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    // 解析触发条件 JSON
+    const triggerConditionStr = this.querySelector('[name="trigger_condition"]').value.trim();
+    let triggerCondition = {};
+    try {
+        if (triggerConditionStr) {
+            triggerCondition = JSON.parse(triggerConditionStr);
+        }
+    } catch (err) {
+        showToast('触发条件 JSON 格式错误: ' + err.message, 'error');
+        return;
+    }
+
+    // 解析证伪条件 JSON
+    const invalidationConditionsStr = this.querySelector('[name="invalidation_conditions_json"]').value.trim();
+    let invalidationConditions = [];
+    try {
+        if (invalidationConditionsStr) {
+            invalidationConditions = JSON.parse(invalidationConditionsStr);
+            if (!Array.isArray(invalidationConditions)) {
+                throw new Error('证伪条件必须是数组');
+            }
+        }
+    } catch (err) {
+        showToast('证伪条件 JSON 格式错误: ' + err.message, 'error');
+        return;
+    }
+
+    // 构建请求数据
+    const formData = new FormData(this);
+    const requestData = {
+        asset_class: formData.get('asset_class'),
+        direction: formData.get('direction'),
+        trigger_condition: triggerCondition,
+        invalidation_conditions: invalidationConditions,
+        confidence: parseFloat(formData.get('confidence')) / 100,
+        thesis: formData.get('thesis') || '',
+        related_regime: formData.get('related_regime') || null,
+        related_policy_level: formData.get('related_policy_level') || null,
+        status: formData.get('status'),
+    };
+
+    try {
+        const res = await fetch(`/api/alpha-triggers/triggers/{{ trigger.trigger_id }}/`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestData)
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            showToast('✓ 修改已保存!', 'success');
+            setTimeout(() => {
+                window.location.href = "{% url 'alpha_trigger:detail' trigger.trigger_id %}";
+            }, 1000);
+        } else {
+            showToast('❌ ' + (data.error || '保存失败'), 'error');
+        }
+    } catch (err) {
+        showToast('网络错误: ' + err.message, 'error');
+    }
+});
+
+// 页面加载时格式化 JSON
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.json-editor').forEach(el => {
+        try {
+            const obj = JSON.parse(el.value);
+            el.value = JSON.stringify(obj, null, 2);
+        } catch (e) {
+            // 不是有效 JSON，保持原样
+        }
+    });
+});
+</script>
+{% endblock %}

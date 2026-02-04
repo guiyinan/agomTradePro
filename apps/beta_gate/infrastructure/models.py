@@ -102,6 +102,7 @@ class GateConfigModel(models.Model):
     )
 
     class Meta:
+        app_label = "beta_gate"
         db_table = "beta_gate_config"
         verbose_name = "Beta Gate 配置"
         verbose_name_plural = "Beta Gate 配置"
@@ -240,6 +241,7 @@ class GateDecisionModel(models.Model):
     )
 
     class Meta:
+        app_label = "beta_gate"
         db_table = "beta_gate_decision"
         verbose_name = "Beta Gate 决策"
         verbose_name_plural = "Beta Gate 决策"
@@ -374,6 +376,7 @@ class VisibilityUniverseSnapshotModel(models.Model):
     )
 
     class Meta:
+        app_label = "beta_gate"
         db_table = "beta_gate_universe_snapshot"
         verbose_name = "可见性宇宙快照"
         verbose_name_plural = "可见性宇宙快照"

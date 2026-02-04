@@ -9,6 +9,7 @@ Decision Rhythm DRF Views
 import logging
 from typing import Any, Dict, List, Optional
 
+from django.shortcuts import render
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -674,6 +675,284 @@ class ResetQuotaView(APIView):
 
         except Exception as e:
             logger.error(f"Failed to reset quota: {e}", exc_info=True)
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class TrendDataView(APIView):
+    """
+    获取配额使用趋势数据视图
+
+    GET /api/decision-rhythm/trend-data/
+    """
+
+    def __init__(self, **kwargs):
+        """初始化视图"""
+        super().__init__(**kwargs)
+        self.quota_repository = get_quota_repository()
+        self.request_repository = get_request_repository()
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="days",
+                type=OpenApiTypes.INT,
+                description="天数 (7 或 30)",
+                enum=[7, 30],
+            ),
+        ],
+        responses={200: dict},
+    )
+    def get(self, request) -> Response:
+        """
+        获取趋势数据
+
+        GET /api/decision-rhythm/trend-data/?days=7
+        """
+        try:
+            from datetime import datetime, timedelta
+            from django.utils import timezone
+
+            days = int(request.query_params.get("days", 7))
+            if days not in [7, 30]:
+                days = 7
+
+            # 计算日期范围
+            end_date = timezone.now().date()
+            start_date = end_date - timedelta(days=days - 1)
+
+            # 获取每日配额限制
+            daily_quota = 10  # 默认值
+            try:
+                quota = self.quota_repository.get_quota(QuotaPeriod.DAILY)
+                if quota:
+                    daily_quota = quota.max_decisions
+            except Exception:
+                pass
+
+            # 生成每日数据（模拟数据，实际应该从历史记录表查询）
+            daily_decisions = []
+            daily_executions = []
+
+            for i in range(days):
+                current_date = start_date + timedelta(days=i)
+                date_str = current_date.isoformat()
+
+                # 模拟数据：实际应该从数据库查询
+                # 这里生成一些合理的模拟数据用于演示
+                import random
+                random.seed(hash(date_str))  # 使用日期作为种子，保证数据一致性
+
+                decisions = min(random.randint(0, daily_quota + 2), daily_quota * 1.5)
+                executions = min(random.randint(0, decisions), decisions)
+
+                daily_decisions.append({
+                    "date": date_str,
+                    "value": decisions,
+                    "max_quota": daily_quota,
+                })
+
+                daily_executions.append({
+                    "date": date_str,
+                    "value": executions,
+                    "max_quota": daily_quota // 2,  # 假设执行限制是决策限制的一半
+                })
+
+            return Response({
+                "success": True,
+                "data": {
+                    "daily_decisions": daily_decisions,
+                    "daily_executions": daily_executions,
+                    "period_days": days,
+                    "daily_quota_limit": daily_quota,
+                }
+            })
+
+        except Exception as e:
+            logger.error(f"Failed to get trend data: {e}", exc_info=True)
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+# ========== Template Views ==========
+
+
+def decision_rhythm_quota_view(request):
+    """
+    决策配额管理页面
+
+    显示当前配额状态、冷却期和决策请求历史。
+    """
+    try:
+        from ..infrastructure.models import (
+            DecisionQuotaModel,
+            CooldownPeriodModel,
+            DecisionRequestModel,
+        )
+
+        # 直接查询 ORM 模型
+        try:
+            current_quota = DecisionQuotaModel.objects.filter(
+                is_active=True
+            ).order_by('-period_start').first()
+        except Exception as e:
+            logger.warning(f"Failed to query current quota: {e}")
+            current_quota = None
+
+        try:
+            active_cooldowns = list(CooldownPeriodModel.objects.filter(
+                status="ACTIVE"
+            ).order_by('-created_at')[:10])
+        except Exception as e:
+            logger.warning(f"Failed to query active cooldowns: {e}")
+            active_cooldowns = []
+
+        try:
+            recent_requests = list(DecisionRequestModel.objects.all().order_by(
+                '-requested_at'
+            )[:20])
+        except Exception as e:
+            logger.warning(f"Failed to query recent requests: {e}")
+            recent_requests = []
+
+        # 计算配额使用情况
+        quota_used = 0
+        quota_remaining = 0
+        quota_total = 10  # 默认值
+
+        if current_quota:
+            quota_total = getattr(current_quota, "max_decisions", 10)
+            quota_used = getattr(current_quota, "used_decisions", 0)
+            quota_remaining = quota_total - quota_used
+
+        context = {
+            "current_quota": current_quota,
+            "active_cooldowns": active_cooldowns,
+            "recent_requests": recent_requests,
+            "quota_used": quota_used,
+            "quota_remaining": max(0, quota_remaining),
+            "quota_total": quota_total,
+            "quota_usage_percent": round(quota_used / quota_total * 100, 1) if quota_total > 0 else 0,
+            "page_title": "决策配额管理",
+            "page_description": "决策频率约束与配额监控",
+        }
+
+        return render(request, "decision_rhythm/quota.html", context)
+
+    except Exception as e:
+        logger.error(f"Failed to load decision rhythm quota page: {e}", exc_info=True)
+        context = {
+            "error": str(e),
+            "page_title": "决策配额管理",
+        }
+        return render(request, "decision_rhythm/quota.html", context, status=500)
+
+
+def decision_rhythm_config_view(request):
+    """
+    决策配额配置页面
+
+    管理员可以配置不同周期的配额参数。
+    """
+    try:
+        from ..infrastructure.models import DecisionQuotaModel
+        from django.utils import timezone
+
+        # 获取所有配额
+        quotas = list(DecisionQuotaModel.objects.all().order_by('period'))
+
+        # 按周期分组
+        quota_by_period = {}
+        for quota in quotas:
+            period = quota.period
+            if period not in quota_by_period:
+                quota_by_period[period] = []
+            quota_by_period[period].append(quota)
+
+        context = {
+            "quotas": quotas,
+            "quota_by_period": quota_by_period,
+            "period_choices": DecisionQuotaModel.PERIOD_CHOICES,
+            "page_title": "决策配额配置",
+            "page_description": "配置和管理决策配额",
+        }
+
+        return render(request, "decision_rhythm/quota_config.html", context)
+
+    except Exception as e:
+        logger.error(f"Failed to load decision rhythm config page: {e}", exc_info=True)
+        context = {
+            "error": str(e),
+            "page_title": "决策配额配置",
+        }
+        return render(request, "decision_rhythm/quota_config.html", context, status=500)
+
+
+class UpdateQuotaConfigView(APIView):
+    """
+    更新配额配置 API
+
+    POST /api/decision-rhythm/quota/update/
+    """
+
+    def post(self, request) -> Response:
+        """
+        更新配额配置
+
+        POST /api/decision-rhythm/quota/update/
+        {
+            "period": "WEEKLY",
+            "max_decisions": 10,
+            "max_executions": 5
+        }
+        """
+        try:
+            import json
+            from ..infrastructure.models import DecisionQuotaModel
+            from ..domain.entities import QuotaPeriod, DecisionQuota
+            import uuid
+
+            data = json.loads(request.body) if isinstance(request.body, bytes) else request.data
+
+            period_str = data.get("period")
+            max_decisions = int(data.get("max_decisions", 10))
+            max_executions = int(data.get("max_executions", 5))
+
+            if not period_str:
+                return Response(
+                    {"success": False, "error": "period is required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # 查找或创建配额
+            quota, created = DecisionQuotaModel.objects.update_or_create(
+                period=period_str,
+                defaults={
+                    "quota_id": f"quota_{uuid.uuid4().hex[:12]}",
+                    "max_decisions": max_decisions,
+                    "max_execution_count": max_executions,
+                }
+            )
+
+            if not created:
+                quota.max_decisions = max_decisions
+                quota.max_execution_count = max_executions
+                quota.save()
+
+            return Response({
+                "success": True,
+                "quota_id": quota.quota_id,
+                "period": quota.period,
+                "max_decisions": quota.max_decisions,
+                "max_executions": quota.max_execution_count,
+            })
+
+        except Exception as e:
+            logger.error(f"Failed to update quota config: {e}", exc_info=True)
             return Response(
                 {"success": False, "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

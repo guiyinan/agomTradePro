@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+{% load alpha_trigger_filters %}
+
+{% block title %}触发器详情 - AgomSAAF{% endblock %}
+
+{% block content %}
+<style>
+.detail-container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+.detail-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 24px; }
+.detail-title h1 { font-size: 24px; margin: 0; }
+.detail-title p { color: #64748b; margin-top: 4px; }
+.detail-actions { display: flex; gap: 8px; }
+.btn-action { padding: 8px 16px; border: 1px solid #e2e8f0; background: white; border-radius: 6px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.btn-action:hover { background: #f8fafc; }
+.btn-action.primary { background: #667eea; color: white; border-color: #667eea; }
+.btn-action.primary:hover { background: #5a67d8; }
+.btn-action.danger:hover { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
+
+/* 卡片 */
+.info-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 20px; overflow: hidden; }
+.card-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+.card-title { font-size: 16px; font-weight: 600; }
+.card-body { padding: 20px; }
+
+/* 信息网格 */
+.info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.info-item { }
+.info-label { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+.info-value { font-size: 14px; font-weight: 500; }
+
+/* 徽章 */
+.badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+.badge-ACTIVE { background: #d1fae5; color: #065f46; }
+.badge-TRIGGERED { background: #fed7aa; color: #9a3412; }
+.badge-INVALIDATED { background: #f3f4f6; color: #6b7280; }
+.badge-EXPIRED { background: #fee2e2; color: #991b1b; }
+.badge-PAUSED { background: #fef3c7; color: #92400e; }
+
+.strength-MODERATE { background: #dbeafe; color: #1e40af; }
+.strength-STRONG { background: #fef3c7; color: #92400e; }
+.strength-VERY_STRONG { background: #fed7aa; color: #9a3412; }
+.strength-WEAK { background: #f3f4f6; color: #6b7280; }
+
+.direction-LONG { background: #d1fae5; color: #065f46; }
+.direction-SHORT { background: #fee2e2; color: #991b1b; }
+.direction-NEUTRAL { background: #f3f4f6; color: #6b7280; }
+
+/* 条件展示 */
+.conditions-display { background: #f8fafc; padding: 16px; border-radius: 8px; margin-top: 12px; }
+.condition-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
+.condition-row:last-child { border-bottom: none; }
+.condition-type { padding: 2px 8px; background: #e2e8f0; border-radius: 4px; font-size: 11px; }
+.condition-text { flex: 1; font-size: 13px; }
+
+/* 候选列表 */
+.candidates-table { width: 100%; border-collapse: collapse; }
+.candidates-table th { padding: 12px; text-align: left; background: #f8fafc; font-weight: 600; font-size: 12px; color: #64748b; }
+.candidates-table td { padding: 12px; border-top: 1px solid #e2e8f0; font-size: 13px; }
+
+/* JSON 展示 */
+.json-display { background: #1e293b; color: #e2e8f0; padding: 12px; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 12px; overflow-x: auto; }
+
+/* 空状态 */
+.empty-state { text-align: center; padding: 40px 20px; color: #94a3b8; }
+</style>
+
+<div class="detail-container">
+    <!-- 头部 -->
+    <div class="detail-header">
+        <div class="detail-title">
+            <h1>{{ trigger.asset_code }}</h1>
+            <p>{{ trigger.get_trigger_type_display }} - 创建于 {{ trigger.created_at|date:"Y-m-d H:i" }}</p>
+        </div>
+        <div class="detail-actions">
+            <a href="{% url 'alpha_trigger:edit' trigger.trigger_id %}" class="btn-action">
+                <i class="bi bi-pencil"></i> 编辑
+            </a>
+            {% if trigger.status == "ACTIVE" %}
+            <button class="btn-action" onclick="pauseTrigger()">
+                <i class="bi bi-pause"></i> 暂停
+            </button>
+            {% elif trigger.status == "PAUSED" %}
+            <button class="btn-action" onclick="resumeTrigger()">
+                <i class="bi bi-play"></i> 恢复
+            </button>
+            {% endif %}
+            <button class="btn-action danger" onclick="deleteTrigger()">
+                <i class="bi bi-trash"></i> 删除
+            </button>
+        </div>
+    </div>
+
+    <!-- 状态统计 -->
+    <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+        <div style="flex: 1; padding: 16px; background: linear-gradient(135deg, #f8fafc, #f1f5f9); border-radius: 12px; text-align: center;">
+            <div style="font-size: 24px; font-weight: 700; color: #667eea;">{{ candidate_stats.total|default:0 }}</div>
+            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">候选总数</div>
+        </div>
+        <div style="flex: 1; padding: 16px; background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 12px; text-align: center;">
+            <div style="font-size: 24px; font-weight: 700; color: #92400e;">{{ candidate_stats.watch|default:0 }}</div>
+            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">观察中</div>
+        </div>
+        <div style="flex: 1; padding: 16px; background: linear-gradient(135deg, #dbeafe, #bfdbfe); border-radius: 12px; text-align: center;">
+            <div style="font-size: 24px; font-weight: 700; color: #1e40af;">{{ candidate_stats.candidate|default:0 }}</div>
+            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">候选中</div>
+        </div>
+        <div style="flex: 1; padding: 16px; background: linear-gradient(135deg, #d1fae5, #a7f3d0); border-radius: 12px; text-align: center;">
+            <div style="font-size: 24px; font-weight: 700; color: #065f46;">{{ candidate_stats.actionable|default:0 }}</div>
+            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">可行动</div>
+        </div>
+    </div>
+
+    <!-- 基本信息 -->
+    <div class="info-card">
+        <div class="card-header">
+            <span class="card-title">基本信息</span>
+            <span class="badge badge-{{ trigger.status }}">{{ trigger.get_status_display }}</span>
+        </div>
+        <div class="card-body">
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">触发器 ID</div>
+                    <div class="info-value"><code>{{ trigger.trigger_id }}</code></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">资产代码</div>
+                    <div class="info-value"><strong>{{ trigger.asset_code }}</strong></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">资产类别</div>
+                    <div class="info-value">{{ trigger.asset_class }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">触发器类型</div>
+                    <div class="info-value">{{ trigger.get_trigger_type_display }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">方向</div>
+                    <div class="info-value"><span class="badge direction-{{ trigger.direction }}">{{ trigger.get_direction_display }}</span></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">信号强度</div>
+                    <div class="info-value"><span class="badge strength-{{ trigger.strength }}">{{ trigger.get_strength_display }}</span></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">置信度</div>
+                    <div class="info-value">{{ trigger.confidence|floatformat:0 }}%</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">过期时间</div>
+                    <div class="info-value">{% if trigger.expires_at %}{{ trigger.expires_at|date:"Y-m-d H:i" }}{% else %}永不过期{% endif %}</div>
+                </div>
+            </div>
+
+            {% if trigger.thesis %}
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+                <div style="font-size: 12px; color: #64748b; margin-bottom: 8px;">投资论点</div>
+                <div style="font-size: 14px; line-height: 1.6;">{{ trigger.thesis }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 触发条件 -->
+    <div class="info-card">
+        <div class="card-header">
+            <span class="card-title">触发条件</span>
+        </div>
+        <div class="card-body">
+            <div class="json-display">{{ trigger.trigger_condition|pprint_json }}</div>
+        </div>
+    </div>
+
+    <!-- 证伪条件 -->
+    <div class="info-card">
+        <div class="card-header">
+            <span class="card-title">证伪条件</span>
+            <span style="font-size: 12px; color: #64748b;">{{ trigger.invalidation_conditions|length }} 条</span>
+        </div>
+        <div class="card-body">
+            {% if trigger.invalidation_conditions %}
+            <div class="conditions-display">
+                {% for cond in trigger.invalidation_conditions %}
+                <div class="condition-row">
+                    <span class="condition-type">{{ cond.condition_type }}</span>
+                    <span class="condition-text">
+                        {% if cond.condition_type == "threshold_cross" %}
+                        当 {{ cond.indicator_code }} {% if cond.cross_direction == "lt" %}<{% elif cond.cross_direction == "lte" %}≤{% elif cond.cross_direction == "gt" %}>{% elif cond.cross_direction == "gte" %}≥{% endif %} {{ cond.threshold_value }}
+                        {% elif cond.condition_type == "time_decay" %}
+                        持仓超过 {{ cond.max_holding_days }} 天
+                        {% elif cond.condition_type == "regime_mismatch" %}
+                        当前 Regime 不是 {{ cond.required_regime }}
+                        {% else %}
+                        {{ cond }}
+                        {% endif %}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">暂无证伪条件</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 关联选项 -->
+    <div class="info-card">
+        <div class="card-header">
+            <span class="card-title">关联选项</span>
+        </div>
+        <div class="card-body">
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">关联 Regime</div>
+                    <div class="info-value">{{ trigger.related_regime|default:"-" }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">关联 Policy 档位</div>
+                    <div class="info-value">{{ trigger.related_policy_level|default:"-" }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">触发时间</div>
+                    <div class="info-value">{% if trigger.triggered_at %}{{ trigger.triggered_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">证伪时间</div>
+                    <div class="info-value">{% if trigger.invalidated_at %}{{ trigger.invalidated_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 相关候选 -->
+    <div class="info-card">
+        <div class="card-header">
+            <span class="card-title">相关候选</span>
+            <span style="font-size: 12px; color: #64748b;">{{ candidates|length }} 个</span>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            {% if candidates %}
+            <table class="candidates-table">
+                <thead>
+                    <tr>
+                        <th>候选 ID</th>
+                        <th>资产</th>
+                        <th>方向</th>
+                        <th>强度</th>
+                        <th>状态</th>
+                        <th>创建时间</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for candidate in candidates %}
+                    <tr>
+                        <td><code>{{ candidate.candidate_id|slice:":12" }}...</code></td>
+                        <td><strong>{{ candidate.asset_code }}</strong></td>
+                        <td><span class="badge direction-{{ candidate.direction }}">{{ candidate.get_direction_display }}</span></td>
+                        <td><span class="badge strength-{{ candidate.strength }}">{{ candidate.get_strength_display }}</span></td>
+                        <td><span class="badge badge-{{ candidate.status }}">{{ candidate.get_status_display }}</span></td>
+                        <td>{{ candidate.created_at|date:"m-d H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">暂无相关候选</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// 暂停触发器
+async function pauseTrigger() {
+    if (!confirm('确认暂停此触发器?')) return;
+
+    try {
+        const res = await fetch(`/api/alpha-triggers/triggers/{{ trigger.trigger_id }}/pause/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': window.csrfToken }
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('已暂停触发器');
+            location.reload();
+        } else {
+            showToast('操作失败: ' + (data.error || ''));
+        }
+    } catch (e) {
+        showToast('网络错误: ' + e.message, 'error');
+    }
+}
+
+// 恢复触发器
+async function resumeTrigger() {
+    if (!confirm('确认恢复此触发器?')) return;
+
+    try {
+        const res = await fetch(`/api/alpha-triggers/triggers/{{ trigger.trigger_id }}/resume/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': window.csrfToken }
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('已恢复触发器');
+            location.reload();
+        } else {
+            showToast('操作失败: ' + (data.error || ''));
+        }
+    } catch (e) {
+        showToast('网络错误: ' + e.message, 'error');
+    }
+}
+
+// 删除触发器
+async function deleteTrigger() {
+    if (!confirm('确认删除此触发器? 此操作不可撤销!')) return;
+
+    try {
+        const res = await fetch(`/api/alpha-triggers/triggers/{{ trigger.trigger_id }}/`, {
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': window.csrfToken }
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('已删除触发器');
+            window.location.href = "{% url 'alpha_trigger:list' %}";
+        } else {
+            showToast('删除失败: ' + (data.error || ''));
+        }
+    } catch (e) {
+        showToast('网络错误: ' + e.message, 'error');
+    }
+}
+
+// JSON 格式化过滤器（Django 端需要注册）
+document.addEventListener('DOMContentLoaded', function() {
+    // 为 JSON 显示添加格式化
+    document.querySelectorAll('.json-display').forEach(el => {
+        try {
+            const obj = JSON.parse(el.textContent);
+            el.textContent = JSON.stringify(obj, null, 2);
+        } catch (e) {
+            // 不是 JSON，保持原样
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -65,6 +65,8 @@ INSTALLED_APPS = [
     # ========== 新模块：决策流程优化 ==========
     'apps.decision_rhythm', # 决策频率约束模块（新增）
     'apps.events',         # 事件总线模块（新增）
+    'apps.beta_gate',      # Beta 闸门模块（新增）
+    'apps.alpha_trigger',  # Alpha 离散触发模块（新增）
 ]
 
 MIDDLEWARE = [

@@ -80,6 +80,22 @@
                     </div>
                 </div>
 
+                <!-- 决策平面：下拉菜单 -->
+                <div class="dropdown">
+                    <span class="top-nav-item">决策平面</span>
+                    <div class="dropdown-menu">
+                        <a href="{% url 'beta_gate:config' %}" class="dropdown-item">
+                            <i class="bi bi-door-closed"></i> Beta 闸门
+                        </a>
+                        <a href="{% url 'alpha_trigger:list' %}" class="dropdown-item">
+                            <i class="bi bi-lightning"></i> Alpha 触发器
+                        </a>
+                        <a href="{% url 'decision_rhythm:quota' %}" class="dropdown-item">
+                            <i class="bi bi-clock-history"></i> 决策配额
+                        </a>
+                    </div>
+                </div>
+
                 <!-- 证券分析：下拉菜单 -->
                 <div class="dropdown">
                     <span class="top-nav-item">证券分析</span>

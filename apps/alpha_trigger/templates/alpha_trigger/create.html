@@ -1,0 +1,501 @@
+{% extends "base.html" %}
+
+{% block title %}创建 Alpha 触发器 - AgomSAAF{% endblock %}
+
+{% block content %}
+<style>
+.trigger-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+.trigger-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.trigger-header h1 { font-size: 24px; margin: 0; }
+.regime-badge { padding: 8px 16px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 20px; font-size: 14px; }
+.policy-badge { padding: 8px 16px; background: linear-gradient(135deg, #f59e0b, #f97316); color: white; border-radius: 20px; font-size: 14px; }
+
+/* 创建表单 */
+.form-builder { background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+.builder-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.builder-header h3 { margin: 0; font-size: 16px; }
+.form-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.form-row-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px; }
+.form-input, .form-select, .form-textarea { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
+.form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: #667eea; }
+.form-textarea { width: 100%; min-height: 80px; resize: vertical; font-family: inherit; }
+.form-label { display: block; font-size: 13px; font-weight: 500; color: #475569; margin-bottom: 4px; }
+
+/* 条件列表 */
+.conditions-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.condition-item { display: flex; align-items: center; gap: 8px; padding: 12px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; }
+.condition-text { flex: 1; font-size: 13px; }
+
+/* 触发条件编辑器 */
+.json-editor { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 13px; min-height: 120px; }
+
+/* AI 助手 */
+.ai-assistant { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-radius: 12px; padding: 20px; margin-bottom: 24px; border: 1px solid #bae6fd; }
+.ai-header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.ai-header h3 { margin: 0; font-size: 16px; color: #0369a1; }
+.ai-input-area { margin-bottom: 16px; }
+.ai-input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; resize: vertical; min-height: 80px; }
+.ai-input:focus { outline: none; border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1); }
+.ai-actions { display: flex; gap: 8px; }
+.btn-ai { padding: 10px 20px; background: #0ea5e9; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+.btn-ai:hover { background: #0284c7; }
+.btn-clear { padding: 10px 20px; background: white; color: #64748b; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 14px; }
+.ai-result { background: white; padding: 12px; border-radius: 6px; margin-top: 16px; display: none; }
+.ai-result.show { display: block; }
+.ai-result-title { font-weight: 600; color: #0369a1; margin-bottom: 8px; }
+.ai-suggestions { background: #fef3c7; padding: 10px; border-radius: 6px; margin-top: 12px; font-size: 13px; }
+.ai-suggestions-title { font-weight: 600; margin-bottom: 4px; }
+
+/* 置信度滑块 */
+.confidence-slider { display: flex; align-items: center; gap: 12px; }
+.confidence-slider input[type="range"] { flex: 1; height: 6px; border-radius: 3px; background: #e2e8f0; }
+.confidence-slider input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #667eea; cursor: pointer; }
+.confidence-value { min-width: 50px; text-align: center; font-weight: 600; }
+
+/* 预览 */
+.rules-preview { background: #fef3c7; padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; }
+
+/* 按钮 */
+.btn-add { padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.btn-add:hover { background: #5a67d8; }
+.btn-remove { padding: 4px 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.btn-submit { width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
+.btn-submit:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
+
+.error-banner { background: #fee2e2; color: #991b1b; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; }
+</style>
+
+<div class="trigger-container">
+    <!-- 头部 -->
+    <div class="trigger-header">
+        <div>
+            <h1>创建 Alpha 触发器</h1>
+            <p style="color: #64748b; margin-top: 4px;">配置可证伪的 Alpha 信号触发条件</p>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            {% if current_regime %}
+            <div class="regime-badge">
+                <i class="bi bi-diagram-3"></i> {{ current_regime.dominant_regime|default:"未知" }}
+            </div>
+            {% endif %}
+            {% if current_policy %}
+            <div class="policy-badge">
+                <i class="bi bi-gear"></i> Policy {{ current_policy.current_level|default:"-" }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="error-banner">
+        <i class="bi bi-exclamation-triangle"></i> {{ error }}
+    </div>
+    {% endif %}
+
+    <!-- AI 助手 -->
+    <div class="ai-assistant">
+        <div class="ai-header">
+            <span style="font-size: 20px;">🤖</span>
+            <h3>AI 触发器助手</h3>
+        </div>
+        <div class="ai-input-area">
+            <textarea id="aiInput" class="ai-input" placeholder="用自然语言描述触发条件和证伪条件&#10;&#10;例如：&#10;- 当PMI连续2个月回升时触发做多沪深300&#10;- 证伪条件：PMI跌破50或CPI超过3%"></textarea>
+        </div>
+        <div class="ai-actions">
+            <button class="btn-ai" onclick="aiGenerate()">✨ AI 生成触发器</button>
+            <button class="btn-clear" onclick="clearAiResult()">清除</button>
+        </div>
+        <div id="aiResult" class="ai-result"></div>
+        <div id="aiSuggestions" class="ai-suggestions" style="display: none;"></div>
+    </div>
+
+    <!-- 创建表单 -->
+    <form id="createForm">
+        <div class="form-builder">
+            <div class="builder-header">
+                <h3>基本信息</h3>
+            </div>
+
+            <div class="form-row">
+                <div>
+                    <label class="form-label">资产代码 *</label>
+                    <input type="text" name="asset_code" class="form-input" placeholder="如 000001.SH" required>
+                </div>
+                <div>
+                    <label class="form-label">资产类别 *</label>
+                    <select name="asset_class" class="form-select" required>
+                        <option value="">选择类别</option>
+                        {% for ac in all_asset_classes %}
+                        <option value="{{ ac }}">{{ ac }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">触发器类型 *</label>
+                    <select name="trigger_type" class="form-select" required>
+                        {% for value, label in trigger_type_choices %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">方向</label>
+                    <select name="direction" class="form-select">
+                        <option value="LONG">做多</option>
+                        <option value="SHORT">做空</option>
+                        <option value="NEUTRAL">中性</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row-2">
+                <div>
+                    <label class="form-label">置信度: <span id="confidenceValue">50</span>%</label>
+                    <div class="confidence-slider">
+                        <input type="range" name="confidence" min="0" max="100" value="50" oninput="updateConfidence(this.value)">
+                    </div>
+                </div>
+                <div>
+                    <label class="form-label">过期天数</label>
+                    <input type="number" name="expires_in_days" class="form-input" value="90" min="1" max="365">
+                </div>
+            </div>
+        </div>
+
+        <!-- 触发条件 -->
+        <div class="form-builder">
+            <div class="builder-header">
+                <h3>触发条件 (JSON)</h3>
+                <small style="color: #64748b;">定义触发条件的数据结构</small>
+            </div>
+            <textarea name="trigger_condition" class="json-editor" id="triggerCondition" placeholder='{
+  "indicator": "CN_PMI_MANUFACTURING",
+  "operator": "gt",
+  "threshold": 50,
+  "consecutive_months": 2
+}'></textarea>
+            <div style="margin-top: 8px; font-size: 12px; color: #64748b;">
+                💡 支持任意 JSON 结构，评估时使用该条件判断是否触发
+            </div>
+        </div>
+
+        <!-- 证伪条件 -->
+        <div class="form-builder">
+            <div class="builder-header">
+                <h3>证伪条件</h3>
+                <small style="color: #64748b;">当满足这些条件时，触发器将被证伪</small>
+            </div>
+
+            <div id="invalidationList" class="conditions-list"></div>
+
+            <div class="form-row">
+                <select id="indicatorSelect" class="form-select">
+                    <option value="">选择指标</option>
+                    {% for ind in available_indicators %}
+                    <option value="{{ ind.code }}" data-threshold="{{ ind.latest|default:50 }}">
+                        {{ ind.name }} ({{ ind.code }}) - 最新: {{ ind.latest|default:"-" }} {{ ind.unit|default:"" }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <select id="conditionSelect" class="form-select">
+                    <option value="lt">&lt; 小于</option>
+                    <option value="lte">&le; 小于等于</option>
+                    <option value="gt">&gt; 大于</option>
+                    <option value="gte">&ge; 大于等于</option>
+                </select>
+                <input type="number" id="thresholdInput" class="form-input" placeholder="阈值" step="0.01">
+                <button type="button" class="btn-add" onclick="addInvalidationCondition()">+ 添加条件</button>
+            </div>
+
+            <div style="display: flex; gap: 16px; margin-top: 12px;">
+                <label style="font-size: 13px;">
+                    <input type="radio" name="invalidation_logic" value="AND" checked> 所有条件都满足 (AND)
+                </label>
+                <label style="font-size: 13px;">
+                    <input type="radio" name="invalidation_logic" value="OR"> 任一条件满足 (OR)
+                </label>
+            </div>
+
+            <div id="invalidationPreview" class="rules-preview" style="display: none;"></div>
+
+            <!-- 时间衰减证伪 -->
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+                <label style="font-size: 13px; display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" name="enable_time_decay" id="enableTimeDecay">
+                    启用时间衰减证伪（最大持仓天数）
+                </label>
+                <input type="number" name="max_holding_days" class="form-input" style="margin-top: 8px; width: 200px;" placeholder="如 30" min="1" disabled id="maxHoldingDays">
+            </div>
+
+            <!-- Regime 不匹配证伪 -->
+            <div style="margin-top: 12px;">
+                <label style="font-size: 13px; display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" name="enable_regime_mismatch" id="enableRegimeMismatch">
+                    启用 Regime 不匹配证伪
+                </label>
+                <select name="required_regime" class="form-select" style="margin-top: 8px; width: 200px;" disabled id="requiredRegime">
+                    <option value="Recovery">Recovery (复苏)</option>
+                    <option value="Overheat">Overheat (过热)</option>
+                    <option value="Stagflation">Stagflation (滞胀)</option>
+                    <option value="Deflation">Deflation (通缩)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 投资论点 -->
+        <div class="form-builder">
+            <div class="builder-header">
+                <h3>投资论点</h3>
+                <small style="color: #64748b;">描述触发该信号的投资逻辑</small>
+            </div>
+            <textarea name="thesis" class="form-textarea" placeholder="描述触发该信号的逻辑和原因..."></textarea>
+        </div>
+
+        <!-- 关联选项 -->
+        <div class="form-builder">
+            <div class="builder-header">
+                <h3>关联选项（可选）</h3>
+            </div>
+            <div class="form-row-2">
+                <div>
+                    <label class="form-label">关联 Regime</label>
+                    <select name="related_regime" class="form-select">
+                        <option value="">不限制</option>
+                        <option value="Recovery">Recovery</option>
+                        <option value="Overheat">Overheat</option>
+                        <option value="Stagflation">Stagflation</option>
+                        <option value="Deflation">Deflation</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">关联 Policy 档位</label>
+                    <input type="number" name="related_policy_level" class="form-input" placeholder="0-5" min="0" max="5">
+                </div>
+            </div>
+        </div>
+
+        <input type="hidden" name="invalidation_conditions" id="invalidationConditionsInput">
+
+        <button type="submit" class="btn-submit">创建触发器</button>
+    </form>
+</div>
+
+<script>
+// 证伪条件数据
+let invalidationConditions = [];
+
+// 更新置信度显示
+function updateConfidence(value) {
+    document.getElementById('confidenceValue').textContent = value;
+}
+
+// AI 生成触发器
+async function aiGenerate() {
+    const input = document.getElementById('aiInput').value.trim();
+    if (!input) {
+        showToast('请输入触发器描述', 'warning');
+        return;
+    }
+
+    try {
+        const res = await fetch("{% url 'signal:ai_parse_logic' %}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: input })
+        });
+
+        const data = await res.json();
+
+        if (data.success && data.conditions) {
+            // 填充证伪条件
+            invalidationConditions = data.conditions;
+            renderInvalidationConditions();
+            updateInvalidationPreview();
+
+            // 显示结果
+            const resultDiv = document.getElementById('aiResult');
+            resultDiv.innerHTML = `
+                <div class="ai-result-title">✅ AI 解析成功 (置信度: ${Math.round(data.confidence * 100)}%)</div>
+                <div style="font-size: 13px; color: #64748b;">${data.explanation || '已根据您的描述生成证伪条件'}</div>
+            `;
+            resultDiv.classList.add('show');
+        } else {
+            const resultDiv = document.getElementById('aiResult');
+            resultDiv.innerHTML = `<div style="color: #ef4444;">❌ ${data.error || '解析失败'}</div>`;
+            resultDiv.classList.add('show');
+        }
+    } catch (e) {
+        showToast('AI 服务异常: ' + e.message, 'error');
+    }
+}
+
+function clearAiResult() {
+    document.getElementById('aiInput').value = '';
+    document.getElementById('aiResult').classList.remove('show');
+    document.getElementById('aiSuggestions').style.display = 'none';
+}
+
+// 添加证伪条件
+function addInvalidationCondition() {
+    const indicator = document.getElementById('indicatorSelect').value;
+    const condition = document.getElementById('conditionSelect').value;
+    const threshold = document.getElementById('thresholdInput').value;
+
+    if (!indicator || !threshold) {
+        showToast('请选择指标并输入阈值', 'warning');
+        return;
+    }
+
+    invalidationConditions.push({
+        condition_type: "threshold_cross",
+        indicator_code: indicator,
+        threshold_value: parseFloat(threshold),
+        cross_direction: condition
+    });
+
+    renderInvalidationConditions();
+    updateInvalidationPreview();
+
+    document.getElementById('indicatorSelect').value = '';
+    document.getElementById('thresholdInput').value = '';
+}
+
+// 渲染证伪条件列表
+function renderInvalidationConditions() {
+    const list = document.getElementById('invalidationList');
+    const opMap = { lt: '<', lte: '≤', gt: '>', gte: '≥' };
+
+    list.innerHTML = invalidationConditions.map((c, i) => `
+        <div class="condition-item">
+            <span class="condition-text">${c.indicator_code} ${opMap[c.cross_direction] || c.cross_direction} ${c.threshold_value}</span>
+            <button type="button" class="btn-remove" onclick="removeInvalidationCondition(${i})">删除</button>
+        </div>
+    `).join('');
+}
+
+function removeInvalidationCondition(index) {
+    invalidationConditions.splice(index, 1);
+    renderInvalidationConditions();
+    updateInvalidationPreview();
+}
+
+function updateInvalidationPreview() {
+    const preview = document.getElementById('invalidationPreview');
+    const logic = document.querySelector('input[name="invalidation_logic"]:checked').value;
+
+    if (invalidationConditions.length === 0) {
+        preview.style.display = 'none';
+        return;
+    }
+
+    const opMap = { lt: '<', lte: '≤', gt: '>', gte: '≥' };
+    const logicText = logic === 'AND' ? ' 且 ' : ' 或 ';
+    const text = invalidationConditions.map(c => `${c.indicator_code} ${opMap[c.cross_direction] || c.cross_direction} ${c.threshold_value}`).join(logicText);
+
+    preview.textContent = `📋 证伪规则: 当 ${text} 时自动证伪`;
+    preview.style.display = 'block';
+}
+
+// 指标选择时自动填充阈值
+document.getElementById('indicatorSelect').addEventListener('change', function() {
+    const option = this.selectedOptions[0];
+    const threshold = option.dataset.threshold;
+    if (threshold) {
+        document.getElementById('thresholdInput').value = threshold;
+    }
+});
+
+// 时间衰减开关
+document.getElementById('enableTimeDecay').addEventListener('change', function() {
+    document.getElementById('maxHoldingDays').disabled = !this.checked;
+});
+
+// Regime 不匹配开关
+document.getElementById('enableRegimeMismatch').addEventListener('change', function() {
+    document.getElementById('requiredRegime').disabled = !this.checked;
+});
+
+// 表单提交
+document.getElementById('createForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    // 构建完整的证伪条件列表
+    const fullInvalidationConditions = [...invalidationConditions];
+
+    // 添加时间衰减条件
+    if (document.getElementById('enableTimeDecay').checked) {
+        const maxDays = parseInt(document.getElementById('maxHoldingDays').value);
+        if (maxDays > 0) {
+            fullInvalidationConditions.push({
+                condition_type: "time_decay",
+                max_holding_days: maxDays
+            });
+        }
+    }
+
+    // 添加 Regime 不匹配条件
+    if (document.getElementById('enableRegimeMismatch').checked) {
+        const regime = document.getElementById('requiredRegime').value;
+        fullInvalidationConditions.push({
+            condition_type: "regime_mismatch",
+            required_regime: regime
+        });
+    }
+
+    // 验证
+    const assetCode = this.querySelector('[name="asset_code"]').value.trim();
+    if (!assetCode) {
+        showToast('请输入资产代码', 'error');
+        return;
+    }
+
+    const triggerConditionStr = this.querySelector('[name="trigger_condition"]').value.trim();
+    let triggerCondition = {};
+    try {
+        if (triggerConditionStr) {
+            triggerCondition = JSON.parse(triggerConditionStr);
+        }
+    } catch (err) {
+        showToast('触发条件 JSON 格式错误', 'error');
+        return;
+    }
+
+    // 构建请求数据
+    const formData = new FormData(this);
+    const requestData = {
+        trigger_type: formData.get('trigger_type'),
+        asset_code: assetCode,
+        asset_class: formData.get('asset_class'),
+        direction: formData.get('direction') || 'LONG',
+        trigger_condition: triggerCondition,
+        invalidation_conditions: fullInvalidationConditions,
+        confidence: parseFloat(formData.get('confidence')) / 100,
+        thesis: formData.get('thesis') || '',
+        expires_in_days: parseInt(formData.get('expires_in_days')) || 90,
+        related_regime: formData.get('related_regime') || null,
+        related_policy_level: formData.get('related_policy_level') || null,
+    };
+
+    try {
+        const res = await fetch("{% url 'alpha_trigger:create-trigger' %}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestData)
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            showToast('✓ 触发器创建成功!', 'success');
+            setTimeout(() => {
+                window.location.href = "{% url 'alpha_trigger:detail' 'PLACEHOLDER' %}".replace('PLACEHOLDER', data.result.trigger_id);
+            }, 1000);
+        } else {
+            showToast('❌ ' + (data.error || '创建失败'), 'error');
+        }
+    } catch (err) {
+        showToast('网络错误: ' + err.message, 'error');
+    }
+});
+</script>
+{% endblock %}

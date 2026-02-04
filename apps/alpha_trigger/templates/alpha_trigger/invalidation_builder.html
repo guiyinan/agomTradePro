@@ -1,0 +1,966 @@
+{% extends "base.html" %}
+
+{% block title %}证伪规则可视化构建器 - Alpha Trigger{% endblock %}
+
+{% block content %}
+<style>
+.builder-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+.builder-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.builder-header h1 { font-size: 24px; margin: 0; }
+
+/* 布局网格 */
+.builder-layout { display: grid; grid-template-columns: 1fr 400px; gap: 24px; }
+
+/* 左侧：规则构建区域 */
+.rules-panel { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; }
+.panel-section { margin-bottom: 24px; }
+.panel-section:last-child { margin-bottom: 0; }
+
+.section-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.section-title i { color: #667eea; }
+
+/* 条件类型选择器 */
+.condition-types { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.condition-type-btn {
+    padding: 16px;
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+.condition-type-btn:hover { border-color: #667eea; background: #f0f4ff; }
+.condition-type-btn.active { border-color: #667eea; background: #eef2ff; }
+.condition-type-btn i { display: block; font-size: 24px; margin-bottom: 8px; }
+.condition-type-btn span { font-size: 13px; font-weight: 500; }
+
+/* 规则列表 */
+.rules-list { display: flex; flex-direction: column; gap: 12px; }
+.rule-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px;
+    position: relative;
+}
+.rule-card:hover { border-color: #cbd5e1; }
+.rule-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.rule-card-title { font-size: 14px; font-weight: 600; }
+.rule-card-actions { display: flex; gap: 8px; }
+.btn-icon { background: none; border: none; cursor: pointer; padding: 4px; border-radius: 4px; color: #64748b; }
+.btn-icon:hover { background: #e2e8f0; color: #334155; }
+.btn-icon.delete:hover { background: #fee2e2; color: #dc2626; }
+
+.rule-card-body { font-size: 13px; color: #475569; }
+.rule-condition { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.rule-condition .operator { padding: 2px 8px; background: #e2e8f0; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.rule-condition .value { font-weight: 600; color: #667eea; }
+
+/* 逻辑连接符 */
+.logic-connector { text-align: center; margin: -8px 0; position: relative; z-index: 1; }
+.logic-connector span {
+    display: inline-block;
+    padding: 4px 12px;
+    background: #f59e0b;
+    color: white;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* 右侧：预览和配置 */
+.preview-panel { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; position: sticky; top: 20px; }
+
+.preview-box { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+.preview-box pre { margin: 0; font-family: 'Monaco', 'Menlo', monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+
+.config-section { margin-bottom: 20px; }
+.config-section h4 { font-size: 14px; font-weight: 600; margin: 0 0 12px 0; }
+
+.form-row { display: flex; gap: 12px; margin-bottom: 12px; }
+.form-row:last-child { margin-bottom: 0; }
+.form-input, .form-select { flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }
+.form-label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
+
+.btn-primary { padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; width: 100%; }
+.btn-primary:hover { background: #5a67d8; }
+.btn-secondary { padding: 8px 16px; background: #64748b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.btn-secondary:hover { background: #475569; }
+
+/* 模态框 */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    width: 500px;
+    max-width: 90vw;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.modal-header h3 { margin: 0; font-size: 18px; }
+.btn-close { background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b; }
+
+/* 测试区域 */
+.test-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
+.test-input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; font-family: monospace; }
+.test-result { margin-top: 12px; padding: 12px; border-radius: 6px; font-size: 13px; }
+.test-result.passed { background: #d1fae5; color: #065f46; }
+.test-result.failed { background: #fee2e2; color: #991b1b; }
+
+/* 快速模板 */
+.templates-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.template-card {
+    padding: 16px;
+    background: #f8fafc;
+    border: 2px dashed #cbd5e1;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.template-card:hover { border-color: #667eea; background: #f0f4ff; }
+.template-card h5 { margin: 0 0 8px 0; font-size: 14px; font-weight: 600; }
+.template-card p { margin: 0; font-size: 12px; color: #64748b; }
+
+/* 空状态 */
+.empty-state { text-align: center; padding: 40px 20px; color: #94a3b8; }
+.empty-state i { font-size: 48px; margin-bottom: 12px; display: block; }
+</style>
+
+<div class="builder-container">
+    <!-- 头部 -->
+    <div class="builder-header">
+        <div>
+            <h1>证伪规则可视化构建器</h1>
+            <p style="color: #64748b; margin-top: 4px;">通过可视化界面构建复杂的证伪规则逻辑</p>
+        </div>
+        <a href="{% url 'alpha_trigger:create' %}" class="btn-secondary" style="text-decoration: none;">
+            <i class="bi bi-arrow-left"></i> 返回创建触发器
+        </a>
+    </div>
+
+    <!-- 快速模板 -->
+    <div class="rules-panel" style="margin-bottom: 24px;">
+        <div class="section-title">
+            <i class="bi bi-lightning"></i>
+            快速模板
+        </div>
+        <div class="templates-grid">
+            <div class="template-card" onclick="loadTemplate('pmi_fall')">
+                <h5>PMI 跌破阈值</h5>
+                <p>当制造业 PMI 跌破 50 时证伪</p>
+            </div>
+            <div class="template-card" onclick="loadTemplate('regime_change')">
+                <h5>Regime 转换</h5>
+                <p>当宏观环境象限变化时证伪</p>
+            </div>
+            <div class="template-card" onclick="loadTemplate('time_decay')">
+                <h5>时间衰减</h5>
+                <p>持仓超过 N 天自动证伪</p>
+            </div>
+            <div class="template-card" onclick="loadTemplate('combined')">
+                <h5>组合条件</h5>
+                <p>多条件组合证伪（AND/OR）</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主布局 -->
+    <div class="builder-layout">
+        <!-- 左侧：规则构建 -->
+        <div class="rules-panel">
+            <!-- 条件类型选择 -->
+            <div class="panel-section">
+                <div class="section-title">
+                    <i class="bi bi-plus-circle"></i>
+                    添加证伪条件
+                </div>
+                <div class="condition-types">
+                    <div class="condition-type-btn" onclick="openModal('threshold')">
+                        <i class="bi bi-sliders"></i>
+                        <span>阈值穿越</span>
+                    </div>
+                    <div class="condition-type-btn" onclick="openModal('trend')">
+                        <i class="bi bi-graph-up-arrow"></i>
+                        <span>趋势变化</span>
+                    </div>
+                    <div class="condition-type-btn" onclick="openModal('regime')">
+                        <i class="bi bi-diagram-3"></i>
+                        <span>Regime 匹配</span>
+                    </div>
+                    <div class="condition-type-btn" onclick="openModal('time')">
+                        <i class="bi bi-clock"></i>
+                        <span>时间衰减</span>
+                    </div>
+                    <div class="condition-type-btn" onclick="openModal('policy')">
+                        <i class="bi bi-gear"></i>
+                        <span>Policy 变化</span>
+                    </div>
+                    <div class="condition-type-btn" onclick="openModal('price')">
+                        <i class="bi bi-currency-dollar"></i>
+                        <span>价格变动</span>
+                    </div>
+                    <div class="condition-type-btn" onclick="openModal('volume')">
+                        <i class="bi bi-bar-chart"></i>
+                        <span>成交量异动</span>
+                    </div>
+                    <div class="condition-type-btn" onclick="openModal('custom')">
+                        <i class="bi bi-code-slash"></i>
+                        <span>自定义 JSON</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 已添加的规则 -->
+            <div class="panel-section">
+                <div class="section-title">
+                    <i class="bi bi-list-check"></i>
+                    已添加的规则 ({{ rules|length }} 条)
+                </div>
+                <div id="rulesList" class="rules-list">
+                    {% if rules %}
+                        {% for rule in rules %}
+                        <div class="rule-card" data-rule-id="{{ rule.id }}">
+                            <div class="rule-card-header">
+                                <span class="rule-card-title">{{ rule.title }}</span>
+                                <div class="rule-card-actions">
+                                    <button class="btn-icon" onclick="editRule('{{ rule.id }}')" title="编辑">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn-icon delete" onclick="deleteRule('{{ rule.id }}')" title="删除">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="rule-card-body">{{ rule.description }}</div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="bi bi-inbox"></i>
+                        <div>暂无证伪规则</div>
+                        <div style="font-size: 12px; margin-top: 8px;">点击上方按钮添加第一条规则</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 逻辑设置 -->
+            <div class="panel-section">
+                <div class="section-title">
+                    <i class="bi bi-link-45deg"></i>
+                    逻辑关系
+                </div>
+                <div style="display: flex; gap: 16px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                        <input type="radio" name="logicOperator" value="AND" checked onchange="updateLogic()">
+                        <strong>AND</strong> - 所有条件都满足时证伪
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                        <input type="radio" name="logicOperator" value="OR" onchange="updateLogic()">
+                        <strong>OR</strong> - 任一条件满足时证伪
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：预览和操作 -->
+        <div class="preview-panel">
+            <!-- JSON 预览 -->
+            <div class="config-section">
+                <h4>生成的 JSON</h4>
+                <div class="preview-box">
+                    <pre id="jsonPreview">{{ initial_json|default:"{}" }}</pre>
+                </div>
+            </div>
+
+            <!-- 配置参数 -->
+            <div class="config-section">
+                <h4>全局配置</h4>
+                <div class="form-row">
+                    <div>
+                        <label class="form-label">证伪延迟 (天)</label>
+                        <input type="number" class="form-input" id="invalidationDelay" value="0" min="0" onchange="updatePreview()">
+                    </div>
+                    <div>
+                        <label class="form-label">连续触发次数</label>
+                        <input type="number" class="form-input" id="consecutiveCount" value="1" min="1" onchange="updatePreview()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 测试 -->
+            <div class="test-section">
+                <h4>测试规则</h4>
+                <textarea class="test-input" id="testInput" placeholder='{"CN_PMI": 49.5, "regime": "Stagflation"}'></textarea>
+                <button class="btn-primary" style="margin-top: 12px;" onclick="testRules()">
+                    <i class="bi bi-play-fill"></i> 运行测试
+                </button>
+                <div id="testResult" style="display: none;"></div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div style="margin-top: 20px;">
+                <button class="btn-primary" onclick="copyToClipboard()">
+                    <i class="bi bi-clipboard"></i> 复制 JSON
+                </button>
+                <button class="btn-secondary" style="margin-top: 12px; width: 100%;" onclick="applyToTrigger()">
+                    <i class="bi bi-check-circle"></i> 应用到触发器
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 模态框：阈值穿越 -->
+<div id="modalThreshold" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>添加阈值穿越条件</h3>
+            <button class="btn-close" onclick="closeModal('threshold')">&times;</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">指标</label>
+            <select class="form-select" id="thresholdIndicator">
+                <option value="CN_PMI_MANUFACTURING">中国制造业 PMI</option>
+                <option value="CN_CPI_YOY">中国 CPI 同比</option>
+                <option value="CN_PPI_YOY">中国 PPI 同比</option>
+                <option value="US_FED_FUNDS_RATE">美联储利率</option>
+                <option value="CN_SHIBOR_OVERNIGHT">SHIBOR 隔夜</option>
+                <option value="custom">自定义指标</option>
+            </select>
+        </div>
+        <div class="form-group" style="margin-top: 16px;">
+            <label class="form-label">操作符</label>
+            <select class="form-select" id="thresholdOperator">
+                <option value="lt">&lt; 小于</option>
+                <option value="lte">&le; 小于等于</option>
+                <option value="gt">&gt; 大于</option>
+                <option value="gte">&ge; 大于等于</option>
+                <option value="eq">= 等于</option>
+            </select>
+        </div>
+        <div class="form-group" style="margin-top: 16px;">
+            <label class="form-label">阈值</label>
+            <input type="number" class="form-input" id="thresholdValue" placeholder="如: 50" step="0.01">
+        </div>
+        <div class="form-group" style="margin-top: 16px;">
+            <label class="form-label">连续月数</label>
+            <input type="number" class="form-input" id="thresholdConsecutive" value="1" min="1" max="12">
+        </div>
+        <button class="btn-primary" style="margin-top: 20px;" onclick="addThresholdRule()">添加条件</button>
+    </div>
+</div>
+
+<!-- 模态框：Regime 匹配 -->
+<div id="modalRegime" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>添加 Regime 匹配条件</h3>
+            <button class="btn-close" onclick="closeModal('regime')">&times;</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Regime 象限</label>
+            <select class="form-select" id="regimeValue">
+                <option value="Recovery">Recovery (复苏)</option>
+                <option value="Overheat">Overheat (过热)</option>
+                <option value="Stagflation">Stagflation (滞胀)</option>
+                <option value="Recession">Recession (衰退)</option>
+            </select>
+        </div>
+        <div class="form-group" style="margin-top: 16px;">
+            <label class="form-label">匹配模式</label>
+            <select class="form-select" id="regimeMatchMode">
+                <option value="exact">精确匹配</option>
+                <option value="not_equal">不等于</option>
+                <option value="in">在列表中</option>
+                <option value="not_in">不在列表中</option>
+            </select>
+        </div>
+        <button class="btn-primary" style="margin-top: 20px;" onclick="addRegimeRule()">添加条件</button>
+    </div>
+</div>
+
+<!-- 模态框：时间衰减 -->
+<div id="modalTime" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>添加时间衰减条件</h3>
+            <button class="btn-close" onclick="closeModal('time')">&times;</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">最大持仓天数</label>
+            <input type="number" class="form-input" id="timeMaxDays" placeholder="如: 30" min="1">
+            <small style="color: #64748b; display: block; margin-top: 4px;">超过此天数后自动证伪</small>
+        </div>
+        <div class="form-group" style="margin-top: 16px;">
+            <label class="form-label">警告阈值 (天)</label>
+            <input type="number" class="form-input" id="timeWarningDays" placeholder="如: 25" min="1">
+            <small style="color: #64748b; display: block; margin-top: 4px;">接近最大天数时发出警告</small>
+        </div>
+        <button class="btn-primary" style="margin-top: 20px;" onclick="addTimeRule()">添加条件</button>
+    </div>
+</div>
+
+<!-- 模态框：Policy 变化 -->
+<div id="modalPolicy" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>添加 Policy 变化条件</h3>
+            <button class="btn-close" onclick="closeModal('policy')">&times;</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">触发条件</label>
+            <select class="form-select" id="policyCondition">
+                <option value="increase">政策档位上升</option>
+                <option value="decrease">政策档位下降</option>
+                <option value="equal_to">等于指定档位</option>
+                <option value="not_equal_to">不等于指定档位</option>
+                <option value="range_in">在档位范围内</option>
+                <option value="range_out">超出档位范围</option>
+            </select>
+        </div>
+        <div class="form-group" style="margin-top: 16px;">
+            <label class="form-label">目标档位 (如适用)</label>
+            <select class="form-select" id="policyLevel">
+                <option value="0">P0 (极度宽松)</option>
+                <option value="1">P1 (宽松)</option>
+                <option value="2">P2 (中性)</option>
+                <option value="3">P3 (紧缩)</option>
+                <option value="4">P4 (极度紧缩)</option>
+            </select>
+        </div>
+        <button class="btn-primary" style="margin-top: 20px;" onclick="addPolicyRule()">添加条件</button>
+    </div>
+</div>
+
+<!-- 模态框：价格变动 -->
+<div id="modalPrice" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>添加价格变动条件</h3>
+            <button class="btn-close" onclick="closeModal('price')">&times;</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">变动类型</label>
+            <select class="form-select" id="priceChangeType">
+                <option value="percent_drop">下跌百分比</option>
+                <option value="percent_rise">上涨百分比</option>
+                <option value="below_price">低于价格</option>
+                <option value="above_price">高于价格</option>
+                <option value="atr_multiple">ATR 倍数</option>
+            </select>
+        </div>
+        <div class="form-group" style="margin-top: 16px;">
+            <label class="form-label">阈值/百分比</label>
+            <input type="number" class="form-input" id="priceThreshold" placeholder="如: 5" step="0.01">
+        </div>
+        <button class="btn-primary" style="margin-top: 20px;" onclick="addPriceRule()">添加条件</button>
+    </div>
+</div>
+
+<!-- 模态框：自定义 JSON -->
+<div id="modalCustom" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>添加自定义 JSON 条件</h3>
+            <button class="btn-close" onclick="closeModal('custom')">&times;</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">条件名称</label>
+            <input type="text" class="form-input" id="customName" placeholder="如: 自定义指标条件">
+        </div>
+        <div class="form-group" style="margin-top: 16px;">
+            <label class="form-label">JSON 条件</label>
+            <textarea class="form-input" id="customJson" rows="6" placeholder='{
+  "my_indicator": {"$gt": 100},
+  "another_field": {"$in": [1, 2, 3]}
+}'></textarea>
+            <small style="color: #64748b; display: block; margin-top: 4px;">使用 MongoDB 风格的查询操作符</small>
+        </div>
+        <button class="btn-primary" style="margin-top: 20px;" onclick="addCustomRule()">添加条件</button>
+    </div>
+</div>
+
+<script>
+// 规则存储
+let rules = [];
+let ruleIdCounter = 0;
+
+// 快速模板
+const templates = {
+    pmi_fall: {
+        title: 'PMI 跌破 50',
+        rules: [{
+            id: ++ruleIdCounter,
+            type: 'threshold',
+            title: '制造业 PMI < 50',
+            config: {
+                indicator: 'CN_PMI_MANUFACTURING',
+                operator: 'lt',
+                threshold: 50,
+                consecutive: 1
+            }
+        }]
+    },
+    regime_change: {
+        title: 'Regime 转换',
+        rules: [{
+            id: ++ruleIdCounter,
+            type: 'regime',
+            title: '当前 Regime ≠ 初始 Regime',
+            config: {
+                mode: 'not_equal',
+                initial_regime: 'Recovery'
+            }
+        }]
+    },
+    time_decay: {
+        title: '时间衰减',
+        rules: [{
+            id: ++ruleIdCounter,
+            type: 'time',
+            title: '持仓超过 30 天',
+            config: {
+                max_days: 30,
+                warning_days: 25
+            }
+        }]
+    },
+    combined: {
+        title: '组合条件',
+        logic: 'OR',
+        rules: [
+            {
+                id: ++ruleIdCounter,
+                type: 'threshold',
+                title: 'PMI < 50',
+                config: { indicator: 'CN_PMI_MANUFACTURING', operator: 'lt', threshold: 50, consecutive: 2 }
+            },
+            {
+                id: ++ruleIdCounter,
+                type: 'time',
+                title: '持仓超 60 天',
+                config: { max_days: 60, warning_days: 50 }
+            }
+        ]
+    }
+};
+
+// 加载模板
+function loadTemplate(templateKey) {
+    const template = templates[templateKey];
+    if (!template) return;
+
+    rules = [...rules, ...template.rules];
+    if (template.logic) {
+        document.querySelector(`input[name="logicOperator"][value="${template.logic}"]`).checked = true;
+    }
+
+    renderRules();
+    updatePreview();
+    showToast(`已加载模板: ${template.title}`, 'success');
+}
+
+// 打开模态框
+function openModal(type) {
+    const modal = document.getElementById(`modal${type.charAt(0).toUpperCase() + type.slice(1)}`);
+    if (modal) {
+        modal.classList.add('show');
+    }
+}
+
+// 关闭模态框
+function closeModal(type) {
+    const modal = document.getElementById(`modal${type.charAt(0).toUpperCase() + type.slice(1)}`);
+    if (modal) {
+        modal.classList.remove('show');
+    }
+}
+
+// 添加阈值规则
+function addThresholdRule() {
+    const indicator = document.getElementById('thresholdIndicator').value;
+    const operator = document.getElementById('thresholdOperator').value;
+    const threshold = parseFloat(document.getElementById('thresholdValue').value);
+    const consecutive = parseInt(document.getElementById('thresholdConsecutive').value) || 1;
+
+    if (!threshold) {
+        showToast('请输入阈值', 'error');
+        return;
+    }
+
+    rules.push({
+        id: ++ruleIdCounter,
+        type: 'threshold',
+        title: `${indicator} ${operator} ${threshold}`,
+        config: { indicator, operator, threshold, consecutive }
+    });
+
+    closeModal('threshold');
+    renderRules();
+    updatePreview();
+}
+
+// 添加 Regime 规则
+function addRegimeRule() {
+    const value = document.getElementById('regimeValue').value;
+    const mode = document.getElementById('regimeMatchMode').value;
+
+    rules.push({
+        id: ++ruleIdCounter,
+        type: 'regime',
+        title: `Regime ${mode} ${value}`,
+        config: { regime: value, mode }
+    });
+
+    closeModal('regime');
+    renderRules();
+    updatePreview();
+}
+
+// 添加时间规则
+function addTimeRule() {
+    const maxDays = parseInt(document.getElementById('timeMaxDays').value);
+    const warningDays = parseInt(document.getElementById('timeWarningDays').value) || maxDays * 0.8;
+
+    if (!maxDays) {
+        showToast('请输入最大持仓天数', 'error');
+        return;
+    }
+
+    rules.push({
+        id: ++ruleIdCounter,
+        type: 'time',
+        title: `持仓 > ${maxDays} 天`,
+        config: { max_days: maxDays, warning_days: warningDays }
+    });
+
+    closeModal('time');
+    renderRules();
+    updatePreview();
+}
+
+// 添加 Policy 规则
+function addPolicyRule() {
+    const condition = document.getElementById('policyCondition').value;
+    const level = parseInt(document.getElementById('policyLevel').value);
+
+    rules.push({
+        id: ++ruleIdCounter,
+        type: 'policy',
+        title: `Policy ${condition} P${level}`,
+        config: { condition, level }
+    });
+
+    closeModal('policy');
+    renderRules();
+    updatePreview();
+}
+
+// 添加价格规则
+function addPriceRule() {
+    const changeType = document.getElementById('priceChangeType').value;
+    const threshold = parseFloat(document.getElementById('priceThreshold').value);
+
+    if (!threshold) {
+        showToast('请输入阈值', 'error');
+        return;
+    }
+
+    rules.push({
+        id: ++ruleIdCounter,
+        type: 'price',
+        title: `价格 ${changeType} ${threshold}`,
+        config: { change_type: changeType, threshold }
+    });
+
+    closeModal('price');
+    renderRules();
+    updatePreview();
+}
+
+// 添加自定义规则
+function addCustomRule() {
+    const name = document.getElementById('customName').value;
+    const jsonStr = document.getElementById('customJson').value;
+
+    if (!name || !jsonStr) {
+        showToast('请填写完整信息', 'error');
+        return;
+    }
+
+    let config;
+    try {
+        config = JSON.parse(jsonStr);
+    } catch (e) {
+        showToast('JSON 格式错误: ' + e.message, 'error');
+        return;
+    }
+
+    rules.push({
+        id: ++ruleIdCounter,
+        type: 'custom',
+        title: name,
+        config
+    });
+
+    closeModal('custom');
+    renderRules();
+    updatePreview();
+}
+
+// 删除规则
+function deleteRule(ruleId) {
+    rules = rules.filter(r => r.id != ruleId);
+    renderRules();
+    updatePreview();
+}
+
+// 编辑规则 (简化版：直接删除后重新添加)
+function editRule(ruleId) {
+    showToast('请删除后重新添加规则', 'info');
+}
+
+// 渲染规则列表
+function renderRules() {
+    const container = document.getElementById('rulesList');
+    const logicOperator = document.querySelector('input[name="logicOperator"]:checked').value;
+
+    if (rules.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="bi bi-inbox"></i>
+                <div>暂无证伪规则</div>
+                <div style="font-size: 12px; margin-top: 8px;">点击上方按钮添加第一条规则</div>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    rules.forEach((rule, index) => {
+        const ruleHtml = renderRuleCard(rule);
+        html += ruleHtml;
+        if (index < rules.length - 1) {
+            html += `<div class="logic-connector"><span>${logicOperator}</span></div>`;
+        }
+    });
+
+    container.innerHTML = html;
+}
+
+// 渲染单个规则卡片
+function renderRuleCard(rule) {
+    let description = '';
+
+    switch (rule.type) {
+        case 'threshold':
+            const opSymbols = { lt: '<', lte: '≤', gt: '>', gte: '≥', eq: '=' };
+            description = `当 <strong>${rule.config.indicator}</strong> <span class="operator">${opSymbols[rule.config.operator] || rule.config.operator}</span> <span class="value">${rule.config.threshold}</span>`;
+            if (rule.config.consecutive > 1) {
+                description += ` 连续 <span class="value">${rule.config.consecutive}</span> 个月`;
+            }
+            break;
+        case 'regime':
+            description = `当 Regime <span class="operator">${rule.config.mode}</span> <span class="value">${rule.config.regime}</span>`;
+            break;
+        case 'time':
+            description = `持仓超过 <span class="value">${rule.config.max_days}</span> 天`;
+            break;
+        case 'policy':
+            description = `Policy ${rule.config.condition} P${rule.config.level}`;
+            break;
+        case 'price':
+            description = `价格 ${rule.config.change_type} ${rule.config.threshold}%`;
+            break;
+        default:
+            description = JSON.stringify(rule.config);
+    }
+
+    return `
+        <div class="rule-card" data-rule-id="${rule.id}">
+            <div class="rule-card-header">
+                <span class="rule-card-title">${rule.title}</span>
+                <div class="rule-card-actions">
+                    <button class="btn-icon delete" onclick="deleteRule(${rule.id})" title="删除">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="rule-card-body">${description}</div>
+        </div>
+    `;
+}
+
+// 更新逻辑连接符
+function updateLogic() {
+    renderRules();
+}
+
+// 更新 JSON 预览
+function updatePreview() {
+    const logicOperator = document.querySelector('input[name="logicOperator"]:checked').value;
+    const invalidationDelay = parseInt(document.getElementById('invalidationDelay').value) || 0;
+    const consecutiveCount = parseInt(document.getElementById('consecutiveCount').value) || 1;
+
+    const output = {
+        logic_operator: logicOperator,
+        invalidation_delay_days: invalidationDelay,
+        consecutive_count: consecutiveCount,
+        conditions: rules.map(r => ({
+            type: r.type,
+            ...r.config
+        }))
+    };
+
+    document.getElementById('jsonPreview').textContent = JSON.stringify(output, null, 2);
+}
+
+// 测试规则
+function testRules() {
+    const inputStr = document.getElementById('testInput').value;
+    const resultDiv = document.getElementById('testResult');
+
+    if (!inputStr.trim()) {
+        showToast('请输入测试数据', 'error');
+        return;
+    }
+
+    let testData;
+    try {
+        testData = JSON.parse(inputStr);
+    } catch (e) {
+        showToast('JSON 格式错误: ' + e.message, 'error');
+        return;
+    }
+
+    // 简单的模拟测试
+    const results = rules.map(rule => {
+        let passed = false;
+        let detail = '';
+
+        if (rule.type === 'threshold') {
+            const value = testData[rule.config.indicator];
+            const op = rule.config.operator;
+            if (op === 'lt') passed = value < rule.config.threshold;
+            else if (op === 'lte') passed = value <= rule.config.threshold;
+            else if (op === 'gt') passed = value > rule.config.threshold;
+            else if (op === 'gte') passed = value >= rule.config.threshold;
+            else if (op === 'eq') passed = value === rule.config.threshold;
+            detail = `${value} ${op} ${rule.config.threshold}`;
+        } else if (rule.type === 'regime') {
+            const currentRegime = testData.regime;
+            if (rule.config.mode === 'exact') passed = currentRegime === rule.config.regime;
+            else if (rule.config.mode === 'not_equal') passed = currentRegime !== rule.config.regime;
+            detail = `${currentRegime} ${rule.config.mode} ${rule.config.regime}`;
+        } else {
+            detail = '需要实际数据才能测试';
+        }
+
+        return { rule: rule.title, passed, detail };
+    });
+
+    const logicOperator = document.querySelector('input[name="logicOperator"]:checked').value;
+    const allPassed = logicOperator === 'AND'
+        ? results.every(r => r.passed)
+        : results.some(r => r.passed);
+
+    resultDiv.style.display = 'block';
+    resultDiv.className = `test-result ${allPassed ? 'passed' : 'failed'}`;
+    resultDiv.innerHTML = `
+        <strong>${allPassed ? '✓ 证伪条件满足' : '✗ 证伪条件不满足'}</strong>
+        <div style="margin-top: 8px; font-size: 12px;">
+            ${results.map(r => `<div>${r.rule}: ${r.passed ? '✓' : '✗'} ${r.detail}</div>`).join('')}
+        </div>
+    `;
+}
+
+// 复制到剪贴板
+function copyToClipboard() {
+    const jsonText = document.getElementById('jsonPreview').textContent;
+    navigator.clipboard.writeText(jsonText).then(() => {
+        showToast('已复制到剪贴板', 'success');
+    });
+}
+
+// 应用到触发器
+function applyToTrigger() {
+    const jsonText = document.getElementById('jsonPreview').textContent;
+    sessionStorage.setItem('invalidationRules', jsonText);
+    showToast('规则已保存，请返回触发器创建页面', 'success');
+    setTimeout(() => {
+        window.location.href = "{% url 'alpha_trigger:create' %}";
+    }, 1000);
+}
+
+// Toast 提示
+function showToast(message, type = 'info') {
+    const colors = {
+        success: '#10b981',
+        error: '#ef4444',
+        warning: '#f59e0b',
+        info: '#3b82f6'
+    };
+
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: ${colors[type]};
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 9999;
+        animation: slideIn 0.3s ease-out;
+    `;
+    toast.textContent = message;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// 页面加载时检查是否有保存的规则
+document.addEventListener('DOMContentLoaded', function() {
+    const savedRules = sessionStorage.getItem('invalidationRules');
+    if (savedRules) {
+        try {
+            const data = JSON.parse(savedRules);
+            if (data.conditions) {
+                rules = data.conditions.map((c, i) => ({
+                    id: ++ruleIdCounter,
+                    type: c.type,
+                    title: `${c.type}_${i}`,
+                    config: c
+                }));
+                document.querySelector(`input[name="logicOperator"][value="${data.logic_operator}"]`).checked = true;
+                renderRules();
+                updatePreview();
+            }
+        } catch (e) {
+            console.error('Failed to load saved rules:', e);
+        }
+    }
+});
+</script>
+{% endblock %}

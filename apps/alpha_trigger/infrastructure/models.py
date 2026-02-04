@@ -230,6 +230,7 @@ class AlphaTriggerModel(models.Model):
     )
 
     class Meta:
+        app_label = "alpha_trigger"
         db_table = "alpha_trigger"
         verbose_name = "Alpha 触发器"
         verbose_name_plural = "Alpha 触发器"
@@ -526,6 +527,7 @@ class AlphaCandidateModel(models.Model):
     )
 
     class Meta:
+        app_label = "alpha_trigger"
         db_table = "alpha_candidate"
         verbose_name = "Alpha 候选"
         verbose_name_plural = "Alpha 候选"

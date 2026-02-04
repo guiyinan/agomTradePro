@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}资产测试工具 - AgomSAAF{% endblock %}
+
+{% block content %}
+<style>
+.test-container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+.test-header { margin-bottom: 24px; }
+.test-header h1 { font-size: 24px; margin: 0; }
+.test-header p { color: #64748b; margin-top: 4px; }
+
+/* 状态面板 */
+.status-panel { display: flex; gap: 12px; margin-bottom: 20px; }
+.status-card { flex: 1; padding: 16px; background: linear-gradient(135deg, #f8fafc, #f1f5f9); border-radius: 12px; text-align: center; }
+.status-value { font-size: 20px; font-weight: 600; }
+.status-label { font-size: 12px; color: #64748b; margin-top: 4px; }
+
+/* 测试表单 */
+.test-form { background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
+.form-row { display: grid; grid-template-columns: 2fr 1fr auto; gap: 12px; align-items: end; }
+.form-input, .form-select { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
+.form-textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; font-family: monospace; min-height: 100px; }
+.form-label { display: block; font-size: 13px; font-weight: 500; color: #475569; margin-bottom: 4px; }
+.btn-test { padding: 10px 24px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; }
+.btn-test:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
+
+/* 结果展示 */
+.results-container { margin-top: 24px; }
+.results-summary { display: flex; gap: 12px; margin-bottom: 16px; }
+.summary-card { flex: 1; padding: 16px; border-radius: 8px; text-align: center; }
+.summary-card.passed { background: #d1fae5; }
+.summary-card.blocked { background: #fee2e2; }
+.summary-value { font-size: 24px; font-weight: 700; }
+.summary-label { font-size: 12px; margin-top: 4px; }
+.summary-passed .summary-value { color: #065f46; }
+.summary-blocked .summary-value { color: #991b1b; }
+
+.result-item { padding: 16px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 12px; }
+.result-item.passed { border-left: 4px solid #10b981; }
+.result-item.blocked { border-left: 4px solid #ef4444; }
+.result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.result-code { font-size: 16px; font-weight: 600; }
+.result-status { padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+.result-status.passed { background: #d1fae5; color: #065f46; }
+.result-status.blocked { background: #fee2e2; color: #991b1b; }
+.result-reason { font-size: 13px; color: #64748b; }
+.result-details { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; }
+
+/* 历史记录 */
+.history-section { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; }
+.history-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+.history-table th { padding: 10px; text-align: left; background: #f8fafc; font-weight: 600; font-size: 12px; color: #64748b; }
+.history-table td { padding: 10px; border-top: 1px solid #e2e8f0; font-size: 13px; }
+
+.empty-state { text-align: center; padding: 40px 20px; color: #94a3b8; }
+</style>
+
+<div class="test-container">
+    <!-- 头部 -->
+    <div class="test-header">
+        <h1>资产测试工具</h1>
+        <p>测试资产在当前 Beta Gate 配置下是否能通过</p>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle"></i> {{ error }}
+    </div>
+    {% endif %}
+
+    <!-- 当前环境状态 -->
+    <div class="status-panel">
+        <div class="status-card">
+            <div class="status-value">
+                {% if current_regime %}{{ current_regime.dominant_regime }}{% else %}未知{% endif %}
+            </div>
+            <div class="status-label">当前 Regime</div>
+        </div>
+        <div class="status-card">
+            <div class="status-value">
+                {% if current_policy %}{{ current_policy.current_level }}{% else %}-{% endif %}
+            </div>
+            <div class="status-label">Policy 档位</div>
+        </div>
+        <div class="status-card">
+            <div class="status-value">
+                {% if active_config %}{{ active_config.risk_profile }}{% else %}BALANCED{% endif %}
+            </div>
+            <div class="status-label">风险画像</div>
+        </div>
+    </div>
+
+    <!-- 测试表单 -->
+    <div class="test-form">
+        <h3 style="margin: 0 0 16px 0; font-size: 16px;">测试资产</h3>
+
+        <div class="form-row">
+            <div>
+                <label class="form-label">资产代码（每行一个）</label>
+                <textarea id="assetCodes" class="form-textarea" placeholder="输入资产代码，每行一个&#10;&#10;例如：&#10;000001.SH&#10;000300.SH&#10;510300.SH"></textarea>
+            </div>
+            <div>
+                <label class="form-label">资产类别</label>
+                <select id="assetClass" class="form-select" style="height: 100%;">
+                    {% for ac in all_asset_classes %}
+                    <option value="{{ ac }}"{% if ac == "a_股票" %} selected{% endif %}>{{ ac }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="button" class="btn-test" onclick="runTest()">
+                <i class="bi bi-play-circle"></i> 开始测试
+            </button>
+        </div>
+
+        <div style="margin-top: 12px; font-size: 12px; color: #64748b;">
+            <i class="bi bi-info-circle"></i> 支持批量测试，最多 10 个资产
+        </div>
+    </div>
+
+    <!-- 测试结果 -->
+    <div id="resultsContainer" class="results-container" style="display: none;">
+        <div id="resultsSummary" class="results-summary"></div>
+        <div id="resultsList"></div>
+    </div>
+
+    <!-- 历史记录 -->
+    <div class="history-section">
+        <h3 style="margin: 0 0 16px 0; font-size: 16px;">最近测试记录</h3>
+        {% if recent_tests %}
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th>资产代码</th>
+                    <th>资产类别</th>
+                    <th>状态</th>
+                    <th>拦截原因</th>
+                    <th>测试时间</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for test in recent_tests %}
+                <tr>
+                    <td><strong>{{ test.asset_code }}</strong></td>
+                    <td>{{ test.asset_class }}</td>
+                    <td>
+                        {% if test.status == "PASSED" %}
+                        <span style="color: #10b981;">通过</span>
+                        {% else %}
+                        <span style="color: #ef4444;">拦截</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ test.blocking_reason|default:"-" }}</td>
+                    <td>{{ test.evaluated_at|date:"m-d H:i" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">暂无测试记录</div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+async function runTest() {
+    const input = document.getElementById('assetCodes').value.trim();
+    if (!input) {
+        showToast('请输入资产代码', 'warning');
+        return;
+    }
+
+    const codes = input.split('\n')
+        .map(c => c.trim())
+        .filter(c => c)
+        .slice(0, 10); // 最多10个
+
+    if (codes.length === 0) {
+        showToast('请输入有效的资产代码', 'warning');
+        return;
+    }
+
+    const assetClass = document.getElementById('assetClass').value;
+
+    // 获取当前环境信息
+    const currentRegime = "{{ current_regime.dominant_regime|default:'Recovery' }}";
+    const regimeConfidence = parseFloat("{{ current_regime.confidence|default:'0.5' }}");
+    const policyLevel = parseInt("{{ current_policy.current_level|default:'0' }}");
+
+    const resultsContainer = document.getElementById('resultsContainer');
+    const resultsList = document.getElementById('resultsList');
+    const resultsSummary = document.getElementById('resultsSummary');
+
+    // 显示加载状态
+    resultsContainer.style.display = 'block';
+    resultsList.innerHTML = '<div style="text-align: center; padding: 40px; color: #64748b;"><i class="bi bi-hourglass-split"></i> 测试中...</div>';
+    resultsSummary.innerHTML = '';
+
+    try {
+        const res = await fetch("{% url 'beta_gate:api_test' %}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                asset_codes: codes,
+                asset_class: assetClass,
+                current_regime: currentRegime,
+                regime_confidence: regimeConfidence,
+                policy_level: policyLevel,
+            })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            // 显示摘要
+            const summary = data.summary || {};
+            resultsSummary.innerHTML = `
+                <div class="summary-card summary-passed">
+                    <div class="summary-value">${summary.passed || 0}</div>
+                    <div class="summary-label">通过</div>
+                </div>
+                <div class="summary-card summary-blocked">
+                    <div class="summary-value">${summary.blocked || 0}</div>
+                    <div class="summary-label">拦截</div>
+                </div>
+                <div class="summary-card" style="background: #f8fafc;">
+                    <div class="summary-value">${Math.round((summary.passed_rate || 0) * 100)}%</div>
+                    <div class="summary-label">通过率</div>
+                </div>
+            `;
+
+            // 显示结果列表
+            resultsList.innerHTML = data.results.map(r => `
+                <div class="result-item ${r.passed ? 'passed' : 'blocked'}">
+                    <div class="result-header">
+                        <span class="result-code">${r.asset_code}</span>
+                        <span class="result-status ${r.passed ? 'passed' : 'blocked'}">
+                            ${r.passed ? '✓ 通过' : '✕ 拦截'}
+                        </span>
+                    </div>
+                    ${!r.passed ? `<div class="result-reason">原因: ${r.blocking_reason || '未知'}</div>` : ''}
+                    <div class="result-details">
+                        类别: ${r.asset_class} | 测试时间: ${new Date(r.evaluated_at).toLocaleString('zh-CN')}
+                    </div>
+                </div>
+            `).join('');
+
+            showToast(`测试完成: ${data.results.length} 个资产`, 'success');
+        } else {
+            resultsList.innerHTML = `<div class="empty-state">测试失败: ${data.error || '未知错误'}</div>`;
+        }
+    } catch (e) {
+        resultsList.innerHTML = `<div class="empty-state">网络错误: ${e.message}</div>`;
+    }
+}
+</script>
+{% endblock %}

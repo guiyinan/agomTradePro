@@ -55,6 +55,23 @@
                 </a>
             </div>
 
+            <!-- 决策平面 -->
+            <div class="nav-section">
+                <div class="nav-section-title">决策平面</div>
+                <a href="{% url 'beta_gate:config' %}" class="nav-item">
+                    <span class="nav-icon">🚪</span>
+                    <span class="nav-text">Beta 闸门</span>
+                </a>
+                <a href="{% url 'alpha_trigger:list' %}" class="nav-item">
+                    <span class="nav-icon">⚡</span>
+                    <span class="nav-text">Alpha 触发器</span>
+                </a>
+                <a href="{% url 'decision_rhythm:quota' %}" class="nav-item">
+                    <span class="nav-icon">⏱️</span>
+                    <span class="nav-text">决策配额</span>
+                </a>
+            </div>
+
             <!-- 资产管理 -->
             <div class="nav-section">
                 <div class="nav-section-title">资产管理</div>
@@ -183,6 +200,88 @@
                 </div>
                 <div class="metric-footer">
                     <span class="metric-label">仓位: {{ invested_ratio|floatformat:1 }}%</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 决策平面状态卡片 -->
+        <section class="decision-plane-section">
+            <div class="section-header">
+                <h2 class="section-title">🎯 决策平面</h2>
+            </div>
+            <div class="decision-plane-grid">
+                <!-- Beta Gate 状态 -->
+                <div class="decision-card beta-gate">
+                    <div class="decision-card-header">
+                        <span class="decision-icon">🚪</span>
+                        <span class="decision-title">Beta 闸门</span>
+                        <a href="{% url 'beta_gate:config' %}" class="decision-link">详情 →</a>
+                    </div>
+                    <div class="decision-card-body">
+                        <div class="decision-status">
+                            <span class="status-label">当前 Regime</span>
+                            <span class="status-value">{{ current_regime|default:"-" }}</span>
+                        </div>
+                        <div class="decision-status">
+                            <span class="status-label">政策档位</span>
+                            <span class="status-value">P{{ policy_level|default:0 }}</span>
+                        </div>
+                        <div class="decision-status">
+                            <span class="status-label">可见资产类别</span>
+                            <span class="status-value">{{ beta_gate_visible_classes|default:"-" }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alpha 面板 -->
+                <div class="decision-card alpha-panel">
+                    <div class="decision-card-header">
+                        <span class="decision-icon">⚡</span>
+                        <span class="decision-title">Alpha 面板</span>
+                        <a href="{% url 'alpha_trigger:list' %}" class="decision-link">详情 →</a>
+                    </div>
+                    <div class="decision-card-body">
+                        <div class="decision-stats">
+                            <div class="decision-stat">
+                                <span class="stat-value">{{ alpha_watch_count|default:0 }}</span>
+                                <span class="stat-label">观察</span>
+                            </div>
+                            <div class="decision-stat">
+                                <span class="stat-value">{{ alpha_candidate_count|default:0 }}</span>
+                                <span class="stat-label">候选</span>
+                            </div>
+                            <div class="decision-stat">
+                                <span class="stat-value">{{ alpha_actionable_count|default:0 }}</span>
+                                <span class="stat-label">可行动</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 决策配额 -->
+                <div class="decision-card quota">
+                    <div class="decision-card-header">
+                        <span class="decision-icon">⏱️</span>
+                        <span class="decision-title">决策配额</span>
+                        <a href="{% url 'decision_rhythm:quota' %}" class="decision-link">详情 →</a>
+                    </div>
+                    <div class="decision-card-body">
+                        <div class="decision-status">
+                            <span class="status-label">本期配额</span>
+                            <span class="status-value">{{ quota_total|default:0 }}</span>
+                        </div>
+                        <div class="decision-status">
+                            <span class="status-label">已占用</span>
+                            <span class="status-value">{{ quota_used|default:0 }}</span>
+                        </div>
+                        <div class="decision-status">
+                            <span class="status-label">剩余额度</span>
+                            <span class="status-value">{{ quota_remaining|default:0 }}</span>
+                        </div>
+                        <div class="quota-progress">
+                            <div class="quota-progress-bar" style="width: {{ quota_usage_percent|default:0 }}%"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -1147,6 +1246,143 @@ chatSendBtn.onclick = async function() {
 .action-reason {
     font-size: 13px;
     color: var(--text-muted);
+}
+
+/* 决策平面样式 */
+.decision-plane-section {
+    margin-bottom: 20px;
+}
+
+.decision-plane-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.decision-card {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.decision-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.decision-card.beta-gate {
+    border-top: 3px solid #667eea;
+}
+
+.decision-card.alpha-panel {
+    border-top: 3px solid #f59e0b;
+}
+
+.decision-card.quota {
+    border-top: 3px solid #10b981;
+}
+
+.decision-card-header {
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border-color);
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+}
+
+.decision-icon {
+    font-size: 20px;
+}
+
+.decision-title {
+    flex: 1;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.decision-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.decision-link:hover {
+    text-decoration: underline;
+}
+
+.decision-card-body {
+    padding: 16px;
+}
+
+.decision-status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+.status-label {
+    color: var(--text-muted);
+}
+
+.status-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.decision-stats {
+    display: flex;
+    justify-content: space-around;
+    gap: 12px;
+}
+
+.decision-stat {
+    text-align: center;
+    flex: 1;
+}
+
+.decision-stat .stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.decision-stat .stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.quota-progress {
+    margin-top: 12px;
+}
+
+.quota-progress-bar {
+    height: 8px;
+    background: var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.quota-progress-bar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+    .decision-plane-grid {
+        grid-template-columns: 1fr;
+    }
 }
 </style>
 

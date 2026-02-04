@@ -9,6 +9,7 @@ Alpha 事件触发的 API 视图。
 import logging
 from typing import Any, Dict, List, Optional
 
+from django.shortcuts import render
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -718,3 +719,371 @@ class GenerateCandidateView(APIView):
                 {"success": False, "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+# ========== Template Views ==========
+
+
+def alpha_trigger_list_view(request):
+    """
+    Alpha 触发器列表页面
+
+    显示所有触发器和候选的状态统计。
+    """
+    try:
+        from ..infrastructure.models import AlphaTriggerModel, AlphaCandidateModel
+
+        # 直接查询 ORM 模型
+        try:
+            active_triggers = list(AlphaTriggerModel.objects.filter(
+                status="ACTIVE"
+            ).order_by('-created_at')[:10])
+        except Exception as e:
+            logger.warning(f"Failed to query active triggers: {e}")
+            active_triggers = []
+
+        try:
+            actionable_candidates = list(AlphaCandidateModel.objects.filter(
+                status="ACTIONABLE"
+            ).order_by('-created_at')[:10])
+        except Exception as e:
+            logger.warning(f"Failed to query actionable candidates: {e}")
+            actionable_candidates = []
+
+        try:
+            watch_list = list(AlphaCandidateModel.objects.filter(
+                status="WATCH"
+            ).order_by('-created_at')[:10])
+        except Exception as e:
+            logger.warning(f"Failed to query watch list: {e}")
+            watch_list = []
+
+        # 统计各状态数量
+        try:
+            candidate_count = AlphaCandidateModel.objects.filter(
+                status="CANDIDATE"
+            ).count()
+        except Exception as e:
+            logger.warning(f"Failed to count candidates: {e}")
+            candidate_count = 0
+
+        trigger_stats = {
+            "active_count": len(active_triggers),
+            "total_count": AlphaTriggerModel.objects.count() if active_triggers else 0,
+        }
+
+        candidate_stats = {
+            "watch_count": len(watch_list),
+            "candidate_count": candidate_count,
+            "actionable_count": len(actionable_candidates),
+        }
+
+        context = {
+            "active_triggers": active_triggers,
+            "actionable_candidates": actionable_candidates,
+            "watch_list": watch_list,
+            "trigger_stats": trigger_stats,
+            "candidate_stats": candidate_stats,
+            "page_title": "Alpha 触发器",
+            "page_description": "离散、可证伪、可行动的 Alpha 信号触发",
+        }
+
+        return render(request, "alpha_trigger/list.html", context)
+
+    except Exception as e:
+        logger.error(f"Failed to load alpha trigger list page: {e}", exc_info=True)
+        context = {
+            "error": str(e),
+            "page_title": "Alpha 触发器",
+        }
+        return render(request, "alpha_trigger/list.html", context, status=500)
+
+
+def alpha_trigger_create_view(request):
+    """
+    Alpha 触发器创建页面
+
+    显示创建表单，支持 AI 助手辅助配置证伪条件。
+    参考 `signal/manage.html` 的实现模式。
+    """
+    try:
+        from ..infrastructure.models import AlphaTriggerModel
+
+        # 获取当前 Regime
+        current_regime = None
+        try:
+            from apps.regime.application.use_cases import GetCurrentRegimeUseCase
+            from apps.regime.infrastructure.repositories import get_regime_repository
+            regime_use_case = GetCurrentRegimeUseCase(get_regime_repository())
+            regime_response = regime_use_case.execute()
+            if regime_response.success and regime_response.regime_state:
+                current_regime = regime_response.regime_state
+        except Exception as e:
+            logger.warning(f"Failed to get current regime: {e}")
+
+        # 获取当前 Policy
+        current_policy = None
+        try:
+            from apps.policy.application.use_cases import GetCurrentPolicyUseCase
+            from apps.policy.infrastructure.repositories import get_policy_repository
+            policy_use_case = GetCurrentPolicyUseCase(get_policy_repository())
+            policy_response = policy_use_case.execute()
+            if policy_response.success and policy_response.policy_level:
+                current_policy = policy_response.policy_level
+        except Exception as e:
+            logger.warning(f"Failed to get current policy: {e}")
+
+        # 获取可用指标列表（从 macro_indicator 表）
+        available_indicators = []
+        try:
+            from apps.macro.infrastructure.models import MacroIndicatorModel
+            indicators = MacroIndicatorModel.objects.filter(
+                is_active=True
+            ).values('code', 'name', 'unit', 'latest_value')[:50]
+            available_indicators = list(indicators)
+        except Exception as e:
+            logger.warning(f"Failed to query indicators: {e}")
+
+        # 获取所有资产类别
+        all_asset_classes = [
+            "a_股票", "a_债券", "a_商品", "a_现金",
+            "港股", "美股", "黄金", "原油"
+        ]
+
+        # 获取触发器类型选项
+        trigger_type_choices = AlphaTriggerModel.TRIGGER_TYPE_CHOICES
+
+        context = {
+            "current_regime": current_regime,
+            "current_policy": current_policy,
+            "available_indicators": available_indicators,
+            "all_asset_classes": all_asset_classes,
+            "trigger_type_choices": trigger_type_choices,
+            "page_title": "创建 Alpha 触发器",
+            "page_description": "配置可证伪的 Alpha 信号触发条件",
+        }
+
+        return render(request, "alpha_trigger/create.html", context)
+
+    except Exception as e:
+        logger.error(f"Failed to load alpha trigger create page: {e}", exc_info=True)
+        context = {
+            "error": str(e),
+            "page_title": "创建 Alpha 触发器",
+        }
+        return render(request, "alpha_trigger/create.html", context, status=500)
+
+
+def alpha_trigger_edit_view(request, trigger_id):
+    """
+    Alpha 触发器编辑页面
+
+    加载现有触发器数据，支持修改。
+    """
+    try:
+        from ..infrastructure.models import AlphaTriggerModel
+        from django.shortcuts import get_object_or_404
+
+        trigger = get_object_or_404(AlphaTriggerModel, trigger_id=trigger_id)
+
+        # 获取可用指标列表
+        available_indicators = []
+        try:
+            from apps.macro.infrastructure.models import MacroIndicatorModel
+            indicators = MacroIndicatorModel.objects.filter(
+                is_active=True
+            ).values('code', 'name', 'unit', 'latest_value')[:50]
+            available_indicators = list(indicators)
+        except Exception as e:
+            logger.warning(f"Failed to query indicators: {e}")
+
+        # 获取所有资产类别
+        all_asset_classes = [
+            "a_股票", "a_债券", "a_商品", "a_现金",
+            "港股", "美股", "黄金", "原油"
+        ]
+
+        context = {
+            "trigger": trigger,
+            "available_indicators": available_indicators,
+            "all_asset_classes": all_asset_classes,
+            "trigger_type_choices": AlphaTriggerModel.TRIGGER_TYPE_CHOICES,
+            "page_title": f"编辑触发器: {trigger.trigger_id[:12]}...",
+            "page_description": f"修改 {trigger.asset_code} 的触发条件",
+        }
+
+        return render(request, "alpha_trigger/edit.html", context)
+
+    except Exception as e:
+        logger.error(f"Failed to load alpha trigger edit page: {e}", exc_info=True)
+        context = {
+            "error": str(e),
+            "page_title": "编辑 Alpha 触发器",
+        }
+        return render(request, "alpha_trigger/edit.html", context, status=500)
+
+
+def alpha_trigger_detail_view(request, trigger_id):
+    """
+    Alpha 触发器详情页面
+
+    显示完整信息和相关候选。
+    """
+    try:
+        from ..infrastructure.models import AlphaTriggerModel, AlphaCandidateModel
+        from django.shortcuts import get_object_or_404
+
+        trigger = get_object_or_404(AlphaTriggerModel, trigger_id=trigger_id)
+
+        # 获取相关候选
+        candidates = list(AlphaCandidateModel.objects.filter(
+            source_trigger_id=trigger_id
+        ).order_by('-created_at')[:20])
+
+        # 统计候选状态
+        candidate_stats = {
+            "total": len(candidates),
+            "watch": len([c for c in candidates if c.status == "WATCH"]),
+            "candidate": len([c for c in candidates if c.status == "CANDIDATE"]),
+            "actionable": len([c for c in candidates if c.status == "ACTIONABLE"]),
+            "executed": len([c for c in candidates if c.status == "EXECUTED"]),
+        }
+
+        context = {
+            "trigger": trigger,
+            "candidates": candidates,
+            "candidate_stats": candidate_stats,
+            "page_title": f"触发器详情: {trigger.trigger_id[:12]}...",
+            "page_description": f"{trigger.asset_code} - {trigger.get_trigger_type_display()}",
+        }
+
+        return render(request, "alpha_trigger/detail.html", context)
+
+    except Exception as e:
+        logger.error(f"Failed to load alpha trigger detail page: {e}", exc_info=True)
+        context = {
+            "error": str(e),
+            "page_title": "触发器详情",
+        }
+        return render(request, "alpha_trigger/detail.html", context, status=500)
+
+
+def alpha_trigger_invalidation_builder_view(request):
+    """
+    证伪规则可视化构建器页面
+
+    提供交互式界面构建复杂的证伪规则。
+    """
+    try:
+        # 获取可用指标列表（预定义的常用指标）
+        available_indicators = [
+            {"code": "CN_PMI_MANUFACTURING", "name": "中国制造业PMI", "unit": "指数", "latest_value": 50.1},
+            {"code": "CN_CPI_YOY", "name": "中国CPI同比", "unit": "%", "latest_value": 2.1},
+            {"code": "CN_PPI_YOY", "name": "中国PPI同比", "unit": "%", "latest_value": -2.8},
+            {"code": "US_FED_FUNDS_RATE", "name": "美联储利率", "unit": "%", "latest_value": 5.25},
+            {"code": "CN_SHIBOR_OVERNIGHT", "name": "SHIBOR隔夜", "unit": "%", "latest_value": 1.7},
+            {"code": "CN_10Y_BOND_YIELD", "name": "中国10年期国债收益率", "unit": "%", "latest_value": 2.7},
+            {"code": "US_10Y_TREASURY_YIELD", "name": "美国10年期国债收益率", "unit": "%", "latest_value": 4.2},
+            {"code": "USD_CNY", "name": "美元兑人民币", "unit": "汇率", "latest_value": 7.2},
+        ]
+
+        # 默认 JSON 示例
+        initial_json = {
+            "logic_operator": "AND",
+            "invalidation_delay_days": 0,
+            "consecutive_count": 1,
+            "conditions": []
+        }
+
+        context = {
+            "available_indicators": available_indicators,
+            "initial_json": initial_json,
+            "rules": [],
+            "page_title": "证伪规则可视化构建器",
+        }
+
+        return render(request, "alpha_trigger/invalidation_builder.html", context)
+
+    except Exception as e:
+        logger.error(f"Failed to load invalidation builder page: {e}", exc_info=True)
+        context = {
+            "error": str(e),
+            "page_title": "证伪规则构建器",
+        }
+        return render(request, "alpha_trigger/invalidation_builder.html", context, status=500)
+
+
+def alpha_candidate_detail_view(request, candidate_id):
+    """
+    Alpha 候选详情页面
+
+    显示候选的完整信息、状态历史和操作按钮。
+    """
+    try:
+        from ..infrastructure.models import AlphaCandidateModel, AlphaTriggerModel
+        from django.shortcuts import get_object_or_404
+
+        candidate = get_object_or_404(AlphaCandidateModel, candidate_id=candidate_id)
+
+        # 获取来源触发器
+        source_trigger = None
+        try:
+            source_trigger = AlphaTriggerModel.objects.get(
+                trigger_id=candidate.source_trigger_id
+            )
+        except AlphaTriggerModel.DoesNotExist:
+            pass
+
+        # 解析证伪条件
+        invalidation_conditions = []
+        if candidate.invalidation_conditions:
+            try:
+                import json
+                conditions = json.loads(candidate.invalidation_conditions)
+                if isinstance(conditions, list):
+                    invalidation_conditions = conditions
+                elif isinstance(conditions, dict):
+                    invalidation_conditions = [conditions]
+            except json.JSONDecodeError:
+                pass
+
+        # 模拟状态历史 (实际应该从数据库查询)
+        status_history = []
+        # 添加初始状态
+        status_history.append({
+            'status': 'CREATED',
+            'created_at': candidate.created_at,
+            'note': f'由触发器 {candidate.source_trigger_id[:12]}... 创建'
+        })
+        # 如果状态有变化，添加历史记录
+        if candidate.status != 'CREATED':
+            status_history.append({
+                'status': candidate.status,
+                'created_at': candidate.updated_at,
+                'note': '状态已更新'
+            })
+
+        # 计算活跃天数
+        from django.utils import timezone
+        days_active = 0
+        if candidate.created_at:
+            days_active = (timezone.now() - candidate.created_at).days
+
+        context = {
+            "candidate": candidate,
+            "source_trigger": source_trigger,
+            "invalidation_conditions": invalidation_conditions,
+            "status_history": status_history,
+            "days_active": days_active,
+            "page_title": f"候选详情: {candidate.asset_code}",
+        }
+
+        return render(request, "alpha_trigger/candidate_detail.html", context)
+
+    except Exception as e:
+        logger.error(f"Failed to load alpha candidate detail page: {e}", exc_info=True)
+        context = {
+            "error": str(e),
+            "page_title": "候选详情",
+        }
+        return render(request, "alpha_trigger/candidate_detail.html", context, status=500)

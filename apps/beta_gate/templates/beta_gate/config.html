@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}Beta 闸门配置 - AgomSAAF{% endblock %}
+
+{% block content %}
+<style>
+.beta-gate-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+.beta-gate-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 24px; }
+.beta-gate-header h1 { font-size: 28px; margin-bottom: 8px; }
+.beta-gate-header p { color: #64748b; font-size: 14px; }
+
+.config-actions { display: flex; gap: 12px; }
+.btn-config { padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; display: flex; align-items: center; gap: 6px; transition: all 0.3s; }
+.btn-config:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.btn-config.primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+.btn-config.secondary { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
+.btn-config.secondary:hover { background: #f1f5f9; }
+
+.config-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 24px; }
+.config-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; }
+.config-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.config-card-title { font-size: 18px; font-weight: 600; }
+.config-badge { padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+.config-badge.active { background: #d1fae5; color: #065f46; }
+.config-badge.inactive { background: #f3f4f6; color: #6b7280; }
+
+.constraint-section { margin-bottom: 16px; }
+.constraint-label { font-size: 13px; font-weight: 500; color: #64748b; margin-bottom: 8px; }
+.constraint-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.constraint-item { padding: 6px 12px; background: #f8fafc; border-radius: 6px; font-size: 13px; }
+.constraint-item.allowed { background: #d1fae5; color: #065f46; }
+.constraint-item.blocked { background: #fee2e2; color: #991b1b; }
+
+.decision-table { width: 100%; border-collapse: collapse; }
+.decision-table th { padding: 12px; text-align: left; background: #f8fafc; font-weight: 600; font-size: 13px; color: #64748b; }
+.decision-table td { padding: 12px; border-top: 1px solid #e2e8f0; font-size: 14px; }
+.decision-table .status-passed { color: #10b981; font-weight: 500; }
+.decision-table .status-blocked { color: #ef4444; font-weight: 500; }
+
+.empty-state { text-align: center; padding: 60px 20px; color: #94a3b8; }
+.empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-actions { margin-top: 20px; display: flex; justify-content: center; gap: 12px; }
+
+.admin-link { color: #667eea; text-decoration: none; font-weight: 500; }
+.admin-link:hover { text-decoration: underline; }
+</style>
+
+<div class="beta-gate-container">
+    <!-- 头部 -->
+    <div class="beta-gate-header">
+        <div>
+            <h1>🚪 Beta 闸门配置</h1>
+            <p>基于 Regime 和 Policy 的资产可见性过滤 - 确保不在错误的宏观环境中下注</p>
+        </div>
+        <div class="config-actions">
+            <a href="{% url 'beta_gate:test' %}" class="btn-config primary">
+                <i class="bi bi-play-circle"></i> 资产测试
+            </a>
+            <a href="/admin/beta_gate/" class="btn-config secondary">
+                <i class="bi bi-gear"></i> 配置管理
+            </a>
+            {% if active_config %}
+            <button class="btn-config secondary" onclick="location.reload()">
+                <i class="bi bi-arrow-clockwise"></i> 刷新
+            </button>
+            {% else %}
+            <a href="/admin/beta_gate/gateconfigmodel/add/" class="btn-config primary">
+                <i class="bi bi-plus-lg"></i> 创建配置
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle"></i> {{ error }}
+    </div>
+    {% endif %}
+
+    {% if active_config %}
+    <!-- 当前配置 -->
+    <div class="config-grid">
+        <!-- Regime 约束 -->
+        <div class="config-card">
+            <div class="config-card-header">
+                <div class="config-card-title">📊 Regime 约束</div>
+                <span class="config-badge active">当前生效</span>
+            </div>
+
+            <div class="constraint-section">
+                <div class="constraint-label">当前 Regime</div>
+                <div style="font-size: 24px; font-weight: 600; color: #667eea;">
+                    {{ active_config.regime_constraint.current_regime|default:"未知" }}
+                </div>
+            </div>
+
+            <div class="constraint-section">
+                <div class="constraint-label">置信度</div>
+                <div style="font-size: 16px; font-weight: 500;">
+                    {{ active_config.regime_constraint.confidence|floatformat:2 }}%
+                </div>
+            </div>
+
+            <div class="constraint-section">
+                <div class="constraint-label">可见资产类别</div>
+                <div class="constraint-list">
+                    {% for asset_class in active_config.regime_constraint.allowed_asset_classes %}
+                    <span class="constraint-item allowed">{{ asset_class }}</span>
+                    {% empty %}
+                    <span class="constraint-item">无限制</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Policy 约束 -->
+        <div class="config-card">
+            <div class="config-card-header">
+                <div class="config-card-title">📋 Policy 约束</div>
+                <span class="config-badge active">档位 {{ active_config.policy_constraint.current_level }}</span>
+            </div>
+
+            <div class="constraint-section">
+                <div class="constraint-label">当前档位</div>
+                <div style="font-size: 24px; font-weight: 600; color: #8b5cf6;">
+                    Level {{ active_config.policy_constraint.current_level }}
+                </div>
+            </div>
+
+            <div class="constraint-section">
+                <div class="constraint-label">风险敞口限制</div>
+                <div style="font-size: 16px; font-weight: 500;">
+                    最高 {{ active_config.policy_constraint.max_risk_exposure|floatformat:1 }}%
+                </div>
+            </div>
+
+            <div class="constraint-section">
+                <div class="constraint-label">硬性排除</div>
+                <div class="constraint-list">
+                    {% for exclusion in active_config.policy_constraint.hard_exclusions %}
+                    <span class="constraint-item blocked">{{ exclusion }}</span>
+                    {% empty %}
+                    <span class="constraint-item">无</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 组合约束 -->
+    <div class="config-card" style="margin-bottom: 24px;">
+        <div class="config-card-header">
+            <div class="config-card-title">🎯 组合约束</div>
+            <a href="/admin/beta_gate/gateconfigmodel/{{ active_config.config_id }}/change/" class="btn-config secondary" style="padding: 6px 12px; font-size: 13px;">
+                <i class="bi bi-pencil"></i> 编辑配置
+            </a>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+            <div>
+                <div class="constraint-label">最大持仓数</div>
+                <div style="font-size: 20px; font-weight: 600;">{{ active_config.portfolio_constraint.max_positions }}</div>
+            </div>
+            <div>
+                <div class="constraint-label">单资产上限</div>
+                <div style="font-size: 20px; font-weight: 600;">{{ active_config.portfolio_constraint.max_single_position_weight }}%</div>
+            </div>
+            <div>
+                <div class="constraint-label">集中度限制</div>
+                <div style="font-size: 20px; font-weight: 600;">{{ active_config.portfolio_constraint.max_concentration_ratio }}%</div>
+            </div>
+            <div>
+                <div class="constraint-label">版本</div>
+                <div style="font-size: 20px; font-weight: 600;">v{{ active_config.version }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 最近决策记录 -->
+    <div class="config-card">
+        <div class="config-card-header">
+            <div class="config-card-title">📜 最近决策记录</div>
+        </div>
+
+        {% if recent_decisions %}
+        <table class="decision-table">
+            <thead>
+                <tr>
+                    <th>资产代码</th>
+                    <th>资产类别</th>
+                    <th>状态</th>
+                    <th>Regime</th>
+                    <th>Policy</th>
+                    <th>评估时间</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for decision in recent_decisions %}
+                <tr>
+                    <td><strong>{{ decision.asset_code }}</strong></td>
+                    <td>{{ decision.asset_class }}</td>
+                    <td class="status-{{ decision.status }}">{{ decision.status|title }}</td>
+                    <td>{{ decision.current_regime }}</td>
+                    <td>Level {{ decision.policy_level }}</td>
+                    <td>{{ decision.evaluated_at|date:"m-d H:i" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <div>暂无决策记录</div>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">🚪</div>
+        <div style="font-size: 18px; margin-bottom: 8px;">暂无激活的配置</div>
+        <p style="margin-bottom: 16px;">Beta Gate 配置用于控制资产在不同宏观环境下的可见性</p>
+        <div class="empty-actions">
+            <a href="/admin/beta_gate/gateconfigmodel/add/" class="btn-config primary">
+                <i class="bi bi-plus-lg"></i> 创建新配置
+            </a>
+            <a href="/admin/beta_gate/" class="btn-config secondary">
+                <i class="bi bi-gear"></i> 管理后台
+            </a>
+        </div>
+        <p style="margin-top: 24px; font-size: 13px;">
+            提示：也可以通过 <a href="/admin/beta_gate/" class="admin-link">Django Admin</a> 管理所有配置
+        </p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -23,4 +23,12 @@ app_name = "beta_gate"
 urlpatterns = [
     # ViewSet 路由
     path("api/beta-gate/", include(router.urls)),
+    # API 端点
+    path("api/beta-gate/test/", beta_gate_views.BetaGateTestAPIView.as_view(), name="api_test"),
+    path("api/beta-gate/version/compare/", beta_gate_views.BetaGateVersionCompareAPIView.as_view(), name="api_version_compare"),
+    path("api/beta-gate/config/rollback/<str:config_id>/", beta_gate_views.RollbackConfigView.as_view(), name="api_rollback"),
+    # Template 视图路由
+    path("beta-gate/config/", beta_gate_views.beta_gate_config_view, name="config"),
+    path("beta-gate/test/", beta_gate_views.beta_gate_test_view, name="test"),
+    path("beta-gate/version/", beta_gate_views.beta_gate_version_view, name="version"),
 ]

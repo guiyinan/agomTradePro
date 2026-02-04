@@ -112,6 +112,7 @@ class DecisionQuotaModel(models.Model):
     )
 
     class Meta:
+        app_label = "decision_rhythm"
         db_table = "decision_quota"
         verbose_name = "决策配额"
         verbose_name_plural = "决策配额"
@@ -246,6 +247,7 @@ class CooldownPeriodModel(models.Model):
     )
 
     class Meta:
+        app_label = "decision_rhythm"
         db_table = "cooldown_period"
         verbose_name = "冷却期"
         verbose_name_plural = "冷却期"
@@ -399,6 +401,7 @@ class DecisionRequestModel(models.Model):
     )
 
     class Meta:
+        app_label = "decision_rhythm"
         db_table = "decision_request"
         verbose_name = "决策请求"
         verbose_name_plural = "决策请求"
@@ -568,6 +571,7 @@ class DecisionResponseModel(models.Model):
     )
 
     class Meta:
+        app_label = "decision_rhythm"
         db_table = "decision_response"
         verbose_name = "决策响应"
         verbose_name_plural = "决策响应"

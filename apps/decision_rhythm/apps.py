@@ -14,6 +14,11 @@ class DecisionRhythmConfig(AppConfig):
 
     def ready(self):
         """应用启动时初始化"""
+        # 导入admin以注册模型
+        try:
+            from .interface import admin  # noqa
+        except ImportError:
+            pass
         # 导入信号处理
         try:
             from .application import handlers  # noqa

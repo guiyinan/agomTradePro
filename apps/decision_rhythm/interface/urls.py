@@ -27,4 +27,12 @@ urlpatterns = [
     path("api/decision-rhythm/submit-batch/", decision_rhythm_views.SubmitBatchRequestView.as_view(), name="submit-batch"),
     path("api/decision-rhythm/summary/", decision_rhythm_views.GetRhythmSummaryView.as_view(), name="rhythm-summary"),
     path("api/decision-rhythm/reset-quota/", decision_rhythm_views.ResetQuotaView.as_view(), name="reset-quota"),
+    path("api/decision-rhythm/trend-data/", decision_rhythm_views.TrendDataView.as_view(), name="api_trend_data"),
+
+    # Template 视图路由
+    path("decision-rhythm/quota/", decision_rhythm_views.decision_rhythm_quota_view, name="quota"),
+    path("decision-rhythm/config/", decision_rhythm_views.decision_rhythm_config_view, name="config"),
+
+    # API 端点
+    path("api/decision-rhythm/quota/update/", decision_rhythm_views.UpdateQuotaConfigView.as_view(), name="api_update_quota"),
 ]

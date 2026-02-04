@@ -27,19 +27,17 @@ class GateConfigAdmin(admin.ModelAdmin):
         "risk_profile",
         "version",
         "is_active",
-        "confidence_threshold",
-        "portfolio_exposure_limit",
-        "valid_from",
-        "valid_until",
-        "is_valid_display",
+        "effective_date",
+        "expires_at",
         "created_at",
+        "updated_at",
     ]
 
     list_filter = [
         "risk_profile",
         "is_active",
         "created_at",
-        "valid_from",
+        "effective_date",
     ]
 
     search_fields = [
@@ -64,35 +62,19 @@ class GateConfigAdmin(admin.ModelAdmin):
             "fields": (
                 "regime_constraints",
                 "policy_constraints",
-                "asset_category_visibility",
-                "strategy_visibility",
+                "portfolio_constraints",
             ),
             "classes": ("collapse",),
         }),
-        ("参数配置", {
-            "fields": (
-                "confidence_threshold",
-                "portfolio_exposure_limit",
-                "custom_rules",
-            )
-        }),
         ("时间配置", {
             "fields": (
-                "valid_from",
-                "valid_until",
+                "effective_date",
+                "expires_at",
                 "created_at",
                 "updated_at",
             )
         }),
     )
-
-    def is_valid_display(self, obj):
-        """显示是否有效"""
-        if obj.is_valid:
-            return format_html('<span style="color: green;">✓ 有效</span>')
-        else:
-            return format_html('<span style="color: red;">✗ 无效</span>')
-    is_valid_display.short_description = "状态"
 
     def get_readonly_fields(self, request, obj=None):
         """动态设置只读字段"""
@@ -111,31 +93,27 @@ class GateDecisionAdmin(admin.ModelAdmin):
         "decision_id",
         "asset_code",
         "asset_class",
-        "status_display",
+        "status",
         "current_regime",
         "policy_level",
         "regime_confidence",
-        "risk_profile",
-        "created_at",
+        "evaluated_at",
     ]
 
     list_filter = [
         "status",
         "current_regime",
-        "risk_profile",
-        "created_at",
+        "evaluated_at",
     ]
 
     search_fields = [
         "decision_id",
         "asset_code",
-        "blocking_reason",
     ]
 
     readonly_fields = [
         "decision_id",
-        "created_at",
-        "evaluation_details_display",
+        "evaluated_at",
     ]
 
     fieldsets = (
@@ -145,7 +123,7 @@ class GateDecisionAdmin(admin.ModelAdmin):
                 "asset_code",
                 "asset_class",
                 "status",
-                "created_at",
+                "evaluated_at",
             )
         }),
         ("环境信息", {
@@ -153,50 +131,15 @@ class GateDecisionAdmin(admin.ModelAdmin):
                 "current_regime",
                 "policy_level",
                 "regime_confidence",
-                "risk_profile",
-            )
-        }),
-        ("决策结果", {
-            "fields": (
-                "is_passed",
-                "blocking_reason",
             )
         }),
         ("评估详情", {
             "fields": (
                 "evaluation_details",
-                "evaluation_details_display",
             ),
             "classes": ("collapse",),
         }),
     )
-
-    def status_display(self, obj):
-        """显示状态"""
-        if obj.is_passed:
-            return format_html('<span style="color: green;">✓ 通过</span>')
-        else:
-            return format_html('<span style="color: red;">✗ 拦截</span>')
-    status_display.short_description = "状态"
-
-    def evaluation_details_display(self, obj):
-        """显示评估详情"""
-        if obj.evaluation_details:
-            import json
-            return format_html(
-                '<pre>{}</pre>',
-                json.dumps(obj.evaluation_details, indent=2, ensure_ascii=False)
-            )
-        return "-"
-    evaluation_details_display.short_description = "评估详情"
-
-    def has_add_permission(self, request):
-        """禁止手动添加"""
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        """禁止修改"""
-        return False
 
 
 @admin.register(VisibilityUniverseSnapshotModel)

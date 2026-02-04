@@ -4,6 +4,7 @@ Dashboard Interface Views
 首页仪表盘视图 - 用户投资指挥中心。
 """
 
+import logging
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
@@ -14,6 +15,9 @@ from apps.account.infrastructure.repositories import PortfolioRepository
 from apps.account.infrastructure.repositories import PositionRepository
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from apps.signal.infrastructure.repositories import DjangoSignalRepository
+
+
+logger = logging.getLogger(__name__)
 
 
 @login_required(login_url="/account/login/")
@@ -83,6 +87,15 @@ def dashboard_view(request):
         # 新增：图表数据
         "allocation_data": data.allocation_data if hasattr(data, 'allocation_data') else {},
         "performance_data": data.performance_data if hasattr(data, 'performance_data') else [],
+        # 决策平面数据（新增）
+        "beta_gate_visible_classes": _get_beta_gate_visible_classes(),
+        "alpha_watch_count": _get_alpha_status_count("WATCH"),
+        "alpha_candidate_count": _get_alpha_status_count("CANDIDATE"),
+        "alpha_actionable_count": _get_alpha_status_count("ACTIONABLE"),
+        "quota_total": _get_quota_total(),
+        "quota_used": _get_quota_used(),
+        "quota_remaining": _get_quota_remaining(),
+        "quota_usage_percent": _get_quota_usage_percent(),
     }
 
     return render(request, 'dashboard/index.html', context)
@@ -219,3 +232,83 @@ def performance_chart_htmx(request):
         'success': True,
         'data': performance_data
     })
+
+
+# ========================================
+# 决策平面数据获取辅助函数
+# ========================================
+
+def _get_beta_gate_visible_classes() -> str:
+    """获取 Beta Gate 允许的可见资产类别"""
+    try:
+        from apps.beta_gate.infrastructure.models import GateConfigModel
+        config = GateConfigModel.objects.filter(is_active=True).first()
+        if config:
+            regime_c = config.regime_constraints if isinstance(config.regime_constraints, dict) else {}
+            allowed_classes = regime_c.get('allowed_asset_classes', [])
+            if allowed_classes:
+                return ", ".join(allowed_classes[:3])
+        return "全部"
+    except Exception as e:
+        logger.warning(f"Failed to get beta gate visible classes: {e}")
+        return "-"
+
+
+def _get_alpha_status_count(status: str) -> int:
+    """获取 Alpha 候选状态计数"""
+    try:
+        from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
+        return AlphaCandidateModel.objects.filter(status=status).count()
+    except Exception as e:
+        logger.warning(f"Failed to get alpha status count for {status}: {e}")
+        return 0
+
+
+def _get_quota_total() -> int:
+    """获取决策配额总数"""
+    try:
+        from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
+        quota = DecisionQuotaModel.objects.filter(is_active=True).order_by('-period_start').first()
+        return getattr(quota, "max_decisions", 10) if quota else 10
+    except Exception as e:
+        logger.warning(f"Failed to get quota total: {e}")
+        return 10
+
+
+def _get_quota_used() -> int:
+    """获取已使用的决策配额"""
+    try:
+        from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
+        quota = DecisionQuotaModel.objects.filter(is_active=True).order_by('-period_start').first()
+        return getattr(quota, "used_decisions", 0) if quota else 0
+    except Exception as e:
+        logger.warning(f"Failed to get quota used: {e}")
+        return 0
+
+
+def _get_quota_remaining() -> int:
+    """获取剩余决策配额"""
+    try:
+        from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
+        quota = DecisionQuotaModel.objects.filter(is_active=True).order_by('-period_start').first()
+        if quota:
+            max_decisions = getattr(quota, "max_decisions", 10)
+            used_decisions = getattr(quota, "used_decisions", 0)
+            return max(0, max_decisions - used_decisions)
+        return 10
+    except Exception as e:
+        logger.warning(f"Failed to get quota remaining: {e}")
+        return 10
+
+
+def _get_quota_usage_percent() -> float:
+    """获取决策配额使用百分比"""
+    try:
+        total = _get_quota_total()
+        used = _get_quota_used()
+        if total > 0:
+            return round(used / total * 100, 1)
+        return 0.0
+    except Exception as e:
+        logger.warning(f"Failed to get quota usage percent: {e}")
+        return 0.0

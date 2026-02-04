@@ -90,4 +90,8 @@ urlpatterns = [
     # ========== 新模块：决策流程优化 ==========
     # Decision Rhythm - 决策频率约束（新增）
     path('', include('apps.decision_rhythm.interface.urls')),
+    # Beta Gate - Beta 闸门（新增）
+    path('', include('apps.beta_gate.interface.urls')),
+    # Alpha Trigger - Alpha 离散触发（新增）
+    path('', include('apps.alpha_trigger.interface.urls')),
 ]

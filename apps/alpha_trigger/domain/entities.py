@@ -91,6 +91,52 @@ class SignalStrength(Enum):
     """极强信号：置信度 0.8-1.0"""
 
 
+class CandidateStatus(Enum):
+    """
+    候选状态枚举
+
+    定义 Alpha 候选的生命周期状态。
+    """
+
+    WATCH = "WATCH"
+    """观察中：初步筛选通过，需要进一步观察"""
+
+    CANDIDATE = "CANDIDATE"
+    """候选中：通过 Beta Gate 筛选，等待行动时机"""
+
+    ACTIONABLE = "ACTIONABLE"
+    """可操作：满足所有条件，可以执行"""
+
+    EXECUTED = "EXECUTED"
+    """已执行：已经执行交易"""
+
+    CANCELLED = "CANCELLED"
+    """已取消：手动取消"""
+
+
+class InvalidationType(Enum):
+    """
+    证伪类型枚举
+
+    定义 Alpha 信号证伪的不同类型。
+    """
+
+    THRESHOLD_CROSS = "threshold_cross"
+    """阈值穿越：指标穿越阈值时证伪"""
+
+    TIME_DECAY = "time_decay"
+    """时间衰减：超过最大持仓时间"""
+
+    REGIME_MISMATCH = "regime_mismatch"
+    """Regime 不匹配：当前 Regime 与要求不符"""
+
+    POLICY_CHANGE = "policy_change"
+    """政策变化：Policy 档位变化导致证伪"""
+
+    MANUAL_INVALIDATION = "manual_invalidation"
+    """手动证伪：人工手动证伪"""
+
+
 @dataclass(frozen=True)
 class InvalidationCondition:
     """

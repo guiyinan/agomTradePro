@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+
+{% block title %}候选详情 - Alpha Trigger{% endblock %}
+
+{% block content %}
+<style>
+.candidate-detail-container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+.detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.detail-header h1 { font-size: 24px; margin: 0; }
+
+/* 状态卡片 */
+.status-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.status-card { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; text-align: center; }
+.status-card-value { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+.status-card-label { font-size: 13px; color: #64748b; }
+
+/* 状态颜色 */
+.status-card.ACTIVE .status-card-value { color: #667eea; }
+.status-card.WATCH .status-card-value { color: #f59e0b; }
+.status-card.CANDIDATE .status-card-value { color: #10b981; }
+.status-card.ACTIONABLE .status-card-value { color: #ef4444; }
+.status-card.EXECUTED .status-card-value { color: #64748b; }
+.status-card.EXPIRED .status-card-value { color: #94a3b8; }
+.status-card.INVALIDATED .status-card-value { color: #dc2626; }
+
+/* 信息面板 */
+.info-panel { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+.panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0; }
+.panel-title { font-size: 16px; font-weight: 600; }
+.panel-subtitle { font-size: 13px; color: #64748b; }
+
+/* 信息网格 */
+.info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.info-item { display: flex; flex-direction: column; }
+.info-label { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+.info-value { font-size: 14px; font-weight: 500; }
+
+/* 证伪条件 */
+.invalidation-list { display: flex; flex-direction: column; gap: 8px; }
+.invalidation-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f8fafc; border-radius: 6px; font-size: 13px; }
+.invalidation-item.active { background: #fef3c7; border-left: 3px solid #f59e0b; }
+.invalidation-item.satisfied { background: #fee2e2; border-left: 3px solid #ef4444; }
+
+/* 状态历史 */
+.history-timeline { display: flex; flex-direction: column; gap: 12px; }
+.timeline-item { display: flex; gap: 12px; }
+.timeline-dot { width: 12px; height: 12px; border-radius: 50%; background: #cbd5e1; margin-top: 4px; flex-shrink: 0; }
+.timeline-dot.CREATED { background: #667eea; }
+.timeline-dot.TRIGGERED { background: #10b981; }
+.timeline-dot.APPROVED { background: #3b82f6; }
+.timeline-dot.EXECUTED { background: #64748b; }
+.timeline-dot.INVALIDATED { background: #ef4444; }
+.timeline-dot.EXPIRED { background: #94a3b8; }
+
+.timeline-content { flex: 1; }
+.timeline-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.timeline-status { font-weight: 600; font-size: 13px; }
+.timeline-time { font-size: 12px; color: #64748b; }
+.timeline-detail { font-size: 13px; color: #475569; }
+
+/* 操作按钮 */
+.action-buttons { display: flex; gap: 12px; margin-top: 16px; }
+.btn-action { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; }
+.btn-approve { background: #10b981; color: white; }
+.btn-approve:hover { background: #059669; }
+.btn-execute { background: #667eea; color: white; }
+.btn-execute:hover { background: #5a67d8; }
+.btn-reject { background: #ef4444; color: white; }
+.btn-reject:hover { background: #dc2626; }
+.btn-archive { background: #64748b; color: white; }
+.btn-archive:hover { background: #475569; }
+
+.btn-action:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* 来源触发器信息 */
+.source-trigger { background: #f0f4ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 16px; }
+.source-trigger-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.source-trigger-title { font-size: 14px; font-weight: 600; color: #4338ca; }
+.btn-view-trigger { padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; }
+
+/* 空状态 */
+.empty-state { text-align: center; padding: 40px 20px; color: #94a3b8; }
+
+/* 置信度指示器 */
+.confidence-indicator { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+.confidence-fill { height: 100%; transition: width 0.3s; }
+.confidence-fill.high { background: linear-gradient(90deg, #10b981, #059669); }
+.confidence-fill.medium { background: linear-gradient(90deg, #f59e0b, #d97706); }
+.confidence-fill.low { background: linear-gradient(90deg, #ef4444, #dc2626); }
+</style>
+
+<div class="candidate-detail-container">
+    <!-- 头部 -->
+    <div class="detail-header">
+        <div>
+            <h1>候选详情</h1>
+            <p style="color: #64748b; margin-top: 4px;">Alpha 触发器产生的投资候选</p>
+        </div>
+        <a href="{% url 'alpha_trigger:list' %}" class="btn-action" style="background: #64748b; color: white; text-decoration: none;">
+            <i class="bi bi-arrow-left"></i> 返回列表
+        </a>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger" style="margin-bottom: 20px;">
+        <i class="bi bi-exclamation-triangle"></i> {{ error }}
+    </div>
+    {% endif %}
+
+    <!-- 状态卡片 -->
+    <div class="status-cards">
+        <div class="status-card {{ candidate.status }}">
+            <div class="status-card-value">{{ candidate.get_status_display }}</div>
+            <div class="status-card-label">当前状态</div>
+        </div>
+        <div class="status-card">
+            <div class="status-card-value" id="confidenceValue">{{ candidate.confidence|floatformat:2 }}</div>
+            <div class="status-card-label">信号强度</div>
+        </div>
+        <div class="status-card">
+            <div class="status-card-value" id="daysActive">{% widthratio candidate.created_at 1 1 %}</div>
+            <div class="status-card-label">活跃天数</div>
+        </div>
+        <div class="status-card">
+            <div class="status-card-value" id="daysUntilExpire">{{ candidate.expires_at|timeuntil }}</div>
+            <div class="status-card-label">剩余时间</div>
+        </div>
+    </div>
+
+    <!-- 主要信息面板 -->
+    <div class="info-panel">
+        <div class="panel-header">
+            <div>
+                <span class="panel-title">{{ candidate.asset_code }}</span>
+                <span class="panel-subtitle" style="margin-left: 8px;">{{ candidate.asset_class }} | {{ candidate.get_direction_display }}</span>
+            </div>
+            <div>
+                <span class="status-badge {{ candidate.status }}">{{ candidate.get_status_display }}</span>
+            </div>
+        </div>
+
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-label">候选 ID</span>
+                <span class="info-value" style="font-family: monospace;">{{ candidate.candidate_id }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">来源触发器</span>
+                <span class="info-value">
+                    <a href="{% url 'alpha_trigger:detail' candidate.source_trigger_id %}" style="color: #667eea;">
+                        {{ candidate.source_trigger_id|slice:":12" }}...
+                    </a>
+                </span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">方向</span>
+                <span class="info-value">
+                    {% if candidate.direction == 'LONG' %}
+                        <i class="bi bi-arrow-up" style="color: #10b981;"></i> 做多
+                    {% elif candidate.direction == 'SHORT' %}
+                        <i class="bi bi-arrow-down" style="color: #ef4444;"></i> 做空
+                    {% else %}
+                        <i class="bi bi-dash" style="color: #64748b;"></i> 中性
+                    {% endif %}
+                </span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">信号强度</span>
+                <span class="info-value">{{ candidate.confidence|floatformat:2 }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">创建时间</span>
+                <span class="info-value">{{ candidate.created_at|date:"Y-m-d H:i" }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">过期时间</span>
+                <span class="info-value">{% if candidate.expires_at %}{{ candidate.expires_at|date:"Y-m-d H:i" }}{% else %}永不过期{% endif %}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">目标价格 (可选)</span>
+                <span class="info-value">{% if candidate.target_price %}{{ candidate.target_price }}{% else %}未设置{% endif %}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">止损价格 (可选)</span>
+                <span class="info-value">{% if candidate.stop_loss %}{{ candidate.stop_loss }}{% else %}未设置{% endif %}</span>
+            </div>
+        </div>
+
+        <!-- 置信度指示器 -->
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-size: 13px; color: #64748b;">信号置信度</span>
+                <span style="font-size: 14px; font-weight: 600;">{{ candidate.confidence|floatformat:2 }}</span>
+            </div>
+            <div class="confidence-indicator">
+                <div class="confidence-fill {% if candidate.confidence >= 0.7 %}high{% elif candidate.confidence >= 0.4 %}medium{% else %}low{% endif %}" style="width: {{ candidate.confidence|mul:100 }}%;"></div>
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="action-buttons">
+            {% if candidate.status == 'CANDIDATE' or candidate.status == 'ACTIONABLE' %}
+            <button class="btn-action btn-approve" onclick="updateCandidateStatus('APPROVED')">
+                <i class="bi bi-check-circle"></i> 批准
+            </button>
+            <button class="btn-action btn-execute" onclick="updateCandidateStatus('EXECUTED')">
+                <i class="bi bi-play-circle"></i> 标记已执行
+            </button>
+            {% endif %}
+            {% if candidate.status != 'EXECUTED' and candidate.status != 'INVALIDATED' %}
+            <button class="btn-action btn-reject" onclick="updateCandidateStatus('INVALIDATED')">
+                <i class="bi bi-x-circle"></i> 拒绝/证伪
+            </button>
+            {% endif %}
+            <button class="btn-action btn-archive" onclick="archiveCandidate()">
+                <i class="bi bi-archive"></i> 归档
+            </button>
+        </div>
+    </div>
+
+    <!-- 投资论点 -->
+    {% if candidate.thesis %}
+    <div class="info-panel">
+        <div class="panel-header">
+            <span class="panel-title">投资论点</span>
+        </div>
+        <div style="font-size: 14px; line-height: 1.6; color: #334155;">
+            {{ candidate.thesis|linebreaks }}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 证伪条件 -->
+    {% if candidate.invalidation_conditions %}
+    <div class="info-panel">
+        <div class="panel-header">
+            <span class="panel-title">证伪条件</span>
+            <span class="panel-subtitle">满足条件时候选将被自动证伪</span>
+        </div>
+        <div class="invalidation-list" id="invalidationList">
+            {% for condition in candidate.invalidation_conditions %}
+            <div class="invalidation-item {% if condition.is_active %}active{% endif %} {% if condition.is_satisfied %}satisfied{% endif %}">
+                <i class="bi bi-{% if condition.is_satisfied %}check-circle{% elif condition.is_active %}exclamation-circle{% else %}circle{% endif %}"></i>
+                <span>{{ condition.description }}</span>
+                {% if condition.is_satisfied %}
+                <span style="margin-left: auto; color: #ef4444; font-size: 12px; font-weight: 600;">已满足</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 来源触发器信息 -->
+    <div class="info-panel">
+        <div class="panel-header">
+            <span class="panel-title">来源触发器</span>
+            <a href="{% url 'alpha_trigger:detail' candidate.source_trigger_id %}" class="btn-view-trigger">
+                查看详情
+            </a>
+        </div>
+        <div class="source-trigger">
+            <div class="source-trigger-header">
+                <span class="source-trigger-title">
+                    <i class="bi bi-lightning"></i> {{ source_trigger.get_trigger_type_display }}
+                </span>
+                <span style="font-size: 13px; color: #64748b;">
+                    {{ source_trigger.created_at|date:"Y-m-d H:i" }}
+                </span>
+            </div>
+            <div style="font-size: 14px; color: #334155; margin-bottom: 12px;">
+                {{ source_trigger.asset_code }} | {{ source_trigger.get_direction_display }}
+            </div>
+            {% if source_trigger.thesis %}
+            <div style="font-size: 13px; color: #64748b; padding-top: 12px; border-top: 1px solid #e0e7ff;">
+                <strong>触发器论点:</strong> {{ source_trigger.thesis|truncatewords:30 }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 状态历史 -->
+    <div class="info-panel">
+        <div class="panel-header">
+            <span class="panel-title">状态历史</span>
+            <span class="panel-subtitle">候选的所有状态变更记录</span>
+        </div>
+        <div class="history-timeline" id="historyTimeline">
+            {% if status_history %}
+                {% for event in status_history %}
+                <div class="timeline-item">
+                    <div class="timeline-dot {{ event.status }}"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-header">
+                            <span class="timeline-status">{{ event.get_status_display }}</span>
+                            <span class="timeline-time">{{ event.created_at|date:"Y-m-d H:i" }}</span>
+                        </div>
+                        {% if event.note %}
+                        <div class="timeline-detail">{{ event.note }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="empty-state">
+                <i class="bi bi-clock-history" style="font-size: 32px;"></i>
+                <div>暂无状态历史</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// 更新候选状态
+async function updateCandidateStatus(newStatus) {
+    const statusLabels = {
+        'APPROVED': '批准',
+        'EXECUTED': '已执行',
+        'INVALIDATED': '拒绝/证伪'
+    };
+
+    if (!confirm(`确认要将状态更新为 "${statusLabels[newStatus]}"?`)) {
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/alpha-triggers/candidates/{{ candidate.candidate_id }}/`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+        });
+
+        const data = await res.json();
+
+        if (data.success || res.ok) {
+            showToast(`✓ 状态已更新为: ${statusLabels[newStatus]}`, 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('❌ 更新失败: ' + (data.error || '未知错误'), 'error');
+        }
+    } catch (e) {
+        showToast('网络错误: ' + e.message, 'error');
+    }
+}
+
+// 归档候选
+async function archiveCandidate() {
+    if (!confirm('确认要归档此候选？归档后将不再出现在活跃列表中。')) {
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/alpha-triggers/candidates/{{ candidate.candidate_id }}/archive/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            showToast('✓ 候选已归档', 'success');
+            setTimeout(() => location.href = "{% url 'alpha_trigger:list' %}", 1000);
+        } else {
+            showToast('❌ 归档失败: ' + (data.error || '未知错误'), 'error');
+        }
+    } catch (e) {
+        showToast('网络错误: ' + e.message, 'error');
+    }
+}
+
+// Toast 提示
+function showToast(message, type = 'info') {
+    const colors = {
+        success: '#10b981',
+        error: '#ef4444',
+        warning: '#f59e0b',
+        info: '#3b82f6'
+    };
+
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: ${colors[type]};
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 9999;
+        animation: slideIn 0.3s ease-out;
+    `;
+    toast.textContent = message;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+</script>
+
+<style>
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+</style>
+{% endblock %}
