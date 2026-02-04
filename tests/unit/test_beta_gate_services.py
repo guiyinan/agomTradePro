@@ -12,13 +12,10 @@ from apps.beta_gate.domain.entities import (
     GateConfig,
     GateDecision,
     GateStatus,
-    GateMatchResult,
     RiskProfile,
-    AssetCategory,
-    Strategy,
-    PolicyLevel,
     VisibilityUniverse,
 )
+from apps.policy.domain.entities import PolicyLevel
 from apps.beta_gate.domain.services import (
     BetaGateEvaluator,
     VisibilityUniverseBuilder,

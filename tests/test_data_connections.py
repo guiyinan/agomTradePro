@@ -22,8 +22,8 @@ from django.db.models import Count, Sum, Avg
 # Import models and repositories
 from apps.macro.infrastructure.models import MacroIndicator, DataSourceConfig
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
-from apps.macro.application.use_cases import FetchMacroDataUseCase
-from apps.regime.infrastructure.models import RegimeState
+from apps.macro.application.use_cases import SyncMacroDataUseCase
+from apps.regime.infrastructure.models import RegimeLog
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from apps.regime.application.use_cases import CalculateRegimeUseCase
 from apps.policy.infrastructure.models import PolicyLog
@@ -75,7 +75,7 @@ class DataConnectionTester:
             self.log_result("Database", "宏观数据表", "success", f"找到 {macro_count} 条记录")
 
             # Test regime table
-            regime_count = RegimeState.objects.count()
+            regime_count = RegimeLog.objects.count()
             self.log_result("Database", "Regime表", "success", f"找到 {regime_count} 条记录")
 
             # Test policy table
@@ -182,7 +182,7 @@ class DataConnectionTester:
             # Try to fetch new data
             print("\n   🔄 尝试获取最新PMI数据...")
             try:
-                use_case = FetchMacroDataUseCase(macro_repo=repo)
+                use_case = SyncMacroDataUseCase()
                 result = use_case.execute(
                     indicator_code='PMI',
                     source_name='akshare',
@@ -423,7 +423,7 @@ class DataConnectionTester:
                 self.log_result("Consistency", "信号资产元数据", "success", "正常")
 
             # Check if regime states have macro data
-            latest_regime = RegimeState.objects.order_by('-date').first()
+            latest_regime = RegimeLog.objects.order_by('-date').first()
             if latest_regime:
                 macro_exists = MacroIndicator.objects.filter(
                     indicator_date__lte=latest_regime.date

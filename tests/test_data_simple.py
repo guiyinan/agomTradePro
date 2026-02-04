@@ -19,7 +19,7 @@ from django.db.models import Count, Sum, Avg
 
 # Import models
 from apps.macro.infrastructure.models import MacroIndicator, DataSourceConfig
-from apps.regime.infrastructure.models import RegimeState
+from apps.regime.infrastructure.models import RegimeLog
 from apps.policy.infrastructure.models import PolicyLog
 from apps.signal.infrastructure.models import InvestmentSignalModel
 from apps.account.infrastructure.models import (
@@ -63,7 +63,7 @@ class DataConnectionTester:
             macro_count = MacroIndicator.objects.count()
             self.log_result("Database", "宏观数据表", "success", f"找到 {macro_count} 条记录")
 
-            regime_count = RegimeState.objects.count()
+            regime_count = RegimeLog.objects.count()
             self.log_result("Database", "Regime表", "success", f"找到 {regime_count} 条记录")
 
             policy_count = PolicyLog.objects.count()

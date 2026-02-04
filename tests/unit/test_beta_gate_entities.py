@@ -12,12 +12,9 @@ from apps.beta_gate.domain.entities import (
     GateConfig,
     GateDecision,
     GateStatus,
-    GateMatchResult,
     RiskProfile,
-    AssetCategory,
-    Strategy,
-    PolicyLevel,
 )
+from apps.policy.domain.entities import PolicyLevel
 
 
 class TestGateConfig:
