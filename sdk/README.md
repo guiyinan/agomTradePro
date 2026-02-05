@@ -1,0 +1,184 @@
+# AgomSAAF SDK & MCP Server
+
+Python SDK and MCP (Model Context Protocol) Server for AgomSAAF - Macro Environment Admission System.
+
+## Overview
+
+AgomSAAF SDK provides two ways to interact with the AgomSAAF system:
+
+1. **Python SDK** - Full-featured Python client for complete system access
+2. **MCP Server** - AI-native tools for Claude Code and other AI agents
+
+## Installation
+
+```bash
+# From the AgomSAAF project
+cd D:/githv/agomSAAF/sdk
+
+# Install in development mode
+pip install -e .
+
+# With development dependencies
+pip install -e ".[dev]"
+
+# With pandas support
+pip install -e ".[pandas]"
+```
+
+## Quick Start
+
+### Python SDK
+
+```python
+from agomsaaf import AgomSAAFClient
+
+# Initialize client
+client = AgomSAAFClient(
+    base_url="http://localhost:8000",
+    api_token="your_token_here"
+)
+
+# Get current regime
+regime = client.regime.get_current()
+print(f"Current regime: {regime.dominant_regime}")
+
+# Check signal eligibility
+eligibility = client.signal.check_eligibility(
+    asset_code="000001.SH",
+    logic_desc="PMI rising, economic recovery"
+)
+
+# Create signal
+if eligibility["is_eligible"]:
+    signal = client.signal.create(
+        asset_code="000001.SH",
+        logic_desc="PMI rising, economic recovery",
+        invalidation_logic="PMI falls below 50",
+        invalidation_threshold=49.5
+    )
+    print(f"Signal created: {signal.id}")
+```
+
+### MCP Server
+
+Configure in `~/.config/claude-code/mcp_servers.json`:
+
+```json
+{
+  "mcpServers": {
+    "agomsaaf": {
+      "command": "python",
+      "args": ["-m", "agomsaaf_mcp.server"],
+      "cwd": "D:/githv/agomSAAF/sdk",
+      "env": {
+        "AGOMSAAF_BASE_URL": "http://localhost:8000",
+        "AGOMSAAF_API_TOKEN": "your_token_here"
+      }
+    }
+  }
+}
+```
+
+Then use directly in Claude Code:
+
+```
+User: What's the current macro regime?
+Claude: [calls get_current_regime tool]
+       Current regime: Recovery (growth up, inflation down)
+```
+
+## Configuration
+
+Three methods (priority order):
+
+1. **Constructor parameters**
+2. **Environment variables**:
+   - `AGOMSAAF_BASE_URL`
+   - `AGOMSAAF_API_TOKEN`
+   - `AGOMSAAF_USERNAME`
+   - `AGOMSAAF_PASSWORD`
+3. **Config files**:
+   - `.agomsaaf.json` (current directory)
+   - `~/.agomsaaf/config.json` (user directory)
+
+## SDK Modules
+
+| Module | Description |
+|--------|-------------|
+| `client.regime` | Regime determination - get current regime, calculate regime, history |
+| `client.signal` | Investment signals - create, approve, check eligibility |
+| `client.macro` | Macro data - indicators, data points, sync |
+| `client.policy` | Policy events - status, event management |
+| `client.backtest` | Backtesting - run, get results, equity curve |
+| `client.account` | Account management - portfolios, positions |
+| `client.simulated_trading` | Simulated trading - accounts, execution, performance |
+| `client.equity` | Stock analysis - scoring, recommendations, financials |
+| `client.fund` | Fund analysis - scoring, performance, holdings |
+| `client.sector` | Sector analysis - scoring, hot sectors, comparison |
+| `client.strategy` | Strategy management - create, execute, performance |
+| `client.realtime` | Real-time prices - market data, alerts, top movers |
+
+## MCP Tools (50+)
+
+### Core Tools
+- **Regime**: `get_current_regime`, `calculate_regime`, `get_regime_history`, `explain_regime`
+- **Signal**: `list_signals`, `create_signal`, `check_signal_eligibility`, `approve_signal`
+- **Macro**: `list_macro_indicators`, `get_macro_data`, `sync_macro_indicator`
+- **Backtest**: `run_backtest`, `get_backtest_result`, `get_backtest_equity_curve`
+
+### Extended Tools
+- **Simulated Trading**: `list_simulated_accounts`, `execute_simulated_trade`, `get_simulated_performance`
+- **Equity**: `get_stock_score`, `list_stocks`, `get_stock_recommendations`
+- **Fund**: `get_fund_score`, `list_funds`, `get_fund_performance`
+- **Sector**: `list_sectors`, `get_hot_sectors`, `compare_sectors`
+- **Strategy**: `list_strategies`, `create_strategy`, `execute_strategy`
+- **Realtime**: `get_realtime_price`, `get_market_summary`, `create_price_alert`
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Quick Start Guide](docs/quickstart.md) | Getting started with the SDK |
+| [MCP Guide](docs/mcp_guide.md) | MCP server setup and usage |
+| [API Reference](docs/api_reference.md) | Complete API documentation |
+| [Implementation Plan](docs/plans/sdk-mcp-implementation.md) | Implementation status and plan |
+
+## Examples
+
+| Example | Description |
+|---------|-------------|
+| [basic_usage.py](docs/examples/basic_usage.py) | Basic SDK operations |
+| [backtesting.py](docs/examples/backtesting.py) | Running and analyzing backtests |
+| [data_analysis.py](docs/examples/data_analysis.py) | Data analysis with pandas |
+| [simulated_trading.py](docs/examples/simulated_trading.py) | Simulated trading workflow |
+| [equity_fund_analysis.py](docs/examples/equity_fund_analysis.py) | Stock and fund analysis |
+| [realtime_strategy.py](docs/examples/realtime_strategy.py) | Real-time monitoring and strategies |
+
+## Development
+
+```bash
+# Run tests
+pytest tests/ -v
+
+# Format code
+black agomsaaf/ agomsaaf_mcp/
+isort agomsaaf/ agomsaaf_mcp/
+
+# Type check
+mypy agomsaaf/
+
+# Run MCP server
+python -m agomsaaf_mcp.server
+```
+
+## Project Status
+
+- **Version**: 1.0.0
+- **Modules**: 13 business modules
+- **MCP Tools**: 50+ tools
+- **Test Coverage**: Core modules covered
+- **Documentation**: Complete
+
+## License
+
+MIT License - see LICENSE file.
