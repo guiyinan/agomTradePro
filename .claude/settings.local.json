@@ -88,7 +88,22 @@
       "Bash(for file in \"teaching.css\" \"teaching-modal.js\" \"regime-calculator.js\" \"policy-simulator-enhanced.js\" \"cases-library.js\" \"learning-progress.js\" \"interactive-charts.js\" \"bilingual-support.js\")",
       "Bash(do echo -n \"$file: \")",
       "Bash(# Check remaining files in root ls -la *.py *.json *.sql *.html)",
-      "Bash(source:*)"
+      "Bash(source:*)",
+      "Bash(celery -A core worker:*)",
+      "Bash(redis-cli:*)",
+      "Bash(sc query Redis)",
+      "Bash(DJANGO_SETTINGS_MODULE=core.settings.development python:*)",
+      "Bash(Get-ChildItem:*)",
+      "Bash(Select-Object -First 20)",
+      "Bash(Select-Object -First 10)",
+      "Bash(DJANGO_SETTINGS_MODULE=core.settings python:*)",
+      "Bash(__NEW_LINE_495c747339816a6b__ echo \"2. Alpha Trigger Create Page:\")",
+      "Bash(__NEW_LINE_495c747339816a6b__ echo \"3. Beta Gate Test Tool:\")",
+      "Bash(__NEW_LINE_495c747339816a6b__ echo \"4. Beta Gate Config Page:\")",
+      "Bash(__NEW_LINE_495c747339816a6b__ echo \"5. Decision Rhythm Quota Page:\")",
+      "Bash(__NEW_LINE_495c747339816a6b__ echo \"6. Decision Rhythm Config Page:\")",
+      "Bash(__NEW_LINE_495c747339816a6b__ echo \"\")",
+      "Bash(__NEW_LINE_495c747339816a6b__ echo \"2. Decision Rhythm Update Quota API:\")"
     ]
   }
 }
