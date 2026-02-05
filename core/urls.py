@@ -27,6 +27,7 @@ from core.views import (
     docs_view,
     policy_dashboard_view,
     asset_screen_view,
+    decision_workspace_view,
 )
 
 
@@ -45,6 +46,8 @@ urlpatterns = [
     path('policy/dashboard/', policy_dashboard_view, name='policy-dashboard'),
     # Asset Screen
     path('asset-analysis/screen/', asset_screen_view, name='asset-screen'),
+    # Decision Workspace
+    path('decision/workspace/', decision_workspace_view, name='decision-workspace'),
     # More specific pattern must come first
     path('docs/<str:doc_slug>/', docs_view, name='docs-detail'),
     path('docs/', docs_view, name='docs'),

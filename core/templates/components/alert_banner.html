@@ -1,0 +1,255 @@
+{% load static %}
+{% if alerts %}
+<div class="global-alerts" id="globalAlerts">
+    {% for alert in alerts %}
+    <div class="alert alert-{{ alert.type }} {% if not alert.dismissible %}alert-non-dismissible{% endif %}"
+         role="alert"
+         data-alert-id="{{ forloop.counter }}">
+        <div class="alert-icon-wrapper">
+            <span class="alert-icon">{{ alert.icon }}</span>
+        </div>
+        <div class="alert-content">
+            <div class="alert-title">{{ alert.title }}</div>
+            <div class="alert-message">{{ alert.message }}</div>
+        </div>
+        {% if alert.action_url %}
+        <a href="{{ alert.action_url }}" class="alert-action">{{ alert.action_text|default:"查看详情" }} →</a>
+        {% endif %}
+        {% if alert.dismissible %}
+        <button type="button" 
+                class="alert-close" 
+                aria-label="关闭"
+                onclick="dismissAlert(this)">
+            <span aria-hidden="true">&times;</span>
+        </button>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+// 记录已关闭的告警
+function dismissAlert(button) {
+    const alert = button.closest('.alert');
+    const alertId = alert.dataset.alertId;
+    
+    // 存储到 localStorage
+    const dismissed = JSON.parse(localStorage.getItem('dismissedAlerts') || '[]');
+    const key = 'alert_' + alertId + '_' + Date.today().toDateString();
+    if (!dismissed.includes(key)) {
+        dismissed.push(key);
+        localStorage.setItem('dismissedAlerts', JSON.stringify(dismissed));
+    }
+    
+    // 动画移除
+    alert.style.opacity = '0';
+    alert.style.transform = 'translateX(-100%)';
+    setTimeout(() => {
+        alert.remove();
+        
+        // 如果没有告警了，移除容器
+        const container = document.getElementById('globalAlerts');
+        if (container && container.children.length === 0) {
+            container.remove();
+        }
+    }, 300);
+}
+
+// 页面加载时检查 localStorage
+document.addEventListener('DOMContentLoaded', function() {
+    const dismissed = JSON.parse(localStorage.getItem('dismissedAlerts') || '[]');
+    const today = new Date().toDateString();
+    
+    document.querySelectorAll('#globalAlerts .alert[data-alert-id]').forEach(function(alert) {
+        const alertId = alert.dataset.alertId;
+        const key = 'alert_' + alertId + '_' + today;
+        
+        if (dismissed.includes(key)) {
+            alert.remove();
+        }
+    });
+    
+    // 如果没有告警了，移除容器
+    const container = document.getElementById('globalAlerts');
+    if (container && container.children.length === 0) {
+        container.remove();
+    }
+});
+</script>
+
+<style>
+.global-alerts {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    padding: 0;
+    background: var(--bg-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.alert {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.alert:last-child {
+    border-bottom: none;
+}
+
+.alert-icon-wrapper {
+    flex-shrink: 0;
+}
+
+.alert-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-size: 16px;
+}
+
+.alert-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.alert-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 2px;
+}
+
+.alert-message {
+    font-size: 13px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.alert-action {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.alert-close {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--text-muted);
+    transition: all 0.2s;
+}
+
+.alert-close:hover {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    border-radius: 50%;
+}
+
+/* 告警类型样式 */
+.alert-danger {
+    background: #FFEBEE;
+}
+
+.alert-danger .alert-icon {
+    background: #FFCDD2;
+}
+
+.alert-danger .alert-action {
+    background: #C62828;
+    color: white;
+}
+
+.alert-danger .alert-action:hover {
+    background: #B71C1C;
+}
+
+.alert-warning {
+    background: #FFF3E0;
+}
+
+.alert-warning .alert-icon {
+    background: #FFE0B2;
+}
+
+.alert-warning .alert-action {
+    background: #E65100;
+    color: white;
+}
+
+.alert-warning .alert-action:hover {
+    background: #BF360C;
+}
+
+.alert-success {
+    background: #E8F5E9;
+}
+
+.alert-success .alert-icon {
+    background: #C8E6C9;
+}
+
+.alert-success .alert-action {
+    background: #2E7D32;
+    color: white;
+}
+
+.alert-success .alert-action:hover {
+    background: #1B5E20;
+}
+
+.alert-info {
+    background: #E3F2FD;
+}
+
+.alert-info .alert-icon {
+    background: #BBDEFB;
+}
+
+.alert-info .alert-action {
+    background: #1565C0;
+    color: white;
+}
+
+.alert-info .alert-action:hover {
+    background: #0D47A1;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .alert {
+        flex-wrap: wrap;
+        padding: 10px 12px;
+    }
+    
+    .alert-action {
+        width: 100%;
+        text-align: center;
+        margin-top: 4px;
+    }
+    
+    .alert-message {
+        white-space: normal;
+    }
+}
+</style>
+{% endif %}

@@ -1,0 +1,1050 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}AgomSAAF - 决策工作台{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/decision-workspace.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="workspace-container">
+    <!-- 页面头部 -->
+    <header class="workspace-header">
+        <div class="header-left">
+            <h1 class="workspace-title">
+                <span class="title-icon">🎯</span>
+                决策工作台
+            </h1>
+            <p class="workspace-subtitle">统一管理 Beta Gate、Alpha Trigger、Decision Rhythm</p>
+        </div>
+        <div class="header-right">
+            <div class="environment-badge">
+                <span class="badge-label">当前 Regime</span>
+                <span class="badge-value regime-{{ current_regime|default:"unknown"|lower }}">{{ current_regime|default:"未知" }}</span>
+            </div>
+            <div class="environment-badge">
+                <span class="badge-label">政策档位</span>
+                <span class="badge-value policy-{{ current_policy|default:"P0"|lower }}">{{ current_policy|default:"P0" }}</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 告警横幅 -->
+    {% if alerts %}
+    <section class="alerts-section">
+        {% for alert in alerts %}
+        <div class="alert alert-{{ alert.type }}">
+            <span class="alert-icon">{{ alert.icon }}</span>
+            <div class="alert-content">
+                <strong>{{ alert.title }}</strong>
+                <span>{{ alert.message }}</span>
+            </div>
+            <button class="alert-close" onclick="this.parentElement.remove()">×</button>
+        </div>
+        {% endfor %}
+    </section>
+    {% endif %}
+
+    <!-- 模块概览卡片 -->
+    <section class="modules-overview">
+        <!-- Beta Gate 卡片 -->
+        <div class="module-card beta-gate">
+            <div class="module-card-header">
+                <div class="module-icon">🚪</div>
+                <div class="module-title">
+                    <h3>Beta 闸门</h3>
+                    <span class="module-subtitle">资产可见性过滤</span>
+                </div>
+                <a href="{% url 'beta_gate:config' %}" class="module-link">详情 →</a>
+            </div>
+            <div class="module-card-body">
+                <div class="module-stat">
+                    <span class="stat-label">配置状态</span>
+                    <span class="stat-value status-active">Active</span>
+                </div>
+                <div class="module-stat">
+                    <span class="stat-label">当前 Regime</span>
+                    <span class="stat-value">{{ current_regime|default:"-" }}</span>
+                </div>
+                <div class="module-stat">
+                    <span class="stat-label">可见资产类别</span>
+                    <span class="stat-value">
+                        {% if beta_gate_allowed_classes %}
+                            {{ beta_gate_allowed_classes|slice:":3"|join:", " }}
+                            {% if beta_gate_allowed_classes|length > 3 %}...{% endif %}
+                        {% else %}
+                            全部
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+            <div class="module-card-footer">
+                <a href="{% url 'beta_gate:test' %}" class="btn btn-sm btn-secondary">测试资产</a>
+                <a href="{% url 'beta_gate:version' %}" class="btn btn-sm btn-outline">版本对比</a>
+            </div>
+        </div>
+
+        <!-- Alpha Trigger 卡片 -->
+        <div class="module-card alpha-trigger">
+            <div class="module-card-header">
+                <div class="module-icon">⚡</div>
+                <div class="module-title">
+                    <h3>Alpha 触发器</h3>
+                    <span class="module-subtitle">离散信号触发</span>
+                </div>
+                <a href="{% url 'alpha_trigger:list' %}" class="module-link">详情 →</a>
+            </div>
+            <div class="module-card-body">
+                <div class="module-stats-grid">
+                    <div class="mini-stat">
+                        <span class="mini-stat-value">{{ alpha_trigger_count|default:0 }}</span>
+                        <span class="mini-stat-label">活跃触发器</span>
+                    </div>
+                    <div class="mini-stat">
+                        <span class="mini-stat-value">{{ alpha_watch_count|default:0 }}</span>
+                        <span class="mini-stat-label">观察</span>
+                    </div>
+                    <div class="mini-stat">
+                        <span class="mini-stat-value">{{ alpha_candidate_count|default:0 }}</span>
+                        <span class="mini-stat-label">候选</span>
+                    </div>
+                    <div class="mini-stat">
+                        <span class="mini-stat-value">{{ alpha_actionable_count|default:0 }}</span>
+                        <span class="mini-stat-label">可行动</span>
+                    </div>
+                </div>
+            </div>
+            <div class="module-card-footer">
+                <a href="{% url 'alpha_trigger:create' %}" class="btn btn-sm btn-primary">创建触发器</a>
+                <a href="{% url 'alpha_trigger:invalidation-builder' %}" class="btn btn-sm btn-outline">证伪规则</a>
+            </div>
+        </div>
+
+        <!-- Decision Rhythm 卡片 -->
+        <div class="module-card decision-rhythm">
+            <div class="module-card-header">
+                <div class="module-icon">⏱️</div>
+                <div class="module-title">
+                    <h3>决策配额</h3>
+                    <span class="module-subtitle">频率约束管理</span>
+                </div>
+                <a href="{% url 'decision_rhythm:quota' %}" class="module-link">详情 →</a>
+            </div>
+            <div class="module-card-body">
+                <div class="quota-display">
+                    <div class="quota-circle">
+                        <svg viewBox="0 0 36 36" class="quota-chart">
+                            <path class="quota-bg"
+                                d="M18 2.0845
+                                a 15.9155 15.9155 0 0 1 0 31.831
+                                a 15.9155 15.9155 0 0 1 0 -31.831"
+                            />
+                            <path class="quota-fill {% if quota_usage_percent >= 80 %}quota-warning{% endif %}"
+                                stroke-dasharray="{{ quota_usage_percent|default:0 }}, 100"
+                                d="M18 2.0845
+                                a 15.9155 15.9155 0 0 1 0 31.831
+                                a 15.9155 15.9155 0 0 1 0 -31.831"
+                            />
+                        </svg>
+                        <div class="quota-text">
+                            <span class="quota-percent">{{ quota_usage_percent|default:0 }}%</span>
+                            <span class="quota-label">已使用</span>
+                        </div>
+                    </div>
+                    <div class="quota-details">
+                        <div class="quota-detail-item">
+                            <span class="detail-label">本期配额</span>
+                            <span class="detail-value">{{ quota_total|default:10 }}</span>
+                        </div>
+                        <div class="quota-detail-item">
+                            <span class="detail-label">已占用</span>
+                            <span class="detail-value">{{ quota_used|default:0 }}</span>
+                        </div>
+                        <div class="quota-detail-item">
+                            <span class="detail-label">剩余</span>
+                            <span class="detail-value {% if quota_remaining <= 2 %}text-danger{% endif %}">
+                                {{ quota_remaining|default:10 }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="module-card-footer">
+                <a href="{% url 'decision_rhythm:config' %}" class="btn btn-sm btn-secondary">配置</a>
+                <button class="btn btn-sm btn-outline" onclick="resetQuota()">重置配额</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- 决策待办列表 -->
+    <section class="todo-section">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="title-icon">📋</span>
+                决策待办
+                <span class="badge badge-primary">{{ pending_count|default:0 }}</span>
+            </h2>
+            <div class="section-actions">
+                <a href="{% url 'decision_rhythm:quota' %}" class="btn btn-sm btn-outline">查看全部</a>
+            </div>
+        </div>
+
+        {% if pending_requests %}
+        <div class="todo-list">
+            {% for request in pending_requests %}
+            <div class="todo-item priority-{{ request.priority|lower }}">
+                <div class="todo-priority">
+                    <span class="priority-badge priority-{{ request.priority|lower }}">
+                        {{ request.priority }}
+                    </span>
+                </div>
+                <div class="todo-content">
+                    <div class="todo-header">
+                        <span class="todo-asset">{{ request.asset_code }}</span>
+                        <span class="todo-direction">{{ request.direction }}</span>
+                        <span class="todo-time">{{ request.requested_at|timesince }}前</span>
+                    </div>
+                    <p class="todo-reason">{{ request.reason|truncatewords:20 }}</p>
+                </div>
+                <div class="todo-actions">
+                    <button class="btn btn-sm btn-success" onclick="approveRequest('{{ request.request_id }}')">批准</button>
+                    <button class="btn btn-sm btn-danger" onclick="rejectRequest('{{ request.request_id }}')">拒绝</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <p>暂无待处理的决策请求</p>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- 可操作候选列表 -->
+    <section class="candidates-section">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="title-icon">⚡</span>
+                可操作候选
+                <span class="badge badge-success">{{ alpha_actionable_count|default:0 }}</span>
+            </h2>
+            <div class="section-actions">
+                <a href="{% url 'alpha_trigger:list' %}" class="btn btn-sm btn-outline">查看全部</a>
+            </div>
+        </div>
+
+        {% if actionable_candidates %}
+        <div class="candidates-grid">
+            {% for candidate in actionable_candidates %}
+            <div class="candidate-card">
+                <div class="candidate-header">
+                    <span class="candidate-asset">{{ candidate.asset_code }}</span>
+                    <span class="candidate-confidence">
+                        置信度: {{ candidate.confidence|floatformat:2 }}
+                    </span>
+                </div>
+                <div class="candidate-body">
+                    <div class="candidate-info">
+                        <span class="info-label">方向:</span>
+                        <span class="info-value direction-{{ candidate.direction|lower }}">{{ candidate.direction }}</span>
+                    </div>
+                    <div class="candidate-info">
+                        <span class="info-label">类型:</span>
+                        <span class="info-value">{{ candidate.asset_class }}</span>
+                    </div>
+                    <div class="candidate-thesis">
+                        {{ candidate.thesis|truncatewords:15 }}
+                    </div>
+                </div>
+                <div class="candidate-footer">
+                    <a href="{% url 'alpha_trigger:candidate-detail' candidate.candidate_id %}" class="btn btn-sm btn-primary">查看详情</a>
+                    <a href="{% url 'alpha_trigger:detail' candidate.source_trigger_id %}" class="btn btn-sm btn-outline">来源触发器</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">⏳</div>
+            <p>暂无可操作的 Alpha 候选</p>
+            <a href="{% url 'alpha_trigger:create' %}" class="btn btn-primary">创建触发器</a>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- 快速操作面板 -->
+    <section class="quick-actions-section">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="title-icon">🚀</span>
+                快速操作
+            </h2>
+        </div>
+
+        <div class="quick-actions-grid">
+            <a href="{% url 'beta_gate:test' %}" class="quick-action-card">
+                <div class="action-icon">🧪</div>
+                <h4>测试资产</h4>
+                <p>检查资产在当前配置下是否可通过 Beta Gate</p>
+            </a>
+
+            <a href="{% url 'alpha_trigger:create' %}" class="quick-action-card">
+                <div class="action-icon">⚡</div>
+                <h4>创建触发器</h4>
+                <p>配置新的 Alpha 触发器</p>
+            </a>
+
+            <a href="{% url 'decision_rhythm:config' %}" class="quick-action-card">
+                <div class="action-icon">⚙️</div>
+                <h4>配额配置</h4>
+                <p>调整决策配额参数</p>
+            </a>
+
+            <a href="{% url 'beta_gate:version' %}" class="quick-action-card">
+                <div class="action-icon">🔄</div>
+                <h4>版本对比</h4>
+                <p>对比 Beta Gate 配置历史版本</p>
+            </a>
+
+            <a href="{% url 'alpha_trigger:invalidation-builder' %}" class="quick-action-card">
+                <div class="action-icon">🔧</div>
+                <h4>证伪规则</h4>
+                <p>可视化配置证伪条件</p>
+            </a>
+
+            <a href="{% url 'dashboard:index' %}" class="quick-action-card">
+                <div class="action-icon">📊</div>
+                <h4>返回仪表盘</h4>
+                <p>查看整体投资情况</p>
+            </a>
+        </div>
+    </section>
+</div>
+
+<script>
+function resetQuota() {
+    if (!confirm('确定要重置当前配额吗？这将清空已使用计数。')) {
+        return;
+    }
+
+    fetch('/api/decision-rhythm/quota/reset/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': window.csrfToken
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert('重置失败: ' + (data.error || '未知错误'));
+        }
+    })
+    .catch(error => {
+        alert('请求失败: ' + error.message);
+    });
+}
+
+function approveRequest(requestId) {
+    fetch(`/api/decision-rhythm/requests/${requestId}/approve/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': window.csrfToken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.showToast('已批准决策请求', 'success');
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            alert('批准失败: ' + (data.error || '未知错误'));
+        }
+    })
+    .catch(error => {
+        alert('请求失败: ' + error.message);
+    });
+}
+
+function rejectRequest(requestId) {
+    const reason = prompt('请输入拒绝原因:');
+    if (reason === null) return;
+
+    fetch(`/api/decision-rhythm/requests/${requestId}/reject/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': window.csrfToken
+        },
+        body: JSON.stringify({ reason: reason })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.showToast('已拒绝决策请求', 'info');
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            alert('拒绝失败: ' + (data.error || '未知错误'));
+        }
+    })
+    .catch(error => {
+        alert('请求失败: ' + error.message);
+    });
+}
+
+// 自动刷新（每 30 秒）
+setInterval(() => {
+    fetch('/decision/workspace/?refresh=1', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        // 更新配额显示
+        if (data.quota_usage_percent !== undefined) {
+            document.querySelector('.quota-percent').textContent = data.quota_usage_percent + '%';
+            document.querySelector('.quota-fill').setAttribute('stroke-dasharray', `${data.quota_usage_percent}, 100`);
+        }
+    })
+    .catch(() => {});
+}, 30000);
+</script>
+
+<style>
+/* 工作台容器 */
+.workspace-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+/* 页面头部 */
+.workspace-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.workspace-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0;
+}
+
+.title-icon {
+    font-size: 32px;
+}
+
+.workspace-subtitle {
+    margin: 4px 0 0 44px;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.header-right {
+    display: flex;
+    gap: 16px;
+}
+
+.environment-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+}
+
+.badge-label {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.badge-value {
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+}
+
+/* Regime 颜色 */
+.regime-recovery { background: #E8F5E9; color: #2E7D32; }
+.regime-overheat { background: #FFEBEE; color: #C62828; }
+.regime-stagflation { background: #FFF3E0; color: #E65100; }
+.regime-deflation { background: #E3F2FD; color: #1565C0; }
+.regime-unknown { background: var(--bg-tertiary); color: var(--text-muted); }
+
+/* Policy 颜色 */
+.policy-p0 { background: #E8F5E9; color: #2E7D32; }
+.policy-p1 { background: #E3F2FD; color: #1565C0; }
+.policy-p2 { background: #FFF3E0; color: #E65100; }
+.policy-p3 { background: #FFEBEE; color: #C62828; }
+
+/* 告警横幅 */
+.alerts-section {
+    margin-bottom: 24px;
+}
+
+.alert {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    border-radius: var(--radius-md);
+    border-left: 4px solid;
+}
+
+.alert-danger {
+    background: #FFEBEE;
+    border-color: #C62828;
+}
+
+.alert-warning {
+    background: #FFF3E0;
+    border-color: #E65100;
+}
+
+.alert-info {
+    background: #E3F2FD;
+    border-color: #1565C0;
+}
+
+.alert-icon {
+    font-size: 20px;
+}
+
+.alert-content {
+    flex: 1;
+}
+
+.alert-content strong {
+    display: block;
+    margin-bottom: 2px;
+}
+
+.alert-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    opacity: 0.6;
+}
+
+.alert-close:hover {
+    opacity: 1;
+}
+
+/* 模块概览 */
+.modules-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+    margin-bottom: 32px;
+}
+
+.module-card {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.module-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.module-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.module-icon {
+    font-size: 28px;
+}
+
+.module-title h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.module-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.module-link {
+    margin-left: auto;
+    color: var(--primary-color);
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.module-link:hover {
+    text-decoration: underline;
+}
+
+.module-card-body {
+    padding: 16px;
+}
+
+.module-stat {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    font-size: 13px;
+}
+
+.module-stat:last-child {
+    margin-bottom: 0;
+}
+
+.stat-label {
+    color: var(--text-muted);
+}
+
+.stat-value {
+    font-weight: 600;
+}
+
+.status-active {
+    color: #2E7D32;
+}
+
+.module-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.mini-stat {
+    text-align: center;
+}
+
+.mini-stat-value {
+    display: block;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.mini-stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* 配额圆环 */
+.quota-display {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.quota-circle {
+    position: relative;
+    width: 100px;
+    height: 100px;
+}
+
+.quota-chart {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.quota-bg {
+    fill: none;
+    stroke: var(--border-color);
+    stroke-width: 3;
+}
+
+.quota-fill {
+    fill: none;
+    stroke: var(--primary-color);
+    stroke-width: 3;
+    transition: stroke-dasharray 0.5s ease;
+}
+
+.quota-fill.quota-warning {
+    stroke: #E65100;
+}
+
+.quota-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.quota-percent {
+    display: block;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.quota-label {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.quota-details {
+    flex: 1;
+}
+
+.quota-detail-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+.detail-label {
+    color: var(--text-muted);
+}
+
+.detail-value {
+    font-weight: 600;
+}
+
+.text-danger {
+    color: #C62828;
+}
+
+.module-card-footer {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--bg-tertiary);
+    border-top: 1px solid var(--border-color);
+}
+
+/* 待办列表 */
+.todo-section {
+    margin-bottom: 32px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.badge {
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.badge-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.badge-success {
+    background: #2E7D32;
+    color: white;
+}
+
+.todo-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.todo-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border-left: 4px solid;
+}
+
+.todo-item.priority-high {
+    border-color: #C62828;
+}
+
+.todo-item.priority-medium {
+    border-color: #E65100;
+}
+
+.todo-item.priority-low {
+    border-color: #1565C0;
+}
+
+.priority-badge {
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.priority-high {
+    background: #FFEBEE;
+    color: #C62828;
+}
+
+.priority-medium {
+    background: #FFF3E0;
+    color: #E65100;
+}
+
+.priority-low {
+    background: #E3F2FD;
+    color: #1565C0;
+}
+
+.todo-content {
+    flex: 1;
+}
+
+.todo-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+.todo-asset {
+    font-weight: 600;
+}
+
+.todo-direction {
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.direction-buy {
+    background: #E8F5E9;
+    color: #2E7D32;
+}
+
+.direction-sell {
+    background: #FFEBEE;
+    color: #C62828;
+}
+
+.todo-time {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.todo-reason {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.todo-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* 候选网格 */
+.candidates-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.candidate-card {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.candidate-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.candidate-asset {
+    font-weight: 600;
+}
+
+.candidate-confidence {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.candidate-body {
+    padding: 16px;
+}
+
+.candidate-info {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+.info-label {
+    color: var(--text-muted);
+}
+
+.candidate-thesis {
+    margin: 8px 0 0 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.candidate-footer {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--bg-tertiary);
+}
+
+/* 快速操作 */
+.quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.quick-action-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s;
+}
+
+.quick-action-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: var(--primary-color);
+}
+
+.action-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+}
+
+.quick-action-card h4 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.quick-action-card p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+/* 按钮样式 */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    border: none;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #5A67D8;
+}
+
+.btn-secondary {
+    background: #718096;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #5A6578;
+}
+
+.btn-success {
+    background: #2E7D32;
+    color: white;
+}
+
+.btn-danger {
+    background: #C62828;
+    color: white;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.btn-outline:hover {
+    background: var(--bg-tertiary);
+}
+</style>
+{% endblock %}

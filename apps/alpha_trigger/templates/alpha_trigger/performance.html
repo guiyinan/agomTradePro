@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+
+{% block title %}AgomSAAF - 触发器性能追踪{% endblock %}
+
+{% block content %}
+<style>
+.performance-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+.performance-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #e2e8f0; }
+.page-title { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 24px; font-weight: 700; }
+.page-subtitle { margin: 4px 0 0 40px; color: #64748b; font-size: 14px; }
+.header-actions { display: flex; gap: 12px; }
+
+.overview-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+.stat-card { display: flex; align-items: center; gap: 16px; padding: 20px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; }
+.stat-icon { font-size: 32px; }
+.stat-value { display: block; font-size: 24px; font-weight: 700; color: #667eea; }
+.stat-label { font-size: 13px; color: #64748b; }
+
+.trend-section { margin-bottom: 32px; }
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.section-title { margin: 0; font-size: 18px; font-weight: 600; }
+.chart-container { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; }
+
+.type-stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; margin-bottom: 32px; }
+.type-stat-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 16px; }
+.type-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0; }
+.type-header h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.type-count { font-size: 12px; color: #64748b; }
+.type-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.type-stat { display: flex; flex-direction: column; }
+.type-stat-label { font-size: 12px; color: #64748b; }
+.type-stat-value { font-size: 16px; font-weight: 600; }
+.text-success { color: #10b981; }
+.text-warning { color: #f59e0b; }
+.text-danger { color: #ef4444; }
+
+.table-responsive { overflow-x: auto; margin-bottom: 32px; }
+.performance-table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; }
+.performance-table th, .performance-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+.performance-table th { background: #f8fafc; font-weight: 600; font-size: 13px; }
+.performance-table tbody tr:hover { background: #f8fafc; }
+
+.direction-badge { padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.direction-long { background: #d1fae5; color: #065f46; }
+.direction-short { background: #fee2e2; color: #991b1b; }
+.direction-neutral { background: #f3f4f6; color: #6b7280; }
+
+.percent-bar { display: flex; align-items: center; gap: 8px; }
+.percent-fill { height: 6px; border-radius: 3px; min-width: 40px; }
+.percent-fill.high { background: #10b981; }
+.percent-fill.medium { background: #f59e0b; }
+.percent-fill.low { background: #ef4444; }
+.percent-fill.invalidation { background: #9ca3af; }
+.percent-text { font-size: 12px; font-weight: 600; min-width: 35px; }
+
+.score-badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 13px; font-weight: 700; min-width: 40px; text-align: center; }
+.score-high { background: #d1fae5; color: #065f46; }
+.score-medium { background: #fef3c7; color: #92400e; }
+.score-low { background: #fee2e2; color: #991b1b; }
+
+.analysis-tips { margin-top: 32px; }
+.tips-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.tip-card { display: flex; gap: 16px; padding: 20px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; }
+.tip-icon { font-size: 32px; }
+.tip-card h4 { margin: 0 0 8px 0; font-size: 15px; font-weight: 600; }
+.tip-card p { margin: 0; font-size: 13px; color: #64748b; line-height: 1.6; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 8px 16px; border-radius: 8px; border: none; font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+.btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+.btn-outline { background: transparent; border: 1px solid #e2e8f0; color: #475569; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-secondary { background: #64748b; color: white; }
+
+.empty-state { text-align: center; padding: 40px 20px; }
+.empty-icon { font-size: 48px; margin-bottom: 16px; }
+</style>
+
+<div class="performance-container">
+    <!-- 页面头部 -->
+    <header class="performance-header">
+        <div class="header-left">
+            <h1 class="page-title">
+                <span class="title-icon">📊</span>
+                触发器性能追踪
+            </h1>
+            <p class="page-subtitle">评估触发器质量和投资转化效果</p>
+        </div>
+        <div class="header-actions">
+            <a href="{% url 'alpha_trigger:list' %}" class="btn btn-outline">返回列表</a>
+            <a href="{% url 'alpha_trigger:create' %}" class="btn btn-primary">创建触发器</a>
+        </div>
+    </header>
+
+    <!-- 整体统计卡片 -->
+    <section class="overview-stats">
+        <div class="stat-card">
+            <div class="stat-icon">🎯</div>
+            <div class="stat-content">
+                <span class="stat-value">{{ overall_stats.total_triggers|default:0 }}</span>
+                <span class="stat-label">活跃触发器</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">⚡</div>
+            <div class="stat-content">
+                <span class="stat-value">{{ overall_stats.total_candidates|default:0 }}</span>
+                <span class="stat-label">总候选数</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">✅</div>
+            <div class="stat-content">
+                <span class="stat-value">{{ overall_stats.total_executed|default:0 }}</span>
+                <span class="stat-label">已执行</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📈</div>
+            <div class="stat-content">
+                <span class="stat-value">{{ overall_stats.conversion_rate|default:0 }}%</span>
+                <span class="stat-label">整体转化率</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- 按类型分组统计 -->
+    <section class="type-stats-section">
+        <div class="section-header">
+            <h2 class="section-title">按触发器类型分组</h2>
+        </div>
+        <div class="type-stats-grid">
+            {% for trigger_type, stats in trigger_type_stats.items %}
+            <div class="type-stat-card">
+                <div class="type-header">
+                    <h3>{{ trigger_type }}</h3>
+                    <span class="type-count">{{ stats.count }} 个触发器</span>
+                </div>
+                <div class="type-stats">
+                    <div class="type-stat">
+                        <span class="type-stat-label">候选数</span>
+                        <span class="type-stat-value">{{ stats.total_candidates }}</span>
+                    </div>
+                    <div class="type-stat">
+                        <span class="type-stat-label">已执行</span>
+                        <span class="type-stat-value">{{ stats.total_executed }}</span>
+                    </div>
+                    <div class="type-stat">
+                        <span class="type-stat-label">转化率</span>
+                        <span class="type-stat-value {% if stats.conversion_rate >= 50 %}text-success{% elif stats.conversion_rate >= 20 %}text-warning{% else %}text-danger{% endif %}">
+                            {{ stats.conversion_rate }}%
+                        </span>
+                    </div>
+                    <div class="type-stat">
+                        <span class="type-stat-label">平均评分</span>
+                        <span class="type-stat-value {% if stats.avg_score >= 70 %}text-success{% elif stats.avg_score >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                            {{ stats.avg_score }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- 触发器性能排行 -->
+    <section class="performance-table-section">
+        <div class="section-header">
+            <h2 class="section-title">触发器性能排行</h2>
+        </div>
+
+        <div class="table-responsive">
+            <table class="performance-table">
+                <thead>
+                    <tr>
+                        <th>排名</th>
+                        <th>资产</th>
+                        <th>类型</th>
+                        <th>方向</th>
+                        <th>候选数</th>
+                        <th>已执行</th>
+                        <th>转化率</th>
+                        <th>证伪率</th>
+                        <th>平均置信度</th>
+                        <th>活跃天数</th>
+                        <th>评分</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for perf in trigger_performance %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td><strong>{{ perf.trigger.asset_code }}</strong></td>
+                        <td>{{ perf.trigger.get_trigger_type_display }}</td>
+                        <td>
+                            <span class="direction-badge direction-{{ perf.trigger.direction|lower }}">
+                                {{ perf.trigger.direction }}
+                            </span>
+                        </td>
+                        <td>{{ perf.total_candidates }}</td>
+                        <td>{{ perf.executed_count }}</td>
+                        <td>
+                            <div class="percent-bar">
+                                <div class="percent-fill {% if perf.conversion_rate >= 50 %}high{% elif perf.conversion_rate >= 20 %}medium{% else %}low{% endif %}"
+                                     style="width: {{ perf.conversion_rate }}%"></div>
+                                <span class="percent-text">{{ perf.conversion_rate }}%</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="percent-bar">
+                                <div class="percent-fill invalidation" style="width: {{ perf.invalidation_rate }}%"></div>
+                                <span class="percent-text">{{ perf.invalidation_rate }}%</span>
+                            </div>
+                        </td>
+                        <td>{{ perf.avg_confidence }}</td>
+                        <td>{{ perf.days_active }}</td>
+                        <td>
+                            <span class="score-badge {% if perf.performance_score >= 70 %}score-high{% elif perf.performance_score >= 50 %}score-medium{% else %}score-low{% endif %}">
+                                {{ perf.performance_score }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{% url 'alpha_trigger:detail' perf.trigger.trigger_id %}" class="btn btn-sm btn-outline">详情</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="12" class="empty-row">
+                            <div class="empty-state">
+                                <div class="empty-icon">📊</div>
+                                <p>暂无触发器性能数据</p>
+                                <a href="{% url 'alpha_trigger:create' %}" class="btn btn-primary">创建第一个触发器</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- 性能分析提示 -->
+    <section class="analysis-tips">
+        <div class="section-header">
+            <h2 class="section-title">
+                <span class="title-icon">💡</span>
+                性能分析指南
+            </h2>
+        </div>
+        <div class="tips-grid">
+            <div class="tip-card">
+                <div class="tip-icon">📈</div>
+                <h4>转化率</h4>
+                <p>候选转化为执行的比例。高转化率（&gt;50%）说明触发器产生的信号质量较高，值得继续使用。</p>
+            </div>
+            <div class="tip-card">
+                <div class="tip-icon">❌</div>
+                <h4>证伪率</h4>
+                <p>候选被证伪或过期的比例。低证伪率（&lt;30%）说明触发逻辑准确，证伪规则设置合理。</p>
+            </div>
+            <div class="tip-card">
+                <div class="tip-icon">🎯</div>
+                <h4>综合评分</h4>
+                <p>综合考虑转化率、证伪率、置信度的加权评分。70分以上为优秀，50-70分良好，低于50分需优化。</p>
+            </div>
+            <div class="tip-card">
+                <div class="tip-icon">⚡</div>
+                <h4>触发频率</h4>
+                <p>每天产生的候选数量。过高频率可能产生噪音，过低频率可能错过机会。</p>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

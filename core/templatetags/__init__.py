@@ -1,3 +1,1 @@
-"""
-Core Template Tags
-"""
+

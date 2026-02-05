@@ -1087,3 +1087,276 @@ def alpha_candidate_detail_view(request, candidate_id):
             "page_title": "候选详情",
         }
         return render(request, "alpha_trigger/candidate_detail.html", context, status=500)
+
+
+def alpha_trigger_performance_view(request):
+    """
+    Alpha 触发器性能追踪页面
+
+    帮助用户评估触发器质量，包括：
+    - 触发次数统计
+    - 证伪率统计
+    - 平均持仓时间
+    - 转化为执行的比例
+    """
+    try:
+        from ..infrastructure.models import AlphaTriggerModel, AlphaCandidateModel
+        from django.db.models import Count, Q, Avg, F
+        from django.utils import timezone
+        from datetime import timedelta
+
+        # 获取所有活跃触发器
+        triggers = list(AlphaTriggerModel.objects.filter(
+            status='ACTIVE'
+        ).order_by('-created_at'))
+
+        # 为每个触发器计算性能指标
+        trigger_performance = []
+
+        for trigger in triggers:
+            # 获取相关候选
+            candidates = AlphaCandidateModel.objects.filter(
+                source_trigger_id=trigger.trigger_id
+            )
+
+            total_candidates = candidates.count()
+            executed_count = candidates.filter(status='EXECUTED').count()
+            invalidated_count = candidates.filter(
+                status__in=['INVALIDATED', 'EXPIRED']
+            ).count()
+            actionable_count = candidates.filter(status='ACTIONABLE').count()
+
+            # 转化率（候选转为执行的比例）
+            conversion_rate = 0
+            if total_candidates > 0:
+                conversion_rate = round(executed_count / total_candidates * 100, 1)
+
+            # 证伪率（被证伪的候选比例）
+            invalidation_rate = 0
+            if total_candidates > 0:
+                invalidation_rate = round(invalidated_count / total_candidates * 100, 1)
+
+            # 平均置信度
+            avg_confidence = candidates.aggregate(
+                avg_conf=Avg('confidence')
+            )['avg_conf'] or 0
+
+            # 平均持仓时间（从创建到执行的天数）
+            avg_holding_days = 0
+            executed_candidates = candidates.filter(
+                status='EXECUTED',
+                executed_at__isnull=False
+            )
+            if executed_candidates.exists():
+                days_list = []
+                for c in executed_candidates:
+                    if c.created_at and c.executed_at:
+                        days = (c.executed_at - c.created_at).days
+                        days_list.append(days)
+                if days_list:
+                    avg_holding_days = round(sum(days_list) / len(days_list), 1)
+
+            # 触发器活跃天数
+            days_active = 0
+            if trigger.created_at:
+                days_active = (timezone.now() - trigger.created_at).days
+
+            # 触发频率（每天产生的候选数）
+            trigger_frequency = 0
+            if days_active > 0:
+                trigger_frequency = round(total_candidates / days_active, 2)
+
+            # 性能评分 (0-100)
+            # 综合考虑：转化率 (40%), 证伪率反向 (30%), 置信度 (30%)
+            performance_score = 0
+            if total_candidates > 0:
+                score = (
+                    conversion_rate * 0.4 +
+                    (100 - invalidation_rate) * 0.3 +
+                    (avg_confidence * 100) * 0.3
+                )
+                performance_score = round(score, 1)
+
+            trigger_performance.append({
+                'trigger': trigger,
+                'total_candidates': total_candidates,
+                'executed_count': executed_count,
+                'invalidated_count': invalidated_count,
+                'actionable_count': actionable_count,
+                'conversion_rate': conversion_rate,
+                'invalidation_rate': invalidation_rate,
+                'avg_confidence': round(avg_confidence, 2),
+                'avg_holding_days': avg_holding_days,
+                'days_active': days_active,
+                'trigger_frequency': trigger_frequency,
+                'performance_score': performance_score,
+            })
+
+        # 按性能评分排序
+        trigger_performance.sort(key=lambda x: x['performance_score'], reverse=True)
+
+        # 整体统计
+        total_triggers = len(triggers)
+        total_candidates = AlphaCandidateModel.objects.count()
+        total_executed = AlphaCandidateModel.objects.filter(status='EXECUTED').count()
+        overall_conversion_rate = 0
+        if total_candidates > 0:
+            overall_conversion_rate = round(total_executed / total_candidates * 100, 1)
+
+        # 按类型分组统计
+        trigger_type_stats = {}
+        for perf in trigger_performance:
+            trigger_type = perf['trigger'].get_trigger_type_display()
+            if trigger_type not in trigger_type_stats:
+                trigger_type_stats[trigger_type] = {
+                    'count': 0,
+                    'total_candidates': 0,
+                    'total_executed': 0,
+                    'avg_score': 0,
+                    'scores': [],
+                }
+            stats = trigger_type_stats[trigger_type]
+            stats['count'] += 1
+            stats['total_candidates'] += perf['total_candidates']
+            stats['total_executed'] += perf['executed_count']
+            stats['scores'].append(perf['performance_score'])
+
+        # 计算各类型平均分
+        for trigger_type, stats in trigger_type_stats.items():
+            if stats['scores']:
+                stats['avg_score'] = round(sum(stats['scores']) / len(stats['scores']), 1)
+            stats['conversion_rate'] = 0
+            if stats['total_candidates'] > 0:
+                stats['conversion_rate'] = round(
+                    stats['total_executed'] / stats['total_candidates'] * 100, 1
+                )
+            del stats['scores']  # 移除临时列表
+
+        # 获取最近 30 天的趋势数据
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        recent_candidates = AlphaCandidateModel.objects.filter(
+            created_at__gte=thirty_days_ago
+        ).order_by('created_at')
+
+        # 按日期分组
+        daily_stats = {}
+        for candidate in recent_candidates:
+            date_str = candidate.created_at.date().isoformat()
+            if date_str not in daily_stats:
+                daily_stats[date_str] = {'created': 0, 'executed': 0, 'invalidated': 0}
+            daily_stats[date_str]['created'] += 1
+            if candidate.status == 'EXECUTED':
+                daily_stats[date_str]['executed'] += 1
+            elif candidate.status in ['INVALIDATED', 'EXPIRED']:
+                daily_stats[date_str]['invalidated'] += 1
+
+        # 转换为列表
+        trend_data = []
+        for date_str in sorted(daily_stats.keys()):
+            trend_data.append({
+                'date': date_str,
+                'created': daily_stats[date_str]['created'],
+                'executed': daily_stats[date_str]['executed'],
+                'invalidated': daily_stats[date_str]['invalidated'],
+            })
+
+        context = {
+            "trigger_performance": trigger_performance,
+            "trigger_type_stats": trigger_type_stats,
+            "trend_data": trend_data,
+            "overall_stats": {
+                "total_triggers": total_triggers,
+                "total_candidates": total_candidates,
+                "total_executed": total_executed,
+                "conversion_rate": overall_conversion_rate,
+            },
+            "page_title": "触发器性能追踪",
+            "page_description": "评估触发器质量和投资效果",
+        }
+
+        return render(request, "alpha_trigger/performance.html", context)
+
+    except Exception as e:
+        logger.error(f"Failed to load alpha trigger performance page: {e}", exc_info=True)
+        context = {
+            "error": str(e),
+            "page_title": "触发器性能追踪",
+        }
+        return render(request, "alpha_trigger/performance.html", context, status=500)
+
+
+class TriggerPerformanceAPIView(APIView):
+    """
+    触发器性能数据 API
+
+    GET /api/alpha-triggers/performance/?days=30
+    """
+
+    def get(self, request) -> Response:
+        """
+        获取性能数据
+
+        查询参数:
+        - days: 统计天数（默认 30）
+        - trigger_id: 特定触发器 ID（可选）
+        """
+        try:
+            from ..infrastructure.models import AlphaTriggerModel, AlphaCandidateModel
+            from django.utils import timezone
+            from datetime import timedelta
+            import json
+
+            days = int(request.query_params.get("days", 30))
+            trigger_id = request.query_params.get("trigger_id", None)
+
+            start_date = timezone.now() - timedelta(days=days)
+
+            # 获取触发器列表
+            if trigger_id:
+                triggers = [AlphaTriggerModel.objects.filter(trigger_id=trigger_id).first()]
+            else:
+                triggers = list(AlphaTriggerModel.objects.filter(status='ACTIVE'))
+
+            performance_data = []
+
+            for trigger in triggers:
+                if not trigger:
+                    continue
+
+                candidates = AlphaCandidateModel.objects.filter(
+                    source_trigger_id=trigger.trigger_id,
+                    created_at__gte=start_date
+                )
+
+                total = candidates.count()
+                executed = candidates.filter(status='EXECUTED').count()
+                invalidated = candidates.filter(
+                    status__in=['INVALIDATED', 'EXPIRED']
+                ).count()
+
+                performance_data.append({
+                    "trigger_id": trigger.trigger_id,
+                    "asset_code": trigger.asset_code,
+                    "trigger_type": trigger.trigger_type,
+                    "total_candidates": total,
+                    "executed": executed,
+                    "invalidated": invalidated,
+                    "conversion_rate": round(executed / total * 100, 1) if total > 0 else 0,
+                    "invalidation_rate": round(invalidated / total * 100, 1) if total > 0 else 0,
+                })
+
+            return Response({
+                "success": True,
+                "data": performance_data,
+                "summary": {
+                    "days": days,
+                    "total_triggers": len(performance_data),
+                }
+            })
+
+        except Exception as e:
+            logger.error(f"Failed to get performance data: {e}", exc_info=True)
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )

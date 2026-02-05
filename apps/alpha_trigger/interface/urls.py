@@ -26,6 +26,7 @@ urlpatterns = [
     path("api/alpha-triggers/check-invalidation/", alpha_trigger_views.CheckInvalidationView.as_view(), name="check-invalidation"),
     path("api/alpha-triggers/evaluate/", alpha_trigger_views.EvaluateTriggerView.as_view(), name="evaluate-trigger"),
     path("api/alpha-triggers/generate-candidate/", alpha_trigger_views.GenerateCandidateView.as_view(), name="generate-candidate"),
+    path("api/alpha-triggers/performance/", alpha_trigger_views.TriggerPerformanceAPIView.as_view(), name="performance-api"),
 
     # Template 视图路由
     path("alpha-triggers/", alpha_trigger_views.alpha_trigger_list_view, name="list"),
@@ -34,4 +35,5 @@ urlpatterns = [
     path("alpha-triggers/detail/<str:trigger_id>/", alpha_trigger_views.alpha_trigger_detail_view, name="detail"),
     path("alpha-triggers/invalidation-builder/", alpha_trigger_views.alpha_trigger_invalidation_builder_view, name="invalidation_builder"),
     path("alpha-triggers/candidates/<str:candidate_id>/", alpha_trigger_views.alpha_candidate_detail_view, name="candidate_detail"),
+    path("alpha-triggers/performance/", alpha_trigger_views.alpha_trigger_performance_view, name="performance"),
 ]
