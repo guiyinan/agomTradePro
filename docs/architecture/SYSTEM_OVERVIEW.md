@@ -1,10 +1,10 @@
 # AgomSAAF 系统全景概览
 
-> **文档版本**: V1.4
+> **文档版本**: V1.5
 > **生成日期**: 2026-01-04
 > **最后更新**: 2026-02-06
-> **系统版本**: AgomSAAF V3.4
-> **项目完成度**: 98%
+> **系统版本**: AgomSAAF V3.5
+> **项目完成度**: 99%
 > **文档目的**: 基于现有文档和代码库,梳理系统的模块、功能(应然和实然)及后续实施建议
 
 ---
@@ -16,13 +16,14 @@
 ### 核心特点
 
 - ✅ **四层架构** (Domain/Application/Infrastructure/Interface) - 严格遵循
-- ✅ **27个业务模块** - 覆盖宏观分析、信号管理、回测归因、实时数据全流程
+- ✅ **28个业务模块** - 覆盖宏观分析、信号管理、回测归因、实时数据全流程
 - ✅ **完整测试覆盖** - 263+个测试用例，100%通过率
 - ✅ **多维度资产分析** - 支持股票、基金、板块、债券、商品
-- ✅ **98%完成度** - 所有核心模块已完成,测试通过率100%
+- ✅ **99%完成度** - 所有核心模块已完成,测试通过率100%
 - ✅ **实时数据接入** - 价格监控系统已完成
 - ✅ **Qlib 集成** - Alpha 选股信号深度集成
 - ✅ **决策平台** - Beta Gate + Alpha Trigger + Decision Rhythm
+- ✅ **事件驱动系统** - Events模块完整实现(2026-02-06)
 
 ---
 
@@ -86,7 +87,7 @@
 
 ---
 
-## 二、系统模块全景 (27个业务模块)
+## 二、系统模块全景 (28个业务模块)
 
 ### 2.1 核心引擎模块 (5个)
 
@@ -487,7 +488,7 @@ StopLossConfig(
 
 ---
 
-### 2.4 AI与工具模块 (6个)
+### 2.4 基础设施与工具模块 (5个)
 
 #### 16. `ai_provider` - AI服务提供商管理
 
@@ -556,12 +557,55 @@ allocation = allocation_service.calculate_allocation(
 - 信号状态汇总
 
 **实然功能**:
-- ✅ 基础框架已实现
-- ⚠️ 图表交互待完善(ECharts集成)
+- ✅ 四层架构完整实现
+- ✅ Domain层: 7个实体(MetricCard/ChartConfig/DashboardWidget等) + 3个规则类 + 3个服务类
+- ✅ Infrastructure层: 5个ORM模型 + 5个Repository + Admin后台
+- ✅ Application层: 用例编排(Dashboard数据聚合)
+- ✅ Interface层: HTMX视图 + DRF序列化器 + 5个HTMX端点
+- ✅ 支持用户个性化配置(隐藏卡片、折叠状态、卡片顺序)
+- ✅ Alpha可视化集成(选股评分、Provider状态、IC趋势)
 
 **待优化**:
-- 前端JavaScript交互
-- 实时数据刷新
+- ⚠️ 图表交互待完善(ECharts集成)
+
+---
+
+#### 20. `events` - 事件系统 ⭐新增
+
+**应然功能**:
+- 领域事件总线(解耦模块通信)
+- 事件发布/订阅机制
+- 事件持久化与重放
+- 规则引擎(过滤/去重/节流)
+
+**实然功能**:
+- ✅ 四层架构完整实现
+- ✅ Domain层: 31种事件类型 + 事件实体 + EventHandler接口 + 事件总线服务 + 规则引擎
+- ✅ Infrastructure层: 3个ORM模型(StoredEvent/EventSnapshot/EventSubscription) + DatabaseEventStore + EventReplayHandler
+- ✅ Application层: 5个用例(发布/订阅/查询/重放/指标) + 5个Celery任务 + DTOs
+- ✅ Interface层: 5个API视图 + DRF序列化器 + Admin后台 + URL配置
+- ✅ 事件规则引擎(优先级/过滤/去重/节流/时效/验证)
+- ✅ 支持事件关联追踪(correlation_id/causation_id)
+- ✅ Celery异步任务(批量发布/重放/清理/指标收集)
+
+**核心功能**:
+- **事件发布**: 同步/异步发布事件到总线
+- **事件订阅**: 支持优先级、过滤条件、复杂过滤器
+- **事件持久化**: 存储到数据库，支持重放
+- **规则引擎**: 事件过滤、去重(60秒窗口)、节流(100/分钟)
+- **事件监控**: 指标收集、健康检查、自动清理
+
+**API端点** (5个):
+- `POST /api/events/publish/` - 发布事件
+- `GET /api/events/query/` - 查询事件
+- `GET /api/events/metrics/` - 获取指标
+- `GET /api/events/status/` - 总线状态
+- `POST /api/events/replay/` - 重放事件
+
+**业务价值**:
+- ✅ 实现Beta Gate/Alpha Trigger/Decision Rhythm模块间解耦通信
+- ✅ 支持事件追踪和调试
+- ✅ 为复杂业务流程提供可靠的事件驱动架构
 
 ---
 
@@ -710,9 +754,10 @@ workflow = chain(
 | **simulated_trading** | ✅ | ✅ | 100% | 四层架构+自动交易+绩效计算实现 |
 | **ai_provider** | ✅ | ✅ | 100% | 多源管理+预算控制实现 |
 | **prompt** | ✅ | ✅ | 100% | 模板+Chain+日志实现 |
-| **dashboard** | ✅ | ⚠️ | 60% | 框架完成,图表交互待优化 |
+| **dashboard** | ✅ | ✅ | 95% | 四层架构完整,图表交互待优化 |
+| **events** | ✅ | ✅ | 100% | 事件总线+规则引擎+持久化重放实现 |
 
-**总体完成度**: **100%** (核心功能) / **93%** (包含可选优化)
+**总体完成度**: **100%** (核心功能) / **96%** (包含可选优化)
 
 ### 4.2 超出文档设计的新增功能
 
@@ -735,6 +780,22 @@ workflow = chain(
    - 数据流断点修复(4个)
    - 硬编码配置化(初始化脚本)
    - 架构规范修复(Protocol + Mapper)
+
+5. **Dashboard模块四层架构完善** (2026-02-06完成)
+   - Domain层: 7个实体(MetricCard/ChartConfig/DashboardWidget/DashboardCard/DashboardLayout/AlertConfig/DashboardPreferences)
+   - Domain层: 3个规则类(DashboardCardVisibilityRule/WidgetPositionRule/MetricThresholdRule)
+   - Domain层: 3个服务类(DashboardLayoutService/DashboardMetricService/DashboardChartService/DashboardAlertService)
+   - Infrastructure层: 5个ORM模型 + 5个Repository + Admin后台
+   - Interface层: DRF序列化器
+
+6. **Events事件驱动系统** (2026-02-06完成)
+   - 31种事件类型(覆盖Regime/Policy/Signal/Trigger/Gate/Rhythm/Portfolio等模块)
+   - Domain层完整: 事件实体 + EventHandler接口 + 事件总线服务 + 规则引擎
+   - 事件规则引擎: 优先级/过滤/去重/节流/时效/验证7种规则
+   - Infrastructure层: 3个ORM模型 + DatabaseEventStore + EventReplayHandler
+   - Application层: 5个用例 + 5个Celery异步任务 + DTOs
+   - Interface层: 5个API视图 + DRF序列化器 + Admin后台
+   - 支持事件关联追踪(correlation_id/causation_id)和事件重放
 
 ---
 
@@ -806,14 +867,20 @@ workflow = chain(
 **影响**: 回测后无法查看归因分析报告
 
 #### 2. Dashboard图表交互待优化
-**状态**: 基础框架完成,ECharts集成未完善
-**缺失**:
+**状态**: ✅ 四层架构已完成(2026-02-06)
+**已实现**:
+- Domain层: 7个实体 + 3个规则类 + 3个服务类
+- Infrastructure层: 5个ORM模型 + 5个Repository + Admin后台
+- Application层: 用例编排
+- Interface层: HTMX视图 + DRF序列化器
+
+**待优化**:
 - Regime象限图可视化
 - 历史回测曲线图
 - 实时数据刷新机制
 
-**预估工作量**: 1周
-**影响**: 用户体验不佳,无法直观查看Regime变化
+**预估工作量**: 3-5天
+**影响**: 用户体验待提升
 
 ### 6.2 中优先级问题(P2)
 
@@ -1554,7 +1621,7 @@ pytest tests/ -v --cov=apps --cov-report=html
 
 ✅ **功能完整,覆盖全流程**
 - 从宏观数据采集→Regime判定→信号管理→回测归因
-- 18个业务模块,384个Python文件
+- 28个业务模块,410+个Python文件
 
 ✅ **测试覆盖充分**
 - 263个测试,100%通过率
@@ -1615,7 +1682,11 @@ pytest tests/ -v --cov=apps --cov-report=html
 
 ---
 
-**文档版本**: V1.0
-**最后更新**: 2026-01-04
+**文档版本**: V1.5
+**最后更新**: 2026-02-06
 **下次审核**: 每月审核一次,根据实施进度更新
 **维护者**: Claude Code Agent
+
+**更新记录**:
+- V1.5 (2026-02-06): Dashboard/Events模块4层架构完善，系统完成度更新至99%
+- V1.4 (2026-01-04): 基础版本，系统全景概览

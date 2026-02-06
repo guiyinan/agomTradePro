@@ -36,6 +36,17 @@ from .services import (
     event_handler,
 )
 
+from .rules import (
+    EventRuleEngine,
+    EventFilterRule,
+    EventDeduplicationRule,
+    EventThrottleRule,
+    EventAgeRule,
+    EventValidationRule,
+    create_default_rule_engine,
+    create_strict_rule_engine,
+)
+
 __all__ = [
     # 事件类型
     "EventType",
@@ -61,4 +72,13 @@ __all__ = [
     "reset_event_bus",
     # 装饰器
     "event_handler",
+    # 规则
+    "EventRuleEngine",
+    "EventFilterRule",
+    "EventDeduplicationRule",
+    "EventThrottleRule",
+    "EventAgeRule",
+    "EventValidationRule",
+    "create_default_rule_engine",
+    "create_strict_rule_engine",
 ]

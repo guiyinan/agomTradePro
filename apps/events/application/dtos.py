@@ -1,0 +1,227 @@
+"""
+Events Application DTOs
+
+事件数据传输对象定义。
+"""
+
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+from enum import Enum
+
+from ..domain.entities import EventType
+
+
+# ========== 请求 DTOs ==========
+
+
+@dataclass
+class EventPublishRequestDTO:
+    """发布事件请求 DTO"""
+    event_type: str
+    payload: Dict[str, Any]
+    metadata: Optional[Dict[str, Any]] = None
+    event_id: Optional[str] = None
+    occurred_at: Optional[str] = None  # ISO 格式时间字符串
+    correlation_id: Optional[str] = None
+    causation_id: Optional[str] = None
+
+
+@dataclass
+class EventSubscriptionRequestDTO:
+    """事件订阅请求 DTO"""
+    event_type: str
+    handler_class: str  # 处理器类路径
+    filter_criteria: Optional[Dict[str, Any]] = None
+    priority: int = 100
+
+
+@dataclass
+class EventQueryRequestDTO:
+    """事件查询请求 DTO"""
+    event_type: Optional[str] = None
+    event_types: Optional[List[str]] = None
+    correlation_id: Optional[str] = None
+    since: Optional[str] = None  # ISO 格式时间字符串
+    until: Optional[str] = None  # ISO 格式时间字符串
+    limit: int = 100
+
+
+@dataclass
+class EventReplayRequestDTO:
+    """事件重放请求 DTO"""
+    event_type: Optional[str] = None
+    since: Optional[str] = None  # ISO 格式时间字符串
+    until: Optional[str] = None  # ISO 格式时间字符串
+    limit: int = 1000
+    target_handler_class: Optional[str] = None  # 处理器类路径
+
+
+# ========== 响应 DTOs ==========
+
+
+@dataclass
+class EventDTO:
+    """事件传输对象"""
+    event_id: str
+    event_type: str
+    occurred_at: str  # ISO 格式时间字符串
+    payload: Dict[str, Any]
+    metadata: Dict[str, Any]
+    correlation_id: Optional[str] = None
+    causation_id: Optional[str] = None
+    version: int = 1
+
+
+@dataclass
+class BaseResponseDTO:
+    """基础响应 DTO"""
+    success: bool
+    message: Optional[str] = None
+    error_code: Optional[str] = None
+    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+
+
+@dataclass
+class EventPublishResponseDTO(BaseResponseDTO):
+    """发布事件响应 DTO"""
+    event_id: str
+    published_at: str  # ISO 格式时间字符串
+    subscribers_notified: int = 0
+
+
+@dataclass
+class EventSubscriptionResponseDTO(BaseResponseDTO):
+    """事件订阅响应 DTO"""
+    subscription_id: str
+    subscribed_at: str  # ISO 格式时间字符串
+    event_type: str
+    handler_id: str
+
+
+@dataclass
+class EventQueryResponseDTO(BaseResponseDTO):
+    """事件查询响应 DTO"""
+    events: List[EventDTO]
+    total_count: int
+    queried_at: str  # ISO 格式时间字符串
+    has_more: bool = False
+
+
+@dataclass
+class EventReplayResponseDTO(BaseResponseDTO):
+    """事件重放响应 DTO"""
+    events_replayed: int
+    replayed_at: str  # ISO 格式时间字符串
+    duration_ms: int = 0
+
+
+@dataclass
+class EventMetricsDTO:
+    """事件指标 DTO"""
+    total_published: int
+    total_processed: int
+    total_failed: int
+    total_subscribers: int
+    avg_processing_time_ms: float
+    last_event_at: Optional[str]  # ISO 格式时间字符串
+    success_rate: float  # 成功率
+
+
+@dataclass
+class EventStatisticsResponseDTO(BaseResponseDTO):
+    """事件统计响应 DTO"""
+    metrics: EventMetricsDTO
+    events_by_type: Dict[str, int]  # 事件类型到数量的映射
+    active_subscriptions: int
+    queue_size: int
+
+
+@dataclass
+class EventBusStatusDTO:
+    """事件总线状态 DTO"""
+    is_running: bool
+    total_subscribers: int
+    queue_size: int
+    last_event_at: Optional[str]  # ISO 格式时间字符串
+    uptime_seconds: float
+
+
+# ========== 便捷转换函数 ==========
+
+
+def dto_to_event_publish_request(dto: EventPublishRequestDTO) -> "PublishEventRequest":
+    """
+    转换 DTO 为用例请求
+
+    Args:
+        dto: 发布事件请求 DTO
+
+    Returns:
+        用例请求
+    """
+    from .use_cases import PublishEventRequest
+    from datetime import datetime
+
+    occurred_at = None
+    if dto.occurred_at:
+        try:
+            occurred_at = datetime.fromisoformat(dto.occurred_at.replace('Z', '+00:00'))
+        except ValueError:
+            pass
+
+    return PublishEventRequest(
+        event_type=EventType(dto.event_type),
+        payload=dto.payload,
+        metadata=dto.metadata,
+        event_id=dto.event_id,
+        occurred_at=occurred_at,
+        correlation_id=dto.correlation_id,
+        causation_id=dto.causation_id,
+    )
+
+
+def event_to_dto(event) -> EventDTO:
+    """
+    转换领域事件为 DTO
+
+    Args:
+        event: 领域事件
+
+    Returns:
+        事件 DTO
+    """
+    return EventDTO(
+        event_id=event.event_id,
+        event_type=event.event_type.value,
+        occurred_at=event.occurred_at.isoformat(),
+        payload=event.payload,
+        metadata=event.metadata,
+        correlation_id=event.metadata.get("correlation_id"),
+        causation_id=event.metadata.get("causation_id"),
+        version=event.version,
+    )
+
+
+def metrics_to_dto(metrics) -> EventMetricsDTO:
+    """
+    转换事件指标为 DTO
+
+    Args:
+        metrics: 事件指标
+
+    Returns:
+        指标 DTO
+    """
+    total = metrics.total_processed + metrics.total_failed
+    success_rate = (metrics.total_processed / total * 100) if total > 0 else 0.0
+
+    return EventMetricsDTO(
+        total_published=metrics.total_published,
+        total_processed=metrics.total_processed,
+        total_failed=metrics.total_failed,
+        total_subscribers=metrics.total_subscribers,
+        avg_processing_time_ms=metrics.avg_processing_time_ms,
+        last_event_at=metrics.last_event_at.isoformat() if metrics.last_event_at else None,
+        success_rate=success_rate,
+    )

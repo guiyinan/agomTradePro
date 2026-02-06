@@ -18,10 +18,38 @@ from .event_bus_initializer import (
     initialize_event_bus,
 )
 
+from .use_cases import (
+    PublishEventUseCase,
+    SubscribeToEventUseCase,
+    QueryEventsUseCase,
+    ReplayEventsUseCase,
+)
+
+from .dtos import (
+    EventPublishRequest,
+    EventPublishResponse,
+    EventSubscriptionRequest,
+    EventQueryRequest,
+    EventQueryResponse,
+    EventReplayRequest,
+    EventReplayResponse,
+)
+
 __all__ = [
     "EventBusInitializer",
     "LoggingEventHandler",
     "get_event_bus_initializer",
     "get_event_bus",
     "initialize_event_bus",
+    "PublishEventUseCase",
+    "SubscribeToEventUseCase",
+    "QueryEventsUseCase",
+    "ReplayEventsUseCase",
+    "EventPublishRequest",
+    "EventPublishResponse",
+    "EventSubscriptionRequest",
+    "EventQueryRequest",
+    "EventQueryResponse",
+    "EventReplayRequest",
+    "EventReplayResponse",
 ]
