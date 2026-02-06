@@ -97,4 +97,16 @@ urlpatterns = [
     path('', include('apps.beta_gate.interface.urls')),
     # Alpha Trigger - Alpha 离散触发（新增）
     path('', include('apps.alpha_trigger.interface.urls')),
+
+    # ========== 新模块：因子选股 + 资产轮动 + 对冲组合 ==========
+    # Factor - 因子选股（新增）
+    path('factor/', include('apps.factor.interface.urls')),
+    # Rotation - 资产轮动（新增）
+    path('rotation/', include('apps.rotation.interface.urls')),
+    # Hedge - 对冲组合（新增）
+    path('hedge/', include('apps.hedge.interface.urls')),
+
+    # ========== 新模块：Alpha 信号抽象层 ==========
+    # Alpha - Alpha 信号抽象层（新增）
+    path('api/alpha/', include('apps.alpha.interface.urls')),
 ]

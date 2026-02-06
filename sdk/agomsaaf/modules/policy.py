@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 """
 AgomSAAF SDK - Policy 政策事件模块
 
@@ -7,8 +8,8 @@ AgomSAAF SDK - Policy 政策事件模块
 from datetime import date
 from typing import Any, Optional
 
-from agomsaaf.modules.base import BaseModule
-from agomsaaf.types import PolicyEvent, PolicyGear, PolicyStatus
+from .base import BaseModule
+from ..types import PolicyEvent, PolicyGear, PolicyStatus
 
 
 class PolicyModule(BaseModule):

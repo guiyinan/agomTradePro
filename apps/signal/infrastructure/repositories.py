@@ -338,3 +338,262 @@ class DjangoSignalRepository:
             status=SignalStatus(orm_obj.status),
             rejection_reason=orm_obj.rejection_reason
         )
+
+
+class UnifiedSignalRepository:
+    """
+    统一信号仓储
+
+    管理来自所有模块（Regime、Factor、Rotation、Hedge）的统一信号。
+    """
+
+    def __init__(self):
+        from .models import UnifiedSignalModel
+        self._model = UnifiedSignalModel
+
+    def create_signal(
+        self,
+        signal_date: date,
+        signal_source: str,
+        signal_type: str,
+        asset_code: str,
+        reason: str,
+        asset_name: str = "",
+        target_weight: float = None,
+        current_weight: float = None,
+        priority: int = 5,
+        action_required: str = "",
+        extra_data: dict = None,
+        related_signal_id: str = ""
+    ) -> dict:
+        """
+        创建新的统一信号
+
+        Args:
+            signal_date: 信号日期
+            signal_source: 信号来源 (regime/factor/rotation/hedge/manual)
+            signal_type: 信号类型 (buy/sell/rebalance/alert/info)
+            asset_code: 资产代码
+            reason: 信号原因
+            asset_name: 资产名称
+            target_weight: 目标权重
+            current_weight: 当前权重
+            priority: 优先级 (1-10)
+            action_required: 所需操作
+            extra_data: 额外数据
+            related_signal_id: 关联的原始信号ID
+
+        Returns:
+            创建的信号字典
+        """
+        signal = self._model.objects.create(
+            signal_date=signal_date,
+            signal_source=signal_source,
+            signal_type=signal_type,
+            asset_code=asset_code,
+            asset_name=asset_name,
+            target_weight=target_weight,
+            current_weight=current_weight,
+            priority=priority,
+            reason=reason,
+            action_required=action_required,
+            extra_data=extra_data or {},
+            related_signal_id=related_signal_id,
+        )
+
+        return self._orm_to_dict(signal)
+
+    def get_signals_by_date(
+        self,
+        signal_date: date,
+        signal_source: str = None,
+        signal_type: str = None,
+        is_executed: bool = None
+    ) -> list:
+        """
+        按日期获取信号
+
+        Args:
+            signal_date: 信号日期
+            signal_source: 信号来源过滤
+            signal_type: 信号类型过滤
+            is_executed: 执行状态过滤
+
+        Returns:
+            信号列表
+        """
+        query = self._model.objects.filter(signal_date=signal_date)
+
+        if signal_source:
+            query = query.filter(signal_source=signal_source)
+        if signal_type:
+            query = query.filter(signal_type=signal_type)
+        if is_executed is not None:
+            query = query.filter(is_executed=is_executed)
+
+        return [self._orm_to_dict(s) for s in query.order_by('-priority')]
+
+    def get_signals_by_asset(
+        self,
+        asset_code: str,
+        days: int = 30,
+        signal_source: str = None
+    ) -> list:
+        """
+        按资产获取最近的信号
+
+        Args:
+            asset_code: 资产代码
+            days: 查询天数
+            signal_source: 信号来源过滤
+
+        Returns:
+            信号列表
+        """
+        from datetime import timedelta
+        cutoff_date = date.today() - timedelta(days=days)
+
+        query = self._model.objects.filter(
+            asset_code=asset_code,
+            signal_date__gte=cutoff_date
+        )
+
+        if signal_source:
+            query = query.filter(signal_source=signal_source)
+
+        return [self._orm_to_dict(s) for s in query.order_by('-signal_date', '-priority')]
+
+    def get_pending_signals(
+        self,
+        min_priority: int = 1,
+        signal_type: str = None
+    ) -> list:
+        """
+        获取待处理的信号
+
+        Args:
+            min_priority: 最低优先级
+            signal_type: 信号类型过滤
+
+        Returns:
+            待处理信号列表
+        """
+        query = self._model.objects.filter(
+            is_executed=False,
+            priority__gte=min_priority
+        )
+
+        if signal_type:
+            query = query.filter(signal_type=signal_type)
+
+        return [self._orm_to_dict(s) for s in query.order_by('-signal_date', '-priority')]
+
+    def mark_executed(self, signal_id: int) -> bool:
+        """
+        标记信号为已执行
+
+        Args:
+            signal_id: 信号ID
+
+        Returns:
+            是否成功
+        """
+        try:
+            signal = self._model.objects.get(id=signal_id)
+            signal.mark_executed()
+            return True
+        except self._model.DoesNotExist:
+            return False
+
+    def get_signal_summary(
+        self,
+        start_date: date,
+        end_date: date = None
+    ) -> dict:
+        """
+        获取信号汇总
+
+        Args:
+            start_date: 开始日期
+            end_date: 结束日期（默认今天）
+
+        Returns:
+            汇总信息
+        """
+        if end_date is None:
+            end_date = date.today()
+
+        query = self._model.objects.filter(
+            signal_date__gte=start_date,
+            signal_date__lte=end_date
+        )
+
+        total = query.count()
+        executed = query.filter(is_executed=True).count()
+        pending = total - executed
+
+        # 按来源统计
+        by_source = {}
+        for source, _ in self._model.SIGNAL_SOURCE_CHOICES:
+            count = query.filter(signal_source=source).count()
+            by_source[source] = count
+
+        # 按类型统计
+        by_type = {}
+        for signal_type, _ in self._model.SIGNAL_TYPE_CHOICES:
+            count = query.filter(signal_type=signal_type).count()
+            by_type[signal_type] = count
+
+        # 高优先级信号
+        high_priority = query.filter(priority__gte=7, is_executed=False).count()
+
+        return {
+            'total': total,
+            'executed': executed,
+            'pending': pending,
+            'by_source': by_source,
+            'by_type': by_type,
+            'high_priority_count': high_priority,
+        }
+
+    def delete_old_signals(self, days_to_keep: int = 90) -> int:
+        """
+        删除旧信号
+
+        Args:
+            days_to_keep: 保留天数
+
+        Returns:
+            删除的信号数量
+        """
+        from datetime import timedelta
+        cutoff_date = date.today() - timedelta(days=days_to_keep)
+
+        count, _ = self._model.objects.filter(
+            signal_date__lt=cutoff_date,
+            is_executed=True
+        ).delete()
+
+        return count
+
+    @staticmethod
+    def _orm_to_dict(orm_obj) -> dict:
+        """将 ORM 对象转换为字典"""
+        return {
+            'id': orm_obj.id,
+            'signal_date': orm_obj.signal_date.isoformat(),
+            'signal_source': orm_obj.signal_source,
+            'signal_type': orm_obj.signal_type,
+            'asset_code': orm_obj.asset_code,
+            'asset_name': orm_obj.asset_name,
+            'target_weight': float(orm_obj.target_weight) if orm_obj.target_weight else None,
+            'current_weight': float(orm_obj.current_weight) if orm_obj.current_weight else None,
+            'priority': orm_obj.priority,
+            'is_executed': orm_obj.is_executed,
+            'executed_at': orm_obj.executed_at.isoformat() if orm_obj.executed_at else None,
+            'reason': orm_obj.reason,
+            'action_required': orm_obj.action_required,
+            'extra_data': orm_obj.extra_data,
+            'related_signal_id': orm_obj.related_signal_id,
+            'created_at': orm_obj.created_at.isoformat(),
+        }

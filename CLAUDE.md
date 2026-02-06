@@ -4,13 +4,15 @@
 
 ## 项目概述
 
-> **最后更新**: 2026-02-01
+> **最后更新**: 2026-02-06
 > **系统版本**: AgomSAAF V3.4
 > **项目完成度**: 98%
-> **业务模块**: 19个
-> **测试覆盖**: 263个测试用例，100%通过率
+> **业务模块**: 27个
+> **测试覆盖**: 263+个测试用例，100%通过率
 
 AgomSAAF (Agom Strategic Asset Allocation Framework) 是一个宏观环境准入系统，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
+
+**最新完成**: Alpha 模块与 Qlib 深度集成（Phase 1-5 全部完成），新增 Factor/Rotation/Hedge 智能模块。
 
 ## 技术栈
 
@@ -63,7 +65,7 @@ AgomSAAF/
 │   │   └── production.py
 │   ├── urls.py
 │   └── celery.py
-├── apps/                     # 19个业务模块
+├── apps/                     # 27个业务模块
 │   ├── macro/                # 宏观数据采集
 │   ├── regime/               # Regime 判定引擎
 │   ├── policy/               # 政策事件管理
@@ -82,7 +84,15 @@ AgomSAAF/
 │   ├── ai_provider/          # AI 服务商管理
 │   ├── prompt/               # AI Prompt 模板
 │   ├── dashboard/            # 仪表盘
-│   └── filter/               # 筛选器管理
+│   ├── filter/               # 筛选器管理
+│   ├── alpha/                # AI 选股信号（Qlib 集成）
+│   ├── alpha_trigger/        # Alpha 离散触发
+│   ├── beta_gate/            # Beta 闸门
+│   ├── decision_rhythm/      # 决策频率约束
+│   ├── factor/               # 因子管理
+│   ├── rotation/             # 板块轮动
+│   ├── hedge/                # 对冲策略
+│   └── events/               # 事件系统
 ├── shared/                   # 跨 App 共享（仅技术性组件）
 │   ├── domain/interfaces.py  # Protocol 定义
 │   ├── infrastructure/       # 通用算法实现（如 Kalman 滤波）
@@ -318,6 +328,19 @@ ak.macro_china_money_supply()
 - ✅ 模拟盘自动交易
 - ✅ 实时价格监控
 
+**Qlib 集成 Phase 1-5 已完成** ✅:
+- ✅ Phase 1: Alpha 抽象层 + Cache Provider
+- ✅ Phase 2: Qlib 推理异步产出
+- ✅ Phase 3: 训练流水线
+- ✅ Phase 4: 评估闭环 + 监控
+- ✅ Phase 5: 宏观集成 + 全链路联调
+
+**新增智能模块** ✅:
+- ✅ Alpha 模块（AI 选股信号，4 层降级）
+- ✅ Factor 模块（因子管理）
+- ✅ Rotation 模块（板块轮动）
+- ✅ Hedge 模块（对冲策略）
+
 **Phase 8: 功能完善** (进行中):
 - [ ] Audit 模块补全 (45% → 100%)
 - [ ] Dashboard 图表优化 (60% → 100%)
@@ -331,8 +354,15 @@ ak.macro_china_money_supply()
 4. 遇到不确定的金融逻辑，参考 `docs/business/AgomSAAF_V3.4.md`
 5. 拒绝硬编码，对于资产类型、数据指标代码等，应该写在数据库里，然后有初始化脚本。
 6. 每步工作后，更新 docs 下的对应文档
-7. **快速参考**: 查看 `docs/development/quick-reference.md` 获取常用命令和 API 端点
+7. **文档索引**: 查看 `docs/INDEX.md` 获取完整文档导航
+8. **快速参考**: 查看 `docs/development/quick-reference.md` 获取常用命令和 API 端点
 
 **环境配置**:
 - python 虚拟环境为 `agomsaaf`
 - PowerShell 脚本必须使用英文
+
+**新增模块说明**:
+- `alpha/` - AI 选股模块，与 Qlib 松耦合集成，支持 4 层降级（Qlib → Cache → Simple → ETF）
+- `factor/` - 因子管理模块，支持因子计算、分析、IC/ICIR 评估
+- `rotation/` - 板块轮动模块，基于 Regime 的板块配置建议
+- `hedge/` - 对冲策略模块，支持期货对冲计算和管理

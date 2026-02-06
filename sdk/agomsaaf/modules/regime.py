@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 """
 AgomSAAF SDK - Regime 判定模块
 
@@ -7,8 +8,8 @@ AgomSAAF SDK - Regime 判定模块
 from datetime import date
 from typing import Any, Optional
 
-from agomsaaf.modules.base import BaseModule
-from agomsaaf.types import RegimeCalculationParams, RegimeState, RegimeType
+from .base import BaseModule
+from ..types import RegimeCalculationParams, RegimeState, RegimeType
 
 
 class RegimeModule(BaseModule):

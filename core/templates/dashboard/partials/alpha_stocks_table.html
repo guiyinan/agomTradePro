@@ -1,0 +1,195 @@
+{% if alpha_stocks %}
+<table class="data-table alpha-stocks-table">
+    <thead>
+        <tr>
+            <th>排名</th>
+            <th>股票代码</th>
+            <th>Alpha 评分</th>
+            <th>置信度</th>
+            <th>数据源</th>
+            <th>信号日期</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for stock in alpha_stocks %}
+        <tr class="alpha-stock-row" data-code="{{ stock.code }}">
+            <td class="rank-cell">
+                <span class="rank-badge rank-{{ stock.rank }}">
+                    {{ stock.rank }}
+                </span>
+            </td>
+            <td>
+                <strong>{{ stock.code }}</strong>
+            </td>
+            <td>
+                <div class="score-bar-container">
+                    <div class="score-bar" style="width: {{ stock.score|floatformat:0 }}%"></div>
+                    <span class="score-value">{{ stock.score|floatformat:3 }}</span>
+                </div>
+            </td>
+            <td>
+                <span class="confidence-badge confidence-{{ stock.confidence|floatformat:1 }}">
+                    {{ stock.confidence|floatformat:2 }}
+                </span>
+            </td>
+            <td>
+                <span class="source-badge source-{{ stock.source }}">
+                    {% if stock.source == 'qlib' %}Qlib
+                    {% elif stock.source == 'cache' %}缓存
+                    {% elif stock.source == 'simple' %}简单因子
+                    {% elif stock.source == 'etf' %}ETF
+                    {% else %}{{ stock.source }}{% endif %}
+                </span>
+            </td>
+            <td>
+                <span class="date-badge">{{ stock.asof_date|default:"-" }}</span>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty-state alpha-empty">
+    <div class="empty-icon">📊</div>
+    <p>暂无 Alpha 选股数据</p>
+    <p class="empty-hint">Alpha 服务可能正在初始化或已降级</p>
+</div>
+{% endif %}
+
+<style>
+.alpha-stocks-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.alpha-stocks-table th {
+    background: var(--bg-tertiary);
+    padding: 10px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.alpha-stocks-table td {
+    padding: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.alpha-stock-row:hover {
+    background-color: var(--bg-tertiary);
+}
+
+.rank-badge {
+    display: inline-block;
+    width: 28px;
+    height: 28px;
+    line-height: 28px;
+    text-align: center;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 12px;
+}
+
+.rank-1, .rank-2, .rank-3 {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    color: white;
+}
+
+.rank-4, .rank-5, .rank-6, .rank-7, .rank-8, .rank-9, .rank-10 {
+    background: linear-gradient(135deg, #E0E0E0, #BDBDBD);
+    color: var(--text-primary);
+}
+
+.score-bar-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.score-bar {
+    height: 6px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    border-radius: 3px;
+    min-width: 40px;
+    transition: width 0.3s ease;
+}
+
+.score-value {
+    font-weight: 600;
+    color: var(--primary-color);
+    min-width: 45px;
+    text-align: right;
+}
+
+.confidence-badge {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.confidence-0.9, .confidence-1.0 {
+    background: #E8F5E9;
+    color: #2E7D32;
+}
+
+.confidence-0.8 {
+    background: #E3F2FD;
+    color: #1976D2;
+}
+
+.confidence-0.7 {
+    background: #FFF3E0;
+    color: #F57C00;
+}
+
+.confidence-0.6 {
+    background: #FFEBEE;
+    color: #C62828;
+}
+
+.source-badge {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.source-qlib {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.source-cache {
+    background: #E0F2F1;
+    color: #00695C;
+}
+
+.source-simple {
+    background: #FFF8E1;
+    color: #FF8F00;
+}
+
+.source-etf {
+    background: #ECEFF1;
+    color: #546E7A;
+}
+
+.date-badge {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.alpha-empty {
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.empty-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 8px;
+}
+</style>

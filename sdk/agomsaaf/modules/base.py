@@ -5,9 +5,10 @@ AgomSAAF SDK 模块基类
 """
 
 from abc import ABC
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
-from agomsaaf.client import AgomSAAFClient
+if TYPE_CHECKING:
+    from ..client import AgomSAAFClient
 
 
 class BaseModule(ABC):

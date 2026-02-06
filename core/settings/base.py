@@ -67,6 +67,12 @@ INSTALLED_APPS = [
     'apps.events',         # 事件总线模块（新增）
     'apps.beta_gate',      # Beta 闸门模块（新增）
     'apps.alpha_trigger',  # Alpha 离散触发模块（新增）
+    'apps.alpha',          # Alpha AI 选股模块（新增）
+
+    # ========== 新模块：因子选股 + 资产轮动 + 对冲组合 ==========
+    'apps.factor',         # 因子选股模块（新增）
+    'apps.rotation',       # 资产轮动模块（新增）
+    'apps.hedge',          # 对冲组合模块（新增）
 ]
 
 MIDDLEWARE = [
@@ -355,4 +361,91 @@ CELERY_BEAT_SCHEDULE = {
         }
     },
     # ============================================
+
+    # ========== Alpha Qlib 推理任务 ==========
+    "qlib-daily-inference": {
+        "task": "apps.alpha.application.tasks.qlib_predict_scores",
+        "schedule": crontab(hour=17, minute=30, day_of_week="mon-fri"),  # 每个交易日 17:30
+        "options": {
+            "expires": 7200,  # 2 小时超时
+        }
+    },
+    "qlib-weekly-cache-refresh": {
+        "task": "apps.alpha.application.tasks.qlib_refresh_cache",
+        "schedule": crontab(hour=2, minute=0, day_of_week="sun"),  # 每周日凌晨 2:00
+        "options": {
+            "days_back": 7,
+            "expires": 14400,  # 4 小时超时
+        }
+    },
+    # ============================================
+
+    # ========== Phase 4: 监控和告警任务 ==========
+    "alpha-evaluate-alerts": {
+        "task": "apps.alpha.application.monitoring_tasks.evaluate_alerts",
+        "schedule": crontab(minute="*/1"),  # 每分钟执行一次
+        "options": {
+            "expires": 60,  # 1 分钟超时
+        }
+    },
+    "alpha-update-provider-metrics": {
+        "task": "apps.alpha.application.monitoring_tasks.update_provider_metrics",
+        "schedule": crontab(minute="*/5"),  # 每 5 分钟执行一次
+        "options": {
+            "expires": 300,  # 5 分钟超时
+        }
+    },
+    "alpha-check-queue-lag": {
+        "task": "apps.alpha.application.monitoring_tasks.check_queue_lag",
+        "schedule": crontab(minute="*/1"),  # 每分钟执行一次
+        "options": {
+            "expires": 60,
+        }
+    },
+    "alpha-calculate-ic-drift": {
+        "task": "apps.alpha.application.monitoring_tasks.calculate_ic_drift",
+        "schedule": crontab(hour=2, minute=0, day_of_week="sun"),  # 每周日凌晨 2:00
+        "options": {
+            "expires": 1800,  # 30 分钟超时
+        }
+    },
+    "alpha-daily-report": {
+        "task": "apps.alpha.application.monitoring_tasks.generate_daily_report",
+        "schedule": crontab(hour=8, minute=0),  # 每天 8:00
+        "options": {
+            "expires": 600,  # 10 分钟超时
+        }
+    },
+    "alpha-cleanup-metrics": {
+        "task": "apps.alpha.application.monitoring_tasks.cleanup_old_metrics",
+        "schedule": crontab(hour=3, minute=0, day_of_week="sun"),  # 每周日凌晨 3:00
+        "options": {
+            "days": 30,  # 保留 30 天
+            "expires": 3600,  # 1 小时超时
+        }
+    },
+    # ============================================
 }
+
+# ========== Qlib 配置 ==========
+QLIB_SETTINGS = {
+    'provider_uri': env('QLIB_PROVIDER_URI', default='~/.qlib/qlib_data/cn_data'),
+    'region': env('QLIB_REGION', default='CN'),
+    'model_path': env('QLIB_MODEL_PATH', default='/models/qlib'),
+}
+
+# Celery 队列路由配置（Qlib 任务专用队列）
+CELERY_TASK_ROUTES = {
+    'apps.alpha.application.tasks.qlib_train_model': {'queue': 'qlib_train'},
+    'apps.alpha.application.tasks.qlib_predict_scores': {'queue': 'qlib_infer'},
+    'apps.alpha.application.tasks.qlib_evaluate_model': {'queue': 'qlib_train'},
+    'apps.alpha.application.tasks.qlib_refresh_cache': {'queue': 'qlib_infer'},
+}
+
+# Qlib 任务超时配置
+CELERY_TASK_TIME_LIMIT = 3600  # 1 小时
+CELERY_TASK_SOFT_TIME_LIMIT = 3300  # 55 分钟
+
+# Qlib Worker 配置建议
+# celery -A core worker -l info -Q qlib_infer --max-tasks-per-child=10 --concurrency=2
+# celery -A core worker -l info -Q qlib_train --max-tasks-per-child=1 --concurrency=1

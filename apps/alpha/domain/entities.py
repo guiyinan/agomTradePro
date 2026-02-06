@@ -1,0 +1,348 @@
+"""
+Alpha Domain Entities
+
+定义 Alpha 信号的核心数据实体。
+仅使用 Python 标准库，不依赖 Django 或外部库。
+"""
+
+from dataclasses import dataclass, field
+from datetime import date
+from enum import Enum
+from typing import Any, Dict, List, Optional
+
+
+class InvalidationType(Enum):
+    """
+    证伪类型枚举
+
+    定义 Alpha 信号证伪的不同类型。
+    """
+
+    THRESHOLD_CROSS = "threshold_cross"
+    """阈值穿越：指标穿越阈值时证伪"""
+
+    TIME_DECAY = "time_decay"
+    """时间衰减：超过最大持仓时间"""
+
+    REGIME_MISMATCH = "regime_mismatch"
+    """Regime 不匹配：当前 Regime 与要求不符"""
+
+    MODEL_DRIFT = "model_drift"
+    """模型漂移：模型性能显著下降"""
+
+    MANUAL = "manual"
+    """手动证伪：人工手动证伪"""
+
+
+@dataclass(frozen=True)
+class InvalidationCondition:
+    """
+    证伪条件
+
+    定义 Alpha 信号的证伪规则，支持多种条件类型。
+
+    Attributes:
+        condition_type: 条件类型
+        threshold_value: 阈值（用于 THRESHOLD_CROSS）
+        cross_direction: 穿越方向 ("above", "below")
+        max_holding_days: 最大持仓天数（用于 TIME_DECAY）
+        required_regime: 要求的 Regime（用于 REGIME_MISMATCH）
+        min_ic: 最小 IC 值（用于 MODEL_DRIFT）
+        description: 条件描述
+
+    Example:
+        >>> condition = InvalidationCondition(
+        ...     condition_type=InvalidationType.THRESHOLD_CROSS,
+        ...     threshold_value=50.0,
+        ...     cross_direction="below",
+        ...     description="PMI 跌破 50"
+        ... )
+    """
+
+    condition_type: InvalidationType
+    threshold_value: Optional[float] = None
+    cross_direction: Optional[str] = None
+    max_holding_days: Optional[int] = None
+    required_regime: Optional[str] = None
+    min_ic: Optional[float] = None
+    description: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "condition_type": self.condition_type.value,
+            "threshold_value": self.threshold_value,
+            "cross_direction": self.cross_direction,
+            "max_holding_days": self.max_holding_days,
+            "required_regime": self.required_regime,
+            "min_ic": self.min_ic,
+            "description": self.description,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "InvalidationCondition":
+        """从字典创建"""
+        return cls(
+            condition_type=InvalidationType(data.get("condition_type", "manual")),
+            threshold_value=data.get("threshold_value"),
+            cross_direction=data.get("cross_direction"),
+            max_holding_days=data.get("max_holding_days"),
+            required_regime=data.get("required_regime"),
+            min_ic=data.get("min_ic"),
+            description=data.get("description", ""),
+        )
+
+
+@dataclass(frozen=True)
+class StockScore:
+    """
+    股票评分实体（含审计字段）
+
+    定义单个股票的评分结果，包含完整的审计追踪信息。
+
+    Attributes:
+        code: 股票代码
+        score: 评分（-1 到 1，正数看多，负数看空）
+        rank: 排名（1 为最高）
+        factors: 因子暴露度字典
+        source: 评分来源（qlib/cache/simple/etf）
+        confidence: 置信度（0-1）
+        model_id: 模型标识
+        model_artifact_hash: 模型文件哈希（用于追溯）
+        asof_date: 信号真实生成日期（重要：避免前视偏差）
+        intended_trade_date: 计划执行交易的日期
+        universe_id: 股票池标识
+        feature_set_id: 特征集标识
+        label_id: 标签标识
+        data_version: 数据版本标识
+
+    Example:
+        >>> score = StockScore(
+        ...     code="000001.SH",
+        ...     score=0.75,
+        ...     rank=1,
+        ...     factors={"momentum": 0.8, "value": 0.6},
+        ...     source="qlib",
+        ...     confidence=0.85,
+        ...     asof_date=date(2026, 2, 5),
+        ...     intended_trade_date=date(2026, 2, 6)
+        ... )
+    """
+
+    code: str
+    score: float
+    rank: int
+    factors: Dict[str, float]
+    source: str
+    confidence: float
+
+    # 审计字段（复现/排障必需）
+    model_id: Optional[str] = None
+    model_artifact_hash: Optional[str] = None
+    asof_date: Optional[date] = None
+    intended_trade_date: Optional[date] = None
+    universe_id: Optional[str] = None
+    feature_set_id: Optional[str] = None
+    label_id: Optional[str] = None
+    data_version: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "code": self.code,
+            "score": self.score,
+            "rank": self.rank,
+            "factors": self.factors,
+            "source": self.source,
+            "confidence": self.confidence,
+            "model_id": self.model_id,
+            "model_artifact_hash": self.model_artifact_hash,
+            "asof_date": self.asof_date.isoformat() if self.asof_date else None,
+            "intended_trade_date": self.intended_trade_date.isoformat() if self.intended_trade_date else None,
+            "universe_id": self.universe_id,
+            "feature_set_id": self.feature_set_id,
+            "label_id": self.label_id,
+            "data_version": self.data_version,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "StockScore":
+        """从字典创建"""
+        factors = data.get("factors", {})
+        asof_date = data.get("asof_date")
+        intended_trade_date = data.get("intended_trade_date")
+
+        return cls(
+            code=data["code"],
+            score=float(data["score"]),
+            rank=int(data["rank"]),
+            factors=factors if isinstance(factors, dict) else {},
+            source=data["source"],
+            confidence=float(data.get("confidence", 0.5)),
+            model_id=data.get("model_id"),
+            model_artifact_hash=data.get("model_artifact_hash"),
+            asof_date=date.fromisoformat(asof_date) if asof_date else None,
+            intended_trade_date=date.fromisoformat(intended_trade_date) if intended_trade_date else None,
+            universe_id=data.get("universe_id"),
+            feature_set_id=data.get("feature_set_id"),
+            label_id=data.get("label_id"),
+            data_version=data.get("data_version"),
+        )
+
+
+@dataclass
+class AlphaResult:
+    """
+    Alpha 计算结果
+
+    封装一次 Alpha 计算的完整结果，包括评分列表和元数据。
+
+    Attributes:
+        success: 是否成功获取评分
+        scores: 股票评分列表
+        source: 数据来源（Provider 名称）
+        timestamp: 结果时间戳
+        error_message: 错误信息（如果失败）
+        status: 状态（available/degraded/unavailable）
+        latency_ms: 延迟（毫秒）
+        staleness_days: 数据陈旧天数
+        invalidation_conditions: 证伪条件列表
+        metadata: 额外元数据
+
+    Example:
+        >>> result = AlphaResult(
+        ...     success=True,
+        ...     scores=[score1, score2],
+        ...     source="qlib",
+        ...     timestamp="2026-02-05T10:30:00",
+        ...     status="available"
+        ... )
+    """
+
+    success: bool
+    scores: List[StockScore]
+    source: str
+    timestamp: str
+    error_message: Optional[str] = None
+    status: str = "available"
+    latency_ms: Optional[int] = None
+    staleness_days: Optional[int] = None
+    invalidation_conditions: List[InvalidationCondition] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "success": self.success,
+            "source": self.source,
+            "timestamp": self.timestamp,
+            "status": self.status,
+            "latency_ms": self.latency_ms,
+            "staleness_days": self.staleness_days,
+            "error_message": self.error_message,
+            "stocks": [s.to_dict() for s in self.scores],
+            "invalidation_conditions": [ic.to_dict() for ic in self.invalidation_conditions],
+            "metadata": self.metadata,
+        }
+
+
+@dataclass(frozen=True)
+class AlphaProviderConfig:
+    """
+    Alpha Provider 配置
+
+    定义 Provider 的全局配置参数。
+
+    Attributes:
+        max_staleness_days: 默认最大数据陈旧天数
+        max_latency_ms: 默认最大延迟
+        enable_cache: 是否启用缓存
+        cache_ttl_seconds: 缓存过期时间（秒）
+        retry_attempts: 失败重试次数
+        retry_delay_seconds: 重试延迟（秒）
+        timeout_seconds: 请求超时时间（秒）
+
+    Example:
+        >>> config = AlphaProviderConfig(
+        ...     max_staleness_days=2,
+        ...     max_latency_ms=1500
+        ... )
+    """
+
+    max_staleness_days: int = 2
+    max_latency_ms: int = 1500
+    enable_cache: bool = True
+    cache_ttl_seconds: int = 3600
+    retry_attempts: int = 3
+    retry_delay_seconds: int = 5
+    timeout_seconds: int = 30
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "max_staleness_days": self.max_staleness_days,
+            "max_latency_ms": self.max_latency_ms,
+            "enable_cache": self.enable_cache,
+            "cache_ttl_seconds": self.cache_ttl_seconds,
+            "retry_attempts": self.retry_attempts,
+            "retry_delay_seconds": self.retry_delay_seconds,
+            "timeout_seconds": self.timeout_seconds,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "AlphaProviderConfig":
+        """从字典创建"""
+        return cls(
+            max_staleness_days=data.get("max_staleness_days", 2),
+            max_latency_ms=data.get("max_latency_ms", 1500),
+            enable_cache=data.get("enable_cache", True),
+            cache_ttl_seconds=data.get("cache_ttl_seconds", 3600),
+            retry_attempts=data.get("retry_attempts", 3),
+            retry_delay_seconds=data.get("retry_delay_seconds", 5),
+            timeout_seconds=data.get("timeout_seconds", 30),
+        )
+
+
+@dataclass(frozen=True)
+class UniverseDefinition:
+    """
+    股票池定义
+
+    定义一个股票池的构成和属性。
+
+    Attributes:
+        universe_id: 股票池唯一标识
+        name: 股票池名称
+        description: 描述
+        stock_codes: 包含的股票代码列表
+        index_code: 对应指数代码（如果有）
+        weight_method: 加权方法（equal_weight/market_cap）
+        rebalance_frequency: 再平衡频率
+
+    Example:
+        >>> universe = UniverseDefinition(
+        ...     universe_id="csi300",
+        ...     name="沪深300",
+        ...     stock_codes=["000001.SH", "000002.SH", ...]
+        ... )
+    """
+
+    universe_id: str
+    name: str
+    description: str = ""
+    stock_codes: List[str] = field(default_factory=list)
+    index_code: Optional[str] = None
+    weight_method: str = "equal_weight"
+    rebalance_frequency: str = "monthly"
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "universe_id": self.universe_id,
+            "name": self.name,
+            "description": self.description,
+            "stock_codes": self.stock_codes,
+            "index_code": self.index_code,
+            "weight_method": self.weight_method,
+            "rebalance_frequency": self.rebalance_frequency,
+        }

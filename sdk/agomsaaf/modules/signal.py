@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 """
 AgomSAAF SDK - Investment Signal 投资信号模块
 
@@ -7,8 +8,8 @@ AgomSAAF SDK - Investment Signal 投资信号模块
 from datetime import date, datetime
 from typing import Any, Optional
 
-from agomsaaf.modules.base import BaseModule
-from agomsaaf.types import (
+from .base import BaseModule
+from ..types import (
     CreateSignalParams,
     InvestmentSignal,
     RegimeType,

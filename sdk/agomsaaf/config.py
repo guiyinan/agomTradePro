@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from agomsaaf.exceptions import ConfigurationError
+from .exceptions import ConfigurationError
 
 
 @dataclass

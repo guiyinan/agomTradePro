@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 """
 AgomSAAF SDK - Simulated Trading 模拟盘交易模块
 
@@ -7,7 +8,7 @@ AgomSAAF SDK - Simulated Trading 模拟盘交易模块
 from datetime import date
 from typing import Any, Optional
 
-from agomsaaf.modules.base import BaseModule
+from .base import BaseModule
 
 
 class SimulatedTradingModule(BaseModule):

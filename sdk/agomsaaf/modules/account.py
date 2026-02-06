@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 """
 AgomSAAF SDK - Account 账户管理模块
 
@@ -6,8 +7,8 @@ AgomSAAF SDK - Account 账户管理模块
 
 from typing import Any, Optional
 
-from agomsaaf.modules.base import BaseModule
-from agomsaaf.types import Portfolio, Position
+from .base import BaseModule
+from ..types import Portfolio, Position
 
 
 class AccountModule(BaseModule):

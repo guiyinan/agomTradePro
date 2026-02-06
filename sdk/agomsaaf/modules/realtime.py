@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 """
 AgomSAAF SDK - Realtime 实时价格监控模块
 
@@ -6,7 +7,7 @@ AgomSAAF SDK - Realtime 实时价格监控模块
 
 from typing import Any, Optional
 
-from agomsaaf.modules.base import BaseModule
+from .base import BaseModule
 
 
 class RealtimeModule(BaseModule):

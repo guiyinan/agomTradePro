@@ -12,8 +12,8 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from agomsaaf.config import AuthConfig, ClientConfig, load_config
-from agomsaaf.exceptions import (
+from .config import AuthConfig, ClientConfig, load_config
+from .exceptions import (
     AgomSAAFAPIError,
     AuthenticationError,
     ConfigurationError,
@@ -22,18 +22,22 @@ from agomsaaf.exceptions import (
     ServerError,
     TimeoutError as SDKTimeoutError,
 )
-from agomsaaf.modules.account import AccountModule
-from agomsaaf.modules.backtest import BacktestModule
-from agomsaaf.modules.equity import EquityModule
-from agomsaaf.modules.fund import FundModule
-from agomsaaf.modules.macro import MacroModule
-from agomsaaf.modules.policy import PolicyModule
-from agomsaaf.modules.realtime import RealtimeModule
-from agomsaaf.modules.regime import RegimeModule
-from agomsaaf.modules.sector import SectorModule
-from agomsaaf.modules.signal import SignalModule
-from agomsaaf.modules.simulated_trading import SimulatedTradingModule
-from agomsaaf.modules.strategy import StrategyModule
+from .modules.account import AccountModule
+from .modules.alpha import AlphaModule
+from .modules.backtest import BacktestModule
+from .modules.equity import EquityModule
+from .modules.factor import FactorModule
+from .modules.fund import FundModule
+from .modules.hedge import HedgeModule
+from .modules.macro import MacroModule
+from .modules.policy import PolicyModule
+from .modules.realtime import RealtimeModule
+from .modules.regime import RegimeModule
+from .modules.rotation import RotationModule
+from .modules.sector import SectorModule
+from .modules.signal import SignalModule
+from .modules.simulated_trading import SimulatedTradingModule
+from .modules.strategy import StrategyModule
 
 
 class AgomSAAFClient:
@@ -60,10 +64,14 @@ class AgomSAAFClient:
     _account: Optional[AccountModule] = None
     _simulated_trading: Optional[SimulatedTradingModule] = None
     _equity: Optional[EquityModule] = None
+    _factor: Optional[FactorModule] = None
     _fund: Optional[FundModule] = None
     _sector: Optional[SectorModule] = None
     _strategy: Optional[StrategyModule] = None
     _realtime: Optional[RealtimeModule] = None
+    _rotation: Optional[RotationModule] = None
+    _hedge: Optional[HedgeModule] = None
+    _alpha: Optional[AlphaModule] = None
 
     def __init__(
         self,
@@ -373,6 +381,13 @@ class AgomSAAFClient:
         return self._equity
 
     @property
+    def factor(self) -> FactorModule:
+        """因子选股模块"""
+        if self._factor is None:
+            self._factor = FactorModule(self)
+        return self._factor
+
+    @property
     def fund(self) -> FundModule:
         """基金分析模块"""
         if self._fund is None:
@@ -399,6 +414,27 @@ class AgomSAAFClient:
         if self._realtime is None:
             self._realtime = RealtimeModule(self)
         return self._realtime
+
+    @property
+    def rotation(self) -> RotationModule:
+        """资产轮动模块"""
+        if self._rotation is None:
+            self._rotation = RotationModule(self)
+        return self._rotation
+
+    @property
+    def hedge(self) -> HedgeModule:
+        """对冲组合模块"""
+        if self._hedge is None:
+            self._hedge = HedgeModule(self)
+        return self._hedge
+
+    @property
+    def alpha(self) -> AlphaModule:
+        """Alpha 信号抽象层模块"""
+        if self._alpha is None:
+            self._alpha = AlphaModule(self)
+        return self._alpha
 
     # ========================================================================
     # 会话管理

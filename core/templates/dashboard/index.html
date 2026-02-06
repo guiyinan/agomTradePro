@@ -13,6 +13,10 @@
 {% endblock %}
 
 {% block content %}
+<!-- Hidden JSON data for JavaScript -->
+{{ alpha_provider_status|json_script:"providerData" }}
+{{ alpha_ic_trends|json_script:"icTrendsData" }}
+
 <div class="home-layout">
     <!-- 左侧导航栏 -->
     <aside class="home-sidebar">
@@ -280,6 +284,133 @@
                         </div>
                         <div class="quota-progress">
                             <div class="quota-progress-bar" style="width: {{ quota_usage_percent|default:0 }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Alpha 可视化（新增） -->
+        <section class="alpha-visualization-section">
+            <div class="section-header">
+                <h2 class="section-title">🤖 AI 选股 (Alpha)</h2>
+                <!-- 数据源依赖标识 -->
+                <div class="data-source-badges">
+                    <span class="ds-badge ds-qlib" title="Qlib AI 模型预测">🧠 Qlib</span>
+                    <span class="ds-badge ds-cache" title="历史评分缓存">💾 缓存</span>
+                    <span class="ds-badge ds-simple" title="简单因子计算">📊 因子</span>
+                    <span class="ds-badge ds-etf" title="ETF 成份股兜底">🛡️ ETF</span>
+                </div>
+                <div class="header-actions">
+                    <button class="refresh-btn"
+                            hx-get="{% url 'dashboard:alpha_stocks' %}"
+                            hx-trigger="click"
+                            hx-target="#alphaStocksTable"
+                            hx-swap="innerHTML">
+                        <span>🔄 刷新</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 数据源说明 -->
+            <div class="data-source-info">
+                <span class="info-icon">ℹ️</span>
+                <span class="info-text">
+                    <strong>数据源说明：</strong>
+                    <span class="ds-tag ds-qlib-tag">🧠 Qlib</span> AI 模型预测（高精度，需要训练）
+                    <span class="ds-tag ds-cache-tag">💾 缓存</span> 历史评分（快速，可能有延迟）
+                    <span class="ds-tag ds-simple-tag">📊 因子</span> 简单因子计算（PE/PB/ROE）
+                    <span class="ds-tag ds-etf-tag">🛡️ ETF</span> ETF 成份股兜底（始终可用）
+                </span>
+            </div>
+
+            <!-- Alpha 指标卡片 -->
+            <div class="alpha-metrics-grid">
+                <!-- 覆盖率指标 -->
+                <div class="alpha-metric-card">
+                    <div class="metric-icon">📊</div>
+                    <div class="metric-content">
+                        <div class="metric-title">覆盖率</div>
+                        <div class="metric-value">{{ alpha_coverage_metrics.coverage_ratio|floatformat:1 }}%</div>
+                        <div class="metric-subtitle">覆盖股票池比例</div>
+                    </div>
+                </div>
+
+                <!-- 总请求数 -->
+                <div class="alpha-metric-card">
+                    <div class="metric-icon">📈</div>
+                    <div class="metric-content">
+                        <div class="metric-title">总请求</div>
+                        <div class="metric-value">{{ alpha_coverage_metrics.total_requests }}</div>
+                        <div class="metric-subtitle">累计评分请求</div>
+                    </div>
+                </div>
+
+                <!-- 缓存命中率 -->
+                <div class="alpha-metric-card">
+                    <div class="metric-icon">💾</div>
+                    <div class="metric-content">
+                        <div class="metric-title">缓存命中</div>
+                        <div class="metric-value">{{ alpha_coverage_metrics.cache_hit_rate|floatformat:1 }}%</div>
+                        <div class="metric-subtitle">缓存命中率</div>
+                    </div>
+                </div>
+
+                <!-- Provider 状态 -->
+                <div class="alpha-metric-card">
+                    <div class="metric-icon">⚡</div>
+                    <div class="metric-content">
+                        <div class="metric-title">Provider</div>
+                        <div class="metric-value">{{ alpha_provider_status.providers|length }}</div>
+                        <div class="metric-subtitle">活跃数据源</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alpha 内容区域 -->
+            <div class="alpha-content-row">
+                <!-- 左侧：选股结果表格 -->
+                <div class="alpha-content-card alpha-stocks-card">
+                    <div class="card-header">
+                        <h3>Top 10 选股结果</h3>
+                        <span class="card-badge">{{ alpha_stock_scores|length }} 只股票</span>
+                    </div>
+                    <div class="card-body" id="alphaStocksTable">
+                        {% include 'dashboard/partials/alpha_stocks_table.html' with alpha_stocks=alpha_stock_scores %}
+                    </div>
+                </div>
+
+                <!-- 右侧：Provider 状态面板 + IC 趋势图 -->
+                <div class="alpha-content-right">
+                    <!-- Provider 状态面板 -->
+                    <div class="alpha-content-card provider-status-card">
+                        <div class="card-header">
+                            <h3>Provider 健康状态</h3>
+                            <button class="mini-refresh-btn"
+                                    hx-get="{% url 'dashboard:alpha_provider_api' %}"
+                                    hx-trigger="click"
+                                    hx-target="#providerStatusPanel">
+                                🔄
+                            </button>
+                        </div>
+                        <div class="card-body" id="providerStatusPanel">
+                            <!-- Provider status will be rendered by JavaScript -->
+                            <div class="provider-list" id="providerListContainer"></div>
+                        </div>
+                    </div>
+
+                    <!-- IC/ICIR 趋势图 -->
+                    <div class="alpha-content-card ic-trends-card">
+                        <div class="card-header">
+                            <h3>IC/ICIR 趋势</h3>
+                            <select class="period-select" id="icPeriodSelect">
+                                <option value="7">7 天</option>
+                                <option value="14">14 天</option>
+                                <option value="30" selected>30 天</option>
+                            </select>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="icTrendsChart" width="400" height="200"></canvas>
                         </div>
                     </div>
                 </div>
@@ -556,6 +687,14 @@
                     </div>
                     <div class="status-indicator status-ok"></div>
                 </div>
+                <div class="status-item-card status-qlib-card">
+                    <div class="status-icon">🧠</div>
+                    <div class="status-content">
+                        <div class="status-name">Qlib AI <span class="qlib-badge">可选</span></div>
+                        <div class="status-desc" id="qlibStatusDesc">检测中...</div>
+                    </div>
+                    <div class="status-indicator" id="qlibStatusIndicator"></div>
+                </div>
             </div>
         </section>
     </main>
@@ -717,6 +856,104 @@ setInterval(() => {
 }, 300000); // 每5分钟刷新一次
 
 // ========================================
+// Alpha Provider 状态渲染
+// ========================================
+
+// 渲染 Provider 状态
+function renderProviderStatus() {
+    const providerDataElement = document.getElementById('providerData');
+    if (!providerDataElement) return;
+
+    const providerData = JSON.parse(providerDataElement.textContent);
+    const container = document.getElementById('providerListContainer');
+
+    if (!container) return;
+
+    if (!providerData || !providerData.providers) {
+        container.innerHTML = '<div class="empty-state"><p>暂无 Provider 状态数据</p></div>';
+        return;
+    }
+
+    const providerNames = {
+        'qlib': 'Qlib',
+        'cache': '缓存',
+        'simple': '简单因子',
+        'etf': 'ETF 降级'
+    };
+
+    let html = '';
+    for (const [name, info] of Object.entries(providerData.providers)) {
+        const status = info.status || 'unknown';
+        const metrics = providerData.metrics?.[name] || null;
+
+        html += `
+            <div class="provider-item provider-${status}">
+                <div class="provider-header">
+                    <span class="provider-name">${providerNames[name] || name}</span>
+                    <span class="provider-status-badge status-${status}">
+                        ${status === 'available' ? '✓ 可用' : status === 'degraded' ? '⚠ 降级' : '✗ 不可用'}
+                    </span>
+                </div>
+                ${metrics ? `
+                    <div class="provider-metrics">
+                        <span class="metric">成功率: <strong>${metrics.success_rate.toFixed(1)}%</strong></span>
+                        <span class="metric">延迟: <strong>${metrics.latency_ms}ms</strong></span>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+}
+
+// 页面加载时渲染 Provider 状态
+document.addEventListener('DOMContentLoaded', renderProviderStatus);
+
+// ========================================
+// Qlib 状态检测
+// ========================================
+
+async function checkQlibStatus() {
+    const indicator = document.getElementById('qlibStatusIndicator');
+    const desc = document.getElementById('qlibStatusDesc');
+
+    if (!indicator || !desc) return;
+
+    try {
+        const response = await fetch('/dashboard/api/provider-status/');
+        const result = await response.json();
+
+        if (result.success && result.data && result.data.providers) {
+            const qlibProvider = result.data.providers.qlib;
+            const qlibMetrics = result.data.metrics?.qlib;
+
+            if (qlibProvider) {
+                if (qlibProvider.status === 'available') {
+                    indicator.className = 'status-indicator status-ok';
+                    desc.innerHTML = `✓ 可用 (成功率: ${qlibMetrics?.success_rate.toFixed(1) || 0}%)`;
+                } else if (qlibProvider.status === 'degraded') {
+                    indicator.className = 'status-indicator status-warning';
+                    desc.textContent = '⚠ 降级运行中';
+                } else {
+                    indicator.className = 'status-indicator status-error';
+                    desc.textContent = '✗ 不可用 (使用缓存)';
+                }
+            } else {
+                indicator.className = 'status-indicator status-warning';
+                desc.textContent = '⚠ 未安装 (使用降级方案)';
+            }
+        }
+    } catch (error) {
+        indicator.className = 'status-indicator status-warning';
+        desc.textContent = '⚠ 状态未知';
+    }
+}
+
+// 页面加载时检测 Qlib 状态
+document.addEventListener('DOMContentLoaded', checkQlibStatus);
+
+// ========================================
 // 图表初始化 (ECharts)
 // ========================================
 
@@ -818,6 +1055,118 @@ if (performanceCtx) {
         window.addEventListener('resize', () => performanceChart.resize());
     } else {
         performanceCtx.parentElement.innerHTML = '<p class="text-muted">暂无收益数据</p>';
+    }
+}
+
+// IC/ICIR 趋势图（Alpha 可视化）
+const icTrendsCtx = document.getElementById('icTrendsChart');
+if (icTrendsCtx) {
+    const icTrendsDataElement = document.getElementById('icTrendsData');
+    const icTrendsData = icTrendsDataElement ? JSON.parse(icTrendsDataElement.textContent) : [];
+    if (icTrendsData && icTrendsData.length > 0) {
+        const icChart = echarts.init(icTrendsCtx);
+
+        // 过滤掉空数据
+        const validData = icTrendsData.filter(d => d.ic !== null);
+
+        icChart.setOption({
+            tooltip: {
+                trigger: 'axis',
+                formatter: function(params) {
+                    if (!params || params.length === 0) return '';
+                    const p = params[0];
+                    return `${p.axisValue}<br/>IC: ${p.data[1]}<br/>ICIR: ${p.data[2]}`;
+                }
+            },
+            legend: {
+                data: ['IC', 'ICIR'],
+                top: 5,
+                textStyle: { fontSize: 11 }
+            },
+            grid: {
+                left: 50,
+                right: 20,
+                top: 40,
+                bottom: 30
+            },
+            xAxis: {
+                type: 'category',
+                data: validData.map(d => d.date.substring(5)),  // 只显示 MM-DD
+                axisLine: { lineStyle: { color: '#ddd' } },
+                axisLabel: {
+                    color: '#666',
+                    fontSize: 10,
+                    rotate: 45
+                }
+            },
+            yAxis: {
+                type: 'value',
+                name: 'IC / ICIR',
+                nameTextStyle: { fontSize: 10 },
+                axisLabel: {
+                    formatter: '{value}',
+                    fontSize: 10
+                },
+                axisLine: { lineStyle: { color: '#ddd' } },
+                splitLine: { lineStyle: { color: '#f0f0f0' } }
+            },
+            series: [
+                {
+                    name: 'IC',
+                    type: 'line',
+                    data: validData.map(d => [d.date, d.ic]),
+                    smooth: true,
+                    symbolSize: 4,
+                    lineStyle: {
+                        color: '#667eea',
+                        width: 1.5
+                    },
+                    itemStyle: {
+                        color: '#667eea'
+                    }
+                },
+                {
+                    name: 'ICIR',
+                    type: 'line',
+                    data: validData.map(d => [d.date, d.icir]),
+                    smooth: true,
+                    symbolSize: 4,
+                    lineStyle: {
+                        color: '#f59e0b',
+                        width: 1.5
+                    },
+                    itemStyle: {
+                        color: '#f59e0b'
+                    }
+                }
+            ]
+        });
+        window.addEventListener('resize', () => icChart.resize());
+
+        // 周期选择器事件
+        const periodSelect = document.getElementById('icPeriodSelect');
+        if (periodSelect) {
+            periodSelect.addEventListener('change', function() {
+                fetch(`/dashboard/api/ic-trends/?days=${this.value}`)
+                    .then(r => r.json())
+                    .then(response => {
+                        if (response.success && response.data) {
+                            const newValidData = response.data.filter(d => d.ic !== null);
+                            icChart.setOption({
+                                xAxis: {
+                                    data: newValidData.map(d => d.date.substring(5))
+                                },
+                                series: [
+                                    { data: newValidData.map(d => [d.date, d.ic]) },
+                                    { data: newValidData.map(d => [d.date, d.icir]) }
+                                ]
+                            });
+                        }
+                    });
+            });
+        }
+    } else {
+        icTrendsCtx.parentElement.innerHTML = '<p class="text-muted" style="font-size: 12px;">暂无 IC 数据</p>';
     }
 }
 
@@ -1382,6 +1731,405 @@ chatSendBtn.onclick = async function() {
 @media (max-width: 768px) {
     .decision-plane-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+/* ========================================
+   Alpha 可视化样式（新增）
+   ======================================== */
+
+.alpha-visualization-section {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+}
+
+/* 数据源标识徽章 */
+.data-source-badges {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.ds-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: help;
+    transition: all 0.2s ease;
+}
+
+.ds-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.ds-qlib {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.ds-cache {
+    background: #E0F2F1;
+    color: #00695C;
+}
+
+.ds-simple {
+    background: #FFF8E1;
+    color: #FF8F00;
+}
+
+.ds-etf {
+    background: #ECEFF1;
+    color: #546E7A;
+}
+
+/* 数据源说明栏 */
+.data-source-info {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+    border: 1px solid rgba(102, 126, 234, 0.2);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.info-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.info-text {
+    flex: 1;
+    color: var(--text-secondary);
+}
+
+.info-text strong {
+    color: var(--text-primary);
+    margin-right: 8px;
+}
+
+.ds-tag {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    margin: 0 4px;
+}
+
+.ds-qlib-tag {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+}
+
+.ds-cache-tag {
+    background: #E0F2F1;
+    color: #00695C;
+}
+
+.ds-simple-tag {
+    background: #FFF8E1;
+    color: #FF8F00;
+}
+
+.ds-etf-tag {
+    background: #ECEFF1;
+    color: #546E7A;
+}
+
+.alpha-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.alpha-metric-card {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-left: 3px solid var(--primary-color);
+    transition: all 0.3s ease;
+}
+
+.alpha-metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.alpha-metric-card .metric-icon {
+    font-size: 24px;
+}
+
+.alpha-metric-card .metric-content {
+    flex: 1;
+}
+
+.alpha-metric-card .metric-title {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.alpha-metric-card .metric-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.alpha-metric-card .metric-subtitle {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.alpha-content-row {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 16px;
+}
+
+.alpha-content-card {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.alpha-content-card .card-header {
+    padding: 12px 16px;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.08), rgba(118, 75, 162, 0.08));
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.alpha-content-card .card-header h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.alpha-content-card .card-badge {
+    padding: 4px 10px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.alpha-content-card .card-body {
+    padding: 16px;
+}
+
+.alpha-stocks-card {
+    min-height: 400px;
+}
+
+.alpha-content-right {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.provider-status-card {
+    flex: 0 0 auto;
+}
+
+.ic-trends-card {
+    flex: 1;
+    min-height: 280px;
+}
+
+/* Provider 状态列表 */
+.provider-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.provider-item {
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    padding: 12px;
+    border-left: 3px solid transparent;
+}
+
+.provider-item.provider-available {
+    border-left-color: #4CAF50;
+}
+
+.provider-item.provider-degraded {
+    border-left-color: #FF9800;
+}
+
+.provider-item.provider-unavailable {
+    border-left-color: #F44336;
+    opacity: 0.6;
+}
+
+.provider-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.provider-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.provider-status-badge {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.provider-status-badge.status-available {
+    background: #E8F5E9;
+    color: #2E7D32;
+}
+
+.provider-status-badge.status-degraded {
+    background: #FFF3E0;
+    color: #F57C00;
+}
+
+.provider-status-badge.status-unavailable {
+    background: #FFEBEE;
+    color: #C62828;
+}
+
+.provider-metrics {
+    display: flex;
+    gap: 16px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.provider-metrics .metric strong {
+    color: var(--text-primary);
+}
+
+/* 刷新按钮 */
+.refresh-btn {
+    padding: 6px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+}
+
+.refresh-btn:hover {
+    background: var(--bg-secondary);
+    border-color: var(--primary-color);
+}
+
+.mini-refresh-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.mini-refresh-btn:hover {
+    opacity: 1;
+}
+
+/* 周期选择器 */
+.period-select {
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 11px;
+    background: var(--bg-primary);
+    cursor: pointer;
+}
+
+/* Alpha 可视化响应式 */
+@media (max-width: 1200px) {
+    .alpha-content-row {
+        grid-template-columns: 1fr;
+    }
+
+    .alpha-content-right {
+        flex-direction: row;
+    }
+}
+
+@media (max-width: 768px) {
+    .alpha-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .alpha-content-right {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 480px) {
+    .alpha-metrics-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Qlib 状态卡片样式 */
+.status-qlib-card {
+    border-left: 3px solid #667eea;
+}
+
+.qlib-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    background: rgba(102, 126, 234, 0.1);
+    color: #667eea;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+/* 状态指示器扩展样式 */
+.status-indicator.status-warning {
+    background: #FF9800;
+    box-shadow: 0 0 8px rgba(255, 152, 0, 0.5);
+}
+
+.status-indicator.status-error {
+    background: #F44336;
+    box-shadow: 0 0 8px rgba(244, 67, 54, 0.5);
+}
+
+/* 响应式状态网格 */
+@media (max-width: 768px) {
+    .status-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 </style>

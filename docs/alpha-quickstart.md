@@ -1,0 +1,238 @@
+# AgomSAAF Alpha 模块快速开始指南
+
+> **版本**: 1.1
+> **更新日期**: 2026-02-06
+
+## 📦 安装与配置
+
+### 1. 数据库迁移
+
+```bash
+python manage.py makemigrations alpha
+python manage.py migrate
+```
+
+### 2. （可选）安装 Qlib
+
+```bash
+pip install pyqlib lightgbm scikit-learn
+```
+
+### 3. （可选）初始化 Qlib 数据
+
+```bash
+# 检查 Qlib 数据状态
+python manage.py init_qlib_data --check
+
+# 下载并初始化数据
+python manage.py init_qlib_data --download --universe=csi300
+```
+
+## 🚀 启动服务
+
+### Django 服务
+
+```bash
+python manage.py runserver
+```
+
+### Celery Workers
+
+```bash
+# Qlib 推理队列（可选，如果使用 Qlib）
+celery -A core worker -l info -Q qlib_infer --max-tasks-per-child=10
+
+# Qlib 训练队列（可选）
+celery -A core worker -l info -Q qlib_train --max-tasks-per-child=1
+```
+
+## 📊 API 使用
+
+### 获取股票评分
+
+```bash
+curl "http://localhost:8000/api/alpha/scores/?universe=csi300&top_n=10"
+```
+
+**响应示例**：
+```json
+{
+  "success": true,
+  "source": "cache",
+  "status": "available",
+  "stocks": [
+    {
+      "code": "600519.SH",
+      "score": 0.8234,
+      "rank": 1,
+      "factors": {"momentum": 0.75, "value": 0.60},
+      "source": "cache",
+      "confidence": 0.8,
+      "asof_date": "2026-02-05"
+    }
+  ]
+}
+```
+
+### 查看 Provider 状态
+
+```bash
+curl "http://localhost:8000/api/alpha/providers/status/"
+```
+
+**响应示例**：
+```json
+{
+  "cache": {
+    "priority": 10,
+    "status": "available",
+    "max_staleness_days": 5
+  },
+  "simple": {
+    "priority": 100,
+    "status": "available",
+    "max_staleness_days": 7
+  },
+  "etf": {
+    "priority": 1000,
+    "status": "available",
+    "max_staleness_days": 30
+  },
+  "qlib": {
+    "priority": 1,
+    "status": "degraded",
+    "max_staleness_days": 2
+  }
+}
+```
+
+## 🐍 Python SDK
+
+### 基础使用
+
+```python
+from agomsaaf import AgomSAAFClient
+
+client = AgomSAAFClient()
+
+# 获取股票评分
+result = client.alpha.get_stock_scores("csi300", top_n=10)
+
+print(f"数据源: {result['source']}")
+print(f"状态: {result['status']}")
+print(f"股票数量: {len(result['stocks'])}")
+
+for stock in result['stocks']:
+    print(f"{stock['rank']}. {stock['code']}: {stock['score']:.3f}")
+```
+
+### 便捷方法
+
+```python
+# 获取排名前 N 的股票
+top_stocks = client.alpha.get_top_stocks("csi300", top_n=5)
+
+# 比较多只股票
+comparison = client.alpha.compare_stocks(
+    stock_codes=["600519.SH", "000333.SH", "000858.SH"],
+    universe="csi300"
+)
+
+# 健康检查
+health = client.alpha.check_health()
+print(f"系统状态: {health['status']}")
+```
+
+## 🔧 模型管理
+
+### 训练模型
+
+```bash
+# 同步训练
+python manage.py train_qlib_model \
+    --name mlp_csi300 \
+    --type LGBModel \
+    --universe csi300 \
+    --activate
+
+# 异步训练（后台执行）
+python manage.py train_qlib_model \
+    --name lstm_csi500 \
+    --async
+```
+
+### 模型管理命令
+
+```bash
+# 列出所有模型
+python manage.py list_models
+
+# 只显示激活的模型
+python manage.py list_models --active
+
+# 激活指定模型
+python manage.py activate_model abc123...
+
+# 回滚到上一版本
+python manage.py rollback_model --model-name mlp_csi300 --prev
+```
+
+## 📝 MCP 工具
+
+### 在 Claude Code 中使用
+
+```python
+# 获取股票评分
+get_alpha_stock_scores(universe="csi300", top_n=10)
+
+# 查看 Provider 状态
+get_alpha_provider_status()
+
+# 健康检查
+check_alpha_health()
+```
+
+## 🔍 故障排查
+
+### Provider 不可用
+
+```bash
+# 检查 Provider 状态
+curl "http://localhost:8000/api/alpha/providers/status/"
+
+# 检查日志
+tail -f logs/alpha.log
+```
+
+### Qlib 相关问题
+
+```bash
+# 检查 Qlib 数据
+python manage.py init_qlib_data --check
+
+# 检查 Celery 任务
+celery -A core inspect active
+
+# 查看 Qlib worker 日志
+celery -A core worker -l info -Q qlib_infer
+```
+
+### 缓存过期
+
+```python
+from apps.alpha.application.services import AlphaService
+
+service = AlphaService()
+result = service.get_stock_scores("csi300")
+
+# 检查 staleness
+if result['staleness_days']:
+    print(f"数据过期 {result['staleness_days']} 天")
+```
+
+## 📚 更多信息
+
+- [完整实施方案](plans/agomsaaf-qlib-integration-plan-v1.1.md)
+- [实施进度总结](plans/implementation-progress-summary.md)
+- [项目规则](../CLAUDE.md)
+- [Alpha 模块指南](modules/alpha/alpha-guide.md)

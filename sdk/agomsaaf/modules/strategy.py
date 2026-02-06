@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 """
 AgomSAAF SDK - Strategy 策略模块
 
@@ -7,7 +8,7 @@ AgomSAAF SDK - Strategy 策略模块
 from datetime import date
 from typing import Any, Optional
 
-from agomsaaf.modules.base import BaseModule
+from .base import BaseModule
 
 
 class StrategyModule(BaseModule):

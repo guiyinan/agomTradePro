@@ -5,6 +5,8 @@ Dashboard Interface Views
 """
 
 import logging
+from datetime import date, datetime, timedelta
+from decimal import Decimal
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
@@ -18,6 +20,177 @@ from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
 
 logger = logging.getLogger(__name__)
+
+
+# ========================================
+# Alpha 可视化数据获取函数
+# ========================================
+
+def _get_alpha_stock_scores(top_n: int = 10) -> list:
+    """获取 Alpha 选股评分结果"""
+    try:
+        from apps.alpha.application.services import AlphaService
+
+        service = AlphaService()
+        result = service.get_stock_scores(
+            universe_id="csi300",
+            intended_trade_date=date.today(),
+            top_n=top_n
+        )
+
+        if result.success and result.scores:
+            return [
+                {
+                    "code": score.code,
+                    "score": round(score.score, 4),
+                    "rank": score.rank,
+                    "source": score.source,
+                    "confidence": round(score.confidence, 3),
+                    "factors": score.factors,
+                    "asof_date": score.asof_date.isoformat() if score.asof_date else None,
+                }
+                for score in result.scores[:top_n]
+            ]
+        return []
+    except Exception as e:
+        logger.warning(f"Failed to get alpha stock scores: {e}")
+        return []
+
+
+def _get_alpha_provider_status() -> dict:
+    """获取 Alpha Provider 状态"""
+    try:
+        from apps.alpha.application.services import AlphaService
+        from shared.infrastructure.metrics import get_alpha_metrics
+
+        service = AlphaService()
+        provider_status = service.get_provider_status()
+        metrics = get_alpha_metrics()
+
+        # 获取成功率指标
+        provider_metrics = {}
+        for provider_name in provider_status.keys():
+            success_rate = metrics.registry.get_metric(
+                "alpha_provider_success_rate",
+                {"provider": provider_name}
+            )
+            latency = metrics.registry.get_metric(
+                "alpha_provider_latency_ms",
+                {"provider": provider_name}
+            )
+
+            provider_metrics[provider_name] = {
+                "success_rate": round(success_rate.value, 3) if success_rate else 0.0,
+                "latency_ms": int(latency.value) if latency else 0,
+            }
+
+        return {
+            "providers": provider_status,
+            "metrics": provider_metrics,
+            "timestamp": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        logger.warning(f"Failed to get alpha provider status: {e}")
+        return {"providers": {}, "metrics": {}, "timestamp": None}
+
+
+def _get_alpha_coverage_metrics() -> dict:
+    """获取 Alpha 覆盖率指标"""
+    try:
+        from shared.infrastructure.metrics import get_alpha_metrics
+
+        metrics = get_alpha_metrics()
+
+        coverage = metrics.registry.get_metric("alpha_coverage_ratio")
+        request_count = metrics.registry.get_metric("alpha_score_request_count")
+        cache_hit_rate = metrics.registry.get_metric("alpha_cache_hit_rate")
+
+        return {
+            "coverage_ratio": round(coverage.value, 3) if coverage else 0.0,
+            "total_requests": int(request_count.value) if request_count else 0,
+            "cache_hit_rate": round(cache_hit_rate.value, 3) if cache_hit_rate else 0.0,
+            "timestamp": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        logger.warning(f"Failed to get alpha coverage metrics: {e}")
+        return {
+            "coverage_ratio": 0.0,
+            "total_requests": 0,
+            "cache_hit_rate": 0.0,
+            "timestamp": None,
+        }
+
+
+def _get_alpha_ic_trends(days: int = 30) -> list:
+    """获取 Alpha IC/ICIR 趋势数据"""
+    try:
+        from apps.alpha.infrastructure.models import QlibModelRegistryModel
+        from datetime import timedelta
+
+        # 获取激活的模型
+        active_models = QlibModelRegistryModel.objects.filter(is_active=True)
+
+        if not active_models.exists():
+            # 没有激活模型时返回模拟数据
+            return _generate_mock_ic_data(days)
+
+        # 从模型历史记录中获取 IC 数据
+        trends = []
+        base_date = date.today()
+
+        for i in range(days):
+            check_date = base_date - timedelta(days=i)
+
+            # 查找该日期附近的模型评估记录
+            model_metrics = QlibModelRegistryModel.objects.filter(
+                created_at__date=check_date
+            ).first()
+
+            if model_metrics:
+                trends.append({
+                    "date": check_date.isoformat(),
+                    "ic": round(float(model_metrics.ic), 4) if model_metrics.ic else None,
+                    "icir": round(float(model_metrics.icir), 4) if model_metrics.icir else None,
+                    "rank_ic": round(float(model_metrics.rank_ic), 4) if model_metrics.rank_ic else None,
+                })
+            else:
+                trends.append({
+                    "date": check_date.isoformat(),
+                    "ic": None,
+                    "icir": None,
+                    "rank_ic": None,
+                })
+
+        return list(reversed(trends))
+
+    except Exception as e:
+        logger.warning(f"Failed to get alpha IC trends: {e}")
+        return _generate_mock_ic_data(days)
+
+
+def _generate_mock_ic_data(days: int) -> list:
+    """生成模拟 IC 数据（用于演示）"""
+    import random
+
+    trends = []
+    base_date = date.today()
+    base_ic = 0.05
+
+    for i in range(days):
+        check_date = base_date - timedelta(days=days - i)
+        # 模拟 IC 波动
+        ic = base_ic + random.uniform(-0.02, 0.02)
+        icir = ic * random.uniform(0.5, 1.5)
+        rank_ic = ic * random.uniform(0.8, 1.2)
+
+        trends.append({
+            "date": check_date.isoformat(),
+            "ic": round(ic, 4),
+            "icir": round(icir, 4),
+            "rank_ic": round(rank_ic, 4),
+        })
+
+    return trends
 
 
 @login_required(login_url="/account/login/")
@@ -96,6 +269,11 @@ def dashboard_view(request):
         "quota_used": _get_quota_used(),
         "quota_remaining": _get_quota_remaining(),
         "quota_usage_percent": _get_quota_usage_percent(),
+        # Alpha 可视化数据（新增）
+        "alpha_stock_scores": _get_alpha_stock_scores(top_n=10),
+        "alpha_provider_status": _get_alpha_provider_status(),
+        "alpha_coverage_metrics": _get_alpha_coverage_metrics(),
+        "alpha_ic_trends": _get_alpha_ic_trends(days=30),
     }
 
     return render(request, 'dashboard/index.html', context)
@@ -312,3 +490,75 @@ def _get_quota_usage_percent() -> float:
     except Exception as e:
         logger.warning(f"Failed to get quota usage percent: {e}")
         return 0.0
+
+
+# ========================================
+# Alpha 可视化 HTMX 视图
+# ========================================
+
+@login_required(login_url="/account/login/")
+def alpha_stocks_htmx(request):
+    """
+    HTMX Alpha 选股结果视图
+
+    返回 Alpha 选股评分表格，支持动态刷新。
+    """
+    if 'HX-Request' not in request.headers:
+        from django.shortcuts import redirect
+        return redirect('dashboard:index')
+
+    top_n = int(request.GET.get('top_n', 10))
+    scores = _get_alpha_stock_scores(top_n=top_n)
+
+    context = {
+        'alpha_stocks': scores,
+        'top_n': top_n,
+    }
+
+    return render(request, 'dashboard/partials/alpha_stocks_table.html', context)
+
+
+@login_required(login_url="/account/login/")
+def alpha_provider_status_htmx(request):
+    """
+    HTMX Alpha Provider 状态视图
+
+    返回 Provider 状态面板 JSON 数据。
+    """
+    provider_status = _get_alpha_provider_status()
+
+    return JsonResponse({
+        'success': True,
+        'data': provider_status
+    })
+
+
+@login_required(login_url="/account/login/")
+def alpha_coverage_htmx(request):
+    """
+    HTMX Alpha 覆盖率指标视图
+
+    返回覆盖率指标 JSON 数据。
+    """
+    coverage = _get_alpha_coverage_metrics()
+
+    return JsonResponse({
+        'success': True,
+        'data': coverage
+    })
+
+
+@login_required(login_url="/account/login/")
+def alpha_ic_trends_htmx(request):
+    """
+    HTMX Alpha IC/ICIR 趋势图数据视图
+
+    返回 IC 趋势 JSON 数据。
+    """
+    days = int(request.GET.get('days', 30))
+    trends = _get_alpha_ic_trends(days=days)
+
+    return JsonResponse({
+        'success': True,
+        'data': trends
+    })

@@ -1,7 +1,7 @@
 # AgomSAAF 开发快速参考
 
-> **文档版本**: V1.0
-> **更新日期**: 2026-02-01
+> **文档版本**: V1.1
+> **更新日期**: 2026-02-06
 > **目标读者**: 开发人员
 
 ---
@@ -11,9 +11,9 @@
 | 项目 | AgomSAAF (Agom Strategic Asset Allocation Framework) |
 |------|------------------------------------------------------|
 | 版本 | V3.4 |
-| 完成度 | 100% |
-| 业务模块 | 19个 |
-| 测试覆盖 | 263个测试，100%通过 |
+| 完成度 | 98% |
+| 业务模块 | 27个 |
+| 测试覆盖 | 263+个测试，100%通过 |
 | Python版本 | 3.11+ |
 | Django版本 | 5.x |
 
@@ -44,16 +44,27 @@ agomsaaf/Scripts/python manage.py init_thresholds
 agomsaaf/Scripts/python manage.py init_weight_config
 agomsaaf/Scripts/python manage.py init_prompt_templates
 agomsaaf/Scripts/python manage.py init_fee_configs
+
+# Alpha 模块（Qlib 集成）
+agomsaaf/Scripts/python manage.py init_qlib_data --check
+agomsaaf/Scripts/python manage.py train_qlib_model --name mlp_csi300 --type LGBModel --activate
+agomsaaf/Scripts/python manage.py activate_model --model-name mlp_csi300 --version <hash>
+agomsaaf/Scripts/python manage.py rollback_model --model-name mlp_csi300
+agomsaaf/Scripts/python manage.py list_models
 ```
 
 ### Celery 命令
 
 ```bash
-# 启动 Celery Worker（另开终端）
+# 启动 Celery Worker（默认队列）
 celery -A core worker -l info
 
 # 启动 Celery Beat（定时任务）
 celery -A core beat -l info
+
+# Qlib 专用 Worker（Alpha 模块）
+celery -A core worker -l info -Q qlib_train --max-tasks-per-child=1
+celery -A core worker -l info -Q qlib_infer --max-tasks-per-child=10
 ```
 
 ### 测试命令
@@ -138,6 +149,43 @@ mypy apps/ --strict
 | `/api/realtime/prices/{code}/` | GET | 查询单个资产价格 |
 | `/api/realtime/health/` | GET | 健康检查 |
 
+### Alpha API (AI 选股)
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/alpha/scores/` | GET | 获取股票评分 |
+| `/api/alpha/providers/status/` | GET | Provider 状态 |
+| `/api/alpha/models/` | GET | 模型列表 |
+| `/api/alpha/models/activate/` | POST | 激活模型 |
+| `/api/alpha/models/rollback/` | POST | 回滚模型 |
+| `/api/alpha/metrics/` | GET | 监控指标 |
+| `/api/alpha/alerts/` | GET | 告警列表 |
+
+### Factor API (因子管理)
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/factors/` | GET | 因子列表 |
+| `/api/factors/{id}/` | GET | 因子详情 |
+| `/api/factors/calculate/` | POST | 计算因子 |
+| `/api/factors/analysis/` | GET | 因子分析 |
+
+### Rotation API (板块轮动)
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/rotation/signals/` | GET | 轮动信号 |
+| `/api/rotation/sectors/` | GET | 板块排名 |
+| `/api/rotation/matrix/` | GET | Regime-板块映射 |
+
+### Hedge API (对冲策略)
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/hedge/positions/` | GET | 对冲持仓 |
+| `/api/hedge/calculate/` | POST | 计算对冲 |
+| `/api/hedge/instruments/` | GET | 对冲工具 |
+
 ---
 
 ## Celery 定时任务
@@ -155,6 +203,17 @@ mypy apps/ --strict
 | `simulated-trading-cleanup` | 周日 3:00 | 清理不活跃账户 |
 | `simulated-trading-summary` | 工作日 17:00 | 发送绩效摘要 |
 | `realtime-update-after-close` | 工作日 16:30 | 收盘后批量更新价格 |
+
+### Alpha 模块定时任务
+
+| 任务名称 | 调度时间 | 说明 |
+|---------|---------|------|
+| `evaluate_alerts` | 每分钟 | 评估告警规则 |
+| `update_provider_metrics` | 每 5 分钟 | 更新 Provider 指标 |
+| `calculate_ic_drift` | 每周 | 计算 IC 漂移 |
+| `check_queue_lag` | 每分钟 | 检查队列积压 |
+| `generate_daily_report` | 每天 | 生成每日报告 |
+| `cleanup_old_metrics` | 每周 | 清理旧数据 |
 
 ---
 
@@ -180,24 +239,37 @@ mypy apps/ --strict
 | `sector` | 板块分析 | ✅ 完整 |
 | `sentiment` | 舆情情感分析 | ✅ 完整 |
 
+### AI 智能模块 (7个)
+
+| 模块 | 职责 | 状态 |
+|------|------|------|
+| `alpha` | Alpha 选股信号（Qlib 集成） | ✅ 完整 |
+| `alpha_trigger` | Alpha 离散触发 | ✅ 完整 |
+| `beta_gate` | Beta 闸门 | ✅ 完整 |
+| `decision_rhythm` | 决策频率约束 | ✅ 完整 |
+| `factor` | 因子管理 | ✅ 完整 |
+| `rotation` | 板块轮动 | ✅ 完整 |
+| `hedge` | 对冲策略 | ✅ 完整 |
+
 ### 风控与账户模块 (5个)
 
 | 模块 | 职责 | 状态 |
 |------|------|------|
 | `account` | 账户与持仓管理 | ✅ 完整 |
 | `audit` | 事后审计 | ✅ 完整 |
-| `filter` | 筛选器管理 | ✅ 完整 |
 | `simulated_trading` | 模拟盘自动交易 | ✅ 完整 |
 | `realtime` | 实时价格监控 | ✅ 完整 |
+| `strategy` | 策略系统 | ✅ 完整 |
 
-### AI与工具模块 (4个)
+### 工具模块 (5个)
 
 | 模块 | 职责 | 状态 |
 |------|------|------|
 | `ai_provider` | AI 服务商管理 | ✅ 完整 |
 | `prompt` | AI Prompt 模板 | ✅ 完整 |
-| `dashboard` | 仪表盘 | ✅ 完整 |
-| `strategy` | 策略系统 | ✅ 完整 |
+| `dashboard` | 仪表盘 | ⚠️ 不完整 |
+| `backtest` | 回测引擎 | ✅ 完整 |
+| `events` | 事件系统 | ⚠️ 不完整 |
 
 ---
 

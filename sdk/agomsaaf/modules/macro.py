@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 """
 AgomSAAF SDK - Macro 宏观数据模块
 
@@ -7,8 +8,8 @@ AgomSAAF SDK - Macro 宏观数据模块
 from datetime import date
 from typing import Any, Optional
 
-from agomsaaf.modules.base import BaseModule
-from agomsaaf.types import MacroDataPoint, MacroIndicator
+from .base import BaseModule
+from ..types import MacroDataPoint, MacroIndicator
 
 
 class MacroModule(BaseModule):

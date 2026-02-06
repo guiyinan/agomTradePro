@@ -4,22 +4,22 @@ AgomSAAF SDK
 Python SDK for AgomSAAF - Macro Environment Admission System.
 """
 
-from agomsaaf.client import AgomSAAFClient
-from agomsaaf.config import AuthConfig, ClientConfig, get_default_config, load_config
-from agomsaaf.exceptions import (
+from .client import AgomSAAFClient
+from .config import AuthConfig, ClientConfig, get_default_config, load_config
+from .exceptions import (
     AgomSAAFAPIError,
     AuthenticationError,
     ConfigurationError,
     ConflictError,
-    ConnectionError,
+    ConnectionError as SDKConnectionError,
     NotFoundError,
     RateLimitError,
     ServerError,
-    TimeoutError,
+    TimeoutError as SDKTimeoutError,
     ValidationError,
     raise_for_status,
 )
-from agomsaaf.types import (
+from .types import (
     BacktestParams,
     BacktestResult,
     CreateSignalParams,
@@ -59,8 +59,8 @@ __all__ = [
     "ConflictError",
     "RateLimitError",
     "ServerError",
-    "ConnectionError",
-    "TimeoutError",
+    "SDKConnectionError",
+    "SDKTimeoutError",
     "ConfigurationError",
     "raise_for_status",
     # Types - Regime

@@ -6,6 +6,9 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
 from apps.signal.infrastructure.models import InvestmentSignalModel
 from apps.regime.infrastructure.models import RegimeLog
 from apps.signal.application.use_cases import (
@@ -414,3 +417,132 @@ def get_indicators_view(request):
             'success': False,
             'error': str(e)
         })
+
+
+class UnifiedSignalViewSet(viewsets.ViewSet):
+    """ViewSet for unified signals from all modules"""
+
+    def list(self, request):
+        """List unified signals"""
+        from datetime import date, timedelta
+        from apps.signal.application.unified_service import UnifiedSignalService
+
+        signal_date_str = request.query_params.get('date', date.today().isoformat())
+        signal_source = request.query_params.get('source', None)
+        min_priority = int(request.query_params.get('min_priority', 1))
+
+        try:
+            signal_date = date.fromisoformat(signal_date_str)
+        except ValueError:
+            signal_date = date.today()
+
+        service = UnifiedSignalService()
+        signals = service.get_unified_signals(
+            signal_date=signal_date,
+            signal_source=signal_source,
+            min_priority=min_priority
+        )
+
+        return Response({
+            'date': signal_date.isoformat(),
+            'source': signal_source,
+            'count': len(signals),
+            'signals': signals
+        })
+
+    @action(detail=False, methods=['post'])
+    def collect(self, request):
+        """Collect signals from all modules"""
+        from datetime import date
+        from apps.signal.application.unified_service import UnifiedSignalService
+
+        signal_date_str = request.data.get('date')
+        if signal_date_str:
+            try:
+                calc_date = date.fromisoformat(signal_date_str)
+            except ValueError:
+                return Response(
+                    {'error': f'Invalid date format: {signal_date_str}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            calc_date = date.today()
+
+        service = UnifiedSignalService()
+        results = service.collect_all_signals(calc_date)
+
+        return Response({
+            'date': calc_date.isoformat(),
+            'results': results
+        })
+
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        """Get signal summary for a date range"""
+        from datetime import date, timedelta
+        from apps.signal.application.unified_service import UnifiedSignalService
+
+        days = int(request.query_params.get('days', 30))
+        start_date = date.today() - timedelta(days=days)
+
+        service = UnifiedSignalService()
+        summary = service.get_signal_summary(start_date=start_date)
+
+        return Response(summary)
+
+    @action(detail=False, methods=['get'])
+    def pending(self, request):
+        """Get pending (unexecuted) signals"""
+        from apps.signal.infrastructure.repositories import UnifiedSignalRepository
+
+        min_priority = int(request.query_params.get('min_priority', 5))
+        signal_type = request.query_params.get('type', None)
+
+        repo = UnifiedSignalRepository()
+        signals = repo.get_pending_signals(min_priority=min_priority, signal_type=signal_type)
+
+        return Response({
+            'count': len(signals),
+            'signals': signals
+        })
+
+    @action(detail=False, methods=['get'])
+    def by_asset(self, request):
+        """Get signals for a specific asset"""
+        from apps.signal.infrastructure.repositories import UnifiedSignalRepository
+
+        asset_code = request.query_params.get('asset_code')
+        if not asset_code:
+            return Response(
+                {'error': 'asset_code is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        days = int(request.query_params.get('days', 30))
+        signal_source = request.query_params.get('source', None)
+
+        repo = UnifiedSignalRepository()
+        signals = repo.get_signals_by_asset(asset_code, days=days, signal_source=signal_source)
+
+        return Response({
+            'asset_code': asset_code,
+            'days': days,
+            'count': len(signals),
+            'signals': signals
+        })
+
+    @action(detail=True, methods=['post'])
+    def execute(self, request, pk=None):
+        """Mark a signal as executed"""
+        from apps.signal.infrastructure.repositories import UnifiedSignalRepository
+
+        repo = UnifiedSignalRepository()
+        success = repo.mark_executed(pk)
+
+        if success:
+            return Response({'status': 'executed', 'signal_id': pk})
+        else:
+            return Response(
+                {'error': 'Signal not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )

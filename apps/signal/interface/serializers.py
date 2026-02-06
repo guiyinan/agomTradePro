@@ -126,3 +126,38 @@ class SignalListQuerySerializer(serializers.Serializer):
     direction = serializers.CharField(required=False, allow_null=True)
     search = serializers.CharField(required=False, allow_null=True)
     limit = serializers.IntegerField(default=50, min_value=1, max_value=500)
+
+
+class UnifiedSignalSerializer(serializers.ModelSerializer):
+    """Serializer for UnifiedSignalModel"""
+
+    signal_source_display = serializers.CharField(source='get_signal_source_display', read_only=True)
+    signal_type_display = serializers.CharField(source='get_signal_type_display', read_only=True)
+    priority_display = serializers.CharField(source='get_priority_display', read_only=True)
+
+    class Meta:
+        from apps.signal.infrastructure.models import UnifiedSignalModel
+        model = UnifiedSignalModel
+        fields = [
+            'id',
+            'signal_date',
+            'signal_source',
+            'signal_source_display',
+            'signal_type',
+            'signal_type_display',
+            'asset_code',
+            'asset_name',
+            'target_weight',
+            'current_weight',
+            'priority',
+            'priority_display',
+            'is_executed',
+            'executed_at',
+            'reason',
+            'action_required',
+            'extra_data',
+            'related_signal_id',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at', 'executed_at']

@@ -258,3 +258,156 @@ class InvestmentSignalModel(models.Model):
 
         # 最后使用描述文本
         return self.invalidation_description or self.invalidation_logic
+
+
+class UnifiedSignalModel(models.Model):
+    """
+    统一信号表（汇总各模块信号）
+
+    聚合来自 Regime、Factor、Rotation、Hedge 等所有模块的信号，
+    提供统一的信号管理和查询接口。
+    """
+
+    SIGNAL_SOURCE_CHOICES = [
+        ('regime', '宏观象限'),
+        ('factor', '因子选股'),
+        ('rotation', '资产轮动'),
+        ('hedge', '对冲组合'),
+        ('alpha', 'AI选股'),
+        ('manual', '手动'),
+    ]
+
+    SIGNAL_TYPE_CHOICES = [
+        ('buy', '买入'),
+        ('sell', '卖出'),
+        ('rebalance', '调仓'),
+        ('alert', '告警'),
+        ('info', '信息'),
+    ]
+
+    PRIORITY_CHOICES = [
+        (1, '最低'),
+        (2, '低'),
+        (3, '中低'),
+        (4, '中等'),
+        (5, '中高'),
+        (6, '高'),
+        (7, '很高'),
+        (8, '极高'),
+        (9, '紧急'),
+        (10, '最高'),
+    ]
+
+    # 信号基本信息
+    signal_date = models.DateField(db_index=True, verbose_name="信号日期")
+    signal_source = models.CharField(
+        max_length=20,
+        choices=SIGNAL_SOURCE_CHOICES,
+        db_index=True,
+        verbose_name="信号来源"
+    )
+    signal_type = models.CharField(
+        max_length=20,
+        choices=SIGNAL_TYPE_CHOICES,
+        db_index=True,
+        verbose_name="信号类型"
+    )
+
+    # 资产信息
+    asset_code = models.CharField(
+        max_length=20,
+        db_index=True,
+        verbose_name="资产代码",
+        help_text="如 000001.SH, 510300 等"
+    )
+    asset_name = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="资产名称"
+    )
+
+    # 目标权重（用于配置信号）
+    target_weight = models.DecimalField(
+        max_digits=5,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        verbose_name="目标权重",
+        help_text="建议配置权重 (0-1)"
+    )
+    current_weight = models.DecimalField(
+        max_digits=5,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        verbose_name="当前权重",
+        help_text="当前配置权重"
+    )
+
+    # 优先级和状态
+    priority = models.IntegerField(
+        default=5,
+        choices=PRIORITY_CHOICES,
+        verbose_name="优先级",
+        help_text="1-10，数字越大越重要"
+    )
+    is_executed = models.BooleanField(
+        default=False,
+        verbose_name="是否已执行"
+    )
+    executed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="执行时间"
+    )
+
+    # 信号详情
+    reason = models.TextField(verbose_name="信号原因", help_text="信号生成的详细原因")
+    action_required = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="所需操作",
+        help_text="建议采取的操作"
+    )
+
+    # 额外数据（JSON格式，用于存储特定模块的额外信息）
+    extra_data = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="额外数据",
+        help_text="特定模块的额外信息"
+    )
+
+    # 关联到原始信号ID（如果有）
+    related_signal_id = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="关联信号ID",
+        help_text="原始模块中的信号ID"
+    )
+
+    # 时间戳
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = 'unified_signal'
+        verbose_name = '统一信号'
+        verbose_name_plural = '统一信号'
+        ordering = ['-signal_date', '-priority']
+        indexes = [
+            models.Index(fields=['signal_date', '-priority']),
+            models.Index(fields=['signal_date', 'signal_source']),
+            models.Index(fields=['asset_code', 'signal_date']),
+            models.Index(fields=['is_executed', 'signal_date']),
+        ]
+
+    def __str__(self):
+        return f"{self.signal_date} {self.signal_source} {self.signal_type}: {self.asset_code}"
+
+    def mark_executed(self):
+        """标记信号为已执行"""
+        from django.utils import timezone
+        self.is_executed = True
+        self.executed_at = timezone.now()
+        self.save()

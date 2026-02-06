@@ -14,6 +14,7 @@ app_name = 'signal'
 # DRF API Router
 router = DefaultRouter()
 router.register(r'', SignalViewSet, basename='signal')
+router.register(r'unified', views.UnifiedSignalViewSet, basename='unified-signal')
 
 
 def signal_home_redirect(request):

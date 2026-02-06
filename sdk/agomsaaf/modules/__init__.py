@@ -4,19 +4,22 @@ AgomSAAF SDK 业务模块
 包含所有业务模块的客户端封装。
 """
 
-from agomsaaf.modules.account import AccountModule
-from agomsaaf.modules.backtest import BacktestModule
-from agomsaaf.modules.base import BaseModule
-from agomsaaf.modules.equity import EquityModule
-from agomsaaf.modules.fund import FundModule
-from agomsaaf.modules.macro import MacroModule
-from agomsaaf.modules.policy import PolicyModule
-from agomsaaf.modules.realtime import RealtimeModule
-from agomsaaf.modules.regime import RegimeModule
-from agomsaaf.modules.sector import SectorModule
-from agomsaaf.modules.signal import SignalModule
-from agomsaaf.modules.simulated_trading import SimulatedTradingModule
-from agomsaaf.modules.strategy import StrategyModule
+from .account import AccountModule
+from .backtest import BacktestModule
+from .base import BaseModule
+from .equity import EquityModule
+from .factor import FactorModule
+from .fund import FundModule
+from .hedge import HedgeModule
+from .macro import MacroModule
+from .policy import PolicyModule
+from .realtime import RealtimeModule
+from .regime import RegimeModule
+from .rotation import RotationModule
+from .sector import SectorModule
+from .signal import SignalModule
+from .simulated_trading import SimulatedTradingModule
+from .strategy import StrategyModule
 
 __all__ = [
     "BaseModule",
@@ -28,8 +31,11 @@ __all__ = [
     "AccountModule",
     "SimulatedTradingModule",
     "EquityModule",
+    "FactorModule",
     "FundModule",
     "SectorModule",
     "StrategyModule",
     "RealtimeModule",
+    "RotationModule",
+    "HedgeModule",
 ]

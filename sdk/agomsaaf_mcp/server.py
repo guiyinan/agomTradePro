@@ -13,6 +13,7 @@ from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent
 
 from agomsaaf_mcp.tools.account_tools import register_account_tools
+from agomsaaf_mcp.tools.alpha_tools import register_alpha_tools
 from agomsaaf_mcp.tools.backtest_tools import register_backtest_tools
 from agomsaaf_mcp.tools.equity_tools import register_equity_tools
 from agomsaaf_mcp.tools.fund_tools import register_fund_tools
@@ -20,6 +21,9 @@ from agomsaaf_mcp.tools.macro_tools import register_macro_tools
 from agomsaaf_mcp.tools.policy_tools import register_policy_tools
 from agomsaaf_mcp.tools.realtime_tools import register_realtime_tools
 from agomsaaf_mcp.tools.regime_tools import register_regime_tools
+from agomsaaf_mcp.tools.rotation_tools import register_rotation_tools
+from agomsaaf_mcp.tools.factor_tools import register_factor_tools
+from agomsaaf_mcp.tools.hedge_tools import register_hedge_tools
 from agomsaaf_mcp.tools.sector_tools import register_sector_tools
 from agomsaaf_mcp.tools.signal_tools import register_signal_tools
 from agomsaaf_mcp.tools.simulated_trading_tools import register_simulated_trading_tools
@@ -46,6 +50,14 @@ def register_all_tools() -> None:
     register_sector_tools(server)
     register_strategy_tools(server)
     register_realtime_tools(server)
+
+    # New modules: Factor + Rotation + Hedge
+    register_factor_tools(server)
+    register_rotation_tools(server)
+    register_hedge_tools(server)
+
+    # New module: Alpha 抽象层
+    register_alpha_tools(server)
 
 
 # 注册所有工具
