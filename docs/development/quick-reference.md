@@ -11,9 +11,9 @@
 | 项目 | AgomSAAF (Agom Strategic Asset Allocation Framework) |
 |------|------------------------------------------------------|
 | 版本 | V3.4 |
-| 完成度 | 98% |
+| 完成度 | 持续迭代（以里程碑文档为准） |
 | 业务模块 | 27个 |
-| 测试覆盖 | 263+个测试，100%通过 |
+| 测试覆盖 | 以最新 `pytest`/CI 执行结果为准 |
 | Python版本 | 3.11+ |
 | Django版本 | 5.x |
 
@@ -52,6 +52,24 @@ agomsaaf/Scripts/python manage.py activate_model --model-name mlp_csi300 --versi
 agomsaaf/Scripts/python manage.py rollback_model --model-name mlp_csi300
 agomsaaf/Scripts/python manage.py list_models
 ```
+
+### Streamlit 命令
+
+```bash
+# 启动 Streamlit 仪表盘（新交互层）
+streamlit run streamlit_app/app.py
+```
+
+### Dashboard 切换
+
+```bash
+# 在 .env 中启用 Streamlit 仪表盘入口
+STREAMLIT_DASHBOARD_ENABLED=True
+STREAMLIT_DASHBOARD_URL=http://127.0.0.1:8501
+```
+
+- `/dashboard/`：新入口（启用开关后跳转 Streamlit）
+- `/dashboard/legacy/`：Django 旧版回退入口
 
 ### Celery 命令
 
@@ -101,6 +119,8 @@ mypy apps/ --strict
 ---
 
 ## 核心 API 端点
+
+> 说明：接口以运行时 OpenAPI 文档为准（`/api/schema/`、`/api/docs/`）。
 
 ### Regime API
 
@@ -185,6 +205,25 @@ mypy apps/ --strict
 | `/api/hedge/positions/` | GET | 对冲持仓 |
 | `/api/hedge/calculate/` | POST | 计算对冲 |
 | `/api/hedge/instruments/` | GET | 对冲工具 |
+
+### Dashboard v1 API (Streamlit)
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/dashboard/api/v1/summary/` | GET | 仪表盘摘要 |
+| `/dashboard/api/v1/regime-quadrant/` | GET | Regime 象限数据 |
+| `/dashboard/api/v1/equity-curve/` | GET | 资金曲线数据 |
+| `/dashboard/api/v1/signal-status/` | GET | 信号状态数据 |
+
+### Operations UI
+
+| 页面 | 说明 |
+|------|------|
+| `/ops/` | Operations Center（替代高频 Admin 入口） |
+| `/policy/events/new/` | 新增政策事件 |
+| `/policy/rss/manage/new/` | 新增 RSS 源 |
+| `/policy/rss/keywords/new/` | 新增关键词规则 |
+| `/macro/datasources/new/` | 新增数据源配置 |
 
 ---
 

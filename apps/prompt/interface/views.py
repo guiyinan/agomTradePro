@@ -68,7 +68,7 @@ class MockAIClient:
 class PromptTemplateViewSet(viewsets.ModelViewSet):
     """Prompt模板管理ViewSet"""
 
-    queryset = PromptTemplateORM.objects.filter(is_active=True)
+    queryset = PromptTemplateORM._default_manager.filter(is_active=True)
     serializer_class = PromptTemplateSerializer
 
     def get_serializer_class(self):
@@ -118,7 +118,7 @@ class PromptTemplateViewSet(viewsets.ModelViewSet):
 class ChainConfigViewSet(viewsets.ModelViewSet):
     """链配置管理ViewSet"""
 
-    queryset = ChainConfigORM.objects.filter(is_active=True)
+    queryset = ChainConfigORM._default_manager.filter(is_active=True)
     serializer_class = ChainConfigSerializer
 
     def get_serializer_class(self):
@@ -365,7 +365,7 @@ class ChatModelsView(APIView):
 class ExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
     """执行日志ViewSet（只读）"""
 
-    queryset = PromptExecutionLogORM.objects.all()
+    queryset = PromptExecutionLogORM._default_manager.all()
     serializer_class = ExecutionLogSerializer
 
     def get_queryset(self):
@@ -403,3 +403,4 @@ class ExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
 def prompt_manage_view(request):
     """Prompt 模板管理页面"""
     return render(request, 'prompt/manage.html')
+

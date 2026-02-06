@@ -88,7 +88,7 @@ def cleanup_old_invalidated_signals(days: int = 90):
     logger.info(f"清理 {days} 天前的已证伪信号...")
 
     try:
-        old_signals = InvestmentSignalModel.objects.filter(
+        old_signals = InvestmentSignalModel._default_manager.filter(
             status='invalidated',
             invalidated_at__lt=cutoff_date
         )
@@ -125,15 +125,15 @@ def send_daily_signal_summary():
     today = timezone.now()
 
     # 统计变化
-    new_signals = InvestmentSignalModel.objects.filter(
+    new_signals = InvestmentSignalModel._default_manager.filter(
         created_at__range=[yesterday, today]
     ).count()
 
-    invalidated_signals = InvestmentSignalModel.objects.filter(
+    invalidated_signals = InvestmentSignalModel._default_manager.filter(
         invalidated_at__range=[yesterday, today]
     ).count()
 
-    approved_count = InvestmentSignalModel.objects.filter(
+    approved_count = InvestmentSignalModel._default_manager.filter(
         status='approved'
     ).count()
 
@@ -149,3 +149,4 @@ def send_daily_signal_summary():
     # TODO: 发送邮件或钉钉通知
 
     return summary
+

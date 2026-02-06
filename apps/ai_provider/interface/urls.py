@@ -20,6 +20,7 @@ urlpatterns = [
     path('', views.page_views.ai_manage_view, name='manage'),
     path('logs/', views.page_views.ai_usage_logs_view, name='logs'),
     path('detail/<int:provider_id>/', views.page_views.ai_provider_detail_view, name='detail'),
+    path('detail/<int:provider_id>/edit/', views.page_views.ai_provider_edit_view, name='edit'),
 ]
 
 # API URLs

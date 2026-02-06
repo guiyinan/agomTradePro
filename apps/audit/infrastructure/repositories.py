@@ -39,7 +39,7 @@ class DjangoAuditRepository:
         Returns:
             int: 报告 ID
         """
-        report = AttributionReport.objects.create(
+        report = AttributionReport._default_manager.create(
             backtest_id=backtest_id,
             period_start=period_start,
             period_end=period_end,
@@ -63,7 +63,7 @@ class DjangoAuditRepository:
         improvement_suggestion: str = '',
     ) -> int:
         """保存损失归因分析"""
-        analysis = LossAnalysis.objects.create(
+        analysis = LossAnalysis._default_manager.create(
             report_id=report_id,
             loss_source=loss_source,
             impact=impact,
@@ -81,7 +81,7 @@ class DjangoAuditRepository:
         priority: str = 'MEDIUM',
     ) -> int:
         """保存经验总结"""
-        summary = ExperienceSummary.objects.create(
+        summary = ExperienceSummary._default_manager.create(
             report_id=report_id,
             lesson=lesson,
             recommendation=recommendation,
@@ -92,14 +92,14 @@ class DjangoAuditRepository:
     def get_attribution_report(self, report_id: int) -> Optional[dict]:
         """获取归因报告"""
         try:
-            report = AttributionReport.objects.get(id=report_id)
+            report = AttributionReport._default_manager.get(id=report_id)
             return self._serialize_report(report)
         except AttributionReport.DoesNotExist:
             return None
 
     def get_reports_by_backtest(self, backtest_id: int) -> List[dict]:
         """获取指定回测的所有归因报告"""
-        reports = AttributionReport.objects.filter(
+        reports = AttributionReport._default_manager.filter(
             backtest_id=backtest_id
         ).order_by('-period_end')
 
@@ -111,7 +111,7 @@ class DjangoAuditRepository:
         end_date: date
     ) -> List[dict]:
         """获取日期范围内的归因报告"""
-        reports = AttributionReport.objects.filter(
+        reports = AttributionReport._default_manager.filter(
             period_start__gte=start_date,
             period_end__lte=end_date
         ).order_by('-period_end')
@@ -120,7 +120,7 @@ class DjangoAuditRepository:
 
     def get_loss_analyses(self, report_id: int) -> List[dict]:
         """获取报告的损失分析"""
-        analyses = LossAnalysis.objects.filter(
+        analyses = LossAnalysis._default_manager.filter(
             report_id=report_id
         ).order_by('-impact')
 
@@ -139,7 +139,7 @@ class DjangoAuditRepository:
 
     def get_experience_summaries(self, report_id: int) -> List[dict]:
         """获取报告的经验总结"""
-        summaries = ExperienceSummary.objects.filter(
+        summaries = ExperienceSummary._default_manager.filter(
             report_id=report_id
         ).order_by('-priority', '-created_at')
 
@@ -181,7 +181,7 @@ class DjangoAuditRepository:
         end_date: date,
     ) -> List[dict]:
         """获取指标在指定时间段内的表现记录"""
-        performances = IndicatorPerformanceModel.objects.filter(
+        performances = IndicatorPerformanceModel._default_manager.filter(
             indicator_code=indicator_code,
             evaluation_period_start__gte=start_date,
             evaluation_period_end__lte=end_date,
@@ -206,7 +206,7 @@ class DjangoAuditRepository:
     def get_latest_indicator_performance(self, indicator_code: str) -> Optional[dict]:
         """获取指标最新的表现记录"""
         try:
-            performance = IndicatorPerformanceModel.objects.filter(
+            performance = IndicatorPerformanceModel._default_manager.filter(
                 indicator_code=indicator_code
             ).latest('evaluation_period_end')
 
@@ -227,7 +227,7 @@ class DjangoAuditRepository:
 
     def get_active_threshold_configs(self) -> List[dict]:
         """获取所有激活的阈值配置"""
-        configs = IndicatorThresholdConfigModel.objects.filter(
+        configs = IndicatorThresholdConfigModel._default_manager.filter(
             is_active=True
         ).order_by('category', 'indicator_code')
 
@@ -255,7 +255,7 @@ class DjangoAuditRepository:
     def get_validation_summary(self, validation_run_id: str) -> Optional[dict]:
         """获取验证摘要"""
         try:
-            summary = ValidationSummaryModel.objects.get(
+            summary = ValidationSummaryModel._default_manager.get(
                 validation_run_id=validation_run_id
             )
 
@@ -280,7 +280,7 @@ class DjangoAuditRepository:
 
     def get_recent_validations(self, limit: int = 10) -> List[dict]:
         """获取最近的验证记录"""
-        summaries = ValidationSummaryModel.objects.all().order_by('-run_date')[:limit]
+        summaries = ValidationSummaryModel._default_manager.all().order_by('-run_date')[:limit]
 
         return [
             {
@@ -300,3 +300,4 @@ class DjangoAuditRepository:
             }
             for s in summaries
         ]
+

@@ -11,8 +11,6 @@ from .models import (
     GateConfigModel,
     GateDecisionModel,
     VisibilityUniverseSnapshotModel,
-    GateConfigManager,
-    GateDecisionManager,
 )
 
 
@@ -27,18 +25,18 @@ class GateConfigRepository:
     def get_by_id(self, config_id: str) -> Optional[Any]:
         """按 ID 获取配置"""
         try:
-            return GateConfigModel.objects.get(config_id=config_id)
+            return GateConfigModel._default_manager.get(config_id=config_id)
         except GateConfigModel.DoesNotExist:
             return None
 
     def get_by_risk_profile(self, risk_profile, at_time=None) -> Optional[Any]:
         """按风险画像获取最新有效配置"""
-        queryset = GateConfigModel.objects.active()
+        queryset = GateConfigModel._default_manager.active()
         return queryset.filter(risk_profile=risk_profile.value).first()
 
     def get_all_active(self, at_time=None) -> List[Any]:
         """获取所有激活配置"""
-        return list(GateConfigModel.objects.active())
+        return list(GateConfigModel._default_manager.active())
 
     def save(self, config) -> Any:
         """保存配置"""
@@ -48,7 +46,7 @@ class GateConfigRepository:
 
     def get_history(self, risk_profile=None, limit=100) -> List[Any]:
         """获取配置历史"""
-        queryset = GateConfigModel.objects.all()
+        queryset = GateConfigModel._default_manager.all()
         if risk_profile:
             queryset = queryset.filter(risk_profile=risk_profile.value)
         return list(queryset.order_by("-version")[:limit])
@@ -62,17 +60,17 @@ class GateDecisionRepository:
     def get_by_id(self, decision_id: str) -> Optional[Any]:
         """按 ID 获取决策"""
         try:
-            return GateDecisionModel.objects.get(decision_id=decision_id)
+            return GateDecisionModel._default_manager.get(decision_id=decision_id)
         except GateDecisionModel.DoesNotExist:
             return None
 
     def get_by_asset(self, asset_code: str, limit=100) -> List[Any]:
         """按资产获取决策历史"""
-        return list(GateDecisionModel.objects.by_asset(asset_code).order_by("-evaluated_at")[:limit])
+        return list(GateDecisionModel._default_manager.by_asset(asset_code).order_by("-evaluated_at")[:limit])
 
     def get_recent(self, days=30, status=None) -> List[Any]:
         """获取最近的决策"""
-        queryset = GateDecisionModel.objects.all()
+        queryset = GateDecisionModel._default_manager.all()
         return list(queryset.order_by("-evaluated_at")[:days])
 
     def save(self, decision) -> Any:
@@ -104,14 +102,14 @@ class VisibilityUniverseRepository:
     def get_by_id(self, snapshot_id: str) -> Optional[Dict]:
         """按 ID 获取快照"""
         try:
-            model = VisibilityUniverseSnapshotModel.objects.get(snapshot_id=snapshot_id)
+            model = VisibilityUniverseSnapshotModel._default_manager.get(snapshot_id=snapshot_id)
             return self._to_dict(model)
         except VisibilityUniverseSnapshotModel.DoesNotExist:
             return None
 
     def get_latest(self, regime: str, policy_level: int) -> Optional[Dict]:
         """获取最新快照"""
-        model = VisibilityUniverseSnapshotModel.objects.filter(
+        model = VisibilityUniverseSnapshotModel._default_manager.filter(
             current_regime=regime,
             policy_level=policy_level
         ).order_by("-as_of").first()
@@ -172,3 +170,5 @@ def get_decision_repository() -> GateDecisionRepository:
 def get_universe_repository() -> VisibilityUniverseRepository:
     """获取宇宙仓储实例"""
     return VisibilityUniverseRepository()
+
+

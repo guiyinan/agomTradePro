@@ -419,7 +419,7 @@ class RSSRepository:
         Returns:
             bool: 是否已存在
         """
-        return PolicyLog.objects.filter(evidence_url=link).exists()
+        return PolicyLog._default_manager.filter(evidence_url=link).exists()
 
     # ========== 关键词规则 ==========
 
@@ -473,3 +473,4 @@ class RSSRepository:
         """删除关键词规则"""
         count, _ = self._keyword_model.objects.filter(id=rule_id).delete()
         return count > 0
+

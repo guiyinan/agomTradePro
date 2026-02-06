@@ -3,7 +3,6 @@ URL configuration for AgomSAAF project.
 """
 from django.contrib import admin
 from django.urls import path, include
-from django.shortcuts import render
 
 # Apply custom admin branding
 import core.admin as agom_admin_config
@@ -28,30 +27,23 @@ from core.views import (
     policy_dashboard_view,
     asset_screen_view,
     decision_workspace_view,
+    ops_center_view,
 )
 
-
-def index_view_wrapper(request):
-    """首页视图包装器"""
-    if not request.user.is_authenticated:
-        return index_view(request)
-    return index_view(request)
-
-
-urlpatterns = [
+core_patterns = [
     path('', index_view, name='index'),
     path('health/', health_view, name='health'),
     path('chat-example/', chat_example_view, name='chat-example'),
-    # Policy Dashboard
     path('policy/dashboard/', policy_dashboard_view, name='policy-dashboard'),
-    # Asset Screen
     path('asset-analysis/screen/', asset_screen_view, name='asset-screen'),
-    # Decision Workspace
     path('decision/workspace/', decision_workspace_view, name='decision-workspace'),
-    # More specific pattern must come first
+    path('ops/', ops_center_view, name='ops-center'),
+    # More specific pattern must come first.
     path('docs/<str:doc_slug>/', docs_view, name='docs-detail'),
     path('docs/', docs_view, name='docs'),
-    # 文档管理后台
+]
+
+admin_docs_patterns = [
     path('admin/docs/manage/', docs_manage, name='admin-docs-manage'),
     path('admin/docs/edit/', doc_edit, name='admin-docs-create'),
     path('admin/docs/edit/<int:doc_id>/', doc_edit, name='admin-docs-edit'),
@@ -59,18 +51,21 @@ urlpatterns = [
     path('admin/docs/export/<int:doc_id>/md/', doc_export_markdown, name='admin-docs-export-md'),
     path('admin/docs/export/', doc_export_all, name='admin-docs-export'),
     path('admin/docs/import/', doc_import, name='admin-docs-import'),
+]
+
+api_docs_patterns = [
     path('admin/', admin.site.urls),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+]
 
-    # Account & Auth
+module_patterns = [
+    # Account & Auth.
     path('account/', include('apps.account.interface.urls')),
-
-    # Dashboard (requires login)
+    # Dashboard (requires login).
     path('dashboard/', include('apps.dashboard.interface.urls')),
-
-    # Page routes
+    # Main module routes.
     path('backtest/', include('apps.backtest.interface.urls')),
     path('regime/', include('apps.regime.interface.urls')),
     path('macro/', include('apps.macro.interface.urls')),
@@ -86,27 +81,24 @@ urlpatterns = [
     path('simulated-trading/', include('apps.simulated_trading.interface.urls')),
     path('strategy/', include('apps.strategy.interface.urls')),
     path('realtime/', include('apps.realtime.interface.urls')),
-
-    # Policy Management (包含页面和API)
+    # Policy management (包含页面和 API).
     path('policy/', include('apps.policy.interface.urls')),
-
-    # ========== 新模块：决策流程优化 ==========
-    # Decision Rhythm - 决策频率约束（新增）
+    # Decision workflow modules.
     path('', include('apps.decision_rhythm.interface.urls')),
-    # Beta Gate - Beta 闸门（新增）
     path('', include('apps.beta_gate.interface.urls')),
-    # Alpha Trigger - Alpha 离散触发（新增）
     path('', include('apps.alpha_trigger.interface.urls')),
-
-    # ========== 新模块：因子选股 + 资产轮动 + 对冲组合 ==========
-    # Factor - 因子选股（新增）
+    # Factor / Rotation / Hedge.
     path('factor/', include('apps.factor.interface.urls')),
-    # Rotation - 资产轮动（新增）
     path('rotation/', include('apps.rotation.interface.urls')),
-    # Hedge - 对冲组合（新增）
     path('hedge/', include('apps.hedge.interface.urls')),
-
-    # ========== 新模块：Alpha 信号抽象层 ==========
-    # Alpha - Alpha 信号抽象层（新增）
+    # Alpha signal abstraction.
     path('api/alpha/', include('apps.alpha.interface.urls')),
+]
+
+
+urlpatterns = [
+    *core_patterns,
+    *admin_docs_patterns,
+    *api_docs_patterns,
+    *module_patterns,
 ]

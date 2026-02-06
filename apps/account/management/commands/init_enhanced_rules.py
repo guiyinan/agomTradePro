@@ -22,7 +22,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         """执行初始化"""
         # 清空现有全局规则
-        deleted_count = InvestmentRuleModel.objects.filter(user__isnull=True).delete()[0]
+        deleted_count = InvestmentRuleModel._default_manager.filter(user__isnull=True).delete()[0]
         self.stdout.write(f"Deleted {deleted_count} old rules")
 
         # 创建新规则
@@ -31,14 +31,14 @@ class Command(BaseCommand):
 
         for rule_data in rules:
             # 检查规则是否已存在
-            existing = InvestmentRuleModel.objects.filter(
+            existing = InvestmentRuleModel._default_manager.filter(
                 user__isnull=True,
                 name=rule_data['name'],
                 rule_type=rule_data['rule_type']
             ).first()
 
             if not existing:
-                InvestmentRuleModel.objects.create(**rule_data)
+                InvestmentRuleModel._default_manager.create(**rule_data)
                 created_count += 1
                 self.stdout.write(f"[OK] Created rule: {rule_data['name']}")
             else:
@@ -383,3 +383,4 @@ class Command(BaseCommand):
                 'advice_template': '⚠️ 投资有风险，以上建议仅供参考，请根据个人情况做出决策',
             },
         ]
+

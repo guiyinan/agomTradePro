@@ -388,4 +388,4 @@ class EvaluateGateUseCase:
 - [AgomSAAF V3.4 总体架构](../business/AgomSAAF_V3.4.md)
 - [四层架构规范](../../CLAUDE.md)
 - [API 文档](/api/docs/)
-- [测试指南](../../testing/README.md)
+- [测试指南](../../tests/README.md)

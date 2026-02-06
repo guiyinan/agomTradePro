@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - AgomSAAF{% endblock %}
+
+{% block content %}
+<div style="max-width: 980px; margin: 0 auto; padding: 24px;">
+    <h1 style="margin-bottom: 8px;">{{ page_title }}</h1>
+    <p style="color: #64748b; margin-bottom: 20px;">通过产品化页面维护 Beta Gate 约束配置。</p>
+
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px;">
+        <form method="post">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <table style="width: 100%; border-collapse: collapse;">
+                {% for field in form %}
+                <tr>
+                    <td style="width: 240px; padding: 10px 8px; vertical-align: top;">
+                        <label for="{{ field.id_for_label }}"><strong>{{ field.label }}</strong></label>
+                    </td>
+                    <td style="padding: 10px 8px;">
+                        {{ field }}
+                        {% if field.help_text %}
+                        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">{{ field.help_text }}</div>
+                        {% endif %}
+                        {% if field.errors %}
+                        <div style="font-size: 12px; color: #dc2626; margin-top: 4px;">{{ field.errors }}</div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+
+            <div style="margin-top: 16px; display: flex; gap: 10px;">
+                <button type="submit" class="tag" style="border: none; cursor: pointer;">保存配置</button>
+                <a href="{% url 'beta_gate:config' %}" class="tag">返回配置页</a>
+                <a href="{% url 'beta_gate:version' %}" class="tag">版本管理</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

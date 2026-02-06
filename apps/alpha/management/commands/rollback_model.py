@@ -72,13 +72,13 @@ class Command(BaseCommand):
 
         try:
             # 查找目标模型
-            target_model = QlibModelRegistryModel.objects.get(
+            target_model = QlibModelRegistryModel._default_manager.get(
                 model_name=model_name,
                 artifact_hash=artifact_hash
             )
 
             # 取消当前激活的模型
-            current_active = QlibModelRegistryModel.objects.filter(
+            current_active = QlibModelRegistryModel._default_manager.filter(
                 model_name=model_name,
                 is_active=True
             ).first()
@@ -109,7 +109,7 @@ class Command(BaseCommand):
         from apps.alpha.infrastructure.models import QlibModelRegistryModel
 
         # 获取当前激活的模型
-        current_active = QlibModelRegistryModel.objects.filter(
+        current_active = QlibModelRegistryModel._default_manager.filter(
             model_name=model_name,
             is_active=True
         ).first()
@@ -121,7 +121,7 @@ class Command(BaseCommand):
             return
 
         # 查找上一个版本
-        prev_model = QlibModelRegistryModel.objects.filter(
+        prev_model = QlibModelRegistryModel._default_manager.filter(
             model_name=model_name,
             created_at__lt=current_active.created_at
         ).order_by('-created_at').first()
@@ -144,7 +144,7 @@ class Command(BaseCommand):
         """列出所有版本"""
         from apps.alpha.infrastructure.models import QlibModelRegistryModel
 
-        models = QlibModelRegistryModel.objects.filter(
+        models = QlibModelRegistryModel._default_manager.filter(
             model_name=model_name
         ).order_by('-created_at')
 
@@ -154,3 +154,4 @@ class Command(BaseCommand):
             self.stdout.write(
                 f'    {model.artifact_hash[:8]}... - {model.created_at}{active_flag}'
             )
+

@@ -33,6 +33,10 @@ akshare
 requests
 urllib3
 
+# Streamlit Dashboard
+streamlit>=1.42
+plotly>=5.24
+
 # API Documentation
 drf-spectacular
 

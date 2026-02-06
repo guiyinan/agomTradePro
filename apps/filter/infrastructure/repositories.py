@@ -64,7 +64,7 @@ class DjangoFilterRepository:
         """
         with transaction.atomic():
             # 先删除旧的相同类型结果
-            FilterResultModel.objects.filter(
+            FilterResultModel._default_manager.filter(
                 indicator_code=series.indicator_code,
                 filter_type=series.filter_type.value
             ).delete()
@@ -85,7 +85,7 @@ class DjangoFilterRepository:
                     )
                 )
 
-            FilterResultModel.objects.bulk_create(results_to_create, batch_size=500)
+            FilterResultModel._default_manager.bulk_create(results_to_create, batch_size=500)
 
     def get_filter_results(
         self,
@@ -95,7 +95,7 @@ class DjangoFilterRepository:
         end_date: Optional[date] = None
     ) -> List[FilterResult]:
         """获取滤波结果"""
-        queryset = FilterResultModel.objects.filter(
+        queryset = FilterResultModel._default_manager.filter(
             indicator_code=indicator_code,
             filter_type=filter_type.value
         )
@@ -124,7 +124,7 @@ class DjangoFilterRepository:
     ) -> Optional[KalmanFilterState]:
         """获取最新的 Kalman 状态"""
         try:
-            model = KalmanStateModel.objects.get(indicator_code=indicator_code)
+            model = KalmanStateModel._default_manager.get(indicator_code=indicator_code)
             return model.to_domain_state()
         except KalmanStateModel.DoesNotExist:
             return None
@@ -137,7 +137,7 @@ class DjangoFilterRepository:
     ) -> None:
         """保存 Kalman 状态"""
         with transaction.atomic():
-            KalmanStateModel.objects.filter(indicator_code=indicator_code).delete()
+            KalmanStateModel._default_manager.filter(indicator_code=indicator_code).delete()
             KalmanStateModel.from_domain_state(
                 state, indicator_code, params
             ).save()
@@ -145,7 +145,7 @@ class DjangoFilterRepository:
     def get_filter_config(self, indicator_code: str) -> Dict:
         """获取滤波器配置"""
         try:
-            config = FilterConfig.objects.get(indicator_code=indicator_code)
+            config = FilterConfig._default_manager.get(indicator_code=indicator_code)
             return {
                 'hp_enabled': config.hp_enabled,
                 'hp_lambda': float(config.hp_lambda),
@@ -184,7 +184,7 @@ class DjangoFilterRepository:
         Returns:
             List[Dict]: 日期和值的字典列表
         """
-        queryset = MacroIndicator.objects.filter(code=indicator_code)
+        queryset = MacroIndicator._default_manager.filter(code=indicator_code)
 
         if start_date:
             queryset = queryset.filter(reporting_period__gte=start_date)
@@ -230,7 +230,7 @@ class DjangoFilterRepository:
             'CN_OIL_PRICE': '原油价格',
         }
 
-        codes = MacroIndicator.objects.values_list('code', flat=True).distinct().order_by('code')
+        codes = MacroIndicator._default_manager.values_list('code', flat=True).distinct().order_by('code')
 
         indicators = []
         for code in codes:
@@ -338,3 +338,4 @@ class KalmanFilterAdapter:
         )
 
         return result.filtered_levels, result.filtered_slopes, final_state
+

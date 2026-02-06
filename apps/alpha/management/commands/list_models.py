@@ -55,7 +55,7 @@ class Command(BaseCommand):
         active_only = options.get('active_only', False)
 
         # 构建查询
-        queryset = QlibModelRegistryModel.objects.all()
+        queryset = QlibModelRegistryModel._default_manager.all()
 
         if model_name:
             queryset = queryset.filter(model_name__icontains=model_name)
@@ -111,3 +111,4 @@ class Command(BaseCommand):
                 f'    {name}: {stats["total"]} 个版本, '
                 f'{stats["active"]} 个激活'
             )
+

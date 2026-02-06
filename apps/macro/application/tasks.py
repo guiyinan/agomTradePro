@@ -264,7 +264,7 @@ def cleanup_old_data(days_to_keep: int = 365 * 10) -> dict:
         cutoff_date = date.today() - timedelta(days=days_to_keep)
 
         # 统计即将删除的数据
-        old_records = MacroIndicator.objects.filter(observed_at__lt=cutoff_date)
+        old_records = MacroIndicator._default_manager.filter(observed_at__lt=cutoff_date)
         count = old_records.count()
 
         if count > 0:
@@ -670,3 +670,4 @@ def sync_and_calculate_regime(
     except Exception as exc:
         logger.error(f"Failed to start orchestrated workflow: {exc}")
         raise
+

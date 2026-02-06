@@ -45,7 +45,7 @@ from apps.strategy.interface.serializers import (
 class StrategyViewSet(viewsets.ModelViewSet):
     """策略 CRUD API"""
 
-    queryset = StrategyModel.objects.all()
+    queryset = StrategyModel._default_manager.all()
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['strategy_type', 'is_active']
     search_fields = ['name', 'description']
@@ -189,7 +189,7 @@ class StrategyViewSet(viewsets.ModelViewSet):
 class RuleConditionViewSet(viewsets.ModelViewSet):
     """规则条件 CRUD API"""
 
-    queryset = RuleConditionModel.objects.all()
+    queryset = RuleConditionModel._default_manager.all()
     serializer_class = RuleConditionSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['strategy', 'rule_type', 'is_enabled']
@@ -239,7 +239,7 @@ class RuleConditionViewSet(viewsets.ModelViewSet):
 class ScriptConfigViewSet(viewsets.ModelViewSet):
     """脚本配置 CRUD API"""
 
-    queryset = ScriptConfigModel.objects.all()
+    queryset = ScriptConfigModel._default_manager.all()
     serializer_class = ScriptConfigSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['strategy', 'is_active']
@@ -253,7 +253,7 @@ class ScriptConfigViewSet(viewsets.ModelViewSet):
 class AIStrategyConfigViewSet(viewsets.ModelViewSet):
     """AI策略配置 CRUD API"""
 
-    queryset = AIStrategyConfigModel.objects.all()
+    queryset = AIStrategyConfigModel._default_manager.all()
     serializer_class = AIStrategyConfigSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['strategy', 'approval_mode', 'ai_provider']
@@ -267,7 +267,7 @@ class AIStrategyConfigViewSet(viewsets.ModelViewSet):
 class PortfolioStrategyAssignmentViewSet(viewsets.ModelViewSet):
     """投资组合策略关联 CRUD API"""
 
-    queryset = PortfolioStrategyAssignmentModel.objects.all()
+    queryset = PortfolioStrategyAssignmentModel._default_manager.all()
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['portfolio', 'strategy', 'is_active']
     search_fields = ['portfolio__account_name', 'strategy__name']
@@ -347,7 +347,7 @@ class PortfolioStrategyAssignmentViewSet(viewsets.ModelViewSet):
 class StrategyExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
     """策略执行日志 API（只读）"""
 
-    queryset = StrategyExecutionLogModel.objects.all()
+    queryset = StrategyExecutionLogModel._default_manager.all()
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['strategy', 'portfolio', 'is_success']
     ordering_fields = ['execution_time', 'execution_duration_ms']
@@ -423,7 +423,7 @@ def strategy_list(request):
     """策略列表页面"""
     # 获取当前用户的策略
     user_profile = request.user.account_profile
-    strategies = StrategyModel.objects.filter(created_by=user_profile).annotate(
+    strategies = StrategyModel._default_manager.filter(created_by=user_profile).annotate(
         rule_count=Count('rules'),
         execution_count=Count('execution_logs'),
         portfolio_count=Count('portfolios')
@@ -476,7 +476,7 @@ def strategy_create(request):
 
         try:
             # 创建策略
-            strategy = StrategyModel.objects.create(
+            strategy = StrategyModel._default_manager.create(
                 name=name,
                 strategy_type=strategy_type,
                 description=description,
@@ -493,7 +493,7 @@ def strategy_create(request):
                 rules = json.loads(rules_data)
                 for rule_data in rules:
                     if rule_data.get('rule_name'):  # 只创建有名称的规则
-                        RuleConditionModel.objects.create(
+                        RuleConditionModel._default_manager.create(
                             strategy=strategy,
                             rule_name=rule_data['rule_name'],
                             rule_type=rule_data.get('rule_type', 'macro'),
@@ -512,7 +512,7 @@ def strategy_create(request):
                 # 计算 SHA256 哈希
                 script_hash = hashlib.sha256(script_code.encode('utf-8')).hexdigest()
 
-                ScriptConfigModel.objects.create(
+                ScriptConfigModel._default_manager.create(
                     strategy=strategy,
                     script_language=script_language,
                     script_code=script_code,
@@ -584,7 +584,7 @@ def strategy_edit(request, strategy_id):
                 rules = json.loads(rules_data)
                 for rule_data in rules:
                     if rule_data.get('rule_name'):
-                        RuleConditionModel.objects.create(
+                        RuleConditionModel._default_manager.create(
                             strategy=strategy,
                             rule_name=rule_data['rule_name'],
                             rule_type=rule_data.get('rule_type', 'macro'),
@@ -603,10 +603,10 @@ def strategy_edit(request, strategy_id):
                 script_hash = hashlib.sha256(script_code.encode('utf-8')).hexdigest()
 
                 # 删除现有脚本配置
-                ScriptConfigModel.objects.filter(strategy=strategy).delete()
+                ScriptConfigModel._default_manager.filter(strategy=strategy).delete()
 
                 # 创建新的脚本配置
-                ScriptConfigModel.objects.create(
+                ScriptConfigModel._default_manager.create(
                     strategy=strategy,
                     script_language=script_language,
                     script_code=script_code,
@@ -985,4 +985,5 @@ def test_strategy(request, strategy_id):
 
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+
 

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}新增政策事件 - AgomSAAF{% endblock %}
+
+{% block content %}
+<div style="max-width: 900px; margin: 0 auto; padding: 24px;">
+    <h1>新增政策事件</h1>
+    <p style="color: #64748b;">使用业务页面创建政策事件，不依赖 Django Admin。</p>
+
+    <form method="post" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px;">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div style="margin-top: 16px; display: flex; gap: 12px;">
+            <button type="submit" class="btn btn-primary">保存</button>
+            <a href="{% url 'policy:events-page' %}" class="btn btn-secondary">取消</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

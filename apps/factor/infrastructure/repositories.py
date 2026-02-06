@@ -31,25 +31,25 @@ class FactorDefinitionRepository:
 
     def get_all(self) -> List[FactorDefinition]:
         """Get all factor definitions"""
-        models = FactorDefinitionModel.objects.all()
+        models = FactorDefinitionModel._default_manager.all()
         return [m.to_domain() for m in models]
 
     def get_active(self) -> List[FactorDefinition]:
         """Get active factor definitions"""
-        models = FactorDefinitionModel.objects.filter(is_active=True)
+        models = FactorDefinitionModel._default_manager.filter(is_active=True)
         return [m.to_domain() for m in models]
 
     def get_by_code(self, code: str) -> Optional[FactorDefinition]:
         """Get factor definition by code"""
         try:
-            model = FactorDefinitionModel.objects.get(code=code)
+            model = FactorDefinitionModel._default_manager.get(code=code)
             return model.to_domain()
         except FactorDefinitionModel.DoesNotExist:
             return None
 
     def get_by_category(self, category: str) -> List[FactorDefinition]:
         """Get factors by category"""
-        models = FactorDefinitionModel.objects.filter(
+        models = FactorDefinitionModel._default_manager.filter(
             category=category,
             is_active=True
         )
@@ -61,7 +61,7 @@ class FactorExposureRepository:
 
     def save(self, exposure) -> FactorExposureModel:
         """Save factor exposure"""
-        model = FactorExposureModel.objects.create(
+        model = FactorExposureModel._default_manager.create(
             stock_code=exposure.stock_code,
             trade_date=exposure.trade_date,
             factor_code=exposure.factor_code,
@@ -78,7 +78,7 @@ class FactorExposureRepository:
         factor_code: str
     ) -> Optional[FactorExposureModel]:
         """Get latest exposure for stock-factor pair"""
-        return FactorExposureModel.objects.filter(
+        return FactorExposureModel._default_manager.filter(
             stock_code=stock_code,
             factor_code=factor_code
         ).order_by('-trade_date').first()
@@ -89,7 +89,7 @@ class FactorExposureRepository:
         factor_code: str
     ) -> List[FactorExposureModel]:
         """Get all exposures for a factor on a date"""
-        return FactorExposureModel.objects.filter(
+        return FactorExposureModel._default_manager.filter(
             trade_date=trade_date,
             factor_code=factor_code
         ).order_by('-percentile_rank')
@@ -100,25 +100,25 @@ class FactorPortfolioConfigRepository:
 
     def get_all(self) -> List[FactorPortfolioConfig]:
         """Get all portfolio configurations"""
-        models = FactorPortfolioConfigModel.objects.all()
+        models = FactorPortfolioConfigModel._default_manager.all()
         return [m.to_domain() for m in models]
 
     def get_active(self) -> List[FactorPortfolioConfig]:
         """Get active portfolio configurations"""
-        models = FactorPortfolioConfigModel.objects.filter(is_active=True)
+        models = FactorPortfolioConfigModel._default_manager.filter(is_active=True)
         return [m.to_domain() for m in models]
 
     def get_by_name(self, name: str) -> Optional[FactorPortfolioConfig]:
         """Get portfolio configuration by name"""
         try:
-            model = FactorPortfolioConfigModel.objects.get(name=name)
+            model = FactorPortfolioConfigModel._default_manager.get(name=name)
             return model.to_domain()
         except FactorPortfolioConfigModel.DoesNotExist:
             return None
 
     def save(self, config: FactorPortfolioConfig) -> FactorPortfolioConfigModel:
         """Save portfolio configuration"""
-        model, created = FactorPortfolioConfigModel.objects.update_or_create(
+        model, created = FactorPortfolioConfigModel._default_manager.update_or_create(
             name=config.name,
             defaults={
                 'description': config.description,
@@ -153,10 +153,10 @@ class FactorPortfolioHoldingRepository:
         """Save portfolio holdings"""
         from apps.factor.infrastructure.models import FactorPortfolioConfigModel
 
-        config = FactorPortfolioConfigModel.objects.get(name=config_name)
+        config = FactorPortfolioConfigModel._default_manager.get(name=config_name)
 
         # Delete existing holdings for this date
-        FactorPortfolioHoldingModel.objects.filter(
+        FactorPortfolioHoldingModel._default_manager.filter(
             config=config,
             trade_date=trade_date
         ).delete()
@@ -177,11 +177,12 @@ class FactorPortfolioHoldingRepository:
             for h in holdings
         ]
 
-        FactorPortfolioHoldingModel.objects.bulk_create(holding_models)
+        FactorPortfolioHoldingModel._default_manager.bulk_create(holding_models)
         return len(holding_models)
 
     def get_latest_holdings(self, config_name: str) -> List[FactorPortfolioHoldingModel]:
         """Get latest holdings for a configuration"""
-        return FactorPortfolioHoldingModel.objects.filter(
+        return FactorPortfolioHoldingModel._default_manager.filter(
             config__name=config_name
         ).order_by('-trade_date', 'rank')[:30]
+

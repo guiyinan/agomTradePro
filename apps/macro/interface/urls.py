@@ -20,6 +20,8 @@ urlpatterns = [
 
     path('data/', views.macro_data_view, name='data'),
     path('datasources/', views.datasource_config_view, name='datasources'),
+    path('datasources/new/', views.datasource_create_view, name='datasource-create'),
+    path('datasources/<int:source_id>/edit/', views.datasource_edit_view, name='datasource-edit'),
 
     # 统一数据管理器
     path('controller/', views.data_controller_view, name='data_controller'),

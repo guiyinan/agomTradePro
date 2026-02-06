@@ -55,7 +55,7 @@ class AssetPoolQueryService:
         """
         try:
             # 1. 查询可投池的资产
-            pool_entries = AssetPoolEntry.objects.filter(
+            pool_entries = AssetPoolEntry._default_manager.filter(
                 pool_type=PoolType.INVESTABLE.value,
                 asset_category=asset_type,
                 is_active=True,
@@ -114,7 +114,7 @@ class AssetPoolQueryService:
         asset_codes = [c['asset_code'] for c in candidates]
 
         # 查询有效信号
-        valid_signals = InvestmentSignalModel.objects.filter(
+        valid_signals = InvestmentSignalModel._default_manager.filter(
             asset_code__in=asset_codes,
             status='valid',
             is_active=True
@@ -150,7 +150,7 @@ class AssetPoolQueryService:
             池类型（investable/prohibited/watch/candidate）
         """
         try:
-            entry = AssetPoolEntry.objects.filter(
+            entry = AssetPoolEntry._default_manager.filter(
                 asset_code=asset_code,
                 is_active=True
             ).order_by('-entry_date').first()
@@ -174,7 +174,7 @@ class AssetPoolQueryService:
             {pool_type: count}
         """
         try:
-            queryset = AssetPoolEntry.objects.filter(is_active=True)
+            queryset = AssetPoolEntry._default_manager.filter(is_active=True)
 
             if asset_type:
                 queryset = queryset.filter(asset_category=asset_type)
@@ -189,3 +189,4 @@ class AssetPoolQueryService:
         except Exception as e:
             logger.error(f"获取资产池摘要失败: {e}")
             return {}
+

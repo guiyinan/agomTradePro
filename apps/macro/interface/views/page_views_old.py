@@ -91,7 +91,7 @@ def macro_data_view(request):
     search_query = request.GET.get('search', '')  # 搜索关键词
 
     # 基础查询
-    queryset = MacroIndicator.objects.all()
+    queryset = MacroIndicator._default_manager.all()
 
     # 应用搜索（搜索代码或名称）
     if search_query:
@@ -130,7 +130,7 @@ def macro_data_view(request):
     all_indicators = []
     for ind in indicator_codes:
         code = ind['code']
-        records_query = MacroIndicator.objects.filter(code=code).order_by('-reporting_period', '-revision_number')
+        records_query = MacroIndicator._default_manager.filter(code=code).order_by('-reporting_period', '-revision_number')
 
         # 如果指定了日期范围，筛选范围内的数据
         if start_date_obj and end_date_obj:
@@ -222,21 +222,21 @@ def macro_data_view(request):
 
     # 统计信息
     stats = {
-        'total_indicators': MacroIndicator.objects.values('code').distinct().count(),
-        'total_records': MacroIndicator.objects.count(),
-        'latest_date': MacroIndicator.objects.aggregate(
+        'total_indicators': MacroIndicator._default_manager.values('code').distinct().count(),
+        'total_records': MacroIndicator._default_manager.count(),
+        'latest_date': MacroIndicator._default_manager.aggregate(
             latest=Max('reporting_period')
         )['latest'] or '-',
-        'sources': list(MacroIndicator.objects.values('source').annotate(
+        'sources': list(MacroIndicator._default_manager.values('source').annotate(
             count=Count('id')
         ).order_by('-count'))
     }
 
     # 数据源列表
-    data_sources = list(DataSourceConfig.objects.filter(is_active=True).order_by('priority'))
+    data_sources = list(DataSourceConfig._default_manager.filter(is_active=True).order_by('priority'))
 
     # 获取时间范围（用于时间轴）
-    date_range = MacroIndicator.objects.aggregate(
+    date_range = MacroIndicator._default_manager.aggregate(
         min_date=Min('reporting_period'),
         max_date=Max('reporting_period')
     )
@@ -262,7 +262,7 @@ def macro_data_view(request):
 
 def datasource_config_view(request):
     """数据源配置页面"""
-    data_sources = DataSourceConfig.objects.all().order_by('priority', 'name')
+    data_sources = DataSourceConfig._default_manager.all().order_by('priority', 'name')
 
     # 统计信息
     stats = {
@@ -302,13 +302,13 @@ def data_controller_view(request):
     scheduled_indicators = schedule_use_case.get_scheduled_indicators()
 
     # 获取所有可用指标
-    all_indicators = MacroIndicator.objects.values('code').annotate(
+    all_indicators = MacroIndicator._default_manager.values('code').annotate(
         count=Count('id'),
         latest=Max('reporting_period')
     ).order_by('code')
 
     # 获取所有数据源
-    sources = MacroIndicator.objects.values('source').annotate(
+    sources = MacroIndicator._default_manager.values('source').annotate(
         count=Count('id')
     ).order_by('-count')
 
@@ -320,3 +320,4 @@ def data_controller_view(request):
     }
 
     return render(request, 'macro/data_controller.html', context)
+

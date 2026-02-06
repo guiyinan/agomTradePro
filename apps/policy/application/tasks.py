@@ -132,7 +132,7 @@ def cleanup_old_policy_logs(days_to_keep: int = 365):
 
         cutoff_date = date.today() - timedelta(days=days_to_keep)
 
-        deleted_count = PolicyLog.objects.filter(
+        deleted_count = PolicyLog._default_manager.filter(
             event_date__lt=cutoff_date
         ).delete()[0]
 
@@ -331,7 +331,7 @@ def fetch_rss_sources(self, source_id: Optional[int] = None):
         # 统计各分类数量
         if output.new_policy_events > 0:
             from ..infrastructure.models import PolicyLog
-            category_stats = PolicyLog.objects.aggregate(
+            category_stats = PolicyLog._default_manager.aggregate(
                 macro=Count('id', filter=Q(info_category='macro')),
                 sector=Count('id', filter=Q(info_category='sector')),
                 individual=Count('id', filter=Q(info_category='individual')),
@@ -398,14 +398,14 @@ def auto_assign_pending_audits(max_per_user: int = 10):
         from django.utils import timezone
 
         # 获取所有待审核且未分配的政策
-        unassigned = PolicyAuditQueue.objects.filter(
+        unassigned = PolicyAuditQueue._default_manager.filter(
             assigned_to__isnull=True,
             policy_log__audit_status='pending_review'
         ).order_by('-created_at')
 
         # 获取可用的审核人员（有审核权限的用户）
         # 简化版本：获取所有员工用户
-        auditors = User.objects.filter(is_staff=True).distinct()
+        auditors = User._default_manager.filter(is_staff=True).distinct()
 
         if not auditors:
             logger.warning("No auditors found with staff privileges")
@@ -417,7 +417,7 @@ def auto_assign_pending_audits(max_per_user: int = 10):
             auditor = auditors[idx % auditors.count()]
 
             # 检查该用户已分配数量
-            current_assigned = PolicyAuditQueue.objects.filter(
+            current_assigned = PolicyAuditQueue._default_manager.filter(
                 assigned_to=auditor,
                 policy_log__audit_status='pending_review'
             ).count()
@@ -466,7 +466,7 @@ def cleanup_old_audit_queues(days_to_keep: int = 30):
         cutoff_date = timezone.now() - timedelta(days=days_to_keep)
 
         # 只删除已审核的队列记录
-        deleted_count = PolicyAuditQueue.objects.filter(
+        deleted_count = PolicyAuditQueue._default_manager.filter(
             policy_log__reviewed_at__lt=cutoff_date
         ).delete()[0]
 
@@ -493,7 +493,7 @@ def generate_daily_policy_summary():
         today = timezone.now().date()
 
         # 今日新增政策统计
-        today_policies = PolicyLog.objects.filter(created_at__date=today)
+        today_policies = PolicyLog._default_manager.filter(created_at__date=today)
 
         summary = {
             "date": today.isoformat(),
@@ -501,7 +501,7 @@ def generate_daily_policy_summary():
             "by_level": {},
             "by_category": {},
             "by_audit_status": {},
-            "pending_review": PolicyAuditQueue.objects.filter(
+            "pending_review": PolicyAuditQueue._default_manager.filter(
                 policy_log__audit_status='pending_review'
             ).count(),
             "ai_classified": today_policies.filter(
@@ -621,3 +621,4 @@ def trigger_signal_reevaluation(
                 'status': 'error',
                 'error': str(exc)
             }
+

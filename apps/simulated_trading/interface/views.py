@@ -123,7 +123,7 @@ def my_accounts_page(request):
             return redirect("/simulated-trading/my-accounts/")
 
         # 创建投资组合
-        account = SimulatedAccountModel.objects.create(
+        account = SimulatedAccountModel._default_manager.create(
             user=request.user,
             account_name=account_name,
             account_type=account_type,
@@ -137,7 +137,7 @@ def my_accounts_page(request):
         return redirect("/simulated-trading/my-accounts/")
 
     # GET 请求：显示用户的投资组合列表
-    accounts = SimulatedAccountModel.objects.filter(
+    accounts = SimulatedAccountModel._default_manager.filter(
         user=request.user
     ).order_by('-created_at')
 
@@ -1115,3 +1115,4 @@ class AutoTradingAPIView(APIView):
                 'success': False,
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

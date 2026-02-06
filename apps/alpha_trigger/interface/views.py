@@ -735,7 +735,7 @@ def alpha_trigger_list_view(request):
 
         # 直接查询 ORM 模型
         try:
-            active_triggers = list(AlphaTriggerModel.objects.filter(
+            active_triggers = list(AlphaTriggerModel._default_manager.filter(
                 status="ACTIVE"
             ).order_by('-created_at')[:10])
         except Exception as e:
@@ -743,7 +743,7 @@ def alpha_trigger_list_view(request):
             active_triggers = []
 
         try:
-            actionable_candidates = list(AlphaCandidateModel.objects.filter(
+            actionable_candidates = list(AlphaCandidateModel._default_manager.filter(
                 status="ACTIONABLE"
             ).order_by('-created_at')[:10])
         except Exception as e:
@@ -751,7 +751,7 @@ def alpha_trigger_list_view(request):
             actionable_candidates = []
 
         try:
-            watch_list = list(AlphaCandidateModel.objects.filter(
+            watch_list = list(AlphaCandidateModel._default_manager.filter(
                 status="WATCH"
             ).order_by('-created_at')[:10])
         except Exception as e:
@@ -760,7 +760,7 @@ def alpha_trigger_list_view(request):
 
         # 统计各状态数量
         try:
-            candidate_count = AlphaCandidateModel.objects.filter(
+            candidate_count = AlphaCandidateModel._default_manager.filter(
                 status="CANDIDATE"
             ).count()
         except Exception as e:
@@ -769,7 +769,7 @@ def alpha_trigger_list_view(request):
 
         trigger_stats = {
             "active_count": len(active_triggers),
-            "total_count": AlphaTriggerModel.objects.count() if active_triggers else 0,
+            "total_count": AlphaTriggerModel._default_manager.count() if active_triggers else 0,
         }
 
         candidate_stats = {
@@ -837,7 +837,7 @@ def alpha_trigger_create_view(request):
         available_indicators = []
         try:
             from apps.macro.infrastructure.models import MacroIndicatorModel
-            indicators = MacroIndicatorModel.objects.filter(
+            indicators = MacroIndicatorModel._default_manager.filter(
                 is_active=True
             ).values('code', 'name', 'unit', 'latest_value')[:50]
             available_indicators = list(indicators)
@@ -890,7 +890,7 @@ def alpha_trigger_edit_view(request, trigger_id):
         available_indicators = []
         try:
             from apps.macro.infrastructure.models import MacroIndicatorModel
-            indicators = MacroIndicatorModel.objects.filter(
+            indicators = MacroIndicatorModel._default_manager.filter(
                 is_active=True
             ).values('code', 'name', 'unit', 'latest_value')[:50]
             available_indicators = list(indicators)
@@ -936,7 +936,7 @@ def alpha_trigger_detail_view(request, trigger_id):
         trigger = get_object_or_404(AlphaTriggerModel, trigger_id=trigger_id)
 
         # 获取相关候选
-        candidates = list(AlphaCandidateModel.objects.filter(
+        candidates = list(AlphaCandidateModel._default_manager.filter(
             source_trigger_id=trigger_id
         ).order_by('-created_at')[:20])
 
@@ -1028,7 +1028,7 @@ def alpha_candidate_detail_view(request, candidate_id):
         # 获取来源触发器
         source_trigger = None
         try:
-            source_trigger = AlphaTriggerModel.objects.get(
+            source_trigger = AlphaTriggerModel._default_manager.get(
                 trigger_id=candidate.source_trigger_id
             )
         except AlphaTriggerModel.DoesNotExist:
@@ -1106,7 +1106,7 @@ def alpha_trigger_performance_view(request):
         from datetime import timedelta
 
         # 获取所有活跃触发器
-        triggers = list(AlphaTriggerModel.objects.filter(
+        triggers = list(AlphaTriggerModel._default_manager.filter(
             status='ACTIVE'
         ).order_by('-created_at'))
 
@@ -1115,7 +1115,7 @@ def alpha_trigger_performance_view(request):
 
         for trigger in triggers:
             # 获取相关候选
-            candidates = AlphaCandidateModel.objects.filter(
+            candidates = AlphaCandidateModel._default_manager.filter(
                 source_trigger_id=trigger.trigger_id
             )
 
@@ -1197,8 +1197,8 @@ def alpha_trigger_performance_view(request):
 
         # 整体统计
         total_triggers = len(triggers)
-        total_candidates = AlphaCandidateModel.objects.count()
-        total_executed = AlphaCandidateModel.objects.filter(status='EXECUTED').count()
+        total_candidates = AlphaCandidateModel._default_manager.count()
+        total_executed = AlphaCandidateModel._default_manager.filter(status='EXECUTED').count()
         overall_conversion_rate = 0
         if total_candidates > 0:
             overall_conversion_rate = round(total_executed / total_candidates * 100, 1)
@@ -1234,7 +1234,7 @@ def alpha_trigger_performance_view(request):
 
         # 获取最近 30 天的趋势数据
         thirty_days_ago = timezone.now() - timedelta(days=30)
-        recent_candidates = AlphaCandidateModel.objects.filter(
+        recent_candidates = AlphaCandidateModel._default_manager.filter(
             created_at__gte=thirty_days_ago
         ).order_by('created_at')
 
@@ -1313,9 +1313,9 @@ class TriggerPerformanceAPIView(APIView):
 
             # 获取触发器列表
             if trigger_id:
-                triggers = [AlphaTriggerModel.objects.filter(trigger_id=trigger_id).first()]
+                triggers = [AlphaTriggerModel._default_manager.filter(trigger_id=trigger_id).first()]
             else:
-                triggers = list(AlphaTriggerModel.objects.filter(status='ACTIVE'))
+                triggers = list(AlphaTriggerModel._default_manager.filter(status='ACTIVE'))
 
             performance_data = []
 
@@ -1323,7 +1323,7 @@ class TriggerPerformanceAPIView(APIView):
                 if not trigger:
                     continue
 
-                candidates = AlphaCandidateModel.objects.filter(
+                candidates = AlphaCandidateModel._default_manager.filter(
                     source_trigger_id=trigger.trigger_id,
                     created_at__gte=start_date
                 )
@@ -1360,3 +1360,4 @@ class TriggerPerformanceAPIView(APIView):
                 {"success": False, "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+

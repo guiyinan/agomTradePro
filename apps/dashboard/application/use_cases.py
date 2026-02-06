@@ -405,7 +405,7 @@ class GetDashboardDataUseCase:
             # 获取 AI 提供商配置
             from apps.prompt.infrastructure.models import AIProvider
 
-            provider = AIProvider.objects.filter(is_active=True).first()
+            provider = AIProvider._default_manager.filter(is_active=True).first()
 
             if not provider:
                 # 如果没有配置 AI，使用数据库规则作为后备
@@ -522,7 +522,7 @@ class GetDashboardDataUseCase:
         policy_level_num = self._policy_to_numeric(policy_level or "P0")
 
         # 获取所有启用的全局规则
-        all_rules = InvestmentRuleModel.objects.filter(
+        all_rules = InvestmentRuleModel._default_manager.filter(
             is_active=True,
             user__isnull=True  # 全局规则
         ).order_by('priority', 'id')
@@ -762,7 +762,7 @@ class GetDashboardDataUseCase:
         # 获取待审核数量（分配给当前用户的）
         pending_review_count = 0
         try:
-            pending_review_count = PolicyAuditQueue.objects.filter(
+            pending_review_count = PolicyAuditQueue._default_manager.filter(
                 assigned_to__user_id=user_id,
                 status__in=['pending', 'in_progress']
             ).count()
@@ -772,7 +772,7 @@ class GetDashboardDataUseCase:
         # 获取最近政策（7天内已审核通过的）
         recent_policies = []
         try:
-            recent_logs = PolicyLog.objects.filter(
+            recent_logs = PolicyLog._default_manager.filter(
                 created_at__gte=timezone.now() - timedelta(days=7),
                 audit_status__in=['auto_approved', 'manual_approved']
             ).order_by('-created_at')[:5]
@@ -883,3 +883,4 @@ class GetDashboardDataUseCase:
         # 暂时返回空列表，等待历史快照功能实现
         # TODO: 实现历史快照存储后，从数据库读取历史收益数据
         return []
+

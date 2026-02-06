@@ -340,7 +340,7 @@ class DatabaseWatchlistProvider(WatchlistProviderProtocol):
     def get_held_assets(self) -> List[str]:
         """获取所有持仓资产代码"""
         # 查询所有非零持仓
-        positions = PositionModel.objects.filter(
+        positions = PositionModel._default_manager.filter(
             quantity__gt=0
         ).values_list("asset_code", flat=True).distinct()
 
@@ -405,3 +405,4 @@ class CompositePriceDataProvider(PriceDataProviderProtocol):
     def is_available(self) -> bool:
         """检查是否有可用的数据源"""
         return any(provider.is_available() for provider in self.providers)
+

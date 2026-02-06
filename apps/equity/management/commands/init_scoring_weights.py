@@ -15,7 +15,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         """Execute the command"""
         # 检查是否已存在配置
-        existing_count = ScoringWeightConfigModel.objects.count()
+        existing_count = ScoringWeightConfigModel._default_manager.count()
         if existing_count > 0:
             self.stdout.write(
                 self.style.WARNING(f'数据库中已存在 {existing_count} 个评分权重配置')
@@ -62,14 +62,14 @@ class Command(BaseCommand):
         for config_data in default_configs:
             name = config_data['name']
             # 检查是否已存在同名配置
-            if ScoringWeightConfigModel.objects.filter(name=name).exists():
+            if ScoringWeightConfigModel._default_manager.filter(name=name).exists():
                 self.stdout.write(
                     self.style.WARNING(f'配置 "{name}" 已存在，跳过创建')
                 )
                 continue
 
             try:
-                ScoringWeightConfigModel.objects.create(**config_data)
+                ScoringWeightConfigModel._default_manager.create(**config_data)
                 created_count += 1
                 self.stdout.write(
                     self.style.SUCCESS(f'成功创建配置: {name}')

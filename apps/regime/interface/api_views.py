@@ -48,7 +48,7 @@ class RegimeViewSet(viewsets.ViewSet):
         """
         try:
             # 获取最新的 Regime 记录
-            latest = RegimeLog.objects.order_by('-observed_at').first()
+            latest = RegimeLog._default_manager.order_by('-observed_at').first()
 
             if latest:
                 serializer = RegimeLogSerializer(latest)
@@ -125,7 +125,7 @@ class RegimeViewSet(viewsets.ViewSet):
             params = query_serializer.validated_data
 
             # 构建查询
-            queryset = RegimeLog.objects.all()
+            queryset = RegimeLog._default_manager.all()
 
             if params.get('start_date'):
                 queryset = queryset.filter(observed_at__gte=params['start_date'])
@@ -166,7 +166,7 @@ class RegimeViewSet(viewsets.ViewSet):
             start_date = request.query_params.get('start_date')
             end_date = request.query_params.get('end_date')
 
-            queryset = RegimeLog.objects.all()
+            queryset = RegimeLog._default_manager.all()
             if start_date:
                 queryset = queryset.filter(observed_at__gte=start_date)
             if end_date:
@@ -202,7 +202,7 @@ class RegimeHealthView(APIView):
         """检查 Regime 服务健康状态"""
         try:
             # 检查数据库连接
-            count = RegimeLog.objects.count()
+            count = RegimeLog._default_manager.count()
 
             return Response({
                 'status': 'healthy',
@@ -216,3 +216,4 @@ class RegimeHealthView(APIView):
                 'service': 'regime',
                 'error': str(e)
             }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+

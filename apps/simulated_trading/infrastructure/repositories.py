@@ -278,7 +278,7 @@ class DjangoSimulatedAccountRepository:
             return model.id
         else:
             # 更新现有账户
-            model = SimulatedAccountModel.objects.get(id=account.account_id)
+            model = SimulatedAccountModel._default_manager.get(id=account.account_id)
             model.account_name = account.account_name
             model.current_cash = account.current_cash
             model.current_market_value = account.current_market_value
@@ -299,7 +299,7 @@ class DjangoSimulatedAccountRepository:
     def get_by_id(self, account_id: int) -> Optional[SimulatedAccount]:
         """根据ID获取账户"""
         try:
-            model = SimulatedAccountModel.objects.get(id=account_id)
+            model = SimulatedAccountModel._default_manager.get(id=account_id)
             return SimulatedAccountMapper.to_entity(model)
         except SimulatedAccountModel.DoesNotExist:
             return None
@@ -307,14 +307,14 @@ class DjangoSimulatedAccountRepository:
     def get_by_name(self, account_name: str) -> Optional[SimulatedAccount]:
         """根据名称获取账户"""
         try:
-            model = SimulatedAccountModel.objects.get(account_name=account_name)
+            model = SimulatedAccountModel._default_manager.get(account_name=account_name)
             return SimulatedAccountMapper.to_entity(model)
         except SimulatedAccountModel.DoesNotExist:
             return None
 
     def get_active_accounts(self) -> List[SimulatedAccount]:
         """获取所有活跃的自动交易账户"""
-        models = SimulatedAccountModel.objects.filter(
+        models = SimulatedAccountModel._default_manager.filter(
             is_active=True,
             auto_trading_enabled=True
         )
@@ -322,7 +322,7 @@ class DjangoSimulatedAccountRepository:
 
     def get_all_accounts(self) -> List[SimulatedAccount]:
         """获取所有账户"""
-        models = SimulatedAccountModel.objects.all()
+        models = SimulatedAccountModel._default_manager.all()
         return [SimulatedAccountMapper.to_entity(m) for m in models]
 
     def get_by_user(self, user_id: int) -> List[SimulatedAccount]:
@@ -335,7 +335,7 @@ class DjangoSimulatedAccountRepository:
         Returns:
             用户的所有投资组合
         """
-        models = SimulatedAccountModel.objects.filter(
+        models = SimulatedAccountModel._default_manager.filter(
             user_id=user_id
         ).order_by('-created_at')
         return [SimulatedAccountMapper.to_entity(m) for m in models]
@@ -351,7 +351,7 @@ class DjangoSimulatedAccountRepository:
         Returns:
             用户的指定类型的投资组合
         """
-        models = SimulatedAccountModel.objects.filter(
+        models = SimulatedAccountModel._default_manager.filter(
             user_id=user_id,
             account_type=account_type
         ).order_by('-created_at')
@@ -360,7 +360,7 @@ class DjangoSimulatedAccountRepository:
     def delete(self, account_id: int) -> bool:
         """删除账户"""
         try:
-            model = SimulatedAccountModel.objects.get(id=account_id)
+            model = SimulatedAccountModel._default_manager.get(id=account_id)
             model.delete()
             return True
         except SimulatedAccountModel.DoesNotExist:
@@ -378,7 +378,7 @@ class DjangoPositionRepository:
             持仓ID
         """
         # 检查是否已存在
-        existing = PositionModel.objects.filter(
+        existing = PositionModel._default_manager.filter(
             account_id=position.account_id,
             asset_code=position.asset_code
         ).first()
@@ -406,13 +406,13 @@ class DjangoPositionRepository:
 
     def get_by_account(self, account_id: int) -> List[Position]:
         """获取账户的所有持仓"""
-        models = PositionModel.objects.filter(account_id=account_id)
+        models = PositionModel._default_manager.filter(account_id=account_id)
         return [PositionMapper.to_entity(m) for m in models]
 
     def get_position(self, account_id: int, asset_code: str) -> Optional[Position]:
         """获取特定持仓"""
         try:
-            model = PositionModel.objects.get(
+            model = PositionModel._default_manager.get(
                 account_id=account_id,
                 asset_code=asset_code
             )
@@ -422,7 +422,7 @@ class DjangoPositionRepository:
 
     def delete(self, account_id: int, asset_code: str) -> bool:
         """删除持仓"""
-        deleted, _ = PositionModel.objects.filter(
+        deleted, _ = PositionModel._default_manager.filter(
             account_id=account_id,
             asset_code=asset_code
         ).delete()
@@ -446,7 +446,7 @@ class DjangoTradeRepository:
 
     def get_by_account(self, account_id: int) -> List[SimulatedTrade]:
         """获取账户的所有交易记录"""
-        models = SimulatedTradeModel.objects.filter(
+        models = SimulatedTradeModel._default_manager.filter(
             account_id=account_id
         ).order_by('-execution_date', '-execution_time')
         return [SimulatedTradeMapper.to_entity(m) for m in models]
@@ -458,7 +458,7 @@ class DjangoTradeRepository:
         end_date: date
     ) -> List[SimulatedTrade]:
         """获取日期范围内的交易记录"""
-        models = SimulatedTradeModel.objects.filter(
+        models = SimulatedTradeModel._default_manager.filter(
             account_id=account_id,
             execution_date__gte=start_date,
             execution_date__lte=end_date
@@ -467,7 +467,7 @@ class DjangoTradeRepository:
 
     def get_by_asset(self, account_id: int, asset_code: str) -> List[SimulatedTrade]:
         """获取特定资产的所有交易记录"""
-        models = SimulatedTradeModel.objects.filter(
+        models = SimulatedTradeModel._default_manager.filter(
             account_id=account_id,
             asset_code=asset_code
         ).order_by('-execution_date', '-execution_time')
@@ -492,7 +492,7 @@ class DjangoFeeConfigRepository:
             return model.id
         else:
             # 更新现有配置
-            model = FeeConfigModel.objects.get(id=config.config_id)
+            model = FeeConfigModel._default_manager.get(id=config.config_id)
             model.config_name = config.config_name
             model.asset_type = config.asset_type
             model.commission_rate_buy = config.commission_rate_buy
@@ -511,7 +511,7 @@ class DjangoFeeConfigRepository:
     def get_by_id(self, config_id: int) -> Optional[FeeConfig]:
         """根据ID获取费率配置"""
         try:
-            model = FeeConfigModel.objects.get(id=config_id)
+            model = FeeConfigModel._default_manager.get(id=config_id)
             return FeeConfigMapper.to_entity(model)
         except FeeConfigModel.DoesNotExist:
             return None
@@ -519,7 +519,7 @@ class DjangoFeeConfigRepository:
     def get_default_config(self, asset_type: str = "all") -> Optional[FeeConfig]:
         """获取默认费率配置"""
         try:
-            model = FeeConfigModel.objects.filter(
+            model = FeeConfigModel._default_manager.filter(
                 asset_type__in=[asset_type, "all"],
                 is_default=True,
                 is_active=True
@@ -533,10 +533,11 @@ class DjangoFeeConfigRepository:
     def get_all_configs(self, asset_type: str = None) -> List[FeeConfig]:
         """获取所有费率配置"""
         if asset_type:
-            models = FeeConfigModel.objects.filter(
+            models = FeeConfigModel._default_manager.filter(
                 asset_type=asset_type,
                 is_active=True
             )
         else:
-            models = FeeConfigModel.objects.filter(is_active=True)
+            models = FeeConfigModel._default_manager.filter(is_active=True)
         return [FeeConfigMapper.to_entity(m) for m in models]
+

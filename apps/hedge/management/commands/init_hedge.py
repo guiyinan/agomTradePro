@@ -28,7 +28,7 @@ class Command(BaseCommand):
 
         if reset:
             self.stdout.write(self.style.WARNING('Resetting hedge data...'))
-            HedgePairModel.objects.all().delete()
+            HedgePairModel._default_manager.all().delete()
 
         # Initialize hedge pairs
         self.init_hedge_pairs()
@@ -152,7 +152,7 @@ class Command(BaseCommand):
         ]
 
         for pair_data in hedge_pairs:
-            pair, created = HedgePairModel.objects.get_or_create(
+            pair, created = HedgePairModel._default_manager.get_or_create(
                 name=pair_data['name'],
                 defaults=pair_data
             )
@@ -162,3 +162,4 @@ class Command(BaseCommand):
                 self.stdout.write(f'[存在] {pair.name} - {pair.long_asset} / {pair.hedge_asset}')
 
         self.stdout.write(f'已初始化 {len(hedge_pairs)} 个对冲对配置')
+

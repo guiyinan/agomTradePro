@@ -232,7 +232,7 @@ if result['staleness_days']:
 
 ## 📚 更多信息
 
-- [完整实施方案](plans/agomsaaf-qlib-integration-plan-v1.1.md)
-- [实施进度总结](plans/implementation-progress-summary.md)
-- [项目规则](../CLAUDE.md)
-- [Alpha 模块指南](modules/alpha/alpha-guide.md)
+- [完整实施方案](../plans/agomsaaf-qlib-integration-plan-v1.1.md)
+- [实施进度总结](../plans/implementation-progress-summary.md)
+- [项目规则](../../CLAUDE.md)
+- [Alpha 模块指南](../modules/alpha/alpha-guide.md)

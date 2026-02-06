@@ -84,7 +84,7 @@ class TransactionCostEstimationUseCase:
 
         # 获取资产元数据
         try:
-            asset_meta = AssetMetadataModel.objects.get(asset_code=asset_code)
+            asset_meta = AssetMetadataModel._default_manager.get(asset_code=asset_code)
         except AssetMetadataModel.DoesNotExist:
             # 使用默认配置
             asset_meta = None
@@ -146,7 +146,7 @@ class TransactionCostEstimationUseCase:
     def _get_cost_config(self, market: str, asset_class: str) -> TransactionCostConfigModel:
         """获取成本配置"""
         try:
-            return TransactionCostConfigModel.objects.get(
+            return TransactionCostConfigModel._default_manager.get(
                 market=market,
                 asset_class=asset_class,
                 is_active=True,
@@ -196,7 +196,7 @@ class RecordTransactionCostUseCase:
         from apps.account.infrastructure.models import TransactionModel
 
         try:
-            transaction = TransactionModel.objects.get(id=transaction_id)
+            transaction = TransactionModel._default_manager.get(id=transaction_id)
         except TransactionModel.DoesNotExist:
             raise ValueError(f"交易 {transaction_id} 不存在")
 
@@ -265,7 +265,7 @@ class TransactionCostAnalysisUseCase:
         since_date = timezone.now() - timedelta(days=days)
 
         # 查询交易记录
-        queryset = TransactionModel.objects.filter(
+        queryset = TransactionModel._default_manager.filter(
             portfolio__user_id=user_id,
             created_at__gte=since_date,
         )
@@ -346,3 +346,4 @@ class TransactionCostAnalysisUseCase:
             avg_cost_ratio=avg_cost_ratio,
             high_cost_transactions=high_cost_transactions,
         )
+

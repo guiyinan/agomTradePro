@@ -7,11 +7,15 @@ Beta Gate DRF Views
 """
 
 import logging
-from django.shortcuts import render
+from django.contrib import messages
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .forms import GateConfigForm
+from ..infrastructure.models import GateConfigModel
 from ..infrastructure.repositories import get_config_repository
 
 
@@ -32,13 +36,13 @@ class BetaGateVersionCompareAPIView(APIView):
         GET /api/beta-gate/version/compare/?version1=1&version2=2
         """
         try:
-            version1_id = request.query_params.get("version1")
-            version2_id = request.query_params.get("version2")
+            version1_id = request.query_params.get("version1") or request.query_params.get("version_a")
+            version2_id = request.query_params.get("version2") or request.query_params.get("version_b")
 
             if not version1_id or not version2_id:
                 # 返回最新10个版本的列表
                 from ..infrastructure.models import GateConfigModel
-                configs = list(GateConfigModel.objects.all().order_by('-version')[:10])
+                configs = list(GateConfigModel._default_manager.all().order_by('-version')[:10])
 
                 results = []
                 for config in configs:
@@ -60,14 +64,18 @@ class BetaGateVersionCompareAPIView(APIView):
             # 对比两个版本
             from ..infrastructure.models import GateConfigModel
 
-            try:
-                config1 = GateConfigModel.objects.filter(version=version1_id).first()
-                config2 = GateConfigModel.objects.filter(version=version2_id).first()
-            except ValueError:
-                return Response(
-                    {"success": False, "error": "Invalid version number"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            config1 = GateConfigModel._default_manager.filter(config_id=version1_id).first()
+            config2 = GateConfigModel._default_manager.filter(config_id=version2_id).first()
+            if not config1:
+                try:
+                    config1 = GateConfigModel._default_manager.filter(version=int(version1_id)).first()
+                except (TypeError, ValueError):
+                    config1 = None
+            if not config2:
+                try:
+                    config2 = GateConfigModel._default_manager.filter(version=int(version2_id)).first()
+                except (TypeError, ValueError):
+                    config2 = None
 
             if not config1 or not config2:
                 missing = []
@@ -153,7 +161,7 @@ class RollbackConfigView(APIView):
     POST /api/beta-gate/config/rollback/
     """
 
-    def post(self, request) -> Response:
+    def post(self, request, config_id=None) -> Response:
         """
         回滚到指定版本
 
@@ -167,11 +175,15 @@ class RollbackConfigView(APIView):
             from ..infrastructure.models import GateConfigModel
 
             data = json.loads(request.body) if isinstance(request.body, bytes) else request.data
-            target_version = int(data.get("version"))
+            target_version = data.get("version")
+            if target_version is None and config_id:
+                cfg = GateConfigModel._default_manager.filter(config_id=config_id).first()
+                target_version = cfg.version if cfg else None
+            target_version = int(target_version)
 
             # 获取目标版本配置
             try:
-                target_config = GateConfigModel.objects.filter(version=target_version).first()
+                target_config = GateConfigModel._default_manager.filter(version=target_version).first()
             except ValueError:
                 return Response(
                     {"success": False, "error": "Invalid version number"},
@@ -185,7 +197,7 @@ class RollbackConfigView(APIView):
                 )
 
             # 将当前激活的配置设置为非激活
-            GateConfigModel.objects.filter(is_active=True).update(is_active=False)
+            GateConfigModel._default_manager.active().update(is_active=False)
 
             # 激活目标版本
             target_config.is_active = True
@@ -217,11 +229,10 @@ def beta_gate_test_view(request):
     """
     try:
         from ..infrastructure.models import GateConfigModel, GateDecisionModel
-        from django.utils import timezone
 
         # 获取当前配置
         try:
-            active_config = GateConfigModel.objects.filter(is_active=True).first()
+            active_config = GateConfigModel._default_manager.active().first()
         except Exception as e:
             logger.warning(f"Failed to query active config: {e}")
             active_config = None
@@ -253,7 +264,7 @@ def beta_gate_test_view(request):
         # 获取最近测试记录
         recent_tests = []
         try:
-            recent_tests = list(GateDecisionModel.objects.all().order_by('-evaluated_at')[:10])
+            recent_tests = list(GateDecisionModel._default_manager.all().order_by('-evaluated_at')[:10])
         except Exception as e:
             logger.warning(f"Failed to query recent tests: {e}")
             recent_tests = []
@@ -295,7 +306,7 @@ def beta_gate_version_view(request):
         from ..infrastructure.models import GateConfigModel
 
         # 获取所有版本，按版本号排序
-        all_configs = list(GateConfigModel.objects.all().order_by('-version'))
+        all_configs = list(GateConfigModel._default_manager.all().order_by("-version"))
 
         # 按风险画像分组
         configs_by_profile = {}
@@ -306,6 +317,7 @@ def beta_gate_version_view(request):
             configs_by_profile[profile].append(config)
 
         context = {
+            "versions": all_configs,
             "all_configs": all_configs,
             "configs_by_profile": configs_by_profile,
             "page_title": "配置版本对比",
@@ -321,73 +333,6 @@ def beta_gate_version_view(request):
             "page_title": "配置版本对比",
         }
         return render(request, "beta_gate/version_compare.html", context, status=500)
-    try:
-        from ..infrastructure.models import GateConfigModel, GateDecisionModel
-        from django.utils import timezone
-
-        # 获取当前配置
-        try:
-            active_config = GateConfigModel.objects.filter(is_active=True).first()
-        except Exception as e:
-            logger.warning(f"Failed to query active config: {e}")
-            active_config = None
-
-        # 获取当前 Regime
-        current_regime = None
-        try:
-            from apps.regime.application.use_cases import GetCurrentRegimeUseCase
-            from apps.regime.infrastructure.repositories import get_regime_repository
-            regime_use_case = GetCurrentRegimeUseCase(get_regime_repository())
-            regime_response = regime_use_case.execute()
-            if regime_response.success and regime_response.regime_state:
-                current_regime = regime_response.regime_state
-        except Exception as e:
-            logger.warning(f"Failed to get current regime: {e}")
-
-        # 获取当前 Policy
-        current_policy = None
-        try:
-            from apps.policy.application.use_cases import GetCurrentPolicyUseCase
-            from apps.policy.infrastructure.repositories import get_policy_repository
-            policy_use_case = GetCurrentPolicyUseCase(get_policy_repository())
-            policy_response = policy_use_case.execute()
-            if policy_response.success and policy_response.policy_level:
-                current_policy = policy_response.policy_level
-        except Exception as e:
-            logger.warning(f"Failed to get current policy: {e}")
-
-        # 获取最近测试记录
-        recent_tests = []
-        try:
-            recent_tests = list(GateDecisionModel.objects.all().order_by('-evaluated_at')[:10])
-        except Exception as e:
-            logger.warning(f"Failed to query recent tests: {e}")
-
-        # 获取所有资产类别
-        all_asset_classes = [
-            "a_股票", "a_债券", "a_商品", "a_现金",
-            "港股", "美股", "黄金", "原油"
-        ]
-
-        context = {
-            "active_config": active_config,
-            "current_regime": current_regime,
-            "current_policy": current_policy,
-            "recent_tests": recent_tests,
-            "all_asset_classes": all_asset_classes,
-            "page_title": "资产测试工具",
-            "page_description": "测试资产在当前 Beta Gate 配置下是否能通过",
-        }
-
-        return render(request, "beta_gate/test_asset.html", context)
-
-    except Exception as e:
-        logger.error(f"Failed to load beta gate test page: {e}", exc_info=True)
-        context = {
-            "error": str(e),
-            "page_title": "资产测试工具",
-        }
-        return render(request, "beta_gate/test_asset.html", context, status=500)
 
 
 class BetaGateTestAPIView(APIView):
@@ -710,7 +655,7 @@ def beta_gate_config_view(request):
 
         # 获取最新配置（直接查询 ORM，避免 repository 问题）
         try:
-            configs = GateConfigModel.objects.filter(is_active=True)[:1]
+            configs = GateConfigModel._default_manager.active()[:1]
             active_config = configs[0] if configs else None
         except Exception as e:
             logger.warning(f"Failed to query active configs: {e}")
@@ -718,7 +663,7 @@ def beta_gate_config_view(request):
 
         # 获取最近决策
         try:
-            recent_decisions = list(GateDecisionModel.objects.all().order_by('-evaluated_at')[:10])
+            recent_decisions = list(GateDecisionModel._default_manager.all().order_by('-evaluated_at')[:10])
         except Exception as e:
             logger.warning(f"Failed to query recent decisions: {e}")
             recent_decisions = []
@@ -782,3 +727,69 @@ def beta_gate_config_view(request):
             "page_title": "Beta 闸门配置",
         }
         return render(request, "beta_gate/config.html", context, status=500)
+
+
+def beta_gate_config_create_view(request):
+    """创建 Beta Gate 配置（非 Admin）。"""
+    if request.method == "POST":
+        form = GateConfigForm(request.POST)
+        if form.is_valid():
+            instance = form.save()
+            if instance.is_active:
+                GateConfigModel._default_manager.exclude(pk=instance.pk).update(is_active=False)
+            messages.success(request, f"配置 {instance.config_id} 已创建")
+            return redirect("beta_gate:config")
+    else:
+        form = GateConfigForm()
+
+    return render(
+        request,
+        "beta_gate/config_form.html",
+        {
+            "form": form,
+            "form_mode": "create",
+            "page_title": "创建 Beta Gate 配置",
+        },
+    )
+
+
+def beta_gate_config_edit_view(request, config_id):
+    """编辑 Beta Gate 配置（非 Admin）。"""
+    config = get_object_or_404(GateConfigModel, config_id=config_id)
+
+    if request.method == "POST":
+        form = GateConfigForm(request.POST, instance=config)
+        if form.is_valid():
+            instance = form.save()
+            if instance.is_active:
+                GateConfigModel._default_manager.exclude(pk=instance.pk).update(is_active=False)
+            messages.success(request, f"配置 {instance.config_id} 已更新")
+            return redirect("beta_gate:config")
+    else:
+        form = GateConfigForm(instance=config)
+
+    return render(
+        request,
+        "beta_gate/config_form.html",
+        {
+            "form": form,
+            "config": config,
+            "form_mode": "edit",
+            "page_title": f"编辑配置 {config.config_id}",
+        },
+    )
+
+
+def beta_gate_config_activate_view(request, config_id):
+    """将指定配置设为激活。"""
+    if request.method != "POST":
+        return redirect("beta_gate:version")
+
+    config = get_object_or_404(GateConfigModel, config_id=config_id)
+    GateConfigModel._default_manager.active().exclude(pk=config.pk).update(is_active=False)
+    config.is_active = True
+    config.effective_date = timezone.now().date()
+    config.save(update_fields=["is_active", "effective_date", "updated_at"])
+    messages.success(request, f"已激活配置 {config.config_id}")
+    return redirect("beta_gate:version")
+

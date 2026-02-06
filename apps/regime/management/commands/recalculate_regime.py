@@ -92,7 +92,7 @@ class Command(BaseCommand):
         import json
         from pathlib import Path
 
-        records = list(RegimeLog.objects.all().order_by('observed_at').values(
+        records = list(RegimeLog._default_manager.all().order_by('observed_at').values(
             'observed_at', 'growth_momentum_z', 'inflation_momentum_z',
             'distribution', 'dominant_regime', 'confidence'
         ))
@@ -116,7 +116,7 @@ class Command(BaseCommand):
 
     def _delete_old_data(self) -> int:
         """删除所有 RegimeLog 数据"""
-        count, _ = RegimeLog.objects.all().delete()
+        count, _ = RegimeLog._default_manager.all().delete()
         return count
 
     def _recalculate_regime(self, start_date: date, end_date: date) -> int:
@@ -237,3 +237,4 @@ class Command(BaseCommand):
 
         # 按时间排序返回
         return sorted(sampled.values())
+

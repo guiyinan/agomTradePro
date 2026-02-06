@@ -10,8 +10,6 @@ from .models import (
     VisibilityUniverseSnapshotModel,
     GateConfigQuerySet,
     GateDecisionQuerySet,
-    GateConfigManager,
-    GateDecisionManager,
 )
 
 __all__ = [
@@ -20,6 +18,4 @@ __all__ = [
     "VisibilityUniverseSnapshotModel",
     "GateConfigQuerySet",
     "GateDecisionQuerySet",
-    "GateConfigManager",
-    "GateDecisionManager",
 ]

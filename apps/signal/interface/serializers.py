@@ -89,7 +89,7 @@ class InvestmentSignalCreateSerializer(serializers.ModelSerializer):
             })
 
         # 创建信号
-        signal = InvestmentSignalModel.objects.create(
+        signal = InvestmentSignalModel._default_manager.create(
             **validated_data,
             invalidation_description=invalidation_logic,
             invalidation_rule_json=parse_result.rule.to_dict(),
@@ -161,3 +161,4 @@ class UnifiedSignalSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at', 'executed_at']
+

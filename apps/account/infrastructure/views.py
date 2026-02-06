@@ -28,7 +28,7 @@ def docs_manage(request):
     search_query = request.GET.get('q', '')
 
     # 构建查询
-    queryset = DocumentationModel.objects.all()
+    queryset = DocumentationModel._default_manager.all()
 
     if category_filter:
         queryset = queryset.filter(category=category_filter)
@@ -54,14 +54,14 @@ def docs_manage(request):
 
     # 统计信息
     stats = {
-        'total': DocumentationModel.objects.count(),
-        'published': DocumentationModel.objects.filter(is_published=True).count(),
-        'draft': DocumentationModel.objects.filter(is_published=False).count(),
+        'total': DocumentationModel._default_manager.count(),
+        'published': DocumentationModel._default_manager.filter(is_published=True).count(),
+        'draft': DocumentationModel._default_manager.filter(is_published=False).count(),
         'by_category': {}
     }
 
     for cat_code, cat_name in DocumentationModel.CATEGORY_CHOICES:
-        stats['by_category'][cat_name] = DocumentationModel.objects.filter(category=cat_code).count()
+        stats['by_category'][cat_name] = DocumentationModel._default_manager.filter(category=cat_code).count()
 
     context = {
         'page_obj': page_obj,
@@ -109,7 +109,7 @@ def doc_edit(request, doc_id=None):
                 messages.success(request, f'文档 "{title}" 更新成功')
             else:
                 # 创建新文档
-                doc = DocumentationModel.objects.create(
+                doc = DocumentationModel._default_manager.create(
                     title=title,
                     slug=slug,
                     category=category,
@@ -175,7 +175,7 @@ def doc_export_all(request):
     """批量导出所有文档"""
 
     format_type = request.GET.get('format', 'json')
-    queryset = DocumentationModel.objects.all()
+    queryset = DocumentationModel._default_manager.all()
 
     if format_type == 'csv':
         return _export_csv(queryset)
@@ -269,7 +269,7 @@ def _import_json(file):
         if not slug:
             continue
 
-        doc, created_flag = DocumentationModel.objects.update_or_create(
+        doc, created_flag = DocumentationModel._default_manager.update_or_create(
             slug=slug,
             defaults={
                 'title': item.get('title', ''),
@@ -314,7 +314,7 @@ def _import_csv(file):
         if category in category_map:
             category = category_map[category]
 
-        doc, created_flag = DocumentationModel.objects.update_or_create(
+        doc, created_flag = DocumentationModel._default_manager.update_or_create(
             slug=slug,
             defaults={
                 'title': row.get('标题', ''),
@@ -332,3 +332,4 @@ def _import_csv(file):
             updated += 1
 
     return {'created': created, 'updated': updated}
+

@@ -32,7 +32,7 @@ class Command(BaseCommand):
         ]
 
         for code, name, symbol, is_base, precision in currencies:
-            currency, created = CurrencyModel.objects.get_or_create(
+            currency, created = CurrencyModel._default_manager.get_or_create(
                 code=code,
                 defaults={
                     'name': name,
@@ -61,7 +61,7 @@ class Command(BaseCommand):
         ]
 
         for code, name, order, path in top_categories:
-            category, created = AssetCategoryModel.objects.get_or_create(
+            category, created = AssetCategoryModel._default_manager.get_or_create(
                 code=code,
                 defaults={
                     'name': name,
@@ -77,7 +77,7 @@ class Command(BaseCommand):
 
         # 3. 创建二级分类（基金子类）
         self.stdout.write('\n3. Creating fund sub-categories...')
-        fund_parent = AssetCategoryModel.objects.get(code='FUND')
+        fund_parent = AssetCategoryModel._default_manager.get(code='FUND')
         fund_subcategories = [
             ('STOCK_FUND', '股票基金', 1),
             ('BOND_FUND', '债券基金', 2),
@@ -89,7 +89,7 @@ class Command(BaseCommand):
         ]
 
         for code, name, order in fund_subcategories:
-            category, created = AssetCategoryModel.objects.get_or_create(
+            category, created = AssetCategoryModel._default_manager.get_or_create(
                 code=code,
                 defaults={
                     'name': name,
@@ -106,7 +106,7 @@ class Command(BaseCommand):
 
         # 4. 创建二级分类（存款子类）
         self.stdout.write('\n4. Creating deposit sub-categories...')
-        deposit_parent = AssetCategoryModel.objects.get(code='DEPOSIT')
+        deposit_parent = AssetCategoryModel._default_manager.get(code='DEPOSIT')
         deposit_subcategories = [
             ('DEMAND', '活期存款', 1),
             ('TIME', '定期存款', 2),
@@ -114,7 +114,7 @@ class Command(BaseCommand):
         ]
 
         for code, name, order in deposit_subcategories:
-            category, created = AssetCategoryModel.objects.get_or_create(
+            category, created = AssetCategoryModel._default_manager.get_or_create(
                 code=code,
                 defaults={
                     'name': name,
@@ -131,7 +131,7 @@ class Command(BaseCommand):
 
         # 5. 创建二级分类（理财子类）
         self.stdout.write('\n5. Creating wealth sub-categories...')
-        wealth_parent = AssetCategoryModel.objects.get(code='WEALTH')
+        wealth_parent = AssetCategoryModel._default_manager.get(code='WEALTH')
         wealth_subcategories = [
             ('BANK_WEALTH', '银行理财', 1),
             ('TRUST', '信托', 2),
@@ -139,7 +139,7 @@ class Command(BaseCommand):
         ]
 
         for code, name, order in wealth_subcategories:
-            category, created = AssetCategoryModel.objects.get_or_create(
+            category, created = AssetCategoryModel._default_manager.get_or_create(
                 code=code,
                 defaults={
                     'name': name,
@@ -156,8 +156,8 @@ class Command(BaseCommand):
 
         # 6. 创建初始汇率
         self.stdout.write('\n6. Creating initial exchange rates...')
-        cny = CurrencyModel.objects.get(code='CNY')
-        usd = CurrencyModel.objects.get(code='USD')
+        cny = CurrencyModel._default_manager.get(code='CNY')
+        usd = CurrencyModel._default_manager.get(code='USD')
 
         initial_rates = [
             ('USD', 'CNY', Decimal('7.20')),  # 1 USD = 7.20 CNY
@@ -165,10 +165,10 @@ class Command(BaseCommand):
         ]
 
         for from_code, to_code, rate in initial_rates:
-            from_curr = CurrencyModel.objects.get(code=from_code)
-            to_curr = CurrencyModel.objects.get(code=to_code)
+            from_curr = CurrencyModel._default_manager.get(code=from_code)
+            to_curr = CurrencyModel._default_manager.get(code=to_code)
 
-            exchange_rate, created = ExchangeRateModel.objects.get_or_create(
+            exchange_rate, created = ExchangeRateModel._default_manager.get_or_create(
                 from_currency=from_curr,
                 to_currency=to_curr,
                 effective_date=date.today(),
@@ -184,7 +184,8 @@ class Command(BaseCommand):
 
         self.stdout.write('\n[OK] Initialization complete!')
         self.stdout.write(f'\nStatistics:')
-        self.stdout.write(f'  - Currencies: {CurrencyModel.objects.count()}')
-        self.stdout.write(f'  - Top-level categories: {AssetCategoryModel.objects.filter(level=1).count()}')
-        self.stdout.write(f'  - Sub-categories: {AssetCategoryModel.objects.filter(level=2).count()}')
-        self.stdout.write(f'  - Exchange rates: {ExchangeRateModel.objects.count()}')
+        self.stdout.write(f'  - Currencies: {CurrencyModel._default_manager.count()}')
+        self.stdout.write(f'  - Top-level categories: {AssetCategoryModel._default_manager.filter(level=1).count()}')
+        self.stdout.write(f'  - Sub-categories: {AssetCategoryModel._default_manager.filter(level=2).count()}')
+        self.stdout.write(f'  - Exchange rates: {ExchangeRateModel._default_manager.count()}')
+

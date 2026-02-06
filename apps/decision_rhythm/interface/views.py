@@ -796,7 +796,7 @@ def decision_rhythm_quota_view(request):
 
         # 直接查询 ORM 模型
         try:
-            current_quota = DecisionQuotaModel.objects.filter(
+            current_quota = DecisionQuotaModel._default_manager.filter(
                 is_active=True
             ).order_by('-period_start').first()
         except Exception as e:
@@ -804,7 +804,7 @@ def decision_rhythm_quota_view(request):
             current_quota = None
 
         try:
-            active_cooldowns = list(CooldownPeriodModel.objects.filter(
+            active_cooldowns = list(CooldownPeriodModel._default_manager.filter(
                 status="ACTIVE"
             ).order_by('-created_at')[:10])
         except Exception as e:
@@ -812,7 +812,7 @@ def decision_rhythm_quota_view(request):
             active_cooldowns = []
 
         try:
-            recent_requests = list(DecisionRequestModel.objects.all().order_by(
+            recent_requests = list(DecisionRequestModel._default_manager.all().order_by(
                 '-requested_at'
             )[:20])
         except Exception as e:
@@ -863,7 +863,7 @@ def decision_rhythm_config_view(request):
         from django.utils import timezone
 
         # 获取所有配额
-        quotas = list(DecisionQuotaModel.objects.all().order_by('period'))
+        quotas = list(DecisionQuotaModel._default_manager.all().order_by('period'))
 
         # 按周期分组
         quota_by_period = {}
@@ -929,7 +929,7 @@ class UpdateQuotaConfigView(APIView):
                 )
 
             # 查找或创建配额
-            quota, created = DecisionQuotaModel.objects.update_or_create(
+            quota, created = DecisionQuotaModel._default_manager.update_or_create(
                 period=period_str,
                 defaults={
                     "quota_id": f"quota_{uuid.uuid4().hex[:12]}",
@@ -957,3 +957,4 @@ class UpdateQuotaConfigView(APIView):
                 {"success": False, "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+

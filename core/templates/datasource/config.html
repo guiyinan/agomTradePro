@@ -28,7 +28,7 @@
             <div class="step-content">
                 <h3>添加数据源配置</h3>
                 <p>点击下方"添加数据源"按钮，填写配置信息</p>
-                <a href="/admin/macro/datasourceconfig/add/" class="btn-step">添加数据源</a>
+                <a href="{% url 'macro:datasource-create' %}" class="btn-step">添加数据源</a>
             </div>
         </div>
         <div class="step-item">
@@ -36,7 +36,7 @@
             <div class="step-content">
                 <h3>同步数据</h3>
                 <p>配置完成后，在 Admin 后台手动同步或设置定时任务</p>
-                <a href="/admin/" class="btn-step">前往 Admin</a>
+                <a href="{% url 'macro:data_controller' %}" class="btn-step">前往数据管理器</a>
             </div>
         </div>
     </div>
@@ -78,7 +78,7 @@
 <div class="datasources-section">
     <div class="section-header">
         <h2>已配置的数据源</h2>
-        <a href="/admin/macro/datasourceconfig/add/" class="btn-add">添加数据源</a>
+        <a href="{% url 'macro:datasource-create' %}" class="btn-add">添加数据源</a>
     </div>
 
     {% if data_sources %}
@@ -120,7 +120,7 @@
             </div>
 
             <div class="ds-actions">
-                <a href="/admin/macro/datasourceconfig/{{ ds.id }}/change/" class="btn-edit">编辑</a>
+                <a href="{% url 'macro:datasource-edit' ds.id %}" class="btn-edit">编辑</a>
             </div>
         </div>
         {% endfor %}
@@ -132,7 +132,7 @@
         <div class="empty-desc">
             请先添加数据源配置以同步宏观数据
         </div>
-        <a href="/admin/macro/datasourceconfig/add/" class="btn-add-large">添加第一个数据源</a>
+        <a href="{% url 'macro:datasource-create' %}" class="btn-add-large">添加第一个数据源</a>
     </div>
     {% endif %}
 </div>

@@ -68,7 +68,7 @@ class Command(BaseCommand):
             self.stdout.write(f"使用服务获取汇率: {exchange_rate}")
 
         # 查找所有美元单位的数据
-        usd_indicators = MacroIndicatorModel.objects.filter(
+        usd_indicators = MacroIndicatorModel._default_manager.filter(
             original_unit__icontains='美元'
         )
 
@@ -129,3 +129,4 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"错误: {error_count} 条"))
             for detail in error_details[:10]:  # 只显示前 10 个错误
                 self.stdout.write(f"  - {detail}")
+

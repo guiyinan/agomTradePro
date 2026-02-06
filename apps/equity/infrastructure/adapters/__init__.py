@@ -1,0 +1,2 @@
+"""Equity infrastructure adapters package."""
+

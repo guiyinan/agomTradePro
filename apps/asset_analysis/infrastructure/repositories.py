@@ -33,7 +33,7 @@ class DjangoWeightConfigRepository(WeightConfigRepositoryProtocol):
         3. 通用配置（asset_type 为空）
         4. 默认权重（如果数据库无配置）
         """
-        query = WeightConfigModel.objects.filter(is_active=True)
+        query = WeightConfigModel._default_manager.filter(is_active=True)
 
         # 1. 优先匹配特定条件
         if asset_type and market_condition:
@@ -69,7 +69,7 @@ class DjangoWeightConfigRepository(WeightConfigRepositoryProtocol):
         Returns:
             配置列表
         """
-        configs = WeightConfigModel.objects.all().order_by("-priority", "-created_at")
+        configs = WeightConfigModel._default_manager.all().order_by("-priority", "-created_at")
 
         return [
             {
@@ -104,7 +104,7 @@ class DjangoWeightConfigRepository(WeightConfigRepositoryProtocol):
 
         如果配置已存在则更新，否则创建新配置。
         """
-        config, created = WeightConfigModel.objects.get_or_create(
+        config, created = WeightConfigModel._default_manager.get_or_create(
             name=name,
             defaults={
                 "description": f"{name} 权重配置",
@@ -186,3 +186,4 @@ class DjangoAssetRepository(AssetRepositoryProtocol):
         （Fund、Equity 等）进行适配。
         """
         return None
+

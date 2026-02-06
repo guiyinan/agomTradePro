@@ -3,9 +3,14 @@
 > **文档版本**: V1.5
 > **生成日期**: 2026-01-04
 > **最后更新**: 2026-02-06
-> **系统版本**: AgomSAAF V3.5
-> **项目完成度**: 99%
+> **系统版本**: AgomSAAF V3.4
+> **项目状态**: 持续迭代（以代码与发布说明为准）
 > **文档目的**: 基于现有文档和代码库,梳理系统的模块、功能(应然和实然)及后续实施建议
+
+> **自动校验状态（2026-02-06）**
+> - `python manage.py check`: 通过
+> - 模块口径：`apps/` 业务模块 27 个（不含 `shared`）
+> - 四层目录完整性：26/27（`ai_provider` 缺少 `application/`）
 
 ---
 
@@ -16,10 +21,10 @@
 ### 核心特点
 
 - ✅ **四层架构** (Domain/Application/Infrastructure/Interface) - 严格遵循
-- ✅ **28个业务模块** - 覆盖宏观分析、信号管理、回测归因、实时数据全流程
-- ✅ **完整测试覆盖** - 263+个测试用例，100%通过率
+- ✅ **27个业务模块** - 覆盖宏观分析、信号管理、回测归因、实时数据全流程
+- ✅ **测试体系完整** - 使用 `pytest` + `coverage` 持续验证
 - ✅ **多维度资产分析** - 支持股票、基金、板块、债券、商品
-- ✅ **99%完成度** - 所有核心模块已完成,测试通过率100%
+- ✅ **持续迭代** - 核心模块可用，能力按里程碑持续增强
 - ✅ **实时数据接入** - 价格监控系统已完成
 - ✅ **Qlib 集成** - Alpha 选股信号深度集成
 - ✅ **决策平台** - Beta Gate + Alpha Trigger + Decision Rhythm
@@ -87,7 +92,7 @@
 
 ---
 
-## 二、系统模块全景 (28个业务模块)
+## 二、系统模块全景 (27个业务模块)
 
 ### 2.1 核心引擎模块 (5个)
 
@@ -365,12 +370,14 @@ StopLossConfig(
 
 **实然功能**:
 - ✅ Domain层归因服务已实现(AttributionAnalyzer)
-- ⚠️ Infrastructure层未完全实现(45%完成度)
-- ⚠️ API接口待完善
+- ✅ Infrastructure层已实现(AttributionReport/LossAnalysis/ExperienceSummary 等模型与仓储)
+- ✅ Interface层已实现(API + 页面视图 + 序列化器)
+- ✅ 指标表现评估与阈值验证能力已接入
 
-**待补充**:
-- AttributionReport模型
-- API views和serializers
+**当前可用能力**:
+- 生成归因报告：`POST /audit/api/reports/generate/`
+- 查询审计摘要：`GET /audit/api/summary/`
+- 指标评估与阈值验证：`/audit/api/indicator-performance/*`、`/audit/api/run-validation/`
 
 #### 13. `filter` - 筛选器管理
 
@@ -749,7 +756,7 @@ workflow = chain(
 | **sector** | ✅ | ✅ | 95% | Admin后台已补充 |
 | **sentiment** | ✅ | ✅ | 100% | AI情感分析+每日指数实现 |
 | **account** | ✅ | ✅ | 100% | 止损+波动率+限额+成本实现 |
-| **audit** | ✅ | ⚠️ | 45% | Domain层完整,Infra/API待补充 |
+| **audit** | ✅ | ✅ | 100% | 归因报告+损失分析+经验总结+指标验证均已实现 |
 | **filter** | ✅ | ✅ | 90% | 基础框架完整 |
 | **simulated_trading** | ✅ | ✅ | 100% | 四层架构+自动交易+绩效计算实现 |
 | **ai_provider** | ✅ | ✅ | 100% | 多源管理+预算控制实现 |
@@ -857,14 +864,14 @@ workflow = chain(
 
 ### 6.1 高优先级问题(P1)
 
-#### 1. Audit模块未完全实现
-**状态**: 45%完成度
-**缺失**:
-- Infrastructure层(AttributionReportModel等)
-- API接口(views + serializers)
+#### 1. Audit模块联动深度可继续优化
+**状态**: ✅ 核心功能已实现
+**可优化项**:
+- 归因报告自动触发策略（与 backtest 完成事件更紧密联动）
+- 审计报表前端可视化细节与交互增强
+- 审计相关集成测试覆盖持续补齐
 
-**预估工作量**: 2-3天
-**影响**: 回测后无法查看归因分析报告
+**影响**: 不影响核心使用，主要影响易用性与自动化程度
 
 #### 2. Dashboard图表交互待优化
 **状态**: ✅ 四层架构已完成(2026-02-06)
@@ -912,64 +919,25 @@ workflow = chain(
 > **目标**: 完成核心功能缺失部分,提升用户体验
 > **优先级**: P0-P1 (必须完成)
 
-#### Sprint 8.1: Audit模块补全 (5-7工作日)
+#### Sprint 8.1: Audit模块补全 (已完成)
 
-**任务1: Infrastructure层实现** (2-3天)
-```
-Day 1:
-- [ ] 创建 AttributionReportModel (ORM模型)
-  - 字段: backtest_id, total_return, regime_timing_pnl, asset_selection_pnl
-  - 字段: interaction_pnl, transaction_cost_pnl, loss_source, lesson_learned
-- [ ] 创建 LossAnalysisModel (损失分析详情)
-- [ ] 创建 ExperienceSummaryModel (经验总结)
-- [ ] 数据库迁移: python manage.py makemigrations audit
+**完成项摘要**:
+- [x] Infrastructure：归因/损失/经验相关 ORM 模型与仓储落地
+- [x] Application：归因报告与审计摘要用例实现
+- [x] Interface：API 与 HTML 页面路由实现
+- [x] 指标表现评估与阈值验证链路接入
 
-Day 2-3:
-- [ ] 实现 AttributionRepository
-  - save_report(report: AttributionResult) -> int
-  - get_report_by_backtest_id(backtest_id: int) -> AttributionResult
-  - get_reports_by_date_range(start, end) -> List[AttributionResult]
-- [ ] 实现 Mapper (AttributionReportMapper)
-- [ ] 编写 Repository 单元测试
-```
+**当前接口（节选）**:
+- [x] `POST /audit/api/reports/generate/`
+- [x] `GET /audit/api/summary/`
+- [x] `GET /audit/api/attribution-chart-data/{report_id}/`
+- [x] `POST /audit/api/validate-all-indicators/`
+- [x] `POST /audit/api/run-validation/`
 
-**任务2: Application层用例实现** (1-2天)
-```
-Day 1-2:
-- [ ] 创建 GenerateAttributionReportUseCase
-  - 输入: backtest_id
-  - 调用: AttributionAnalyzer (Domain层已存在)
-  - 保存: AttributionRepository
-- [ ] 创建 GetAttributionReportUseCase
-- [ ] 创建 CompareAttributionReportsUseCase (对比多个回测)
-- [ ] 编写 Use Case 单元测试
-```
-
-**任务3: Interface层API实现** (2天)
-```
-Day 1:
-- [ ] 创建 AttributionReportSerializer
-- [ ] 创建 AttributionReportViewSet
-  - POST /api/audit/reports/ (生成报告)
-  - GET /api/audit/reports/{id}/ (查看报告)
-  - GET /api/audit/reports/?backtest_id=X (按回测ID查询)
-- [ ] 配置 URL 路由
-
-Day 2:
-- [ ] 创建 AttributionReportDetailView (HTML页面)
-- [ ] 编写 API 集成测试
-- [ ] 更新 API 文档
-```
-
-**验收标准**:
-- [ ] 回测完成后可自动生成归因报告
-- [ ] API可查询归因报告
-- [ ] 测试覆盖率 ≥ 80%
-
-**预期收益**:
-- ✅ 完整的回测归因分析功能
+**结果**:
+- ✅ 回测后可生成并查询归因报告
 - ✅ 可追溯损失来源
-- ✅ 自动生成经验总结
+- ✅ 可输出经验总结与阈值验证结论
 
 ---
 
@@ -1621,11 +1589,11 @@ pytest tests/ -v --cov=apps --cov-report=html
 
 ✅ **功能完整,覆盖全流程**
 - 从宏观数据采集→Regime判定→信号管理→回测归因
-- 28个业务模块,410+个Python文件
+- 27个业务模块,410+个Python文件
 
-✅ **测试覆盖充分**
-- 263个测试,100%通过率
-- Domain层覆盖率≥90%
+✅ **测试体系可验证**
+- 已配置 `pytest` + `coverage`
+- 覆盖率与通过率以最新 CI/本地执行结果为准
 
 ✅ **金融逻辑严谨**
 - HP滤波后视偏差规避
@@ -1642,9 +1610,6 @@ pytest tests/ -v --cov=apps --cov-report=html
 - Dashboard图表交互未完全实现
 - 移动端适配欠缺
 
-⚠️ **Audit模块未完全实现**
-- Infrastructure层和API接口待补充
-
 ⚠️ **未接入实时交易**
 - 当前为决策辅助系统,需手动执行交易
 - 若接入券商API,可实现自动交易
@@ -1652,9 +1617,9 @@ pytest tests/ -v --cov=apps --cov-report=html
 ### 10.3 未来展望
 
 **短期(1-3个月)**:
-- 完成Audit模块剩余功能
 - Dashboard图表优化
 - 数据库性能优化(索引、查询优化、缓存)
+- 审计模块与回测/事件系统自动联动增强
 
 **中期(3-6个月)**:
 - 全球市场数据接入
@@ -1688,5 +1653,6 @@ pytest tests/ -v --cov=apps --cov-report=html
 **维护者**: Claude Code Agent
 
 **更新记录**:
-- V1.5 (2026-02-06): Dashboard/Events模块4层架构完善，系统完成度更新至99%
+- V1.6 (2026-02-06): 同步代码扫描口径，补充自动校验状态，移除易漂移百分比描述
+- V1.5 (2026-02-06): Dashboard/Events模块4层架构完善
 - V1.4 (2026-01-04): 基础版本，系统全景概览

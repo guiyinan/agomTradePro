@@ -304,7 +304,7 @@ def cleanup_old_events(
 
         # 获取要删除的事件 ID
         event_ids = list(
-            StoredEventModel.objects
+            StoredEventModel._default_manager
             .filter(occurred_at__lt=cutoff)
             .values_list("event_id", flat=True)[:batch_size]
         )
@@ -318,7 +318,7 @@ def cleanup_old_events(
 
         # 批量删除
         with transaction.atomic():
-            deleted_count, _ = StoredEventModel.objects.filter(
+            deleted_count, _ = StoredEventModel._default_manager.filter(
                 event_id__in=event_ids
             ).delete()
 
@@ -366,7 +366,7 @@ def cleanup_old_snapshots(
         cutoff = datetime.now() - timedelta(days=older_than_days)
 
         # 获取所有快照
-        snapshots = EventSnapshotModel.objects.filter(
+        snapshots = EventSnapshotModel._default_manager.filter(
             created_at__lt=cutoff
         )
 
@@ -379,7 +379,7 @@ def cleanup_old_snapshots(
         for agg in aggregates:
             # 获取该聚合根的快照
             agg_snapshots = list(
-                EventSnapshotModel.objects
+                EventSnapshotModel._default_manager
                 .filter(
                     aggregate_type=agg["aggregate_type"],
                     aggregate_id=agg["aggregate_id"],
@@ -519,3 +519,4 @@ def event_bus_health_check() -> Dict[str, Any]:
             "error": str(exc),
             "checked_at": datetime.now().isoformat(),
         }
+

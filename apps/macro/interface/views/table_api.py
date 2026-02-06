@@ -73,7 +73,7 @@ def api_get_indicator_data(request):
             }, status=400)
 
         # 构建查询
-        queryset = MacroIndicator.objects.filter(code=code)
+        queryset = MacroIndicator._default_manager.filter(code=code)
 
         # 时间范围过滤
         if start_date:
@@ -119,7 +119,7 @@ def api_table_data(request):
         sort_field = request.GET.get('sort_field', '-reporting_period')
 
         # 构建查询
-        queryset = MacroIndicator.objects.all()
+        queryset = MacroIndicator._default_manager.all()
 
         if code_filter:
             queryset = queryset.filter(code__icontains=code_filter)
@@ -171,7 +171,7 @@ def api_delete_record(request, record_id):
         return JsonResponse({'success': False, 'message': '仅支持 DELETE 请求'}, status=405)
 
     try:
-        record = MacroIndicator.objects.get(id=record_id)
+        record = MacroIndicator._default_manager.get(id=record_id)
         record.delete()
 
         return JsonResponse({
@@ -211,7 +211,7 @@ def api_batch_delete(request):
                 'message': '请选择要删除的记录'
             }, status=400)
 
-        count, _ = MacroIndicator.objects.filter(id__in=record_ids).delete()
+        count, _ = MacroIndicator._default_manager.filter(id__in=record_ids).delete()
 
         return JsonResponse({
             'success': True,
@@ -238,7 +238,7 @@ def api_create_record(request):
     try:
         data = json.loads(request.body)
 
-        record = MacroIndicator.objects.create(
+        record = MacroIndicator._default_manager.create(
             code=data.get('code'),
             value=data.get('value'),
             reporting_period=datetime.fromisoformat(data.get('observed_at') or data.get('reporting_period')).date(),
@@ -272,7 +272,7 @@ def api_update_record(request, record_id):
 
     try:
         data = json.loads(request.body)
-        record = MacroIndicator.objects.get(id=record_id)
+        record = MacroIndicator._default_manager.get(id=record_id)
 
         if 'code' in data:
             record.code = data['code']
@@ -312,3 +312,4 @@ def api_update_record(request, record_id):
             'success': False,
             'message': f'更新失败: {str(e)}'
         }, status=500)
+

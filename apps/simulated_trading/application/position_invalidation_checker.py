@@ -40,7 +40,7 @@ class PositionInvalidationChecker:
             List[Dict]: 被证伪的持仓列表
         """
         # 获取所有有证伪规则且未被证伪的持仓
-        positions = PositionModel.objects.filter(
+        positions = PositionModel._default_manager.filter(
             invalidation_rule_json__isnull=False,
             invalidation_rule_json____isnull=False,  # 不为空
             is_invalidated=False,
@@ -74,7 +74,7 @@ class PositionInvalidationChecker:
             InvalidationCheckResult 或 None
         """
         try:
-            position = PositionModel.objects.get(id=position_id)
+            position = PositionModel._default_manager.get(id=position_id)
 
             if not position.invalidation_rule_json:
                 return None
@@ -197,7 +197,7 @@ class PositionInvalidationChecker:
         Returns:
             List[PositionModel]: 应该平仓的持仓列表
         """
-        return PositionModel.objects.filter(
+        return PositionModel._default_manager.filter(
             is_invalidated=True,
             quantity__gt=0,  # 仍有持仓
         ).order_by('-invalidation_checked_at')
@@ -218,7 +218,7 @@ def check_and_invalidate_positions() -> Dict:
     invalidated = checker.check_all_positions()
 
     return {
-        'checked': PositionModel.objects.filter(
+        'checked': PositionModel._default_manager.filter(
             invalidation_rule_json__isnull=False
         ).exclude(invalidation_rule_json={}).count(),
         'invalidated': len(invalidated),
@@ -252,3 +252,4 @@ def get_invalidated_positions_summary() -> List[Dict]:
         }
         for p in positions
     ]
+

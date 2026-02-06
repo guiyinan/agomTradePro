@@ -2,7 +2,7 @@
 
 > **AgomSAAF V3.4** - 宏观环境准入系统
 > **最后更新**: 2026-02-06
-> **项目完成度**: 98%
+> **项目状态**: 持续迭代（以代码与发布说明为准）
 
 ---
 
@@ -64,6 +64,9 @@
 | [phase3-training-summary.md](plans/phase3-training-summary.md) | Phase 3 训练流水线总结 | 完整 |
 | [phase4-monitoring-summary.md](plans/phase4-monitoring-summary.md) | Phase 4 监控评估总结 | 完整 |
 | [phase5-integration-summary.md](plans/phase5-integration-summary.md) | Phase 5 宏观集成总结 | 完整 |
+| [system-code-doc-alignment-implementation-plan-2026-02-06.md](plans/system-code-doc-alignment-implementation-plan-2026-02-06.md) | 代码巡检与文档对齐实施方案 | 最新 |
+| [streamlit-dashboard-upgrade-plan.md](plans/streamlit-dashboard-upgrade-plan.md) | Streamlit 仪表盘交互升级实施方案 | 最新 |
+| [admin-to-modern-interaction-migration-plan.md](plans/admin-to-modern-interaction-migration-plan.md) | Admin 依赖迁移实施方案 | 最新 |
 
 ### 5. 测试文档 (`testing/`)
 
@@ -72,6 +75,7 @@
 | [sdk-mcp-integration-test-plan.md](testing/sdk-mcp-integration-test-plan.md) | SDK & MCP 集成测试计划（1000行） | 完整 |
 | [full-integration-test-report.md](testing/full-integration-test-report.md) | 完整集成测试报告 | 完整 |
 | [system_algorithm_evaluation_report.md](testing/system_algorithm_evaluation_report.md) | 系统算法评估 | 完整 |
+| [doc-link-check-report.md](testing/doc-link-check-report.md) | 文档链接校验报告 | 最新 |
 | [bug-report-template.md](testing/bug-report-template.md) | Bug 报告模板 | 完整 |
 | [test-results-template.md](testing/test-results-template.md) | 测试结果模板 | 完整 |
 | [api/API_REFERENCE.md](testing/api/API_REFERENCE.md) | API 参考文档 | 完整 |
@@ -98,13 +102,12 @@
 |------|------|------|
 | [decision-platform-guide.md](user/decision-platform-guide.md) | 决策平台用户指南（442行） | 完整 |
 
-### 9. Regime 模块 (`regime/`)
+### 9. Regime 主题文档
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [regime_calculation.md](regime/regime_calculation.md) | Regime 计算详解 | 完整 |
-| [regime_filter.md](regime/regime_filter.md) | Regime 过滤器 | 完整 |
-| [regime_guide.md](regime/regime_guide.md) | Regime 使用指南 | 完整 |
+| [regime_calculation_logic.md](business/regime_calculation_logic.md) | Regime 计算逻辑（业务规则） | 最新 |
+| [SYSTEM_OVERVIEW.md](architecture/SYSTEM_OVERVIEW.md) | Regime 在全系统中的位置与数据流 | 最新 |
 
 ### 10. 模块文档 (`modules/`)
 
@@ -123,7 +126,7 @@
 
 | 文件 | 说明 |
 |------|------|
-| [alpha-quickstart.md](alpha-quickstart.md) | Alpha 模块快速开始指南 |
+| [alpha-quickstart.md](business/alpha-quickstart.md) | Alpha 模块快速开始指南 |
 
 ---
 
@@ -133,11 +136,11 @@
 
 **业务模块**: 27个
 
-**完成度**: 98% → 100%（Audit 模块完善完成）
+**完成度**: 持续迭代（请以里程碑文档与代码状态为准）
 
-**测试覆盖**: 280+ 测试用例（新增 Audit 模块测试），100% 通过率
+**测试覆盖**: 使用 `pytest` + `coverage` 持续验证（覆盖率以最新 CI/本地执行结果为准）
 
-### 完整四层架构模块 (25个)
+### 完整四层架构模块 (26个)
 
 #### 核心引擎模块 (5个)
 - `macro` - 宏观数据采集
@@ -176,9 +179,8 @@
 - `backtest` - 回测引擎
 - `events` - 事件系统
 
-### 不完整架构模块 (2个)
-- `dashboard` - 缺少 Domain 和 Infrastructure 层
-- `events` - 缺少 Interface 层（事件系统）
+### 完整四层架构 (27个)
+所有业务模块均已完成四层架构重构。
 
 ---
 
@@ -191,7 +193,7 @@
 4. [development/coding_standards.md](development/coding_standards.md) - 遵循代码规范
 
 ### 理解 AI 选股
-1. [alpha-quickstart.md](alpha-quickstart.md) - Alpha 模块快速开始
+1. [alpha-quickstart.md](business/alpha-quickstart.md) - Alpha 模块快速开始
 2. [plans/agomsaaf-qlib-integration-plan-v1.1.md](plans/agomsaaf-qlib-integration-plan-v1.1.md) - Qlib 集成方案
 3. [plans/implementation-progress-summary.md](plans/implementation-progress-summary.md) - 实施进度
 
@@ -199,6 +201,20 @@
 1. [deployment/DOCKER_DEPLOYMENT.md](deployment/DOCKER_DEPLOYMENT.md) - 部署指南
 2. [deployment/database_configuration.md](deployment/database_configuration.md) - 数据库配置
 3. [development/startup-scripts.md](development/startup-scripts.md) - 启动脚本
+
+---
+
+## 文档口径来源
+
+- 代码扫描日期：`2026-02-06`
+- 事实来源：
+  - `core/settings/base.py`（`INSTALLED_APPS` 模块清单）
+  - `apps/*` 目录结构扫描（四层完整性）
+  - `python manage.py check`（系统健康）
+- 口径说明：
+  - “业务模块数”按 `apps/`（排除 `shared` 与 `__pycache__`）统计
+  - “完成度”使用里程碑状态，不再维护固定百分比
+  - “测试覆盖”以最新 CI/本地执行结果为准
 
 ---
 

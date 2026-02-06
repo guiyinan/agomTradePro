@@ -575,7 +575,7 @@ for stock in result['stocks']:
 - [Phase 3 总结](phase3-training-summary.md)
 - [Phase 4 总结](phase4-monitoring-summary.md)
 - [Phase 5 总结](phase5-integration-summary.md)
-- [项目规则](../../../CLAUDE.md)
+- [项目规则](../../CLAUDE.md)
 
 ---
 

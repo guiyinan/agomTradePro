@@ -1,0 +1,2 @@
+"""Simulated trading infrastructure package."""
+

@@ -1,0 +1,2 @@
+"""Equity app package."""
+

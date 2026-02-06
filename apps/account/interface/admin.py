@@ -263,7 +263,7 @@ class SystemSettingsModelAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         """禁止手动添加（单例模式）"""
-        return not SystemSettingsModel.objects.exists()
+        return not SystemSettingsModel._default_manager.exists()
 
     def has_delete_permission(self, request, obj=None):
         """禁止删除配置"""
@@ -290,8 +290,8 @@ class SystemSettingsModelAdmin(admin.ModelAdmin):
 
     def changelist_view(self, request, extra_context=None):
         """自定义列表页（单例模式）"""
-        if SystemSettingsModel.objects.exists():
-            config = SystemSettingsModel.objects.first()
+        if SystemSettingsModel._default_manager.exists():
+            config = SystemSettingsModel._default_manager.first()
             return super().change_view(
                 str(config.pk),
                 extra_context=extra_context
@@ -335,3 +335,4 @@ class PortfolioDailySnapshotModelAdmin(admin.ModelAdmin):
     list_filter = ['snapshot_date']
     date_hierarchy = 'snapshot_date'
     readonly_fields = ['created_at']
+

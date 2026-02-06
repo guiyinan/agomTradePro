@@ -353,8 +353,9 @@ class FeeConfigModel(models.Model):
         """保存时确保只有一个默认配置"""
         if self.is_default:
             # 将其他默认配置设为非默认
-            FeeConfigModel.objects.filter(
+            FeeConfigModel._default_manager.filter(
                 asset_type=self.asset_type,
                 is_default=True
             ).exclude(id=self.id).update(is_default=False)
         super().save(*args, **kwargs)
+

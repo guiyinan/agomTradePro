@@ -45,7 +45,7 @@ class DjangoSectorRepository:
             SectorInfo 或 None
         """
         try:
-            model = SectorInfoModel.objects.get(sector_code=sector_code, is_active=True)
+            model = SectorInfoModel._default_manager.get(sector_code=sector_code, is_active=True)
             return SectorInfo(
                 sector_code=model.sector_code,
                 sector_name=model.sector_name,
@@ -67,7 +67,7 @@ class DjangoSectorRepository:
         Returns:
             SectorInfo 列表
         """
-        queryset = SectorInfoModel.objects.filter(is_active=True)
+        queryset = SectorInfoModel._default_manager.filter(is_active=True)
 
         if level:
             queryset = queryset.filter(level=level)
@@ -96,7 +96,7 @@ class DjangoSectorRepository:
             是否成功
         """
         try:
-            SectorInfoModel.objects.update_or_create(
+            SectorInfoModel._default_manager.update_or_create(
                 sector_code=sector_info.sector_code,
                 defaults={
                     'sector_name': sector_info.sector_name,
@@ -127,7 +127,7 @@ class DjangoSectorRepository:
             SectorIndex 或 None
         """
         try:
-            model = SectorIndexModel.objects.get(
+            model = SectorIndexModel._default_manager.get(
                 sector_code=sector_code,
                 trade_date=trade_date
             )
@@ -162,7 +162,7 @@ class DjangoSectorRepository:
         Returns:
             SectorIndex 列表
         """
-        queryset = SectorIndexModel.objects.filter(
+        queryset = SectorIndexModel._default_manager.filter(
             sector_code=sector_code,
             trade_date__gte=start_date,
             trade_date__lte=end_date
@@ -198,7 +198,7 @@ class DjangoSectorRepository:
             是否成功
         """
         try:
-            SectorIndexModel.objects.update_or_create(
+            SectorIndexModel._default_manager.update_or_create(
                 sector_code=sector_index.sector_code,
                 trade_date=sector_index.trade_date,
                 defaults={
@@ -227,7 +227,7 @@ class DjangoSectorRepository:
             SectorIndex 或 None
         """
         try:
-            model = SectorIndexModel.objects.filter(
+            model = SectorIndexModel._default_manager.filter(
                 sector_code=sector_code
             ).order_by('-trade_date').first()
 
@@ -264,7 +264,7 @@ class DjangoSectorRepository:
             是否成功
         """
         try:
-            SectorRelativeStrengthModel.objects.update_or_create(
+            SectorRelativeStrengthModel._default_manager.update_or_create(
                 sector_code=rs.sector_code,
                 trade_date=rs.trade_date,
                 defaults={
@@ -293,7 +293,7 @@ class DjangoSectorRepository:
             SectorRelativeStrength 或 None
         """
         try:
-            model = SectorRelativeStrengthModel.objects.get(
+            model = SectorRelativeStrengthModel._default_manager.get(
                 sector_code=sector_code,
                 trade_date=trade_date
             )
@@ -321,7 +321,7 @@ class DjangoSectorRepository:
         count = 0
         for _, row in indices_df.iterrows():
             try:
-                SectorIndexModel.objects.update_or_create(
+                SectorIndexModel._default_manager.update_or_create(
                     sector_code=row['sector_code'],
                     trade_date=row['trade_date'],
                     defaults={
@@ -341,3 +341,4 @@ class DjangoSectorRepository:
                 continue
 
         return count
+

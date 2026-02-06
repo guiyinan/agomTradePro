@@ -798,7 +798,7 @@ class FetchRSSUseCase:
 
                 # 获取保存后的ORM对象ID（通过查询）
                 from ..infrastructure.models import PolicyLog
-                policy_log_orm = PolicyLog.objects.filter(
+                policy_log_orm = PolicyLog._default_manager.filter(
                     event_date=item.pub_date.date(),
                     title=item.title
                 ).first()
@@ -816,7 +816,7 @@ class FetchRSSUseCase:
                     else:
                         priority = 'normal'
 
-                    PolicyAuditQueue.objects.create(
+                    PolicyAuditQueue._default_manager.create(
                         policy_log=policy_log_orm,  # 直接使用ORM对象
                         priority=priority
                     )
@@ -1054,7 +1054,7 @@ class GetAuditQueueUseCase:
         """
         from ..infrastructure.models import PolicyAuditQueue
 
-        queryset = PolicyAuditQueue.objects.filter(
+        queryset = PolicyAuditQueue._default_manager.filter(
             policy_log__audit_status=status
         ).select_related('policy_log', 'assigned_to')
 
@@ -1119,7 +1119,7 @@ class ReviewPolicyItemUseCase:
 
         try:
             # 获取政策日志
-            policy_log = PolicyLog.objects.get(id=input.policy_log_id)
+            policy_log = PolicyLog._default_manager.get(id=input.policy_log_id)
 
             # 更新审核状态
             if input.approved:
@@ -1137,7 +1137,7 @@ class ReviewPolicyItemUseCase:
                 policy_log.save()
 
                 # 从审核队列中移除
-                PolicyAuditQueue.objects.filter(policy_log=policy_log).delete()
+                PolicyAuditQueue._default_manager.filter(policy_log=policy_log).delete()
 
                 output.audit_status = AuditStatus.MANUAL_APPROVED
                 output.message = "政策已审核通过"
@@ -1154,7 +1154,7 @@ class ReviewPolicyItemUseCase:
                 policy_log.save()
 
                 # 从审核队列中移除
-                PolicyAuditQueue.objects.filter(policy_log=policy_log).delete()
+                PolicyAuditQueue._default_manager.filter(policy_log=policy_log).delete()
 
                 output.audit_status = AuditStatus.REJECTED
                 output.message = "政策已拒绝"
@@ -1242,13 +1242,13 @@ class AutoAssignAuditsUseCase:
         from django.utils import timezone
 
         # 获取所有待审核且未分配的政策
-        unassigned = PolicyAuditQueue.objects.filter(
+        unassigned = PolicyAuditQueue._default_manager.filter(
             assigned_to__isnull=True,
             policy_log__audit_status='pending_review'
         ).order_by('-created_at')
 
         # 获取可用的审核人员（有权限的用户）
-        auditors = User.objects.filter(is_staff=True).distinct()
+        auditors = User._default_manager.filter(is_staff=True).distinct()
 
         if not auditors:
             logger.warning("No auditors found with staff privileges")
@@ -1260,7 +1260,7 @@ class AutoAssignAuditsUseCase:
             auditor = auditors[idx % auditors.count()]
 
             # 检查该用户已分配数量
-            current_assigned = PolicyAuditQueue.objects.filter(
+            current_assigned = PolicyAuditQueue._default_manager.filter(
                 assigned_to=auditor,
                 policy_log__audit_status='pending_review'
             ).count()
@@ -1281,3 +1281,4 @@ class AutoAssignAuditsUseCase:
             'remaining': unassigned.count() - assigned_count,
             'auditors': auditors.count()
         }
+

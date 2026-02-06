@@ -51,7 +51,7 @@ class Command(BaseCommand):
 
         # 查找模型
         try:
-            model = QlibModelRegistryModel.objects.get(
+            model = QlibModelRegistryModel._default_manager.get(
                 artifact_hash=artifact_hash
             )
         except QlibModelRegistryModel.DoesNotExist:
@@ -68,7 +68,7 @@ class Command(BaseCommand):
             return
 
         # 检查是否有其他激活的模型
-        current_active = QlibModelRegistryModel.objects.filter(
+        current_active = QlibModelRegistryModel._default_manager.filter(
             model_name=model.model_name,
             is_active=True
         ).first()
@@ -107,3 +107,4 @@ class Command(BaseCommand):
                 self.style.ERROR(f'  ✗ 激活失败: {e}')
             )
             raise CommandError(f'激活失败: {e}')
+

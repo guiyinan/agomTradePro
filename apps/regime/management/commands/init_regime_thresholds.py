@@ -32,21 +32,21 @@ class Command(BaseCommand):
 
         if reset:
             self.stdout.write(self.style.WARNING('重置现有配置...'))
-            RegimeThresholdConfig.objects.all().delete()
+            RegimeThresholdConfig._default_manager.all().delete()
 
         # 检查是否已有配置
-        if RegimeThresholdConfig.objects.filter(is_active=True).exists():
+        if RegimeThresholdConfig._default_manager.filter(is_active=True).exists():
             self.stdout.write(self.style.WARNING('已存在激活配置，使用 --reset 重置'))
             return
 
         # 创建默认配置
-        config = RegimeThresholdConfig.objects.create(
+        config = RegimeThresholdConfig._default_manager.create(
             name="默认配置 (2026-01)",
             is_active=True
         )
 
         # PMI 阈值
-        RegimeIndicatorThreshold.objects.create(
+        RegimeIndicatorThreshold._default_manager.create(
             config=config,
             indicator_code="PMI",
             indicator_name="制造业PMI",
@@ -56,7 +56,7 @@ class Command(BaseCommand):
         )
 
         # CPI 阈值
-        RegimeIndicatorThreshold.objects.create(
+        RegimeIndicatorThreshold._default_manager.create(
             config=config,
             indicator_code="CPI",
             indicator_name="全国CPI同比",
@@ -66,7 +66,7 @@ class Command(BaseCommand):
         )
 
         # PPI 阈值
-        RegimeIndicatorThreshold.objects.create(
+        RegimeIndicatorThreshold._default_manager.create(
             config=config,
             indicator_code="PPI",
             indicator_name="PPI同比",
@@ -76,7 +76,7 @@ class Command(BaseCommand):
         )
 
         # PMI 趋动指标
-        RegimeTrendIndicator.objects.create(
+        RegimeTrendIndicator._default_manager.create(
             config=config,
             indicator_code="PMI",
             momentum_period=3,
@@ -84,7 +84,7 @@ class Command(BaseCommand):
         )
 
         # CPI 趋势指标
-        RegimeTrendIndicator.objects.create(
+        RegimeTrendIndicator._default_manager.create(
             config=config,
             indicator_code="CPI",
             momentum_period=3,
@@ -98,3 +98,4 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('趋势指标:'))
         self.stdout.write(f'  PMI: 周期 3 个月, 权重 0.3')
         self.stdout.write(f'  CPI: 周期 3 个月, 权重 0.3')
+

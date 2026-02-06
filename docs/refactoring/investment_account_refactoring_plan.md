@@ -502,9 +502,9 @@ git push
 
 ## 八、相关文档
 
-- [模拟盘设计文档](./simulated_trading_design.md)
-- [项目结构说明](./project_structure.md)
-- [前端设计指南](./frontend_design_guide.md)
+- [模拟盘设计文档](../architecture/simulated_trading_design.md)
+- [项目结构说明](../architecture/project_structure.md)
+- [前端设计指南](../architecture/frontend_design_guide.md)
 
 ---
 

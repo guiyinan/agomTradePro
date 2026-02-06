@@ -220,7 +220,7 @@ class StoredEventActionsAdmin(StoredEventAdmin):
             return
 
         # 查找所有相关事件
-        related_events = StoredEventModel.objects.filter(
+        related_events = StoredEventModel._default_manager.filter(
             correlation_id__in=correlation_ids
         ).order_by("occurred_at")
 
@@ -260,3 +260,4 @@ def customize_event_admin_site(admin_site):
     admin_site.site_header = "AgomSAAF 事件管理"
     admin_site.site_title = "事件管理"
     admin_site.index_title = "欢迎使用 AgomSAAF 事件管理系统"
+

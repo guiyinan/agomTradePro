@@ -89,7 +89,7 @@ def update_provider_metrics():
 
         for provider in providers:
             # 统计最近的缓存记录
-            recent_caches = AlphaScoreCacheModel.objects.filter(
+            recent_caches = AlphaScoreCacheModel._default_manager.filter(
                 provider_source=provider,
                 created_at__gte=timezone.now() - timedelta(hours=1)
             )
@@ -124,7 +124,7 @@ def update_provider_metrics():
                 )
 
         # 2. 计算覆盖率
-        latest_cache = AlphaScoreCacheModel.objects.filter(
+        latest_cache = AlphaScoreCacheModel._default_manager.filter(
             universe_id="csi300",
             created_at__gte=timezone.now() - timedelta(days=1)
             .order_by('-created_at')
@@ -167,7 +167,7 @@ def calculate_ic_drift():
         metrics = get_alpha_metrics()
 
         # 获取激活的模型
-        active_model = QlibModelRegistryModel.objects.filter(
+        active_model = QlibModelRegistryModel._default_manager.filter(
             is_active=True
         ).first()
 
@@ -176,7 +176,7 @@ def calculate_ic_drift():
             return {"status": "skipped", "reason": "no_active_model"}
 
         # 获取该模型的缓存记录（用于计算历史 IC）
-        caches = AlphaScoreCacheModel.objects.filter(
+        caches = AlphaScoreCacheModel._default_manager.filter(
             model_artifact_hash=active_model.artifact_hash,
             provider_source="qlib"
         ).order_by('intended_trade_date')
@@ -289,7 +289,7 @@ def generate_daily_report():
         today = timezone.now().date()
 
         # 统计今天的缓存记录
-        today_caches = AlphaScoreCacheModel.objects.filter(
+        today_caches = AlphaScoreCacheModel._default_manager.filter(
             created_at__date=today
         )
 
@@ -304,7 +304,7 @@ def generate_daily_report():
                 provider_stats[provider]["available"] += 1
 
         # 统计模型活动
-        model_activations = QlibModelRegistryModel.objects.filter(
+        model_activations = QlibModelRegistryModel._default_manager.filter(
             activated_at__date=today
         ).count()
 
@@ -350,7 +350,7 @@ def cleanup_old_metrics(days: int = 30):
         cutoff_date = timezone.now().date() - timedelta(days=days)
 
         # 删除旧的缓存记录
-        deleted_count = AlphaScoreCacheModel.objects.filter(
+        deleted_count = AlphaScoreCacheModel._default_manager.filter(
             intended_trade_date__lt=cutoff_date
         ).delete()[0]
 
@@ -425,3 +425,4 @@ def log_metrics_summary():
             logger.info(f"{queue} 队列积压: {metric.value:.0f}")
 
     logger.info("========================")
+

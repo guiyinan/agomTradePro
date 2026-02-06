@@ -26,7 +26,7 @@ from apps.hedge.interface.serializers import (
 
 class HedgePairViewSet(viewsets.ModelViewSet):
     """ViewSet for HedgePair model"""
-    queryset = HedgePairModel.objects.all()
+    queryset = HedgePairModel._default_manager.all()
     serializer_class = HedgePairSerializer
     filterset_fields = ['is_active', 'hedge_method']
     search_fields = ['name', 'long_asset', 'hedge_asset']
@@ -96,7 +96,7 @@ class HedgePairViewSet(viewsets.ModelViewSet):
 
 class CorrelationHistoryViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for CorrelationHistory model"""
-    queryset = CorrelationHistoryModel.objects.all()
+    queryset = CorrelationHistoryModel._default_manager.all()
     serializer_class = CorrelationHistorySerializer
     filterset_fields = ['asset1', 'asset2', 'calc_date', 'window_days']
     ordering = ['-calc_date']
@@ -137,7 +137,7 @@ class CorrelationHistoryViewSet(viewsets.ReadOnlyModelViewSet):
 
 class HedgePortfolioHoldingViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for HedgePortfolioHolding model"""
-    queryset = HedgePortfolioHoldingModel.objects.all()
+    queryset = HedgePortfolioHoldingModel._default_manager.all()
     serializer_class = HedgePortfolioHoldingSerializer
     filterset_fields = ['config', 'trade_date', 'rebalance_needed']
     ordering = ['-trade_date']
@@ -191,7 +191,7 @@ class HedgePortfolioHoldingViewSet(viewsets.ReadOnlyModelViewSet):
 
 class HedgeAlertViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for HedgeAlert model"""
-    queryset = HedgeAlertModel.objects.filter(is_resolved=False)
+    queryset = HedgeAlertModel._default_manager.filter(is_resolved=False)
     serializer_class = HedgeAlertSerializer
     filterset_fields = ['pair_name', 'alert_date', 'alert_type', 'severity', 'is_resolved']
     ordering = ['-alert_date', '-action_priority']
@@ -360,3 +360,4 @@ class HedgeActionViewSet(viewsets.ViewSet):
             'window_days': window_days,
             'matrix': matrix,
         })
+

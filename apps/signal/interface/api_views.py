@@ -36,7 +36,7 @@ class SignalViewSet(viewsets.ModelViewSet):
     - POST /api/signal/check_eligibility/ - 检查信号准入
     """
 
-    queryset = InvestmentSignalModel.objects.all()
+    queryset = InvestmentSignalModel._default_manager.all()
     serializer_class = InvestmentSignalSerializer
 
     def get_serializer_class(self):
@@ -147,13 +147,13 @@ class SignalViewSet(viewsets.ModelViewSet):
 
     def _get_stats(self) -> dict:
         """获取统计信息"""
-        total = InvestmentSignalModel.objects.count()
+        total = InvestmentSignalModel._default_manager.count()
         return {
             'total': total,
-            'pending': InvestmentSignalModel.objects.filter(status='pending').count(),
-            'approved': InvestmentSignalModel.objects.filter(status='approved').count(),
-            'rejected': InvestmentSignalModel.objects.filter(status='rejected').count(),
-            'invalidated': InvestmentSignalModel.objects.filter(status='invalidated').count(),
+            'pending': InvestmentSignalModel._default_manager.filter(status='pending').count(),
+            'approved': InvestmentSignalModel._default_manager.filter(status='approved').count(),
+            'rejected': InvestmentSignalModel._default_manager.filter(status='rejected').count(),
+            'invalidated': InvestmentSignalModel._default_manager.filter(status='invalidated').count(),
         }
 
 
@@ -163,7 +163,7 @@ class SignalHealthView(APIView):
     def get(self, request):
         """检查 Signal 服务健康状态"""
         try:
-            count = InvestmentSignalModel.objects.count()
+            count = InvestmentSignalModel._default_manager.count()
 
             return Response({
                 'status': 'healthy',
@@ -177,3 +177,4 @@ class SignalHealthView(APIView):
                 'service': 'signal',
                 'error': str(e)
             }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+

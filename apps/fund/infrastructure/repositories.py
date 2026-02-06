@@ -67,7 +67,7 @@ class DjangoFundAssetRepository:
             return []
 
         # 构建查询
-        queryset = FundInfoModel.objects.filter(is_active=True)
+        queryset = FundInfoModel._default_manager.filter(is_active=True)
 
         # 应用过滤条件
         fund_type = filters.get("fund_type")
@@ -114,7 +114,7 @@ class DjangoFundAssetRepository:
             return None
 
         try:
-            model = FundInfoModel.objects.get(
+            model = FundInfoModel._default_manager.get(
                 fund_code=asset_code,
                 is_active=True
             )
@@ -150,7 +150,7 @@ class DjangoFundRepository:
             FundInfo 或 None
         """
         try:
-            model = FundInfoModel.objects.get(fund_code=fund_code, is_active=True)
+            model = FundInfoModel._default_manager.get(fund_code=fund_code, is_active=True)
             return self._model_to_entity_info(model)
         except FundInfoModel.DoesNotExist:
             return None
@@ -164,7 +164,7 @@ class DjangoFundRepository:
         Returns:
             基金信息列表
         """
-        queryset = FundInfoModel.objects.filter(is_active=True)
+        queryset = FundInfoModel._default_manager.filter(is_active=True)
 
         if fund_type:
             queryset = queryset.filter(fund_type=fund_type)
@@ -178,7 +178,7 @@ class DjangoFundRepository:
         Args:
             fund_info: 基金信息实体
         """
-        FundInfoModel.objects.update_or_create(
+        FundInfoModel._default_manager.update_or_create(
             fund_code=fund_info.fund_code,
             defaults={
                 'fund_name': fund_info.fund_name,
@@ -210,7 +210,7 @@ class DjangoFundRepository:
         Returns:
             净值数据列表
         """
-        queryset = FundNetValueModel.objects.filter(fund_code=fund_code)
+        queryset = FundNetValueModel._default_manager.filter(fund_code=fund_code)
 
         if start_date:
             queryset = queryset.filter(nav_date__gte=start_date)
@@ -232,7 +232,7 @@ class DjangoFundRepository:
             最新净值或 None
         """
         try:
-            model = FundNetValueModel.objects.filter(
+            model = FundNetValueModel._default_manager.filter(
                 fund_code=fund_code
             ).order_by('-nav_date').first()
 
@@ -248,7 +248,7 @@ class DjangoFundRepository:
         Args:
             nav: 净值实体
         """
-        FundNetValueModel.objects.update_or_create(
+        FundNetValueModel._default_manager.update_or_create(
             fund_code=nav.fund_code,
             nav_date=nav.nav_date,
             defaults={
@@ -283,7 +283,7 @@ class DjangoFundRepository:
         Returns:
             持仓数据列表
         """
-        queryset = FundHoldingModel.objects.filter(fund_code=fund_code)
+        queryset = FundHoldingModel._default_manager.filter(fund_code=fund_code)
 
         if report_date:
             queryset = queryset.filter(report_date=report_date)
@@ -304,7 +304,7 @@ class DjangoFundRepository:
         Args:
             holding: 持仓实体
         """
-        FundHoldingModel.objects.update_or_create(
+        FundHoldingModel._default_manager.update_or_create(
             fund_code=holding.fund_code,
             report_date=holding.report_date,
             stock_code=holding.stock_code,
@@ -332,7 +332,7 @@ class DjangoFundRepository:
         Returns:
             行业配置列表
         """
-        queryset = FundSectorAllocationModel.objects.filter(fund_code=fund_code)
+        queryset = FundSectorAllocationModel._default_manager.filter(fund_code=fund_code)
 
         if report_date:
             queryset = queryset.filter(report_date=report_date)
@@ -353,7 +353,7 @@ class DjangoFundRepository:
         Args:
             allocation: 行业配置实体
         """
-        FundSectorAllocationModel.objects.update_or_create(
+        FundSectorAllocationModel._default_manager.update_or_create(
             fund_code=allocation.fund_code,
             report_date=allocation.report_date,
             sector_name=allocation.sector_name,
@@ -381,7 +381,7 @@ class DjangoFundRepository:
             业绩指标或 None
         """
         try:
-            model = FundPerformanceModel.objects.get(
+            model = FundPerformanceModel._default_manager.get(
                 fund_code=fund_code,
                 start_date=start_date,
                 end_date=end_date
@@ -396,7 +396,7 @@ class DjangoFundRepository:
         Args:
             performance: 业绩实体
         """
-        FundPerformanceModel.objects.update_or_create(
+        FundPerformanceModel._default_manager.update_or_create(
             fund_code=performance.fund_code,
             start_date=performance.start_date,
             end_date=performance.end_date,
@@ -586,3 +586,4 @@ class DjangoFundRepository:
             beta=model.beta,
             alpha=model.alpha
         )
+

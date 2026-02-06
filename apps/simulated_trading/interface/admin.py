@@ -526,24 +526,24 @@ def dashboard_view(request):
     from django.utils import timezone
 
     # 获取统计数据
-    total_accounts = SimulatedAccountModel.objects.filter(is_active=True).count()
-    total_positions = PositionModel.objects.count()
-    total_trades = SimulatedTradeModel.objects.count()
+    total_accounts = SimulatedAccountModel._default_manager.filter(is_active=True).count()
+    total_positions = PositionModel._default_manager.count()
+    total_trades = SimulatedTradeModel._default_manager.count()
 
     # 今日交易统计
     today = timezone.now().date()
-    today_trades = SimulatedTradeModel.objects.filter(execution_date=today)
+    today_trades = SimulatedTradeModel._default_manager.filter(execution_date=today)
     today_buy_count = today_trades.filter(action='buy').count()
     today_sell_count = today_trades.filter(action='sell').count()
 
     # 资金统计
-    total_capital = SimulatedAccountModel.objects.filter(
+    total_capital = SimulatedAccountModel._default_manager.filter(
         is_active=True
     ).aggregate(
         total=Sum('total_value')
     )['total'] or 0
 
-    total_pnl = SimulatedTradeModel.objects.filter(
+    total_pnl = SimulatedTradeModel._default_manager.filter(
         action='sell',
         realized_pnl__isnull=False
     ).aggregate(
@@ -567,3 +567,4 @@ def dashboard_view(request):
 
 # 创建专用 Admin 站点实例
 simulated_trading_admin = SimulatedTradingAdminSite(name='simulated_trading_admin')
+

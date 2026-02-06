@@ -7,9 +7,14 @@ Dashboard Interface Views
 import logging
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.conf import settings
+from rest_framework.authentication import SessionAuthentication, TokenAuthentication
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from apps.dashboard.application.use_cases import GetDashboardDataUseCase
 from apps.account.infrastructure.repositories import AccountRepository
@@ -20,6 +25,18 @@ from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
 
 logger = logging.getLogger(__name__)
+
+
+def _build_dashboard_data(user_id: int):
+    """Build dashboard DTO for API and page views."""
+    use_case = GetDashboardDataUseCase(
+        account_repo=AccountRepository(),
+        portfolio_repo=PortfolioRepository(),
+        position_repo=PositionRepository(),
+        regime_repo=DjangoRegimeRepository(),
+        signal_repo=DjangoSignalRepository(),
+    )
+    return use_case.execute(user_id)
 
 
 # ========================================
@@ -128,7 +145,7 @@ def _get_alpha_ic_trends(days: int = 30) -> list:
         from datetime import timedelta
 
         # 获取激活的模型
-        active_models = QlibModelRegistryModel.objects.filter(is_active=True)
+        active_models = QlibModelRegistryModel._default_manager.filter(is_active=True)
 
         if not active_models.exists():
             # 没有激活模型时返回模拟数据
@@ -142,7 +159,7 @@ def _get_alpha_ic_trends(days: int = 30) -> list:
             check_date = base_date - timedelta(days=i)
 
             # 查找该日期附近的模型评估记录
-            model_metrics = QlibModelRegistryModel.objects.filter(
+            model_metrics = QlibModelRegistryModel._default_manager.filter(
                 created_at__date=check_date
             ).first()
 
@@ -194,6 +211,19 @@ def _generate_mock_ic_data(days: int) -> list:
 
 
 @login_required(login_url="/account/login/")
+def dashboard_entry(request):
+    """
+    Dashboard entrypoint.
+
+    If Streamlit dashboard is enabled, redirect to Streamlit URL.
+    Otherwise fall back to legacy Django dashboard page.
+    """
+    if settings.STREAMLIT_DASHBOARD_ENABLED:
+        return redirect(settings.STREAMLIT_DASHBOARD_URL)
+    return dashboard_view(request)
+
+
+@login_required(login_url="/account/login/")
 def dashboard_view(request):
     """
     首页仪表盘视图
@@ -205,17 +235,8 @@ def dashboard_view(request):
     4. 我的投资信号
     5. AI操作建议
     """
-    # 创建用例（依赖注入）
-    use_case = GetDashboardDataUseCase(
-        account_repo=AccountRepository(),
-        portfolio_repo=PortfolioRepository(),
-        position_repo=PositionRepository(),
-        regime_repo=DjangoRegimeRepository(),
-        signal_repo=DjangoSignalRepository(),
-    )
-
     # 获取首页数据
-    data = use_case.execute(request.user.id)
+    data = _build_dashboard_data(request.user.id)
 
     # 补充用户名
     data.username = request.user.username
@@ -296,7 +317,7 @@ def position_detail_htmx(request, asset_code: str):
     from apps.account.infrastructure.models import PositionModel
 
     try:
-        position = PositionModel.objects.get(
+        position = PositionModel._default_manager.get(
             user=request.user,
             asset_code=asset_code
         )
@@ -307,7 +328,7 @@ def position_detail_htmx(request, asset_code: str):
     else:
         # 获取相关信号
         from apps.signal.infrastructure.models import InvestmentSignalModel
-        related_signals = InvestmentSignalModel.objects.filter(
+        related_signals = InvestmentSignalModel._default_manager.filter(
             asset_code=asset_code,
             status='active'
         ).order_by('-created_at')[:5]
@@ -333,15 +354,7 @@ def positions_list_htmx(request):
         from django.shortcuts import redirect
         return redirect('dashboard:index')
 
-    use_case = GetDashboardDataUseCase(
-        account_repo=AccountRepository(),
-        portfolio_repo=PortfolioRepository(),
-        position_repo=PositionRepository(),
-        regime_repo=DjangoRegimeRepository(),
-        signal_repo=DjangoSignalRepository(),
-    )
-
-    data = use_case.execute(request.user.id)
+    data = _build_dashboard_data(request.user.id)
     positions = list(data.positions)
 
     # 获取排序参数
@@ -369,15 +382,7 @@ def allocation_chart_htmx(request):
 
     返回 JSON 格式的资产配置数据，用于前端图表更新。
     """
-    use_case = GetDashboardDataUseCase(
-        account_repo=AccountRepository(),
-        portfolio_repo=PortfolioRepository(),
-        position_repo=PositionRepository(),
-        regime_repo=DjangoRegimeRepository(),
-        signal_repo=DjangoSignalRepository(),
-    )
-
-    data = use_case.execute(request.user.id)
+    data = _build_dashboard_data(request.user.id)
 
     allocation_data = data.allocation_data if hasattr(data, 'allocation_data') else {}
 
@@ -394,15 +399,7 @@ def performance_chart_htmx(request):
 
     返回 JSON 格式的收益历史数据。
     """
-    use_case = GetDashboardDataUseCase(
-        account_repo=AccountRepository(),
-        portfolio_repo=PortfolioRepository(),
-        position_repo=PositionRepository(),
-        regime_repo=DjangoRegimeRepository(),
-        signal_repo=DjangoSignalRepository(),
-    )
-
-    data = use_case.execute(request.user.id)
+    data = _build_dashboard_data(request.user.id)
 
     performance_data = data.performance_data if hasattr(data, 'performance_data') else []
 
@@ -410,6 +407,112 @@ def performance_chart_htmx(request):
         'success': True,
         'data': performance_data
     })
+
+
+@api_view(["GET"])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def dashboard_summary_v1(request):
+    """Summary endpoint for Streamlit dashboard."""
+    data = _build_dashboard_data(request.user.id)
+    return Response(
+        {
+            "user": {
+                "id": request.user.id,
+                "username": request.user.username,
+                "display_name": data.display_name,
+            },
+            "regime": {
+                "current": data.current_regime,
+                "confidence": data.regime_confidence,
+                "date": data.regime_date.isoformat() if data.regime_date else None,
+            },
+            "portfolio": {
+                "total_assets": data.total_assets,
+                "initial_capital": data.initial_capital,
+                "total_return": data.total_return,
+                "total_return_pct": data.total_return_pct,
+                "cash_balance": data.cash_balance,
+                "invested_value": data.invested_value,
+                "invested_ratio": data.invested_ratio,
+            },
+        }
+    )
+
+
+@api_view(["GET"])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def regime_quadrant_v1(request):
+    """Regime quadrant data for Streamlit visualization."""
+    data = _build_dashboard_data(request.user.id)
+    return Response(
+        {
+            "current_regime": data.current_regime,
+            "distribution": data.regime_distribution or {},
+            "confidence": data.regime_confidence,
+            "as_of_date": data.regime_date.isoformat() if data.regime_date else None,
+            "macro": {
+                "pmi": data.pmi_value,
+                "cpi": data.cpi_value,
+                "growth_momentum_z": data.growth_momentum_z,
+                "inflation_momentum_z": data.inflation_momentum_z,
+            },
+        }
+    )
+
+
+@api_view(["GET"])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def equity_curve_v1(request):
+    """
+    Equity curve data for Streamlit.
+
+    Note: historical snapshots are not fully implemented in current backend.
+    """
+    requested_range = request.GET.get("range", "ALL").upper()
+    data = _build_dashboard_data(request.user.id)
+    series = data.performance_data if hasattr(data, "performance_data") else []
+
+    if not series:
+        # Fallback keeps chart usable until snapshot history is implemented.
+        series = [
+            {
+                "date": date.today().isoformat(),
+                "portfolio_value": data.total_assets,
+                "return_pct": data.total_return_pct,
+            }
+        ]
+
+    return Response(
+        {
+            "range": requested_range,
+            "has_history": bool(data.performance_data),
+            "series": series,
+        }
+    )
+
+
+@api_view(["GET"])
+@authentication_classes([SessionAuthentication, TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def signal_status_v1(request):
+    """Signal status and recent signal list for Streamlit."""
+    try:
+        limit = max(1, min(int(request.GET.get("limit", 50)), 200))
+    except ValueError:
+        limit = 50
+
+    data = _build_dashboard_data(request.user.id)
+    signals = data.active_signals if data.active_signals else []
+    return Response(
+        {
+            "stats": data.signal_stats,
+            "signals": signals[:limit],
+            "limit": limit,
+        }
+    )
 
 
 # ========================================
@@ -420,7 +523,7 @@ def _get_beta_gate_visible_classes() -> str:
     """获取 Beta Gate 允许的可见资产类别"""
     try:
         from apps.beta_gate.infrastructure.models import GateConfigModel
-        config = GateConfigModel.objects.filter(is_active=True).first()
+        config = GateConfigModel._default_manager.active().first()
         if config:
             regime_c = config.regime_constraints if isinstance(config.regime_constraints, dict) else {}
             allowed_classes = regime_c.get('allowed_asset_classes', [])
@@ -436,7 +539,7 @@ def _get_alpha_status_count(status: str) -> int:
     """获取 Alpha 候选状态计数"""
     try:
         from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
-        return AlphaCandidateModel.objects.filter(status=status).count()
+        return AlphaCandidateModel._default_manager.filter(status=status).count()
     except Exception as e:
         logger.warning(f"Failed to get alpha status count for {status}: {e}")
         return 0
@@ -446,7 +549,7 @@ def _get_quota_total() -> int:
     """获取决策配额总数"""
     try:
         from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
-        quota = DecisionQuotaModel.objects.filter(is_active=True).order_by('-period_start').first()
+        quota = DecisionQuotaModel._default_manager.filter(is_active=True).order_by('-period_start').first()
         return getattr(quota, "max_decisions", 10) if quota else 10
     except Exception as e:
         logger.warning(f"Failed to get quota total: {e}")
@@ -457,7 +560,7 @@ def _get_quota_used() -> int:
     """获取已使用的决策配额"""
     try:
         from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
-        quota = DecisionQuotaModel.objects.filter(is_active=True).order_by('-period_start').first()
+        quota = DecisionQuotaModel._default_manager.filter(is_active=True).order_by('-period_start').first()
         return getattr(quota, "used_decisions", 0) if quota else 0
     except Exception as e:
         logger.warning(f"Failed to get quota used: {e}")
@@ -468,7 +571,7 @@ def _get_quota_remaining() -> int:
     """获取剩余决策配额"""
     try:
         from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
-        quota = DecisionQuotaModel.objects.filter(is_active=True).order_by('-period_start').first()
+        quota = DecisionQuotaModel._default_manager.filter(is_active=True).order_by('-period_start').first()
         if quota:
             max_decisions = getattr(quota, "max_decisions", 10)
             used_decisions = getattr(quota, "used_decisions", 0)
@@ -562,3 +665,5 @@ def alpha_ic_trends_htmx(request):
         'success': True,
         'data': trends
     })
+
+

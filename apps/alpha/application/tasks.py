@@ -62,7 +62,7 @@ def qlib_predict_scores(
         )
 
         # 1. 获取激活的模型
-        active_model = QlibModelRegistryModel.objects.filter(
+        active_model = QlibModelRegistryModel._default_manager.filter(
             is_active=True
         ).first()
 
@@ -85,7 +85,7 @@ def qlib_predict_scores(
             raise Exception("Qlib 预测未返回任何评分")
 
         # 4. 写入缓存
-        cache, created = AlphaScoreCacheModel.objects.update_or_create(
+        cache, created = AlphaScoreCacheModel._default_manager.update_or_create(
             universe_id=universe_id,
             intended_trade_date=trade_date,
             provider_source="qlib",
@@ -205,7 +205,7 @@ def qlib_train_model(
 
         # 6. 写入 Registry
         logger.info("  写入模型注册表...")
-        registry_model = QlibModelRegistryModel.objects.create(
+        registry_model = QlibModelRegistryModel._default_manager.create(
             model_name=model_name,
             artifact_hash=artifact_hash,
             model_type=model_type,
@@ -269,7 +269,7 @@ def qlib_evaluate_model(
 
         logger.info(f"开始评估模型: {model_artifact_hash}")
 
-        model = QlibModelRegistryModel.objects.get(
+        model = QlibModelRegistryModel._default_manager.get(
             artifact_hash=model_artifact_hash
         )
 
@@ -628,3 +628,4 @@ def _evaluate_model_metrics(model, universe: str) -> dict:
     except Exception as e:
         logger.error(f"模型评估失败: {e}")
         return {}
+

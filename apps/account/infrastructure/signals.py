@@ -27,7 +27,7 @@ def create_user_accounts(sender, instance, created, **kwargs):
         try:
             with transaction.atomic():
                 # 1. 创建实仓（账户类型为 real）
-                real_account = SimulatedAccountModel.objects.create(
+                real_account = SimulatedAccountModel._default_manager.create(
                     account_name=f"{instance.username}_实仓",
                     account_type="real",
                     initial_capital=0,  # 实仓初始资金为0，需要用户手动入金
@@ -40,7 +40,7 @@ def create_user_accounts(sender, instance, created, **kwargs):
                 # 2. 创建模拟仓（账户类型为 simulated）
                 # 使用用户配置的初始资金，默认100万
                 initial_capital = 1000000.00  # 默认100万
-                simulated_account = SimulatedAccountModel.objects.create(
+                simulated_account = SimulatedAccountModel._default_manager.create(
                     account_name=f"{instance.username}_模拟仓",
                     account_type="simulated",
                     initial_capital=initial_capital,
@@ -52,7 +52,7 @@ def create_user_accounts(sender, instance, created, **kwargs):
 
                 # 3. 更新 AccountProfileModel 关联
                 # 获取或创建 AccountProfileModel
-                profile, created = AccountProfileModel.objects.get_or_create(
+                profile, created = AccountProfileModel._default_manager.get_or_create(
                     user=instance,
                     defaults={
                         'display_name': instance.username,
@@ -67,3 +67,4 @@ def create_user_accounts(sender, instance, created, **kwargs):
         except Exception as e:
             print(f"[ERROR] Failed to create user accounts: {e}")
             # 事务会自动回滚
+

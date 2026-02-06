@@ -57,9 +57,9 @@ class Command(BaseCommand):
         activate = options.get('activate')
 
         # 获取或创建默认配置
-        config = RegimeThresholdConfig.objects.filter(is_active=True).first()
+        config = RegimeThresholdConfig._default_manager.filter(is_active=True).first()
         if not config:
-            config = RegimeThresholdConfig.objects.create(
+            config = RegimeThresholdConfig._default_manager.create(
                 name='默认配置',
                 is_active=True
             )
@@ -69,7 +69,7 @@ class Command(BaseCommand):
         updates = []
         with transaction.atomic():
             if pmi is not None:
-                threshold, _ = RegimeIndicatorThreshold.objects.get_or_create(
+                threshold, _ = RegimeIndicatorThreshold._default_manager.get_or_create(
                     config=config,
                     indicator_code='PMI',
                     defaults={
@@ -83,7 +83,7 @@ class Command(BaseCommand):
                 updates.append(f'PMI 阈值: {pmi}')
 
             if cpi_high is not None or cpi_low is not None:
-                threshold, _ = RegimeIndicatorThreshold.objects.get_or_create(
+                threshold, _ = RegimeIndicatorThreshold._default_manager.get_or_create(
                     config=config,
                     indicator_code='CPI',
                     defaults={
@@ -99,7 +99,7 @@ class Command(BaseCommand):
                 updates.append(f'CPI 阈值: {cpi_low} ~ {cpi_high}%')
 
             if ppi_high is not None:
-                threshold, _ = RegimeIndicatorThreshold.objects.get_or_create(
+                threshold, _ = RegimeIndicatorThreshold._default_manager.get_or_create(
                     config=config,
                     indicator_code='PPI',
                     defaults={
@@ -119,7 +119,7 @@ class Command(BaseCommand):
 
         # 激活配置
         if activate:
-            RegimeThresholdConfig.objects.exclude(pk=config.pk).update(is_active=False)
+            RegimeThresholdConfig._default_manager.exclude(pk=config.pk).update(is_active=False)
             config.is_active = True
             config.save()
 
@@ -141,3 +141,4 @@ class Command(BaseCommand):
                 self.stdout.write(f'  {t.indicator_code:10s} ({t.indicator_name}): {range_str}')
         else:
             self.stdout.write('\n提示: 使用 --activate 参数激活此配置')
+

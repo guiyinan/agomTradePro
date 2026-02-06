@@ -56,15 +56,18 @@
             <a href="{% url 'beta_gate:test' %}" class="btn-config primary">
                 <i class="bi bi-play-circle"></i> 资产测试
             </a>
-            <a href="/admin/beta_gate/" class="btn-config secondary">
+            <a href="{% url 'beta_gate:version' %}" class="btn-config secondary">
                 <i class="bi bi-gear"></i> 配置管理
             </a>
             {% if active_config %}
+            <a href="{% url 'beta_gate:config_edit' active_config.config_id %}" class="btn-config secondary">
+                <i class="bi bi-pencil"></i> 编辑当前配置
+            </a>
             <button class="btn-config secondary" onclick="location.reload()">
                 <i class="bi bi-arrow-clockwise"></i> 刷新
             </button>
             {% else %}
-            <a href="/admin/beta_gate/gateconfigmodel/add/" class="btn-config primary">
+            <a href="{% url 'beta_gate:config_new' %}" class="btn-config primary">
                 <i class="bi bi-plus-lg"></i> 创建配置
             </a>
             {% endif %}
@@ -151,8 +154,11 @@
     <div class="config-card" style="margin-bottom: 24px;">
         <div class="config-card-header">
             <div class="config-card-title">🎯 组合约束</div>
-            <a href="/admin/beta_gate/gateconfigmodel/{{ active_config.config_id }}/change/" class="btn-config secondary" style="padding: 6px 12px; font-size: 13px;">
+            <a href="{% url 'beta_gate:version' %}" class="btn-config secondary" style="padding: 6px 12px; font-size: 13px;">
                 <i class="bi bi-pencil"></i> 编辑配置
+            </a>
+            <a href="{% url 'beta_gate:config_new' %}" class="btn-config secondary" style="padding: 6px 12px; font-size: 13px;">
+                <i class="bi bi-plus-lg"></i> 新建版本
             </a>
         </div>
 
@@ -220,15 +226,18 @@
         <div style="font-size: 18px; margin-bottom: 8px;">暂无激活的配置</div>
         <p style="margin-bottom: 16px;">Beta Gate 配置用于控制资产在不同宏观环境下的可见性</p>
         <div class="empty-actions">
-            <a href="/admin/beta_gate/gateconfigmodel/add/" class="btn-config primary">
+            <a href="{% url 'beta_gate:version' %}" class="btn-config primary">
                 <i class="bi bi-plus-lg"></i> 创建新配置
             </a>
-            <a href="/admin/beta_gate/" class="btn-config secondary">
+            <a href="{% url 'beta_gate:config_new' %}" class="btn-config secondary">
+                <i class="bi bi-pencil-square"></i> 打开配置表单
+            </a>
+            <a href="{% url 'beta_gate:version' %}" class="btn-config secondary">
                 <i class="bi bi-gear"></i> 管理后台
             </a>
         </div>
         <p style="margin-top: 24px; font-size: 13px;">
-            提示：也可以通过 <a href="/admin/beta_gate/" class="admin-link">Django Admin</a> 管理所有配置
+            提示：在版本管理页面可对比和回滚配置版本
         </p>
     </div>
     {% endif %}

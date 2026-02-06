@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Operations Center - AgomSAAF{% endblock %}
+
+{% block content %}
+<div style="max-width: 1200px; margin: 0 auto; padding: 24px;">
+    <h1 style="margin-bottom: 10px;">Operations Center</h1>
+    <p style="color: #64748b; margin-bottom: 24px;">
+        常用配置与运营操作入口（非 Django Admin 日常路径）。
+    </p>
+
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px;">
+        {% for section in sections %}
+        <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px;">
+            <h3 style="margin: 0 0 12px 0;">{{ section.title }}</h3>
+            <ul style="margin: 0; padding-left: 16px; line-height: 1.9;">
+                {% for item in section.items %}
+                <li><a href="{{ item.url }}">{{ item.name }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

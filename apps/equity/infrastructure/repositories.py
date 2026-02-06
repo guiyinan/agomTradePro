@@ -66,7 +66,7 @@ class DjangoEquityAssetRepository:
             return []
 
         # 构建查询
-        queryset = StockInfoModel.objects.filter(is_active=True)
+        queryset = StockInfoModel._default_manager.filter(is_active=True)
 
         # 应用过滤条件
         sector = filters.get("sector")
@@ -86,7 +86,7 @@ class DjangoEquityAssetRepository:
             stock_code = stock_model.stock_code
 
             # 获取最新估值数据
-            valuation = ValuationModel.objects.filter(
+            valuation = ValuationModel._default_manager.filter(
                 stock_code=stock_code
             ).order_by('-trade_date').first()
 
@@ -110,12 +110,12 @@ class DjangoEquityAssetRepository:
                 continue
 
             # 获取最新财务数据
-            financial = FinancialDataModel.objects.filter(
+            financial = FinancialDataModel._default_manager.filter(
                 stock_code=stock_code
             ).order_by('-report_date').first()
 
             # 获取最新技术指标（从日线数据）
-            daily = StockDailyModel.objects.filter(
+            daily = StockDailyModel._default_manager.filter(
                 stock_code=stock_code
             ).order_by('-trade_date').first()
 
@@ -196,7 +196,7 @@ class DjangoEquityAssetRepository:
             return None
 
         try:
-            stock_model = StockInfoModel.objects.get(
+            stock_model = StockInfoModel._default_manager.get(
                 stock_code=asset_code,
                 is_active=True
             )
@@ -210,7 +210,7 @@ class DjangoEquityAssetRepository:
             )
 
             # 获取最新估值数据
-            valuation_model = ValuationModel.objects.filter(
+            valuation_model = ValuationModel._default_manager.filter(
                 stock_code=asset_code
             ).order_by('-trade_date').first()
 
@@ -226,7 +226,7 @@ class DjangoEquityAssetRepository:
             ) if valuation_model else None
 
             # 获取最新财务数据
-            financial_model = FinancialDataModel.objects.filter(
+            financial_model = FinancialDataModel._default_manager.filter(
                 stock_code=asset_code
             ).order_by('-report_date').first()
 
@@ -246,7 +246,7 @@ class DjangoEquityAssetRepository:
             ) if financial_model else None
 
             # 获取最新技术指标
-            daily_model = StockDailyModel.objects.filter(
+            daily_model = StockDailyModel._default_manager.filter(
                 stock_code=asset_code
             ).order_by('-trade_date').first()
 
@@ -293,7 +293,7 @@ class DjangoStockRepository:
         result = []
 
         # 获取所有活跃股票的基本信息
-        stock_infos = StockInfoModel.objects.filter(is_active=True)
+        stock_infos = StockInfoModel._default_manager.filter(is_active=True)
 
         for stock_info_model in stock_infos:
             stock_code = stock_info_model.stock_code
@@ -308,7 +308,7 @@ class DjangoStockRepository:
             )
 
             # 获取最新财务数据
-            financial_query = FinancialDataModel.objects.filter(
+            financial_query = FinancialDataModel._default_manager.filter(
                 stock_code=stock_code
             ).order_by('-report_date').first()
 
@@ -332,7 +332,7 @@ class DjangoStockRepository:
             )
 
             # 获取最新估值数据
-            valuation_query = ValuationModel.objects.filter(
+            valuation_query = ValuationModel._default_manager.filter(
                 stock_code=stock_code
             ).order_by('-trade_date').first()
 
@@ -366,7 +366,7 @@ class DjangoStockRepository:
             StockInfo 或 None
         """
         try:
-            model = StockInfoModel.objects.get(stock_code=stock_code)
+            model = StockInfoModel._default_manager.get(stock_code=stock_code)
             return StockInfo(
                 stock_code=model.stock_code,
                 name=model.name,
@@ -392,7 +392,7 @@ class DjangoStockRepository:
         Returns:
             FinancialData 列表，按日期降序排列
         """
-        models = FinancialDataModel.objects.filter(
+        models = FinancialDataModel._default_manager.filter(
             stock_code=stock_code
         ).order_by('-report_date')[:limit]
 
@@ -431,7 +431,7 @@ class DjangoStockRepository:
         Returns:
             ValuationMetrics 列表，按日期升序排列
         """
-        models = ValuationModel.objects.filter(
+        models = ValuationModel._default_manager.filter(
             stock_code=stock_code,
             trade_date__gte=start_date,
             trade_date__lte=end_date
@@ -458,7 +458,7 @@ class DjangoStockRepository:
         Args:
             stock_info: StockInfo 实体
         """
-        StockInfoModel.objects.update_or_create(
+        StockInfoModel._default_manager.update_or_create(
             stock_code=stock_info.stock_code,
             defaults={
                 'name': stock_info.name,
@@ -486,7 +486,7 @@ class DjangoStockRepository:
         else:
             report_type = '4Q'
 
-        FinancialDataModel.objects.update_or_create(
+        FinancialDataModel._default_manager.update_or_create(
             stock_code=financial.stock_code,
             report_date=financial.report_date,
             report_type=report_type,
@@ -511,7 +511,7 @@ class DjangoStockRepository:
         Args:
             valuation: ValuationMetrics 实体
         """
-        ValuationModel.objects.update_or_create(
+        ValuationModel._default_manager.update_or_create(
             stock_code=valuation.stock_code,
             trade_date=valuation.trade_date,
             defaults={
@@ -541,7 +541,7 @@ class DjangoStockRepository:
         Returns:
             [(日期, 收盘价), ...]，按日期升序排列
         """
-        models = StockDailyModel.objects.filter(
+        models = StockDailyModel._default_manager.filter(
             stock_code=stock_code,
             trade_date__gte=start_date,
             trade_date__lte=end_date
@@ -592,7 +592,7 @@ class DjangoStockRepository:
         Returns:
             FinancialData 或 None
         """
-        model = FinancialDataModel.objects.filter(
+        model = FinancialDataModel._default_manager.filter(
             stock_code=stock_code
         ).order_by('-report_date').first()
 
@@ -624,7 +624,7 @@ class DjangoStockRepository:
         Returns:
             股票数量
         """
-        return StockInfoModel.objects.filter(
+        return StockInfoModel._default_manager.filter(
             sector=sector,
             is_active=True
         ).count()
@@ -636,7 +636,7 @@ class DjangoStockRepository:
         Returns:
             行业名称列表
         """
-        sectors = StockInfoModel.objects.filter(
+        sectors = StockInfoModel._default_manager.filter(
             is_active=True
         ).values_list('sector', flat=True).distinct()
 
@@ -656,7 +656,7 @@ class ScoringWeightConfigRepository:
         from .models import ScoringWeightConfigModel
 
         try:
-            model = ScoringWeightConfigModel.objects.filter(
+            model = ScoringWeightConfigModel._default_manager.filter(
                 is_active=True
             ).first()
 
@@ -683,7 +683,7 @@ class ScoringWeightConfigRepository:
         from .models import ScoringWeightConfigModel
 
         try:
-            model = ScoringWeightConfigModel.objects.filter(
+            model = ScoringWeightConfigModel._default_manager.filter(
                 name=name
             ).first()
 
@@ -705,7 +705,7 @@ class ScoringWeightConfigRepository:
         from .models import ScoringWeightConfigModel
 
         try:
-            models = ScoringWeightConfigModel.objects.all().order_by('-is_active', '-created_at')
+            models = ScoringWeightConfigModel._default_manager.all().order_by('-is_active', '-created_at')
             return [m.to_domain_entity() for m in models]
         except Exception:
             return []
@@ -719,7 +719,7 @@ class ScoringWeightConfigRepository:
         """
         from .models import ScoringWeightConfigModel
 
-        ScoringWeightConfigModel.objects.update_or_create(
+        ScoringWeightConfigModel._default_manager.update_or_create(
             name=config_entity.name,
             defaults={
                 'description': config_entity.description,
@@ -750,3 +750,4 @@ class ScoringWeightConfigRepository:
             revenue_growth_weight=0.5,
             profit_growth_weight=0.5
         )
+

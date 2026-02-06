@@ -37,10 +37,10 @@ def policy_dashboard_view(request):
     from apps.policy.domain.rules import get_policy_response, get_recommendations_for_level
 
     # 获取最新事件
-    latest_event = PolicyLog.objects.order_by('-event_date').first()
+    latest_event = PolicyLog._default_manager.order_by('-event_date').first()
 
     # 获取最近 10 个事件
-    recent_events = PolicyLog.objects.order_by('-event_date')[:10]
+    recent_events = PolicyLog._default_manager.order_by('-event_date')[:10]
 
     # 获取当前档位
     current_level = PolicyLevel.P0
@@ -123,19 +123,19 @@ def docs_view(request, doc_slug=''):
     if doc_slug:
         # 显示具体文档
         try:
-            doc = DocumentationModel.objects.get(slug=doc_slug, is_published=True)
+            doc = DocumentationModel._default_manager.get(slug=doc_slug, is_published=True)
         except DocumentationModel.DoesNotExist:
             raise Http404(f"文档 {doc_slug} 不存在")
 
         context = {
             'doc': doc,
             'slug': doc_slug,
-            'all_docs': DocumentationModel.objects.filter(is_published=True).order_by('category', 'order'),
+            'all_docs': DocumentationModel._default_manager.filter(is_published=True).order_by('category', 'order'),
         }
         return render(request, 'docs/detail.html', context)
     else:
         # 显示文档列表
-        docs = DocumentationModel.objects.filter(is_published=True).order_by('category', 'order')
+        docs = DocumentationModel._default_manager.filter(is_published=True).order_by('category', 'order')
 
         # 按分类分组
         categories = {
@@ -201,7 +201,7 @@ def decision_workspace_view(request):
     # ========== Beta Gate 数据 ==========
     try:
         from apps.beta_gate.infrastructure.models import GateConfigModel
-        active_config = GateConfigModel.objects.filter(is_active=True).first()
+        active_config = GateConfigModel._default_manager.active().first()
         if active_config:
             regime_constraints = active_config.regime_constraints if isinstance(active_config.regime_constraints, dict) else {}
             context['beta_gate_allowed_classes'] = regime_constraints.get('allowed_asset_classes', [])
@@ -217,13 +217,13 @@ def decision_workspace_view(request):
         from apps.alpha_trigger.infrastructure.models import AlphaTriggerModel, AlphaCandidateModel
 
         # 统计各状态数量
-        context['alpha_trigger_count'] = AlphaTriggerModel.objects.filter(status='ACTIVE').count()
-        context['alpha_watch_count'] = AlphaCandidateModel.objects.filter(status='WATCH').count()
-        context['alpha_candidate_count'] = AlphaCandidateModel.objects.filter(status='CANDIDATE').count()
-        context['alpha_actionable_count'] = AlphaCandidateModel.objects.filter(status='ACTIONABLE').count()
+        context['alpha_trigger_count'] = AlphaTriggerModel._default_manager.filter(status='ACTIVE').count()
+        context['alpha_watch_count'] = AlphaCandidateModel._default_manager.filter(status='WATCH').count()
+        context['alpha_candidate_count'] = AlphaCandidateModel._default_manager.filter(status='CANDIDATE').count()
+        context['alpha_actionable_count'] = AlphaCandidateModel._default_manager.filter(status='ACTIONABLE').count()
 
         # 可操作候选（按优先级排序）
-        actionable_candidates = list(AlphaCandidateModel.objects.filter(
+        actionable_candidates = list(AlphaCandidateModel._default_manager.filter(
             status='ACTIONABLE'
         ).order_by('-confidence', '-created_at')[:5])
         context['actionable_candidates'] = actionable_candidates
@@ -238,7 +238,7 @@ def decision_workspace_view(request):
     # ========== Decision Rhythm 数据 ==========
     try:
         from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
-        current_quota = DecisionQuotaModel.objects.filter(is_active=True).order_by('-period_start').first()
+        current_quota = DecisionQuotaModel._default_manager.filter(is_active=True).order_by('-period_start').first()
         if current_quota:
             context['quota_total'] = current_quota.max_decisions
             context['quota_used'] = current_quota.used_decisions
@@ -261,7 +261,7 @@ def decision_workspace_view(request):
         from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
 
         # 待处理的决策请求（按优先级和创建时间排序）
-        pending_requests = list(DecisionRequestModel.objects.filter(
+        pending_requests = list(DecisionRequestModel._default_manager.filter(
             status='PENDING'
         ).order_by('-priority', '-created_at')[:10])
         context['pending_requests'] = pending_requests
@@ -294,7 +294,7 @@ def decision_workspace_view(request):
     try:
         from django.utils import timezone
         from datetime import timedelta
-        expiring_soon = AlphaCandidateModel.objects.filter(
+        expiring_soon = AlphaCandidateModel._default_manager.filter(
             status__in=['WATCH', 'CANDIDATE', 'ACTIONABLE'],
             expires_at__lte=timezone.now() + timedelta(days=2)
         ).count()
@@ -311,3 +311,53 @@ def decision_workspace_view(request):
     context['alerts'] = alerts
 
     return render(request, 'decision/workspace.html', context)
+
+
+@login_required
+def ops_center_view(request):
+    """Unified non-admin operations center for common configuration tasks."""
+    context = {
+        "sections": [
+            {
+                "title": "Policy 管理",
+                "items": [
+                    {"name": "政策事件列表", "url": "/policy/events/"},
+                    {"name": "新增政策事件", "url": "/policy/events/new/"},
+                    {"name": "RSS 源管理", "url": "/policy/rss/manage/"},
+                    {"name": "新增 RSS 源", "url": "/policy/rss/manage/new/"},
+                    {"name": "关键词规则", "url": "/policy/rss/keywords/"},
+                    {"name": "新增关键词规则", "url": "/policy/rss/keywords/new/"},
+                ],
+            },
+            {
+                "title": "Macro 管理",
+                "items": [
+                    {"name": "数据源配置", "url": "/macro/datasources/"},
+                    {"name": "新增数据源", "url": "/macro/datasources/new/"},
+                    {"name": "数据管理器", "url": "/macro/controller/"},
+                ],
+            },
+            {
+                "title": "Beta Gate",
+                "items": [
+                    {"name": "配置总览", "url": "/beta-gate/config/"},
+                    {"name": "新建配置", "url": "/beta-gate/config/new/"},
+                    {"name": "资产测试", "url": "/beta-gate/test/"},
+                    {"name": "版本管理", "url": "/beta-gate/version/"},
+                ],
+            },
+            {
+                "title": "系统配置",
+                "items": [
+                    {"name": "账户系统设置", "url": "/account/admin/settings/"},
+                    {"name": "文档管理", "url": "/admin/docs/manage/"},
+                    {"name": "AI 接口管理", "url": "/ai/manage/"},
+                    {"name": "AI 调用日志", "url": "/ai/logs/"},
+                    {"name": "Prompt 模板管理", "url": "/prompt/manage/"},
+                ],
+            },
+        ]
+    }
+    return render(request, "ops/center.html", context)
+
+

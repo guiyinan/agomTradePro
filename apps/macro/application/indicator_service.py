@@ -116,7 +116,7 @@ class UnitDisplayService:
         Returns:
             IndicatorUnitConfig: 单位配置，不存在则返回 None
         """
-        queryset = IndicatorUnitConfig.objects.filter(
+        queryset = IndicatorUnitConfig._default_manager.filter(
             indicator_code=indicator_code,
             is_active=True
         )
@@ -507,12 +507,12 @@ class IndicatorService:
         返回数据库中实际存在数据的指标
         """
         # 获取数据库中存在的指标代码
-        distinct_codes = MacroIndicator.objects.values_list('code', flat=True).distinct()
+        distinct_codes = MacroIndicator._default_manager.values_list('code', flat=True).distinct()
 
         indicators = []
         for code in distinct_codes:
             # 获取最新数据
-            latest = MacroIndicator.objects.filter(code=code).order_by('-reporting_period').first()
+            latest = MacroIndicator._default_manager.filter(code=code).order_by('-reporting_period').first()
 
             if not latest:
                 continue
@@ -529,7 +529,7 @@ class IndicatorService:
 
             # 获取历史数据统计
             from django.db.models import Avg, Max, Min
-            stats = MacroIndicator.objects.filter(
+            stats = MacroIndicator._default_manager.filter(
                 code=code,
                 reporting_period__gte=datetime.now().date() - timedelta(days=365)
             ).aggregate(
@@ -566,7 +566,7 @@ class IndicatorService:
     def get_indicator_by_code(cls, code: str) -> Optional[Dict]:
         """获取单个指标的详细信息"""
         try:
-            latest = MacroIndicator.objects.filter(code=code).order_by('-reporting_period').first()
+            latest = MacroIndicator._default_manager.filter(code=code).order_by('-reporting_period').first()
             if not latest:
                 return None
 
@@ -599,7 +599,7 @@ class IndicatorService:
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=periods * 35)
 
-        data_points = MacroIndicator.objects.filter(
+        data_points = MacroIndicator._default_manager.filter(
             code=code,
             reporting_period__gte=start_date,
             reporting_period__lte=end_date
@@ -642,3 +642,4 @@ def get_available_indicators_for_frontend() -> List[Dict]:
         }
         for ind in indicators
     ]
+

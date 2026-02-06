@@ -222,7 +222,7 @@ def init_currencies_and_categories():
     ]
 
     for code, name, symbol, is_base, precision in currencies:
-        CurrencyModel.objects.get_or_create(
+        CurrencyModel._default_manager.get_or_create(
             code=code,
             defaults={
                 'name': name,
@@ -246,7 +246,7 @@ def init_currencies_and_categories():
     ]
 
     for code, name, order in top_categories:
-        parent, _ = AssetCategoryModel.objects.get_or_create(
+        parent, _ = AssetCategoryModel._default_manager.get_or_create(
             code=code,
             defaults={
                 'name': name,
@@ -259,7 +259,7 @@ def init_currencies_and_categories():
         parent.save()
 
     # 创建二级分类（基金子类）
-    fund_parent = AssetCategoryModel.objects.get(code='FUND')
+    fund_parent = AssetCategoryModel._default_manager.get(code='FUND')
     fund_subcategories = [
         ('STOCK_FUND', '股票基金', 1),
         ('BOND_FUND', '债券基金', 2),
@@ -271,7 +271,7 @@ def init_currencies_and_categories():
     ]
 
     for code, name, order in fund_subcategories:
-        AssetCategoryModel.objects.get_or_create(
+        AssetCategoryModel._default_manager.get_or_create(
             code=code,
             defaults={
                 'name': name,
@@ -283,7 +283,7 @@ def init_currencies_and_categories():
         )
 
     # 创建二级分类（存款子类）
-    deposit_parent = AssetCategoryModel.objects.get(code='DEPOSIT')
+    deposit_parent = AssetCategoryModel._default_manager.get(code='DEPOSIT')
     deposit_subcategories = [
         ('DEMAND', '活期存款', 1),
         ('TIME', '定期存款', 2),
@@ -291,7 +291,7 @@ def init_currencies_and_categories():
     ]
 
     for code, name, order in deposit_subcategories:
-        AssetCategoryModel.objects.get_or_create(
+        AssetCategoryModel._default_manager.get_or_create(
             code=code,
             defaults={
                 'name': name,
@@ -303,7 +303,7 @@ def init_currencies_and_categories():
         )
 
     # 创建二级分类（理财子类）
-    wealth_parent = AssetCategoryModel.objects.get(code='WEALTH')
+    wealth_parent = AssetCategoryModel._default_manager.get(code='WEALTH')
     wealth_subcategories = [
         ('BANK_WEALTH', '银行理财', 1),
         ('TRUST', '信托', 2),
@@ -311,7 +311,7 @@ def init_currencies_and_categories():
     ]
 
     for code, name, order in wealth_subcategories:
-        AssetCategoryModel.objects.get_or_create(
+        AssetCategoryModel._default_manager.get_or_create(
             code=code,
             defaults={
                 'name': name,
@@ -321,3 +321,4 @@ def init_currencies_and_categories():
                 'sort_order': order,
             }
         )
+

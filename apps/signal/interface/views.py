@@ -31,7 +31,7 @@ def signal_manage_view(request):
     search = request.GET.get('search', '')
 
     # 基础查询
-    queryset = InvestmentSignalModel.objects.all()
+    queryset = InvestmentSignalModel._default_manager.all()
 
     # 应用筛选
     if status_filter:
@@ -50,16 +50,16 @@ def signal_manage_view(request):
 
     # 统计信息
     stats = {
-        'total': InvestmentSignalModel.objects.count(),
-        'pending': InvestmentSignalModel.objects.filter(status='pending').count(),
-        'approved': InvestmentSignalModel.objects.filter(status='approved').count(),
-        'rejected': InvestmentSignalModel.objects.filter(status='rejected').count(),
-        'invalidated': InvestmentSignalModel.objects.filter(status='invalidated').count(),
+        'total': InvestmentSignalModel._default_manager.count(),
+        'pending': InvestmentSignalModel._default_manager.filter(status='pending').count(),
+        'approved': InvestmentSignalModel._default_manager.filter(status='approved').count(),
+        'rejected': InvestmentSignalModel._default_manager.filter(status='rejected').count(),
+        'invalidated': InvestmentSignalModel._default_manager.filter(status='invalidated').count(),
     }
 
     # 获取所有资产类别和方向
-    asset_classes = InvestmentSignalModel.objects.values('asset_class').distinct()
-    directions = InvestmentSignalModel.objects.values('direction').distinct()
+    asset_classes = InvestmentSignalModel._default_manager.values('asset_class').distinct()
+    directions = InvestmentSignalModel._default_manager.values('direction').distinct()
 
     # 获取当前 Regime 信息
     current_regime = get_current_regime()
@@ -92,7 +92,7 @@ def signal_manage_view(request):
 
 def get_current_regime():
     """获取当前 Regime 信息"""
-    latest = RegimeLog.objects.order_by('-observed_at').first()
+    latest = RegimeLog._default_manager.order_by('-observed_at').first()
     if not latest:
         return {
             'dominant_regime': 'Unknown',
@@ -183,7 +183,7 @@ def create_signal_view(request):
     response = validate_use_case.execute(validate_request)
 
     # 创建信号
-    signal = InvestmentSignalModel.objects.create(
+    signal = InvestmentSignalModel._default_manager.create(
         asset_code=asset_code,
         asset_class=asset_class,
         direction=direction,
@@ -236,7 +236,7 @@ def generate_invalidation_logic_text(rules: dict) -> str:
 def approve_signal_view(request):
     """手动批准信号"""
     signal_id = request.POST.get('signal_id')
-    signal = InvestmentSignalModel.objects.get(id=signal_id)
+    signal = InvestmentSignalModel._default_manager.get(id=signal_id)
 
     signal.status = 'approved'
     signal.rejection_reason = ''
@@ -254,7 +254,7 @@ def reject_signal_view(request):
     signal_id = request.POST.get('signal_id')
     reason = request.POST.get('reason', '手动拒绝').strip()
 
-    signal = InvestmentSignalModel.objects.get(id=signal_id)
+    signal = InvestmentSignalModel._default_manager.get(id=signal_id)
     signal.status = 'rejected'
     signal.rejection_reason = reason
     signal.save()
@@ -271,7 +271,7 @@ def invalidate_signal_view(request):
     signal_id = request.POST.get('signal_id')
     reason = request.POST.get('reason', '手动证伪').strip()
 
-    signal = InvestmentSignalModel.objects.get(id=signal_id)
+    signal = InvestmentSignalModel._default_manager.get(id=signal_id)
     signal.status = 'invalidated'
     signal.rejection_reason = reason
     signal.invalidated_at = timezone.now()
@@ -286,7 +286,7 @@ def invalidate_signal_view(request):
 @require_http_methods(["DELETE"])
 def delete_signal_view(request, signal_id):
     """删除信号"""
-    signal = InvestmentSignalModel.objects.get(id=signal_id)
+    signal = InvestmentSignalModel._default_manager.get(id=signal_id)
     asset_code = signal.asset_code
     signal.delete()
 
@@ -546,3 +546,4 @@ class UnifiedSignalViewSet(viewsets.ViewSet):
                 {'error': 'Signal not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
+

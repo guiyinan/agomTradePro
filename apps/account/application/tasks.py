@@ -175,7 +175,7 @@ def _send_stop_loss_notifications(results: List, user_id: int = None):
 
             # 获取用户邮箱
             from apps.account.infrastructure.models import PositionModel
-            position = PositionModel.objects.get(id=result.position_id)
+            position = PositionModel._default_manager.get(id=result.position_id)
             user_email = position.portfolio.user.email
 
             if user_email:
@@ -217,7 +217,7 @@ def _send_take_profit_notifications(results: List, user_id: int = None):
 
             # 获取用户邮箱
             from apps.account.infrastructure.models import PositionModel
-            position = PositionModel.objects.get(id=result.position_id)
+            position = PositionModel._default_manager.get(id=result.position_id)
             user_email = position.portfolio.user.email
 
             if user_email:
@@ -285,9 +285,9 @@ def check_volatility_and_adjust_task(self, user_id: int = None):
 
         # 获取需要检查的投资组合
         if user_id:
-            portfolios = PortfolioModel.objects.filter(user_id=user_id, is_active=True)
+            portfolios = PortfolioModel._default_manager.filter(user_id=user_id, is_active=True)
         else:
-            portfolios = PortfolioModel.objects.filter(is_active=True)
+            portfolios = PortfolioModel._default_manager.filter(is_active=True)
 
         adjusted_count = 0
         warning_count = 0
@@ -370,7 +370,7 @@ def _send_volatility_adjustment_notification(
     try:
         from apps.account.infrastructure.models import PortfolioModel
 
-        portfolio = PortfolioModel.objects.get(id=portfolio_id)
+        portfolio = PortfolioModel._default_manager.get(id=portfolio_id)
 
         subject = f"【波动率控制】投资组合 {portfolio.name} 已降仓"
 
@@ -422,7 +422,7 @@ def _send_volatility_warning_notification(
     try:
         from apps.account.infrastructure.models import PortfolioModel
 
-        portfolio = PortfolioModel.objects.get(id=portfolio_id)
+        portfolio = PortfolioModel._default_manager.get(id=portfolio_id)
 
         subject = f"【波动率警告】投资组合 {portfolio.name} 波动率偏高"
 
@@ -476,4 +476,5 @@ def _send_volatility_warning_notification(
 #         },
 #     },
 # }
+
 

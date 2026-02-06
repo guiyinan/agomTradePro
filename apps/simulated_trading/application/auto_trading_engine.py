@@ -167,7 +167,7 @@ class AutoTradingEngine:
         """
         try:
             from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
-            account_model = SimulatedAccountModel.objects.filter(id=account_id).first()
+            account_model = SimulatedAccountModel._default_manager.filter(id=account_id).first()
             if account_model and account_model.active_strategy:
                 return account_model.active_strategy.id
             return None
@@ -369,7 +369,7 @@ class AutoTradingEngine:
                 # 如果没有信号服务，从数据库查询
                 try:
                     from apps.signal.infrastructure.models import InvestmentSignalModel
-                    signal = InvestmentSignalModel.objects.filter(
+                    signal = InvestmentSignalModel._default_manager.filter(
                         id=position.signal_id
                     ).first()
                     signal_valid = signal and signal.status == 'valid' if signal else False
@@ -538,3 +538,4 @@ class MockMarketDataProvider:
     def get_price(self, asset_code: str, trade_date: date) -> Optional[float]:
         """获取指定日期的价格(模拟)"""
         return self._prices.get(asset_code)
+

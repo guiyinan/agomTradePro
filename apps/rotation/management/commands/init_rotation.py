@@ -28,8 +28,8 @@ class Command(BaseCommand):
 
         if reset:
             self.stdout.write(self.style.WARNING('Resetting rotation data...'))
-            AssetClassModel.objects.all().delete()
-            RotationConfigModel.objects.all().delete()
+            AssetClassModel._default_manager.all().delete()
+            RotationConfigModel._default_manager.all().delete()
 
         # Initialize asset classes
         self.init_asset_classes()
@@ -190,7 +190,7 @@ class Command(BaseCommand):
         ]
 
         for asset_data in assets:
-            asset, created = AssetClassModel.objects.get_or_create(
+            asset, created = AssetClassModel._default_manager.get_or_create(
                 code=asset_data['code'],
                 defaults=asset_data
             )
@@ -343,7 +343,7 @@ class Command(BaseCommand):
         ]
 
         for config_data in configs:
-            config, created = RotationConfigModel.objects.get_or_create(
+            config, created = RotationConfigModel._default_manager.get_or_create(
                 name=config_data['name'],
                 defaults=config_data
             )
@@ -353,3 +353,4 @@ class Command(BaseCommand):
                 self.stdout.write(f'[存在] {config.name}')
 
         self.stdout.write(f'已初始化 {len(configs)} 个轮动策略配置')
+

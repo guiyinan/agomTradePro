@@ -371,7 +371,7 @@ class ExecuteBuyOrderUseCase:
             from apps.signal.infrastructure.models import InvestmentSignalModel
             import json
 
-            signal = InvestmentSignalModel.objects.get(id=signal_id)
+            signal = InvestmentSignalModel._default_manager.get(id=signal_id)
 
             # 获取证伪规则（JSON 格式）
             invalidation_rule_json = None
@@ -556,3 +556,4 @@ class ListAccountsUseCase:
             return self.account_repo.get_active_accounts()
         else:
             return self.account_repo.get_all_accounts()
+

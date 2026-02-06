@@ -511,7 +511,7 @@ async function clearRegimeCache() {
     <div class="empty-title">暂无数据</div>
     <div class="empty-desc">
         请先同步宏观数据（PMI 和 CPI）<br>
-        <a href="/admin/" class="btn btn-primary">前往 Admin 后台</a>
+        <a href="{% url 'macro:data_controller' %}" class="btn btn-primary">前往数据管理器</a>
     </div>
 </div>
 {% endif %}

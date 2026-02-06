@@ -4,12 +4,14 @@ Page Views for AI Provider Management.
 页面视图，用于渲染HTML页面。
 """
 
-from django.shortcuts import render
+from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models import Q, Count, Sum
+from django.contrib import messages
 from datetime import date
 
 from ...infrastructure.models import AIProviderConfig, AIUsageLog
 from ...infrastructure.repositories import AIProviderRepository, AIUsageRepository
+from ..forms import AIProviderConfigForm
 
 
 def ai_manage_view(request):
@@ -46,13 +48,13 @@ def ai_manage_view(request):
 
     # 获取总体统计
     overall_stats = {
-        'total_providers': AIProviderConfig.objects.count(),
-        'active_providers': AIProviderConfig.objects.filter(is_active=True).count(),
-        'total_requests_today': AIUsageLog.objects.filter(
+        'total_providers': AIProviderConfig._default_manager.count(),
+        'active_providers': AIProviderConfig._default_manager.filter(is_active=True).count(),
+        'total_requests_today': AIUsageLog._default_manager.filter(
             created_at__date=date.today()
         ).count(),
         'total_cost_today': float(
-            AIUsageLog.objects.filter(
+            AIUsageLog._default_manager.filter(
                 created_at__date=date.today(),
                 status='success'
             ).aggregate(
@@ -62,7 +64,7 @@ def ai_manage_view(request):
     }
 
     # 获取提供商类型统计
-    provider_types = AIProviderConfig.objects.values('provider_type').annotate(
+    provider_types = AIProviderConfig._default_manager.values('provider_type').annotate(
         count=Count('id')
     ).order_by('provider_type')
 
@@ -96,7 +98,7 @@ def ai_usage_logs_view(request):
     )
 
     # 获取所有提供商用于过滤
-    providers = AIProviderConfig.objects.all().order_by('priority', 'name')
+    providers = AIProviderConfig._default_manager.all().order_by('priority', 'name')
 
     # 状态选择
     status_choices = AIUsageLog.STATUS_CHOICES
@@ -157,3 +159,25 @@ def ai_provider_detail_view(request, provider_id):
     }
 
     return render(request, 'ai_provider/detail.html', context)
+
+
+def ai_provider_edit_view(request, provider_id):
+    """AI 提供商编辑页面（非 Admin）。"""
+    provider = get_object_or_404(AIProviderConfig, id=provider_id)
+
+    if request.method == "POST":
+        form = AIProviderConfigForm(request.POST, instance=provider)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "AI 提供商配置已更新")
+            return redirect("ai_provider:detail", provider_id=provider.id)
+    else:
+        form = AIProviderConfigForm(instance=provider)
+
+    context = {
+        "form": form,
+        "provider": provider,
+        "page_title": f"编辑 AI 提供商：{provider.name}",
+    }
+    return render(request, "ai_provider/form.html", context)
+

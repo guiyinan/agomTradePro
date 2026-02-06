@@ -1,0 +1,2 @@
+"""Simulated trading app package."""
+

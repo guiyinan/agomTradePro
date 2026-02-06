@@ -29,8 +29,8 @@ class Command(BaseCommand):
 
         if reset:
             self.stdout.write(self.style.WARNING('Resetting factor data...'))
-            FactorDefinitionModel.objects.all().delete()
-            FactorPortfolioConfigModel.objects.all().delete()
+            FactorDefinitionModel._default_manager.all().delete()
+            FactorPortfolioConfigModel._default_manager.all().delete()
 
         # Initialize factor definitions
         self.init_factor_definitions()
@@ -356,7 +356,7 @@ class Command(BaseCommand):
         ]
 
         for factor_data in initial_factors:
-            factor, created = FactorDefinitionModel.objects.get_or_create(
+            factor, created = FactorDefinitionModel._default_manager.get_or_create(
                 code=factor_data['code'],
                 defaults=factor_data
             )
@@ -473,7 +473,7 @@ class Command(BaseCommand):
         ]
 
         for config_data in configs:
-            config, created = FactorPortfolioConfigModel.objects.get_or_create(
+            config, created = FactorPortfolioConfigModel._default_manager.get_or_create(
                 name=config_data['name'],
                 defaults=config_data
             )
@@ -483,3 +483,4 @@ class Command(BaseCommand):
                 self.stdout.write(f'[存在] {config.name}')
 
         self.stdout.write(f'已初始化 {len(configs)} 个因子组合配置')
+

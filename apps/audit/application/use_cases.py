@@ -359,7 +359,7 @@ class EvaluateIndicatorPerformanceUseCase:
         """
         try:
             # 1. 获取阈值配置
-            threshold_model = IndicatorThresholdConfigModel.objects.filter(
+            threshold_model = IndicatorThresholdConfigModel._default_manager.filter(
                 indicator_code=request.indicator_code,
                 is_active=True
             ).first()
@@ -390,7 +390,7 @@ class EvaluateIndicatorPerformanceUseCase:
 
             # 2. 获取指标历史值
             indicator_values = list(
-                MacroIndicator.objects.filter(
+                MacroIndicator._default_manager.filter(
                     code=request.indicator_code,
                     reporting_period__gte=request.start_date,
                     reporting_period__lte=request.end_date,
@@ -405,7 +405,7 @@ class EvaluateIndicatorPerformanceUseCase:
 
             # 3. 获取 Regime 判定历史
             regime_logs = list(
-                RegimeLog.objects.filter(
+                RegimeLog._default_manager.filter(
                     observed_at__gte=request.start_date,
                     observed_at__lte=request.end_date,
                 ).order_by('observed_at')
@@ -437,7 +437,7 @@ class EvaluateIndicatorPerformanceUseCase:
             # 5. 保存报告（除非影子模式）
             report_id = None
             if not request.use_shadow_mode:
-                performance_model = IndicatorPerformanceModel.objects.create(
+                performance_model = IndicatorPerformanceModel._default_manager.create(
                     indicator_code=report.indicator_code,
                     evaluation_period_start=report.evaluation_period_start,
                     evaluation_period_end=report.evaluation_period_end,
@@ -524,12 +524,12 @@ class ValidateThresholdsUseCase:
 
             # 1. 获取待验证的指标
             if request.indicator_codes:
-                threshold_models = IndicatorThresholdConfigModel.objects.filter(
+                threshold_models = IndicatorThresholdConfigModel._default_manager.filter(
                     indicator_code__in=request.indicator_codes,
                     is_active=True
                 )
             else:
-                threshold_models = IndicatorThresholdConfigModel.objects.filter(
+                threshold_models = IndicatorThresholdConfigModel._default_manager.filter(
                     is_active=True
                 )
 
@@ -542,7 +542,7 @@ class ValidateThresholdsUseCase:
 
             # 2. 创建验证摘要记录
             if not request.use_shadow_mode:
-                summary_model = ValidationSummaryModel.objects.create(
+                summary_model = ValidationSummaryModel._default_manager.create(
                     validation_run_id=validation_run_id,
                     evaluation_period_start=request.start_date,
                     evaluation_period_end=request.end_date,
@@ -640,7 +640,7 @@ class ValidateThresholdsUseCase:
             # 更新验证摘要为失败状态
             if not request.use_shadow_mode:
                 try:
-                    summary_model = ValidationSummaryModel.objects.get(
+                    summary_model = ValidationSummaryModel._default_manager.get(
                         validation_run_id=validation_run_id
                     )
                     summary_model.status = 'failed'
@@ -727,7 +727,7 @@ class AdjustIndicatorWeightsUseCase:
         """
         try:
             # 1. 获取验证摘要
-            summary = ValidationSummaryModel.objects.filter(
+            summary = ValidationSummaryModel._default_manager.filter(
                 validation_run_id=request.validation_run_id
             ).first()
 
@@ -738,7 +738,7 @@ class AdjustIndicatorWeightsUseCase:
                 )
 
             # 2. 获取本次验证的所有指标表现报告
-            performance_reports = IndicatorPerformanceModel.objects.filter(
+            performance_reports = IndicatorPerformanceModel._default_manager.filter(
                 evaluation_period_start=summary.evaluation_period_start,
                 evaluation_period_end=summary.evaluation_period_end,
             )
@@ -747,7 +747,7 @@ class AdjustIndicatorWeightsUseCase:
 
             for report in performance_reports:
                 # 获取对应的阈值配置
-                threshold_model = IndicatorThresholdConfigModel.objects.filter(
+                threshold_model = IndicatorThresholdConfigModel._default_manager.filter(
                     indicator_code=report.indicator_code
                 ).first()
 
@@ -827,3 +827,4 @@ class AdjustIndicatorWeightsUseCase:
             return f"F1分数({f1_score:.2f})过低，建议移除或大幅降低权重"
         else:
             return "未知原因"
+

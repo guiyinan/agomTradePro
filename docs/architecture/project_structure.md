@@ -67,9 +67,15 @@ AgomSAAF/
 ├── apps/                        # 应用程序目录
 │   ├── ai_provider/             # AI服务提供商管理
 │   │   ├── domain/              #   领域层：实体和业务规则
+│   │   │   ├── entities.py      #     AIProviderConfig, AIUsageRecord等
+│   │   │   └── services.py      #     AICostCalculator, BudgetChecker
+│   │   ├── application/         #   应用层：用例编排
+│   │   │   ├── use_cases.py     #     ListProviders, CreateProvider, CheckBudget等
+│   │   │   └── dtos.py          #     ProviderStatsDTO, BudgetCheckResultDTO等
 │   │   ├── infrastructure/      #   基础设施层
 │   │   │   ├── models.py        #     Django ORM 模型
-│   │   │   └── repositories.py  #     数据仓储
+│   │   │   ├── repositories.py  #     数据仓储
+│   │   │   └── adapters.py      #     AI API适配器
 │   │   └── interface/           #   接口层：视图和序列化器
 │   │
 │   ├── prompt/                  # AI Prompt管理系统
@@ -491,7 +497,50 @@ apps/macro/
 - Tushare Pro（已实现）
 - FRED（待实现）
 
-### 6.6 prompt 应用 - AI Prompt管理系统
+### 6.6 ai_provider 应用 - AI 服务商管理
+
+统一的 AI 服务商配置和成本管理系统。
+
+**核心功能：**
+- 多服务商管理：支持 OpenAI、DeepSeek、通义千问、Moonshot 等
+- 配置管理：API Key、Base URL、默认模型、优先级
+- 预算控制：每日/每月预算限制，自动监控
+- 成本追踪：记录每次 API 调用的 token 使用和成本
+- 使用统计：按日期、按模型统计使用情况
+
+**支持的 AI 服务商：**
+| 服务商 | 类型 | 默认模型 |
+|--------|------|----------|
+| OpenAI | openai | gpt-3.5-turbo, gpt-4, gpt-4-turbo |
+| DeepSeek | deepseek | deepseek-chat, deepseek-coder |
+| 通义千问 | qwen | qwen-turbo, qwen-plus, qwen-max |
+| Moonshot | moonshot | moonshot-v1-8k, moonshot-v1-32k |
+
+**Application 层用例：**
+| 用例 | 说明 |
+|------|------|
+| `ListProvidersUseCase` | 获取提供商列表（带统计数据） |
+| `CreateProviderUseCase` | 创建新提供商配置 |
+| `UpdateProviderUseCase` | 更新提供商配置 |
+| `DeleteProviderUseCase` | 删除提供商 |
+| `ToggleProviderUseCase` | 切换启用/禁用状态 |
+| `GetProviderStatsUseCase` | 获取提供商详细统计 |
+| `GetOverallStatsUseCase` | 获取总体统计 |
+| `CheckBudgetUseCase` | 检查预算限制 |
+
+**API端点：**
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/providers/` | GET | 获取提供商列表 |
+| `/api/providers/` | POST | 创建新提供商 |
+| `/api/providers/{id}/` | PUT/PATCH | 更新提供商 |
+| `/api/providers/{id}/` | DELETE | 删除提供商 |
+| `/api/providers/{id}/toggle_active/` | POST | 切换启用状态 |
+| `/api/providers/{id}/usage_stats/` | GET | 获取使用统计 |
+| `/api/providers/overall_stats/` | GET | 获取总体统计 |
+| `/api/logs/` | GET | 获取使用日志 |
+
+### 6.7 prompt 应用 - AI Prompt管理系统
 
 统一的AI Prompt模板管理和链式调用系统。
 
@@ -590,6 +639,39 @@ apps/macro/
 | aggregate_step | JSON | 汇总步骤配置 |
 
 ### 7.7 执行日志表 (prompt_promptexecutionlog)
+
+### 7.8 AI 服务商配置表 (ai_provider_aiproviderconfig)
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| name | String | 配置名称（唯一） |
+| provider_type | String | 服务商类型（openai/deepseek/qwen/moonshot/custom） |
+| is_active | Boolean | 是否启用 |
+| priority | Int | 优先级（数字越小越优先） |
+| base_url | URL | API Base URL |
+| api_key | String | API Key |
+| default_model | String | 默认模型名称 |
+| daily_budget_limit | Decimal | 每日预算限制（美元） |
+| monthly_budget_limit | Decimal | 每月预算限制（美元） |
+| extra_config | JSON | 额外配置参数 |
+| last_used_at | DateTime | 最后使用时间 |
+
+### 7.9 AI 使用日志表 (ai_provider_aiusagelog)
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| provider | ForeignKey | 关联的提供商配置 |
+| model | String | 使用的模型 |
+| request_type | String | 请求类型（chat/completion/embedding等） |
+| prompt_tokens | Int | 输入 token 数量 |
+| completion_tokens | Int | 输出 token 数量 |
+| total_tokens | Int | 总 token 数量 |
+| response_time_ms | Int | 响应时间（毫秒） |
+| estimated_cost | Decimal | 预估成本（美元） |
+| status | String | 调用状态（success/error/timeout/rate_limited） |
+| error_message | Text | 错误信息 |
+| request_metadata | JSON | 请求元数据 |
+| created_at | DateTime | 创建时间 |
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -786,11 +868,11 @@ agomsaaf/Scripts/pip install -r requirements.txt
 
 ## 14. 相关文档
 
-- [业务需求文档](doc/AgomSAAF_V3.4.md)
-- [前端设计指南](doc/frontend_design_guide.md)
-- [项目开发规则](CLAUDE.md)
-- [AI Prompt系统使用文档](doc/ai_prompt_system.md)
-- [实时价格监控系统文档](realtime_data_system.md) ⭐
+- [业务需求文档](../business/AgomSAAF_V3.4.md)
+- [前端设计指南](frontend_design_guide.md)
+- [项目开发规则](../../CLAUDE.md)
+- [AI Prompt系统使用文档](../ai/ai_prompt_system.md)
+- [实时价格监控系统文档](../integration/realtime_data_system.md) ⭐
 
 ## 15. 更新记录
 
@@ -806,3 +888,15 @@ agomsaaf/Scripts/pip install -r requirements.txt
    - 添加 realtime 模块说明
    - 添加 API 端点文档
 
+### 2026-02-06
+
+1. **ai_provider 模块四层架构补全**
+   - 新增 `application/` 层
+   - 实现 9 个 Use Cases（ListProviders, CreateProvider, UpdateProvider, DeleteProvider, ToggleProvider, GetProviderStats, GetOverallStats, ListUsageLogs, CheckBudget）
+   - 定义 6 个 DTOs（ProviderStatsDTO, UsageStatsDTO, OverallStatsDTO, ProviderListItemDTO, BudgetCheckResultDTO, UsageLogListItemDTO）
+   - 重构 Interface 层，移除对 Infrastructure 层的直接依赖
+
+2. **更新项目结构文档**
+   - 添加 ai_provider 模块完整四层架构说明
+   - 添加 AI 服务商配置表和使用日志表结构
+   - 添加 ai_provider API 端点文档

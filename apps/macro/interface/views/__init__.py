@@ -4,7 +4,13 @@ Views package for Macro app.
 This package contains all view functions organized by functionality.
 """
 
-from .page_views import macro_data_view, datasource_config_view, data_controller_view
+from .page_views import (
+    macro_data_view,
+    datasource_config_view,
+    data_controller_view,
+    datasource_create_view,
+    datasource_edit_view,
+)
 from .fetch_api import (
     api_fetch_data_stream,
     api_get_supported_indicators,
@@ -28,6 +34,8 @@ __all__ = [
     'macro_data_view',
     'datasource_config_view',
     'data_controller_view',
+    'datasource_create_view',
+    'datasource_edit_view',
     # Fetch API
     'api_fetch_data_stream',
     'api_get_supported_indicators',

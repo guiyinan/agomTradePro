@@ -57,7 +57,7 @@ class DashboardConfigRepository:
             默认配置或 None
         """
         try:
-            return DashboardConfigModel.objects.filter(
+            return DashboardConfigModel._default_manager.filter(
                 is_default=True,
                 is_active=True
             ).first()
@@ -76,7 +76,7 @@ class DashboardConfigRepository:
             配置或 None
         """
         try:
-            return DashboardConfigModel.objects.get(config_id=config_id)
+            return DashboardConfigModel._default_manager.get(config_id=config_id)
         except DashboardConfigModel.DoesNotExist:
             return None
 
@@ -87,7 +87,7 @@ class DashboardConfigRepository:
         Returns:
             配置列表
         """
-        return list(DashboardConfigModel.objects.filter(is_active=True))
+        return list(DashboardConfigModel._default_manager.filter(is_active=True))
 
     def create_config(
         self,
@@ -114,9 +114,9 @@ class DashboardConfigRepository:
         """
         if is_default:
             # 取消其他默认配置
-            DashboardConfigModel.objects.filter(is_default=True).update(is_default=False)
+            DashboardConfigModel._default_manager.filter(is_default=True).update(is_default=False)
 
-        config = DashboardConfigModel.objects.create(
+        config = DashboardConfigModel._default_manager.create(
             config_id=config_id,
             name=name,
             description=description,
@@ -142,7 +142,7 @@ class DashboardConfigRepository:
             更新后的配置或 None
         """
         try:
-            config = DashboardConfigModel.objects.get(config_id=config_id)
+            config = DashboardConfigModel._default_manager.get(config_id=config_id)
             for key, value in kwargs.items():
                 if hasattr(config, key):
                     setattr(config, key, value)
@@ -174,8 +174,8 @@ class DashboardPreferencesRepository:
             用户偏好或 None
         """
         try:
-            user = User.objects.get(id=user_id)
-            config_model = DashboardUserConfigModel.objects.get(user=user)
+            user = User._default_manager.get(id=user_id)
+            config_model = DashboardUserConfigModel._default_manager.get(user=user)
             return self._to_domain_entity(config_model)
         except (User.DoesNotExist, DashboardUserConfigModel.DoesNotExist):
             return None
@@ -194,8 +194,8 @@ class DashboardPreferencesRepository:
             用户偏好
         """
         try:
-            user = User.objects.get(id=user_id)
-            config_model, created = DashboardUserConfigModel.objects.get_or_create(
+            user = User._default_manager.get(id=user_id)
+            config_model, created = DashboardUserConfigModel._default_manager.get_or_create(
                 user=user,
                 defaults={
                     "dashboard_config": DashboardConfigRepository().get_default_config(),
@@ -225,8 +225,8 @@ class DashboardPreferencesRepository:
             更新后的偏好或 None
         """
         try:
-            user = User.objects.get(id=user_id)
-            config_model = DashboardUserConfigModel.objects.get(user=user)
+            user = User._default_manager.get(id=user_id)
+            config_model = DashboardUserConfigModel._default_manager.get(user=user)
 
             for key, value in kwargs.items():
                 if hasattr(config_model, key):
@@ -249,8 +249,8 @@ class DashboardPreferencesRepository:
             是否成功
         """
         try:
-            user = User.objects.get(id=user_id)
-            config_model = DashboardUserConfigModel.objects.get(user=user)
+            user = User._default_manager.get(id=user_id)
+            config_model = DashboardUserConfigModel._default_manager.get(user=user)
 
             if card_id not in config_model.hidden_cards:
                 config_model.hidden_cards.append(card_id)
@@ -272,8 +272,8 @@ class DashboardPreferencesRepository:
             是否成功
         """
         try:
-            user = User.objects.get(id=user_id)
-            config_model = DashboardUserConfigModel.objects.get(user=user)
+            user = User._default_manager.get(id=user_id)
+            config_model = DashboardUserConfigModel._default_manager.get(user=user)
 
             if card_id in config_model.hidden_cards:
                 config_model.hidden_cards.remove(card_id)
@@ -295,8 +295,8 @@ class DashboardPreferencesRepository:
             是否成功
         """
         try:
-            user = User.objects.get(id=user_id)
-            config_model = DashboardUserConfigModel.objects.get(user=user)
+            user = User._default_manager.get(id=user_id)
+            config_model = DashboardUserConfigModel._default_manager.get(user=user)
 
             if card_id not in config_model.collapsed_cards:
                 config_model.collapsed_cards.append(card_id)
@@ -318,8 +318,8 @@ class DashboardPreferencesRepository:
             是否成功
         """
         try:
-            user = User.objects.get(id=user_id)
-            config_model = DashboardUserConfigModel.objects.get(user=user)
+            user = User._default_manager.get(id=user_id)
+            config_model = DashboardUserConfigModel._default_manager.get(user=user)
 
             if card_id in config_model.collapsed_cards:
                 config_model.collapsed_cards.remove(card_id)
@@ -341,8 +341,8 @@ class DashboardPreferencesRepository:
             是否成功
         """
         try:
-            user = User.objects.get(id=user_id)
-            config_model = DashboardUserConfigModel.objects.get(user=user)
+            user = User._default_manager.get(id=user_id)
+            config_model = DashboardUserConfigModel._default_manager.get(user=user)
             config_model.card_order = card_order
             config_model.save()
             return True
@@ -387,7 +387,7 @@ class DashboardCardRepository:
             卡片或 None
         """
         try:
-            return DashboardCardModel.objects.get(card_id=card_id)
+            return DashboardCardModel._default_manager.get(card_id=card_id)
         except DashboardCardModel.DoesNotExist:
             return None
 
@@ -398,7 +398,7 @@ class DashboardCardRepository:
         Returns:
             卡片列表
         """
-        return list(DashboardCardModel.objects.filter(is_visible=True))
+        return list(DashboardCardModel._default_manager.filter(is_visible=True))
 
     def get_cards_by_type(self, card_type: CardType) -> List[DashboardCardModel]:
         """
@@ -410,7 +410,7 @@ class DashboardCardRepository:
         Returns:
             卡片列表
         """
-        return list(DashboardCardModel.objects.filter(
+        return list(DashboardCardModel._default_manager.filter(
             card_type=card_type.value,
             is_visible=True
         ))
@@ -434,7 +434,7 @@ class DashboardCardRepository:
         Returns:
             创建的卡片
         """
-        card = DashboardCardModel.objects.create(
+        card = DashboardCardModel._default_manager.create(
             card_id=card_id,
             card_type=card_type.value,
             title=title,
@@ -458,7 +458,7 @@ class DashboardCardRepository:
             是否成功
         """
         try:
-            card = DashboardCardModel.objects.get(card_id=card_id)
+            card = DashboardCardModel._default_manager.get(card_id=card_id)
             card.is_visible = is_visible
             card.save()
             return True
@@ -488,7 +488,7 @@ class DashboardAlertRepository:
             告警或 None
         """
         try:
-            return DashboardAlertModel.objects.get(alert_id=alert_id)
+            return DashboardAlertModel._default_manager.get(alert_id=alert_id)
         except DashboardAlertModel.DoesNotExist:
             return None
 
@@ -499,7 +499,7 @@ class DashboardAlertRepository:
         Returns:
             告警列表
         """
-        return list(DashboardAlertModel.objects.filter(is_enabled=True))
+        return list(DashboardAlertModel._default_manager.filter(is_enabled=True))
 
     def get_alerts_by_severity(self, severity: AlertSeverity) -> List[DashboardAlertModel]:
         """
@@ -511,7 +511,7 @@ class DashboardAlertRepository:
         Returns:
             告警列表
         """
-        return list(DashboardAlertModel.objects.filter(
+        return list(DashboardAlertModel._default_manager.filter(
             severity=severity.value,
             is_enabled=True
         ))
@@ -539,7 +539,7 @@ class DashboardAlertRepository:
         Returns:
             创建的告警
         """
-        alert = DashboardAlertModel.objects.create(
+        alert = DashboardAlertModel._default_manager.create(
             alert_id=alert_id,
             name=name,
             metric=metric,
@@ -560,7 +560,7 @@ class DashboardAlertRepository:
             是否成功
         """
         try:
-            alert = DashboardAlertModel.objects.get(alert_id=alert_id)
+            alert = DashboardAlertModel._default_manager.get(alert_id=alert_id)
             alert.update_trigger()
             return True
         except DashboardAlertModel.DoesNotExist:
@@ -594,8 +594,8 @@ class DashboardSnapshotRepository:
             创建的快照或 None
         """
         try:
-            user = User.objects.get(id=user_id)
-            snapshot = DashboardSnapshotModel.objects.create(
+            user = User._default_manager.get(id=user_id)
+            snapshot = DashboardSnapshotModel._default_manager.create(
                 user=user,
                 snapshot_data=snapshot_data
             )
@@ -619,8 +619,8 @@ class DashboardSnapshotRepository:
             快照列表
         """
         try:
-            user = User.objects.get(id=user_id)
-            return list(DashboardSnapshotModel.objects.filter(
+            user = User._default_manager.get(id=user_id)
+            return list(DashboardSnapshotModel._default_manager.filter(
                 user=user
             ).order_by("-captured_at")[:limit])
         except User.DoesNotExist:
@@ -642,8 +642,8 @@ class DashboardSnapshotRepository:
             删除的数量
         """
         try:
-            user = User.objects.get(id=user_id)
-            snapshots = DashboardSnapshotModel.objects.filter(
+            user = User._default_manager.get(id=user_id)
+            snapshots = DashboardSnapshotModel._default_manager.filter(
                 user=user
             ).order_by("-captured_at")
 
@@ -656,3 +656,4 @@ class DashboardSnapshotRepository:
             return 0
         except User.DoesNotExist:
             return 0
+

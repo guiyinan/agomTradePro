@@ -25,7 +25,7 @@ from apps.rotation.interface.serializers import (
 
 class AssetClassViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for AssetClass model"""
-    queryset = AssetClassModel.objects.filter(is_active=True)
+    queryset = AssetClassModel._default_manager.filter(is_active=True)
     serializer_class = AssetClassSerializer
     filterset_fields = ['category', 'is_active']
     search_fields = ['code', 'name', 'description']
@@ -55,7 +55,7 @@ class AssetClassViewSet(viewsets.ReadOnlyModelViewSet):
 
 class RotationConfigViewSet(viewsets.ModelViewSet):
     """ViewSet for RotationConfig model"""
-    queryset = RotationConfigModel.objects.all()
+    queryset = RotationConfigModel._default_manager.all()
     serializer_class = RotationConfigSerializer
     filterset_fields = ['is_active', 'strategy_type', 'rebalance_frequency']
     search_fields = ['name', 'description']
@@ -95,7 +95,7 @@ class RotationConfigViewSet(viewsets.ModelViewSet):
 
 class RotationSignalViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for RotationSignal model"""
-    queryset = RotationSignalModel.objects.all()
+    queryset = RotationSignalModel._default_manager.all()
     serializer_class = RotationSignalSerializer
     filterset_fields = ['config', 'signal_date', 'current_regime', 'action_required']
     ordering = ['-signal_date']
@@ -106,7 +106,7 @@ class RotationSignalViewSet(viewsets.ReadOnlyModelViewSet):
         service = RotationIntegrationService()
 
         # Get all active configs and their latest signals
-        configs = RotationConfigModel.objects.filter(is_active=True)
+        configs = RotationConfigModel._default_manager.filter(is_active=True)
         signals = []
 
         for config in configs:
@@ -205,3 +205,4 @@ class RotationActionViewSet(viewsets.ViewSet):
         service = RotationIntegrationService()
         service.clear_price_cache()
         return Response({'status': 'cache cleared'})
+

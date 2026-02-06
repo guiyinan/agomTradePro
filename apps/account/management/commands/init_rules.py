@@ -108,7 +108,7 @@ class Command(BaseCommand):
         for rule_data in initial_rules:
             conditions = rule_data.pop('conditions')
             # 检查是否已存在同名规则
-            existing = InvestmentRuleModel.objects.filter(
+            existing = InvestmentRuleModel._default_manager.filter(
                 name=rule_data['name'],
                 user__isnull=True
             ).first()
@@ -123,7 +123,7 @@ class Command(BaseCommand):
                 self.stdout.write(f'[更新] {rule_data["name"]}')
             else:
                 # 创建新规则
-                rule = InvestmentRuleModel.objects.create(
+                rule = InvestmentRuleModel._default_manager.create(
                     user=None,  # 全局默认规则
                     conditions=conditions,
                     **rule_data
@@ -132,3 +132,4 @@ class Command(BaseCommand):
                 self.stdout.write(f'[创建] {rule_data["name"]}')
 
         self.stdout.write(self.style.SUCCESS(f'\n初始化完成！创建 {created_count} 条规则，更新 {updated_count} 条规则。'))
+

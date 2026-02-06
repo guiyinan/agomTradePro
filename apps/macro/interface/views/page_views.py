@@ -3,9 +3,12 @@ Page Views for Macro Data Management.
 Updated for collapsible category layout.
 """
 
-from django.shortcuts import render
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect, render
 from django.db.models import Q, Count, Max, Min
 from apps.macro.infrastructure.models import MacroIndicator, DataSourceConfig
+from apps.macro.interface.forms import DataSourceConfigForm
 from decimal import Decimal, InvalidOperation
 
 
@@ -158,7 +161,7 @@ def macro_data_view(request):
 
     # 获取数据库中所有唯一指标代码
     all_indicator_codes = list(
-        MacroIndicator.objects.values('code')
+        MacroIndicator._default_manager.values('code')
         .distinct()
         .order_by('code')
         .values_list('code', flat=True)
@@ -174,7 +177,7 @@ def macro_data_view(request):
         for code in all_indicator_codes:
             if _classify_indicator(code) == category_def['id']:
                 # 获取最新数据
-                latest_record = MacroIndicator.objects.filter(code=code).order_by('-reporting_period').first()
+                latest_record = MacroIndicator._default_manager.filter(code=code).order_by('-reporting_period').first()
                 if latest_record:
                     ind_info = {
                         'code': code,
@@ -211,7 +214,7 @@ def macro_data_view(request):
         selected_indicator_data = all_indicators_map[selected_indicator]
 
         # 获取历史数据用于图表
-        historical_data = MacroIndicator.objects.filter(
+        historical_data = MacroIndicator._default_manager.filter(
             code=selected_indicator
         ).order_by('reporting_period')
 
@@ -221,12 +224,12 @@ def macro_data_view(request):
     # 统计信息
     stats = {
         'total_indicators': len(all_indicator_codes),
-        'total_records': MacroIndicator.objects.count(),
-        'latest_date': MacroIndicator.objects.aggregate(latest=Max('reporting_period'))['latest'],
+        'total_records': MacroIndicator._default_manager.count(),
+        'latest_date': MacroIndicator._default_manager.aggregate(latest=Max('reporting_period'))['latest'],
     }
 
     # 时间范围
-    date_range = MacroIndicator.objects.aggregate(
+    date_range = MacroIndicator._default_manager.aggregate(
         min_date=Min('reporting_period'),
         max_date=Max('reporting_period')
     )
@@ -248,7 +251,7 @@ def macro_data_view(request):
 
 def datasource_config_view(request):
     """数据源配置页面"""
-    data_sources = DataSourceConfig.objects.all().order_by('priority', 'name')
+    data_sources = DataSourceConfig._default_manager.all().order_by('priority', 'name')
     stats = {
         'total': data_sources.count(),
         'active': data_sources.filter(is_active=True).count(),
@@ -264,6 +267,45 @@ def datasource_config_view(request):
         'source_type_choices': DataSourceConfig.SOURCE_TYPE_CHOICES,
     }
     return render(request, 'datasource/config.html', context)
+
+
+@login_required(login_url="/account/login/")
+def datasource_create_view(request):
+    """Create data source config without Django admin."""
+    if request.method == "POST":
+        form = DataSourceConfigForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "数据源配置已创建")
+            return redirect("macro:datasources")
+    else:
+        form = DataSourceConfigForm()
+
+    return render(
+        request,
+        "datasource/form.html",
+        {"form": form, "page_title": "新增数据源配置", "submit_label": "创建"},
+    )
+
+
+@login_required(login_url="/account/login/")
+def datasource_edit_view(request, source_id: int):
+    """Edit data source config without Django admin."""
+    source = get_object_or_404(DataSourceConfig, id=source_id)
+    if request.method == "POST":
+        form = DataSourceConfigForm(request.POST, instance=source)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "数据源配置已更新")
+            return redirect("macro:datasources")
+    else:
+        form = DataSourceConfigForm(instance=source)
+
+    return render(
+        request,
+        "datasource/form.html",
+        {"form": form, "page_title": "编辑数据源配置", "submit_label": "保存"},
+    )
 
 
 def data_controller_view(request):
@@ -282,12 +324,12 @@ def data_controller_view(request):
     summary = summary_use_case.execute()
     scheduled_indicators = schedule_use_case.get_scheduled_indicators()
 
-    all_indicators = MacroIndicator.objects.values('code').annotate(
+    all_indicators = MacroIndicator._default_manager.values('code').annotate(
         count=Count('id'),
         latest=Max('reporting_period')
     ).order_by('code')
 
-    sources = MacroIndicator.objects.values('source').annotate(
+    sources = MacroIndicator._default_manager.values('source').annotate(
         count=Count('id')
     ).order_by('-count')
 
@@ -299,3 +341,4 @@ def data_controller_view(request):
     }
 
     return render(request, 'macro/data_controller.html', context)
+

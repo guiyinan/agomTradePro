@@ -412,7 +412,7 @@ class RSSSourceConfigModel(models.Model):
             str: 完整的 RSS URL
 
         Examples:
-            >>> source = RSSSourceConfigModel.objects.get(name='证监会新闻')
+            >>> source = RSSSourceConfigModel._default_manager.get(name='证监会新闻')
             >>> source.get_effective_url()
             'http://127.0.0.1:1200/csrc/news/bwj?key=xxxx&format=rss'
         """
@@ -616,7 +616,7 @@ def on_policy_level_change(sender, instance, created, **kwargs):
 
     # 获取上一个档位
     try:
-        old_level = PolicyLog.objects.filter(
+        old_level = PolicyLog._default_manager.filter(
             event_date__lt=instance.event_date
         ).order_by('-event_date').first()
 
@@ -757,3 +757,4 @@ class HedgePositionModel(models.Model):
 
     def __str__(self):
         return f"{self.portfolio.name} - {self.instrument_code} ({self.get_status_display()})"
+

@@ -20,6 +20,46 @@ from ..domain.entities import GateStatus, RiskProfile
 logger = logging.getLogger(__name__)
 
 
+class GateConfigQuerySet(models.QuerySet):
+    """GateConfig 查询集扩展"""
+
+    def active(self):
+        """获取激活的配置"""
+        return self.filter(is_active=True)
+
+    def valid_at(self, timestamp):
+        """获取指定时间有效的配置"""
+        return self.filter(
+            effective_date__lte=timestamp
+        ).filter(
+            models.Q(expires_at__isnull=True) | models.Q(expires_at__gte=timestamp)
+        )
+
+    def by_risk_profile(self, risk_profile):
+        """按风险画像过滤"""
+        return self.filter(risk_profile=risk_profile.value)
+
+
+class GateDecisionQuerySet(models.QuerySet):
+    """GateDecision 查询集扩展"""
+
+    def passed(self):
+        """获取通过的决策"""
+        return self.filter(status=self.model.PASSED)
+
+    def blocked(self):
+        """获取拦截的决策"""
+        return self.exclude(status=self.model.PASSED)
+
+    def by_asset(self, asset_code):
+        """按资产过滤"""
+        return self.filter(asset_code=asset_code)
+
+    def by_regime(self, regime):
+        """按 Regime 过滤"""
+        return self.filter(current_regime=regime)
+
+
 class GateConfigModel(models.Model):
     """
     闸门配置 ORM 模型
@@ -100,6 +140,7 @@ class GateConfigModel(models.Model):
         blank=True,
         help_text="过期日期（可选）"
     )
+    objects = GateConfigQuerySet.as_manager()
 
     class Meta:
         app_label = "beta_gate"
@@ -239,6 +280,7 @@ class GateDecisionModel(models.Model):
         db_index=True,
         help_text="评估时间"
     )
+    objects = GateDecisionQuerySet.as_manager()
 
     class Meta:
         app_label = "beta_gate"
@@ -387,53 +429,3 @@ class VisibilityUniverseSnapshotModel(models.Model):
 
     def __str__(self):
         return f"UniverseSnapshot({self.snapshot_id}, {self.current_regime}, P{self.policy_level})"
-
-
-# Custom QuerySets
-class GateConfigQuerySet(models.QuerySet):
-    """GateConfig 查询集扩展"""
-
-    def active(self):
-        """获取激活的配置"""
-        return self.filter(is_active=True)
-
-    def valid_at(self, timestamp):
-        """获取指定时间有效的配置"""
-        return self.filter(
-            effective_date__lte=timestamp
-        ).filter(
-            models.Q(expires_at__isnull=True) | models.Q(expires_at__gte=timestamp)
-        )
-
-    def by_risk_profile(self, risk_profile):
-        """按风险画像过滤"""
-        return self.filter(risk_profile=risk_profile.value)
-
-
-class GateDecisionQuerySet(models.QuerySet):
-    """GateDecision 查询集扩展"""
-
-    def passed(self):
-        """获取通过的决策"""
-        return self.filter(status=GateDecisionModel.PASSED)
-
-    def blocked(self):
-        """获取拦截的决策"""
-        return self.exclude(status=GateDecisionModel.PASSED)
-
-    def by_asset(self, asset_code):
-        """按资产过滤"""
-        return self.filter(asset_code=asset_code)
-
-    def by_regime(self, regime):
-        """按 Regime 过滤"""
-        return self.filter(current_regime=regime)
-
-
-# Custom Managers
-GateConfigManager = models.Manager.from_queryset(GateConfigQuerySet)
-GateDecisionManager = models.Manager.from_queryset(GateDecisionQuerySet)
-
-# Assign managers
-GateConfigModel.objects = GateConfigManager()
-GateDecisionModel.objects = GateDecisionManager()

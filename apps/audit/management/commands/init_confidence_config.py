@@ -57,7 +57,7 @@ class Command(BaseCommand):
         }
 
         try:
-            existing = ConfidenceConfigModel.objects.get(is_active=True)
+            existing = ConfidenceConfigModel._default_manager.get(is_active=True)
 
             if refresh:
                 # 更新现有配置
@@ -77,7 +77,7 @@ class Command(BaseCommand):
 
         except ConfidenceConfigModel.DoesNotExist:
             # 创建新配置
-            ConfidenceConfigModel.objects.create(**default_config)
+            ConfidenceConfigModel._default_manager.create(**default_config)
 
             self.stdout.write('\n' + '=' * 50)
             self.stdout.write(self.style.SUCCESS('Created confidence configuration'))
@@ -122,3 +122,4 @@ class Command(BaseCommand):
         self.stdout.write(f'  冲突解决:')
         self.stdout.write(f'    日度持续阈值: {config["daily_persist_threshold"]}天')
         self.stdout.write(f'    混合权重(日度/月度): {config["hybrid_weight_daily"]}/{config["hybrid_weight_monthly"]}')
+

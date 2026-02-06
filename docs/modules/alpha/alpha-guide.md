@@ -51,4 +51,4 @@ python manage.py list_models
 
 ## 快速开始
 
-详见 [alpha-quickstart.md](../../alpha-quickstart.md)
+详见 [alpha-quickstart.md](../../business/alpha-quickstart.md)

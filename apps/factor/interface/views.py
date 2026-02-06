@@ -25,7 +25,7 @@ from apps.factor.interface.serializers import (
 
 class FactorDefinitionViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for FactorDefinition model"""
-    queryset = FactorDefinitionModel.objects.filter(is_active=True)
+    queryset = FactorDefinitionModel._default_manager.filter(is_active=True)
     serializer_class = FactorDefinitionSerializer
     filterset_fields = ['category', 'is_active']
     search_fields = ['code', 'name', 'description']
@@ -41,7 +41,7 @@ class FactorDefinitionViewSet(viewsets.ReadOnlyModelViewSet):
 
 class FactorPortfolioConfigViewSet(viewsets.ModelViewSet):
     """ViewSet for FactorPortfolioConfig model"""
-    queryset = FactorPortfolioConfigModel.objects.all()
+    queryset = FactorPortfolioConfigModel._default_manager.all()
     serializer_class = FactorPortfolioConfigSerializer
     filterset_fields = ['is_active', 'universe', 'rebalance_frequency']
     search_fields = ['name', 'description']
@@ -249,3 +249,4 @@ class FactorActionViewSet(viewsets.ViewSet):
         service = FactorIntegrationService()
         factors = service.get_factor_definitions()
         return Response(factors)
+

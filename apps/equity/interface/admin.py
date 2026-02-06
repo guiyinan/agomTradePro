@@ -217,7 +217,7 @@ class ScoringWeightConfigAdmin(admin.ModelAdmin):
         """保存前确保只有一个启用的配置"""
         if obj.is_active:
             # 将其他配置设为不启用
-            ScoringWeightConfigModel.objects.filter(
+            ScoringWeightConfigModel._default_manager.filter(
                 is_active=True
             ).exclude(pk=obj.pk).update(is_active=False)
         super().save_model(request, obj, form, change)
@@ -232,3 +232,4 @@ class ScoringWeightConfigAdmin(admin.ModelAdmin):
                 '（这会将其他配置设为不启用状态）。'
             )
         return super().response_add(request, obj, post_url_continue)
+

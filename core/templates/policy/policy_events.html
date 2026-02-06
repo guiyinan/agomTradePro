@@ -162,7 +162,7 @@
 <div class="policy-events-page">
     <div class="page-header">
         <h1>Policy Events</h1>
-        <a href="/admin/policy/policylog/add/" class="btn btn-primary">+ Add Event</a>
+        <a href="{% url 'policy:event-create' %}" class="btn btn-primary">+ Add Event</a>
     </div>
 
     <!-- Filters -->
@@ -247,7 +247,7 @@
         {% else %}
         <div class="empty-state">
             <p>No policy events found.</p>
-            <a href="/admin/policy/policylog/add/" class="btn btn-primary">Add First Event</a>
+            <a href="{% url 'policy:event-create' %}" class="btn btn-primary">Add First Event</a>
         </div>
         {% endif %}
     </div>

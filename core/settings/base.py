@@ -14,6 +14,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
+# Optional feature flags / external app URLs
+STREAMLIT_DASHBOARD_ENABLED = env.bool('STREAMLIT_DASHBOARD_ENABLED', default=False)
+STREAMLIT_DASHBOARD_URL = env(
+    'STREAMLIT_DASHBOARD_URL',
+    default='http://127.0.0.1:8501',
+)
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-change-this-in-production')
 

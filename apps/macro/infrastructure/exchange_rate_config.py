@@ -50,13 +50,13 @@ class ExchangeRateService:
         # try:
         #     from apps.macro.infrastructure.models import ExchangeRateModel
         #     if as_of_date:
-        #         rate = ExchangeRateModel.objects.filter(
+        #         rate = ExchangeRateModel._default_manager.filter(
         #             from_currency='USD',
         #             to_currency='CNY',
         #             effective_date__lte=as_of_date
         #         ).order_by('-effective_date').first()
         #     else:
-        #         rate = ExchangeRateModel.objects.filter(
+        #         rate = ExchangeRateModel._default_manager.filter(
         #             from_currency='USD',
         #             to_currency='CNY'
         #         ).order_by('-effective_date').first()
@@ -83,3 +83,4 @@ class ExchangeRateService:
     def invalidate_cache():
         """清除汇率缓存"""
         cache.delete_pattern("usd_cny_rate:*")
+

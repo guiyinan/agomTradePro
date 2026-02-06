@@ -507,7 +507,7 @@ class Command(BaseCommand):
             indicator_code = config_data['indicator_code']
 
             try:
-                existing = IndicatorThresholdConfigModel.objects.get(
+                existing = IndicatorThresholdConfigModel._default_manager.get(
                     indicator_code=indicator_code
                 )
 
@@ -533,7 +533,7 @@ class Command(BaseCommand):
                 # 创建新配置
                 config_data['action_thresholds'] = default_action_thresholds
                 config_data['validation_periods'] = default_validation_periods
-                IndicatorThresholdConfigModel.objects.create(**config_data)
+                IndicatorThresholdConfigModel._default_manager.create(**config_data)
                 created_count += 1
                 self.stdout.write(
                     self.style.SUCCESS(f'Created: {indicator_code}')
@@ -555,3 +555,4 @@ class Command(BaseCommand):
                 self.style.SUCCESS('Indicator threshold configurations initialized successfully.')
             )
         self.stdout.write('Run "python manage.py init_indicator_thresholds --refresh" to update existing configs.')
+

@@ -66,7 +66,7 @@ def register_view(request):
                 "system_settings": system_settings,
             })
 
-        if User.objects.filter(username=username).exists():
+        if User._default_manager.filter(username=username).exists():
             messages.error(request, "用户名已存在")
             return render(request, "account/register.html", {
                 "system_settings": system_settings,
@@ -87,7 +87,7 @@ def register_view(request):
 
         # 创建用户
         try:
-            user = User.objects.create_user(
+            user = User._default_manager.create_user(
                 username=username,
                 email=email,
                 password=password
@@ -96,7 +96,7 @@ def register_view(request):
 
             # 确定审批状态
             from django.db.models import Q
-            has_admin = User.objects.filter(Q(is_superuser=True) | Q(is_staff=True)).exists()
+            has_admin = User._default_manager.filter(Q(is_superuser=True) | Q(is_staff=True)).exists()
 
             if not system_settings.require_user_approval:
                 # 审批已关闭，自动批准
@@ -118,7 +118,7 @@ def register_view(request):
             client_ip = get_client_ip(request)
 
             # 创建账户配置
-            AccountProfileModel.objects.create(
+            AccountProfileModel._default_manager.create(
                 user=user,
                 display_name=display_name,
                 initial_capital=Decimal("1000000.00"),
@@ -131,7 +131,7 @@ def register_view(request):
             )
 
             # 创建默认投资组合
-            PortfolioModel.objects.create(
+            PortfolioModel._default_manager.create(
                 user=user,
                 name="默认组合",
                 is_active=True
@@ -139,7 +139,7 @@ def register_view(request):
 
             # 创建API Token（仅已批准的用户）
             if user.is_active:
-                Token.objects.create(user=user)
+                Token._default_manager.create(user=user)
 
             # 根据审批状态显示不同消息
             if approval_status == "pending":
@@ -225,7 +225,7 @@ def profile_view(request):
     portfolios = request.user.portfolios.all()
 
     # ⭐ 重构：直接从 SimulatedAccountModel 获取用户的投资组合
-    investment_accounts = SimulatedAccountModel.objects.filter(
+    investment_accounts = SimulatedAccountModel._default_manager.filter(
         user=request.user
     )
 
@@ -290,7 +290,7 @@ def settings_view(request):
 
     # 计算资金流水汇总
     if portfolio:
-        capital_flows = CapitalFlowModel.objects.filter(
+        capital_flows = CapitalFlowModel._default_manager.filter(
             portfolio=portfolio
         ).order_by('-flow_date', '-created_at')
 
@@ -360,14 +360,14 @@ def capital_flow_view(request):
         # 获取或创建默认组合
         portfolio = request.user.portfolios.filter(is_active=True).first()
         if not portfolio:
-            portfolio = PortfolioModel.objects.create(
+            portfolio = PortfolioModel._default_manager.create(
                 user=request.user,
                 name="默认组合",
                 is_active=True
             )
 
         # 创建资金流水记录
-        CapitalFlowModel.objects.create(
+        CapitalFlowModel._default_manager.create(
             user=request.user,
             portfolio=portfolio,
             flow_type=flow_type,
@@ -404,7 +404,7 @@ def apply_backtest_results_view(request, backtest_id):
 
         # 验证回测归属
         try:
-            backtest = BacktestResultModel.objects.get(id=backtest_id)
+            backtest = BacktestResultModel._default_manager.get(id=backtest_id)
         except BacktestResultModel.DoesNotExist:
             return JsonResponse({
                 'success': False,
@@ -548,7 +548,7 @@ def user_management_view(request):
     search_query = request.GET.get("q", "")
 
     # 构建查询
-    profiles = AccountProfileModel.objects.select_related('user', 'approved_by').all()
+    profiles = AccountProfileModel._default_manager.select_related('user', 'approved_by').all()
 
     if status_filter:
         profiles = profiles.filter(approval_status=status_filter)
@@ -590,7 +590,7 @@ def approve_user_view(request, user_id):
     批准用户视图（仅管理员可用）
     """
     try:
-        target_user = User.objects.get(id=user_id)
+        target_user = User._default_manager.get(id=user_id)
         profile = target_user.account_profile
 
         if profile.approval_status == 'approved':
@@ -609,7 +609,7 @@ def approve_user_view(request, user_id):
             profile.save()
 
             # 创建API Token
-            Token.objects.get_or_create(user=target_user)
+            Token._default_manager.get_or_create(user=target_user)
 
             messages.success(request, f"已批准用户 {target_user.username}")
 
@@ -629,7 +629,7 @@ def reject_user_view(request, user_id):
     拒绝用户视图（仅管理员可用）
     """
     try:
-        target_user = User.objects.get(id=user_id)
+        target_user = User._default_manager.get(id=user_id)
         profile = target_user.account_profile
 
         # 确保不拒绝自己
@@ -664,7 +664,7 @@ def reset_user_status_view(request, user_id):
     将用户状态重置为待审批，允许重新审批。
     """
     try:
-        target_user = User.objects.get(id=user_id)
+        target_user = User._default_manager.get(id=user_id)
         profile = target_user.account_profile
 
         # 重置审批状态
@@ -679,7 +679,7 @@ def reset_user_status_view(request, user_id):
         target_user.save()
 
         # 删除API Token
-        Token.objects.filter(user=target_user).delete()
+        Token._default_manager.filter(user=target_user).delete()
 
         messages.success(request, f"已重置用户 {target_user.username} 的状态")
 

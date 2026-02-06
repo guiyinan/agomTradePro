@@ -79,9 +79,14 @@
             <h1>配置版本对比</h1>
             <p style="color: #64748b; margin-top: 4px;">查看和对比 Beta Gate 配置历史版本</p>
         </div>
-        <a href="{% url 'beta_gate:config' %}" class="btn-compare" style="text-decoration: none;">
-            <i class="bi bi-arrow-left"></i> 返回配置
-        </a>
+        <div style="display: flex; gap: 10px;">
+            <a href="{% url 'beta_gate:config_new' %}" class="btn-compare" style="text-decoration: none;">
+                <i class="bi bi-plus-lg"></i> 新建配置
+            </a>
+            <a href="{% url 'beta_gate:config' %}" class="btn-compare" style="text-decoration: none;">
+                <i class="bi bi-arrow-left"></i> 返回配置
+            </a>
+        </div>
     </div>
 
     {% if error %}
@@ -133,10 +138,16 @@
                         <button class="btn-compare" style="padding: 6px 12px; font-size: 12px; margin: 0;" onclick="selectForCompare('{{ version.config_id }}')">
                             选择对比
                         </button>
+                        <a class="btn-compare" style="padding: 6px 12px; font-size: 12px; margin-left: 8px; text-decoration: none;" href="{% url 'beta_gate:config_edit' version.config_id %}">
+                            编辑
+                        </a>
                         {% if not version.is_active %}
-                        <button class="btn-rollback" style="padding: 6px 12px; font-size: 12px; margin-left: 8px;" onclick="rollbackTo('{{ version.config_id }}')">
-                            回滚
-                        </button>
+                        <form method="post" action="{% url 'beta_gate:config_activate' version.config_id %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn-rollback" style="padding: 6px 12px; font-size: 12px; margin-left: 8px;">
+                                激活
+                            </button>
+                        </form>
                         {% endif %}
                     </td>
                 </tr>
@@ -262,7 +273,7 @@ async function compareVersions() {
     try {
         showToast('正在对比版本...', 'info');
 
-        const res = await fetch(`{% url 'beta_gate:api_version_compare' %}?version_a=${encodeURIComponent(versionA)}&version_b=${encodeURIComponent(versionB)}`);
+        const res = await fetch(`{% url 'beta_gate:api_version_compare' %}?version1=${encodeURIComponent(versionA)}&version2=${encodeURIComponent(versionB)}`);
         const data = await res.json();
 
         if (data.success) {
@@ -281,12 +292,12 @@ async function compareVersions() {
 // 渲染对比结果
 function renderCompareResult(data) {
     // 更新版本信息
-    document.getElementById('panelVersionA').textContent = `v${data.version_a.version} - ${data.version_a.risk_profile}`;
-    document.getElementById('panelVersionB').textContent = `v${data.version_b.version} - ${data.version_b.risk_profile}`;
+    document.getElementById('panelVersionA').textContent = `v${data.config1.version} - ${data.config1.risk_profile}`;
+    document.getElementById('panelVersionB').textContent = `v${data.config2.version} - ${data.config2.risk_profile}`;
 
     // 渲染面板内容
-    renderConfigPanel('panelContentA', data.version_a, data.differences);
-    renderConfigPanel('panelContentB', data.version_b, data.differences, true);
+    renderConfigPanel('panelContentA', data.config1, data.differences);
+    renderConfigPanel('panelContentB', data.config2, data.differences, true);
 
     // 渲染差异摘要
     renderDiffSummary(data.differences);

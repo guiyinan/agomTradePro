@@ -22,6 +22,11 @@ from .views import (
     ReviewPolicyItemView,
     BulkReviewView,
     AutoAssignAuditsView,
+    PolicyEventCreateView,
+    RSSSourceCreateView,
+    RSSSourceUpdateView,
+    PolicyKeywordCreateView,
+    PolicyKeywordUpdateView,
 )
 
 app_name = "policy"
@@ -38,6 +43,7 @@ urlpatterns = [
 
     # 政策事件页面 (HTML)
     path("events/", PolicyEventsPageView.as_view(), name="events-page"),
+    path("events/new/", PolicyEventCreateView.as_view(), name="event-create"),
 
     # 政策事件列表 (API)
     path("api/events/", PolicyEventListView.as_view(), name="event-list"),
@@ -51,8 +57,12 @@ urlpatterns = [
 
     # RSS 管理页面
     path("rss/manage/", RSSSourceListView.as_view(), name="rss-manage"),
+    path("rss/manage/new/", RSSSourceCreateView.as_view(), name="rss-source-create"),
+    path("rss/manage/<int:source_id>/edit/", RSSSourceUpdateView.as_view(), name="rss-source-edit"),
     path("rss/reader/", RSSReaderView.as_view(), name="rss-reader"),
     path("rss/keywords/", RSSKeywordListView.as_view(), name="rss-keywords"),
+    path("rss/keywords/new/", PolicyKeywordCreateView.as_view(), name="rss-keyword-create"),
+    path("rss/keywords/<int:keyword_id>/edit/", PolicyKeywordUpdateView.as_view(), name="rss-keyword-edit"),
     path("rss/logs/", RSSFetchLogListView.as_view(), name="rss-logs"),
 
     # RSS REST API

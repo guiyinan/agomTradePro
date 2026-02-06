@@ -144,7 +144,7 @@ class DjangoStrategyRepository:
         with transaction.atomic():
             if strategy.strategy_id is None:
                 # 创建新策略
-                orm_obj = StrategyModel.objects.create(
+                orm_obj = StrategyModel._default_manager.create(
                     name=strategy.name,
                     description=strategy.description,
                     strategy_type=strategy.strategy_type.value,
@@ -157,7 +157,7 @@ class DjangoStrategyRepository:
                 )
             else:
                 # 更新现有策略
-                orm_obj = StrategyModel.objects.get(id=strategy.strategy_id)
+                orm_obj = StrategyModel._default_manager.get(id=strategy.strategy_id)
                 orm_obj.name = strategy.name
                 orm_obj.description = strategy.description
                 orm_obj.strategy_type = strategy.strategy_type.value
@@ -184,7 +184,7 @@ class DjangoStrategyRepository:
         """保存脚本配置"""
         script_hash = sha256(script_config.script_code.encode()).hexdigest()
 
-        ScriptConfigModel.objects.update_or_create(
+        ScriptConfigModel._default_manager.update_or_create(
             strategy=strategy_orm,
             defaults={
                 'script_language': script_config.script_language,
@@ -198,7 +198,7 @@ class DjangoStrategyRepository:
 
     def _save_ai_config(self, strategy_orm: StrategyModel, ai_config: AIConfig):
         """保存 AI 配置"""
-        AIStrategyConfigModel.objects.update_or_create(
+        AIStrategyConfigModel._default_manager.update_or_create(
             strategy=strategy_orm,
             defaults={
                 'prompt_template_id': ai_config.prompt_template_id,
@@ -214,11 +214,11 @@ class DjangoStrategyRepository:
     def _save_rule_conditions(self, strategy_orm: StrategyModel, rule_conditions: List[RuleCondition]):
         """保存规则条件"""
         # 删除现有规则
-        RuleConditionModel.objects.filter(strategy=strategy_orm).delete()
+        RuleConditionModel._default_manager.filter(strategy=strategy_orm).delete()
 
         # 创建新规则
         for rule in rule_conditions:
-            RuleConditionModel.objects.create(
+            RuleConditionModel._default_manager.create(
                 strategy=strategy_orm,
                 rule_name=rule.rule_name,
                 rule_type=rule.rule_type.value,
@@ -241,7 +241,7 @@ class DjangoStrategyRepository:
             策略实体，如果不存在返回 None
         """
         try:
-            orm_obj = StrategyModel.objects.get(id=strategy_id)
+            orm_obj = StrategyModel._default_manager.get(id=strategy_id)
             return self._orm_to_domain_entity(orm_obj)
         except StrategyModel.DoesNotExist:
             return None
@@ -257,7 +257,7 @@ class DjangoStrategyRepository:
         Returns:
             策略实体列表
         """
-        queryset = StrategyModel.objects.filter(created_by_id=user_id)
+        queryset = StrategyModel._default_manager.filter(created_by_id=user_id)
         if is_active:
             queryset = queryset.filter(is_active=True)
 
@@ -274,11 +274,11 @@ class DjangoStrategyRepository:
         Returns:
             策略实体列表
         """
-        assignments = PortfolioStrategyAssignmentModel.objects.filter(
+        assignments = PortfolioStrategyAssignmentModel._default_manager.filter(
             portfolio_id=portfolio_id,
             is_active=True
         ).select_related('strategy').prefetch_related(
-            Prefetch('strategy__rules', queryset=RuleConditionModel.objects.filter(is_enabled=True))
+            Prefetch('strategy__rules', queryset=RuleConditionModel._default_manager.filter(is_enabled=True))
         )
 
         strategies = []
@@ -300,7 +300,7 @@ class DjangoStrategyRepository:
         """
         try:
             with transaction.atomic():
-                orm_obj = StrategyModel.objects.get(id=strategy_id)
+                orm_obj = StrategyModel._default_manager.get(id=strategy_id)
                 orm_obj.delete()
                 return True
         except StrategyModel.DoesNotExist:
@@ -343,7 +343,7 @@ class DjangoRuleConditionRepository:
         """
         if condition.rule_id is None:
             # 创建新规则条件
-            orm_obj = RuleConditionModel.objects.create(
+            orm_obj = RuleConditionModel._default_manager.create(
                 strategy_id=condition.strategy_id,
                 rule_name=condition.rule_name,
                 rule_type=condition.rule_type.value,
@@ -356,7 +356,7 @@ class DjangoRuleConditionRepository:
             )
         else:
             # 更新现有规则条件
-            orm_obj = RuleConditionModel.objects.get(id=condition.rule_id)
+            orm_obj = RuleConditionModel._default_manager.get(id=condition.rule_id)
             orm_obj.rule_name = condition.rule_name
             orm_obj.rule_type = condition.rule_type.value
             orm_obj.condition_json = condition.condition_json
@@ -379,7 +379,7 @@ class DjangoRuleConditionRepository:
         Returns:
             规则条件实体列表
         """
-        orm_objects = RuleConditionModel.objects.filter(
+        orm_objects = RuleConditionModel._default_manager.filter(
             strategy_id=strategy_id
         ).order_by('-priority', '-created_at').all()
 
@@ -395,7 +395,7 @@ class DjangoRuleConditionRepository:
         Returns:
             是否删除成功
         """
-        count, _ = RuleConditionModel.objects.filter(strategy_id=strategy_id).delete()
+        count, _ = RuleConditionModel._default_manager.filter(strategy_id=strategy_id).delete()
         return count > 0
 
 
@@ -459,7 +459,7 @@ class DjangoStrategyExecutionLogRepository:
             for s in result.signals
         ]
 
-        orm_obj = StrategyExecutionLogModel.objects.create(
+        orm_obj = StrategyExecutionLogModel._default_manager.create(
             strategy_id=result.strategy_id,
             portfolio_id=result.portfolio_id,
             execution_duration_ms=result.execution_duration_ms,
@@ -482,7 +482,7 @@ class DjangoStrategyExecutionLogRepository:
         Returns:
             执行结果列表
         """
-        orm_objects = StrategyExecutionLogModel.objects.filter(
+        orm_objects = StrategyExecutionLogModel._default_manager.filter(
             strategy_id=strategy_id
         ).order_by('-execution_time')[:limit].all()
 
@@ -499,8 +499,9 @@ class DjangoStrategyExecutionLogRepository:
         Returns:
             执行结果列表
         """
-        orm_objects = StrategyExecutionLogModel.objects.filter(
+        orm_objects = StrategyExecutionLogModel._default_manager.filter(
             portfolio_id=portfolio_id
         ).order_by('-execution_time')[:limit].all()
 
         return [self._orm_to_domain_entity(obj) for obj in orm_objects]
+

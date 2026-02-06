@@ -12,6 +12,7 @@ from django.utils import timezone
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib import messages
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -57,6 +58,7 @@ from .serializers import (
     RSSFetchOutputSerializer,
     RSSTriggerSerializer,
 )
+from .forms import PolicyEventForm, RSSSourceForm, PolicyKeywordForm
 
 logger = logging.getLogger(__name__)
 
@@ -508,7 +510,7 @@ class PolicyEventDetailView(APIView):
 class RSSSourceConfigViewSet(viewsets.ModelViewSet):
     """RSS源配置API"""
 
-    queryset = RSSSourceConfigModel.objects.all()
+    queryset = RSSSourceConfigModel._default_manager.all()
     serializer_class = RSSSourceConfigSerializer
     filterset_fields = ['category', 'is_active', 'parser_type']
     search_fields = ['name', 'url']
@@ -597,7 +599,7 @@ class RSSSourceConfigViewSet(viewsets.ModelViewSet):
 class RSSFetchLogViewSet(viewsets.ReadOnlyModelViewSet):
     """RSS抓取日志API（只读）"""
 
-    queryset = RSSFetchLog.objects.all()
+    queryset = RSSFetchLog._default_manager.all()
     serializer_class = RSSFetchLogSerializer
     filterset_fields = ['source', 'status']
     ordering = ['-fetched_at']
@@ -619,7 +621,7 @@ class RSSFetchLogViewSet(viewsets.ReadOnlyModelViewSet):
 class PolicyLevelKeywordViewSet(viewsets.ModelViewSet):
     """政策档位关键词规则API"""
 
-    queryset = PolicyLevelKeywordModel.objects.all()
+    queryset = PolicyLevelKeywordModel._default_manager.all()
     serializer_class = PolicyLevelKeywordSerializer
     filterset_fields = ['level', 'is_active', 'category']
     ordering = ['-weight', 'level']
@@ -635,7 +637,7 @@ class RSSSourceListView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        queryset = RSSSourceConfigModel.objects.all()
+        queryset = RSSSourceConfigModel._default_manager.all()
         category = self.request.GET.get('category')
         is_active = self.request.GET.get('is_active')
         search = self.request.GET.get('search')
@@ -666,7 +668,7 @@ class RSSKeywordListView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        queryset = PolicyLevelKeywordModel.objects.all()
+        queryset = PolicyLevelKeywordModel._default_manager.all()
         level = self.request.GET.get('level')
         is_active = self.request.GET.get('is_active')
 
@@ -693,7 +695,7 @@ class RSSFetchLogListView(LoginRequiredMixin, ListView):
     paginate_by = 50
 
     def get_queryset(self):
-        queryset = RSSFetchLog.objects.select_related('source').all()
+        queryset = RSSFetchLog._default_manager.select_related('source').all()
         source_id = self.request.GET.get('source')
         status_filter = self.request.GET.get('status')
 
@@ -706,7 +708,7 @@ class RSSFetchLogListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['sources'] = RSSSourceConfigModel.objects.all()
+        context['sources'] = RSSSourceConfigModel._default_manager.all()
         context['statuses'] = RSSFetchLog.STATUS_CHOICES
         context['selected_source'] = self.request.GET.get('source', '')
         context['selected_status'] = self.request.GET.get('status', '')
@@ -728,7 +730,7 @@ class RSSReaderView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         # 使用 rss_source 作为外键
-        queryset = PolicyLog.objects.select_related('rss_source').all()
+        queryset = PolicyLog._default_manager.select_related('rss_source').all()
         source_id = self.request.GET.get('source')
         level = self.request.GET.get('level')
         category = self.request.GET.get('category')
@@ -745,7 +747,7 @@ class RSSReaderView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['sources'] = RSSSourceConfigModel.objects.all()
+        context['sources'] = RSSSourceConfigModel._default_manager.all()
         context['levels'] = PolicyLog.POLICY_LEVELS
         context['categories'] = PolicyLog.INFO_CATEGORY_CHOICES
         context['selected_source'] = self.request.GET.get('source', '')
@@ -771,7 +773,7 @@ class PolicyEventsPageView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        queryset = PolicyLog.objects.all()
+        queryset = PolicyLog._default_manager.all()
         level = self.request.GET.get('level')
         start_date = self.request.GET.get('start_date')
         end_date = self.request.GET.get('end_date')
@@ -792,6 +794,73 @@ class PolicyEventsPageView(LoginRequiredMixin, ListView):
         context['selected_start'] = self.request.GET.get('start_date', '')
         context['selected_end'] = self.request.GET.get('end_date', '')
         return context
+
+
+class PolicyEventCreateView(LoginRequiredMixin, CreateView):
+    """Create policy event without Django admin."""
+
+    model = PolicyLog
+    form_class = PolicyEventForm
+    template_name = "policy/policy_event_form.html"
+    success_url = reverse_lazy("policy:events-page")
+
+    def form_valid(self, form):
+        messages.success(self.request, "政策事件已创建")
+        return super().form_valid(form)
+
+
+class RSSSourceCreateView(LoginRequiredMixin, CreateView):
+    """Create RSS source without Django admin."""
+
+    model = RSSSourceConfigModel
+    form_class = RSSSourceForm
+    template_name = "policy/rss_source_form.html"
+    success_url = reverse_lazy("policy:rss-manage")
+
+    def form_valid(self, form):
+        messages.success(self.request, "RSS 源已创建")
+        return super().form_valid(form)
+
+
+class RSSSourceUpdateView(LoginRequiredMixin, UpdateView):
+    """Update RSS source without Django admin."""
+
+    model = RSSSourceConfigModel
+    form_class = RSSSourceForm
+    template_name = "policy/rss_source_form.html"
+    success_url = reverse_lazy("policy:rss-manage")
+    pk_url_kwarg = "source_id"
+
+    def form_valid(self, form):
+        messages.success(self.request, "RSS 源已更新")
+        return super().form_valid(form)
+
+
+class PolicyKeywordCreateView(LoginRequiredMixin, CreateView):
+    """Create policy keyword rule without Django admin."""
+
+    model = PolicyLevelKeywordModel
+    form_class = PolicyKeywordForm
+    template_name = "policy/keyword_form.html"
+    success_url = reverse_lazy("policy:rss-keywords")
+
+    def form_valid(self, form):
+        messages.success(self.request, "关键词规则已创建")
+        return super().form_valid(form)
+
+
+class PolicyKeywordUpdateView(LoginRequiredMixin, UpdateView):
+    """Update policy keyword rule without Django admin."""
+
+    model = PolicyLevelKeywordModel
+    form_class = PolicyKeywordForm
+    template_name = "policy/keyword_form.html"
+    success_url = reverse_lazy("policy:rss-keywords")
+    pk_url_kwarg = "keyword_id"
+
+    def form_valid(self, form):
+        messages.success(self.request, "关键词规则已更新")
+        return super().form_valid(form)
 
 
 # ========== 审核相关API视图 ==========
@@ -1005,3 +1074,4 @@ class AutoAssignAuditsView(APIView):
                 {'success': False, 'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+

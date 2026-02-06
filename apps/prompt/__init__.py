@@ -1,0 +1,2 @@
+"""Prompt app package."""
+

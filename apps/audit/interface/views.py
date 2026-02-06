@@ -239,7 +239,7 @@ class IndicatorPerformanceDetailView(APIView):
         """获取单个指标的详细表现数据"""
         try:
             # 获取最新的评估结果
-            performance = IndicatorPerformanceModel.objects.filter(
+            performance = IndicatorPerformanceModel._default_manager.filter(
                 indicator_code=indicator_code
             ).order_by('-evaluation_period_end').first()
 
@@ -288,10 +288,10 @@ class IndicatorPerformanceChartDataView(APIView):
         """获取指标验证的图表数据"""
         try:
             # 获取验证摘要
-            summary = ValidationSummaryModel.objects.get(id=validation_id)
+            summary = ValidationSummaryModel._default_manager.get(id=validation_id)
 
             # 获取该次验证的所有指标表现
-            performances = IndicatorPerformanceModel.objects.filter(
+            performances = IndicatorPerformanceModel._default_manager.filter(
                 evaluation_period_start=summary.evaluation_period_start,
                 evaluation_period_end=summary.evaluation_period_end,
             )
@@ -410,7 +410,7 @@ class UpdateThresholdView(APIView):
                 )
 
             # 更新配置
-            config = IndicatorThresholdConfigModel.objects.filter(
+            config = IndicatorThresholdConfigModel._default_manager.filter(
                 indicator_code=indicator_code,
                 is_active=True
             ).first()
@@ -494,16 +494,16 @@ class ThresholdValidationDataView(APIView):
     def get(self, request, summary_id):
         """获取阈值验证的详细数据"""
         try:
-            summary = ValidationSummaryModel.objects.get(id=summary_id)
+            summary = ValidationSummaryModel._default_manager.get(id=summary_id)
 
             # 获取所有相关的指标表现
-            performances = IndicatorPerformanceModel.objects.filter(
+            performances = IndicatorPerformanceModel._default_manager.filter(
                 evaluation_period_start=summary.evaluation_period_start,
                 evaluation_period_end=summary.evaluation_period_end,
             )
 
             # 获取所有阈值配置
-            threshold_configs = IndicatorThresholdConfigModel.objects.filter(
+            threshold_configs = IndicatorThresholdConfigModel._default_manager.filter(
                 is_active=True
             )
 
@@ -575,12 +575,12 @@ class AuditPageView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         # 获取最新验证摘要
         try:
-            latest_validation = ValidationSummaryModel.objects.filter(
+            latest_validation = ValidationSummaryModel._default_manager.filter(
                 is_shadow_mode=False
             ).order_by('-created_at').first()
 
             # 获取最近的归因报告
-            recent_reports = AttributionReport.objects.select_related(
+            recent_reports = AttributionReport._default_manager.select_related(
                 'backtest'
             ).order_by('-created_at')[:5]
 
@@ -629,13 +629,13 @@ class IndicatorPerformancePageView(LoginRequiredMixin, TemplateView):
 
         try:
             # 获取最新的验证摘要
-            latest_summary = ValidationSummaryModel.objects.filter(
+            latest_summary = ValidationSummaryModel._default_manager.filter(
                 is_shadow_mode=False
             ).order_by('-created_at').first()
 
             if latest_summary:
                 # 获取所有指标表现
-                performances = IndicatorPerformanceModel.objects.filter(
+                performances = IndicatorPerformanceModel._default_manager.filter(
                     evaluation_period_start=latest_summary.evaluation_period_start,
                     evaluation_period_end=latest_summary.evaluation_period_end,
                 )
@@ -643,7 +643,7 @@ class IndicatorPerformancePageView(LoginRequiredMixin, TemplateView):
                 # 获取阈值配置用于分类
                 threshold_configs = {
                     c.indicator_code: c
-                    for c in IndicatorThresholdConfigModel.objects.filter(is_active=True)
+                    for c in IndicatorThresholdConfigModel._default_manager.filter(is_active=True)
                 }
 
                 # 为每个表现添加分类
@@ -702,7 +702,7 @@ class ThresholdValidationPageView(LoginRequiredMixin, TemplateView):
 
         try:
             # 获取所有活跃的阈值配置
-            threshold_configs = IndicatorThresholdConfigModel.objects.filter(
+            threshold_configs = IndicatorThresholdConfigModel._default_manager.filter(
                 is_active=True
             )
 
@@ -710,7 +710,7 @@ class ThresholdValidationPageView(LoginRequiredMixin, TemplateView):
             configs_with_history = []
             for config in threshold_configs:
                 # 获取该指标的历史验证结果
-                validation_history = IndicatorPerformanceModel.objects.filter(
+                validation_history = IndicatorPerformanceModel._default_manager.filter(
                     indicator_code=config.indicator_code
                 ).order_by('-evaluation_period_end')[:3]
 
@@ -735,7 +735,7 @@ class ThresholdValidationPageView(LoginRequiredMixin, TemplateView):
             context['threshold_configs'] = configs_with_history
 
             # 获取最新验证状态
-            latest_validation = ValidationSummaryModel.objects.filter(
+            latest_validation = ValidationSummaryModel._default_manager.filter(
                 is_shadow_mode=False
             ).order_by('-created_at').first()
 
@@ -756,3 +756,4 @@ class ThresholdValidationPageView(LoginRequiredMixin, TemplateView):
             context['validation_message'] = str(e)
 
         return context
+

@@ -24,43 +24,43 @@ class AIProviderRepository:
 
     def get_all(self) -> List[AIProviderConfig]:
         """获取所有提供商配置"""
-        return list(AIProviderConfig.objects.all().order_by('priority', 'name'))
+        return list(AIProviderConfig._default_manager.all().order_by('priority', 'name'))
 
     def get_active_providers(self) -> List[AIProviderConfig]:
         """获取所有启用的提供商，按优先级排序"""
-        return list(AIProviderConfig.objects.filter(
+        return list(AIProviderConfig._default_manager.filter(
             is_active=True
         ).order_by('priority', 'name'))
 
     def get_by_id(self, pk: int) -> Optional[AIProviderConfig]:
         """根据ID获取提供商"""
         try:
-            return AIProviderConfig.objects.get(pk=pk)
+            return AIProviderConfig._default_manager.get(pk=pk)
         except AIProviderConfig.DoesNotExist:
             return None
 
     def get_by_name(self, name: str) -> Optional[AIProviderConfig]:
         """根据名称获取提供商"""
         try:
-            return AIProviderConfig.objects.get(name=name)
+            return AIProviderConfig._default_manager.get(name=name)
         except AIProviderConfig.DoesNotExist:
             return None
 
     def get_by_type(self, provider_type: str) -> List[AIProviderConfig]:
         """根据类型获取提供商"""
-        return list(AIProviderConfig.objects.filter(
+        return list(AIProviderConfig._default_manager.filter(
             provider_type=provider_type,
             is_active=True
         ).order_by('priority'))
 
     def create(self, **kwargs) -> AIProviderConfig:
         """创建新提供商"""
-        return AIProviderConfig.objects.create(**kwargs)
+        return AIProviderConfig._default_manager.create(**kwargs)
 
     def update(self, pk: int, **kwargs) -> bool:
         """更新提供商"""
         try:
-            provider = AIProviderConfig.objects.get(pk=pk)
+            provider = AIProviderConfig._default_manager.get(pk=pk)
             for key, value in kwargs.items():
                 setattr(provider, key, value)
             provider.save()
@@ -71,7 +71,7 @@ class AIProviderRepository:
     def delete(self, pk: int) -> bool:
         """删除提供商"""
         try:
-            provider = AIProviderConfig.objects.get(pk=pk)
+            provider = AIProviderConfig._default_manager.get(pk=pk)
             provider.delete()
             return True
         except AIProviderConfig.DoesNotExist:
@@ -80,7 +80,7 @@ class AIProviderRepository:
     def update_last_used(self, pk: int) -> bool:
         """更新最后使用时间"""
         try:
-            provider = AIProviderConfig.objects.get(pk=pk)
+            provider = AIProviderConfig._default_manager.get(pk=pk)
             provider.last_used_at = datetime.now()
             provider.save(update_fields=['last_used_at'])
             return True
@@ -128,7 +128,7 @@ class AIUsageRepository:
         Returns:
             AIUsageLog: 日志记录
         """
-        log = AIUsageLog.objects.create(
+        log = AIUsageLog._default_manager.create(
             provider=provider,
             model=model,
             request_type=request_type,
@@ -170,7 +170,7 @@ class AIUsageRepository:
                     "avg_response_time_ms": float
                 }
         """
-        result = AIUsageLog.objects.filter(
+        result = AIUsageLog._default_manager.filter(
             provider_id=provider_id,
             created_at__date=target_date
         ).aggregate(
@@ -206,7 +206,7 @@ class AIUsageRepository:
         Returns:
             Dict: 统计信息
         """
-        result = AIUsageLog.objects.filter(
+        result = AIUsageLog._default_manager.filter(
             provider_id=provider_id,
             created_at__year=year,
             created_at__month=month
@@ -288,7 +288,7 @@ class AIUsageRepository:
         Returns:
             List[AIUsageLog]: 日志记录列表
         """
-        queryset = AIUsageLog.objects.all()
+        queryset = AIUsageLog._default_manager.all()
 
         if provider_id:
             queryset = queryset.filter(provider_id=provider_id)
@@ -319,7 +319,7 @@ class AIUsageRepository:
         """
         start_date = date.today() - timedelta(days=days)
 
-        results = AIUsageLog.objects.filter(
+        results = AIUsageLog._default_manager.filter(
             provider_id=provider_id,
             created_at__date__gte=start_date,
             status='success'
@@ -358,7 +358,7 @@ class AIUsageRepository:
         """
         start_date = date.today() - timedelta(days=days)
 
-        results = AIUsageLog.objects.filter(
+        results = AIUsageLog._default_manager.filter(
             provider_id=provider_id,
             created_at__date__gte=start_date,
             status='success'
@@ -379,3 +379,4 @@ class AIUsageRepository:
             }
             for r in results
         ]
+

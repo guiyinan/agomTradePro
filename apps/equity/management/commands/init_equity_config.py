@@ -77,7 +77,7 @@ class Command(BaseCommand):
         ]
 
         for rule_data in rules:
-            StockScreeningRuleConfigModel.objects.update_or_create(
+            StockScreeningRuleConfigModel._default_manager.update_or_create(
                 regime=rule_data["regime"],
                 rule_name=rule_data["rule_name"],
                 defaults=rule_data
@@ -113,7 +113,7 @@ class Command(BaseCommand):
         ]
 
         for pref in preferences:
-            SectorPreferenceConfigModel.objects.update_or_create(
+            SectorPreferenceConfigModel._default_manager.update_or_create(
                 regime=pref["regime"],
                 sector_name=pref["sector_name"],
                 defaults=pref
@@ -143,7 +143,7 @@ class Command(BaseCommand):
         ]
 
         for pref in preferences:
-            FundTypePreferenceConfigModel.objects.update_or_create(
+            FundTypePreferenceConfigModel._default_manager.update_or_create(
                 regime=pref["regime"],
                 fund_type=pref["fund_type"],
                 style=pref["style"],
@@ -151,3 +151,4 @@ class Command(BaseCommand):
             )
 
         self.stdout.write(f"已初始化 {len(preferences)} 条基金类型偏好配置")
+

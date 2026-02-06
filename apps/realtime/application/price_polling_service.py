@@ -166,7 +166,7 @@ class PricePollingService:
         price_dict = {p.asset_code: p for p in prices}
 
         # 查询所有持仓
-        positions = PositionModel.objects.select_related("account").filter(
+        positions = PositionModel._default_manager.select_related("account").filter(
             quantity__gt=0
         )
 
@@ -205,7 +205,7 @@ class PricePollingService:
             account: 模拟账户模型
         """
         # 重新计算账户总价值
-        positions = PositionModel.objects.filter(account=account)
+        positions = PositionModel._default_manager.filter(account=account)
         total_value = sum(p.current_value for p in positions)
 
         account.total_value = total_value + account.cash
@@ -282,3 +282,4 @@ class PricePollingUseCase:
         """
         prices = self.price_repository.get_latest_prices(asset_codes)
         return [p.to_dict() for p in prices]
+

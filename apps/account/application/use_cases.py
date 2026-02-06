@@ -364,7 +364,7 @@ class CreatePositionFromBacktestUseCase:
 
         # 1. 获取回测结果
         try:
-            backtest_model = BacktestResultModel.objects.get(id=input.backtest_id)
+            backtest_model = BacktestResultModel._default_manager.get(id=input.backtest_id)
         except BacktestResultModel.DoesNotExist:
             raise ValueError(f"回测 {input.backtest_id} 不存在")
 
@@ -536,3 +536,4 @@ class CreatePositionFromBacktestUseCase:
             return Region.GLOBAL
         else:
             return Region.CN  # 默认中国
+

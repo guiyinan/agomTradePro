@@ -469,7 +469,7 @@ class QlibModelRegistryModel(models.Model):
         """
         with transaction.atomic():
             # 取消其他激活的模型
-            QlibModelRegistryModel.objects.filter(
+            QlibModelRegistryModel._default_manager.filter(
                 model_name=self.model_name,
                 is_active=True
             ).update(is_active=False)
@@ -484,3 +484,4 @@ class QlibModelRegistryModel(models.Model):
         """取消激活"""
         self.is_active = False
         self.save()
+

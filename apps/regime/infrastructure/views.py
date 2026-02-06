@@ -26,7 +26,7 @@ def activate_regime_config(request, object_id):
     config = get_object_or_404(RegimeThresholdConfig, pk=object_id)
 
     # 取消其他配置的激活状态
-    RegimeThresholdConfig.objects.exclude(pk=object_id).update(is_active=False)
+    RegimeThresholdConfig._default_manager.exclude(pk=object_id).update(is_active=False)
 
     # 激活当前配置
     config.is_active = True
@@ -42,3 +42,4 @@ def activate_regime_config(request, object_id):
         pass
 
     return redirect('admin:regime_regimethresholdconfig_changelist')
+

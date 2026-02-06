@@ -172,7 +172,7 @@
             <a href="{% url 'policy:rss-reader' %}" class="btn btn-primary">RSS阅读器</a>
             <a href="{% url 'policy:rss-keywords' %}" class="btn btn-secondary">关键词规则</a>
             <a href="{% url 'policy:rss-logs' %}" class="btn btn-secondary">抓取日志</a>
-            <a href="/admin/policy/rsssourceconfigmodel/add/" class="btn btn-secondary">+ 添加源</a>
+            <a href="{% url 'policy:rss-source-create' %}" class="btn btn-secondary">+ 添加源</a>
         </div>
     </div>
 
@@ -251,7 +251,7 @@
                     </td>
                     <td>
                         <div class="action-buttons">
-                            <a href="/admin/policy/rsssourceconfigmodel/{{ source.id }}/change/" class="btn btn-sm btn-secondary">编辑</a>
+                            <a href="{% url 'policy:rss-source-edit' source.id %}" class="btn btn-sm btn-secondary">编辑</a>
                             <button onclick="triggerFetch({{ source.id }}, '{{ source.name }}')" class="btn btn-sm btn-success">抓取</button>
                         </div>
                     </td>

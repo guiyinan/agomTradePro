@@ -111,7 +111,7 @@ class Command(BaseCommand):
         for template in templates:
             try:
                 # 检查是否已存在（使用ORM）
-                existing_orm = PromptTemplateORM.objects.filter(name=template.name).first()
+                existing_orm = PromptTemplateORM._default_manager.filter(name=template.name).first()
 
                 if existing_orm:
                     if force:
@@ -149,7 +149,7 @@ class Command(BaseCommand):
         for chain in chains:
             try:
                 # 检查是否已存在（使用ORM）
-                existing_orm = ChainConfigORM.objects.filter(name=chain.name).first()
+                existing_orm = ChainConfigORM._default_manager.filter(name=chain.name).first()
 
                 if existing_orm:
                     if force:
@@ -229,3 +229,4 @@ def load_predefined_chains(repository=None) -> int:
 
     # 返回链配置数量
     return len(get_predefined_chains())
+

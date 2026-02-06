@@ -32,7 +32,7 @@ class HedgePairRepository:
 
     def get_all(self, active_only: bool = True) -> List[HedgePair]:
         """Get all hedge pairs"""
-        queryset = HedgePairModel.objects.all()
+        queryset = HedgePairModel._default_manager.all()
         if active_only:
             queryset = queryset.filter(is_active=True)
 
@@ -41,7 +41,7 @@ class HedgePairRepository:
     def get_by_name(self, name: str) -> Optional[HedgePair]:
         """Get hedge pair by name"""
         try:
-            model = HedgePairModel.objects.get(name=name)
+            model = HedgePairModel._default_manager.get(name=name)
             return model.to_domain()
         except HedgePairModel.DoesNotExist:
             return None
@@ -49,7 +49,7 @@ class HedgePairRepository:
     def get_by_id(self, pair_id: int) -> Optional[HedgePair]:
         """Get hedge pair by ID"""
         try:
-            model = HedgePairModel.objects.get(id=pair_id)
+            model = HedgePairModel._default_manager.get(id=pair_id)
             return model.to_domain()
         except HedgePairModel.DoesNotExist:
             return None
@@ -57,7 +57,7 @@ class HedgePairRepository:
     def get_by_assets(self, long_asset: str, hedge_asset: str) -> Optional[HedgePair]:
         """Get hedge pair by asset codes"""
         try:
-            model = HedgePairModel.objects.get(
+            model = HedgePairModel._default_manager.get(
                 long_asset=long_asset,
                 hedge_asset=hedge_asset
             )
@@ -87,7 +87,7 @@ class HedgePairRepository:
 
     def update(self, pair: HedgePair) -> Optional[HedgePair]:
         """Update existing hedge pair"""
-        model = HedgePairModel.objects.filter(name=pair.name).first()
+        model = HedgePairModel._default_manager.filter(name=pair.name).first()
         if not model:
             return None
 
@@ -114,7 +114,7 @@ class CorrelationHistoryRepository:
         window_days: int = 60
     ) -> Optional[CorrelationMetric]:
         """Get latest correlation metric for a pair"""
-        model = CorrelationHistoryModel.objects.filter(
+        model = CorrelationHistoryModel._default_manager.filter(
             asset1=asset1,
             asset2=asset2,
             window_days=window_days
@@ -133,7 +133,7 @@ class CorrelationHistoryRepository:
         window_days: int = 60
     ) -> List[CorrelationMetric]:
         """Get correlation history for a date range"""
-        queryset = CorrelationHistoryModel.objects.filter(
+        queryset = CorrelationHistoryModel._default_manager.filter(
             asset1=asset1,
             asset2=asset2,
             window_days=window_days,
@@ -147,7 +147,7 @@ class CorrelationHistoryRepository:
 
     def save(self, metric: CorrelationMetric) -> CorrelationMetric:
         """Save correlation metric"""
-        model, created = CorrelationHistoryModel.objects.get_or_create(
+        model, created = CorrelationHistoryModel._default_manager.get_or_create(
             asset1=metric.asset1,
             asset2=metric.asset2,
             calc_date=metric.calc_date,
@@ -176,7 +176,7 @@ class CorrelationHistoryRepository:
         from datetime import timedelta
         cutoff_date = date.today() - timedelta(days=days)
 
-        queryset = CorrelationHistoryModel.objects.filter(
+        queryset = CorrelationHistoryModel._default_manager.filter(
             calc_date__gte=cutoff_date,
             window_days=window_days
         ).order_by('-calc_date')
@@ -189,11 +189,11 @@ class HedgePortfolioRepository:
 
     def save_portfolio(self, portfolio: HedgePortfolio) -> HedgePortfolio:
         """Save hedge portfolio state"""
-        pair_model = HedgePairModel.objects.filter(name=portfolio.pair_name).first()
+        pair_model = HedgePairModel._default_manager.filter(name=portfolio.pair_name).first()
         if not pair_model:
             raise ValueError(f"Hedge pair not found: {portfolio.pair_name}")
 
-        model, created = HedgePortfolioHoldingModel.objects.get_or_create(
+        model, created = HedgePortfolioHoldingModel._default_manager.get_or_create(
             config=pair_model,
             trade_date=portfolio.trade_date,
             defaults={
@@ -215,7 +215,7 @@ class HedgePortfolioRepository:
 
     def get_latest_portfolio(self, pair_name: str) -> Optional[HedgePortfolio]:
         """Get latest portfolio state for a pair"""
-        model = HedgePortfolioHoldingModel.objects.filter(
+        model = HedgePortfolioHoldingModel._default_manager.filter(
             config__name=pair_name
         ).order_by('-trade_date').first()
 
@@ -230,7 +230,7 @@ class HedgePortfolioRepository:
         end_date: Optional[date] = None
     ) -> List[HedgePortfolio]:
         """Get portfolio history for a date range"""
-        queryset = HedgePortfolioHoldingModel.objects.filter(
+        queryset = HedgePortfolioHoldingModel._default_manager.filter(
             config__name=pair_name,
             trade_date__gte=start_date
         )
@@ -246,7 +246,7 @@ class HedgeAlertRepository:
 
     def get_active_alerts(self, pair_name: Optional[str] = None) -> List[HedgeAlert]:
         """Get all active (unresolved) alerts"""
-        queryset = HedgeAlertModel.objects.filter(is_resolved=False)
+        queryset = HedgeAlertModel._default_manager.filter(is_resolved=False)
 
         if pair_name:
             queryset = queryset.filter(pair_name=pair_name)
@@ -262,7 +262,7 @@ class HedgeAlertRepository:
         from datetime import timedelta
         cutoff_date = date.today() - timedelta(days=days)
 
-        queryset = HedgeAlertModel.objects.filter(
+        queryset = HedgeAlertModel._default_manager.filter(
             alert_date__gte=cutoff_date
         )
 
@@ -273,7 +273,7 @@ class HedgeAlertRepository:
 
     def save_alert(self, alert: HedgeAlert) -> HedgeAlert:
         """Save alert to database"""
-        model = HedgeAlertModel.objects.create(
+        model = HedgeAlertModel._default_manager.create(
             pair_name=alert.pair_name,
             alert_date=alert.alert_date,
             alert_type=alert.alert_type.value,
@@ -291,7 +291,7 @@ class HedgeAlertRepository:
     def resolve_alert(self, alert_id: int) -> Optional[HedgeAlert]:
         """Mark alert as resolved"""
         try:
-            model = HedgeAlertModel.objects.get(id=alert_id)
+            model = HedgeAlertModel._default_manager.get(id=alert_id)
             model.is_resolved = True
             model.resolved_at = date.today()
             model.save()
@@ -314,11 +314,11 @@ class HedgePerformanceRepository:
         hedge_effectiveness: float
     ) -> None:
         """Save performance metrics"""
-        pair_model = HedgePairModel.objects.filter(name=pair_name).first()
+        pair_model = HedgePairModel._default_manager.filter(name=pair_name).first()
         if not pair_model:
             raise ValueError(f"Hedge pair not found: {pair_name}")
 
-        HedgePerformanceModel.objects.update_or_create(
+        HedgePerformanceModel._default_manager.update_or_create(
             config=pair_model,
             trade_date=trade_date,
             defaults={
@@ -338,7 +338,7 @@ class HedgePerformanceRepository:
         end_date: Optional[date] = None
     ) -> List[dict]:
         """Get performance history for a pair"""
-        queryset = HedgePerformanceModel.objects.filter(
+        queryset = HedgePerformanceModel._default_manager.filter(
             config__name=pair_name,
             trade_date__gte=start_date
         )
@@ -357,3 +357,4 @@ class HedgePerformanceRepository:
             }
             for p in queryset.order_by('trade_date')
         ]
+

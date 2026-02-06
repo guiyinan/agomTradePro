@@ -1100,7 +1100,7 @@ class CalculateRegimeV2UseCase:
 
         try:
             # 获取激活的配置
-            config_model = RegimeThresholdConfig.objects.filter(is_active=True).first()
+            config_model = RegimeThresholdConfig._default_manager.filter(is_active=True).first()
 
             if config_model:
                 # 读取各指标的阈值
@@ -1235,3 +1235,4 @@ class CalculateRegimeV2UseCase:
                 warnings=warnings_list,
                 error=f"计算失败: {str(e)}"
             )
+

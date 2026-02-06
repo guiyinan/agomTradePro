@@ -269,8 +269,8 @@ A: 模板存储在数据库中，使用 Django 的 dumpdata 命令备份
 ## 十、相关文档
 
 - [AI Prompt 系统设计文档](ai_prompt_system.md)
-- [项目结构文档](project_structure.md)
-- [Regime 判定模块](AgomSAAF_V3.4.md)
+- [项目结构文档](../architecture/project_structure.md)
+- [Regime 判定模块](../business/AgomSAAF_V3.4.md)
 
 ---
 

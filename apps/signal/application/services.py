@@ -155,13 +155,13 @@ class PolicyInfluenceService:
             List[PolicyLog]: 黑名单政策列表
         """
         # 直接标记的黑名单
-        direct_blacklist = PolicyLog.objects.filter(
+        direct_blacklist = PolicyLog._default_manager.filter(
             is_blacklist=True,
             structured_data__affected_stocks__contains=asset_code
         )
 
         # 高风险宏观政策
-        high_risk_macro = PolicyLog.objects.filter(
+        high_risk_macro = PolicyLog._default_manager.filter(
             info_category='macro',
             level__in=['P2', 'P3'],
             risk_impact='high_risk'
@@ -179,7 +179,7 @@ class PolicyInfluenceService:
         Returns:
             List[PolicyLog]: 白名单政策列表
         """
-        return list(PolicyLog.objects.filter(
+        return list(PolicyLog._default_manager.filter(
             is_whitelist=True,
             structured_data__affected_stocks__contains=asset_code
         ))
@@ -203,7 +203,7 @@ class PolicyInfluenceService:
         # 查找影响这些板块的政策（30天内）
         cutoff_date = timezone.now() - timedelta(days=30)
 
-        policies = PolicyLog.objects.filter(
+        policies = PolicyLog._default_manager.filter(
             info_category='sector',
             audit_status__in=['auto_approved', 'manual_approved'],
             created_at__gte=cutoff_date
@@ -235,7 +235,7 @@ class PolicyInfluenceService:
         # 7天内的个股舆情
         cutoff_date = timezone.now() - timedelta(days=7)
 
-        return list(PolicyLog.objects.filter(
+        return list(PolicyLog._default_manager.filter(
             info_category='individual',
             audit_status__in=['auto_approved', 'manual_approved'],
             structured_data__affected_stocks__contains=asset_code,
@@ -274,3 +274,4 @@ def create_policy_influence_service() -> PolicyInfluenceService:
         PolicyInfluenceService
     """
     return PolicyInfluenceService()
+

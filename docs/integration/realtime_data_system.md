@@ -353,7 +353,7 @@ curl -X POST http://localhost:8000/api/realtime/poll/
 
 ## 相关文档
 
-- [系统概述](SYSTEM_OVERVIEW.md)
-- [项目结构](project_structure.md)
-- [API 参考](api/API_REFERENCE.md)
-- [策略系统实施计划](strategy_system_implementation_plan.md)
+- [系统概述](../architecture/SYSTEM_OVERVIEW.md)
+- [项目结构](../architecture/project_structure.md)
+- [API 参考](../testing/api/API_REFERENCE.md)
+- [策略系统设计](../architecture/strategy_system_design.md)

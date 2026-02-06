@@ -247,10 +247,10 @@
                 {% endif %}
 
                 <div class="status-actions">
-                    <a href="/admin/policy/policylog/add/" class="btn btn-primary btn-sm">
+                    <a href="{% url 'policy:event-create' %}" class="btn btn-primary btn-sm">
                         + 添加政策事件
                     </a>
-                    <a href="/admin/policy/policylog/" class="btn btn-secondary btn-sm">
+                    <a href="{% url 'policy:events-page' %}" class="btn btn-secondary btn-sm">
                         管理事件
                     </a>
                 </div>
@@ -288,7 +288,7 @@
     <div class="events-section">
         <div class="events-header">
             <h2>最近政策事件</h2>
-            <a href="/admin/policy/policylog/" class="btn btn-primary btn-sm">管理全部事件</a>
+            <a href="{% url 'policy:events-page' %}" class="btn btn-primary btn-sm">管理全部事件</a>
         </div>
 
         {% if recent_events %}
@@ -326,7 +326,7 @@
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
             </svg>
             <p>暂无政策事件</p>
-            <a href="/admin/policy/policylog/add/" class="btn btn-primary">添加第一个事件</a>
+            <a href="{% url 'policy:event-create' %}" class="btn btn-primary">添加第一个事件</a>
         </div>
         {% endif %}
     </div>

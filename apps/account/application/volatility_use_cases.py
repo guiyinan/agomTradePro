@@ -62,13 +62,13 @@ class VolatilityAnalysisUseCase:
         """
         # 获取投资组合
         try:
-            portfolio = PortfolioModel.objects.get(id=portfolio_id, user_id=user_id)
+            portfolio = PortfolioModel._default_manager.get(id=portfolio_id, user_id=user_id)
         except PortfolioModel.DoesNotExist:
             raise ValueError(f"投资组合 {portfolio_id} 不存在或无权限")
 
         # 获取用户账户配置（目标波动率）
         try:
-            profile = AccountProfileModel.objects.get(user_id=user_id)
+            profile = AccountProfileModel._default_manager.get(user_id=user_id)
             target_volatility = profile.target_volatility
             tolerance = profile.volatility_tolerance
             max_reduction = profile.max_volatility_reduction
@@ -79,7 +79,7 @@ class VolatilityAnalysisUseCase:
             max_reduction = 0.5
 
         # 获取历史快照数据（最近90天）
-        snapshots = PortfolioDailySnapshotModel.objects.filter(
+        snapshots = PortfolioDailySnapshotModel._default_manager.filter(
             portfolio_id=portfolio_id
         ).order_by('-snapshot_date')[:90]
 
@@ -210,7 +210,7 @@ class VolatilityAdjustmentUseCase:
         multiplier = adjustment.suggested_position_multiplier
 
         # 获取所有持仓
-        positions = PositionModel.objects.filter(
+        positions = PositionModel._default_manager.filter(
             portfolio_id=portfolio_id,
             is_closed=False,
         )
@@ -275,7 +275,7 @@ class UpdateTargetVolatilityUseCase:
             更新后的账户配置
         """
         try:
-            profile = AccountProfileModel.objects.get(user_id=user_id)
+            profile = AccountProfileModel._default_manager.get(user_id=user_id)
         except AccountProfileModel.DoesNotExist:
             raise ValueError(f"用户 {user_id} 账户配置不存在")
 
@@ -290,3 +290,4 @@ class UpdateTargetVolatilityUseCase:
         profile.save()
 
         return profile
+

@@ -62,7 +62,7 @@ class PortfolioViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """只返回当前用户的投资组合"""
-        return PortfolioModel.objects.filter(user=self.request.user)
+        return PortfolioModel._default_manager.filter(user=self.request.user)
 
     def get_serializer_class(self):
         """根据操作选择 serializer"""
@@ -122,7 +122,7 @@ class PortfolioViewSet(viewsets.ModelViewSet):
             region_breakdown[key] = region_breakdown.get(key, 0) + float(pos.market_value)
 
         # 资金流水
-        capital_flows = CapitalFlowModel.objects.filter(portfolio=portfolio)
+        capital_flows = CapitalFlowModel._default_manager.filter(portfolio=portfolio)
         total_inflow = capital_flows.filter(flow_type='deposit').aggregate(
             total=Sum('amount')
         )['total'] or Decimal('0')
@@ -166,8 +166,8 @@ class PositionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """只返回当前用户投资组合的持仓"""
-        user_portfolios = PortfolioModel.objects.filter(user=self.request.user)
-        return PositionModel.objects.filter(portfolio__in=user_portfolios)
+        user_portfolios = PortfolioModel._default_manager.filter(user=self.request.user)
+        return PositionModel._default_manager.filter(portfolio__in=user_portfolios)
 
     def get_serializer_class(self):
         """根据操作选择 serializer"""
@@ -245,8 +245,8 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """只返回当前用户投资组合的交易"""
-        user_portfolios = PortfolioModel.objects.filter(user=self.request.user)
-        return TransactionModel.objects.filter(portfolio__in=user_portfolios).select_related(
+        user_portfolios = PortfolioModel._default_manager.filter(user=self.request.user)
+        return TransactionModel._default_manager.filter(portfolio__in=user_portfolios).select_related(
             'portfolio', 'position'
         )
 
@@ -287,8 +287,8 @@ class CapitalFlowViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """只返回当前用户投资组合的资金流水"""
-        user_portfolios = PortfolioModel.objects.filter(user=self.request.user)
-        return CapitalFlowModel.objects.filter(portfolio__in=user_portfolios).select_related('portfolio')
+        user_portfolios = PortfolioModel._default_manager.filter(user=self.request.user)
+        return CapitalFlowModel._default_manager.filter(portfolio__in=user_portfolios).select_related('portfolio')
 
     def get_serializer_class(self):
         """根据操作选择 serializer"""
@@ -353,7 +353,7 @@ class AssetMetadataViewSet(viewsets.ReadOnlyModelViewSet):
     - GET /account/api/assets/by-class/{asset_class}/ - 按类别查询
     """
 
-    queryset = AssetMetadataModel.objects.all()
+    queryset = AssetMetadataModel._default_manager.all()
     serializer_class = AssetMetadataSerializer
     permission_classes = [IsAuthenticated]
 
@@ -382,8 +382,8 @@ class AccountHealthView(APIView):
 
     def get(self, request):
         """检查 Account 服务健康状态"""
-        portfolio_count = PortfolioModel.objects.filter(user=request.user).count()
-        position_count = PositionModel.objects.filter(
+        portfolio_count = PortfolioModel._default_manager.filter(user=request.user).count()
+        position_count = PositionModel._default_manager.filter(
             portfolio__user=request.user,
             is_closed=False
         ).count()
@@ -394,3 +394,4 @@ class AccountHealthView(APIView):
             'portfolio_count': portfolio_count,
             'position_count': position_count
         })
+

@@ -33,7 +33,7 @@ def get_alerts(request) -> Dict[str, List[Dict[str, str]]]:
         # ========== 配额告警 ==========
         try:
             from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
-            current_quota = DecisionQuotaModel.objects.filter(
+            current_quota = DecisionQuotaModel._default_manager.filter(
                 is_active=True
             ).order_by('-period_start').first()
 
@@ -70,7 +70,7 @@ def get_alerts(request) -> Dict[str, List[Dict[str, str]]]:
         try:
             from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
             expiring_threshold = timezone.now() + timedelta(days=2)
-            expiring_candidates = AlphaCandidateModel.objects.filter(
+            expiring_candidates = AlphaCandidateModel._default_manager.filter(
                 status__in=['WATCH', 'CANDIDATE', 'ACTIONABLE'],
                 expires_at__lte=expiring_threshold,
                 expires_at__gt=timezone.now()
@@ -93,7 +93,7 @@ def get_alerts(request) -> Dict[str, List[Dict[str, str]]]:
         try:
             from apps.alpha_trigger.infrastructure.models import AlphaTriggerModel
             trigger_threshold = timezone.now() + timedelta(days=7)
-            expiring_triggers = AlphaTriggerModel.objects.filter(
+            expiring_triggers = AlphaTriggerModel._default_manager.filter(
                 status='ACTIVE',
                 expires_at__lte=trigger_threshold,
                 expires_at__gt=timezone.now()
@@ -115,7 +115,7 @@ def get_alerts(request) -> Dict[str, List[Dict[str, str]]]:
         # ========== 冷却期活跃提示 ==========
         try:
             from apps.decision_rhythm.infrastructure.models import CooldownPeriodModel
-            active_cooldowns = CooldownPeriodModel.objects.filter(
+            active_cooldowns = CooldownPeriodModel._default_manager.filter(
                 status='ACTIVE'
             ).count()
 
@@ -135,7 +135,7 @@ def get_alerts(request) -> Dict[str, List[Dict[str, str]]]:
         # ========== 高优先级待处理请求告警 ==========
         try:
             from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
-            high_priority_count = DecisionRequestModel.objects.filter(
+            high_priority_count = DecisionRequestModel._default_manager.filter(
                 status='PENDING',
                 priority='HIGH'
             ).count()
@@ -156,7 +156,7 @@ def get_alerts(request) -> Dict[str, List[Dict[str, str]]]:
         # ========== Beta Gate 配置失效告警 ==========
         try:
             from apps.beta_gate.infrastructure.models import GateConfigModel
-            active_config = GateConfigModel.objects.filter(is_active=True).first()
+            active_config = GateConfigModel._default_manager.active().first()
 
             if not active_config:
                 alerts.append({
@@ -174,7 +174,7 @@ def get_alerts(request) -> Dict[str, List[Dict[str, str]]]:
         # ========== 可操作候选数量告警 ==========
         try:
             from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
-            actionable_count = AlphaCandidateModel.objects.filter(
+            actionable_count = AlphaCandidateModel._default_manager.filter(
                 status='ACTIONABLE'
             ).count()
 
@@ -195,3 +195,5 @@ def get_alerts(request) -> Dict[str, List[Dict[str, str]]]:
         logger.error(f"Error getting alerts: {e}", exc_info=True)
 
     return {'global_alerts': alerts}
+
+

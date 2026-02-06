@@ -261,4 +261,4 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
 
 - [实时价格监控系统文档](realtime_data_system.md)
 - [Tushare 接入指南](#)
-- [项目结构说明](project_structure.md)
+- [项目结构说明](../architecture/project_structure.md)

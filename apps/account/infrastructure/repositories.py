@@ -43,7 +43,7 @@ class AccountRepository:
     def get_by_user_id(self, user_id: int) -> Optional[AccountProfile]:
         """根据用户ID获取账户配置"""
         try:
-            model = AccountProfileModel.objects.get(user_id=user_id)
+            model = AccountProfileModel._default_manager.get(user_id=user_id)
             return AccountProfile(
                 user_id=model.user_id,
                 display_name=model.display_name,
@@ -57,7 +57,7 @@ class AccountRepository:
     def create_default_profile(self, user_id: int) -> AccountProfile:
         """为用户创建默认账户配置（接受user_id）"""
         try:
-            user = User.objects.get(id=user_id)
+            user = User._default_manager.get(id=user_id)
         except User.DoesNotExist:
             raise ValueError(f"用户 {user_id} 不存在")
 
@@ -65,7 +65,7 @@ class AccountRepository:
 
     def get_or_create_default_portfolio(self, user_id: int) -> int:
         """获取或创建默认投资组合，返回portfolio_id"""
-        portfolio, created = PortfolioModel.objects.get_or_create(
+        portfolio, created = PortfolioModel._default_manager.get_or_create(
             user_id=user_id,
             name="默认组合",
             defaults={"is_active": True}
@@ -74,13 +74,13 @@ class AccountRepository:
 
     def create_default_account(self, user: User) -> AccountProfile:
         """为新用户创建默认账户配置"""
-        profile = AccountProfileModel.objects.create(
+        profile = AccountProfileModel._default_manager.create(
             user=user,
             display_name=user.username,
             initial_capital=Decimal("1000000.00"),
             risk_tolerance="moderate",
         )
-        PortfolioModel.objects.create(
+        PortfolioModel._default_manager.create(
             user=user,
             name="默认组合",
             is_active=True,
@@ -99,7 +99,7 @@ class PortfolioRepository:
 
     def get_user_portfolios(self, user_id: int) -> List[Dict]:
         """获取用户的所有投资组合"""
-        portfolios = PortfolioModel.objects.filter(user_id=user_id).order_by("-created_at")
+        portfolios = PortfolioModel._default_manager.filter(user_id=user_id).order_by("-created_at")
         return [
             {
                 "id": p.id,
@@ -116,12 +116,12 @@ class PortfolioRepository:
         from datetime import timedelta
 
         try:
-            portfolio = PortfolioModel.objects.get(id=portfolio_id)
+            portfolio = PortfolioModel._default_manager.get(id=portfolio_id)
         except PortfolioModel.DoesNotExist:
             return None
 
         # 获取活跃持仓
-        position_models = PositionModel.objects.filter(
+        position_models = PositionModel._default_manager.filter(
             portfolio=portfolio,
             is_closed=False
         ).select_related("portfolio").order_by("-opened_at")
@@ -136,14 +136,14 @@ class PortfolioRepository:
         # 回溯收益率计算
         # 1. 年收益率（对比1年前）
         one_year_ago = datetime.now() - timedelta(days=365)
-        yearly_snapshot = PortfolioDailySnapshotModel.objects.filter(
+        yearly_snapshot = PortfolioDailySnapshotModel._default_manager.filter(
             portfolio=portfolio,
             snapshot_date__lte=one_year_ago.date()
             ).order_by('-snapshot_date').first()
 
         # 2. 月收益率（对比1个月前）
         one_month_ago = datetime.now() - timedelta(days=30)
-        monthly_snapshot = PortfolioDailySnapshotModel.objects.filter(
+        monthly_snapshot = PortfolioDailySnapshotModel._default_manager.filter(
             portfolio=portfolio,
             snapshot_date__lte=one_month_ago.date()
             ).order_by('-snapshot_date').first()
@@ -155,11 +155,11 @@ class PortfolioRepository:
         else:
             # 没有历史快照，使用累计入金作为基准
             from apps.account.infrastructure.models import CapitalFlowModel
-            total_deposit = CapitalFlowModel.objects.filter(
+            total_deposit = CapitalFlowModel._default_manager.filter(
                 portfolio=portfolio,
                 flow_type='deposit'
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
-            total_withdraw = CapitalFlowModel.objects.filter(
+            total_withdraw = CapitalFlowModel._default_manager.filter(
                 portfolio=portfolio,
                 flow_type='withdraw'
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
@@ -185,7 +185,7 @@ class PortfolioRepository:
 
         # 保存今日快照
         today = datetime.now().date()
-        PortfolioDailySnapshotModel.objects.update_or_create(
+        PortfolioDailySnapshotModel._default_manager.update_or_create(
             portfolio=portfolio,
             snapshot_date=today,
             defaults={
@@ -248,23 +248,23 @@ class PortfolioRepository:
         from django.db.models import Sum
 
         # 1. 资金流动（入金 - 出金）
-        total_deposit = CapitalFlowModel.objects.filter(
+        total_deposit = CapitalFlowModel._default_manager.filter(
             portfolio=portfolio,
             flow_type='deposit'
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
-        total_withdraw = CapitalFlowModel.objects.filter(
+        total_withdraw = CapitalFlowModel._default_manager.filter(
             portfolio=portfolio,
             flow_type='withdraw'
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
 
         # 2. 交易对现金的影响
-        buy_total = TransactionModel.objects.filter(
+        buy_total = TransactionModel._default_manager.filter(
             portfolio=portfolio,
             action='buy'
         ).aggregate(total=Sum('notional'))['total'] or Decimal('0')
 
-        sell_total = TransactionModel.objects.filter(
+        sell_total = TransactionModel._default_manager.filter(
             portfolio=portfolio,
             action='sell'
         ).aggregate(total=Sum('notional'))['total'] or Decimal('0')
@@ -285,7 +285,7 @@ class PositionRepository:
         asset_class: Optional[str] = None,
     ) -> List[Position]:
         """获取用户持仓列表"""
-        queryset = PositionModel.objects.filter(
+        queryset = PositionModel._default_manager.filter(
             portfolio__user_id=user_id
         ).select_related("portfolio").order_by("-opened_at")
 
@@ -302,7 +302,7 @@ class PositionRepository:
     def get_position_by_id(self, position_id: int) -> Optional[Position]:
         """根据ID获取持仓"""
         try:
-            model = PositionModel.objects.get(id=position_id)
+            model = PositionModel._default_manager.get(id=position_id)
             return PortfolioRepository()._convert_to_position_entities([model])[0]
         except PositionModel.DoesNotExist:
             return None
@@ -319,12 +319,12 @@ class PositionRepository:
         """创建新持仓"""
         # 获取资产元数据
         try:
-            asset_meta = AssetMetadataModel.objects.get(asset_code=asset_code)
+            asset_meta = AssetMetadataModel._default_manager.get(asset_code=asset_code)
         except AssetMetadataModel.DoesNotExist:
             # 如果元数据不存在，使用默认值
             asset_meta = None
 
-        model = PositionModel.objects.create(
+        model = PositionModel._default_manager.create(
             portfolio_id=portfolio_id,
             asset_code=asset_code,
             asset_class=asset_meta.asset_class if asset_meta else "equity",
@@ -339,7 +339,7 @@ class PositionRepository:
         )
 
         # 创建交易记录
-        TransactionModel.objects.create(
+        TransactionModel._default_manager.create(
             portfolio_id=portfolio_id,
             position_id=model.id,
             action="buy",
@@ -360,7 +360,7 @@ class PositionRepository:
     def close_position(self, position_id: int, shares: Optional[float] = None) -> Optional[Position]:
         """平仓（全部或部分）"""
         try:
-            model = PositionModel.objects.get(id=position_id)
+            model = PositionModel._default_manager.get(id=position_id)
         except PositionModel.DoesNotExist:
             return None
 
@@ -368,7 +368,7 @@ class PositionRepository:
             shares = model.shares  # 默认全部平仓
 
         # 创建交易记录
-        TransactionModel.objects.create(
+        TransactionModel._default_manager.create(
             portfolio_id=model.portfolio_id,
             position_id=model.id,
             action="sell",
@@ -394,7 +394,7 @@ class PositionRepository:
     def update_position_price(self, position_id: int, new_price: Decimal) -> Optional[Position]:
         """更新持仓当前价格并重算盈亏"""
         try:
-            model = PositionModel.objects.get(id=position_id)
+            model = PositionModel._default_manager.get(id=position_id)
         except PositionModel.DoesNotExist:
             return None
 
@@ -417,7 +417,7 @@ class PositionRepository:
     ) -> Optional[Position]:
         """从投资信号创建持仓"""
         try:
-            signal = InvestmentSignalModel.objects.get(id=signal_id, user_id=user_id)
+            signal = InvestmentSignalModel._default_manager.get(id=signal_id, user_id=user_id)
         except InvestmentSignalModel.DoesNotExist:
             return None
 
@@ -441,7 +441,7 @@ class PositionRepository:
         )
 
         # 记录信号关联
-        PositionSignalLogModel.objects.create(
+        PositionSignalLogModel._default_manager.create(
             signal_id=signal_id,
             position_id=position.id,
             notes=f"从信号 {signal_id} 创建",
@@ -459,7 +459,7 @@ class TransactionRepository:
         limit: int = 50,
     ) -> List[Transaction]:
         """获取组合交易记录"""
-        models = TransactionModel.objects.filter(
+        models = TransactionModel._default_manager.filter(
             portfolio_id=portfolio_id
         ).select_related("position").order_by("-traded_at")[:limit]
 
@@ -494,7 +494,7 @@ class AssetMetadataRepository:
         **kwargs
     ) -> Dict:
         """获取或创建资产元数据"""
-        asset, created = AssetMetadataModel.objects.get_or_create(
+        asset, created = AssetMetadataModel._default_manager.get_or_create(
             asset_code=asset_code,
             defaults={
                 "name": name,
@@ -519,7 +519,7 @@ class AssetMetadataRepository:
         region: Optional[str] = None,
     ) -> List[Dict]:
         """搜索资产"""
-        queryset = AssetMetadataModel.objects.all()
+        queryset = AssetMetadataModel._default_manager.all()
 
         if query:
             queryset = queryset.filter(
@@ -546,10 +546,11 @@ class AssetMetadataRepository:
         """批量更新用户持仓的当前价格（需要外部行情接口）"""
         # TODO: 集成行情数据源
         # 这里提供一个接口框架，实际价格获取需要调用外部API
-        count = PositionModel.objects.filter(
+        count = PositionModel._default_manager.filter(
             portfolio__user_id=user_id,
             is_closed=False
         ).update(
             current_price=F("avg_cost")  # 暂时使用成本价
         )
         return count
+

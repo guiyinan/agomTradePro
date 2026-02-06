@@ -77,7 +77,7 @@ class AutoStopLossUseCase:
             List[StopLossCheckOutput]: 检查结果列表
         """
         # 获取所有激活的止损配置
-        queryset = StopLossConfigModel.objects.filter(status='active')
+        queryset = StopLossConfigModel._default_manager.filter(status='active')
         if user_id:
             queryset = queryset.filter(position__portfolio__user_id=user_id)
 
@@ -188,7 +188,7 @@ class AutoStopLossUseCase:
         config.save(update_fields=['status', 'triggered_at'])
 
         # 创建触发记录
-        StopLossTriggerModel.objects.create(
+        StopLossTriggerModel._default_manager.create(
             position=position,
             trigger_type=config.stop_loss_type,
             trigger_price=current_price,
@@ -223,7 +223,7 @@ class AutoTakeProfitUseCase:
             List[TakeProfitCheckOutput]: 检查结果列表
         """
         # 获取所有激活的止盈配置
-        queryset = TakeProfitConfigModel.objects.filter(is_active=True)
+        queryset = TakeProfitConfigModel._default_manager.filter(is_active=True)
         if user_id:
             queryset = queryset.filter(position__portfolio__user_id=user_id)
 
@@ -344,7 +344,7 @@ class CreateStopLossConfigUseCase:
         """
         # 获取持仓
         try:
-            position = PositionModel.objects.get(id=position_id)
+            position = PositionModel._default_manager.get(id=position_id)
         except PositionModel.DoesNotExist:
             raise ValueError(f"持仓 {position_id} 不存在")
 
@@ -353,7 +353,7 @@ class CreateStopLossConfigUseCase:
             raise ValueError(f"持仓 {position_id} 已有止损配置")
 
         # 创建止损配置
-        config = StopLossConfigModel.objects.create(
+        config = StopLossConfigModel._default_manager.create(
             position_id=position_id,
             stop_loss_type=stop_loss_type,
             stop_loss_pct=stop_loss_pct,
@@ -390,7 +390,7 @@ class CreateTakeProfitConfigUseCase:
         """
         # 获取持仓
         try:
-            position = PositionModel.objects.get(id=position_id)
+            position = PositionModel._default_manager.get(id=position_id)
         except PositionModel.DoesNotExist:
             raise ValueError(f"持仓 {position_id} 不存在")
 
@@ -399,7 +399,7 @@ class CreateTakeProfitConfigUseCase:
             raise ValueError(f"持仓 {position_id} 已有止盈配置")
 
         # 创建止盈配置
-        config = TakeProfitConfigModel.objects.create(
+        config = TakeProfitConfigModel._default_manager.create(
             position_id=position_id,
             take_profit_pct=take_profit_pct,
             partial_profit_levels=partial_profit_levels,
@@ -407,3 +407,4 @@ class CreateTakeProfitConfigUseCase:
         )
 
         return config
+

@@ -69,7 +69,7 @@ class ScoringLogger:
         try:
             from apps.asset_analysis.infrastructure.models import AssetScoringLog
 
-            log = AssetScoringLog.objects.create(
+            log = AssetScoringLog._default_manager.create(
                 asset_type=entry.asset_type,
                 request_source=entry.request_source,
                 user_id=entry.user_id,
@@ -202,7 +202,7 @@ class AlertService:
         try:
             from apps.asset_analysis.infrastructure.models import AssetAnalysisAlert
 
-            alert = AssetAnalysisAlert.objects.create(
+            alert = AssetAnalysisAlert._default_manager.create(
                 severity=severity,
                 alert_type=alert_type,
                 title=title,
@@ -389,7 +389,7 @@ class AlertService:
         """
         from apps.asset_analysis.infrastructure.models import AssetAnalysisAlert
 
-        queryset = AssetAnalysisAlert.objects.filter(
+        queryset = AssetAnalysisAlert._default_manager.filter(
             is_resolved=False
         )
 
@@ -420,7 +420,7 @@ class AlertService:
         try:
             from apps.asset_analysis.infrastructure.models import AssetAnalysisAlert
 
-            alert = AssetAnalysisAlert.objects.get(id=alert_id)
+            alert = AssetAnalysisAlert._default_manager.get(id=alert_id)
             alert.is_resolved = True
             alert.resolved_at = datetime.now()
             alert.resolved_by = resolved_by
@@ -436,3 +436,4 @@ class AlertService:
         except Exception as e:
             self.logger.error(f"解决告警失败: {str(e)}")
             return False
+

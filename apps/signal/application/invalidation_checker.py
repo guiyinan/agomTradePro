@@ -45,7 +45,7 @@ class InvalidationCheckService:
             InvalidationCheckResult 或 None（如果信号不存在或无需检查）
         """
         try:
-            signal = InvestmentSignalModel.objects.get(id=signal_id)
+            signal = InvestmentSignalModel._default_manager.get(id=signal_id)
             return self._check_signal_model(signal)
         except InvestmentSignalModel.DoesNotExist:
             return None
@@ -157,7 +157,7 @@ class InvalidationCheckService:
             List[InvestmentSignalModel]: 被证伪的信号列表
         """
         # 获取所有有证伪规则的已批准信号
-        approved_signals = InvestmentSignalModel.objects.filter(
+        approved_signals = InvestmentSignalModel._default_manager.filter(
             status='approved',
             invalidation_rule_json__isnull=False
         ).exclude(invalidation_rule_json={})
@@ -197,7 +197,8 @@ def check_and_invalidate_signals() -> Dict:
     invalidated = service.check_all_approved_signals()
 
     return {
-        'checked': InvestmentSignalModel.objects.filter(status='approved').count(),
+        'checked': InvestmentSignalModel._default_manager.filter(status='approved').count(),
         'invalidated': len(invalidated),
         'signal_ids': [s.id for s in invalidated]
     }
+

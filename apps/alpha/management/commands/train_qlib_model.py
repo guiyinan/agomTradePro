@@ -406,7 +406,7 @@ class Command(BaseCommand):
         """保存到模型注册表"""
         from apps.alpha.infrastructure.models import QlibModelRegistryModel
 
-        registry, created = QlibModelRegistryModel.objects.update_or_create(
+        registry, created = QlibModelRegistryModel._default_manager.update_or_create(
             artifact_hash=artifact_hash,
             defaults={
                 'model_name': name,
@@ -428,3 +428,4 @@ class Command(BaseCommand):
         self.stdout.write(f'  ✓ {action} Registry 记录')
 
         return registry
+

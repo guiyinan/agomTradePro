@@ -2,7 +2,7 @@
 
 {% block title %}{{ provider.name }} - 详情 - AgomSAAF{% endblock %}
 
-{% block content -->
+{% block content %}
 <div class="page-header">
     <h1>{{ provider.name }}</h1>
     <p class="subtitle">{{ provider.get_provider_type_display }} - {{ provider.description }}</p>
@@ -53,7 +53,8 @@
             </tr>
         </table>
         <div style="margin-top: 16px;">
-            <a href="/admin/ai_provider/aiproviderconfig/{{ provider.id }}/change/" class="tag">编辑配置</a>
+            <a href="{% url 'ai_provider:edit' provider.id %}" class="tag">编辑配置</a>
+            <a href="{% url 'ops-center' %}" class="tag">进入 Operations Center</a>
             <a href="{% url 'ai_provider:manage' %}" class="tag">返回列表</a>
         </div>
     </div>

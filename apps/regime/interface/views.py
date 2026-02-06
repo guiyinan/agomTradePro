@@ -19,7 +19,7 @@ def regime_dashboard_view(request):
 
     try:
         # 获取可用的数据源列表
-        available_sources = DataSourceConfig.objects.filter(is_active=True).order_by('priority')
+        available_sources = DataSourceConfig._default_manager.filter(is_active=True).order_by('priority')
 
         # 获取查询参数
         default_source = available_sources.first().source_type if available_sources.exists() else 'akshare'
@@ -66,7 +66,7 @@ def regime_dashboard_view(request):
         }
 
     except Exception as e:
-        available_sources = DataSourceConfig.objects.filter(is_active=True).order_by('priority')
+        available_sources = DataSourceConfig._default_manager.filter(is_active=True).order_by('priority')
         default_source = available_sources.first().source_type if available_sources.exists() else 'akshare'
         data_source = request.GET.get('source', default_source)
         as_of_date_str = request.GET.get('as_of_date')
@@ -110,3 +110,4 @@ def clear_regime_cache(request):
             'status': 'error',
             'message': f'清除缓存失败: {str(e)}'
         }, status=500)
+

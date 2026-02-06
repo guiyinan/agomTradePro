@@ -72,7 +72,7 @@ class IndicatorValidator:
         for indicator_code in self.HIGH_FREQ_INDICATORS:
             try:
                 # 检查数据库中的数据
-                queryset = MacroIndicator.objects.filter(
+                queryset = MacroIndicator._default_manager.filter(
                     code=indicator_code,
                     reporting_period__gte=self.start_date,
                     reporting_period__lte=self.end_date
@@ -126,7 +126,7 @@ class IndicatorValidator:
         logger.info("计算指标与 Regime 的相关性...")
 
         # 获取 Regime 历史
-        regime_data = RegimeLog.objects.filter(
+        regime_data = RegimeLog._default_manager.filter(
             observed_at__gte=self.start_date,
             observed_at__lte=self.end_date
         ).order_by('observed_at')
@@ -159,7 +159,7 @@ class IndicatorValidator:
 
             try:
                 # 获取指标数据
-                indicator_query = MacroIndicator.objects.filter(
+                indicator_query = MacroIndicator._default_manager.filter(
                     code=indicator_code,
                     reporting_period__gte=self.start_date,
                     reporting_period__lte=self.end_date
@@ -219,7 +219,7 @@ class IndicatorValidator:
 
         try:
             # 获取期限利差数据
-            spread_query = MacroIndicator.objects.filter(
+            spread_query = MacroIndicator._default_manager.filter(
                 code=indicator_code,
                 reporting_period__gte=self.start_date,
                 reporting_period__lte=self.end_date
@@ -256,7 +256,7 @@ class IndicatorValidator:
                 # 检查倒挂后 6-18 个月内的 Regime 变化
                 future_date = event_date + timedelta(days=365)
 
-                future_regime = RegimeLog.objects.filter(
+                future_regime = RegimeLog._default_manager.filter(
                     observed_at__gt=event_date,
                     observed_at__lte=future_date
                 ).order_by('observed_at')
@@ -461,7 +461,7 @@ class Command(BaseCommand):
         if save_report:
             self.stdout.write('\n保存验证报告到数据库...')
             try:
-                summary = ValidationSummaryModel.objects.create(
+                summary = ValidationSummaryModel._default_manager.create(
                     validation_run_id=report['validation_run_id'],
                     evaluation_period_start=start_date,
                     evaluation_period_end=end_date,
@@ -487,3 +487,4 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS('Phase 0 验证完成!')
         )
+

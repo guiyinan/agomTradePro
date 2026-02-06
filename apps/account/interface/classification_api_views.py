@@ -45,7 +45,7 @@ class AssetCategoryViewSet(viewsets.ModelViewSet):
     - GET /account/api/categories/{id}/children/ - 获取子分类
     """
 
-    queryset = AssetCategoryModel.objects.filter(is_active=True)
+    queryset = AssetCategoryModel._default_manager.filter(is_active=True)
     serializer_class = AssetCategorySerializer
     permission_classes = [IsAuthenticated]
 
@@ -110,7 +110,7 @@ class CurrencyViewSet(viewsets.ReadOnlyModelViewSet):
     - GET /account/api/currencies/base/ - 获取基准货币
     """
 
-    queryset = CurrencyModel.objects.filter(is_active=True)
+    queryset = CurrencyModel._default_manager.filter(is_active=True)
     serializer_class = CurrencySerializer
     permission_classes = [IsAuthenticated]
 
@@ -145,7 +145,7 @@ class ExchangeRateViewSet(viewsets.ModelViewSet):
     - POST /account/api/exchange-rates/convert/ - 货币转换
     """
 
-    queryset = ExchangeRateModel.objects.all()
+    queryset = ExchangeRateModel._default_manager.all()
     permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
@@ -205,7 +205,7 @@ class ExchangeRateViewSet(viewsets.ModelViewSet):
             )
 
             # 获取使用的汇率
-            queryset = ExchangeRateModel.objects.filter(
+            queryset = ExchangeRateModel._default_manager.filter(
                 from_currency__code=data['from_currency'],
                 to_currency__code=data['to_currency']
             )
@@ -248,7 +248,7 @@ class PortfolioAllocationView(APIView):
 
         支持按资产分类和币种进行配置分析
         """
-        portfolio = PortfolioModel.objects.get(id=portfolio_id, user=request.user)
+        portfolio = PortfolioModel._default_manager.get(id=portfolio_id, user=request.user)
 
         dimension = request.query_params.get('dimension', 'category')  # category 或 currency
 
@@ -329,7 +329,7 @@ class PortfolioAllocationView(APIView):
         # 转换为序列化格式
         data = []
         for currency_code, amount in currency_allocation.items():
-            currency = CurrencyModel.objects.filter(code=currency_code).first()
+            currency = CurrencyModel._default_manager.filter(code=currency_code).first()
 
             # 转换为基准货币
             if currency_code != base_currency.code:
@@ -360,3 +360,4 @@ class PortfolioAllocationView(APIView):
             'total_value_base': total_value_base,
             'data': serializer.data
         })
+

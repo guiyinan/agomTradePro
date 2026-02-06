@@ -151,13 +151,17 @@ apps/ai_provider/
 ├── domain/           # Domain层：纯Python实体和业务规则
 │   ├── entities.py   # 值对象定义
 │   └── services.py   # 成本计算服务
+├── application/      # Application层：用例编排
+│   ├── use_cases.py  # 业务用例（ListProviders, CreateProvider, CheckBudget等）
+│   └── dtos.py       # 数据传输对象
 ├── infrastructure/   # Infrastructure层：ORM和外部适配器
 │   ├── models.py     # Django ORM模型
 │   ├── repositories.py # 数据仓储
 │   └── adapters.py   # OpenAI兼容适配器
 └── interface/        # Interface层：视图和模板
     ├── views/
-    │   └── page_views.py
+    │   ├── api_views.py  # DRF API视图
+    │   └── page_views.py # 页面视图
     ├── urls.py
     ├── admin.py
     └── serializers.py
@@ -199,7 +203,47 @@ class AICostCalculator:
     }
 ```
 
-### 2.2 Infrastructure层
+### 2.2 Application层
+
+**use_cases.py** - 用例编排
+```python
+class ListProvidersUseCase:
+    """获取提供商列表用例"""
+    def __init__(self, provider_repo=None, usage_repo=None):
+        self._provider_repo = provider_repo or AIProviderRepository()
+        self._usage_repo = usage_repo or AIUsageRepository()
+
+    def execute(self, include_inactive=True) -> List[ProviderListItemDTO]:
+        # 获取提供商和统计数据
+        # 返回 DTO
+        ...
+
+class CheckBudgetUseCase:
+    """检查预算限制用例"""
+    def execute(self, pk: int) -> BudgetCheckResultDTO:
+        # 协调 Domain 层的 BudgetChecker 和 Infrastructure 层的 AIUsageRepository
+        ...
+```
+
+**dtos.py** - 数据传输对象
+```python
+@dataclass(frozen=True)
+class ProviderStatsDTO:
+    provider_id: int
+    provider_name: str
+    today_requests: int
+    today_cost: float
+    ...
+
+@dataclass(frozen=True)
+class BudgetCheckResultDTO:
+    daily_allowed: bool
+    daily_message: str
+    monthly_allowed: bool
+    ...
+```
+
+### 2.3 Infrastructure层
 
 **adapters.py** - OpenAI兼容适配器
 ```python
@@ -223,7 +267,7 @@ class AIUsageRepository:
         return AIUsageLog.objects.create(...)
 ```
 
-### 2.3 Interface层
+### 2.4 Interface层
 
 **page_views.py** - 页面视图
 ```python
@@ -396,4 +440,5 @@ print(adapter.is_available())  # 应返回True
 
 | 日期 | 版本 | 更新内容 |
 |------|------|----------|
+| 2026-02-06 | 1.1 | 补全 Application 层，实现完整四层架构 |
 | 2025-12-29 | 1.0 | 初始版本 |

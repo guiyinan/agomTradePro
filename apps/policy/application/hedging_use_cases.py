@@ -135,7 +135,7 @@ class ExecuteHedgingUseCase:
         # 创建对冲记录
         from apps.policy.infrastructure.models import HedgePositionModel
 
-        hedge = HedgePositionModel.objects.create(
+        hedge = HedgePositionModel._default_manager.create(
             portfolio_id=portfolio_id,
             instrument_code=calculation.recommended_instrument,
             hedge_ratio=calculation.hedge_ratio,
@@ -193,3 +193,4 @@ class HedgeEffectivenessAnalyzer:
             'hedge_benefit': 5000.0,
             'net_benefit': 4000.0,
         }
+

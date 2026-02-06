@@ -222,7 +222,7 @@ class PolicyLogAdmin(admin.ModelAdmin):
         )
 
         # 从审核队列移除
-        PolicyAuditQueue.objects.filter(
+        PolicyAuditQueue._default_manager.filter(
             policy_log__in=queryset.filter(audit_status='manual_approved')
         ).delete()
 
@@ -242,7 +242,7 @@ class PolicyLogAdmin(admin.ModelAdmin):
         )
 
         # 从审核队列移除
-        PolicyAuditQueue.objects.filter(
+        PolicyAuditQueue._default_manager.filter(
             policy_log__in=queryset.filter(audit_status='rejected')
         ).delete()
 
@@ -281,7 +281,7 @@ class PolicyLogAdmin(admin.ModelAdmin):
 
         try:
             # 获取统计数据
-            qs = PolicyLog.objects.all()
+            qs = PolicyLog._default_manager.all()
             total = qs.count()
 
             # 档位统计
@@ -398,7 +398,7 @@ class RSSHubGlobalConfigAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         """禁止手动添加（单例模式）"""
-        return not RSSHubGlobalConfig.objects.exists()
+        return not RSSHubGlobalConfig._default_manager.exists()
 
     def has_delete_permission(self, request, obj=None):
         """禁止删除配置"""
@@ -465,7 +465,7 @@ class RSSHubGlobalConfigAdmin(admin.ModelAdmin):
     def changelist_view(self, request, extra_context=None):
         """自定义列表页（单例模式）"""
         # 如果已有配置，直接跳转到编辑页
-        if RSSHubGlobalConfig.objects.exists():
+        if RSSHubGlobalConfig._default_manager.exists():
             config = RSSHubGlobalConfig.get_config()
             return super().change_view(
                 str(config.pk),
@@ -846,3 +846,4 @@ class PolicyAuditQueueAdmin(admin.ModelAdmin):
         """优化查询"""
         qs = super().get_queryset(request)
         return qs.select_related('policy_log', 'assigned_to')
+

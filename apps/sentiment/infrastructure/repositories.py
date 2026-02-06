@@ -37,7 +37,7 @@ class SentimentIndexRepository:
         if hasattr(index_date, 'date'):
             index_date = index_date.date()
 
-        model, created = SentimentIndexModel.objects.update_or_create(
+        model, created = SentimentIndexModel._default_manager.update_or_create(
             index_date=index_date,
             defaults={
                 "news_sentiment": sentiment_index.news_sentiment,
@@ -63,7 +63,7 @@ class SentimentIndexRepository:
             SentimentIndex 实体，不存在则返回 None
         """
         try:
-            model = SentimentIndexModel.objects.get(index_date=target_date)
+            model = SentimentIndexModel._default_manager.get(index_date=target_date)
             return self._to_entity(model)
         except SentimentIndexModel.DoesNotExist:
             return None
@@ -75,7 +75,7 @@ class SentimentIndexRepository:
         Returns:
             SentimentIndex 实体，不存在则返回 None
         """
-        model = SentimentIndexModel.objects.order_by("-index_date").first()
+        model = SentimentIndexModel._default_manager.order_by("-index_date").first()
         if model:
             return self._to_entity(model)
         return None
@@ -91,7 +91,7 @@ class SentimentIndexRepository:
         Returns:
             SentimentIndex 实体列表
         """
-        models = SentimentIndexModel.objects.filter(
+        models = SentimentIndexModel._default_manager.filter(
             index_date__gte=start_date,
             index_date__lte=end_date
         ).order_by("index_date")
@@ -170,7 +170,7 @@ class SentimentAnalysisLogRepository:
         Returns:
             SentimentAnalysisLog 实例
         """
-        return SentimentAnalysisLog.objects.create(
+        return SentimentAnalysisLog._default_manager.create(
             source_type=source_type,
             source_id=source_id,
             input_text=input_text,
@@ -193,7 +193,7 @@ class SentimentAnalysisLogRepository:
         Returns:
             日志列表
         """
-        return list(SentimentAnalysisLog.objects.order_by("-created_at")[:limit])
+        return list(SentimentAnalysisLog._default_manager.order_by("-created_at")[:limit])
 
     def get_logs_by_source(self, source_type: str, source_id: str = None) -> List[SentimentAnalysisLog]:
         """
@@ -206,7 +206,7 @@ class SentimentAnalysisLogRepository:
         Returns:
             日志列表
         """
-        queryset = SentimentAnalysisLog.objects.filter(source_type=source_type)
+        queryset = SentimentAnalysisLog._default_manager.filter(source_type=source_type)
 
         if source_id:
             queryset = queryset.filter(source_id=source_id)
@@ -234,7 +234,7 @@ class SentimentCacheRepository:
         text_hash = self._compute_hash(text)
 
         try:
-            cache = SentimentCache.objects.get(text_hash=text_hash)
+            cache = SentimentCache._default_manager.get(text_hash=text_hash)
 
             from apps.sentiment.domain.entities import SentimentCategory
 
@@ -259,7 +259,7 @@ class SentimentCacheRepository:
         """
         text_hash = self._compute_hash(text)
 
-        SentimentCache.objects.update_or_create(
+        SentimentCache._default_manager.update_or_create(
             text_hash=text_hash,
             defaults={
                 "sentiment_score": result.sentiment_score,
@@ -281,9 +281,9 @@ class SentimentCacheRepository:
         """
         if text:
             text_hash = self._compute_hash(text)
-            count, _ = SentimentCache.objects.filter(text_hash=text_hash).delete()
+            count, _ = SentimentCache._default_manager.filter(text_hash=text_hash).delete()
         else:
-            count, _ = SentimentCache.objects.all().delete()
+            count, _ = SentimentCache._default_manager.all().delete()
 
         return count
 
@@ -299,3 +299,4 @@ class SentimentCacheRepository:
             SHA256 哈希值
         """
         return hashlib.sha256(text.encode("utf-8")).hexdigest()
+

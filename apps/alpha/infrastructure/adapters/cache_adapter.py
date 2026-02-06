@@ -74,7 +74,7 @@ class CacheAlphaProvider(BaseAlphaProvider):
             from ...infrastructure.models import AlphaScoreCacheModel
 
             # 检查是否有缓存数据
-            has_recent_cache = AlphaScoreCacheModel.objects.filter(
+            has_recent_cache = AlphaScoreCacheModel._default_manager.filter(
                 created_at__gte=date.today() - timedelta(days=7)
             ).exists()
 
@@ -112,14 +112,14 @@ class CacheAlphaProvider(BaseAlphaProvider):
         from ...infrastructure.models import AlphaScoreCacheModel
 
         # 1. 尝试精确匹配
-        cache = AlphaScoreCacheModel.objects.filter(
+        cache = AlphaScoreCacheModel._default_manager.filter(
             universe_id=universe_id,
             intended_trade_date=intended_trade_date
         ).order_by("-created_at").first()
 
         # 2. 如果没有精确匹配，尝试最近的有效缓存（向前查找）
         if not cache:
-            cache = AlphaScoreCacheModel.objects.filter(
+            cache = AlphaScoreCacheModel._default_manager.filter(
                 universe_id=universe_id,
                 intended_trade_date__lte=intended_trade_date
             ).order_by("-intended_trade_date", "-created_at").first()
@@ -195,7 +195,7 @@ class CacheAlphaProvider(BaseAlphaProvider):
         """
         from ...infrastructure.models import AlphaScoreCacheModel
 
-        caches = AlphaScoreCacheModel.objects.filter(
+        caches = AlphaScoreCacheModel._default_manager.filter(
             universe_id=universe_id,
             intended_trade_date__gte=start_date,
             intended_trade_date__lte=end_date
@@ -215,7 +215,7 @@ class CacheAlphaProvider(BaseAlphaProvider):
         """
         from ...infrastructure.models import AlphaScoreCacheModel
 
-        cache = AlphaScoreCacheModel.objects.filter(
+        cache = AlphaScoreCacheModel._default_manager.filter(
             universe_id=universe_id
         ).order_by("-intended_trade_date").first()
 
@@ -240,10 +240,11 @@ class CacheAlphaProvider(BaseAlphaProvider):
 
         cutoff_date = date.today() - timedelta(days=days_to_keep)
 
-        deleted, _ = AlphaScoreCacheModel.objects.filter(
+        deleted, _ = AlphaScoreCacheModel._default_manager.filter(
             universe_id=universe_id,
             intended_trade_date__lt=cutoff_date
         ).delete()
 
         logger.info(f"清理了 {deleted} 条过期缓存（{universe_id}）")
         return deleted
+

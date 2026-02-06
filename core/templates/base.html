@@ -116,14 +116,13 @@
                     <span class="top-nav-item">系统</span>
                     <div class="dropdown-menu">
                         <a href="{% url 'docs' %}" class="dropdown-item">文档中心</a>
-                        <a href="/admin/" class="dropdown-item">管理后台</a>
+                        <a href="{% url 'ops-center' %}" class="dropdown-item">Operations Center</a>
                         <a href="{% url 'macro:datasources' %}" class="dropdown-item">数据源配置</a>
                         <a href="{% url 'macro:data_controller' %}" class="dropdown-item">数据管理器</a>
                         <div class="dropdown-divider"></div>
-                        <a href="/admin/asset_analysis/assetpoolconfig/" class="dropdown-item">资产池配置</a>
-                        <a href="/admin/asset_analysis/assetscoringlog/" class="dropdown-item">评分日志</a>
-                        <a href="/admin/asset_analysis/assetanalysisalert/" class="dropdown-item">告警管理</a>
-                        <a href="/admin/asset_analysis/assetpoolentry/" class="dropdown-item">资产池条目</a>
+                        <a href="{% url 'asset-screen' %}" class="dropdown-item">资产池配置</a>
+                        <a href="{% url 'asset_analysis:pool_summary' %}" class="dropdown-item">评分日志/告警</a>
+                        <a href="{% url 'asset_analysis:pool_summary' %}" class="dropdown-item">资产池条目</a>
                     </div>
                 </div>
 
@@ -347,4 +346,3 @@
     <script src="{% static 'js/components/floating-widget.js' %}"></script>
 </body>
 </html>
-

@@ -181,7 +181,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
         try:
             from ...infrastructure.models import QlibModelRegistryModel
 
-            active_model = QlibModelRegistryModel.objects.filter(
+            active_model = QlibModelRegistryModel._default_manager.filter(
                 is_active=True
             ).first()
 
@@ -229,7 +229,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
                 return None
 
             # 查询缓存
-            cache = AlphaScoreCacheModel.objects.filter(
+            cache = AlphaScoreCacheModel._default_manager.filter(
                 universe_id=universe_id,
                 intended_trade_date=intended_trade_date,
                 provider_source="qlib",
@@ -324,7 +324,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
 
             cutoff_date = date.today() - timedelta(days=7)
 
-            has_cache = AlphaScoreCacheModel.objects.filter(
+            has_cache = AlphaScoreCacheModel._default_manager.filter(
                 provider_source="qlib",
                 intended_trade_date__gte=cutoff_date
             ).exists()
@@ -475,3 +475,4 @@ class QlibAlphaProvider(BaseAlphaProvider):
         except Exception as e:
             logger.error(f"预测失败: {e}", exc_info=True)
             return {}
+

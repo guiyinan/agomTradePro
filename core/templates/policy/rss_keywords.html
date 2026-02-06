@@ -188,7 +188,7 @@
         <div>
             <a href="{% url 'policy:rss-manage' %}" class="btn btn-secondary">RSS源管理</a>
             <a href="{% url 'policy:rss-logs' %}" class="btn btn-secondary">抓取日志</a>
-            <a href="/admin/policy/policylevelkeywordmodel/add/" class="btn btn-primary">+ 添加规则</a>
+            <a href="{% url 'policy:rss-keyword-create' %}" class="btn btn-primary">+ 添加规则</a>
         </div>
     </div>
 
@@ -260,7 +260,7 @@
                         {% endif %}
                     </td>
                     <td>
-                        <a href="/admin/policy/policylevelkeywordmodel/{{ kw.id }}/change/" class="btn btn-sm btn-secondary">编辑</a>
+                        <a href="{% url 'policy:rss-keyword-edit' kw.id %}" class="btn btn-sm btn-secondary">编辑</a>
                     </td>
                 </tr>
                 {% endfor %}
