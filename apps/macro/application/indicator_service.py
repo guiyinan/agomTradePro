@@ -500,7 +500,7 @@ class IndicatorService:
     }
 
     @classmethod
-    def get_available_indicators(cls) -> List[Dict]:
+    def get_available_indicators(cls, include_stats: bool = True) -> List[Dict]:
         """
         获取所有可用的指标列表
 
@@ -527,16 +527,23 @@ class IndicatorService:
                 latest.original_unit or metadata.get('unit', '')
             )
 
-            # 获取历史数据统计
-            from django.db.models import Avg, Max, Min
-            stats = MacroIndicator._default_manager.filter(
-                code=code,
-                reporting_period__gte=datetime.now().date() - timedelta(days=365)
-            ).aggregate(
-                avg_value=Avg('value'),
-                max_value=Max('value'),
-                min_value=Min('value')
-            )
+            avg_value = None
+            max_value = None
+            min_value = None
+            if include_stats:
+                # 历史统计是重查询，允许按场景关闭以避免页面阻塞
+                from django.db.models import Avg, Max, Min
+                stats = MacroIndicator._default_manager.filter(
+                    code=code,
+                    reporting_period__gte=datetime.now().date() - timedelta(days=365)
+                ).aggregate(
+                    avg_value=Avg('value'),
+                    max_value=Max('value'),
+                    min_value=Min('value')
+                )
+                avg_value = float(stats['avg_value']) if stats['avg_value'] else None
+                max_value = float(stats['max_value']) if stats['max_value'] else None
+                min_value = float(stats['min_value']) if stats['min_value'] else None
 
             indicators.append({
                 'code': code,
@@ -552,9 +559,9 @@ class IndicatorService:
                 'threshold_bullish': metadata.get('threshold_bullish'),
                 'threshold_bearish': metadata.get('threshold_bearish'),
                 # 历史统计（存储值，用于趋势分析）
-                'avg_value': float(stats['avg_value']) if stats['avg_value'] else None,
-                'max_value': float(stats['max_value']) if stats['max_value'] else None,
-                'min_value': float(stats['min_value']) if stats['min_value'] else None,
+                'avg_value': avg_value,
+                'max_value': max_value,
+                'min_value': min_value,
             })
 
         # 按类别和代码排序
@@ -624,22 +631,59 @@ class IndicatorService:
         ]
 
 
-def get_available_indicators_for_frontend() -> List[Dict]:
+def get_available_indicators_for_frontend(include_stats: bool = False) -> List[Dict]:
     """
     获取前端需要的指标列表
 
     格式简化，用于下拉选择
     """
-    indicators = IndicatorService.get_available_indicators()
+    if include_stats:
+        indicators = IndicatorService.get_available_indicators(include_stats=True)
+        return [
+            {
+                'code': ind['code'],
+                'name': ind['name'],
+                'category': ind['category'],
+                'latest_value': ind['latest_value'],
+                'suggested_threshold': ind['threshold_bullish'] or ind['threshold_bearish'] or ind['avg_value'],
+            }
+            for ind in indicators
+        ]
 
-    return [
-        {
-            'code': ind['code'],
-            'name': ind['name'],
-            'category': ind['category'],
-            'latest_value': ind['latest_value'],
-            'suggested_threshold': ind['threshold_bullish'] or ind['threshold_bearish'] or ind['avg_value'],
-        }
-        for ind in indicators
-    ]
+    # Lightweight path for UI dropdowns:
+    # avoid scanning all historical indicator codes and per-code aggregation.
+    metadata = IndicatorService.INDICATOR_METADATA
+    known_codes = list(metadata.keys())
+    latest_by_code: Dict[str, float] = {}
+
+    # Single query to fetch recent values for known indicator set.
+    rows = (
+        MacroIndicator._default_manager
+        .filter(code__in=known_codes)
+        .order_by('code', '-reporting_period')
+        .values('code', 'value')
+    )
+
+    for row in rows:
+        code = row['code']
+        if code in latest_by_code:
+            continue
+        try:
+            latest_by_code[code] = float(row['value'])
+        except (TypeError, ValueError):
+            latest_by_code[code] = None
+
+    indicators = []
+    for code in known_codes:
+        info = metadata.get(code, {})
+        indicators.append({
+            'code': code,
+            'name': info.get('name', code),
+            'category': info.get('category', '其他'),
+            'latest_value': latest_by_code.get(code),
+            'suggested_threshold': info.get('threshold_bullish') or info.get('threshold_bearish'),
+        })
+
+    indicators.sort(key=lambda x: (x['category'], x['code']))
+    return indicators
 

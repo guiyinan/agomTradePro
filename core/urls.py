@@ -68,7 +68,7 @@ module_patterns = [
     # Main module routes.
     path('backtest/', include('apps.backtest.interface.urls')),
     path('regime/', include('apps.regime.interface.urls')),
-    path('macro/', include('apps.macro.interface.urls')),
+    path('macro/', include(('apps.macro.interface.urls', 'macro'), namespace='macro')),
     path('filter/', include('apps.filter.interface.urls')),
     path('signal/', include('apps.signal.interface.urls')),
     path('ai/', include('apps.ai_provider.interface.urls')),
