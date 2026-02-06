@@ -78,11 +78,60 @@ class AttributionResult:
 
 
 @dataclass(frozen=True)
+class BrinsonAttributionResult:
+    """Brinson 归因模型结果
+
+    标准 Brinson 模型将超额收益分解为：
+    - Allocation Effect: 配置效应（资产配置偏离基准的收益）
+    - Selection Effect: 选股效应（同类资产内选股能力的收益）
+    - Interaction Effect: 交互效应（配置和选股的交互影响）
+
+    公式:
+    - Allocation Effect = Σ(wp_i - wb_i) * (rb_i - rb)
+    - Selection Effect = Σ wb_i * (rp_i - rb_i)
+    - Interaction Effect = Σ(wp_i - wb_i) * (rp_i - rb_i)
+
+    其中:
+    - wp_i: 组合中资产 i 的权重
+    - wb_i: 基准中资产 i 的权重
+    - rp_i: 组合中资产 i 的收益
+    - rb_i: 基准中资产 i 的收益
+    - rb: 基准整体收益
+    """
+    # 总体指标
+    benchmark_return: float  # 基准收益率
+    portfolio_return: float  # 组合收益率
+    excess_return: float  # 超额收益 = portfolio_return - benchmark_return
+
+    # Brinson 分解
+    allocation_effect: float  # 配置效应
+    selection_effect: float  # 选股效应
+    interaction_effect: float  # 交互效应
+
+    # 验证：三项之和应等于超额收益
+    attribution_sum: float  # allocation + selection + interaction
+
+    # 分时段分解
+    period_breakdown: List[Dict]  # 各时段的 Brinson 分解
+
+    # 分资产类别分解
+    sector_breakdown: Dict[str, Dict]  # 各资产类别的详细分解
+    # 格式: {asset_class: {"allocation": float, "selection": float, "interaction": float}}
+
+
+class AttributionMethod(Enum):
+    """归因方法"""
+    HEURISTIC = "heuristic"  # 启发式方法（30%/50% 规则）
+    BRINSON = "brinson"  # 标准 Brinson 模型
+
+
+@dataclass(frozen=True)
 class AttributionConfig:
     """归因分析配置"""
     risk_free_rate: float = 0.03  # 无风险利率
     benchmark_return: float = 0.08  # 基准收益（年化）
     min_confidence_threshold: float = 0.3  # 最低置信度阈值
+    attribution_method: AttributionMethod = AttributionMethod.HEURISTIC  # 归因方法
 
 
 # ============ 指标表现评估相关实体 ============

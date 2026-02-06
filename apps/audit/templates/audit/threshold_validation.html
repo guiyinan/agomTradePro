@@ -1,0 +1,180 @@
+{% extends "audit/base.html" %}
+
+{% block title %}阈值验证 - 审计模块{% endblock %}
+
+{% block extra_css %}
+<style>
+.validation-status { display: flex; align-items: center; gap: 16px; padding: 16px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 24px; }
+.status-indicator { width: 12px; height: 12px; border-radius: 50%; }
+.status-pending { background: #fbbf24; animation: pulse 2s infinite; }
+.status-in-progress { background: #3b82f6; animation: pulse 1s infinite; }
+.status-completed { background: #10b981; }
+.status-failed { background: #ef4444; }
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.threshold-editor { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 24px; }
+.threshold-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; }
+.threshold-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #e2e8f0; }
+.threshold-name { font-size: 16px; font-weight: 600; }
+.threshold-code { font-size: 13px; color: #64748b; }
+
+.slider-group { margin-bottom: 16px; }
+.slider-label { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+.slider-value { font-weight: 600; color: #667eea; }
+.range-slider { width: 100%; height: 6px; border-radius: 3px; background: #e2e8f0; outline: none; }
+.range-slider::-webkit-slider-thumb { appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #667eea; cursor: pointer; }
+
+.preview-box { margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: 8px; }
+.preview-label { font-size: 12px; color: #64748b; margin-bottom: 8px; }
+.preview-charts { display: flex; gap: 8px; }
+.preview-mini { flex: 1; height: 80px; background: white; border-radius: 6px; border: 1px solid #e2e8f0; }
+
+.history-comparison { margin-top: 16px; }
+.history-item { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+.history-date { font-size: 12px; color: #64748b; width: 100px; }
+.history-values { flex: 1; display: flex; gap: 16px; }
+.history-value { font-size: 13px; }
+.history-label { font-size: 11px; color: #64748b; }
+
+.action-buttons { display: flex; gap: 12px; margin-top: 20px; }
+.btn-save { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+.btn-reset { background: #f1f5f9; color: #64748b; }
+.btn-preview { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+</style>
+{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">指标阈值配置 · 实时预览与历史对比</p>
+{% endblock %}
+
+{% block header_actions %}
+<button onclick="saveAllThresholds()" class="btn btn-save">保存全部</button>
+<button onclick="resetAllThresholds()" class="btn btn-reset">重置全部</button>
+{% endblock %}
+
+{% block audit_content %}
+<!-- 验证状态 -->
+<div class="validation-status">
+    <div class="status-indicator status-{{ validation_status|lower }}"></div>
+    <div>
+        <div style="font-weight: 600;">验证状态: {{ validation_status_label }}</div>
+        <div style="font-size: 13px; color: #64748b;">{{ validation_message }}</div>
+    </div>
+</div>
+
+<!-- 阈值编辑器 -->
+<div class="threshold-editor" id="thresholdEditor">
+    {% for config in threshold_configs %}
+    <div class="threshold-card" data-indicator="{{ config.indicator_code }}">
+        <div class="threshold-header">
+            <div>
+                <div class="threshold-name">{{ config.indicator_name }}</div>
+                <div class="threshold-code">{{ config.indicator_code }}</div>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-sm btn-outline" onclick="previewThreshold('{{ config.indicator_code }}')">
+                    预览
+                </button>
+                <button class="btn btn-sm btn-primary" onclick="saveThreshold('{{ config.indicator_code }}')">
+                    保存
+                </button>
+            </div>
+        </div>
+
+        <!-- 阈值滑块 -->
+        <div class="slider-group">
+            <div class="slider-label">
+                <span>低阈值 (看空)</span>
+                <span class="slider-value" id="lowValue_{{ config.indicator_code }}">{{ config.level_low|floatformat:2 }}</span>
+            </div>
+            <input type="range"
+                   class="range-slider"
+                   id="lowSlider_{{ config.indicator_code }}"
+                   min="0"
+                   max="100"
+                   step="0.1"
+                   value="{{ config.level_low|default:0 }}"
+                   oninput="updateLowValue('{{ config.indicator_code }}', this.value)">
+        </div>
+
+        <div class="slider-group">
+            <div class="slider-label">
+                <span>高阈值 (看多)</span>
+                <span class="slider-value" id="highValue_{{ config.indicator_code }}">{{ config.level_high|floatformat:2 }}</span>
+            </div>
+            <input type="range"
+                   class="range-slider"
+                   id="highSlider_{{ config.indicator_code }}"
+                   min="0"
+                   max="100"
+                   step="0.1"
+                   value="{{ config.level_high|default:0 }}"
+                   oninput="updateHighValue('{{ config.indicator_code }}', this.value)">
+        </div>
+
+        <!-- 实时预览 -->
+        <div class="preview-box">
+            <div class="preview-label">信号分布预览</div>
+            <div class="preview-charts">
+                <div class="preview-mini">
+                    <canvas id="previewMini_{{ config.indicator_code }}"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 历史验证结果 -->
+        <div class="history-comparison">
+            <div class="preview-label">历史验证结果</div>
+            {% for history in config.validation_history|slice:":3" %}
+            <div class="history-item">
+                <div class="history-date">{{ history.validation_date|date:"Y-m-d" }}</div>
+                <div class="history-values">
+                    <div class="history-value">
+                        <span class="history-label">F1:</span>
+                        <span class="{% if history.f1_score >= 0.6 %}text-success{% elif history.f1_score >= 0.4 %}text-warning{% else %}text-danger{% endif %}">
+                            {{ history.f1_score|floatformat:3 }}
+                        </span>
+                    </div>
+                    <div class="history-value">
+                        <span class="history-label">稳定性:</span>
+                        <span>{{ history.stability_score|floatformat:3 }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- 全局操作 -->
+<div class="action-buttons">
+    <button onclick="runValidation()" class="btn btn-preview" style="flex: 1;">
+        运行完整验证
+    </button>
+    <button onclick="exportConfig()" class="btn btn-outline" style="flex: 1;">
+        导出配置
+    </button>
+    <button onclick="importConfig()" class="btn btn-outline" style="flex: 1;">
+        导入配置
+    </button>
+</div>
+{% endblock %}
+
+{% block audit_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="/static/js/audit/threshold-editor.js"></script>
+<script>
+// 阈值配置数据
+const thresholdData = {{ threshold_data|safe }};
+
+// 初始化编辑器
+document.addEventListener('DOMContentLoaded', function() {
+    initThresholdEditor(thresholdData);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,262 @@
+{% extends "audit/base.html" %}
+
+{% block title %}归因详情 #{{ report.id }} - 审计模块{% endblock %}
+
+{% block extra_css %}
+<style>
+.detail-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+
+.main-content { display: flex; flex-direction: column; gap: 24px; }
+
+.sidebar { display: flex; flex-direction: column; gap: 16px; }
+
+.sidebar-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; }
+.sidebar-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+
+.backtest-info { margin-bottom: 24px; }
+.info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+.info-label { font-size: 13px; color: #64748b; }
+.info-value { font-size: 13px; font-weight: 500; }
+
+.pnL-breakdown { margin-top: 16px; }
+.breakdown-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
+.breakdown-label { font-size: 14px; }
+.breakdown-bar { flex: 1; margin: 0 16px; height: 8px; background: #f1f5f9; border-radius: 4px; overflow: hidden; }
+.breakdown-fill { height: 100%; transition: width 0.3s; }
+.breakdown-value { font-size: 14px; font-weight: 600; width: 60px; text-align: right; }
+
+.fill-positive { background: linear-gradient(90deg, #10b981, #059669); }
+.fill-negative { background: linear-gradient(90deg, #ef4444, #dc2626); }
+
+.period-timeline { margin-top: 16px; }
+.timeline-item { position: relative; padding-left: 32px; margin-bottom: 20px; }
+.timeline-marker { position: absolute; left: 0; top: 0; width: 12px; height: 12px; border-radius: 50%; background: #667eea; }
+.timeline-line { position: absolute; left: 5px; top: 12px; bottom: -20px; width: 2px; background: #e2e8f0; }
+.timeline-item:last-child .timeline-line { display: none; }
+.timeline-period { font-size: 13px; color: #64748b; margin-bottom: 4px; }
+.timeline-regime { font-size: 14px; font-weight: 600; }
+.timeline-return { font-size: 13px; margin-top: 4px; }
+</style>
+{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">归因详情 #{{ report.id }}</p>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'audit:reports' %}" class="btn btn-outline">返回列表</a>
+<button onclick="window.print()" class="btn btn-secondary">打印报告</button>
+{% endblock %}
+
+{% block audit_content %}
+<div class="detail-grid">
+    <!-- 主内容区 -->
+    <div class="main-content">
+        <!-- 收益分解图表 -->
+        <div class="card">
+            <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600;">收益分解</h3>
+            <div style="height: 300px;">
+                <canvas id="pnlChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 周期时间线 -->
+        <div class="card">
+            <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600;">周期表现</h3>
+            <div class="period-timeline" id="periodTimeline">
+                {% for period in period_attributions %}
+                <div class="timeline-item">
+                    <div class="timeline-marker"></div>
+                    <div class="timeline-line"></div>
+                    <div class="timeline-period">
+                        {{ period.start_date|date:"Y-m-d" }} - {{ period.end_date|date:"Y-m-d" }}
+                    </div>
+                    <div class="timeline-regime">{{ period.regime }}</div>
+                    <div class="timeline-return {% if period.portfolio_return >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        收益: {{ period.portfolio_return|percentage:2 }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 损失分析 -->
+        {% if loss_analyses %}
+        <div class="card">
+            <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600;">损失分析</h3>
+            {% for loss in loss_analyses %}
+            <div style="padding: 16px; background: #fef2f2; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #ef4444;">
+                <div style="font-weight: 600; color: #991b1b; margin-bottom: 8px;">
+                    {{ loss.get_loss_source_display }}
+                </div>
+                <div style="font-size: 14px; color: #64748b; margin-bottom: 8px;">
+                    影响: {{ loss.impact|percentage:2 }} ({{ loss.impact_percentage|floatformat:1 }}%)
+                </div>
+                <div style="font-size: 13px;">{{ loss.description }}</div>
+                {% if loss.improvement_suggestion %}
+                <div style="margin-top: 8px; font-size: 13px; color: #64748b;">
+                    <strong>改进建议:</strong> {{ loss.improvement_suggestion }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 侧边栏 -->
+    <div class="sidebar">
+        <!-- 回测信息 -->
+        <div class="sidebar-card">
+            <div class="sidebar-title">回测信息</div>
+            <div class="backtest-info">
+                <div class="info-row">
+                    <span class="info-label">回测 ID</span>
+                    <span class="info-value">#{{ report.backtest_id }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">期间</span>
+                    <span class="info-value">{{ report.period_start|date:"Y-m-d" }} - {{ report.period_end|date:"Y-m-d" }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">主导 Regime</span>
+                    <span class="info-value">{{ report.regime_predicted|default:"N/A" }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">准确率</span>
+                    <span class="info-value">{{ report.regime_accuracy|floatformat:1 }}%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 收益分解 -->
+        <div class="sidebar-card">
+            <div class="sidebar-title">收益分解</div>
+            <div class="pnL-breakdown">
+                <div class="breakdown-item">
+                    <span class="breakdown-label">择时收益</span>
+                    <div class="breakdown-bar">
+                        <div class="breakdown-fill {% if report.regime_timing_pnl >= 0 %}fill-positive{% else %}fill-negative{% endif %}"
+                             style="width: {{ report.regime_timing_pnl|absolute_width:100 }}%"></div>
+                    </div>
+                    <span class="breakdown-value {% if report.regime_timing_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ report.regime_timing_pnl|percentage:2 }}
+                    </span>
+                </div>
+                <div class="breakdown-item">
+                    <span class="breakdown-label">选股收益</span>
+                    <div class="breakdown-bar">
+                        <div class="breakdown-fill {% if report.asset_selection_pnl >= 0 %}fill-positive{% else %}fill-negative{% endif %}"
+                             style="width: {{ report.asset_selection_pnl|absolute_width:100 }}%"></div>
+                    </div>
+                    <span class="breakdown-value {% if report.asset_selection_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ report.asset_selection_pnl|percentage:2 }}
+                    </span>
+                </div>
+                <div class="breakdown-item">
+                    <span class="breakdown-label">交互收益</span>
+                    <div class="breakdown-bar">
+                        <div class="breakdown-fill {% if report.interaction_pnl >= 0 %}fill-positive{% else %}fill-negative{% endif %}"
+                             style="width: {{ report.interaction_pnl|absolute_width:100 }}%"></div>
+                    </div>
+                    <span class="breakdown-value {% if report.interaction_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ report.interaction_pnl|percentage:2 }}
+                    </span>
+                </div>
+                <div class="breakdown-item">
+                    <span class="breakdown-label">总收益</span>
+                    <div class="breakdown-bar">
+                        <div class="breakdown-fill {% if report.total_pnl >= 0 %}fill-positive{% else %}fill-negative{% endif %}"
+                             style="width: {{ report.total_pnl|absolute_width:100 }}%"></div>
+                    </div>
+                    <span class="breakdown-value {% if report.total_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ report.total_pnl|percentage:2 }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 经验总结 -->
+        {% if experience_summaries %}
+        <div class="sidebar-card">
+            <div class="sidebar-title">经验总结</div>
+            {% for exp in experience_summaries %}
+            <div style="padding: 12px; background: #f0fdf4; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #10b981;">
+                <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                    <span class="badge badge-{% if exp.priority == 'HIGH' %}danger{% elif exp.priority == 'MEDIUM' %}warning{% else %}info{% endif %}" style="margin-right: 8px;">
+                        {{ exp.get_priority_display }}
+                    </span>
+                </div>
+                <div style="font-size: 13px; font-weight: 500;">{{ exp.lesson }}</div>
+                {% if exp.recommendation %}
+                <div style="margin-top: 8px; font-size: 12px; color: #64748b;">
+                    {{ exp.recommendation }}
+                </div>
+                {% endif %}
+                {% if exp.is_applied %}
+                <div style="margin-top: 8px;">
+                    <span class="badge badge-success">已应用</span>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block audit_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('pnlChart').getContext('2d');
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['择时收益', '选股收益', '交互收益', '总收益'],
+            datasets: [{
+                data: [
+                    {{ report.regime_timing_pnl }},
+                    {{ report.asset_selection_pnl }},
+                    {{ report.interaction_pnl }},
+                    {{ report.total_pnl }}
+                ],
+                backgroundColor: [
+                    'rgba(16, 185, 129, 0.8)',
+                    'rgba(59, 130, 246, 0.8)',
+                    'rgba(245, 158, 11, 0.8)',
+                    'rgba(102, 126, 234, 0.8)'
+                ],
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.parsed.y.toFixed(4) + ' (' + (context.parsed.y * 100).toFixed(2) + '%)';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return (value * 100).toFixed(1) + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

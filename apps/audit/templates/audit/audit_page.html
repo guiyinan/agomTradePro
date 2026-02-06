@@ -1,0 +1,152 @@
+{% extends "audit/base.html" %}
+
+{% block title %}审计模块首页 - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+<style>
+.quick-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+.action-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; text-align: center; cursor: pointer; transition: all 0.2s; }
+.action-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.action-icon { font-size: 36px; margin-bottom: 12px; }
+.action-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+.action-description { font-size: 13px; color: #64748b; }
+
+.recent-reports { margin-top: 32px; }
+.report-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+.report-info h3 { margin: 0 0 8px 0; font-size: 16px; font-weight: 600; }
+.report-meta { font-size: 13px; color: #64748b; }
+.report-stats { display: flex; gap: 24px; }
+.report-stat { text-align: center; }
+.report-stat-value { font-size: 18px; font-weight: 700; }
+.report-stat-label { font-size: 12px; color: #64748b; }
+
+.validation-summary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 12px; padding: 24px; margin-bottom: 32px; }
+.validation-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.validation-title { font-size: 20px; font-weight: 700; }
+.validation-date { font-size: 14px; opacity: 0.9; }
+.validation-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.validation-metric { text-align: center; }
+.validation-metric-value { font-size: 24px; font-weight: 700; }
+.validation-metric-label { font-size: 12px; opacity: 0.9; }
+</style>
+{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">归因分析 · 指标评估 · 阈值验证</p>
+{% endblock %}
+
+{% block audit_content %}
+<!-- 快速操作 -->
+<div class="quick-actions">
+    <div class="action-card" onclick="location.href='{% url 'audit:generate_report' %}'">
+        <div class="action-icon">📊</div>
+        <div class="action-title">生成归因报告</div>
+        <div class="action-description">分析回测收益来源</div>
+    </div>
+    <div class="action-card" onclick="location.href='{% url 'audit:indicator_performance' %}'">
+        <div class="action-icon">📈</div>
+        <div class="action-title">指标表现评估</div>
+        <div class="action-description">评估指标预测能力</div>
+    </div>
+    <div class="action-card" onclick="location.href='{% url 'audit:threshold_validation' %}'">
+        <div class="action-icon">⚙️</div>
+        <div class="action-title">阈值配置验证</div>
+        <div class="action-description">优化指标阈值</div>
+    </div>
+    <div class="action-card" onclick="location.href='{% url 'audit:brinson_analysis' %}'">
+        <div class="action-icon">🎯</div>
+        <div class="action-title">Brinson 归因</div>
+        <div class="action-description">标准归因模型分析</div>
+    </div>
+</div>
+
+<!-- 最新验证摘要 -->
+{% if latest_validation %}
+<div class="validation-summary">
+    <div class="validation-header">
+        <div class="validation-title">最新阈值验证结果</div>
+        <div class="validation-date">{{ latest_validation.run_date|date:"Y-m-d H:i" }}</div>
+    </div>
+    <div class="validation-metrics">
+        <div class="validation-metric">
+            <div class="validation-metric-value">{{ latest_validation.total_indicators }}</div>
+            <div class="validation-metric-label">评估指标</div>
+        </div>
+        <div class="validation-metric">
+            <div class="validation-metric-value">{{ latest_validation.approved_indicators }}</div>
+            <div class="validation-metric-label">通过验证</div>
+        </div>
+        <div class="validation-metric">
+            <div class="validation-metric-value">{{ latest_validation.avg_f1_score|floatformat:3 }}</div>
+            <div class="validation-metric-label">平均 F1</div>
+        </div>
+        <div class="validation-metric">
+            <div class="validation-metric-value">{{ latest_validation.avg_stability_score|floatformat:3 }}</div>
+            <div class="validation-metric-label">平均稳定性</div>
+        </div>
+    </div>
+    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.2);">
+        <strong>总体建议:</strong> {{ latest_validation.overall_recommendation }}
+    </div>
+</div>
+{% endif %}
+
+<!-- 最新归因报告 -->
+<div class="section">
+    <div class="section-header">
+        <h2 class="section-title">最新归因报告</h2>
+        <a href="{% url 'audit:reports' %}" class="btn btn-outline btn-sm">查看全部</a>
+    </div>
+    <div class="recent-reports">
+        {% for report in recent_reports %}
+        <div class="report-card">
+            <div class="report-info">
+                <h3>{{ report.backtest_name|default:report.backtest_id }}</h3>
+                <div class="report-meta">
+                    {{ report.period_start|date:"Y-m-d" }} - {{ report.period_end|date:"Y-m-d" }}
+                </div>
+            </div>
+            <div class="report-stats">
+                <div class="report-stat">
+                    <div class="report-stat-value {% if report.total_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ report.total_pnl|percentage:2 }}
+                    </div>
+                    <div class="report-stat-label">总收益</div>
+                </div>
+                <div class="report-stat">
+                    <div class="report-stat-value text-info">
+                        {{ report.regime_accuracy|floatformat:1 }}%
+                    </div>
+                    <div class="report-stat-label">准确率</div>
+                </div>
+                <div class="report-stat">
+                    <div class="report-stat-value">
+                        {{ report.loss_analyses|length }}
+                    </div>
+                    <div class="report-stat-label">损失项</div>
+                </div>
+            </div>
+            <a href="{% url 'audit:report_detail' report.id %}" class="btn btn-primary btn-sm">
+                查看详情
+            </a>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <div class="empty-icon">📊</div>
+            <p>暂无归因报告</p>
+            <a href="{% url 'audit:generate_report' %}" class="btn btn-primary">生成第一份报告</a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block audit_js %}
+<script>
+// 页面加载时的初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 可以在这里添加一些实时数据刷新逻辑
+    console.log('Audit module dashboard loaded');
+});
+</script>
+{% endblock %}

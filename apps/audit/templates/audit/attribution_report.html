@@ -1,0 +1,190 @@
+{% extends "audit/base.html" %}
+
+{% block title %}归因分析报告 - 审计模块{% endblock %}
+
+{% block extra_css %}
+<style>
+.attribution-summary { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 32px; }
+.summary-card { text-align: center; }
+.summary-value { font-size: 28px; font-weight: 700; }
+.summary-label { font-size: 12px; color: #64748b; margin-top: 4px; }
+
+.chart-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 32px; }
+.chart-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; }
+.chart-card h3 { margin: 0 0 16px 0; font-size: 16px; font-weight: 600; }
+.chart-container { height: 300px; position: relative; }
+
+.breakdown-table { width: 100%; }
+.breakdown-table th { background: #f8fafc; font-weight: 600; }
+.breakdown-table td, .breakdown-table th { padding: 12px; text-align: right; }
+.breakdown-table td:first-child, .breakdown-table th:first-child { text-align: left; }
+
+.loss-analysis { margin-top: 24px; }
+.loss-item { padding: 16px; background: #fef2f2; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #ef4444; }
+.loss-source { font-weight: 600; color: #991b1b; margin-bottom: 8px; }
+.loss-amount { font-size: 14px; color: #64748b; }
+
+.experience-list { margin-top: 16px; }
+.experience-item { padding: 16px; background: #f0fdf4; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #10b981; }
+.experience-priority { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-right: 8px; }
+.priority-high { background: #fef2f2; color: #991b1b; }
+.priority-medium { background: #fef3c7; color: #92400e; }
+.priority-low { background: #dbeafe; color: #1e40af; }
+</style>
+{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">归因分析报告 · 收益分解与损失归因</p>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'audit:reports' %}" class="btn btn-outline">返回列表</a>
+<button onclick="window.print()" class="btn btn-secondary">导出报告</button>
+{% endblock %}
+
+{% block audit_content %}
+<!-- 归因概览 -->
+<div class="attribution-summary">
+    <div class="stat-card summary-card">
+        <div class="summary-value {% if report.total_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+            {{ report.total_pnl|percentage:2 }}
+        </div>
+        <div class="summary-label">总收益</div>
+    </div>
+    <div class="stat-card summary-card">
+        <div class="summary-value {% if report.regime_timing_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+            {{ report.regime_timing_pnl|percentage:2 }}
+        </div>
+        <div class="summary-label">择时收益</div>
+    </div>
+    <div class="stat-card summary-card">
+        <div class="summary-value {% if report.asset_selection_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+            {{ report.asset_selection_pnl|percentage:2 }}
+        </div>
+        <div class="summary-label">选股收益</div>
+    </div>
+    <div class="stat-card summary-card">
+        <div class="summary-value {% if report.interaction_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+            {{ report.interaction_pnl|percentage:2 }}
+        </div>
+        <div class="summary-label">交互收益</div>
+    </div>
+    <div class="stat-card summary-card">
+        <div class="summary-value text-info">
+            {{ report.regime_accuracy|percentage:2 }}
+        </div>
+        <div class="summary-label">Regime 准确率</div>
+    </div>
+</div>
+
+<!-- 图表展示 -->
+<div class="chart-grid">
+    <div class="chart-card">
+        <h3>收益分解瀑布图</h3>
+        <div class="chart-container">
+            <canvas id="waterfallChart"></canvas>
+        </div>
+    </div>
+    <div class="chart-card">
+        <h3>按周期归因趋势</h3>
+        <div class="chart-container">
+            <canvas id="trendChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- 详细分解表格 -->
+<div class="section">
+    <div class="section-header">
+        <h2 class="section-title">周期归因详情</h2>
+    </div>
+    <div class="table-responsive">
+        <table class="audit-table breakdown-table">
+            <thead>
+                <tr>
+                    <th>周期</th>
+                    <th>组合收益</th>
+                    <th>基准收益</th>
+                    <th>超额收益</th>
+                    <th>择时贡献</th>
+                    <th>选股贡献</th>
+                    <th>交互贡献</th>
+                </tr>
+            </thead>
+            <tbody id="periodTableBody">
+                <!-- 由 JavaScript 填充 -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 损失分析 -->
+{% if report.loss_analyses %}
+<div class="section">
+    <div class="section-header">
+        <h2 class="section-title">损失分析</h2>
+    </div>
+    <div class="loss-analysis">
+        {% for loss in report.loss_analyses %}
+        <div class="loss-item">
+            <div class="loss-source">{{ loss.get_loss_source_display }}</div>
+            <div class="loss-amount">
+                影响: {{ loss.impact|percentage:2 }} ({{ loss.impact_percentage|floatformat:1 }}%)
+            </div>
+            <div class="loss-description">{{ loss.description }}</div>
+            {% if loss.improvement_suggestion %}
+            <div class="loss-suggestion">
+                <strong>改进建议:</strong> {{ loss.improvement_suggestion }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- 经验总结 -->
+{% if report.experience_summaries %}
+<div class="section">
+    <div class="section-header">
+        <h2 class="section-title">经验总结</h2>
+    </div>
+    <div class="experience-list">
+        {% for exp in report.experience_summaries %}
+        <div class="experience-item">
+            <span class="experience-priority priority-{{ exp.priority|lower }}">
+                {{ exp.get_priority_display }}
+            </span>
+            <strong>{{ exp.lesson }}</strong>
+            {% if exp.recommendation %}
+            <div style="margin-top: 8px; color: #64748b;">
+                建议: {{ exp.recommendation }}
+            </div>
+            {% endif %}
+            {% if exp.is_applied %}
+            <div style="margin-top: 8px;">
+                <span class="badge badge-success">已应用</span>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block audit_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="/static/js/audit/attribution-charts.js"></script>
+<script>
+// 报告数据
+const reportData = {{ report_data|safe }};
+
+// 初始化图表
+document.addEventListener('DOMContentLoaded', function() {
+    initWaterfallChart(reportData);
+    initTrendChart(reportData);
+    populatePeriodTable(reportData);
+});
+</script>
+{% endblock %}

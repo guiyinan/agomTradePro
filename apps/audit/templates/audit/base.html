@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}AgomSAAF - 审计模块{% endblock %}
+
+{% block extra_css %}
+<style>
+.audit-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+.audit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #e2e8f0; }
+.page-title { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 24px; font-weight: 700; }
+.page-subtitle { margin: 4px 0 0 40px; color: #64748b; font-size: 14px; }
+.header-actions { display: flex; gap: 12px; }
+
+.overview-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+.stat-card { display: flex; align-items: center; gap: 16px; padding: 20px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; }
+.stat-icon { font-size: 32px; }
+.stat-value { display: block; font-size: 24px; font-weight: 700; color: #667eea; }
+.stat-label { font-size: 13px; color: #64748b; }
+
+.section { margin-bottom: 32px; }
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.section-title { margin: 0; font-size: 18px; font-weight: 600; }
+.card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 8px 16px; border-radius: 8px; border: none; font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+.btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+.btn-outline { background: transparent; border: 1px solid #e2e8f0; color: #475569; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-secondary { background: #64748b; color: white; }
+
+.nav-tabs { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid #e2e8f0; padding-bottom: 0; }
+.nav-tab { padding: 10px 20px; border: none; background: transparent; font-size: 14px; font-weight: 500; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
+.nav-tab:hover { color: #667eea; }
+.nav-tab.active { color: #667eea; border-bottom-color: #667eea; }
+
+.table-responsive { overflow-x: auto; }
+.audit-table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; }
+.audit-table th, .audit-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+.audit-table th { background: #f8fafc; font-weight: 600; font-size: 13px; }
+.audit-table tbody tr:hover { background: #f8fafc; }
+
+.badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+.badge-success { background: #d1fae5; color: #065f46; }
+.badge-warning { background: #fef3c7; color: #92400e; }
+.badge-danger { background: #fee2e2; color: #991b1b; }
+.badge-info { background: #dbeafe; color: #1e40af; }
+
+.text-success { color: #10b981; }
+.text-warning { color: #f59e0b; }
+.text-danger { color: #ef4444; }
+
+.empty-state { text-align: center; padding: 40px 20px; }
+.empty-icon { font-size: 48px; margin-bottom: 16px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="audit-container">
+    <header class="audit-header">
+        <div>
+            <h1 class="page-title">
+                <span>📊</span>
+                审计模块
+            </h1>
+            {% block page_subtitle %}{% endblock %}
+        </div>
+        <div class="header-actions">
+            {% block header_actions %}{% endblock %}
+        </div>
+    </header>
+
+    {% block audit_content %}{% endblock %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% block audit_js %}{% endblock %}
+{% endblock %}

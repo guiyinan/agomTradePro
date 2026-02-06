@@ -1,0 +1,244 @@
+{% extends "audit/base.html" %}
+
+{% block title %}指标表现评估 - 审计模块{% endblock %}
+
+{% block extra_css %}
+<style>
+.metrics-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; margin-bottom: 32px; }
+.metric-card { text-align: center; }
+.metric-value { font-size: 24px; font-weight: 700; }
+.metric-label { font-size: 12px; color: #64748b; margin-top: 4px; }
+
+.chart-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 24px; }
+.chart-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; }
+.chart-card h3 { margin: 0 0 16px 0; font-size: 16px; font-weight: 600; }
+.chart-container { height: 280px; position: relative; }
+
+.indicator-list { margin-top: 24px; }
+.indicator-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 16px; }
+.indicator-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.indicator-name { font-size: 18px; font-weight: 600; }
+.indicator-code { font-size: 14px; color: #64748b; }
+.action-badge { padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+.action-keep { background: #d1fae5; color: #065f46; }
+.action-increase { background: #dbeafe; color: #1e40af; }
+.action-decrease { background: #fef3c7; color: #92400e; }
+.action-remove { background: #fee2e2; color: #991b1b; }
+
+.indicator-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.indicator-metric { text-align: center; }
+.indicator-metric-label { font-size: 12px; color: #64748b; }
+.indicator-metric-value { font-size: 16px; font-weight: 600; margin-top: 4px; }
+
+.confusion-matrix { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; max-width: 300px; margin: 16px auto; }
+.matrix-cell { padding: 16px; text-align: center; border-radius: 8px; }
+.matrix-tp { background: #d1fae5; color: #065f46; }
+.matrix-fp { background: #fee2e2; color: #991b1b; }
+.matrix-fn { background: #fef3c7; color: #92400e; }
+.matrix-tn { background: #f3f4f6; color: #6b7280; }
+.matrix-label { font-size: 12px; color: #64748b; }
+.matrix-value { font-size: 24px; font-weight: 700; margin-top: 8px; }
+
+.filter-bar { display: flex; gap: 12px; margin-bottom: 24px; padding: 16px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; }
+.filter-group { display: flex; align-items: center; gap: 8px; }
+.filter-label { font-size: 13px; font-weight: 500; }
+.filter-select { padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; }
+</style>
+{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">指标表现评估 · 预测能力与稳定性分析</p>
+{% endblock %}
+
+{% block header_actions %}
+<button onclick="location.href='{% url 'audit:validate_thresholds' %}'" class="btn btn-primary">
+    运行验证
+</button>
+{% endblock %}
+
+{% block audit_content %}
+<!-- 指标筛选 -->
+<div class="filter-bar">
+    <div class="filter-group">
+        <label class="filter-label">指标类别:</label>
+        <select class="filter-select" id="categoryFilter">
+            <option value="">全部</option>
+            <option value="growth">增长指标</option>
+            <option value="inflation">通胀指标</option>
+            <option value="sentiment">情绪指标</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label class="filter-label">建议操作:</label>
+        <select class="filter-select" id="actionFilter">
+            <option value="">全部</option>
+            <option value="KEEP">保持</option>
+            <option value="INCREASE">增加</option>
+            <option value="DECREASE">降低</option>
+            <option value="REMOVE">移除</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label class="filter-label">F1 分数:</label>
+        <select class="filter-select" id="f1Filter">
+            <option value="">全部</option>
+            <option value="high">≥ 0.6</option>
+            <option value="medium">0.4 - 0.6</option>
+            <option value="low">< 0.4</option>
+        </select>
+    </div>
+</div>
+
+<!-- 总体统计 -->
+<div class="metrics-grid">
+    <div class="stat-card metric-card">
+        <div class="metric-value">{{ total_indicators }}</div>
+        <div class="metric-label">评估指标数</div>
+    </div>
+    <div class="stat-card metric-card">
+        <div class="metric-value text-success">{{ approved_indicators }}</div>
+        <div class="metric-label">通过验证</div>
+    </div>
+    <div class="stat-card metric-card">
+        <div class="metric-value text-warning">{{ pending_indicators }}</div>
+        <div class="metric-label">待优化</div>
+    </div>
+    <div class="stat-card metric-card">
+        <div class="metric-value text-danger">{{ rejected_indicators }}</div>
+        <div class="metric-label">建议移除</div>
+    </div>
+    <div class="stat-card metric-card">
+        <div class="metric-value text-info">{{ avg_f1_score|floatformat:3 }}</div>
+        <div class="metric-label">平均 F1 分数</div>
+    </div>
+    <div class="stat-card metric-card">
+        <div class="metric-value text-info">{{ avg_stability_score|floatformat:3 }}</div>
+        <div class="metric-label">平均稳定性</div>
+    </div>
+</div>
+
+<!-- 图表展示 -->
+<div class="chart-row">
+    <div class="chart-card">
+        <h3>F1 分数分布</h3>
+        <div class="chart-container">
+            <canvas id="f1DistributionChart"></canvas>
+        </div>
+    </div>
+    <div class="chart-card">
+        <h3>稳定性 vs F1 分数</h3>
+        <div class="chart-container">
+            <canvas id="stabilityF1Chart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="chart-row">
+    <div class="chart-card">
+        <h3>指标排行榜 (按 F1 分数)</h3>
+        <div class="chart-container">
+            <canvas id="rankingChart"></canvas>
+        </div>
+    </div>
+    <div class="chart-card">
+        <h3>建议操作分布</h3>
+        <div class="chart-container">
+            <canvas id="actionDistributionChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- 指标列表 -->
+<div class="section">
+    <div class="section-header">
+        <h2 class="section-title">指标详细评估</h2>
+    </div>
+    <div class="indicator-list" id="indicatorList">
+        {% for report in indicator_reports %}
+        <div class="indicator-card"
+             data-category="{{ report.category|default:'' }}"
+             data-action="{{ report.recommended_action }}"
+             data-f1="{{ report.f1_score }}">
+            <div class="indicator-header">
+                <div>
+                    <div class="indicator-name">{{ report.indicator_name }}</div>
+                    <div class="indicator-code">{{ report.indicator_code }}</div>
+                </div>
+                <span class="action-badge action-{{ report.recommended_action|lower }}">
+                    {% if report.recommended_action == 'KEEP' %}保持
+                    {% elif report.recommended_action == 'INCREASE' %}增加权重
+                    {% elif report.recommended_action == 'DECREASE' %}降低权重
+                    {% elif report.recommended_action == 'REMOVE' %}建议移除
+                    {% endif %}
+                </span>
+            </div>
+
+            <div class="indicator-metrics">
+                <div class="indicator-metric">
+                    <div class="indicator-metric-label">F1 分数</div>
+                    <div class="indicator-metric-value {% if report.f1_score >= 0.6 %}text-success{% elif report.f1_score >= 0.4 %}text-warning{% else %}text-danger{% endif %}">
+                        {{ report.f1_score|floatformat:3 }}
+                    </div>
+                </div>
+                <div class="indicator-metric">
+                    <div class="indicator-metric-label">稳定性</div>
+                    <div class="indicator-metric-value {% if report.stability_score >= 0.6 %}text-success{% elif report.stability_score >= 0.4 %}text-warning{% else %}text-danger{% endif %}">
+                        {{ report.stability_score|floatformat:3 }}
+                    </div>
+                </div>
+                <div class="indicator-metric">
+                    <div class="indicator-metric-label">领先时间</div>
+                    <div class="indicator-metric-value">
+                        {{ report.lead_time_mean|floatformat:1 }} 月
+                    </div>
+                </div>
+                <div class="indicator-metric">
+                    <div class="indicator-metric-label">建议权重</div>
+                    <div class="indicator-metric-value">
+                        {{ report.recommended_weight|floatformat:2 }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- 混淆矩阵 -->
+            <div class="confusion-matrix">
+                <div class="matrix-cell matrix-tp">
+                    <div class="matrix-label">真阳性</div>
+                    <div class="matrix-value">{{ report.true_positive_count }}</div>
+                </div>
+                <div class="matrix-cell matrix-fp">
+                    <div class="matrix-label">假阳性</div>
+                    <div class="matrix-value">{{ report.false_positive_count }}</div>
+                </div>
+                <div class="matrix-cell matrix-fn">
+                    <div class="matrix-label">假阴性</div>
+                    <div class="matrix-value">{{ report.false_negative_count }}</div>
+                </div>
+                <div class="matrix-cell matrix-tn">
+                    <div class="matrix-label">真阴性</div>
+                    <div class="matrix-value">{{ report.true_negative_count }}</div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block audit_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="/static/js/audit/performance-dashboard.js"></script>
+<script>
+// 指标数据
+const indicatorData = {{ indicator_data|safe }};
+
+// 初始化图表和筛选
+document.addEventListener('DOMContentLoaded', function() {
+    initF1DistributionChart(indicatorData);
+    initStabilityF1Chart(indicatorData);
+    initRankingChart(indicatorData);
+    initActionDistributionChart(indicatorData);
+    initFilters();
+});
+</script>
+{% endblock %}

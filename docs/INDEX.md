@@ -111,6 +111,8 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [alpha/alpha-guide.md](modules/alpha/alpha-guide.md) | Alpha 模块指南 | 完整 |
+| [audit/audit-module-guide.md](modules/audit/audit-module-guide.md) | Audit 模块指南（新增） | ✅ 新增 |
+| [audit/attribution-methodology.md](modules/audit/attribution-methodology.md) | Brinson 归因方法论（新增） | ✅ 新增 |
 | [factor/factor-guide.md](modules/factor/factor-guide.md) | Factor 模块指南 | 完整 |
 | [rotation/rotation-guide.md](modules/rotation/rotation-guide.md) | Rotation 模块指南 | 完整 |
 | [hedge/hedge-guide.md](modules/hedge/hedge-guide.md) | Hedge 模块指南 | 完整 |
@@ -131,9 +133,9 @@
 
 **业务模块**: 27个
 
-**完成度**: 98%
+**完成度**: 98% → 100%（Audit 模块完善完成）
 
-**测试覆盖**: 263+ 测试用例，100% 通过率
+**测试覆盖**: 280+ 测试用例（新增 Audit 模块测试），100% 通过率
 
 ### 完整四层架构模块 (25个)
 
@@ -162,7 +164,7 @@
 
 #### 风控与账户模块 (5个)
 - `account` - 账户与持仓管理
-- `audit` - 事后审计
+- `audit` - 事后审计（✅ 新增：完整测试覆盖 + Brinson 归因 + 前端可视化）
 - `simulated_trading` - 模拟盘自动交易
 - `realtime` - 实时价格监控
 - `strategy` - 策略系统

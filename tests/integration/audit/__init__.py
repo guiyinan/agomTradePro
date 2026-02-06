@@ -1,0 +1,3 @@
+"""
+Audit module integration tests.
+"""
