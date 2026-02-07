@@ -16,6 +16,18 @@ from .base import BaseAlphaProvider, provider_safe
 
 logger = logging.getLogger(__name__)
 
+try:
+    from ...infrastructure.models import AlphaScoreCacheModel
+except Exception:  # pragma: no cover - fallback for import-time edge cases
+    AlphaScoreCacheModel = None
+
+
+def _get_cache_model():
+    if AlphaScoreCacheModel is not None:
+        return AlphaScoreCacheModel
+    from ...infrastructure.models import AlphaScoreCacheModel as cache_model
+    return cache_model
+
 
 class CacheAlphaProvider(BaseAlphaProvider):
     """
@@ -71,10 +83,10 @@ class CacheAlphaProvider(BaseAlphaProvider):
             Provider 状态
         """
         try:
-            from ...infrastructure.models import AlphaScoreCacheModel
+            cache_model = _get_cache_model()
 
             # 检查是否有缓存数据
-            has_recent_cache = AlphaScoreCacheModel._default_manager.filter(
+            has_recent_cache = cache_model.objects.filter(
                 created_at__gte=date.today() - timedelta(days=7)
             ).exists()
 
@@ -109,17 +121,17 @@ class CacheAlphaProvider(BaseAlphaProvider):
         Returns:
             AlphaResult
         """
-        from ...infrastructure.models import AlphaScoreCacheModel
+        cache_model = _get_cache_model()
 
         # 1. 尝试精确匹配
-        cache = AlphaScoreCacheModel._default_manager.filter(
+        cache = cache_model.objects.filter(
             universe_id=universe_id,
             intended_trade_date=intended_trade_date
         ).order_by("-created_at").first()
 
         # 2. 如果没有精确匹配，尝试最近的有效缓存（向前查找）
         if not cache:
-            cache = AlphaScoreCacheModel._default_manager.filter(
+            cache = cache_model.objects.filter(
                 universe_id=universe_id,
                 intended_trade_date__lte=intended_trade_date
             ).order_by("-intended_trade_date", "-created_at").first()
@@ -193,9 +205,9 @@ class CacheAlphaProvider(BaseAlphaProvider):
         Returns:
             可用日期列表
         """
-        from ...infrastructure.models import AlphaScoreCacheModel
+        cache_model = _get_cache_model()
 
-        caches = AlphaScoreCacheModel._default_manager.filter(
+        caches = cache_model.objects.filter(
             universe_id=universe_id,
             intended_trade_date__gte=start_date,
             intended_trade_date__lte=end_date
@@ -213,9 +225,9 @@ class CacheAlphaProvider(BaseAlphaProvider):
         Returns:
             最新缓存日期，如果没有则返回 None
         """
-        from ...infrastructure.models import AlphaScoreCacheModel
+        cache_model = _get_cache_model()
 
-        cache = AlphaScoreCacheModel._default_manager.filter(
+        cache = cache_model.objects.filter(
             universe_id=universe_id
         ).order_by("-intended_trade_date").first()
 
@@ -236,11 +248,11 @@ class CacheAlphaProvider(BaseAlphaProvider):
         Returns:
             删除的记录数
         """
-        from ...infrastructure.models import AlphaScoreCacheModel
+        cache_model = _get_cache_model()
 
         cutoff_date = date.today() - timedelta(days=days_to_keep)
 
-        deleted, _ = AlphaScoreCacheModel._default_manager.filter(
+        deleted, _ = cache_model.objects.filter(
             universe_id=universe_id,
             intended_trade_date__lt=cutoff_date
         ).delete()

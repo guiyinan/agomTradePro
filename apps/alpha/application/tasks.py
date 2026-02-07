@@ -54,7 +54,7 @@ def qlib_predict_scores(
         >>> qlib_predict_scores.delay("csi300", "2026-02-05", 30)
     """
     try:
-        from ...infrastructure.models import AlphaScoreCacheModel, QlibModelRegistryModel
+        from ..infrastructure.models import AlphaScoreCacheModel, QlibModelRegistryModel
 
         logger.info(
             f"开始 Qlib 推理: universe={universe_id}, "
@@ -159,7 +159,7 @@ def qlib_train_model(
         ... )
     """
     try:
-        from ...infrastructure.models import QlibModelRegistryModel
+        from ..infrastructure.models import QlibModelRegistryModel
         from datetime import datetime, timedelta
 
         logger.info(f"开始 Qlib 训练: {model_name} ({model_type})")

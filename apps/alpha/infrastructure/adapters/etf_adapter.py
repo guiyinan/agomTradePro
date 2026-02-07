@@ -7,9 +7,11 @@ ETF Fallback Alpha Provider
 """
 
 import logging
+import re
 from datetime import date
-from typing import Dict, List
+from typing import Dict, List, Optional
 
+from django.conf import settings
 from ...domain.entities import AlphaResult, StockScore
 from ...domain.interfaces import AlphaProviderStatus
 from .base import BaseAlphaProvider, create_stock_score, provider_safe
@@ -41,35 +43,6 @@ class ETFFallbackProvider(BaseAlphaProvider):
         ...     print(f"Using ETF fallback, got {len(result.scores)} stocks")
     """
 
-    # Universe 到 ETF 的映射
-    UNIVERSE_ETF_MAP = {
-        "csi300": {
-            "etf_code": "510300.SH",
-            "etf_name": "沪深300ETF",
-            "index_code": "000300.SH",
-        },
-        "csi500": {
-            "etf_code": "510500.SH",
-            "etf_name": "中证500ETF",
-            "index_code": "000905.SH",
-        },
-        "sse50": {
-            "etf_code": "510050.SH",
-            "etf_name": "上证50ETF",
-            "index_code": "000016.SH",
-        },
-        "csi1000": {
-            "etf_code": "512100.SH",
-            "etf_name": "中证1000ETF",
-            "index_code": "000852.SH",
-        },
-        "cyb": {
-            "etf_code": "159915.SZ",
-            "etf_name": "创业板ETF",
-            "index_code": "399006.SZ",
-        },
-    }
-
     def __init__(self):
         """初始化 ETF Provider"""
         super().__init__()
@@ -99,7 +72,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
         Returns:
             是否支持
         """
-        return universe_id in self.UNIVERSE_ETF_MAP
+        return self._resolve_etf_info(universe_id) is not None
 
     @provider_safe(default_success=False)
     def health_check(self) -> AlphaProviderStatus:
@@ -142,9 +115,14 @@ class ETFFallbackProvider(BaseAlphaProvider):
             )
 
         # 1. 获取 ETF 信息
-        etf_info = self.UNIVERSE_ETF_MAP[universe_id]
+        etf_info = self._resolve_etf_info(universe_id)
+        if not etf_info:
+            return self._create_error_result(
+                f"无法为股票池 {universe_id} 解析可用 ETF（请在 ALPHA_UNIVERSE_ETF_MAP 中配置）",
+                status="unavailable",
+            )
 
-        # 2. 获取成分股（模拟数据）
+        # 2. 获取 ETF 成分股（数据库）
         constituents = self._get_etf_constituents(
             etf_info["etf_code"],
             top_n
@@ -157,16 +135,16 @@ class ETFFallbackProvider(BaseAlphaProvider):
 
         # 3. 创建评分
         scores = []
-        for i, (stock_code, weight) in enumerate(constituents, 1):
-            # 评分与权重成正比
-            score = weight * 100
+        for i, (stock_code, holding_ratio_pct) in enumerate(constituents, 1):
+            # 直接使用持仓占比(%)作为降级评分，范围 0~100
+            score = max(0.0, min(100.0, float(holding_ratio_pct)))
 
             scores.append(create_stock_score(
                 code=stock_code,
                 score=score,
                 rank=i,
                 source="etf",
-                factors={"etf_weight": weight},
+                factors={"holding_ratio_pct": float(holding_ratio_pct)},
                 confidence=0.4,  # 低置信度，因为是降级方案
                 asof_date=intended_trade_date,
                 intended_trade_date=intended_trade_date,
@@ -178,7 +156,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
             metadata={
                 "etf_code": etf_info["etf_code"],
                 "etf_name": etf_info["etf_name"],
-                "index_code": etf_info["index_code"],
+                "report_date": etf_info.get("report_date"),
                 "fallback_reason": "所有其他 Provider 不可用",
             }
         )
@@ -200,42 +178,29 @@ class ETFFallbackProvider(BaseAlphaProvider):
         Returns:
             (股票代码, 权重) 列表
         """
-        # 模拟数据 - 实际实现中应该从数据库或 API 获取
-        mock_constituents = {
-            "510300.SH": [  # 沪深300ETF
-                ("600519.SH", 4.5),  # 贵州茅台
-                ("000333.SH", 3.2),  # 美的集团
-                ("600036.SH", 2.8),  # 招商银行
-                ("601318.SH", 2.5),  # 中国平安
-                ("000858.SH", 2.1),  # 五粮液
-                ("600887.SH", 1.9),  # 伊利股份
-                ("000002.SH", 1.8),  # 万科A
-                ("600000.SH", 1.7),  # 浦发银行
-                ("601012.SH", 1.6),  # 隆基绿能
-                ("000001.SH", 1.5),  # 平安银行
-            ],
-            "510500.SH": [  # 中证500ETF
-                ("000063.SH", 1.2),
-                ("002475.SZ", 1.1),
-                ("600276.SH", 1.0),
-                ("002594.SZ", 0.9),
-                ("603259.SH", 0.8),
-            ],
-            "510050.SH": [  # 上证50ETF
-                ("600519.SH", 8.5),
-                ("601318.SH", 6.2),
-                ("600036.SH", 5.1),
-                ("000333.SH", 4.8),
-                ("601012.SH", 4.2),
-            ],
-        }
+        from apps.fund.infrastructure.models import FundHoldingModel
 
-        constituents = mock_constituents.get(etf_code, [])
+        fund_code = etf_code.split(".")[0]
+        latest_report = FundHoldingModel._default_manager.filter(fund_code=fund_code).order_by("-report_date").values_list("report_date", flat=True).first()
+        if not latest_report:
+            return []
 
-        # 确保按权重降序排列
-        constituents.sort(key=lambda x: x[1], reverse=True)
+        holdings = list(
+            FundHoldingModel._default_manager.filter(
+                fund_code=fund_code,
+                report_date=latest_report,
+            ).order_by("-holding_ratio", "-holding_value").values(
+                "stock_code", "holding_ratio"
+            )[:top_n]
+        )
 
-        return constituents[:top_n]
+        result: List[tuple] = []
+        for row in holdings:
+            stock_code = row["stock_code"]
+            ratio = row["holding_ratio"]
+            ratio_value = float(ratio) if ratio is not None else 0.0
+            result.append((stock_code, ratio_value))
+        return result
 
     def get_etf_for_universe(self, universe_id: str) -> Dict[str, str]:
         """
@@ -247,7 +212,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
         Returns:
             ETF 信息字典
         """
-        return self.UNIVERSE_ETF_MAP.get(universe_id, {})
+        return self._resolve_etf_info(universe_id) or {}
 
     def get_supported_universes(self) -> List[str]:
         """
@@ -256,7 +221,8 @@ class ETFFallbackProvider(BaseAlphaProvider):
         Returns:
             股票池标识列表
         """
-        return list(self.UNIVERSE_ETF_MAP.keys())
+        config_map = getattr(settings, "ALPHA_UNIVERSE_ETF_MAP", {}) or {}
+        return sorted(list(config_map.keys()))
 
     def get_factor_exposure(
         self,
@@ -276,3 +242,42 @@ class ETFFallbackProvider(BaseAlphaProvider):
             空字典
         """
         return {}
+
+    def _resolve_etf_info(self, universe_id: str) -> Optional[Dict[str, str]]:
+        """优先使用 settings 映射，再尝试根据 universe_id 自动发现 ETF。"""
+        from apps.fund.infrastructure.models import FundInfoModel, FundHoldingModel
+
+        config_map = getattr(settings, "ALPHA_UNIVERSE_ETF_MAP", {}) or {}
+        mapped = config_map.get(universe_id)
+        if mapped:
+            mapped_code = mapped.get("etf_code", "")
+            fund_code = mapped_code.split(".")[0] if mapped_code else ""
+            if fund_code:
+                fund = FundInfoModel._default_manager.filter(fund_code=fund_code).first()
+                if fund:
+                    latest_report = FundHoldingModel._default_manager.filter(fund_code=fund_code).order_by("-report_date").values_list("report_date", flat=True).first()
+                    return {
+                        "etf_code": mapped_code if "." in mapped_code else f"{mapped_code}.SH",
+                        "etf_name": fund.fund_name,
+                        "report_date": latest_report.isoformat() if latest_report else None,
+                    }
+
+        # 自动发现：在指数/ETF基金中找名字最匹配且有持仓数据的基金
+        digits = "".join(re.findall(r"\d+", universe_id))
+        if not digits:
+            return None
+        query = FundInfoModel._default_manager.filter(is_active=True).filter(fund_name__icontains="ETF")
+        if digits:
+            query = query.filter(fund_name__icontains=digits)
+
+        candidates = list(query.order_by("-fund_scale", "fund_code")[:30])
+        for fund in candidates:
+            latest_report = FundHoldingModel._default_manager.filter(fund_code=fund.fund_code).order_by("-report_date").values_list("report_date", flat=True).first()
+            if latest_report:
+                market_suffix = ".SZ" if fund.fund_code.startswith(("15", "16")) else ".SH"
+                return {
+                    "etf_code": f"{fund.fund_code}{market_suffix}",
+                    "etf_name": fund.fund_name,
+                    "report_date": latest_report.isoformat(),
+                }
+        return None

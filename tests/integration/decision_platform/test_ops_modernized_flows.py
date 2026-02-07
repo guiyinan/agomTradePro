@@ -165,3 +165,21 @@ class TestOpsModernizedFlows:
         assert payload["config1"]["config_id"] == "cfg-v1"
         assert payload["config2"]["config_id"] == "cfg-v2"
 
+    def test_beta_gate_config_suggest_api_fallback_template_without_ai_provider(self):
+        response = self.client.post(
+            "/api/beta-gate/config/suggest/",
+            data=json.dumps(
+                {
+                    "target": "policy",
+                    "requirement": "偏保守，限制高波动资产，风险暴露控制在 60%",
+                }
+            ),
+            content_type="application/json",
+        )
+        assert response.status_code == 200
+        payload = json.loads(response.content.decode("utf-8"))
+        assert payload["success"] is True
+        assert payload["fallback"] is True
+        assert isinstance(payload["json_object"], dict)
+        assert "max_risk_exposure" in payload["json_object"]
+

@@ -3,6 +3,7 @@ Dashboard URL Configuration
 """
 
 from django.urls import path
+from django.views.generic import RedirectView
 from apps.dashboard.interface import views
 
 app_name = 'dashboard'
@@ -10,6 +11,7 @@ app_name = 'dashboard'
 urlpatterns = [
     path('', views.dashboard_entry, name='index'),
     path('legacy/', views.dashboard_view, name='legacy'),
+    path('ops-center/', RedirectView.as_view(url='/ops/', permanent=False), name='ops-center'),
 
     # HTMX 端点
     path('position/<str:asset_code>/', views.position_detail_htmx, name='position_detail'),

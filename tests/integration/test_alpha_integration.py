@@ -8,10 +8,12 @@ import pytest
 from datetime import date
 
 from apps.alpha.application.services import AlphaService, AlphaProviderRegistry
-from apps.alpha.domain.entities import StockScore, AlphaResult, AlphaProviderStatus
+from apps.alpha.domain.entities import StockScore, AlphaResult
+from apps.alpha.domain.interfaces import AlphaProviderStatus
 from apps.alpha.infrastructure.adapters.cache_adapter import CacheAlphaProvider
 from apps.alpha.infrastructure.adapters.simple_adapter import SimpleAlphaProvider
 from apps.alpha.infrastructure.adapters.etf_adapter import ETFFallbackProvider
+from apps.fund.infrastructure.models import FundInfoModel, FundHoldingModel
 
 
 @pytest.mark.django_db
@@ -110,6 +112,34 @@ class TestSimpleProviderIntegration:
 class TestETFProviderIntegration:
     """ETF 降级 Provider 集成测试"""
 
+    def _seed_etf_data(self):
+        FundInfoModel._default_manager.create(
+            fund_code="510300",
+            fund_name="沪深300ETF",
+            fund_type="指数型",
+            is_active=True,
+        )
+        FundInfoModel._default_manager.create(
+            fund_code="510500",
+            fund_name="中证500ETF",
+            fund_type="指数型",
+            is_active=True,
+        )
+        FundInfoModel._default_manager.create(
+            fund_code="510050",
+            fund_name="上证50ETF",
+            fund_type="指数型",
+            is_active=True,
+        )
+        for fund_code in ["510300", "510500", "510050"]:
+            FundHoldingModel._default_manager.create(
+                fund_code=fund_code,
+                report_date=date.today(),
+                stock_code="600519.SH",
+                stock_name="贵州茅台",
+                holding_ratio=4.5,
+            )
+
     def test_etf_provider_properties(self):
         """测试 ETF Provider 属性"""
         provider = ETFFallbackProvider()
@@ -120,6 +150,7 @@ class TestETFProviderIntegration:
 
     def test_etf_provider_universe_support(self):
         """测试 ETF Provider 股票池支持"""
+        self._seed_etf_data()
         provider = ETFFallbackProvider()
 
         assert provider.supports("csi300")
@@ -161,6 +192,19 @@ class TestProviderFallbackIntegration:
 
     def test_get_scores_with_fallback(self):
         """测试带降级的评分获取"""
+        FundInfoModel._default_manager.create(
+            fund_code="510300",
+            fund_name="沪深300ETF",
+            fund_type="指数型",
+            is_active=True,
+        )
+        FundHoldingModel._default_manager.create(
+            fund_code="510300",
+            report_date=date.today(),
+            stock_code="600519.SH",
+            stock_name="贵州茅台",
+            holding_ratio=4.5,
+        )
         registry = AlphaProviderRegistry()
 
         # 添加 Provider
@@ -173,6 +217,7 @@ class TestProviderFallbackIntegration:
 
         # 由于 ETF Provider 可用，应该返回成功
         assert result is not None
+        assert result.success is True
 
 
 @pytest.mark.django_db

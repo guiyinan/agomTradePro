@@ -3,6 +3,7 @@
 {% block title %}Prompt 模板管理 - AgomSAAF{% endblock %}
 
 {% block content %}
+{% include "components/json_assistant_assets.html" %}
 <div class="prompt-manage-page">
     <!-- 页面头部 -->
     <div class="page-header">
@@ -254,7 +255,15 @@
 
                 <div class="form-group">
                     <label>占位符定义 (JSON)</label>
-                    <textarea id="templatePlaceholders" rows="4" placeholder='[{"name": "period", "type": "string", "description": "分析周期", "default": "本周"}]'></textarea>
+                    <textarea
+                        id="templatePlaceholders"
+                        class="json-input"
+                        data-json-assistant="1"
+                        data-json-expected="array"
+                        data-json-example='[{"name":"period","type":"string","description":"分析周期","default":"本周"},{"name":"asset_pool","type":"string","description":"资产池","default":"CSI300"}]'
+                        rows="4"
+                        placeholder='[{"name": "period", "type": "string", "description": "分析周期", "default": "本周"}]'></textarea>
+                    {% include "components/json_assistant.html" with textarea_id="templatePlaceholders" enable_builder=True %}
                     <div class="form-hint">定义模板中使用的占位符及其类型、默认值</div>
                 </div>
 
@@ -331,7 +340,15 @@
 
                 <div class="form-group">
                     <label>步骤定义 (JSON) <span class="required">*</span></label>
-                    <textarea id="chainSteps" rows="8" required placeholder='[
+                    <textarea
+                        id="chainSteps"
+                        class="json-input"
+                        data-json-assistant="1"
+                        data-json-expected="array"
+                        data-json-example='[{"step_id":"step1","template_name":"data_analysis","order":1,"placeholder_values":{"period":"本周"}},{"step_id":"step2","template_name":"signal_summary","order":2,"placeholder_values":{"risk_level":"balanced"}}]'
+                        rows="8"
+                        required
+                        placeholder='[
   {
     "step_id": "step1",
     "template_name": "data_analysis",
@@ -339,15 +356,24 @@
     "placeholder_values": {"period": "本周"}
   }
 ]'></textarea>
+                    {% include "components/json_assistant.html" with textarea_id="chainSteps" enable_builder=True %}
                     <div class="form-hint">定义链中各个步骤的执行顺序和参数</div>
                 </div>
 
                 <div class="form-group">
                     <label>汇总步骤 (可选)</label>
-                    <textarea id="chainAggregateStep" rows="4" placeholder='{
+                    <textarea
+                        id="chainAggregateStep"
+                        class="json-input"
+                        data-json-assistant="1"
+                        data-json-expected="object"
+                        data-json-example='{"template_name":"summary","aggregate_from":["step1","step2"],"output_key":"final_summary"}'
+                        rows="4"
+                        placeholder='{
   "template_name": "summary",
   "aggregate_from": ["step1", "step2"]
 }'></textarea>
+                    {% include "components/json_assistant.html" with textarea_id="chainAggregateStep" enable_builder=True %}
                 </div>
 
                 <div class="modal-footer">
@@ -1305,6 +1331,51 @@ function escapeHtml(text) {
 
 // ==================== 初始化 ====================
 document.addEventListener('DOMContentLoaded', function() {
+    window.jsonAssistantBuilders['templatePlaceholders'] = () => {
+        const name = window.prompt('占位符名称 (name)', 'period') || 'period';
+        const type = window.prompt('占位符类型 (string|number|boolean)', 'string') || 'string';
+        const description = window.prompt('占位符说明 (description)', '分析周期') || '';
+        const defaultValue = window.prompt('默认值 (default)', '本周') || '';
+        jsonAssistantWriteObject('templatePlaceholders', [
+            {
+                name,
+                type,
+                description,
+                default: defaultValue,
+            },
+        ]);
+    };
+
+    window.jsonAssistantBuilders['chainSteps'] = () => {
+        const stepId = window.prompt('步骤ID (step_id)', 'step1') || 'step1';
+        const templateName = window.prompt('模板名 (template_name)', 'data_analysis') || 'data_analysis';
+        const order = Number(window.prompt('执行顺序 (order)', '1') || '1');
+        const placeholderKey = window.prompt('参数名 (placeholder key)', 'period') || 'period';
+        const placeholderValue = window.prompt('参数值 (placeholder value)', '本周') || '本周';
+        jsonAssistantWriteObject('chainSteps', [
+            {
+                step_id: stepId,
+                template_name: templateName,
+                order,
+                placeholder_values: {
+                    [placeholderKey]: placeholderValue,
+                },
+            },
+        ]);
+    };
+
+    window.jsonAssistantBuilders['chainAggregateStep'] = () => {
+        const templateName = window.prompt('汇总模板名 (template_name)', 'summary') || 'summary';
+        const aggregateFromRaw = window.prompt('汇总来源步骤 (逗号分隔)', 'step1,step2') || 'step1,step2';
+        const outputKey = window.prompt('输出字段名 (output_key)', 'final_summary') || 'final_summary';
+        const aggregateFrom = aggregateFromRaw.split(',').map(item => item.trim()).filter(Boolean);
+        jsonAssistantWriteObject('chainAggregateStep', {
+            template_name: templateName,
+            aggregate_from: aggregateFrom,
+            output_key: outputKey,
+        });
+    };
+
     loadTemplates();
 });
 </script>

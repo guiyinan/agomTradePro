@@ -7,13 +7,16 @@ Unit Tests for Alpha Providers
 import pytest
 from datetime import date, timedelta
 from unittest.mock import Mock, patch, MagicMock
+from django.test import override_settings
 
-from apps.alpha.domain.entities import StockScore, AlphaResult, AlphaProviderStatus
+from apps.alpha.domain.entities import StockScore, AlphaResult
+from apps.alpha.domain.interfaces import AlphaProviderStatus
 from apps.alpha.domain.interfaces import AlphaProvider
 from apps.alpha.infrastructure.adapters.cache_adapter import CacheAlphaProvider
 from apps.alpha.infrastructure.adapters.simple_adapter import SimpleAlphaProvider
 from apps.alpha.infrastructure.adapters.etf_adapter import ETFFallbackProvider
 from apps.alpha.application.services import AlphaService, AlphaProviderRegistry
+from apps.fund.infrastructure.models import FundInfoModel, FundHoldingModel
 
 
 class MockAlphaProvider(AlphaProvider):
@@ -251,8 +254,31 @@ class TestSimpleAlphaProvider:
         assert provider is not None
 
 
+@pytest.mark.django_db
 class TestETFFallbackProvider:
     """测试 ETF 降级 Provider"""
+
+    def _seed_etf_data(self):
+        FundInfoModel._default_manager.create(
+            fund_code="510300",
+            fund_name="沪深300ETF",
+            fund_type="指数型",
+            is_active=True,
+        )
+        FundHoldingModel._default_manager.create(
+            fund_code="510300",
+            report_date=date.today(),
+            stock_code="600519.SH",
+            stock_name="贵州茅台",
+            holding_ratio=4.5,
+        )
+        FundHoldingModel._default_manager.create(
+            fund_code="510300",
+            report_date=date.today(),
+            stock_code="000333.SZ",
+            stock_name="美的集团",
+            holding_ratio=3.2,
+        )
 
     def test_provider_properties(self):
         """测试 Provider 属性"""
@@ -264,6 +290,7 @@ class TestETFFallbackProvider:
 
     def test_supported_universes(self):
         """测试支持的股票池"""
+        self._seed_etf_data()
         provider = ETFFallbackProvider()
 
         assert provider.supports("csi300") is True
@@ -276,13 +303,15 @@ class TestETFFallbackProvider:
 
         assert health == AlphaProviderStatus.AVAILABLE
 
+    @override_settings(ALPHA_UNIVERSE_ETF_MAP={"csi300": {"etf_code": "510300.SH"}})
     def test_get_stock_scores(self):
         """测试获取 ETF 成分股评分"""
+        self._seed_etf_data()
         provider = ETFFallbackProvider()
         result = provider.get_stock_scores("csi300", date.today())
 
         assert result.success is True
-        assert len(result.scores) > 0
+        assert len(result.scores) == 2
         assert result.metadata["etf_code"] == "510300.SH"
 
 

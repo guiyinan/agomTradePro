@@ -3,7 +3,25 @@
 {% block title %}{{ page_title }} - AgomSAAF{% endblock %}
 
 {% block content %}
-<div style="max-width: 980px; margin: 0 auto; padding: 24px;">
+{% include "components/json_assistant_assets.html" %}
+<style>
+.json-builder {
+    margin-top: 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+}
+.json-builder h4 { margin: 0 0 8px; font-size: 13px; }
+.json-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.json-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #475569; }
+.json-grid input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 8px; font-size: 12px; }
+@media (max-width: 960px) {
+    .json-grid { grid-template-columns: 1fr; }
+}
+</style>
+
+<div style="max-width: 1100px; margin: 0 auto; padding: 24px;">
     <h1 style="margin-bottom: 8px;">{{ page_title }}</h1>
     <p style="color: #64748b; margin-bottom: 20px;">通过产品化页面维护 Beta Gate 约束配置。</p>
 
@@ -25,6 +43,64 @@
                         {% if field.help_text %}
                         <div style="font-size: 12px; color: #64748b; margin-top: 4px;">{{ field.help_text }}</div>
                         {% endif %}
+
+                        {% if field.name == "regime_constraints_text" or field.name == "policy_constraints_text" or field.name == "portfolio_constraints_text" %}
+                        {% if field.name == "regime_constraints_text" %}
+                        {% include "components/json_assistant.html" with textarea_id=field.id_for_label enable_builder=True ai_target="regime" ai_endpoint="/api/beta-gate/config/suggest/" %}
+                        {% elif field.name == "policy_constraints_text" %}
+                        {% include "components/json_assistant.html" with textarea_id=field.id_for_label enable_builder=True ai_target="policy" ai_endpoint="/api/beta-gate/config/suggest/" %}
+                        {% else %}
+                        {% include "components/json_assistant.html" with textarea_id=field.id_for_label enable_builder=True ai_target="portfolio" ai_endpoint="/api/beta-gate/config/suggest/" %}
+                        {% endif %}
+
+                        {% if field.name == "regime_constraints_text" %}
+                        <div class="json-builder">
+                            <h4>Regime 字段填写</h4>
+                            <div class="json-grid">
+                                <label>current_regime
+                                    <input id="regime-current" type="text" value="Recovery" />
+                                </label>
+                                <label>confidence (0~1)
+                                    <input id="regime-confidence" type="number" step="0.01" min="0" max="1" value="0.72" />
+                                </label>
+                                <label style="grid-column: 1 / -1;">allowed_asset_classes（英文逗号分隔）
+                                    <input id="regime-assets" type="text" value="a_股票,港股,黄金" />
+                                </label>
+                            </div>
+                        </div>
+                        {% elif field.name == "policy_constraints_text" %}
+                        <div class="json-builder">
+                            <h4>Policy 字段填写</h4>
+                            <div class="json-grid">
+                                <label>current_level
+                                    <input id="policy-level" type="number" min="0" max="10" value="2" />
+                                </label>
+                                <label>max_risk_exposure (%)
+                                    <input id="policy-risk" type="number" step="0.1" min="0" max="100" value="70" />
+                                </label>
+                                <label style="grid-column: 1 / -1;">hard_exclusions（英文逗号分隔）
+                                    <input id="policy-exclusions" type="text" value="期货,高杠杆ETF" />
+                                </label>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="json-builder">
+                            <h4>组合约束字段填写</h4>
+                            <div class="json-grid">
+                                <label>max_positions
+                                    <input id="portfolio-max-positions" type="number" min="1" value="8" />
+                                </label>
+                                <label>max_single_position_weight (%)
+                                    <input id="portfolio-single-weight" type="number" step="0.1" min="0" max="100" value="20" />
+                                </label>
+                                <label>max_concentration_ratio (%)
+                                    <input id="portfolio-concentration" type="number" step="0.1" min="0" max="100" value="55" />
+                                </label>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+
                         {% if field.errors %}
                         <div style="font-size: 12px; color: #dc2626; margin-top: 4px;">{{ field.errors }}</div>
                         {% endif %}
@@ -41,4 +117,37 @@
         </form>
     </div>
 </div>
+
+<script>
+function csvToArray(value) {
+    return (value || '')
+        .split(',')
+        .map(v => v.trim())
+        .filter(Boolean);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    window.jsonAssistantBuilders['id_regime_constraints_text'] = () => {
+        jsonAssistantWriteObject('id_regime_constraints_text', {
+            current_regime: document.getElementById('regime-current').value || 'Recovery',
+            confidence: Number(document.getElementById('regime-confidence').value || 0),
+            allowed_asset_classes: csvToArray(document.getElementById('regime-assets').value),
+        });
+    };
+    window.jsonAssistantBuilders['id_policy_constraints_text'] = () => {
+        jsonAssistantWriteObject('id_policy_constraints_text', {
+            current_level: Number(document.getElementById('policy-level').value || 0),
+            max_risk_exposure: Number(document.getElementById('policy-risk').value || 0),
+            hard_exclusions: csvToArray(document.getElementById('policy-exclusions').value),
+        });
+    };
+    window.jsonAssistantBuilders['id_portfolio_constraints_text'] = () => {
+        jsonAssistantWriteObject('id_portfolio_constraints_text', {
+            max_positions: Number(document.getElementById('portfolio-max-positions').value || 0),
+            max_single_position_weight: Number(document.getElementById('portfolio-single-weight').value || 0),
+            max_concentration_ratio: Number(document.getElementById('portfolio-concentration').value || 0),
+        });
+    };
+});
+</script>
 {% endblock %}

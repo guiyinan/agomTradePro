@@ -3,6 +3,23 @@
 {% block title %}{{ page_title }} - AgomSAAF{% endblock %}
 
 {% block content %}
+{% include "components/json_assistant_assets.html" %}
+<style>
+.json-builder {
+    margin-top: 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+}
+.json-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.json-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #475569; }
+.json-grid input { border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 8px; font-size: 12px; }
+@media (max-width: 960px) {
+    .json-grid { grid-template-columns: 1fr; }
+}
+</style>
+
 <div class="page-header">
     <h1>{{ page_title }}</h1>
     <p class="subtitle">通过运营页面维护 AI 提供商配置（无需 Django Admin）</p>
@@ -29,6 +46,32 @@
                         {% if field.help_text %}
                         <div style="color: #64748b; font-size: 12px; margin-top: 4px;">{{ field.help_text }}</div>
                         {% endif %}
+
+                        {% if field.name == "extra_config_text" %}
+                        {% include "components/json_assistant.html" with textarea_id=field.id_for_label enable_builder=True %}
+                        <div class="json-tools">
+                            <button type="button" data-preset-mode="stable" data-target-id="{{ field.id_for_label }}">低波动预设</button>
+                            <button type="button" data-preset-mode="creative" data-target-id="{{ field.id_for_label }}">高创造预设</button>
+                        </div>
+                        <div class="json-builder">
+                            <div style="font-weight: 600; margin-bottom: 8px; font-size: 13px;">参数填写器</div>
+                            <div class="json-grid">
+                                <label>timeout（秒）
+                                    <input id="cfg-timeout" type="number" min="1" value="30" />
+                                </label>
+                                <label>max_retries
+                                    <input id="cfg-retries" type="number" min="0" value="2" />
+                                </label>
+                                <label>temperature（0~2）
+                                    <input id="cfg-temperature" type="number" min="0" max="2" step="0.1" value="0.2" />
+                                </label>
+                                <label>max_tokens
+                                    <input id="cfg-max-tokens" type="number" min="1" value="1200" />
+                                </label>
+                            </div>
+                        </div>
+                        {% endif %}
+
                         {% if field.errors %}
                         <div style="color: #dc2626; font-size: 12px; margin-top: 4px;">{{ field.errors }}</div>
                         {% endif %}
@@ -45,4 +88,45 @@
         </form>
     </div>
 </div>
+
+<script>
+function fillByPreset(id, mode) {
+    const presets = {
+        stable: {
+            timeout: 45,
+            max_retries: 3,
+            temperature: 0.1,
+            max_tokens: 1000,
+        },
+        creative: {
+            timeout: 30,
+            max_retries: 1,
+            temperature: 0.8,
+            max_tokens: 1600,
+        },
+    };
+    const data = presets[mode] || presets.stable;
+    jsonAssistantWriteObject(id, data);
+    jsonAssistantSetStatus(id, `已应用${mode === 'creative' ? '高创造' : '低波动'}预设`, 'success');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    window.jsonAssistantBuilders['id_extra_config_text'] = () => {
+        jsonAssistantWriteObject('id_extra_config_text', {
+            timeout: Number(document.getElementById('cfg-timeout').value || 30),
+            max_retries: Number(document.getElementById('cfg-retries').value || 2),
+            temperature: Number(document.getElementById('cfg-temperature').value || 0.2),
+            max_tokens: Number(document.getElementById('cfg-max-tokens').value || 1200),
+        });
+    };
+
+    document.querySelectorAll('[data-preset-mode][data-target-id]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const mode = btn.getAttribute('data-preset-mode');
+            const targetId = btn.getAttribute('data-target-id');
+            fillByPreset(targetId, mode);
+        });
+    });
+});
+</script>
 {% endblock %}

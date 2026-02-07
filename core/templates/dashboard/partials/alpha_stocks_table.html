@@ -4,6 +4,7 @@
         <tr>
             <th>排名</th>
             <th>股票代码</th>
+            <th>证券名称</th>
             <th>Alpha 评分</th>
             <th>置信度</th>
             <th>数据源</th>
@@ -20,6 +21,9 @@
             </td>
             <td>
                 <strong>{{ stock.code }}</strong>
+            </td>
+            <td>
+                {{ stock.name|default:"-" }}
             </td>
             <td>
                 <div class="score-bar-container">

@@ -468,9 +468,8 @@ class QlibModelRegistryModel(models.Model):
             activated_by: 激活者标识
         """
         with transaction.atomic():
-            # 取消其他激活的模型
+            # 取消其他激活模型（全局只允许一个激活模型）
             QlibModelRegistryModel._default_manager.filter(
-                model_name=self.model_name,
                 is_active=True
             ).update(is_active=False)
 

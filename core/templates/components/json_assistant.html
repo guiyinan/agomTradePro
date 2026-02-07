@@ -1,0 +1,19 @@
+<div
+    data-json-assistant-for="{{ textarea_id }}"
+    data-json-target="{{ ai_target|default:'' }}"
+    data-json-ai-endpoint="{{ ai_endpoint|default:'' }}"
+>
+    <div class="json-tools">
+        <button type="button" data-json-action="example">填充示例</button>
+        <button type="button" data-json-action="format">格式化</button>
+        <button type="button" data-json-action="validate">校验 JSON</button>
+        {% if enable_builder %}
+        <button type="button" data-json-action="build">字段生成</button>
+        {% endif %}
+        {% if ai_target %}
+        <button type="button" data-json-action="ai">AI 生成</button>
+        {% endif %}
+    </div>
+    <div class="json-status" id="status-{{ textarea_id }}"></div>
+    <pre class="json-example" id="example-{{ textarea_id }}"></pre>
+</div>

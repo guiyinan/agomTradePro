@@ -7,6 +7,8 @@ Beta Gate DRF Views
 """
 
 import logging
+import json
+import re
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -216,6 +218,173 @@ class RollbackConfigView(APIView):
                 {"success": False, "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class BetaGateJsonSuggestAPIView(APIView):
+    """根据自然语言建议生成 Beta Gate JSON。"""
+
+    TARGET_CONFIG = {
+        "regime": {
+            "template": {
+                "current_regime": "Recovery",
+                "confidence": 0.72,
+                "allowed_asset_classes": ["a_股票", "港股", "黄金"],
+            },
+            "hint": "字段：current_regime(str), confidence(float 0~1), allowed_asset_classes(list[str])",
+        },
+        "policy": {
+            "template": {
+                "current_level": 2,
+                "max_risk_exposure": 70,
+                "hard_exclusions": ["期货", "高杠杆ETF"],
+            },
+            "hint": "字段：current_level(int), max_risk_exposure(number 百分比), hard_exclusions(list[str])",
+        },
+        "portfolio": {
+            "template": {
+                "max_positions": 8,
+                "max_single_position_weight": 20,
+                "max_concentration_ratio": 55,
+            },
+            "hint": "字段：max_positions(int), max_single_position_weight(number 百分比), max_concentration_ratio(number 百分比)",
+        },
+    }
+
+    def post(self, request) -> Response:
+        data = request.data if isinstance(request.data, dict) else {}
+        target = (data.get("target") or "").strip().lower()
+        requirement = (data.get("requirement") or "").strip()
+
+        if target not in self.TARGET_CONFIG:
+            return Response(
+                {"success": False, "error": "target 必须是 regime、policy、portfolio 之一"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not requirement:
+            return Response(
+                {"success": False, "error": "requirement 不能为空"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        fallback = self.TARGET_CONFIG[target]["template"]
+        try:
+            from apps.ai_provider.infrastructure.adapters import AIFailoverHelper
+            from apps.ai_provider.infrastructure.repositories import AIProviderRepository
+
+            provider_repo = AIProviderRepository()
+            providers = provider_repo.get_active_providers()
+            if not providers:
+                return Response(
+                    {
+                        "success": True,
+                        "fallback": True,
+                        "provider_used": None,
+                        "message": "未找到可用 AI 提供商，已返回默认模板",
+                        "json_object": fallback,
+                    }
+                )
+
+            provider_configs = [
+                {
+                    "name": p.name,
+                    "base_url": p.base_url,
+                    "api_key": p.api_key,
+                    "default_model": p.default_model,
+                }
+                for p in providers
+            ]
+            ai_helper = AIFailoverHelper(provider_configs)
+            messages_payload = self._build_messages(target=target, requirement=requirement)
+            ai_result = ai_helper.chat_completion_with_failover(
+                messages=messages_payload,
+                temperature=0.2,
+                max_tokens=900,
+            )
+
+            if ai_result.get("status") != "success":
+                return Response(
+                    {
+                        "success": True,
+                        "fallback": True,
+                        "provider_used": ai_result.get("provider_used"),
+                        "message": f"AI 生成失败，已返回默认模板: {ai_result.get('error_message')}",
+                        "json_object": fallback,
+                    }
+                )
+
+            parsed = self._parse_json_from_text(ai_result.get("content", ""))
+            if not isinstance(parsed, dict):
+                return Response(
+                    {
+                        "success": True,
+                        "fallback": True,
+                        "provider_used": ai_result.get("provider_used"),
+                        "message": "AI 返回内容不是 JSON 对象，已返回默认模板",
+                        "json_object": fallback,
+                    }
+                )
+
+            return Response(
+                {
+                    "success": True,
+                    "fallback": False,
+                    "provider_used": ai_result.get("provider_used"),
+                    "json_object": parsed,
+                }
+            )
+        except Exception as e:
+            logger.warning("AI suggest failed for beta gate: %s", e, exc_info=True)
+            return Response(
+                {
+                    "success": True,
+                    "fallback": True,
+                    "provider_used": None,
+                    "message": "AI 服务不可用，已返回默认模板",
+                    "json_object": fallback,
+                }
+            )
+
+    def _build_messages(self, target: str, requirement: str) -> list[dict]:
+        config = self.TARGET_CONFIG[target]
+        system_prompt = (
+            "你是配置助手。只输出一个 JSON 对象，不要输出解释、markdown、代码块。"
+            "不要凭空添加无关字段。"
+        )
+        user_prompt = (
+            f"目标配置类型: {target}\n"
+            f"字段说明: {config['hint']}\n"
+            f"需求描述: {requirement}\n"
+            f"参考模板: {json.dumps(config['template'], ensure_ascii=False)}\n"
+            "请返回可直接保存的 JSON 对象。"
+        )
+        return [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+
+    def _parse_json_from_text(self, text: str):
+        if not text:
+            return None
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+
+        fenced_match = re.search(r"```json\s*(.*?)\s*```", text, re.DOTALL | re.IGNORECASE)
+        if fenced_match:
+            try:
+                return json.loads(fenced_match.group(1))
+            except json.JSONDecodeError:
+                pass
+
+        brace_match = re.search(r"\{.*\}", text, re.DOTALL)
+        if brace_match:
+            try:
+                return json.loads(brace_match.group(0))
+            except json.JSONDecodeError:
+                return None
+        return None
 
 
 # ========== Template Views ==========

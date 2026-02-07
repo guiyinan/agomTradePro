@@ -1,0 +1,185 @@
+<style>
+.json-tools { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+.json-tools button {
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #0f172a;
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 12px;
+}
+.json-tools button:hover { background: #eef2ff; border-color: #a5b4fc; }
+.json-status { margin-top: 6px; font-size: 12px; color: #334155; }
+.json-status.error { color: #b91c1c; }
+.json-status.success { color: #166534; }
+.json-example {
+    margin-top: 8px;
+    background: #0f172a;
+    color: #e2e8f0;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 12px;
+    overflow: auto;
+}
+textarea.json-input {
+    width: 100%;
+    min-height: 150px;
+    font-family: Consolas, "Courier New", monospace;
+}
+</style>
+<script>
+window.jsonAssistantBuilders = window.jsonAssistantBuilders || {};
+
+function jsonAssistantSetStatus(textareaId, text, type) {
+    const el = document.getElementById(`status-${textareaId}`);
+    if (!el) return;
+    el.textContent = text;
+    el.className = `json-status ${type || ''}`.trim();
+}
+
+function jsonAssistantGetTextarea(textareaId) {
+    return document.getElementById(textareaId);
+}
+
+function jsonAssistantWriteObject(textareaId, obj) {
+    const textarea = jsonAssistantGetTextarea(textareaId);
+    if (!textarea) return;
+    textarea.value = JSON.stringify(obj, null, 2);
+    jsonAssistantSetStatus(textareaId, '字段已生成 JSON', 'success');
+}
+
+function jsonAssistantValidateByExpectedType(parsed, expectedType) {
+    if (expectedType === 'object') {
+        if (typeof parsed !== 'object' || Array.isArray(parsed) || parsed === null) {
+            throw new Error('必须是 JSON 对象');
+        }
+        return;
+    }
+    if (expectedType === 'array') {
+        if (!Array.isArray(parsed)) {
+            throw new Error('必须是 JSON 数组');
+        }
+        return;
+    }
+}
+
+function jsonAssistantGetCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return '';
+}
+
+async function jsonAssistantGenerateByAI(textareaId, target, endpoint) {
+    const requirement = window.prompt('请描述你希望的配置规则（自然语言）');
+    if (!requirement) return;
+    jsonAssistantSetStatus(textareaId, 'AI 生成中...', '');
+
+    try {
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': jsonAssistantGetCookie('csrftoken'),
+            },
+            body: JSON.stringify({ target, requirement }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+            throw new Error(data.error || '请求失败');
+        }
+        jsonAssistantWriteObject(textareaId, data.json_object || {});
+        if (data.fallback) {
+            jsonAssistantSetStatus(textareaId, 'AI 不可用，已返回模板', '');
+        } else {
+            jsonAssistantSetStatus(textareaId, 'AI 生成成功', 'success');
+        }
+    } catch (err) {
+        jsonAssistantSetStatus(textareaId, `AI 生成失败: ${err.message}`, 'error');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-json-assistant-for]').forEach((container) => {
+        const textareaId = container.getAttribute('data-json-assistant-for');
+        const textarea = jsonAssistantGetTextarea(textareaId);
+        if (!textarea) return;
+
+        const exampleEl = document.getElementById(`example-${textareaId}`);
+        if (exampleEl) {
+            const raw = textarea.getAttribute('data-json-example') || '{}';
+            try {
+                exampleEl.textContent = JSON.stringify(JSON.parse(raw), null, 2);
+            } catch (err) {
+                exampleEl.textContent = raw;
+            }
+        }
+    });
+
+    document.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-json-action]');
+        if (!btn) return;
+
+        const container = btn.closest('[data-json-assistant-for]');
+        if (!container) return;
+        const textareaId = container.getAttribute('data-json-assistant-for');
+        const action = btn.getAttribute('data-json-action');
+        const textarea = jsonAssistantGetTextarea(textareaId);
+        if (!textarea) return;
+
+        if (action === 'example') {
+            const raw = textarea.getAttribute('data-json-example') || '{}';
+            try {
+                textarea.value = JSON.stringify(JSON.parse(raw), null, 2);
+                jsonAssistantSetStatus(textareaId, '已填充示例 JSON', 'success');
+            } catch (err) {
+                jsonAssistantSetStatus(textareaId, `示例解析失败: ${err.message}`, 'error');
+            }
+            return;
+        }
+
+        if (action === 'format') {
+            try {
+                textarea.value = JSON.stringify(JSON.parse(textarea.value || '{}'), null, 2);
+                jsonAssistantSetStatus(textareaId, 'JSON 已格式化', 'success');
+            } catch (err) {
+                jsonAssistantSetStatus(textareaId, `JSON 格式错误: ${err.message}`, 'error');
+            }
+            return;
+        }
+
+        if (action === 'validate') {
+            try {
+                const parsed = JSON.parse(textarea.value || '{}');
+                const expectedType = (textarea.getAttribute('data-json-expected') || 'any').toLowerCase();
+                jsonAssistantValidateByExpectedType(parsed, expectedType);
+                jsonAssistantSetStatus(textareaId, 'JSON 校验通过', 'success');
+            } catch (err) {
+                jsonAssistantSetStatus(textareaId, `JSON 校验失败: ${err.message}`, 'error');
+            }
+            return;
+        }
+
+        if (action === 'build') {
+            const builder = window.jsonAssistantBuilders[textareaId];
+            if (typeof builder === 'function') {
+                builder();
+            } else {
+                jsonAssistantSetStatus(textareaId, '未配置字段生成器', 'error');
+            }
+            return;
+        }
+
+        if (action === 'ai') {
+            const target = container.getAttribute('data-json-target');
+            const endpoint = container.getAttribute('data-json-ai-endpoint') || '/api/beta-gate/config/suggest/';
+            if (!target) {
+                jsonAssistantSetStatus(textareaId, '未配置 AI target', 'error');
+                return;
+            }
+            await jsonAssistantGenerateByAI(textareaId, target, endpoint);
+        }
+    });
+});
+</script>

@@ -6,11 +6,18 @@ from ..infrastructure.models import AIProviderConfig
 
 
 class AIProviderConfigForm(forms.ModelForm):
+    EXTRA_CONFIG_EXAMPLE = {
+        "timeout": 30,
+        "max_retries": 2,
+        "temperature": 0.2,
+        "max_tokens": 1200,
+    }
+
     extra_config_text = forms.CharField(
         label="额外配置(JSON)",
         required=False,
         widget=forms.Textarea(attrs={"rows": 6}),
-        help_text='可选，例如 {"timeout": 30, "max_retries": 2}',
+        help_text='可选。建议字段：timeout(秒)、max_retries(重试次数)、temperature(0~2)、max_tokens(最大输出)',
     )
     api_key = forms.CharField(
         required=False,
@@ -36,6 +43,13 @@ class AIProviderConfigForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["extra_config_text"].widget.attrs.update(
+            {
+                "class": "json-input",
+                "data-json-assistant": "1",
+                "data-json-example": json.dumps(self.EXTRA_CONFIG_EXAMPLE, ensure_ascii=False),
+            }
+        )
         if self.instance and self.instance.pk:
             self.fields["extra_config_text"].initial = json.dumps(
                 self.instance.extra_config or {}, ensure_ascii=False, indent=2
@@ -43,6 +57,11 @@ class AIProviderConfigForm(forms.ModelForm):
             self.fields["api_key"].required = False
         else:
             self.fields["api_key"].required = True
+            self.fields["extra_config_text"].initial = json.dumps(
+                self.EXTRA_CONFIG_EXAMPLE,
+                ensure_ascii=False,
+                indent=2,
+            )
 
     def clean_extra_config_text(self):
         raw = self.cleaned_data.get("extra_config_text", "").strip()

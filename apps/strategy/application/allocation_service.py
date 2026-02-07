@@ -95,19 +95,6 @@ class AllocationService:
         },
     }
 
-    ASSET_NAMES = {
-        "000300.SH": "沪深300ETF",
-        "159915.SZ": "创业板ETF",
-        "510300.SH": "300ETF",
-        "511010.SH": "国债ETF",
-        "511220.SH": "上证10年期国债ETF",
-        "518880.SH": "黄金ETF",
-        "159937.SZ": "有色期货ETF",
-        "511880.SH": "银华日利货币基金",
-        "511990.SH": "交易型货币基金",
-        "511270.SH": "10年国债ETF",
-    }
-
     @classmethod
     def calculate_allocation_advice(
         cls,
@@ -249,6 +236,11 @@ class AllocationService:
         )
 
         priority = 1
+        all_candidate_codes = {p.asset_code for p in positions}
+        for assets_by_class in cls.RECOMMENDED_ASSETS.get(regime, {}).values():
+            all_candidate_codes.update(assets_by_class)
+        asset_name_map = cls._resolve_asset_names(list(all_candidate_codes))
+
         for asset_class in asset_classes:
             diff = target_dict[asset_class] - current_allocation.get(asset_class, 0.0)
 
@@ -276,7 +268,7 @@ class AllocationService:
 
                         actions.append(TradeAction(
                             asset_code=pos.asset_code,
-                            asset_name=cls._get_asset_name(pos.asset_code),
+                            asset_name=asset_name_map.get(pos.asset_code, pos.asset_code),
                             action="sell",
                             amount=sell_amount,
                             reason=cls._get_sell_reason(asset_class, regime),
@@ -302,7 +294,7 @@ class AllocationService:
 
                     actions.append(TradeAction(
                         asset_code=code,
-                        asset_name=cls.ASSET_NAMES.get(code, code),
+                        asset_name=asset_name_map.get(code, code),
                         action="buy",
                         amount=buy_amount,
                         reason=cls._get_buy_reason(asset_class, regime),
@@ -314,9 +306,39 @@ class AllocationService:
         return actions
 
     @classmethod
-    def _get_asset_name(cls, asset_code: str) -> str:
-        """获取资产名称"""
-        return cls.ASSET_NAMES.get(asset_code, asset_code)
+    def _resolve_asset_names(cls, codes: List[str]) -> Dict[str, str]:
+        """批量解析证券名称，只从数据库解析。"""
+        code_set = {code for code in codes if code}
+        if not code_set:
+            return {}
+
+        resolved: Dict[str, str] = {}
+        try:
+            from apps.equity.infrastructure.models import StockInfoModel
+
+            stock_rows = StockInfoModel._default_manager.filter(stock_code__in=list(code_set)).values("stock_code", "name")
+            for row in stock_rows:
+                resolved[row["stock_code"]] = row["name"]
+        except Exception:
+            pass
+
+        unresolved = [code for code in code_set if code not in resolved]
+        if unresolved:
+            try:
+                from apps.fund.infrastructure.models import FundInfoModel
+
+                code_to_fund_code = {code: code.split(".")[0] for code in unresolved}
+                fund_rows = FundInfoModel._default_manager.filter(
+                    fund_code__in=list(set(code_to_fund_code.values()))
+                ).values("fund_code", "fund_name")
+                fund_name_map = {row["fund_code"]: row["fund_name"] for row in fund_rows}
+                for code, fund_code in code_to_fund_code.items():
+                    if fund_code in fund_name_map:
+                        resolved[code] = fund_name_map[fund_code]
+            except Exception:
+                pass
+
+        return resolved
 
     @classmethod
     def _get_sell_reason(cls, asset_class: str, regime: str) -> str:

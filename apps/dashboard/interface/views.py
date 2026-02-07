@@ -56,9 +56,11 @@ def _get_alpha_stock_scores(top_n: int = 10) -> list:
         )
 
         if result.success and result.scores:
+            code_to_name = _resolve_security_names([score.code for score in result.scores[:top_n]])
             return [
                 {
                     "code": score.code,
+                    "name": code_to_name.get(score.code, ""),
                     "score": round(score.score, 4),
                     "rank": score.rank,
                     "source": score.source,
@@ -72,6 +74,44 @@ def _get_alpha_stock_scores(top_n: int = 10) -> list:
     except Exception as e:
         logger.warning(f"Failed to get alpha stock scores: {e}")
         return []
+
+
+def _resolve_security_names(codes: list[str]) -> dict[str, str]:
+    """根据代码解析证券名称（股票优先，其次基金），失败时返回空。"""
+    unique_codes = [c for c in {code for code in codes if code}]
+    if not unique_codes:
+        return {}
+
+    name_map: dict[str, str] = {}
+    try:
+        from apps.equity.infrastructure.models import StockInfoModel
+
+        stock_rows = StockInfoModel._default_manager.filter(stock_code__in=unique_codes).values("stock_code", "name")
+        for row in stock_rows:
+            name_map[row["stock_code"]] = row["name"]
+    except Exception as e:
+        logger.debug(f"Failed to resolve stock names on dashboard: {e}")
+
+    # ETF/基金代码通常无交易所后缀，尝试 strip 后匹配 fund_code
+    unresolved = [code for code in unique_codes if code not in name_map]
+    if not unresolved:
+        return name_map
+
+    try:
+        from apps.fund.infrastructure.models import FundInfoModel
+
+        code_to_fund_code = {code: code.split(".")[0] for code in unresolved}
+        fund_rows = FundInfoModel._default_manager.filter(
+            fund_code__in=list(set(code_to_fund_code.values()))
+        ).values("fund_code", "fund_name")
+        fund_map = {row["fund_code"]: row["fund_name"] for row in fund_rows}
+        for code, fund_code in code_to_fund_code.items():
+            if fund_code in fund_map:
+                name_map[code] = fund_map[fund_code]
+    except Exception as e:
+        logger.debug(f"Failed to resolve fund names on dashboard: {e}")
+
+    return name_map
 
 
 def _get_alpha_provider_status() -> dict:

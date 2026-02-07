@@ -14,7 +14,8 @@ from django.test import override_settings
 
 from apps.alpha.application.services import AlphaService, AlphaProviderRegistry
 from apps.alpha.application.tasks import qlib_predict_scores, _generate_mock_scores
-from apps.alpha.domain.entities import AlphaResult, AlphaProviderStatus
+from apps.alpha.domain.entities import AlphaResult
+from apps.alpha.domain.interfaces import AlphaProviderStatus
 from apps.alpha.infrastructure.adapters.qlib_adapter import QlibAlphaProvider
 from apps.alpha.infrastructure.models import AlphaScoreCacheModel, QlibModelRegistryModel
 

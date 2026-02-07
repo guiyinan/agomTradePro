@@ -4,6 +4,7 @@
 {% block title %}编辑 Alpha 触发器 - AgomSAAF{% endblock %}
 
 {% block content %}
+{% include "components/json_assistant_assets.html" %}
 <style>
 .edit-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
 .edit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
@@ -141,7 +142,14 @@
                 <h3>触发条件 (JSON)</h3>
                 <small style="color: #64748b;">定义触发条件的数据结构</small>
             </div>
-            <textarea name="trigger_condition" class="json-editor" id="triggerCondition" placeholder='{"indicator": "..."}'>{{ trigger.trigger_condition|pprint_json }}</textarea>
+            <textarea
+                name="trigger_condition"
+                class="json-editor"
+                id="triggerCondition"
+                data-json-example='{"indicator":"CN_PMI_MANUFACTURING","operator":"gt","threshold":50,"consecutive_months":2}'
+                placeholder='{"indicator": "..."}'
+            >{{ trigger.trigger_condition|pprint_json }}</textarea>
+            {% include "components/json_assistant.html" with textarea_id="triggerCondition" enable_builder=False %}
         </div>
 
         <!-- 证伪条件 -->
@@ -176,7 +184,15 @@
                 <i class="bi bi-info-circle"></i> 编辑时只能替换全部证伪条件，请在下方输入新的 JSON 数组
             </div>
 
-            <textarea name="invalidation_conditions_json" class="json-editor" style="min-height: 100px;" placeholder='[{"condition_type": "threshold_cross", ...}]'>{{ trigger.invalidation_conditions|pprint_json }}</textarea>
+            <textarea
+                name="invalidation_conditions_json"
+                class="json-editor"
+                id="invalidationConditionsJson"
+                data-json-example='[{"condition_type":"threshold_cross","indicator_code":"CN_PMI_MANUFACTURING","cross_direction":"lt","threshold_value":50}]'
+                style="min-height: 100px;"
+                placeholder='[{"condition_type": "threshold_cross", ...}]'
+            >{{ trigger.invalidation_conditions|pprint_json }}</textarea>
+            {% include "components/json_assistant.html" with textarea_id="invalidationConditionsJson" enable_builder=False %}
         </div>
 
         <!-- 投资论点 -->
