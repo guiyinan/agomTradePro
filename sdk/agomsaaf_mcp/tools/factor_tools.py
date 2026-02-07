@@ -7,12 +7,12 @@ AgomSAAF MCP Tools - Factor 因子选股工具
 from datetime import date
 from typing import Any
 
-from mcp.server import Server
+from mcp.server.fastmcp import FastMCP
 
 from agomsaaf import AgomSAAFClient
 
 
-def register_factor_tools(server: Server) -> None:
+def register_factor_tools(server: FastMCP) -> None:
     """注册 Factor 相关的 MCP 工具"""
 
     @server.tool()
@@ -521,3 +521,4 @@ def register_factor_tools(server: Server) -> None:
             "config_name": recommendation["config_name"],
             "reason": recommendation["reason"],
         }
+

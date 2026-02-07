@@ -7,12 +7,12 @@ AgomSAAF MCP Tools - Policy 政策事件工具
 from datetime import date
 from typing import Any
 
-from mcp.server import Server
+from mcp.server.fastmcp import FastMCP
 
 from agomsaaf import AgomSAAFClient
 
 
-def register_policy_tools(server: Server) -> None:
+def register_policy_tools(server: FastMCP) -> None:
     """注册 Policy 相关的 MCP 工具"""
 
     @server.tool()
@@ -107,3 +107,4 @@ def register_policy_tools(server: Server) -> None:
             "description": event.description,
             "gear": event.gear,
         }
+

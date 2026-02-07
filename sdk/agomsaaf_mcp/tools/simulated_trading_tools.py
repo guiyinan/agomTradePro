@@ -7,12 +7,12 @@ AgomSAAF MCP Tools - Simulated Trading 模拟盘交易工具
 from datetime import date
 from typing import Any
 
-from mcp.server import Server
+from mcp.server.fastmcp import FastMCP
 
 from agomsaaf import AgomSAAFClient
 
 
-def register_simulated_trading_tools(server: Server) -> None:
+def register_simulated_trading_tools(server: FastMCP) -> None:
     """注册 SimulatedTrading 相关的 MCP 工具"""
 
     @server.tool()
@@ -193,3 +193,4 @@ def register_simulated_trading_tools(server: Server) -> None:
         """
         client = AgomSAAFClient()
         return client.simulated_trading.close_position(account_id, asset_code)
+

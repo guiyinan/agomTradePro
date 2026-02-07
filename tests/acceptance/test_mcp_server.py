@@ -18,9 +18,16 @@ import json
 import os
 import sys
 from typing import Any
+from pathlib import Path
+
+# Add project root and sdk directory to Python path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(project_root / "sdk"))
 
 # Set environment variables for testing
 os.environ["AGOMSAAF_BASE_URL"] = "http://localhost:8000"
+os.environ.setdefault("AGOMSAAF_API_TOKEN", "test-token")
 
 
 def print_section(title: str) -> None:
@@ -55,42 +62,41 @@ def print_json(data: Any, indent: int = 2) -> None:
     print(json.dumps(data, indent=indent, ensure_ascii=False))
 
 
-def test_import_mcp() -> bool:
+def test_import_mcp() -> None:
     """Test 1: Import MCP Server"""
     print_test("Test 1: Import MCP Server")
     try:
         from agomsaaf_mcp import server
         print_success("MCP server module imported successfully")
-        return True
     except ImportError as e:
-        print_error(f"Failed to import MCP server: {e}")
-        print_info("Make sure the SDK is installed: pip install -e sdk/")
-        return False
+        assert False, (
+            f"Failed to import MCP server: {e}. "
+            "Make sure the SDK is installed: pip install -e sdk/"
+        )
 
 
-def test_server_instance() -> bool:
+def test_server_instance() -> None:
     """Test 2: Create Server Instance"""
     print_test("Test 2: Create Server Instance")
     try:
         from agomsaaf_mcp.server import server
 
         print_success(f"Server instance created: {server.name}")
-        return True
     except Exception as e:
-        print_error(f"Failed to create server instance: {e}")
-        return False
+        assert False, f"Failed to create server instance: {e}"
 
 
-def test_list_tools() -> bool:
+def test_list_tools() -> None:
     """Test 3: List Available Tools"""
     print_test("Test 3: List Available Tools")
     try:
         from agomsaaf_mcp.server import server
+        import asyncio
 
-        # Get the list_tools handler
-        tools_result = server._handlers["tools/list"]
+        tools = asyncio.run(server.list_tools())
+        assert len(tools) > 0, "No MCP tools registered"
 
-        print_success("Tools list handler found")
+        print_success(f"Found {len(tools)} tools")
         print_info("The server provides tools for:")
         print_info("  - Regime: get_current_regime, calculate_regime, explain_regime")
         print_info("  - Signal: list_signals, check_signal_eligibility, create_signal")
@@ -98,13 +104,11 @@ def test_list_tools() -> bool:
         print_info("  - Policy: get_policy_status, list_policy_events")
         print_info("  - Backtest: list_backtests, get_backtest_result")
         print_info("  - And more...")
-        return True
     except Exception as e:
-        print_error(f"Failed to list tools: {e}")
-        return False
+        assert False, f"Failed to list tools: {e}"
 
 
-def test_list_resources() -> bool:
+def test_list_resources() -> None:
     """Test 4: List Available Resources"""
     print_test("Test 4: List Available Resources")
     try:
@@ -117,13 +121,11 @@ def test_list_resources() -> bool:
         print_success(f"Found {len(resources)} resources")
         for resource in resources:
             print_info(f"  - {resource['uri']}: {resource['name']}")
-        return True
     except Exception as e:
-        print_error(f"Failed to list resources: {e}")
-        return False
+        assert False, f"Failed to list resources: {e}"
 
 
-def test_read_resource() -> bool:
+def test_read_resource() -> None:
     """Test 5: Read Resource Content"""
     print_test("Test 5: Read Resource Content")
     try:
@@ -137,14 +139,11 @@ def test_read_resource() -> bool:
         print_success("Resource content retrieved")
         print_info("Current regime resource:")
         print(f"  {content[:100]}...")
-        return True
     except Exception as e:
-        print_error(f"Failed to read resource: {e}")
-        print_info("This is expected if macro data is not available")
-        return True  # Don't fail on this
+        print_info(f"Read resource skipped due to runtime data issue: {e}")
 
 
-def test_list_prompts() -> bool:
+def test_list_prompts() -> None:
     """Test 6: List Available Prompts"""
     print_test("Test 6: List Available Prompts")
     try:
@@ -160,13 +159,11 @@ def test_list_prompts() -> bool:
             if prompt.get("arguments"):
                 args_info = f" ({len(prompt['arguments'])} args)"
             print_info(f"  - {prompt['name']}{args_info}: {prompt['description']}")
-        return True
     except Exception as e:
-        print_error(f"Failed to list prompts: {e}")
-        return False
+        assert False, f"Failed to list prompts: {e}"
 
 
-def test_get_prompt() -> bool:
+def test_get_prompt() -> None:
     """Test 7: Get Prompt Content"""
     print_test("Test 7: Get Prompt Content")
     try:
@@ -179,13 +176,11 @@ def test_get_prompt() -> bool:
 
         print_success("Prompt content retrieved")
         print_info(f"Prompt length: {len(prompt)} characters")
-        return True
     except Exception as e:
-        print_error(f"Failed to get prompt: {e}")
-        return False
+        assert False, f"Failed to get prompt: {e}"
 
 
-def test_tool_imports() -> bool:
+def test_tool_imports() -> None:
     """Test 8: Test Tool Module Imports"""
     print_test("Test 8: Test Tool Module Imports")
     try:
@@ -218,13 +213,11 @@ def test_tool_imports() -> bool:
         print_info("  - sector_tools")
         print_info("  - strategy_tools")
         print_info("  - realtime_tools")
-        return True
     except ImportError as e:
-        print_error(f"Failed to import tool modules: {e}")
-        return False
+        assert False, f"Failed to import tool modules: {e}"
 
 
-def test_sdk_client_from_mcp() -> bool:
+def test_sdk_client_from_mcp() -> None:
     """Test 9: Test SDK Client from MCP Context"""
     print_test("Test 9: Test SDK Client from MCP Context")
     try:
@@ -240,11 +233,8 @@ def test_sdk_client_from_mcp() -> bool:
         except Exception:
             # Even if data is not available, the client should work
             print_success("SDK client initialized successfully")
-
-        return True
     except Exception as e:
-        print_error(f"Failed to create SDK client: {e}")
-        return False
+        assert False, f"Failed to create SDK client: {e}"
 
 
 def main() -> int:
@@ -279,8 +269,11 @@ def main() -> int:
 
     for name, test_func in tests:
         try:
-            result = test_func()
-            results.append((name, result))
+            test_func()
+            results.append((name, True))
+        except AssertionError as e:
+            print_error(str(e))
+            results.append((name, False))
         except Exception as e:
             print_error(f"Unexpected error: {e}")
             results.append((name, False))

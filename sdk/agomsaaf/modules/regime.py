@@ -26,7 +26,7 @@ class RegimeModule(BaseModule):
         Args:
             client: AgomSAAF 客户端实例
         """
-        super().__init__(client, "/api/regime")
+        super().__init__(client, "/regime/api")
 
     def get_current(self) -> RegimeState:
         """
@@ -50,6 +50,7 @@ class RegimeModule(BaseModule):
         return self._parse_regime_state(response)
 
     def calculate(
+        self,
         as_of_date: Optional[date] = None,
         growth_indicator: str = "PMI",
         inflation_indicator: str = "CPI",
@@ -94,6 +95,7 @@ class RegimeModule(BaseModule):
         return self._parse_regime_state(response)
 
     def history(
+        self,
         start_date: Optional[date] = None,
         end_date: Optional[date] = None,
         limit: int = 100,

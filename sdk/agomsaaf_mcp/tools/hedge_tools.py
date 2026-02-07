@@ -7,12 +7,12 @@ AgomSAAF MCP Tools - Hedge 对冲组合工具
 from datetime import date
 from typing import Any
 
-from mcp.server import Server
+from mcp.server.fastmcp import FastMCP
 
 from agomsaaf import AgomSAAFClient
 
 
-def register_hedge_tools(server: Server) -> None:
+def register_hedge_tools(server: FastMCP) -> None:
     """注册 Hedge 相关的 MCP 工具"""
 
     @server.tool()
@@ -400,3 +400,4 @@ def register_hedge_tools(server: Server) -> None:
                 "reason": "股票默认使用国债对冲",
             },
         )
+

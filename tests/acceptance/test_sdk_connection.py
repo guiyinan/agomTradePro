@@ -17,6 +17,7 @@ import os
 import sys
 from typing import Any
 from pathlib import Path
+import pytest
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent.parent
@@ -24,6 +25,7 @@ sys.path.insert(0, str(project_root))
 
 # Set environment variables for testing
 os.environ["AGOMSAAF_BASE_URL"] = "http://localhost:8000"
+os.environ.setdefault("AGOMSAAF_API_TOKEN", "test-token")
 
 
 def print_section(title: str) -> None:
@@ -53,20 +55,28 @@ def print_info(message: str) -> None:
     print(f"  INFO: {message}")
 
 
-def test_import_sdk() -> bool:
+def _assert_or_skip_endpoint_error(test_name: str, error: Exception) -> None:
+    """For acceptance tests, skip when endpoint/data is unavailable in current env."""
+    error_text = str(error)
+    if "[404]" in error_text or "Resource not found" in error_text:
+        pytest.skip(f"{test_name} skipped: API endpoint/data not available in current environment ({error_text})")
+    assert False, f"Failed in {test_name}: {error}"
+
+
+def test_import_sdk() -> None:
     """Test 1: Import SDK"""
     print_test("Test 1: Import SDK")
     try:
         from sdk.agomsaaf import AgomSAAFClient
         print_success("SDK imported successfully")
-        return True
     except ImportError as e:
-        print_error(f"Failed to import SDK: {e}")
-        print_info("Make sure the SDK is installed: pip install -e sdk/")
-        return False
+        assert False, (
+            f"Failed to import SDK: {e}. "
+            "Make sure the SDK is installed: pip install -e sdk/"
+        )
 
 
-def test_create_client() -> bool:
+def test_create_client() -> None:
     """Test 2: Create Client"""
     print_test("Test 2: Create Client")
     try:
@@ -75,13 +85,11 @@ def test_create_client() -> bool:
         client = AgomSAAFClient()
         print_success("Client created successfully")
         print_info(f"Base URL: {client._config.base_url}")
-        return True
     except Exception as e:
-        print_error(f"Failed to create client: {e}")
-        return False
+        assert False, f"Failed to create client: {e}"
 
 
-def test_get_current_regime() -> bool:
+def test_get_current_regime() -> None:
     """Test 3: Get Current Regime"""
     print_test("Test 3: Get Current Regime")
     try:
@@ -94,14 +102,11 @@ def test_get_current_regime() -> bool:
         print_info(f"Growth level: {regime.growth_level}")
         print_info(f"Inflation level: {regime.inflation_level}")
         print_info(f"Observed at: {regime.observed_at}")
-        return True
     except Exception as e:
-        print_error(f"Failed to get current regime: {e}")
-        print_info("Make sure the server has macro data available")
-        return False
+        _assert_or_skip_endpoint_error("get_current_regime", e)
 
 
-def test_get_policy_status() -> bool:
+def test_get_policy_status() -> None:
     """Test 4: Get Policy Status"""
     print_test("Test 4: Get Policy Status")
     try:
@@ -114,13 +119,11 @@ def test_get_policy_status() -> bool:
         print_info(f"Observed at: {status.observed_at}")
         if status.recent_events:
             print_info(f"Recent events: {len(status.recent_events)}")
-        return True
     except Exception as e:
-        print_error(f"Failed to get policy status: {e}")
-        return False
+        _assert_or_skip_endpoint_error("get_policy_status", e)
 
 
-def test_list_macro_indicators() -> bool:
+def test_list_macro_indicators() -> None:
     """Test 5: List Macro Indicators"""
     print_test("Test 5: List Macro Indicators")
     try:
@@ -132,13 +135,11 @@ def test_list_macro_indicators() -> bool:
         print_success(f"Found {len(indicators)} macro indicators")
         if indicators:
             print_info(f"First indicator: {indicators[0].code} - {indicators[0].name}")
-        return True
     except Exception as e:
-        print_error(f"Failed to list macro indicators: {e}")
-        return False
+        _assert_or_skip_endpoint_error("list_macro_indicators", e)
 
 
-def test_list_signals() -> bool:
+def test_list_signals() -> None:
     """Test 6: List Investment Signals"""
     print_test("Test 6: List Investment Signals")
     try:
@@ -150,13 +151,11 @@ def test_list_signals() -> bool:
         print_success(f"Found {len(signals)} investment signals")
         if signals:
             print_info(f"First signal: {signals[0].asset_code} - {signals[0].logic_desc[:50]}...")
-        return True
     except Exception as e:
-        print_error(f"Failed to list signals: {e}")
-        return False
+        _assert_or_skip_endpoint_error("list_signals", e)
 
 
-def test_check_signal_eligibility() -> bool:
+def test_check_signal_eligibility() -> None:
     """Test 7: Check Signal Eligibility"""
     print_test("Test 7: Check Signal Eligibility")
     try:
@@ -174,13 +173,11 @@ def test_check_signal_eligibility() -> bool:
             print_info(f"Regime match: {eligibility.regime_match}")
         if eligibility.policy_match:
             print_info(f"Policy match: {eligibility.policy_match}")
-        return True
     except Exception as e:
-        print_error(f"Failed to check eligibility: {e}")
-        return False
+        _assert_or_skip_endpoint_error("check_signal_eligibility", e)
 
 
-def test_regime_history() -> bool:
+def test_regime_history() -> None:
     """Test 8: Get Regime History"""
     print_test("Test 8: Get Regime History")
     try:
@@ -192,13 +189,11 @@ def test_regime_history() -> bool:
         print_success(f"Found {len(history)} regime history records")
         if history:
             print_info(f"Latest: {history[0].dominant_regime} at {history[0].observed_at}")
-        return True
     except Exception as e:
-        print_error(f"Failed to get regime history: {e}")
-        return False
+        _assert_or_skip_endpoint_error("regime_history", e)
 
 
-def test_list_backtests() -> bool:
+def test_list_backtests() -> None:
     """Test 9: List Backtests"""
     print_test("Test 9: List Backtests")
     try:
@@ -208,13 +203,11 @@ def test_list_backtests() -> bool:
         backtests = client.backtest.list_backtests()
 
         print_success(f"Found {len(backtests)} backtests")
-        return True
     except Exception as e:
-        print_error(f"Failed to list backtests: {e}")
-        return False
+        _assert_or_skip_endpoint_error("list_backtests", e)
 
 
-def test_get_portfolios() -> bool:
+def test_get_portfolios() -> None:
     """Test 10: Get Portfolios"""
     print_test("Test 10: Get Portfolios")
     try:
@@ -224,10 +217,8 @@ def test_get_portfolios() -> bool:
         portfolios = client.account.get_portfolios()
 
         print_success(f"Found {len(portfolios)} portfolios")
-        return True
     except Exception as e:
-        print_error(f"Failed to get portfolios: {e}")
-        return False
+        _assert_or_skip_endpoint_error("get_portfolios", e)
 
 
 def main() -> int:
@@ -263,8 +254,11 @@ def main() -> int:
 
     for name, test_func in tests:
         try:
-            result = test_func()
-            results.append((name, result))
+            test_func()
+            results.append((name, True))
+        except AssertionError as e:
+            print_error(str(e))
+            results.append((name, False))
         except Exception as e:
             print_error(f"Unexpected error: {e}")
             results.append((name, False))

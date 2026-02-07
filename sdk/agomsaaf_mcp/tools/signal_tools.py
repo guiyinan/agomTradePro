@@ -6,12 +6,12 @@ AgomSAAF MCP Tools - Investment Signal 投资信号工具
 
 from typing import Any
 
-from mcp.server import Server
+from mcp.server.fastmcp import FastMCP
 
 from agomsaaf import AgomSAAFClient
 
 
-def register_signal_tools(server: Server) -> None:
+def register_signal_tools(server: FastMCP) -> None:
     """注册 Signal 相关的 MCP 工具"""
 
     @server.tool()
@@ -243,3 +243,4 @@ def register_signal_tools(server: Server) -> None:
             "status": signal.status,
             "invalidated_at": signal.invalidated_at.isoformat() if signal.invalidated_at else None,
         }
+

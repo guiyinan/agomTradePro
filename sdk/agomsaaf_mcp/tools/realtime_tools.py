@@ -6,12 +6,12 @@ AgomSAAF MCP Tools - Realtime 实时价格监控工具
 
 from typing import Any
 
-from mcp.server import Server
+from mcp.server.fastmcp import FastMCP
 
 from agomsaaf import AgomSAAFClient
 
 
-def register_realtime_tools(server: Server) -> None:
+def register_realtime_tools(server: FastMCP) -> None:
     """注册 Realtime 相关的 MCP 工具"""
 
     @server.tool()
@@ -184,3 +184,4 @@ def register_realtime_tools(server: Server) -> None:
         """
         client = AgomSAAFClient()
         client.realtime.delete_alert(alert_id)
+

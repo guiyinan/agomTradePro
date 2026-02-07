@@ -11,6 +11,47 @@ cd D:/githv/agomSAAF/sdk
 pip install -e .
 ```
 
+Recommended runtime versions:
+
+- Python `>=3.11`
+- `mcp>=1.20,<2`
+
+Verify:
+
+```bash
+python -m pip show agomsaaf-sdk mcp
+```
+
+### Runtime Environment Variables
+
+MCP server uses SDK credentials to call AgomSAAF backend:
+
+- `AGOMSAAF_BASE_URL` (required)
+- `AGOMSAAF_API_TOKEN` (recommended)
+- Or `AGOMSAAF_USERNAME` + `AGOMSAAF_PASSWORD`
+
+Auth format on backend is DRF Token (`Authorization: Token <token>`).
+
+Create token for an existing user:
+
+```bash
+cd D:/githv/agomSAAF
+python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','core.settings.development'); import django; django.setup(); from django.contrib.auth.models import User; from rest_framework.authtoken.models import Token; u=User.objects.get(username='admin'); t,_=Token.objects.get_or_create(user=u); print(t.key)"
+```
+
+### Admin Token Management Page (Recommended)
+
+If you are a system admin, you can manage DRF tokens in UI instead of shell scripts:
+
+- Path: `/account/admin/tokens/`
+- Features:
+  - Search users by username/email
+  - Filter users without token
+  - Generate/rotate token per user
+  - Revoke token per user
+
+From the page, click "生成Token" or "重置Token" for target user. The new token will be shown once in success message, then only masked preview is displayed in list.
+
 ### 2. Configure Claude Code
 
 Edit `~/.config/claude-code/mcp_servers.json`:
@@ -39,6 +80,12 @@ What's the current macro regime?
 ```
 
 Claude should call the `get_current_regime` tool and respond with the current regime.
+
+You can validate tool registration locally:
+
+```bash
+python -c "import asyncio; from agomsaaf_mcp.server import server; print(len(asyncio.run(server.list_tools())))"
+```
 
 ## Available Tools
 
@@ -165,7 +212,13 @@ check_signal_eligibility     # Check if signal is eligible
 ```bash
 # Test manually
 cd D:/githv/agomSAAF/sdk
-python -m agomsaaf_mcp.server
+agomsaaf-mcp
+```
+
+If this command fails with MCP API errors, verify `mcp` major version is `1.x`:
+
+```bash
+python -m pip show mcp
 ```
 
 ### Connection Errors
@@ -173,9 +226,12 @@ python -m agomsaaf_mcp.server
 1. Check AgomSAAF server is running: `http://localhost:8000`
 2. Verify API token is correct
 3. Check firewall settings
+4. If proxy is enabled globally, set `NO_PROXY=127.0.0.1,localhost`
 
 ### Tool Not Available
 
 1. Restart Claude Code
 2. Verify MCP server config is correct
 3. Check SDK is installed: `pip show agomsaaf-sdk`
+4. Check MCP SDK is installed: `pip show mcp`
+5. Confirm tools are registered: `python -c "import asyncio; from agomsaaf_mcp.server import server; print(len(asyncio.run(server.list_tools())))"`

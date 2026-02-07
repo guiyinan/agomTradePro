@@ -32,7 +32,7 @@ class SignalModule(BaseModule):
         Args:
             client: AgomSAAF 客户端实例
         """
-        super().__init__(client, "/api/signal")
+        super().__init__(client, "/signal/api")
 
     def list(
         self,
@@ -66,7 +66,7 @@ class SignalModule(BaseModule):
         if asset_code is not None:
             params["asset_code"] = asset_code
 
-        response = self._get("signals/", params=params)
+        response = self._get("", params=params)
         results = response.get("results", response)
         return [self._parse_signal(item) for item in results]
 
@@ -89,7 +89,7 @@ class SignalModule(BaseModule):
             >>> print(f"资产: {signal.asset_code}")
             >>> print(f"状态: {signal.status}")
         """
-        response = self._get(f"signals/{signal_id}/")
+        response = self._get(f"{signal_id}/")
         return self._parse_signal(response)
 
     def create(
@@ -138,7 +138,7 @@ class SignalModule(BaseModule):
         if target_regime is not None:
             data["target_regime"] = target_regime
 
-        response = self._post("signals/", json=data)
+        response = self._post("", json=data)
         return self._parse_signal(response)
 
     def approve(
@@ -169,7 +169,7 @@ class SignalModule(BaseModule):
         if approver is not None:
             data["approver"] = approver
 
-        response = self._post(f"signals/{signal_id}/approve/", json=data)
+        response = self._post(f"{signal_id}/approve/", json=data)
         return self._parse_signal(response)
 
     def reject(
@@ -196,7 +196,7 @@ class SignalModule(BaseModule):
             >>> signal = client.signal.reject(123, reason="不符合当前象限")
             >>> print(f"信号已拒绝: {signal.status}")
         """
-        response = self._post(f"signals/{signal_id}/reject/", json={"reason": reason})
+        response = self._post(f"{signal_id}/reject/", json={"reason": reason})
         return self._parse_signal(response)
 
     def invalidate(
@@ -223,7 +223,7 @@ class SignalModule(BaseModule):
             >>> signal = client.signal.invalidate(123, reason="PMI 跌破 50")
             >>> print(f"信号已失效: {signal.status}")
         """
-        response = self._post(f"signals/{signal_id}/invalidate/", json={"reason": reason})
+        response = self._post(f"{signal_id}/invalidate/", json={"reason": reason})
         return self._parse_signal(response)
 
     def check_eligibility(
@@ -265,7 +265,7 @@ class SignalModule(BaseModule):
         if target_regime is not None:
             data["target_regime"] = target_regime
 
-        response = self._post("check-eligibility/", json=data)
+        response = self._post("check_eligibility/", json=data)
         return self._parse_eligibility_result(response)
 
     def _parse_signal(self, data: dict[str, Any]) -> InvestmentSignal:

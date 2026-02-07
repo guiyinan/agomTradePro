@@ -7,12 +7,12 @@ AgomSAAF MCP Tools - Fund 基金分析工具
 from datetime import date
 from typing import Any
 
-from mcp.server import Server
+from mcp.server.fastmcp import FastMCP
 
 from agomsaaf import AgomSAAFClient
 
 
-def register_fund_tools(server: Server) -> None:
+def register_fund_tools(server: FastMCP) -> None:
     """注册 Fund 相关的 MCP 工具"""
 
     @server.tool()
@@ -164,3 +164,4 @@ def register_fund_tools(server: Server) -> None:
         client = AgomSAAFClient()
         parsed_date = date.fromisoformat(as_of_date) if as_of_date else None
         return client.fund.get_holdings(fund_code, parsed_date)
+

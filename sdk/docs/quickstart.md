@@ -9,6 +9,19 @@ cd D:/githv/agomSAAF/sdk
 pip install -e .
 ```
 
+## Authentication
+
+The backend expects DRF Token auth:
+
+- `Authorization: Token <token>`
+
+Generate token for an existing user:
+
+```bash
+cd D:/githv/agomSAAF
+python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','core.settings.development'); import django; django.setup(); from django.contrib.auth.models import User; from rest_framework.authtoken.models import Token; u=User.objects.get(username='admin'); t,_=Token.objects.get_or_create(user=u); print(t.key)"
+```
+
 ## Basic Usage
 
 ### 1. Initialize the Client
@@ -30,6 +43,14 @@ client = AgomSAAFClient()
 
 # Method 3: Using config file (~/.agomsaaf/config.json)
 client = AgomSAAFClient()
+```
+
+If your machine has proxy variables configured, bypass localhost:
+
+```python
+import os
+os.environ["NO_PROXY"] = "127.0.0.1,localhost"
+os.environ["no_proxy"] = "127.0.0.1,localhost"
 ```
 
 ### 2. Get Current Macro Regime

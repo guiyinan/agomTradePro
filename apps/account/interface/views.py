@@ -11,10 +11,11 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from decimal import Decimal
+import logging
 
 from apps.account.infrastructure.models import AccountProfileModel, PortfolioModel, CapitalFlowModel, SystemSettingsModel
 from apps.account.infrastructure.repositories import (
@@ -24,6 +25,8 @@ from apps.account.infrastructure.repositories import (
     AssetMetadataRepository,
 )
 from apps.account.application.use_cases import CreatePositionFromBacktestUseCase, CreatePositionFromBacktestInput
+
+logger = logging.getLogger(__name__)
 
 
 def is_admin_user(user):
@@ -584,39 +587,176 @@ def user_management_view(request):
 
 @login_required
 @user_passes_test(is_admin_user)
+@require_http_methods(["GET"])
+def token_management_view(request):
+    """
+    MCP/SDK Token 管理页面（仅管理员可用）
+
+    管理 DRF Token：查看、生成/重置、撤销。
+    """
+    search_query = request.GET.get("q", "").strip()
+    only_without_token = request.GET.get("without_token") == "1"
+
+    users = User._default_manager.all().order_by("-date_joined")
+    if search_query:
+        users = users.filter(
+            models.Q(username__icontains=search_query) |
+            models.Q(email__icontains=search_query)
+        )
+
+    token_map = {
+        token.user_id: token
+        for token in Token._default_manager.select_related("user").all()
+    }
+
+    rows = []
+    for user in users:
+        token_obj = token_map.get(user.id)
+        if only_without_token and token_obj:
+            continue
+
+        token_key = token_obj.key if token_obj else ""
+        rows.append({
+            "user": user,
+            "has_token": token_obj is not None,
+            "token_preview": f"{token_key[:8]}...{token_key[-6:]}" if token_key else "-",
+            "token_created": token_obj.created if token_obj else None,
+        })
+
+    new_token_payload = request.session.pop("new_token_payload", None)
+
+    context = {
+        "rows": rows,
+        "search_query": search_query,
+        "only_without_token": only_without_token,
+        "total_users": len(rows),
+        "with_token_count": sum(1 for r in rows if r["has_token"]),
+        "without_token_count": sum(1 for r in rows if not r["has_token"]),
+        "new_token_payload": new_token_payload,
+    }
+    return render(request, "account/token_management.html", context)
+
+
+@login_required
+@user_passes_test(is_admin_user)
+@require_http_methods(["POST"])
+def rotate_user_token_view(request, user_id):
+    """
+    为指定用户生成或重置 Token（仅管理员可用）。
+    """
+    try:
+        with transaction.atomic():
+            target_user = User._default_manager.get(id=user_id)
+            Token._default_manager.filter(user=target_user).delete()
+            new_token = Token._default_manager.create(user=target_user)
+
+        request.session["new_token_payload"] = {
+            "username": target_user.username,
+            "token": new_token.key,
+            "generated_at": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        messages.success(request, f"已为用户 {target_user.username} 生成新 Token")
+        logger.info(
+            "admin_action=rotate_token actor=%s target=%s result=success",
+            request.user.username,
+            target_user.username,
+        )
+    except User.DoesNotExist:
+        messages.error(request, "用户不存在")
+    except Exception as e:
+        messages.error(request, f"生成 Token 失败：{str(e)}")
+        logger.exception(
+            "admin_action=rotate_token actor=%s target_user_id=%s result=failed",
+            request.user.username,
+            user_id,
+        )
+
+    return redirect("/account/admin/tokens/")
+
+
+@login_required
+@user_passes_test(is_admin_user)
+@require_http_methods(["POST"])
+def revoke_user_token_view(request, user_id):
+    """
+    撤销指定用户 Token（仅管理员可用）。
+    """
+    try:
+        with transaction.atomic():
+            target_user = User._default_manager.get(id=user_id)
+            deleted_count, _ = Token._default_manager.filter(user=target_user).delete()
+        if deleted_count > 0:
+            messages.success(request, f"已撤销用户 {target_user.username} 的 Token")
+        else:
+            messages.warning(request, f"用户 {target_user.username} 当前没有可撤销的 Token")
+        logger.info(
+            "admin_action=revoke_token actor=%s target=%s deleted_count=%s",
+            request.user.username,
+            target_user.username,
+            deleted_count,
+        )
+    except User.DoesNotExist:
+        messages.error(request, "用户不存在")
+    except Exception as e:
+        messages.error(request, f"撤销 Token 失败：{str(e)}")
+        logger.exception(
+            "admin_action=revoke_token actor=%s target_user_id=%s result=failed",
+            request.user.username,
+            user_id,
+        )
+
+    return redirect("/account/admin/tokens/")
+
+
+@login_required
+@user_passes_test(is_admin_user)
 @require_http_methods(["POST"])
 def approve_user_view(request, user_id):
     """
     批准用户视图（仅管理员可用）
     """
     try:
-        target_user = User._default_manager.get(id=user_id)
-        profile = target_user.account_profile
+        with transaction.atomic():
+            target_user = User._default_manager.get(id=user_id)
+            profile = target_user.account_profile
 
-        if profile.approval_status == 'approved':
-            messages.warning(request, f"用户 {target_user.username} 已经被批准过了")
-        elif profile.approval_status == 'rejected':
-            messages.error(request, f"用户 {target_user.username} 已被拒绝，请先取消拒绝状态")
-        else:
-            # 激活用户
-            target_user.is_active = True
-            target_user.save()
+            if profile.approval_status == 'approved':
+                messages.warning(request, f"用户 {target_user.username} 已经被批准过了")
+            elif profile.approval_status == 'rejected':
+                messages.error(request, f"用户 {target_user.username} 已被拒绝，请先取消拒绝状态")
+            elif profile.approval_status != 'pending':
+                messages.error(request, f"用户 {target_user.username} 当前状态不允许批准")
+            else:
+                # 激活用户
+                target_user.is_active = True
+                target_user.save(update_fields=["is_active"])
 
-            # 更新审批状态
-            profile.approval_status = 'approved'
-            profile.approved_at = timezone.now()
-            profile.approved_by = request.user
-            profile.save()
+                # 更新审批状态
+                profile.approval_status = 'approved'
+                profile.approved_at = timezone.now()
+                profile.approved_by = request.user
+                profile.rejection_reason = ""
+                profile.save(update_fields=["approval_status", "approved_at", "approved_by", "rejection_reason", "updated_at"])
 
-            # 创建API Token
-            Token._default_manager.get_or_create(user=target_user)
+                # 创建API Token
+                Token._default_manager.get_or_create(user=target_user)
 
-            messages.success(request, f"已批准用户 {target_user.username}")
+                messages.success(request, f"已批准用户 {target_user.username}")
+                logger.info(
+                    "admin_action=approve_user actor=%s target=%s",
+                    request.user.username,
+                    target_user.username,
+                )
 
     except User.DoesNotExist:
         messages.error(request, "用户不存在")
     except Exception as e:
         messages.error(request, f"批准失败：{str(e)}")
+        logger.exception(
+            "admin_action=approve_user actor=%s target_user_id=%s result=failed",
+            request.user.username,
+            user_id,
+        )
 
     return redirect("/account/admin/users/")
 
@@ -629,27 +769,48 @@ def reject_user_view(request, user_id):
     拒绝用户视图（仅管理员可用）
     """
     try:
-        target_user = User._default_manager.get(id=user_id)
-        profile = target_user.account_profile
+        with transaction.atomic():
+            target_user = User._default_manager.get(id=user_id)
+            profile = target_user.account_profile
 
-        # 确保不拒绝自己
-        if target_user.id == request.user.id:
-            messages.error(request, "不能拒绝自己")
-            return redirect("/account/admin/users/")
+            # 确保不拒绝自己
+            if target_user.id == request.user.id:
+                messages.error(request, "不能拒绝自己")
+                return redirect("/account/admin/users/")
 
-        rejection_reason = request.POST.get("rejection_reason", "")
+            if profile.approval_status != "pending":
+                messages.error(request, f"用户 {target_user.username} 当前状态不允许拒绝")
+                return redirect("/account/admin/users/")
 
-        # 更新审批状态
-        profile.approval_status = 'rejected'
-        profile.rejection_reason = rejection_reason
-        profile.save()
+            rejection_reason = request.POST.get("rejection_reason", "")
 
-        messages.success(request, f"已拒绝用户 {target_user.username}")
+            # 更新审批状态并强制停用/撤销Token
+            profile.approval_status = 'rejected'
+            profile.rejection_reason = rejection_reason
+            profile.approved_at = None
+            profile.approved_by = None
+            profile.save(update_fields=["approval_status", "rejection_reason", "approved_at", "approved_by", "updated_at"])
+
+            target_user.is_active = False
+            target_user.save(update_fields=["is_active"])
+            Token._default_manager.filter(user=target_user).delete()
+
+            messages.success(request, f"已拒绝用户 {target_user.username}")
+            logger.info(
+                "admin_action=reject_user actor=%s target=%s",
+                request.user.username,
+                target_user.username,
+            )
 
     except User.DoesNotExist:
         messages.error(request, "用户不存在")
     except Exception as e:
         messages.error(request, f"拒绝失败：{str(e)}")
+        logger.exception(
+            "admin_action=reject_user actor=%s target_user_id=%s result=failed",
+            request.user.username,
+            user_id,
+        )
 
     return redirect("/account/admin/users/")
 
@@ -664,29 +825,45 @@ def reset_user_status_view(request, user_id):
     将用户状态重置为待审批，允许重新审批。
     """
     try:
-        target_user = User._default_manager.get(id=user_id)
-        profile = target_user.account_profile
+        with transaction.atomic():
+            target_user = User._default_manager.get(id=user_id)
+            profile = target_user.account_profile
 
-        # 重置审批状态
-        profile.approval_status = 'pending'
-        profile.approved_at = None
-        profile.approved_by = None
-        profile.rejection_reason = ""
-        profile.save()
+            # 防止管理员误锁自己
+            if target_user.id == request.user.id:
+                messages.error(request, "不能重置自己")
+                return redirect("/account/admin/users/")
 
-        # 停用用户
-        target_user.is_active = False
-        target_user.save()
+            # 重置审批状态
+            profile.approval_status = 'pending'
+            profile.approved_at = None
+            profile.approved_by = None
+            profile.rejection_reason = ""
+            profile.save(update_fields=["approval_status", "approved_at", "approved_by", "rejection_reason", "updated_at"])
 
-        # 删除API Token
-        Token._default_manager.filter(user=target_user).delete()
+            # 停用用户
+            target_user.is_active = False
+            target_user.save(update_fields=["is_active"])
 
-        messages.success(request, f"已重置用户 {target_user.username} 的状态")
+            # 删除API Token
+            Token._default_manager.filter(user=target_user).delete()
+
+            messages.success(request, f"已重置用户 {target_user.username} 的状态")
+            logger.info(
+                "admin_action=reset_user_status actor=%s target=%s",
+                request.user.username,
+                target_user.username,
+            )
 
     except User.DoesNotExist:
         messages.error(request, "用户不存在")
     except Exception as e:
         messages.error(request, f"重置失败：{str(e)}")
+        logger.exception(
+            "admin_action=reset_user_status actor=%s target_user_id=%s result=failed",
+            request.user.username,
+            user_id,
+        )
 
     return redirect("/account/admin/users/")
 

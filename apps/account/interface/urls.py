@@ -39,6 +39,9 @@ urlpatterns = [
 
     # 管理员视图（用户管理）
     path('admin/users/', views.user_management_view, name='user_management'),
+    path('admin/tokens/', views.token_management_view, name='token_management'),
+    path('admin/tokens/<int:user_id>/rotate/', views.rotate_user_token_view, name='rotate_user_token'),
+    path('admin/tokens/<int:user_id>/revoke/', views.revoke_user_token_view, name='revoke_user_token'),
     path('admin/users/<int:user_id>/approve/', views.approve_user_view, name='approve_user'),
     path('admin/users/<int:user_id>/reject/', views.reject_user_view, name='reject_user'),
     path('admin/users/<int:user_id>/reset/', views.reset_user_status_view, name='reset_user_status'),

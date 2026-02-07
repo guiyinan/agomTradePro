@@ -7,12 +7,12 @@ AgomSAAF MCP Tools - Equity 个股分析工具
 from datetime import date
 from typing import Any
 
-from mcp.server import Server
+from mcp.server.fastmcp import FastMCP
 
 from agomsaaf import AgomSAAFClient
 
 
-def register_equity_tools(server: Server) -> None:
+def register_equity_tools(server: FastMCP) -> None:
     """注册 Equity 相关的 MCP 工具"""
 
     @server.tool()
@@ -164,3 +164,4 @@ def register_equity_tools(server: Server) -> None:
         client = AgomSAAFClient()
         parsed_date = date.fromisoformat(as_of_date) if as_of_date else None
         return client.equity.get_valuation(stock_code, parsed_date)
+

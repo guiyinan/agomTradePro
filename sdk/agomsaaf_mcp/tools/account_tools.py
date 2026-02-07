@@ -6,12 +6,12 @@ AgomSAAF MCP Tools - Account 账户管理工具
 
 from typing import Any
 
-from mcp.server import Server
+from mcp.server.fastmcp import FastMCP
 
 from agomsaaf import AgomSAAFClient
 
 
-def register_account_tools(server: Server) -> None:
+def register_account_tools(server: FastMCP) -> None:
     """注册 Account 相关的 MCP 工具"""
 
     @server.tool()
@@ -147,3 +147,4 @@ def register_account_tools(server: Server) -> None:
             "current_price": position.current_price,
             "market_value": position.market_value,
         }
+

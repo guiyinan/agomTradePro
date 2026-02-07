@@ -157,7 +157,13 @@ class AgomSAAFClient:
 
         # API Token 认证
         if self._config.auth.api_token:
-            headers["Authorization"] = f"Bearer {self._config.auth.api_token}"
+            token = self._config.auth.api_token.strip()
+            # DRF TokenAuthentication expects "Token <key>".
+            # Keep explicit scheme if caller already passed one.
+            if token.lower().startswith("token ") or token.lower().startswith("bearer "):
+                headers["Authorization"] = token
+            else:
+                headers["Authorization"] = f"Token {token}"
 
         return headers
 
@@ -214,6 +220,12 @@ class AgomSAAFClient:
             # 根据状态码抛出异常
             raise_for_status(response.status_code, response_data)
 
+            if isinstance(response_data, dict):
+                # Some AgomSAAF endpoints return wrapped payload:
+                # {"success": true, "data": {...}}.
+                if "data" in response_data and isinstance(response_data.get("success"), bool):
+                    return response_data["data"]
+                return response_data
             return response_data or {}
 
         except requests.exceptions.Timeout:

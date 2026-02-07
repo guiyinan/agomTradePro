@@ -7,12 +7,12 @@ AgomSAAF MCP Tools - Sector 板块分析工具
 from datetime import date
 from typing import Any
 
-from mcp.server import Server
+from mcp.server.fastmcp import FastMCP
 
 from agomsaaf import AgomSAAFClient
 
 
-def register_sector_tools(server: Server) -> None:
+def register_sector_tools(server: FastMCP) -> None:
     """注册 Sector 相关的 MCP 工具"""
 
     @server.tool()
@@ -153,3 +153,4 @@ def register_sector_tools(server: Server) -> None:
         """
         client = AgomSAAFClient()
         return client.sector.compare_sectors(sector_names)
+

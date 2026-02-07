@@ -26,7 +26,7 @@ class PolicyModule(BaseModule):
         Args:
             client: AgomSAAF 客户端实例
         """
-        super().__init__(client, "/api/policy")
+        super().__init__(client, "/policy")
 
     def get_status(self) -> PolicyStatus:
         """
@@ -86,7 +86,7 @@ class PolicyModule(BaseModule):
         if gear is not None:
             params["gear"] = gear
 
-        response = self._get("events/", params=params)
+        response = self._get("api/events/", params=params)
         results = response.get("results", response)
         return [self._parse_event(item) for item in results]
 
@@ -109,7 +109,7 @@ class PolicyModule(BaseModule):
             >>> print(f"事件类型: {event.event_type}")
             >>> print(f"描述: {event.description}")
         """
-        response = self._get(f"events/{event_id}/")
+        response = self._get(f"api/events/{event_id}/")
         return self._parse_event(response)
 
     def create_event(
@@ -152,7 +152,7 @@ class PolicyModule(BaseModule):
             "gear": gear,
         }
 
-        response = self._post("events/", json=data)
+        response = self._post("api/events/", json=data)
         return self._parse_event(response)
 
     def update_event(
@@ -197,7 +197,7 @@ class PolicyModule(BaseModule):
         if gear is not None:
             data["gear"] = gear
 
-        response = self._put(f"events/{event_id}/", json=data)
+        response = self._put(f"api/events/{event_id}/", json=data)
         return self._parse_event(response)
 
     def delete_event(self, event_id: int) -> None:
@@ -215,7 +215,7 @@ class PolicyModule(BaseModule):
             >>> client.policy.delete_event(123)
             >>> print("事件已删除")
         """
-        self._delete(f"events/{event_id}/")
+        self._delete(f"api/events/{event_id}/")
 
     def _parse_status(self, data: dict[str, Any]) -> PolicyStatus:
         """
@@ -228,7 +228,7 @@ class PolicyModule(BaseModule):
             PolicyStatus 对象
         """
         # 处理日期
-        obs_date = data.get("observed_at")
+        obs_date = data.get("observed_at", data.get("as_of_date"))
         if isinstance(obs_date, str):
             from datetime import datetime
 
@@ -242,7 +242,7 @@ class PolicyModule(BaseModule):
             recent_events.append(self._parse_event(event_data))
 
         return PolicyStatus(
-            current_gear=data["current_gear"],
+            current_gear=data.get("current_gear", data.get("current_level", "normal")),
             observed_at=obs_date,
             recent_events=recent_events,
         )

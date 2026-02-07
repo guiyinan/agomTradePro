@@ -25,6 +25,31 @@ pip install -e ".[dev]"
 pip install -e ".[pandas]"
 ```
 
+## Compatibility
+
+- Python: `>=3.11`
+- MCP Python SDK: `mcp>=1.20,<2`
+
+Verify installed versions:
+
+```bash
+python -m pip show agomsaaf-sdk mcp
+```
+
+## Authentication
+
+AgomSAAF backend uses DRF Token authentication.
+
+- Header format: `Authorization: Token <your_token>`
+- SDK `api_token` can be either raw token or prefixed form (`Token ...` / `Bearer ...`).
+
+Generate a token for an existing user (example: `admin`):
+
+```bash
+cd D:/githv/agomSAAF
+python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','core.settings.development'); import django; django.setup(); from django.contrib.auth.models import User; from rest_framework.authtoken.models import Token; u=User.objects.get(username='admin'); t,_=Token.objects.get_or_create(user=u); print(t.key)"
+```
+
 ## Quick Start
 
 ### Python SDK
@@ -77,6 +102,19 @@ Configure in `~/.config/claude-code/mcp_servers.json`:
     }
   }
 }
+```
+
+You can also start MCP manually (for smoke testing):
+
+```bash
+agomsaaf-mcp
+```
+
+If your environment has a global proxy, set local bypass for loopback:
+
+```bash
+set NO_PROXY=127.0.0.1,localhost
+set no_proxy=127.0.0.1,localhost
 ```
 
 Then use directly in Claude Code:
@@ -140,6 +178,7 @@ Three methods (priority order):
 |----------|-------------|
 | [Quick Start Guide](docs/quickstart.md) | Getting started with the SDK |
 | [MCP Guide](docs/mcp_guide.md) | MCP server setup and usage |
+| [Smoke Test Guide](docs/smoke_test.md) | End-to-end local smoke checklist |
 | [API Reference](docs/api_reference.md) | Complete API documentation |
 | [Implementation Plan](docs/plans/sdk-mcp-implementation.md) | Implementation status and plan |
 
@@ -168,7 +207,7 @@ isort agomsaaf/ agomsaaf_mcp/
 mypy agomsaaf/
 
 # Run MCP server
-python -m agomsaaf_mcp.server
+agomsaaf-mcp
 ```
 
 ## Project Status

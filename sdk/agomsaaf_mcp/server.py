@@ -1,16 +1,8 @@
-"""
-AgomSAAF MCP Server
+"""AgomSAAF MCP Server."""
 
-MCP (Model Context Protocol) Server for AgomSAAF.
-Provides AI-native tools for Claude Code and other AI agents.
-"""
-
-import asyncio
 from typing import Any
 
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
+from mcp.server.fastmcp import FastMCP
 
 from agomsaaf_mcp.tools.account_tools import register_account_tools
 from agomsaaf_mcp.tools.alpha_tools import register_alpha_tools
@@ -30,7 +22,7 @@ from agomsaaf_mcp.tools.simulated_trading_tools import register_simulated_tradin
 from agomsaaf_mcp.tools.strategy_tools import register_strategy_tools
 
 # 创建 MCP 服务器实例
-server = Server("agomsaaf")
+server = FastMCP("agomsaaf")
 
 
 def register_all_tools() -> None:
@@ -60,93 +52,50 @@ def register_all_tools() -> None:
     register_alpha_tools(server)
 
 
-# 注册所有工具
-register_all_tools()
-
-
-@server.list_resources()
-async def list_resources() -> list[Any]:
-    """列出所有可用的 MCP 资源"""
-    return [
-        {
-            "uri": "agomsaaf://regime/current",
-            "name": "Current Regime",
-            "description": "当前宏观象限状态",
-            "mime_type": "text/plain",
-        },
-        {
-            "uri": "agomsaaf://policy/status",
-            "name": "Policy Status",
-            "description": "当前政策档位状态",
-            "mime_type": "text/plain",
-        },
-    ]
-
-
-@server.read_resource()
-async def read_resource(uri: str) -> str:
-    """读取 MCP 资源内容"""
+@server.resource(
+    "agomsaaf://regime/current",
+    name="Current Regime",
+    description="当前宏观象限状态",
+    mime_type="text/plain",
+)
+def resource_regime_current() -> str:
+    """读取当前宏观环境资源。"""
     from agomsaaf import AgomSAAFClient
 
     client = AgomSAAFClient()
-
-    if uri == "agomsaaf://regime/current":
-        regime = client.regime.get_current()
-        return f"""当前宏观环境: {regime.dominant_regime}
+    regime = client.regime.get_current()
+    return f"""当前宏观环境: {regime.dominant_regime}
 增长水平: {regime.growth_level}
 通胀水平: {regime.inflation_level}
 观测日期: {regime.observed_at}
 增长指标: {regime.growth_indicator} ({regime.growth_value})
 通胀指标: {regime.inflation_indicator} ({regime.inflation_value})"""
 
-    elif uri == "agomsaaf://policy/status":
-        status = client.policy.get_status()
-        recent_events_desc = "\n".join(
-            f"  - {e.event_date}: {e.description}" for e in status.recent_events
-        )
-        return f"""当前政策档位: {status.current_gear}
+@server.resource(
+    "agomsaaf://policy/status",
+    name="Policy Status",
+    description="当前政策档位状态",
+    mime_type="text/plain",
+)
+def resource_policy_status() -> str:
+    """读取当前政策状态资源。"""
+    from agomsaaf import AgomSAAFClient
+
+    client = AgomSAAFClient()
+    status = client.policy.get_status()
+    recent_events_desc = "\n".join(
+        f"  - {e.event_date}: {e.description}" for e in status.recent_events
+    )
+    return f"""当前政策档位: {status.current_gear}
 观测日期: {status.observed_at}
 
 最近事件:
 {recent_events_desc or "  无"}"""
 
-    else:
-        return f"Unknown resource: {uri}"
-
-
-@server.list_prompts()
-async def list_prompts() -> list[Any]:
-    """列出所有可用的 Prompt 模板"""
-    return [
-        {
-            "name": "analyze_macro_environment",
-            "description": "分析当前宏观环境并给出投资建议",
-            "arguments": [],
-        },
-        {
-            "name": "check_signal_eligibility",
-            "description": "检查投资信号是否符合准入条件",
-            "arguments": [
-                {
-                    "name": "asset_code",
-                    "description": "资产代码（如 000001.SH）",
-                    "required": True,
-                },
-                {
-                    "name": "logic_desc",
-                    "description": "投资逻辑描述",
-                    "required": True,
-                },
-            ],
-        },
-    ]
-
-
-@server.get_prompt()
-async def get_prompt(name: str, arguments: dict[str, str] | None = None) -> str:
-    """获取 Prompt 模板内容"""
-    if name == "analyze_macro_environment":
-        return """请分析 AgomSAAF 系统的当前宏观环境：
+@server.prompt("analyze_macro_environment")
+def prompt_analyze_macro_environment() -> str:
+    """分析当前宏观环境并给出投资建议。"""
+    return """请分析 AgomSAAF 系统的当前宏观环境：
 
 1. 使用 get_current_regime 工具获取当前宏观象限
 2. 根据象限判断适合投资的资产类别：
@@ -159,10 +108,10 @@ async def get_prompt(name: str, arguments: dict[str, str] | None = None) -> str:
 
 请以结构化的方式呈现分析结果。"""
 
-    elif name == "check_signal_eligibility":
-        asset_code = arguments.get("asset_code", "") if arguments else ""
-        logic_desc = arguments.get("logic_desc", "") if arguments else ""
-        return f"""请检查以下投资信号是否符合准入条件：
+@server.prompt("check_signal_eligibility")
+def prompt_check_signal_eligibility(asset_code: str, logic_desc: str) -> str:
+    """检查投资信号是否符合准入条件。"""
+    return f"""请检查以下投资信号是否符合准入条件：
 
 资产代码：{asset_code}
 投资逻辑：{logic_desc}
@@ -175,19 +124,67 @@ async def get_prompt(name: str, arguments: dict[str, str] | None = None) -> str:
 
 请详细说明准入或不准入的原因。"""
 
-    else:
-        return f"Unknown prompt: {name}"
+# 注册所有工具
+register_all_tools()
 
 
-async def main() -> None:
-    """启动 MCP 服务器"""
-    async with stdio_server() as (read_stream, write_stream):
-        await server.run(
-            read_stream,
-            write_stream,
-            server.create_initialization_options(),
-        )
+async def list_resources() -> list[dict[str, Any]]:
+    """列出所有可用资源（兼容旧测试脚本）。"""
+    resources = await server.list_resources()
+    return [
+        {
+            "uri": str(r.uri),
+            "name": r.name,
+            "description": r.description,
+            "mime_type": getattr(r, "mime_type", getattr(r, "mimeType", None)),
+        }
+        for r in resources
+    ]
+
+
+async def read_resource(uri: str) -> str:
+    """读取资源内容（兼容旧测试脚本）。"""
+    contents = await server.read_resource(uri)
+    first = next(iter(contents), None)
+    if first is None:
+        return ""
+    return getattr(first, "text", str(first))
+
+
+async def list_prompts() -> list[dict[str, Any]]:
+    """列出所有 prompt（兼容旧测试脚本）。"""
+    prompts = await server.list_prompts()
+    return [
+        {
+            "name": p.name,
+            "description": p.description,
+            "arguments": [
+                {
+                    "name": arg.name,
+                    "description": arg.description,
+                    "required": arg.required,
+                }
+                for arg in (p.arguments or [])
+            ],
+        }
+        for p in prompts
+    ]
+
+
+async def get_prompt(name: str, arguments: dict[str, str] | None = None) -> str:
+    """读取 prompt 内容（兼容旧测试脚本）。"""
+    result = await server.get_prompt(name, arguments)
+    if getattr(result, "messages", None):
+        first_msg = result.messages[0]
+        if first_msg.content and getattr(first_msg.content, "text", None):
+            return first_msg.content.text
+    return str(result)
+
+
+def main() -> None:
+    """MCP CLI 入口（同步包装，兼容 console scripts）"""
+    server.run(transport="stdio")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

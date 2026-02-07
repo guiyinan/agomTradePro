@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+
+{% block title %}Token管理 - AgomSAAF{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <div class="page-header">
+        <div>
+            <h1>MCP/SDK Token 管理</h1>
+            <p class="text-muted">管理员可为用户生成、重置或撤销 API Token（DRF Token）</p>
+        </div>
+        <div>
+            <a href="{% url 'account:user_management' %}" class="btn btn-secondary">返回用户管理</a>
+        </div>
+    </div>
+
+    {% if new_token_payload %}
+        <div class="alert alert-warning token-once-alert">
+            <div><strong>一次性Token（仅本次展示）</strong> - 用户: {{ new_token_payload.username }} - 生成时间: {{ new_token_payload.generated_at }}</div>
+            <div class="token-once-row">
+                <code id="newTokenValue">{{ new_token_payload.token }}</code>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="copyNewToken()">复制</button>
+            </div>
+            <div><small>请立即保存，刷新页面后将不再显示完整Token。</small></div>
+        </div>
+    {% endif %}
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ total_users }}</div>
+            <div class="stat-label">用户数</div>
+        </div>
+        <div class="stat-card stat-success">
+            <div class="stat-value">{{ with_token_count }}</div>
+            <div class="stat-label">已配置Token</div>
+        </div>
+        <div class="stat-card stat-warning">
+            <div class="stat-value">{{ without_token_count }}</div>
+            <div class="stat-label">未配置Token</div>
+        </div>
+    </div>
+
+    <div class="filter-bar">
+        <form method="get" class="filter-form">
+            <div class="filter-group">
+                <label>搜索:</label>
+                <input type="text" name="q" class="form-control" placeholder="用户名/邮箱" value="{{ search_query }}">
+            </div>
+            <label class="checkbox-label">
+                <input type="checkbox" name="without_token" value="1" {% if only_without_token %}checked{% endif %}>
+                仅看未配置Token用户
+            </label>
+            <button type="submit" class="btn btn-primary">筛选</button>
+            <a href="{% url 'account:token_management' %}" class="btn btn-secondary">重置</a>
+        </form>
+    </div>
+
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>用户名</th>
+                    <th>邮箱</th>
+                    <th>状态</th>
+                    <th>Token预览</th>
+                    <th>Token创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td>
+                        <strong>{{ row.user.username }}</strong>
+                        {% if row.user.is_superuser %}
+                            <span class="badge badge-admin">管理员</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ row.user.email|default:"-" }}</td>
+                    <td>
+                        {% if row.user.is_active %}
+                            <span class="status-badge status-active">已激活</span>
+                        {% else %}
+                            <span class="status-badge status-inactive">未激活</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.has_token %}
+                            <code>{{ row.token_preview }}</code>
+                        {% else %}
+                            <span class="text-muted">未配置</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if row.token_created %}
+                            {{ row.token_created|date:"Y-m-d H:i" }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <form method="post" action="{% url 'account:rotate_user_token' row.user.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-primary" onclick="return confirm('确定为 {{ row.user.username }} 生成新Token吗？旧Token将失效。')">
+                                    {% if row.has_token %}重置Token{% else %}生成Token{% endif %}
+                                </button>
+                            </form>
+                            {% if row.has_token %}
+                            <form method="post" action="{% url 'account:revoke_user_token' row.user.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('确定撤销 {{ row.user.username }} 的Token吗？')">
+                                    撤销
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted">暂无用户数据</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+.page-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.page-header h1 {
+    margin: 0 0 8px 0;
+    font-size: 24px;
+}
+
+.text-muted {
+    color: var(--color-text-secondary);
+}
+
+.alert {
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+}
+
+.alert-success {
+    background: #D5FBDD;
+    color: #14866D;
+    border: 1px solid #9FE5B8;
+}
+
+.alert-error {
+    background: #FEE7E7;
+    color: #D33;
+    border: 1px solid #F8B4B4;
+}
+
+.alert-warning {
+    background: #FFF3CD;
+    color: #856404;
+    border: 1px solid #FFECB5;
+}
+
+.token-once-alert {
+    margin-bottom: 16px;
+}
+
+.token-once-row {
+    margin: 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: var(--color-bg);
+    padding: 20px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--color-primary);
+}
+
+.stat-label {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    margin-top: 4px;
+}
+
+.stat-success .stat-value {
+    color: #28A745;
+}
+
+.stat-warning .stat-value {
+    color: #FFA500;
+}
+
+.filter-bar {
+    background: var(--color-bg);
+    padding: 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    margin-bottom: 24px;
+}
+
+.filter-form {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.form-control {
+    padding: 8px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+}
+
+.checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+}
+
+.table-container {
+    background: var(--color-bg);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.data-table th {
+    background: var(--color-surface);
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.data-table tbody tr:hover {
+    background: var(--color-surface);
+}
+
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.badge-admin {
+    background: #6F42C1;
+    color: white;
+    margin-left: 4px;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-active {
+    background: #D5FBDD;
+    color: #14866D;
+}
+
+.status-inactive {
+    background: #FEE7E7;
+    color: #D33;
+}
+
+.btn {
+    padding: 8px 12px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-primary {
+    background: var(--color-primary);
+    color: white;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn-sm {
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.action-buttons form {
+    margin: 0;
+}
+</style>
+
+<script>
+function copyNewToken() {
+    const el = document.getElementById('newTokenValue');
+    if (!el) return;
+    const text = el.textContent || '';
+    navigator.clipboard.writeText(text).then(() => {
+        if (window.showToast) {
+            window.showToast('Token 已复制到剪贴板', 'success');
+        } else {
+            alert('Token 已复制到剪贴板');
+        }
+    }).catch(() => {
+        if (window.showToast) {
+            window.showToast('复制失败，请手动复制', 'warning');
+        } else {
+            alert('复制失败，请手动复制');
+        }
+    });
+}
+</script>
+{% endblock %}

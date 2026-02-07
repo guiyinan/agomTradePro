@@ -18,6 +18,10 @@
    pip install -e .
    cd ..
    ```
+   MCP acceptance tests also require:
+   ```powershell
+   pip install "mcp>=1.20,<2"
+   ```
 
 3. **Environment Configuration**
    ```powershell
@@ -48,9 +52,13 @@
 .\scripts\start-dev.ps1 -Mode sqlite
 
 # In another terminal:
-python tests/acceptance/test_sdk_connection.py
-python tests/acceptance/test_mcp_server.py
+pytest -q tests/acceptance/test_sdk_connection.py
+pytest -q tests/acceptance/test_mcp_server.py
 ```
+
+Note:
+- `test_sdk_connection.py` will `skip` endpoint checks when the current backend does not expose those SDK routes (returns 404).
+- `test_mcp_server.py` validates MCP registration against `mcp>=1.20,<2`.
 
 ### Option 3: Run Integration Tests
 
