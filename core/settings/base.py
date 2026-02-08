@@ -175,6 +175,10 @@ ADMIN_TITLE = 'AgomSAAF 管理后台'
 ADMIN_HEADER = 'AgomSAAF'
 ADMIN_INDEX_TITLE = '欢迎使用 AgomSAAF 管理后台'
 
+# Email / Notification settings
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@agomsaaf.com')
+DAILY_INSPECTION_EMAIL_ENABLED = env.bool('DAILY_INSPECTION_EMAIL_ENABLED', default=True)
+
 # REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
@@ -336,9 +340,11 @@ CELERY_BEAT_SCHEDULE = {
     'simulated-daily-inspection': {
         'task': 'simulated.daily_portfolio_inspection',
         'schedule': crontab(hour=17, minute=10, day_of_week='mon-fri'),  # 每个交易日 17:10
-        'options': {
+        'kwargs': {
             'account_id': 679,
             'strategy_id': 4,
+        },
+        'options': {
             'expires': 1800,
         }
     },

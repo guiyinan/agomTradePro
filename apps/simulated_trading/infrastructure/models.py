@@ -421,3 +421,36 @@ class DailyInspectionReportModel(models.Model):
     def __str__(self):
         return f"{self.account.account_name} - {self.inspection_date} ({self.status})"
 
+
+class DailyInspectionNotificationConfigModel(models.Model):
+    """日更巡检邮件通知配置（账户维度）"""
+
+    account = models.OneToOneField(
+        SimulatedAccountModel,
+        on_delete=models.CASCADE,
+        related_name="inspection_notification_config",
+        verbose_name="所属账户",
+    )
+    is_enabled = models.BooleanField("启用邮件通知", default=True)
+    notify_on = models.CharField(
+        "触发级别",
+        max_length=20,
+        choices=[
+            ("warning_error", "仅预警/异常"),
+            ("all", "所有状态"),
+        ],
+        default="warning_error",
+    )
+    include_owner_email = models.BooleanField("包含账户所有者邮箱", default=True)
+    recipient_emails = models.JSONField("额外收件人", default=list, blank=True)
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        db_table = "simulated_daily_inspection_notify_config"
+        verbose_name = "模拟盘巡检通知配置"
+        verbose_name_plural = "模拟盘巡检通知配置"
+
+    def __str__(self):
+        return f"{self.account.account_name} notify={self.is_enabled}"
+

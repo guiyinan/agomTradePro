@@ -13,6 +13,8 @@ from dataclasses import replace
 
 from celery import shared_task
 from celery.schedules import crontab
+from django.conf import settings
+from django.core.mail import send_mail
 
 from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
 from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
@@ -29,7 +31,10 @@ from apps.simulated_trading.infrastructure.repositories import (
 from apps.simulated_trading.infrastructure.market_data_provider import MarketDataProvider
 from apps.simulated_trading.application.asset_pool_query_service import AssetPoolQueryService
 from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
-from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+from apps.simulated_trading.infrastructure.models import (
+    SimulatedAccountModel,
+    DailyInspectionNotificationConfigModel,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -443,6 +448,7 @@ def daily_portfolio_inspection_task(
             inspection_date=target_date,
             strategy_id=strategy_id,
         )
+        _send_daily_inspection_email(result=result)
         logger.info(
             "日更巡检完成: account_id=%s, report_id=%s, status=%s",
             account_id,
@@ -465,6 +471,78 @@ def daily_portfolio_inspection_task(
             "account_id": account_id,
             "inspection_date": target_date.isoformat(),
         }
+
+
+def _send_daily_inspection_email(result: Dict[str, Any]) -> None:
+    """发送巡检邮件通知（配置来自数据库）。"""
+    if not getattr(settings, "DAILY_INSPECTION_EMAIL_ENABLED", True):
+        return
+
+    account = SimulatedAccountModel._default_manager.filter(id=result["account_id"]).select_related("user").first()
+    if not account:
+        return
+
+    config, _ = DailyInspectionNotificationConfigModel._default_manager.get_or_create(
+        account=account
+    )
+    if not config.is_enabled:
+        return
+
+    status_value = str(result.get("status", "ok")).lower()
+    notify_on = {"ok", "warning", "error"} if config.notify_on == "all" else {"warning", "error"}
+    if status_value not in notify_on:
+        return
+
+    recipients: list[str] = []
+    if config.include_owner_email and account.user and account.user.email:
+        recipients.append(account.user.email)
+
+    recipients.extend([str(x).strip() for x in (config.recipient_emails or []) if str(x).strip()])
+
+    recipients = sorted(set(recipients))
+    if not recipients:
+        logger.warning("巡检邮件未发送：无收件人配置 account_id=%s", result.get("account_id"))
+        return
+
+    summary = result.get("summary", {})
+    checks = result.get("checks", [])
+    subject = (
+        f"[AgomSAAF] 日更巡检 {status_value.upper()} "
+        f"account={result.get('account_id')} date={result.get('inspection_date')}"
+    )
+    lines = [
+        f"account_id: {result.get('account_id')}",
+        f"inspection_date: {result.get('inspection_date')}",
+        f"status: {result.get('status')}",
+        f"macro_regime: {result.get('macro_regime')}",
+        f"policy_gear: {result.get('policy_gear')}",
+        f"strategy_id: {result.get('strategy_id')}",
+        f"position_rule_id: {result.get('position_rule_id')}",
+        "",
+        "summary:",
+        f"- positions_count: {summary.get('positions_count')}",
+        f"- rebalance_required_count: {summary.get('rebalance_required_count')}",
+        f"- rebalance_assets: {summary.get('rebalance_assets')}",
+        f"- total_value: {summary.get('total_value')}",
+        f"- current_cash: {summary.get('current_cash')}",
+        "",
+        "checks(top 10):",
+    ]
+    for item in checks[:10]:
+        lines.append(
+            f"- {item.get('asset_code')}: weight={item.get('weight')}, "
+            f"target={item.get('target_weight')}, drift={item.get('drift')}, "
+            f"action={item.get('rebalance_action')}, qty_suggest={item.get('rebalance_qty_suggest')}"
+        )
+
+    send_mail(
+        subject=subject,
+        message="\n".join(lines),
+        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@agomsaaf.com"),
+        recipient_list=recipients,
+        fail_silently=True,
+    )
+    logger.info("巡检邮件已发送: account_id=%s recipients=%s", result.get("account_id"), recipients)
 
 
 # ============================================================================

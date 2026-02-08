@@ -34,6 +34,23 @@
 - Beat 配置：`core/settings/base.py`
   - 每个交易日 `17:10` 自动执行
 
+## 邮件通知
+
+巡检任务结束后自动尝试发送邮件（`daily_portfolio_inspection_task` 内置）：
+- 配置来源：数据库模型 `DailyInspectionNotificationConfigModel`（按账户管理）
+- 支持：
+  - 是否启用通知
+  - 触发级别（仅预警/异常 或 全部状态）
+  - 是否包含账户 owner 邮箱
+  - 额外收件人邮箱列表
+
+前端管理页面：
+- `GET/POST /simulated-trading/my-accounts/{account_id}/inspection-notify/`
+
+环境变量：
+- `DEFAULT_FROM_EMAIL`（默认 `noreply@agomsaaf.com`）
+- `DAILY_INSPECTION_EMAIL_ENABLED`（全局开关，默认 `true`）
+
 ## 后端 API
 
 - `POST /simulated-trading/api/accounts/{account_id}/inspections/run/`

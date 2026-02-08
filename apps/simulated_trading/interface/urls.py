@@ -11,6 +11,7 @@ from .views import (
     my_account_detail_page,
     my_positions_page,
     my_trades_page,
+    my_inspection_notify_page,
     # API 视图
     AccountListAPIView,
     AccountDetailAPIView,
@@ -39,6 +40,7 @@ urlpatterns = [
     path('my-accounts/<int:account_id>/', my_account_detail_page, name='my-account-detail'),
     path('my-accounts/<int:account_id>/positions/', my_positions_page, name='my-positions'),
     path('my-accounts/<int:account_id>/trades/', my_trades_page, name='my-trades'),
+    path('my-accounts/<int:account_id>/inspection-notify/', my_inspection_notify_page, name='my-inspection-notify'),
 
     # ============================================================================
     # API 路由

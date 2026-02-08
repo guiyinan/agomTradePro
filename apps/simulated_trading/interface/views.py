@@ -9,9 +9,11 @@
 from typing import Optional
 from datetime import date, datetime
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.views.decorators.http import require_http_methods
 from django.http import Http404
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -57,7 +59,11 @@ from .serializers import (
     DailyInspectionRunRequestSerializer,
     DailyInspectionReportListResponseSerializer,
 )
-from apps.simulated_trading.infrastructure.models import SimulatedAccountModel, DailyInspectionReportModel
+from apps.simulated_trading.infrastructure.models import (
+    SimulatedAccountModel,
+    DailyInspectionReportModel,
+    DailyInspectionNotificationConfigModel,
+)
 
 
 # ============================================================================
@@ -262,6 +268,63 @@ def my_trades_page(request, account_id):
         'user': request.user,
     }
     return render(request, 'simulated_trading/my_trades.html', context)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def my_inspection_notify_page(request, account_id):
+    """
+    巡检邮件通知配置页面
+
+    GET/POST /simulated-trading/my-accounts/{id}/inspection-notify/
+    """
+    from django.contrib import messages
+
+    account = get_object_or_404(
+        SimulatedAccountModel,
+        id=account_id,
+        user=request.user
+    )
+
+    config, _ = DailyInspectionNotificationConfigModel._default_manager.get_or_create(account=account)
+
+    if request.method == "POST":
+        is_enabled = request.POST.get("is_enabled") == "on"
+        include_owner_email = request.POST.get("include_owner_email") == "on"
+        notify_on = request.POST.get("notify_on", "warning_error")
+        if notify_on not in {"warning_error", "all"}:
+            notify_on = "warning_error"
+
+        raw_emails = request.POST.get("recipient_emails", "")
+        emails: list[str] = []
+        invalid: list[str] = []
+        for chunk in raw_emails.replace(";", ",").replace("\n", ",").split(","):
+            email = chunk.strip()
+            if not email:
+                continue
+            try:
+                validate_email(email)
+                emails.append(email)
+            except DjangoValidationError:
+                invalid.append(email)
+
+        if invalid:
+            messages.error(request, f"以下邮箱格式无效: {', '.join(invalid)}")
+        else:
+            config.is_enabled = is_enabled
+            config.include_owner_email = include_owner_email
+            config.notify_on = notify_on
+            config.recipient_emails = sorted(set(emails))
+            config.save()
+            messages.success(request, "巡检邮件通知配置已保存")
+            return redirect(f"/simulated-trading/my-accounts/{account_id}/inspection-notify/")
+
+    context = {
+        "account": account,
+        "config": config,
+        "recipient_emails_text": "\n".join(config.recipient_emails or []),
+    }
+    return render(request, "simulated_trading/inspection_notify.html", context)
 
 
 # ============================================================================

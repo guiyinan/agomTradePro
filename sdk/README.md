@@ -165,7 +165,7 @@ Three methods (priority order):
 - **Backtest**: `run_backtest`, `get_backtest_result`, `get_backtest_equity_curve`
 
 ### Extended Tools
-- **Simulated Trading**: `list_simulated_accounts`, `execute_simulated_trade`, `get_simulated_performance`
+- **Simulated Trading**: `list_simulated_accounts`, `execute_simulated_trade`, `get_simulated_performance`, `run_simulated_daily_inspection`, `list_simulated_daily_inspections`
 - **Equity**: `get_stock_score`, `list_stocks`, `get_stock_recommendations`
 - **Fund**: `get_fund_score`, `list_funds`, `get_fund_performance`
 - **Sector**: `list_sectors`, `get_hot_sectors`, `compare_sectors`

@@ -17,6 +17,7 @@ from apps.simulated_trading.infrastructure.models import (
     SimulatedTradeModel,
     FeeConfigModel,
     DailyInspectionReportModel,
+    DailyInspectionNotificationConfigModel,
 )
 
 
@@ -517,6 +518,23 @@ class DailyInspectionReportAdmin(admin.ModelAdmin):
     list_filter = ["inspection_date", "status", "macro_regime", "policy_gear"]
     search_fields = ["account__account_name", "strategy__name", "macro_regime", "policy_gear"]
     readonly_fields = ["created_at", "updated_at", "summary", "checks"]
+
+
+@admin.register(DailyInspectionNotificationConfigModel)
+class DailyInspectionNotificationConfigAdmin(admin.ModelAdmin):
+    """巡检邮件通知配置管理"""
+
+    list_display = [
+        "id",
+        "account",
+        "is_enabled",
+        "notify_on",
+        "include_owner_email",
+        "updated_at",
+    ]
+    list_filter = ["is_enabled", "notify_on", "include_owner_email"]
+    search_fields = ["account__account_name", "account__user__username"]
+    readonly_fields = ["created_at", "updated_at"]
 
 
 # ============================================================================

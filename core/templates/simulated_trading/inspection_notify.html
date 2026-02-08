@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}巡检邮件通知配置 - {{ account.account_name }}{% endblock %}
+
+{% block content %}
+<div class="notify-container">
+    <div class="header-row">
+        <div>
+            <h1>巡检邮件通知配置</h1>
+            <p class="subtitle">{{ account.account_name }}</p>
+        </div>
+        <div class="actions">
+            <a href="{% url 'simulated_trading:my-account-detail' account.id %}" class="btn btn-secondary">返回账户详情</a>
+        </div>
+    </div>
+
+    <form method="post" class="card">
+        {% csrf_token %}
+        <div class="row">
+            <label class="checkbox">
+                <input type="checkbox" name="is_enabled" {% if config.is_enabled %}checked{% endif %}>
+                启用巡检邮件通知
+            </label>
+        </div>
+
+        <div class="row">
+            <label for="notify_on">触发级别</label>
+            <select id="notify_on" name="notify_on" class="input">
+                <option value="warning_error" {% if config.notify_on == "warning_error" %}selected{% endif %}>仅预警/异常</option>
+                <option value="all" {% if config.notify_on == "all" %}selected{% endif %}>所有状态（含正常）</option>
+            </select>
+        </div>
+
+        <div class="row">
+            <label class="checkbox">
+                <input type="checkbox" name="include_owner_email" {% if config.include_owner_email %}checked{% endif %}>
+                包含账户所有者邮箱（如果账户用户设置了邮箱）
+            </label>
+        </div>
+
+        <div class="row">
+            <label for="recipient_emails">额外收件人</label>
+            <textarea id="recipient_emails" name="recipient_emails" class="input textarea" placeholder="每行一个邮箱，或逗号分隔">{{ recipient_emails_text }}</textarea>
+            <p class="help-text">支持换行或逗号分隔，保存时会自动去重。</p>
+        </div>
+
+        <div class="row">
+            <button type="submit" class="btn btn-primary">保存配置</button>
+        </div>
+    </form>
+</div>
+
+<style>
+.notify-container {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 24px;
+}
+.header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+.subtitle {
+    color: #6b7280;
+    margin-top: 4px;
+}
+.card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 20px;
+}
+.row {
+    margin-bottom: 16px;
+}
+.input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+}
+.textarea {
+    min-height: 130px;
+    resize: vertical;
+}
+.checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.help-text {
+    margin-top: 6px;
+    color: #6b7280;
+    font-size: 13px;
+}
+.actions {
+    display: flex;
+    gap: 10px;
+}
+</style>
+{% endblock %}
