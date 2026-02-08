@@ -186,6 +186,19 @@ evaluate_strategy_position_management(strategy_id, context)
 
 `context` is a JSON object with runtime variables (for example `current_price`, `atr`, `account_equity`, `risk_per_trade_pct`).
 
+### Simulated Trading Inspection Tools
+
+```
+list_simulated_accounts(status, limit)
+get_simulated_account(account_id)
+create_simulated_account(name, initial_capital, start_date)
+execute_simulated_trade(account_id, asset_code, side, quantity, price)
+get_simulated_positions(account_id)
+get_simulated_performance(account_id)
+run_simulated_daily_inspection(account_id, strategy_id, inspection_date)
+list_simulated_daily_inspections(account_id, limit, inspection_date)
+```
+
 ### Account Position Tools
 
 ```

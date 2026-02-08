@@ -148,6 +148,8 @@ client.simulated_trading.get_positions(account_id, asset_code) -> list
 client.simulated_trading.get_performance(account_id, start_date, end_date) -> dict
 client.simulated_trading.reset_account(account_id, new_initial_capital) -> dict
 client.simulated_trading.close_position(account_id, asset_code) -> dict
+client.simulated_trading.run_daily_inspection(account_id, strategy_id, inspection_date) -> dict
+client.simulated_trading.list_daily_inspections(account_id, limit, inspection_date) -> dict
 ```
 
 ## Equity Module

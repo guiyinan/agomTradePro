@@ -26,7 +26,8 @@ class MacroModule(BaseModule):
         Args:
             client: AgomSAAF 客户端实例
         """
-        super().__init__(client, "/api/macro")
+        # Backend macro endpoints are served under /macro/api/*
+        super().__init__(client, "/macro/api")
 
     def list_indicators(
         self,

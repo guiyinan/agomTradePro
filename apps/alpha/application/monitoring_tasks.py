@@ -370,6 +370,46 @@ def cleanup_old_metrics(days: int = 30):
 
 
 # ============================================================================
+# 向后兼容：旧任务名别名
+# ============================================================================
+
+@shared_task(name="apps.alpha.application.monitoring_tasks.evaluate_alerts")
+def evaluate_alerts_legacy():
+    """Legacy alias for evaluate_alerts task name."""
+    return evaluate_alerts()
+
+
+@shared_task(name="apps.alpha.application.monitoring_tasks.update_provider_metrics")
+def update_provider_metrics_legacy():
+    """Legacy alias for update_provider_metrics task name."""
+    return update_provider_metrics()
+
+
+@shared_task(name="apps.alpha.application.monitoring_tasks.check_queue_lag")
+def check_queue_lag_legacy():
+    """Legacy alias for check_queue_lag task name."""
+    return check_queue_lag()
+
+
+@shared_task(name="apps.alpha.application.monitoring_tasks.calculate_ic_drift")
+def calculate_ic_drift_legacy():
+    """Legacy alias for calculate_ic_drift task name."""
+    return calculate_ic_drift()
+
+
+@shared_task(name="apps.alpha.application.monitoring_tasks.generate_daily_report")
+def generate_daily_report_legacy():
+    """Legacy alias for generate_daily_report task name."""
+    return generate_daily_report()
+
+
+@shared_task(name="apps.alpha.application.monitoring_tasks.cleanup_old_metrics")
+def cleanup_old_metrics_legacy(days: int = 30):
+    """Legacy alias for cleanup_old_metrics task name."""
+    return cleanup_old_metrics(days=days)
+
+
+# ============================================================================
 # 辅助函数：手动触发指标更新
 # ============================================================================
 

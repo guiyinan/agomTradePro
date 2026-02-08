@@ -194,3 +194,37 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
         client = AgomSAAFClient()
         return client.simulated_trading.close_position(account_id, asset_code)
 
+    @server.tool()
+    def run_simulated_daily_inspection(
+        account_id: int,
+        strategy_id: int | None = None,
+        inspection_date: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        执行指定账户的日更巡检并落库。
+        """
+        client = AgomSAAFClient()
+        parsed_date = date.fromisoformat(inspection_date) if inspection_date else None
+        return client.simulated_trading.run_daily_inspection(
+            account_id=account_id,
+            strategy_id=strategy_id,
+            inspection_date=parsed_date,
+        )
+
+    @server.tool()
+    def list_simulated_daily_inspections(
+        account_id: int,
+        limit: int = 20,
+        inspection_date: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        查询指定账户的日更巡检历史。
+        """
+        client = AgomSAAFClient()
+        parsed_date = date.fromisoformat(inspection_date) if inspection_date else None
+        return client.simulated_trading.list_daily_inspections(
+            account_id=account_id,
+            limit=limit,
+            inspection_date=parsed_date,
+        )
+

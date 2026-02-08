@@ -276,9 +276,10 @@ class ExecuteBuyOrderUseCase:
 
         # 从信号获取证伪条件（如果有 signal_id）
         invalidation_rule_json = None
-        invalidation_description = None
+        invalidation_description = ""
         if signal_id:
             invalidation_rule_json, invalidation_description = self._get_signal_invalidation(signal_id)
+        invalidation_description = invalidation_description or ""
 
         if existing_position:
             # 加仓：更新持仓（保留原有的证伪条件）
@@ -381,14 +382,14 @@ class ExecuteBuyOrderUseCase:
             # 获取证伪描述
             invalidation_description = signal.invalidation_description
 
-            return invalidation_rule_json, invalidation_description
+            return invalidation_rule_json, (invalidation_description or "")
 
         except InvestmentSignalModel.DoesNotExist:
             # 信号不存在，返回 None
-            return None, None
+            return None, ""
         except Exception:
             # 其他错误，返回 None
-            return None, None
+            return None, ""
 
 
 class ExecuteSellOrderUseCase:

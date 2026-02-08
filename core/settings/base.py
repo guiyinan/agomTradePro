@@ -333,6 +333,15 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.simulated_trading.application.tasks.send_performance_summary_task',
         'schedule': crontab(hour=17, minute=0, day_of_week='mon-fri'),  # 每个交易日 17:00
     },
+    'simulated-daily-inspection': {
+        'task': 'simulated.daily_portfolio_inspection',
+        'schedule': crontab(hour=17, minute=10, day_of_week='mon-fri'),  # 每个交易日 17:10
+        'options': {
+            'account_id': 679,
+            'strategy_id': 4,
+            'expires': 1800,
+        }
+    },
     # ============================================
 
     # ========== 持仓证伪检查 ==========
@@ -389,42 +398,42 @@ CELERY_BEAT_SCHEDULE = {
 
     # ========== Phase 4: 监控和告警任务 ==========
     "alpha-evaluate-alerts": {
-        "task": "apps.alpha.application.monitoring_tasks.evaluate_alerts",
+        "task": "alpha.monitor.evaluate_alerts",
         "schedule": crontab(minute="*/1"),  # 每分钟执行一次
         "options": {
             "expires": 60,  # 1 分钟超时
         }
     },
     "alpha-update-provider-metrics": {
-        "task": "apps.alpha.application.monitoring_tasks.update_provider_metrics",
+        "task": "alpha.monitor.update_provider_metrics",
         "schedule": crontab(minute="*/5"),  # 每 5 分钟执行一次
         "options": {
             "expires": 300,  # 5 分钟超时
         }
     },
     "alpha-check-queue-lag": {
-        "task": "apps.alpha.application.monitoring_tasks.check_queue_lag",
+        "task": "alpha.monitor.check_queue_lag",
         "schedule": crontab(minute="*/1"),  # 每分钟执行一次
         "options": {
             "expires": 60,
         }
     },
     "alpha-calculate-ic-drift": {
-        "task": "apps.alpha.application.monitoring_tasks.calculate_ic_drift",
+        "task": "alpha.monitor.calculate_ic_drift",
         "schedule": crontab(hour=2, minute=0, day_of_week="sun"),  # 每周日凌晨 2:00
         "options": {
             "expires": 1800,  # 30 分钟超时
         }
     },
     "alpha-daily-report": {
-        "task": "apps.alpha.application.monitoring_tasks.generate_daily_report",
+        "task": "alpha.monitor.generate_daily_report",
         "schedule": crontab(hour=8, minute=0),  # 每天 8:00
         "options": {
             "expires": 600,  # 10 分钟超时
         }
     },
     "alpha-cleanup-metrics": {
-        "task": "apps.alpha.application.monitoring_tasks.cleanup_old_metrics",
+        "task": "alpha.monitor.cleanup_old_metrics",
         "schedule": crontab(hour=3, minute=0, day_of_week="sun"),  # 每周日凌晨 3:00
         "options": {
             "days": 30,  # 保留 30 天

@@ -211,10 +211,16 @@ class StrategyModule(BaseModule):
         """
         data: dict[str, Any] = {
             "name": name,
-            "type": strategy_type,
+            "strategy_type": strategy_type,
             "description": description,
-            "params": params,
+            "version": int(params.get("version", 1)),
+            "is_active": bool(params.get("is_active", True)),
+            "max_position_pct": float(params.get("max_position_pct", 20.0)),
+            "max_total_position_pct": float(params.get("max_total_position_pct", 95.0)),
+            "stop_loss_pct": params.get("stop_loss_pct"),
         }
+        if params.get("created_by") is not None:
+            data["created_by"] = int(params["created_by"])
 
         return self._post("strategies/", json=data)
 

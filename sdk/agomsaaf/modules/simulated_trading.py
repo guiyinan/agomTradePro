@@ -25,7 +25,8 @@ class SimulatedTradingModule(BaseModule):
         Args:
             client: AgomSAAF 客户端实例
         """
-        super().__init__(client, "/api/simulated-trading")
+        # Backend simulated trading endpoints are served under /simulated-trading/api/*
+        super().__init__(client, "/simulated-trading/api")
 
     def list_accounts(
         self,
@@ -48,13 +49,14 @@ class SimulatedTradingModule(BaseModule):
             >>> for account in accounts:
             ...     print(f"{account['name']}: {account['total_value']}")
         """
-        params: dict[str, Any] = {"limit": limit}
-        if status is not None:
-            params["status"] = status
+        params: dict[str, Any] = {"active_only": True}
+        if status is not None and status.lower() in {"inactive", "closed"}:
+            params["active_only"] = False
 
         response = self._get("accounts/", params=params)
-        results = response.get("results", response)
-        return results
+        if isinstance(response, dict):
+            return response.get("accounts", [])
+        return response
 
     def get_account(self, account_id: int) -> dict[str, Any]:
         """
@@ -75,7 +77,10 @@ class SimulatedTradingModule(BaseModule):
             >>> print(f"账户名称: {account['name']}")
             >>> print(f"总市值: {account['total_value']}")
         """
-        return self._get(f"accounts/{account_id}/")
+        response = self._get(f"accounts/{account_id}/")
+        if isinstance(response, dict):
+            return response.get("account", response)
+        return response
 
     def create_account(
         self,
@@ -108,12 +113,18 @@ class SimulatedTradingModule(BaseModule):
             >>> print(f"账户已创建: {account['id']}")
         """
         data: dict[str, Any] = {
-            "name": name,
+            "account_name": name,
             "initial_capital": initial_capital,
-            "start_date": start_date.isoformat(),
+            "max_position_pct": 20.0,
+            "stop_loss_pct": 10.0,
+            "commission_rate": 0.0003,
+            "slippage_rate": 0.001,
         }
 
-        return self._post("accounts/", json=data)
+        response = self._post("accounts/", json=data)
+        if isinstance(response, dict):
+            return response.get("account", response)
+        return response
 
     def execute_trade(
         self,
@@ -152,16 +163,18 @@ class SimulatedTradingModule(BaseModule):
             >>> print(f"交易已执行: {result['order_id']}")
         """
         data: dict[str, Any] = {
-            "account_id": account_id,
             "asset_code": asset_code,
-            "side": side,
+            "asset_name": asset_code,
+            "asset_type": "fund",
+            "action": side.lower(),
             "quantity": quantity,
+            "reason": "MCP simulated ETF allocation",
         }
 
         if price is not None:
             data["price"] = price
 
-        return self._post("execute-trade/", json=data)
+        return self._post(f"accounts/{account_id}/trade/", json=data)
 
     def get_positions(
         self,
@@ -184,13 +197,13 @@ class SimulatedTradingModule(BaseModule):
             >>> for pos in positions:
             ...     print(f"{pos['asset_code']}: {pos['quantity']}")
         """
-        params: dict[str, Any] = {"account_id": account_id}
-        if asset_code is not None:
-            params["asset_code"] = asset_code
-
-        response = self._get("positions/", params=params)
-        results = response.get("results", response)
-        return results
+        response = self._get(f"accounts/{account_id}/positions/")
+        if isinstance(response, dict):
+            positions = response.get("positions", [])
+            if asset_code is not None:
+                positions = [p for p in positions if p.get("asset_code") == asset_code]
+            return positions
+        return response
 
     def get_performance(
         self,
@@ -215,14 +228,10 @@ class SimulatedTradingModule(BaseModule):
             >>> print(f"总收益: {perf['total_return']:.2%}")
             >>> print(f"年化收益: {perf['annual_return']:.2%}")
         """
-        params: dict[str, Any] = {"account_id": account_id}
-
-        if start_date is not None:
-            params["start_date"] = start_date.isoformat()
-        if end_date is not None:
-            params["end_date"] = end_date.isoformat()
-
-        return self._get("performance/", params=params)
+        response = self._get(f"accounts/{account_id}/performance/")
+        if isinstance(response, dict):
+            return response.get("performance", response)
+        return response
 
     def get_trade_history(
         self,
@@ -305,3 +314,33 @@ class SimulatedTradingModule(BaseModule):
             data["new_initial_capital"] = new_initial_capital
 
         return self._post(f"accounts/{account_id}/reset/", json=data)
+
+    def run_daily_inspection(
+        self,
+        account_id: int,
+        strategy_id: Optional[int] = None,
+        inspection_date: Optional[date] = None,
+    ) -> dict[str, Any]:
+        """
+        手动执行账户日更巡检并落库。
+        """
+        data: dict[str, Any] = {}
+        if strategy_id is not None:
+            data["strategy_id"] = strategy_id
+        if inspection_date is not None:
+            data["inspection_date"] = inspection_date.isoformat()
+        return self._post(f"accounts/{account_id}/inspections/run/", json=data)
+
+    def list_daily_inspections(
+        self,
+        account_id: int,
+        limit: int = 20,
+        inspection_date: Optional[date] = None,
+    ) -> dict[str, Any]:
+        """
+        查询账户日更巡检历史报告。
+        """
+        params: dict[str, Any] = {"limit": limit}
+        if inspection_date is not None:
+            params["inspection_date"] = inspection_date.isoformat()
+        return self._get(f"accounts/{account_id}/inspections/", params=params)

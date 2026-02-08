@@ -361,3 +361,33 @@ class AutoTradingRunResponseSerializer(serializers.Serializer):
         help_text="汇总统计：{total_buy_count, total_sell_count}"
     )
     error = serializers.CharField(allow_null=True, required=False)
+
+
+class DailyInspectionRunRequestSerializer(serializers.Serializer):
+    """执行日更巡检请求"""
+
+    strategy_id = serializers.IntegerField(required=False, allow_null=True)
+    inspection_date = serializers.DateField(required=False)
+
+
+class DailyInspectionReportItemSerializer(serializers.Serializer):
+    """日更巡检报告项"""
+
+    report_id = serializers.IntegerField()
+    account_id = serializers.IntegerField()
+    inspection_date = serializers.DateField()
+    status = serializers.CharField()
+    macro_regime = serializers.CharField(allow_blank=True)
+    policy_gear = serializers.CharField(allow_blank=True)
+    strategy_id = serializers.IntegerField(allow_null=True)
+    position_rule_id = serializers.IntegerField(allow_null=True)
+    summary = serializers.DictField()
+    checks = serializers.ListField(child=serializers.DictField())
+
+
+class DailyInspectionReportListResponseSerializer(serializers.Serializer):
+    """日更巡检报告列表"""
+
+    success = serializers.BooleanField()
+    count = serializers.IntegerField()
+    reports = DailyInspectionReportItemSerializer(many=True)

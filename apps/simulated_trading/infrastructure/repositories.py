@@ -155,9 +155,9 @@ class PositionMapper:
             entry_reason=entity.entry_reason,
             # 证伪相关字段
             invalidation_rule_json=invalidation_json,
-            invalidation_description=entity.invalidation_description,
+            invalidation_description=entity.invalidation_description or "",
             is_invalidated=entity.is_invalidated,
-            invalidation_reason=entity.invalidation_reason,
+            invalidation_reason=entity.invalidation_reason or "",
             invalidation_checked_at=entity.invalidation_checked_at,
         )
 

@@ -21,6 +21,8 @@ from .views import (
     FeeConfigListAPIView,
     EquityCurveAPIView,
     AutoTradingAPIView,
+    DailyInspectionRunAPIView,
+    DailyInspectionReportListAPIView,
 )
 
 app_name = 'simulated_trading'
@@ -66,4 +68,8 @@ urlpatterns = [
 
     # 自动交易
     path('api/auto-trading/run/', AutoTradingAPIView.as_view(), name='auto-trading-run'),
+
+    # 日更巡检
+    path('api/accounts/<int:account_id>/inspections/run/', DailyInspectionRunAPIView.as_view(), name='daily-inspection-run'),
+    path('api/accounts/<int:account_id>/inspections/', DailyInspectionReportListAPIView.as_view(), name='daily-inspection-list'),
 ]

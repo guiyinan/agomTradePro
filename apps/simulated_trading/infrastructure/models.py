@@ -359,3 +359,65 @@ class FeeConfigModel(models.Model):
             ).exclude(id=self.id).update(is_default=False)
         super().save(*args, **kwargs)
 
+
+class DailyInspectionReportModel(models.Model):
+    """日更巡检报告（账户维度）"""
+
+    account = models.ForeignKey(
+        SimulatedAccountModel,
+        on_delete=models.CASCADE,
+        related_name="inspection_reports",
+        verbose_name="所属账户",
+    )
+    strategy = models.ForeignKey(
+        "strategy.StrategyModel",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="inspection_reports",
+        verbose_name="关联策略",
+    )
+    position_rule = models.ForeignKey(
+        "strategy.PositionManagementRuleModel",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="inspection_reports",
+        verbose_name="仓位规则",
+    )
+    inspection_date = models.DateField("巡检日期", db_index=True)
+    status = models.CharField(
+        "巡检状态",
+        max_length=20,
+        choices=[
+            ("ok", "正常"),
+            ("warning", "预警"),
+            ("error", "异常"),
+        ],
+        default="ok",
+        db_index=True,
+    )
+    macro_regime = models.CharField("宏观象限", max_length=32, blank=True, default="")
+    policy_gear = models.CharField("政策档位", max_length=8, blank=True, default="")
+    total_value = models.DecimalField("账户总资产", max_digits=15, decimal_places=2, default=0)
+    current_cash = models.DecimalField("账户现金", max_digits=15, decimal_places=2, default=0)
+    current_market_value = models.DecimalField("持仓市值", max_digits=15, decimal_places=2, default=0)
+    checks = models.JSONField("巡检明细", default=list, blank=True)
+    summary = models.JSONField("巡检汇总", default=dict, blank=True)
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        db_table = "simulated_daily_inspection_report"
+        verbose_name = "模拟盘日更巡检报告"
+        verbose_name_plural = "模拟盘日更巡检报告"
+        ordering = ["-inspection_date", "-updated_at"]
+        unique_together = [["account", "inspection_date"]]
+        indexes = [
+            models.Index(fields=["account", "-inspection_date"]),
+            models.Index(fields=["inspection_date", "status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.account.account_name} - {self.inspection_date} ({self.status})"
+

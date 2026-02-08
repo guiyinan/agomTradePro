@@ -25,7 +25,8 @@ class FundModule(BaseModule):
         Args:
             client: AgomSAAF 客户端实例
         """
-        super().__init__(client, "/api/fund")
+        # Backend fund endpoints are served under /fund/api/*
+        super().__init__(client, "/fund/api")
 
     def get_fund_score(
         self,

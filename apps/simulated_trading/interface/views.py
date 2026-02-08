@@ -27,6 +27,7 @@ from apps.simulated_trading.application.use_cases import (
 )
 from apps.simulated_trading.application.performance_calculator import PerformanceCalculator
 from apps.simulated_trading.application.auto_trading_engine import AutoTradingEngine
+from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
 from apps.simulated_trading.infrastructure.repositories import (
     DjangoSimulatedAccountRepository,
     DjangoPositionRepository,
@@ -53,8 +54,10 @@ from .serializers import (
     EquityCurveResponseSerializer,
     AutoTradingRunRequestSerializer,
     AutoTradingRunResponseSerializer,
+    DailyInspectionRunRequestSerializer,
+    DailyInspectionReportListResponseSerializer,
 )
-from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+from apps.simulated_trading.infrastructure.models import SimulatedAccountModel, DailyInspectionReportModel
 
 
 # ============================================================================
@@ -332,7 +335,11 @@ class AccountListAPIView(APIView):
                 'auto_trading_enabled': account.auto_trading_enabled,
                 'start_date': account.start_date.isoformat(),
                 'last_trade_date': account.last_trade_date.isoformat() if account.last_trade_date else None,
-                'created_at': account.created_at.isoformat() if account.created_at else None,
+                'created_at': (
+                    getattr(account, 'created_at').isoformat()
+                    if getattr(account, 'created_at', None)
+                    else None
+                ),
             })
 
         return Response({
@@ -481,7 +488,11 @@ class AccountDetailAPIView(APIView):
             'auto_trading_enabled': account.auto_trading_enabled,
             'start_date': account.start_date.isoformat(),
             'last_trade_date': account.last_trade_date.isoformat() if account.last_trade_date else None,
-            'created_at': account.created_at.isoformat() if account.created_at else None,
+            'created_at': (
+                getattr(account, 'created_at').isoformat()
+                if getattr(account, 'created_at', None)
+                else None
+            ),
         }
 
         return Response({
@@ -532,7 +543,7 @@ class PositionListAPIView(APIView):
         position_list = []
         for pos in positions:
             position_list.append({
-                'position_id': pos.position_id,
+                'position_id': getattr(pos, 'position_id', None),
                 'account_id': pos.account_id,
                 'asset_code': pos.asset_code,
                 'asset_name': pos.asset_name,
@@ -755,7 +766,11 @@ class PerformanceAPIView(APIView):
                 'auto_trading_enabled': result['account'].auto_trading_enabled,
                 'start_date': result['account'].start_date.isoformat(),
                 'last_trade_date': result['account'].last_trade_date.isoformat() if result['account'].last_trade_date else None,
-                'created_at': result['account'].created_at.isoformat() if result['account'].created_at else None,
+                'created_at': (
+                    getattr(result['account'], 'created_at').isoformat()
+                    if getattr(result['account'], 'created_at', None)
+                    else None
+                ),
             }
 
             return Response({
@@ -1115,4 +1130,97 @@ class AutoTradingAPIView(APIView):
                 'success': False,
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class DailyInspectionRunAPIView(APIView):
+    """手动触发日更巡检 API"""
+
+    @extend_schema(
+        summary="执行账户日更巡检",
+        description="对指定账户执行一轮日更巡检并写入数据库",
+        request=DailyInspectionRunRequestSerializer,
+        responses={200: DailyInspectionReportListResponseSerializer},
+    )
+    def post(self, request, account_id):
+        serializer = DailyInspectionRunRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        try:
+            result = DailyInspectionService.run(
+                account_id=account_id,
+                inspection_date=data.get("inspection_date") or date.today(),
+                strategy_id=data.get("strategy_id"),
+            )
+            return Response({
+                "success": True,
+                "count": 1,
+                "reports": [result],
+            })
+        except SimulatedAccountModel.DoesNotExist:
+            return Response(
+                {"success": False, "error": f"账户不存在: {account_id}"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception as exc:
+            return Response(
+                {"success": False, "error": str(exc)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class DailyInspectionReportListAPIView(APIView):
+    """账户日更巡检历史 API"""
+
+    @extend_schema(
+        summary="获取账户日更巡检历史",
+        description="按账户查询日更巡检报告列表",
+        parameters=[
+            OpenApiParameter(name='limit', type=OpenApiTypes.INT, location=OpenApiParameter.QUERY),
+            OpenApiParameter(name='inspection_date', type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY),
+        ],
+        responses={200: DailyInspectionReportListResponseSerializer},
+    )
+    def get(self, request, account_id):
+        if not SimulatedAccountModel._default_manager.filter(id=account_id).exists():
+            return Response(
+                {"success": False, "error": f"账户不存在: {account_id}"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        limit = int(request.query_params.get("limit", 20))
+        inspection_date_raw = request.query_params.get("inspection_date")
+
+        queryset = DailyInspectionReportModel._default_manager.filter(account_id=account_id).order_by(
+            "-inspection_date",
+            "-updated_at",
+        )
+        if inspection_date_raw:
+            queryset = queryset.filter(inspection_date=date.fromisoformat(inspection_date_raw))
+        reports = queryset[:limit]
+
+        payload = []
+        for report in reports:
+            payload.append(
+                {
+                    "report_id": report.id,
+                    "account_id": report.account_id,
+                    "inspection_date": report.inspection_date.isoformat(),
+                    "status": report.status,
+                    "macro_regime": report.macro_regime,
+                    "policy_gear": report.policy_gear,
+                    "strategy_id": report.strategy_id,
+                    "position_rule_id": report.position_rule_id,
+                    "summary": report.summary,
+                    "checks": report.checks,
+                }
+            )
+
+        return Response(
+            {
+                "success": True,
+                "count": len(payload),
+                "reports": payload,
+            }
+        )
 

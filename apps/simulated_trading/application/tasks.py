@@ -28,6 +28,8 @@ from apps.simulated_trading.infrastructure.repositories import (
 )
 from apps.simulated_trading.infrastructure.market_data_provider import MarketDataProvider
 from apps.simulated_trading.application.asset_pool_query_service import AssetPoolQueryService
+from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
+from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
 logger = logging.getLogger(__name__)
 
@@ -414,6 +416,54 @@ def send_performance_summary_task(account_ids: Optional[list] = None) -> Dict[st
         return {
             'success': False,
             'error': str(e),
+        }
+
+
+@shared_task(name="simulated.daily_portfolio_inspection")
+def daily_portfolio_inspection_task(
+    account_id: int = 679,
+    strategy_id: Optional[int] = 4,
+    inspection_date: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    日更巡检任务（ETF稳健组合）
+
+    默认巡检账户 679，自动读取策略 4 及其仓位规则。
+    """
+    target_date = date.fromisoformat(inspection_date) if inspection_date else date.today()
+    logger.info(
+        "开始执行日更巡检: account_id=%s, strategy_id=%s, date=%s",
+        account_id,
+        strategy_id,
+        target_date,
+    )
+    try:
+        result = DailyInspectionService.run(
+            account_id=account_id,
+            inspection_date=target_date,
+            strategy_id=strategy_id,
+        )
+        logger.info(
+            "日更巡检完成: account_id=%s, report_id=%s, status=%s",
+            account_id,
+            result["report_id"],
+            result["status"],
+        )
+        return {"success": True, **result}
+    except SimulatedAccountModel.DoesNotExist:
+        return {
+            "success": False,
+            "error": f"账户不存在: {account_id}",
+            "account_id": account_id,
+            "inspection_date": target_date.isoformat(),
+        }
+    except Exception as exc:  # pragma: no cover - celery runtime guard
+        logger.exception("日更巡检任务失败: %s", exc)
+        return {
+            "success": False,
+            "error": str(exc),
+            "account_id": account_id,
+            "inspection_date": target_date.isoformat(),
         }
 
 

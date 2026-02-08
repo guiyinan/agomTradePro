@@ -16,6 +16,7 @@ from apps.simulated_trading.infrastructure.models import (
     PositionModel,
     SimulatedTradeModel,
     FeeConfigModel,
+    DailyInspectionReportModel,
 )
 
 
@@ -497,6 +498,25 @@ class SimulatedTradeAdmin(admin.ModelAdmin):
             obj.get_status_display()
         )
     status_display.short_description = '状态'
+
+
+@admin.register(DailyInspectionReportModel)
+class DailyInspectionReportAdmin(admin.ModelAdmin):
+    """日更巡检报告管理"""
+
+    list_display = [
+        "id",
+        "inspection_date",
+        "account",
+        "strategy",
+        "status",
+        "macro_regime",
+        "policy_gear",
+        "updated_at",
+    ]
+    list_filter = ["inspection_date", "status", "macro_regime", "policy_gear"]
+    search_fields = ["account__account_name", "strategy__name", "macro_regime", "policy_gear"]
+    readonly_fields = ["created_at", "updated_at", "summary", "checks"]
 
 
 # ============================================================================
