@@ -1,0 +1,220 @@
+param(
+    [string]$Bundle,
+    [string]$TargetDir = "/opt/agomsaaf",
+    [ValidateSet('menu','fresh','upgrade','restore-only','status','logs')]
+    [string]$Action = 'menu'
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+if (Test-Path "$PSScriptRoot/common.ps1") {
+    . "$PSScriptRoot/common.ps1"
+} elseif (Test-Path "$PSScriptRoot/lib/common.ps1") {
+    . "$PSScriptRoot/lib/common.ps1"
+} elseif (Test-Path "$PSScriptRoot/shared/common.ps1") {
+    . "$PSScriptRoot/shared/common.ps1"
+} else {
+    throw "common.ps1 not found"
+}
+
+$env:COMPOSE_PROJECT_NAME = 'agomsaaf'
+
+Require-Command docker
+Require-Command tar
+
+function Get-ComposeCmd {
+    $null = docker compose version 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        return @('docker','compose')
+    }
+    if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
+        return @('docker-compose')
+    }
+    Throw-Err "docker compose is required"
+}
+
+$ComposeCmd = Get-ComposeCmd
+
+function Invoke-Compose {
+    param([string[]]$Args)
+    if ($ComposeCmd.Count -eq 2) {
+        & $ComposeCmd[0] $ComposeCmd[1] @Args
+    } else {
+        & $ComposeCmd[0] @Args
+    }
+}
+
+if ($Action -eq 'menu') {
+    Write-Host "Select action:"
+    Write-Host "1) fresh"
+    Write-Host "2) upgrade"
+    Write-Host "3) restore-only"
+    Write-Host "4) status"
+    Write-Host "5) logs"
+    $choice = Read-Host "Enter choice [1]"
+    switch ($choice) {
+        '2' { $Action = 'upgrade' }
+        '3' { $Action = 'restore-only' }
+        '4' { $Action = 'status' }
+        '5' { $Action = 'logs' }
+        default { $Action = 'fresh' }
+    }
+}
+
+New-Item -ItemType Directory -Force "$TargetDir/releases" | Out-Null
+
+$currentDir = "$TargetDir/current"
+
+if ($Action -eq 'status') {
+    Set-Location $currentDir
+    Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','ps')
+    exit 0
+}
+
+if ($Action -eq 'logs') {
+    Set-Location $currentDir
+    Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','logs','-f')
+    exit 0
+}
+
+if ([string]::IsNullOrWhiteSpace($Bundle)) {
+    $Bundle = Read-Default -Prompt "Bundle tar.gz path" -Default "./agomsaaf-vps-bundle.tar.gz"
+}
+
+if (-not (Test-Path $Bundle)) {
+    Throw-Err "Bundle not found: $Bundle"
+}
+
+$releaseName = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetFileNameWithoutExtension($Bundle))
+$releaseDir = "$TargetDir/releases/$releaseName"
+if (Test-Path $releaseDir) {
+    Remove-Item -Recurse -Force $releaseDir
+}
+
+New-Item -ItemType Directory -Force $releaseDir | Out-Null
+& tar -xzf $Bundle -C "$TargetDir/releases"
+
+if (-not (Test-Path $releaseDir)) {
+    $releaseDir = Get-ChildItem "$TargetDir/releases" -Directory | Where-Object { $_.Name -like 'agomsaaf-vps-bundle-*' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1 | ForEach-Object { $_.FullName }
+}
+
+if (-not $releaseDir) {
+    Throw-Err "Could not locate extracted bundle"
+}
+
+Set-Location $releaseDir
+
+if (Test-Path "deploy/manifest.json") {
+    Write-Info "Verifying checksums"
+    $manifest = Get-Content "deploy/manifest.json" -Raw | ConvertFrom-Json
+    foreach ($item in $manifest.checksums) {
+        if (-not (Test-Path $item.path)) {
+            Throw-Err "Missing file from manifest: $($item.path)"
+        }
+        $hash = (Get-FileHash -Path $item.path -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($hash -ne $item.sha256.ToLowerInvariant()) {
+            Throw-Err "Checksum mismatch: $($item.path)"
+        }
+    }
+}
+
+Write-Info "Loading Docker images"
+Get-ChildItem images/*.tar | ForEach-Object { docker load -i $_.FullName | Out-Null }
+
+if (-not (Test-Path "deploy/.env")) {
+    Copy-Item "deploy/.env.vps.example" "deploy/.env"
+}
+
+$envText = Get-Content "deploy/.env" -Raw
+if ($envText -match "DOMAIN=(.*)") {
+    $domain = $Matches[1].Trim()
+} else {
+    $domain = ""
+}
+
+if ([string]::IsNullOrWhiteSpace($domain)) {
+    $domain = Read-Host "Domain (blank for HTTP only)"
+}
+
+if ($envText -match "POSTGRES_PASSWORD=(.*)") {
+    $pgPassword = $Matches[1].Trim()
+} else {
+    $pgPassword = ""
+}
+if ([string]::IsNullOrWhiteSpace($pgPassword) -or $pgPassword -eq 'change-this-password') {
+    $pgPassword = Read-Default -Prompt "POSTGRES_PASSWORD" -Default "agomsaaf-change-me"
+    $envText = $envText -replace "(?m)^POSTGRES_PASSWORD=.*$", "POSTGRES_PASSWORD=$pgPassword"
+}
+
+if ($envText -match "SECRET_KEY=(.*)") {
+    $secret = $Matches[1].Trim()
+} else {
+    $secret = ""
+}
+if ([string]::IsNullOrWhiteSpace($secret) -or $secret -eq 'change-this-to-a-strong-secret') {
+    $secret = Read-Default -Prompt "SECRET_KEY" -Default "replace-me"
+    $envText = $envText -replace "(?m)^SECRET_KEY=.*$", "SECRET_KEY=$secret"
+}
+
+if ([string]::IsNullOrWhiteSpace($domain)) {
+    $siteAddress = ':80'
+} else {
+    $siteAddress = $domain
+    if ($envText -match "(?m)^DOMAIN=.*$") {
+        $envText = $envText -replace "(?m)^DOMAIN=.*$", "DOMAIN=$domain"
+    } else {
+        $envText += "`nDOMAIN=$domain`n"
+    }
+}
+
+$foundWeb = docker images --format "{{.Repository}}:{{.Tag}}" | Where-Object { $_ -like 'agomsaaf-web:*' } | Select-Object -First 1
+if ($foundWeb) {
+    if ($envText -match "(?m)^WEB_IMAGE=.*$") {
+        $envText = $envText -replace "(?m)^WEB_IMAGE=.*$", "WEB_IMAGE=$foundWeb"
+    }
+}
+
+$envText | Set-Content "deploy/.env"
+
+(Get-Content "docker/Caddyfile.template" -Raw).Replace("__SITE_ADDRESS__", $siteAddress) | Set-Content "docker/Caddyfile"
+
+if ($Action -in @('fresh', 'upgrade')) {
+    Write-Info "Starting stack"
+    Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','up','-d')
+}
+
+if ($Action -in @('fresh', 'restore-only')) {
+    if ($Action -eq 'restore-only') {
+        Write-Info "Starting data services for restore"
+        Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','up','-d','postgres','redis')
+    }
+
+    if (Test-Path "backups/postgres.sql") {
+        Write-Info "Restoring PostgreSQL"
+        $pgUser = ((Get-Content deploy/.env | Where-Object { $_ -match '^POSTGRES_USER=' }) -replace '^POSTGRES_USER=', '')
+        $pgDb = ((Get-Content deploy/.env | Where-Object { $_ -match '^POSTGRES_DB=' }) -replace '^POSTGRES_DB=', '')
+        Get-Content "backups/postgres.sql" | Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','exec','-T','postgres','psql','-U',$pgUser,'-d',$pgDb)
+    }
+
+    if (Test-Path "backups/dump.rdb") {
+        Write-Info "Restoring Redis snapshot"
+        $redisCid = Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','ps','-q','redis')
+        $redisCid = ($redisCid | Out-String).Trim()
+        if ([string]::IsNullOrWhiteSpace($redisCid)) {
+            Throw-Err "Redis container not found"
+        }
+        Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','stop','redis')
+        docker cp "backups/dump.rdb" "$redisCid`:/data/dump.rdb"
+        Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','start','redis')
+    }
+}
+
+if (Test-Path $currentDir) {
+    Remove-Item -Recurse -Force $currentDir
+}
+Copy-Item -Recurse -Force $releaseDir $currentDir
+
+Set-Location $currentDir
+Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','ps')
+Write-Info "Deployment done"

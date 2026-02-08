@@ -1,0 +1,69 @@
+FROM python:3.11-slim AS builder
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    g++ \
+    libpq-dev \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt /tmp/requirements.txt
+
+RUN set -eux; \
+    ALIYUN_URL="https://mirrors.aliyun.com/pypi/simple/"; \
+    PYPI_URL="https://pypi.org/simple/"; \
+    test_url() { \
+      url="$1"; \
+      total=0; ok=0; \
+      for i in 1 2 3; do \
+        value=$(curl -L -o /dev/null -sS -w "%{time_total}" --connect-timeout 3 --max-time 8 "$url" || true); \
+        if [ -n "$value" ] && [ "$value" != "0.000000" ]; then \
+          total=$(awk "BEGIN {print $total + $value}"); ok=$((ok+1)); \
+        fi; \
+      done; \
+      if [ "$ok" -eq 0 ]; then echo "9999"; else awk "BEGIN {print $total / $ok}"; fi; \
+    }; \
+    aliyun_time=$(test_url "$ALIYUN_URL"); \
+    pypi_time=$(test_url "$PYPI_URL"); \
+    echo "Aliyun latency: ${aliyun_time}s"; \
+    echo "PyPI latency: ${pypi_time}s"; \
+    chosen_url="$PYPI_URL"; \
+    if awk "BEGIN {exit !($aliyun_time < $pypi_time)}"; then chosen_url="$ALIYUN_URL"; fi; \
+    echo "Using index: $chosen_url"; \
+    PIP_INDEX_URL="$chosen_url" pip install --no-cache-dir --user -r /tmp/requirements.txt || \
+    PIP_INDEX_URL="$PYPI_URL" pip install --no-cache-dir --user -r /tmp/requirements.txt
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /root/.local /root/.local
+ENV PATH=/root/.local/bin:$PATH
+
+COPY . /app
+COPY docker/entrypoint.prod.sh /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh && \
+    mkdir -p /app/staticfiles /app/media && \
+    python manage.py collectstatic --noinput --clear
+
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=5 \
+    CMD curl -fsS http://127.0.0.1:8000/health/ || exit 1
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "120"]

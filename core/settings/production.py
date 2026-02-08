@@ -27,6 +27,28 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
 # Logging configuration
+LOG_TO_FILE = env.bool('LOG_TO_FILE', default=False)
+
+handlers = {
+    'console': {
+        'class': 'logging.StreamHandler',
+        'formatter': 'verbose',
+    },
+}
+
+django_handlers = ['console']
+
+if LOG_TO_FILE:
+    os.makedirs('/var/log/agomsaaf', exist_ok=True)
+    handlers['file'] = {
+        'class': 'logging.handlers.RotatingFileHandler',
+        'filename': '/var/log/agomsaaf/django.log',
+        'maxBytes': 1024 * 1024 * 100,
+        'backupCount': 10,
+        'formatter': 'verbose',
+    }
+    django_handlers.append('file')
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -40,31 +62,19 @@ LOGGING = {
             'style': '{',
         },
     },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
-        },
-        'file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': '/var/log/agomsaaf/django.log',
-            'maxBytes': 1024 * 1024 * 100,  # 100 MB
-            'backupCount': 10,
-            'formatter': 'verbose',
-        },
-    },
+    'handlers': handlers,
     'root': {
         'handlers': ['console'],
         'level': 'INFO',
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'],
+            'handlers': django_handlers,
             'level': 'INFO',
             'propagate': False,
         },
         'apps': {
-            'handlers': ['console', 'file'],
+            'handlers': django_handlers,
             'level': 'INFO',
             'propagate': False,
         },

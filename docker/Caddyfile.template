@@ -1,0 +1,17 @@
+__SITE_ADDRESS__ {
+    encode zstd gzip
+
+    @static path /static/*
+    handle @static {
+        root * /srv
+        file_server
+    }
+
+    @media path /media/*
+    handle @media {
+        root * /srv
+        file_server
+    }
+
+    reverse_proxy web:8000
+}
