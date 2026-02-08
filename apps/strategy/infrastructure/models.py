@@ -78,6 +78,84 @@ class StrategyModel(models.Model):
         return f"{self.name} v{self.version} ({self.get_strategy_type_display()})"
 
 
+class PositionManagementRuleModel(models.Model):
+    """仓位管理规则（数据库驱动，不在代码中硬编码价格规则）"""
+
+    strategy = models.OneToOneField(
+        StrategyModel,
+        on_delete=models.CASCADE,
+        related_name='position_management_rule',
+        verbose_name="所属策略",
+    )
+    name = models.CharField("规则名称", max_length=200)
+    description = models.TextField("规则描述", blank=True)
+    is_active = models.BooleanField("是否启用", default=True, db_index=True)
+    price_precision = models.PositiveSmallIntegerField(
+        "价格精度",
+        default=2,
+        validators=[MinValueValidator(0), MaxValueValidator(8)],
+    )
+
+    # 变量定义（用于文档和前端引导），例如:
+    # [{"name":"current_price","type":"number","required":true}]
+    variables_schema = models.JSONField(default=list, blank=True)
+
+    # 条件表达式（返回 bool）
+    buy_condition_expr = models.TextField(
+        "买入触发条件表达式",
+        blank=True,
+        help_text="示例: current_price <= support_price and volume_ratio >= 1.2",
+    )
+    sell_condition_expr = models.TextField(
+        "卖出触发条件表达式",
+        blank=True,
+        help_text="示例: current_price >= resistance_price or regime_score < 0.4",
+    )
+
+    # 价格/仓位表达式（返回 number）
+    buy_price_expr = models.TextField(
+        "建议买入价表达式",
+        help_text="示例: breakout_price * (1 + slippage_pct)",
+    )
+    sell_price_expr = models.TextField(
+        "建议卖出价表达式",
+        help_text="示例: buy_price * (1 + target_return_pct)",
+    )
+    stop_loss_expr = models.TextField(
+        "止损价表达式",
+        help_text="示例: min(structure_low, buy_price - 2 * atr)",
+    )
+    take_profit_expr = models.TextField(
+        "止盈价表达式",
+        help_text="示例: buy_price + 2 * (buy_price - stop_loss_price)",
+    )
+    position_size_expr = models.TextField(
+        "仓位计算表达式",
+        help_text=(
+            "示例: (account_equity * risk_per_trade_pct) / "
+            "abs(buy_price - stop_loss_price)"
+        ),
+    )
+
+    metadata = models.JSONField(default=dict, blank=True)
+
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        db_table = 'position_management_rule'
+        verbose_name = "仓位管理规则"
+        verbose_name_plural = "仓位管理规则"
+        ordering = ['-updated_at']
+        indexes = [
+            models.Index(fields=['strategy', 'is_active']),
+            models.Index(fields=['is_active', '-updated_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.strategy.name} - {self.name}"
+
+
 class RuleConditionModel(models.Model):
     """规则条件（用于 rule_based 策略）"""
 

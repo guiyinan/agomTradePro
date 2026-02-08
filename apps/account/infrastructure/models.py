@@ -9,6 +9,7 @@ from django.db import models
 from django.db.models import Sum, F
 from django.contrib.auth.models import User
 from decimal import Decimal
+from apps.account.application.rbac import ROLE_CHOICES
 
 
 # ============================================================
@@ -127,6 +128,14 @@ class AccountProfileModel(models.Model):
         choices=RISK_TOLERANCE_CHOICES,
         default='moderate',
         verbose_name="风险偏好"
+    )
+
+    rbac_role = models.CharField(
+        max_length=32,
+        choices=ROLE_CHOICES,
+        default="owner",
+        verbose_name="RBAC角色",
+        help_text="系统统一角色（与 MCP 对齐）",
     )
 
     # 波动率目标配置

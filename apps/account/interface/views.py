@@ -25,13 +25,14 @@ from apps.account.infrastructure.repositories import (
     AssetMetadataRepository,
 )
 from apps.account.application.use_cases import CreatePositionFromBacktestUseCase, CreatePositionFromBacktestInput
+from apps.account.application.rbac import ROLE_CHOICES, is_system_admin
 
 logger = logging.getLogger(__name__)
 
 
 def is_admin_user(user):
     """检查用户是否是管理员"""
-    return user.is_authenticated and user.is_superuser
+    return is_system_admin(user)
 
 
 @require_http_methods(["GET", "POST"])
@@ -105,15 +106,18 @@ def register_view(request):
                 # 审批已关闭，自动批准
                 approval_status = "auto_approved"
                 user.is_active = True
+                rbac_role = "owner"
             elif not has_admin and system_settings.auto_approve_first_admin:
                 # 系统无管理员，自动成为管理员并获得批准
                 user.is_superuser = True
                 user.is_staff = True
                 user.is_active = True
                 approval_status = "auto_approved"
+                rbac_role = "admin"
             else:
                 # 需要管理员审批
                 approval_status = "pending"
+                rbac_role = "owner"
 
             user.save()
 
@@ -131,6 +135,7 @@ def register_view(request):
                 agreement_accepted_at=timezone.now(),
                 agreement_ip_address=client_ip,
                 approval_status=approval_status,
+                rbac_role=rbac_role,
             )
 
             # 创建默认投资组合
@@ -574,6 +579,7 @@ def user_management_view(request):
 
     context = {
         "profiles": profiles,
+        "role_choices": ROLE_CHOICES,
         "system_settings": system_settings,
         "status_filter": status_filter,
         "search_query": search_query,
@@ -812,6 +818,37 @@ def reject_user_view(request, user_id):
             user_id,
         )
 
+    return redirect("/account/admin/users/")
+
+
+@login_required
+@user_passes_test(is_admin_user)
+@require_http_methods(["POST"])
+def set_user_role_view(request, user_id):
+    """
+    设置用户 RBAC 角色（仅管理员可用）
+    """
+    try:
+        target_user = User._default_manager.get(id=user_id)
+        profile = target_user.account_profile
+        raw_role = (request.POST.get("rbac_role") or "").strip()
+        valid_values = {value for value, _ in ROLE_CHOICES}
+        if raw_role not in valid_values:
+            messages.error(request, "无效的角色")
+            return redirect("/account/admin/users/")
+
+        profile.rbac_role = raw_role
+        profile.save(update_fields=["rbac_role", "updated_at"])
+        messages.success(request, f"已将用户 {target_user.username} 角色更新为 {raw_role}")
+    except User.DoesNotExist:
+        messages.error(request, "用户不存在")
+    except Exception as e:
+        messages.error(request, f"角色更新失败：{str(e)}")
+        logger.exception(
+            "admin_action=set_user_role actor=%s target_user_id=%s result=failed",
+            request.user.username,
+            user_id,
+        )
     return redirect("/account/admin/users/")
 
 

@@ -22,6 +22,27 @@ from .serializers import (
 )
 
 
+def _infer_asset_class(asset_code: str) -> str:
+    """
+    根据资产代码推断资产类别。
+
+    说明:
+    - 当前用于 check_eligibility 快速检查场景，优先保证接口稳定可用。
+    - 无法精确识别时默认按 A 股权益处理。
+    """
+    code = (asset_code or "").upper()
+
+    if code.startswith(("511", "128", "019")):
+        return "china_bond"
+    if code.startswith(("518", "159934")):
+        return "gold"
+    if code.startswith(("159985", "510170")):
+        return "commodity"
+    if code.startswith(("511880", "511990")):
+        return "cash"
+    return "a_share_growth"
+
+
 class SignalViewSet(viewsets.ModelViewSet):
     """
     Signal API ViewSet
@@ -86,14 +107,12 @@ class SignalViewSet(viewsets.ModelViewSet):
             request_serializer.is_valid(raise_exception=True)
             data = request_serializer.validated_data
 
-            # 创建临时信号对象
-            from apps.signal.domain.entities import InvestmentSignal
-            from apps.signal.domain.rules import check_eligibility, should_reject_signal
+            from apps.signal.domain.rules import check_eligibility
             from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 
             # 获取当前 Regime
             regime_repo = DjangoRegimeRepository()
-            current_regime = regime_repo.get_latest_regime()
+            current_regime = regime_repo.get_latest_snapshot()
 
             if not current_regime:
                 return Response({
@@ -101,20 +120,25 @@ class SignalViewSet(viewsets.ModelViewSet):
                     'error': 'No regime data available'
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-            # 检查准入
+            asset_code = data.get('asset_code', '')
+            asset_class = _infer_asset_class(asset_code)
+
             eligibility = check_eligibility(
-                asset_code=data.get('asset_code', ''),
-                current_regime=current_regime.dominant_regime
+                asset_class=asset_class,
+                regime=current_regime.dominant_regime
             )
 
-            rejection_reason = None
-            if should_reject_signal(eligibility):
-                rejection_reason = f"当前 Regime ({current_regime.dominant_regime}) 对该资产不友好"
+            is_eligible = eligibility.value != 'hostile'
+            rejection_reason = None if is_eligible else (
+                f"当前 Regime ({current_regime.dominant_regime}) 对资产类别 {asset_class} 不友好"
+            )
 
             return Response({
                 'success': True,
-                'is_eligible': not should_reject_signal(eligibility),
+                'is_eligible': is_eligible,
                 'eligibility': eligibility.value if eligibility else None,
+                'regime_match': is_eligible,
+                'policy_match': True,
                 'current_regime': current_regime.dominant_regime,
                 'rejection_reason': rejection_reason
             })

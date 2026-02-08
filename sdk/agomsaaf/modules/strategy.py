@@ -25,7 +25,8 @@ class StrategyModule(BaseModule):
         Args:
             client: AgomSAAF 客户端实例
         """
-        super().__init__(client, "/api/strategy")
+        # Backend strategy endpoints are served under /strategy/api/*
+        super().__init__(client, "/strategy/api")
 
     def list_strategies(
         self,
@@ -318,3 +319,89 @@ class StrategyModule(BaseModule):
         response = self._get(f"strategies/{strategy_id}/trades/", params=params)
         results = response.get("results", response)
         return results
+
+    def list_position_rules(
+        self,
+        strategy_id: Optional[int] = None,
+        is_active: Optional[bool] = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """获取仓位管理规则列表。"""
+        params: dict[str, Any] = {"limit": limit}
+        if strategy_id is not None:
+            params["strategy"] = strategy_id
+        if is_active is not None:
+            params["is_active"] = is_active
+        response = self._get("position-rules/", params=params)
+        return response.get("results", response)
+
+    def get_position_rule(self, rule_id: int) -> dict[str, Any]:
+        """获取单条仓位管理规则。"""
+        return self._get(f"position-rules/{rule_id}/")
+
+    def create_position_rule(
+        self,
+        strategy_id: int,
+        name: str,
+        buy_price_expr: str,
+        sell_price_expr: str,
+        stop_loss_expr: str,
+        take_profit_expr: str,
+        position_size_expr: str,
+        buy_condition_expr: str = "",
+        sell_condition_expr: str = "",
+        description: str = "",
+        price_precision: int = 2,
+        variables_schema: Optional[list[dict[str, Any]]] = None,
+        metadata: Optional[dict[str, Any]] = None,
+        is_active: bool = True,
+    ) -> dict[str, Any]:
+        """创建仓位管理规则。"""
+        data: dict[str, Any] = {
+            "strategy": strategy_id,
+            "name": name,
+            "description": description,
+            "is_active": is_active,
+            "price_precision": price_precision,
+            "variables_schema": variables_schema or [],
+            "buy_condition_expr": buy_condition_expr,
+            "sell_condition_expr": sell_condition_expr,
+            "buy_price_expr": buy_price_expr,
+            "sell_price_expr": sell_price_expr,
+            "stop_loss_expr": stop_loss_expr,
+            "take_profit_expr": take_profit_expr,
+            "position_size_expr": position_size_expr,
+            "metadata": metadata or {},
+        }
+        return self._post("position-rules/", json=data)
+
+    def update_position_rule(
+        self,
+        rule_id: int,
+        **updates: Any,
+    ) -> dict[str, Any]:
+        """更新仓位管理规则。"""
+        return self._patch(f"position-rules/{rule_id}/", json=updates)
+
+    def evaluate_position_rule(
+        self,
+        rule_id: int,
+        context: dict[str, Any],
+    ) -> dict[str, Any]:
+        """按规则ID评估仓位管理建议。"""
+        return self._post(f"position-rules/{rule_id}/evaluate/", json={"context": context})
+
+    def get_strategy_position_rule(self, strategy_id: int) -> dict[str, Any]:
+        """获取策略绑定的仓位管理规则。"""
+        return self._get(f"strategies/{strategy_id}/position_rule/")
+
+    def evaluate_strategy_position_management(
+        self,
+        strategy_id: int,
+        context: dict[str, Any],
+    ) -> dict[str, Any]:
+        """按策略评估仓位管理建议。"""
+        return self._post(
+            f"strategies/{strategy_id}/evaluate_position_management/",
+            json={"context": context},
+        )

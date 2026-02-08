@@ -18,6 +18,7 @@ from django.db.models import Count, Q, Sum
 
 from apps.strategy.infrastructure.models import (
     StrategyModel,
+    PositionManagementRuleModel,
     RuleConditionModel,
     ScriptConfigModel,
     AIStrategyConfigModel,
@@ -27,6 +28,9 @@ from apps.strategy.infrastructure.models import (
 from apps.strategy.interface.serializers import (
     StrategySerializer,
     StrategyDetailSerializer,
+    PositionManagementRuleSerializer,
+    PositionManagementEvaluateInputSerializer,
+    PositionManagementEvaluateResultSerializer,
     RuleConditionSerializer,
     RuleConditionListSerializer,
     ScriptConfigSerializer,
@@ -35,6 +39,10 @@ from apps.strategy.interface.serializers import (
     PortfolioStrategyAssignmentDetailSerializer,
     StrategyExecutionLogSerializer,
     StrategyExecutionLogListSerializer
+)
+from apps.strategy.application.position_management_service import (
+    PositionManagementService,
+    PositionRuleError,
 )
 
 
@@ -180,6 +188,103 @@ class StrategyViewSet(viewsets.ModelViewSet):
             'limit': limit,
             'has_more': offset + limit < total
         })
+
+    @extend_schema(
+        summary="获取策略仓位管理规则",
+        description="获取指定策略绑定的仓位管理规则",
+        responses={200: PositionManagementRuleSerializer}
+    )
+    @action(detail=True, methods=['get'])
+    def position_rule(self, request, pk=None):
+        strategy = self.get_object()
+        try:
+            rule = strategy.position_management_rule
+        except PositionManagementRuleModel.DoesNotExist:
+            return Response(
+                {'detail': '该策略尚未配置仓位管理规则'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        return Response(PositionManagementRuleSerializer(rule).data)
+
+    @extend_schema(
+        summary="按策略计算仓位管理建议",
+        description="基于策略绑定规则与上下文变量计算买卖价、止盈止损与仓位建议",
+        request=PositionManagementEvaluateInputSerializer,
+        responses={200: PositionManagementEvaluateResultSerializer}
+    )
+    @action(detail=True, methods=['post'])
+    def evaluate_position_management(self, request, pk=None):
+        strategy = self.get_object()
+        try:
+            rule = strategy.position_management_rule
+        except PositionManagementRuleModel.DoesNotExist:
+            return Response(
+                {'detail': '该策略尚未配置仓位管理规则'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if not rule.is_active:
+            return Response(
+                {'detail': '仓位管理规则未启用'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        input_serializer = PositionManagementEvaluateInputSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+        context = input_serializer.validated_data['context']
+
+        try:
+            result = PositionManagementService.evaluate(rule=rule, context=context)
+        except PositionRuleError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        output_serializer = PositionManagementEvaluateResultSerializer(data=result.to_dict())
+        output_serializer.is_valid(raise_exception=True)
+        return Response(output_serializer.data)
+
+
+# ========================================================================
+# Position Management Rule ViewSet
+# ========================================================================
+
+class PositionManagementRuleViewSet(viewsets.ModelViewSet):
+    """仓位管理规则 CRUD + 评估 API"""
+
+    queryset = PositionManagementRuleModel._default_manager.select_related('strategy')
+    serializer_class = PositionManagementRuleSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['strategy', 'is_active']
+    search_fields = ['name', 'strategy__name']
+    ordering_fields = ['updated_at', 'created_at']
+    ordering = ['-updated_at']
+
+    @extend_schema(
+        summary="评估仓位管理规则",
+        description="按规则ID计算买卖价、止盈止损与仓位建议",
+        request=PositionManagementEvaluateInputSerializer,
+        responses={200: PositionManagementEvaluateResultSerializer}
+    )
+    @action(detail=True, methods=['post'])
+    def evaluate(self, request, pk=None):
+        rule = self.get_object()
+        if not rule.is_active:
+            return Response(
+                {'detail': '仓位管理规则未启用'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        input_serializer = PositionManagementEvaluateInputSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+        context = input_serializer.validated_data['context']
+
+        try:
+            result = PositionManagementService.evaluate(rule=rule, context=context)
+        except PositionRuleError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        output_serializer = PositionManagementEvaluateResultSerializer(data=result.to_dict())
+        output_serializer.is_valid(raise_exception=True)
+        return Response(output_serializer.data)
 
 
 # ========================================================================

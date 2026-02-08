@@ -1,5 +1,6 @@
 """AgomSAAF MCP Server."""
 
+import os
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -20,6 +21,11 @@ from agomsaaf_mcp.tools.sector_tools import register_sector_tools
 from agomsaaf_mcp.tools.signal_tools import register_signal_tools
 from agomsaaf_mcp.tools.simulated_trading_tools import register_simulated_trading_tools
 from agomsaaf_mcp.tools.strategy_tools import register_strategy_tools
+from agomsaaf_mcp.rbac import (
+    enforce_prompt_access,
+    enforce_resource_access,
+    wrap_tool_with_rbac,
+)
 
 # 创建 MCP 服务器实例
 server = FastMCP("agomsaaf")
@@ -52,6 +58,19 @@ def register_all_tools() -> None:
     register_alpha_tools(server)
 
 
+def apply_tool_rbac_guards() -> None:
+    """Apply RBAC guards to all registered tools."""
+    manager = getattr(server, "_tool_manager", None)
+    if manager is None:
+        return
+    tools = getattr(manager, "_tools", {})
+    for name, tool_obj in tools.items():
+        original = getattr(tool_obj, "fn", None)
+        if original is None:
+            continue
+        setattr(tool_obj, "fn", wrap_tool_with_rbac(name, original))
+
+
 @server.resource(
     "agomsaaf://regime/current",
     name="Current Regime",
@@ -60,6 +79,7 @@ def register_all_tools() -> None:
 )
 def resource_regime_current() -> str:
     """读取当前宏观环境资源。"""
+    enforce_resource_access("agomsaaf://regime/current")
     from agomsaaf import AgomSAAFClient
 
     client = AgomSAAFClient()
@@ -79,6 +99,7 @@ def resource_regime_current() -> str:
 )
 def resource_policy_status() -> str:
     """读取当前政策状态资源。"""
+    enforce_resource_access("agomsaaf://policy/status")
     from agomsaaf import AgomSAAFClient
 
     client = AgomSAAFClient()
@@ -95,6 +116,7 @@ def resource_policy_status() -> str:
 @server.prompt("analyze_macro_environment")
 def prompt_analyze_macro_environment() -> str:
     """分析当前宏观环境并给出投资建议。"""
+    enforce_prompt_access("analyze_macro_environment")
     return """请分析 AgomSAAF 系统的当前宏观环境：
 
 1. 使用 get_current_regime 工具获取当前宏观象限
@@ -111,6 +133,7 @@ def prompt_analyze_macro_environment() -> str:
 @server.prompt("check_signal_eligibility")
 def prompt_check_signal_eligibility(asset_code: str, logic_desc: str) -> str:
     """检查投资信号是否符合准入条件。"""
+    enforce_prompt_access("check_signal_eligibility")
     return f"""请检查以下投资信号是否符合准入条件：
 
 资产代码：{asset_code}
@@ -126,6 +149,116 @@ def prompt_check_signal_eligibility(asset_code: str, logic_desc: str) -> str:
 
 # 注册所有工具
 register_all_tools()
+apply_tool_rbac_guards()
+
+
+def _get_default_portfolio_id(client: Any) -> int | None:
+    """Get default portfolio id from env or first available portfolio."""
+    configured = os.getenv("AGOMSAAF_DEFAULT_PORTFOLIO_ID")
+    if configured:
+        try:
+            return int(configured)
+        except ValueError:
+            pass
+
+    portfolios = client.account.get_portfolios(limit=1)
+    if portfolios:
+        return portfolios[0].id
+    return None
+
+
+@server.resource(
+    "agomsaaf://account/summary",
+    name="Account Summary",
+    description="默认投资组合摘要",
+    mime_type="text/plain",
+)
+def resource_account_summary() -> str:
+    """默认组合摘要（用于 Agent 自动读取上下文）。"""
+    enforce_resource_access("agomsaaf://account/summary")
+    from agomsaaf import AgomSAAFClient
+
+    client = AgomSAAFClient()
+    portfolio_id = _get_default_portfolio_id(client)
+    if portfolio_id is None:
+        return "未找到可用投资组合。"
+
+    portfolio = client.get(f"account/api/portfolios/{portfolio_id}/")
+    stats = client.get(f"account/api/portfolios/{portfolio_id}/statistics/")
+
+    return f"""默认组合ID: {portfolio_id}
+组合名称: {portfolio.get('name')}
+总市值: {portfolio.get('total_value')}
+持仓数: {stats.get('position_count')}
+未实现盈亏: {stats.get('total_pnl')}
+未实现盈亏(%): {stats.get('total_pnl_pct')}
+净资金流: {stats.get('net_capital_flow')}"""
+
+
+@server.resource(
+    "agomsaaf://account/positions",
+    name="Account Positions",
+    description="默认投资组合持仓快照",
+    mime_type="text/plain",
+)
+def resource_account_positions() -> str:
+    """默认组合持仓快照。"""
+    enforce_resource_access("agomsaaf://account/positions")
+    from agomsaaf import AgomSAAFClient
+
+    client = AgomSAAFClient()
+    portfolio_id = _get_default_portfolio_id(client)
+    if portfolio_id is None:
+        return "未找到可用投资组合。"
+
+    payload = client.get("account/api/positions/", params={"portfolio_id": portfolio_id, "limit": 20})
+    rows = payload.get("results", payload) if isinstance(payload, dict) else payload
+    if not rows:
+        return f"组合 {portfolio_id} 当前无持仓。"
+
+    lines = []
+    for row in rows[:20]:
+        if row.get("is_closed"):
+            continue
+        lines.append(
+            f"{row.get('asset_code')} | 持仓: {row.get('shares')} | 成本: {row.get('avg_cost')} | "
+            f"现价: {row.get('current_price')} | 盈亏: {row.get('unrealized_pnl')}"
+        )
+
+    if not lines:
+        return f"组合 {portfolio_id} 当前无未平仓持仓。"
+
+    return f"默认组合ID: {portfolio_id}\n" + "\n".join(lines)
+
+
+@server.resource(
+    "agomsaaf://account/recent-transactions",
+    name="Recent Transactions",
+    description="默认投资组合最近交易",
+    mime_type="text/plain",
+)
+def resource_account_recent_transactions() -> str:
+    """默认组合最近交易。"""
+    enforce_resource_access("agomsaaf://account/recent-transactions")
+    from agomsaaf import AgomSAAFClient
+
+    client = AgomSAAFClient()
+    portfolio_id = _get_default_portfolio_id(client)
+    if portfolio_id is None:
+        return "未找到可用投资组合。"
+
+    payload = client.get("account/api/transactions/", params={"limit": 20})
+    rows = payload.get("results", payload) if isinstance(payload, dict) else payload
+    rows = [r for r in rows if r.get("portfolio") == portfolio_id]
+
+    if not rows:
+        return f"组合 {portfolio_id} 暂无交易记录。"
+
+    lines = [
+        f"{r.get('traded_at')} | {r.get('action')} {r.get('asset_code')} {r.get('shares')} @ {r.get('price')}"
+        for r in rows[:20]
+    ]
+    return f"默认组合ID: {portfolio_id}\n" + "\n".join(lines)
 
 
 async def list_resources() -> list[dict[str, Any]]:

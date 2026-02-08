@@ -25,7 +25,8 @@ class AccountModule(BaseModule):
         Args:
             client: AgomSAAF 客户端实例
         """
-        super().__init__(client, "/api/account")
+        # Backend account endpoints are served under /account/api/*
+        super().__init__(client, "/account/api")
 
     def get_portfolios(
         self,
@@ -162,11 +163,17 @@ class AccountModule(BaseModule):
             ... )
             >>> print(f"持仓已创建: {position.id}")
         """
+        # Keep SDK API stable (quantity/price), map to backend fields.
         data: dict[str, Any] = {
-            "portfolio_id": portfolio_id,
+            "portfolio": portfolio_id,
             "asset_code": asset_code,
-            "quantity": quantity,
-            "price": price,
+            "shares": quantity,
+            "avg_cost": price,
+            "current_price": price,
+            "source": "manual",
+            "asset_class": "equity",
+            "region": "CN",
+            "cross_border": "domestic",
         }
 
         response = self._post("positions/", json=data)
@@ -202,11 +209,11 @@ class AccountModule(BaseModule):
         """
         data: dict[str, Any] = {}
         if quantity is not None:
-            data["quantity"] = quantity
+            data["shares"] = quantity
         if price is not None:
-            data["price"] = price
+            data["current_price"] = price
 
-        response = self._put(f"positions/{position_id}/", json=data)
+        response = self._patch(f"positions/{position_id}/", json=data)
         return self._parse_position(response)
 
     def delete_position(self, position_id: int) -> None:
@@ -242,10 +249,10 @@ class AccountModule(BaseModule):
             positions.append(self._parse_position(pos_data))
 
         return Portfolio(
-            id=data["id"],
-            name=data["name"],
-            total_value=data["total_value"],
-            cash=data["cash"],
+            id=int(data["id"]),
+            name=str(data["name"]),
+            total_value=self._to_float(data.get("total_value"), default=0.0),
+            cash=self._to_float(data.get("cash"), default=0.0),
             positions=positions,
         )
 
@@ -259,11 +266,26 @@ class AccountModule(BaseModule):
         Returns:
             Position 对象
         """
+        quantity_raw = data.get("quantity", data.get("shares", 0))
+        profit_loss_raw = data.get("profit_loss", data.get("unrealized_pnl", 0))
+        current_price_raw = data.get("current_price")
+        if current_price_raw is None:
+            current_price_raw = data.get("avg_cost", 0)
+
         return Position(
-            asset_code=data["asset_code"],
-            quantity=data["quantity"],
-            avg_cost=data["avg_cost"],
-            current_price=data["current_price"],
-            market_value=data["market_value"],
-            profit_loss=data["profit_loss"],
+            asset_code=str(data.get("asset_code", "")),
+            quantity=self._to_float(quantity_raw, default=0.0),
+            avg_cost=self._to_float(data.get("avg_cost"), default=0.0),
+            current_price=self._to_float(current_price_raw, default=0.0),
+            market_value=self._to_float(data.get("market_value"), default=0.0),
+            profit_loss=self._to_float(profit_loss_raw, default=0.0),
         )
+
+    @staticmethod
+    def _to_float(value: Any, default: float = 0.0) -> float:
+        if value is None or value == "":
+            return default
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default

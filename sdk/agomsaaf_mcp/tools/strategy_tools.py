@@ -174,3 +174,80 @@ def register_strategy_tools(server: FastMCP) -> None:
         client = AgomSAAFClient()
         return client.strategy.get_strategy_positions(strategy_id)
 
+    @server.tool()
+    def list_position_rules(
+        strategy_id: int | None = None,
+        is_active: bool | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        """获取仓位管理规则列表。"""
+        client = AgomSAAFClient()
+        return client.strategy.list_position_rules(
+            strategy_id=strategy_id,
+            is_active=is_active,
+            limit=limit,
+        )
+
+    @server.tool()
+    def create_position_rule(
+        strategy_id: int,
+        name: str,
+        buy_price_expr: str,
+        sell_price_expr: str,
+        stop_loss_expr: str,
+        take_profit_expr: str,
+        position_size_expr: str,
+        buy_condition_expr: str = "",
+        sell_condition_expr: str = "",
+        description: str = "",
+        price_precision: int = 2,
+        variables_schema: list[dict[str, Any]] | None = None,
+        metadata: dict[str, Any] | None = None,
+        is_active: bool = True,
+    ) -> dict[str, Any]:
+        """创建仓位管理规则。"""
+        client = AgomSAAFClient()
+        return client.strategy.create_position_rule(
+            strategy_id=strategy_id,
+            name=name,
+            buy_price_expr=buy_price_expr,
+            sell_price_expr=sell_price_expr,
+            stop_loss_expr=stop_loss_expr,
+            take_profit_expr=take_profit_expr,
+            position_size_expr=position_size_expr,
+            buy_condition_expr=buy_condition_expr,
+            sell_condition_expr=sell_condition_expr,
+            description=description,
+            price_precision=price_precision,
+            variables_schema=variables_schema,
+            metadata=metadata,
+            is_active=is_active,
+        )
+
+    @server.tool()
+    def evaluate_position_rule(
+        rule_id: int,
+        context: dict[str, Any],
+    ) -> dict[str, Any]:
+        """按规则ID计算买卖价、止盈止损和仓位建议。"""
+        client = AgomSAAFClient()
+        return client.strategy.evaluate_position_rule(rule_id=rule_id, context=context)
+
+    @server.tool()
+    def get_strategy_position_rule(strategy_id: int) -> dict[str, Any]:
+        """获取策略绑定的仓位管理规则。"""
+        client = AgomSAAFClient()
+        return client.strategy.get_strategy_position_rule(strategy_id=strategy_id)
+
+    @server.tool()
+    def evaluate_strategy_position_management(
+        strategy_id: int,
+        context: dict[str, Any],
+    ) -> dict[str, Any]:
+        """按策略计算买卖价、止盈止损和仓位建议。"""
+        client = AgomSAAFClient()
+        return client.strategy.evaluate_strategy_position_management(
+            strategy_id=strategy_id,
+            context=context,
+        )
+

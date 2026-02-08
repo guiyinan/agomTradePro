@@ -237,11 +237,38 @@ def api_create_record(request):
 
     try:
         data = json.loads(request.body)
+        code = data.get('code')
+        value = data.get('value')
+        period_raw = data.get('observed_at') or data.get('reporting_period')
+
+        if not code:
+            return JsonResponse({
+                'success': False,
+                'message': '创建失败: 缺少必填字段 code'
+            }, status=400)
+        if value is None:
+            return JsonResponse({
+                'success': False,
+                'message': '创建失败: 缺少必填字段 value'
+            }, status=400)
+        if not period_raw:
+            return JsonResponse({
+                'success': False,
+                'message': '创建失败: 缺少必填字段 reporting_period'
+            }, status=400)
+
+        try:
+            reporting_period = datetime.fromisoformat(period_raw).date()
+        except ValueError:
+            return JsonResponse({
+                'success': False,
+                'message': '创建失败: reporting_period 日期格式无效，应为 YYYY-MM-DD'
+            }, status=400)
 
         record = MacroIndicator._default_manager.create(
-            code=data.get('code'),
-            value=data.get('value'),
-            reporting_period=datetime.fromisoformat(data.get('observed_at') or data.get('reporting_period')).date(),
+            code=code,
+            value=value,
+            reporting_period=reporting_period,
             period_type=data.get('period_type', 'D'),
             published_at=datetime.fromisoformat(data['published_at']).date() if data.get('published_at') else None,
             source=data.get('source', 'manual'),

@@ -26,10 +26,10 @@ class AccountProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = AccountProfileModel
         fields = [
-            'id', 'display_name', 'initial_capital', 'risk_tolerance',
+            'id', 'display_name', 'initial_capital', 'risk_tolerance', 'rbac_role',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['rbac_role', 'created_at', 'updated_at']
 
 
 class AccountProfileUpdateSerializer(serializers.ModelSerializer):

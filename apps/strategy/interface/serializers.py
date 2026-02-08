@@ -10,11 +10,16 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 
 from apps.strategy.infrastructure.models import (
     StrategyModel,
+    PositionManagementRuleModel,
     RuleConditionModel,
     ScriptConfigModel,
     AIStrategyConfigModel,
     PortfolioStrategyAssignmentModel,
     StrategyExecutionLogModel
+)
+from apps.strategy.application.position_management_service import (
+    PositionManagementService,
+    PositionRuleError,
 )
 
 
@@ -77,6 +82,89 @@ class StrategyDetailSerializer(StrategySerializer):
     def get_has_ai_config(self, obj):
         """是否有 AI 配置"""
         return hasattr(obj, 'ai_config')
+
+
+# ========================================================================
+# Position Management Rule Serializers
+# ========================================================================
+
+class PositionManagementRuleSerializer(serializers.ModelSerializer):
+    """仓位管理规则序列化器"""
+
+    strategy_name = serializers.CharField(source='strategy.name', read_only=True)
+
+    class Meta:
+        model = PositionManagementRuleModel
+        fields = [
+            'id',
+            'strategy',
+            'strategy_name',
+            'name',
+            'description',
+            'is_active',
+            'price_precision',
+            'variables_schema',
+            'buy_condition_expr',
+            'sell_condition_expr',
+            'buy_price_expr',
+            'sell_price_expr',
+            'stop_loss_expr',
+            'take_profit_expr',
+            'position_size_expr',
+            'metadata',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def validate(self, attrs):
+        errors: dict[str, str] = {}
+        for field in (
+            'buy_condition_expr',
+            'sell_condition_expr',
+            'buy_price_expr',
+            'sell_price_expr',
+            'stop_loss_expr',
+            'take_profit_expr',
+            'position_size_expr',
+        ):
+            expression = attrs.get(field)
+            if expression is None and self.instance is not None:
+                expression = getattr(self.instance, field, "")
+            if field in ('buy_condition_expr', 'sell_condition_expr') and not expression:
+                continue
+            try:
+                PositionManagementService.validate_expression(str(expression))
+            except PositionRuleError as exc:
+                errors[field] = str(exc)
+
+        if errors:
+            raise serializers.ValidationError(errors)
+        return attrs
+
+
+class PositionManagementEvaluateInputSerializer(serializers.Serializer):
+    """仓位管理规则评估入参"""
+
+    context = serializers.JSONField()
+
+    def validate_context(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("context 必须是对象")
+        return value
+
+
+class PositionManagementEvaluateResultSerializer(serializers.Serializer):
+    """仓位管理规则评估结果"""
+
+    should_buy = serializers.BooleanField()
+    should_sell = serializers.BooleanField()
+    buy_price = serializers.FloatField()
+    sell_price = serializers.FloatField()
+    stop_loss_price = serializers.FloatField()
+    take_profit_price = serializers.FloatField()
+    position_size = serializers.FloatField()
+    risk_reward_ratio = serializers.FloatField(allow_null=True)
 
 
 # ========================================================================

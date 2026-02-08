@@ -153,7 +153,7 @@ Three methods (priority order):
 | `client.equity` | Stock analysis - scoring, recommendations, financials |
 | `client.fund` | Fund analysis - scoring, performance, holdings |
 | `client.sector` | Sector analysis - scoring, hot sectors, comparison |
-| `client.strategy` | Strategy management - create, execute, performance |
+| `client.strategy` | Strategy management - create/execute strategy, DB-driven position rules, evaluate buy/sell/SL/TP |
 | `client.realtime` | Real-time prices - market data, alerts, top movers |
 
 ## MCP Tools (50+)

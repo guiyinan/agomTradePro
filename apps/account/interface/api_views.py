@@ -12,6 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum, Q, Count
 from django.db import models
 from django.shortcuts import get_object_or_404
+from decimal import Decimal
 
 from apps.account.infrastructure.models import (
     AccountProfileModel,
@@ -40,6 +41,7 @@ from .serializers import (
     AssetMetadataSerializer,
     PortfolioStatisticsSerializer,
 )
+from .permissions import TradingPermission, GeneralPermission
 
 
 # ==================== Portfolio ViewSet ====================
@@ -58,7 +60,7 @@ class PortfolioViewSet(viewsets.ModelViewSet):
     - GET /account/api/portfolios/{id}/statistics/ - 获取统计信息
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, TradingPermission]
 
     def get_queryset(self):
         """只返回当前用户的投资组合"""
@@ -105,7 +107,12 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         position_count = positions.count()
 
         total_value = positions.aggregate(total=Sum('market_value'))['total'] or Decimal('0')
-        total_cost = positions.aggregate(total=Sum(models.F('shares') * models.F('avg_cost')))['total'] or Decimal('0')
+        total_cost = positions.aggregate(
+            total=Sum(
+                models.F('shares') * models.F('avg_cost'),
+                output_field=models.DecimalField(max_digits=20, decimal_places=2),
+            )
+        )['total'] or Decimal('0')
         total_pnl = total_value - total_cost
         total_pnl_pct = float((total_pnl / total_cost * 100) if total_cost > 0 else 0)
 
@@ -162,7 +169,7 @@ class PositionViewSet(viewsets.ModelViewSet):
     - POST /account/api/positions/{id}/close/ - 平仓
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, TradingPermission]
 
     def get_queryset(self):
         """只返回当前用户投资组合的持仓"""
@@ -241,7 +248,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
     - GET /account/api/transactions/{id}/ - 获取交易详情
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, TradingPermission]
 
     def get_queryset(self):
         """只返回当前用户投资组合的交易"""
@@ -283,7 +290,7 @@ class CapitalFlowViewSet(viewsets.ModelViewSet):
     - DELETE /account/api/capital-flows/{id}/ - 删除流水
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, TradingPermission]
 
     def get_queryset(self):
         """只返回当前用户投资组合的资金流水"""
@@ -304,7 +311,7 @@ class CapitalFlowViewSet(viewsets.ModelViewSet):
             id=portfolio_id,
             user=self.request.user
         )
-        serializer.save(portfolio=portfolio)
+        serializer.save(portfolio=portfolio, user=self.request.user)
 
 
 # ==================== Account Profile API ====================
@@ -317,7 +324,7 @@ class AccountProfileView(APIView):
     - PUT /account/api/profile/ - 更新账户配置
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, GeneralPermission]
 
     def get(self, request):
         """获取当前用户的账户配置"""
@@ -378,7 +385,7 @@ class AssetMetadataViewSet(viewsets.ReadOnlyModelViewSet):
 class AccountHealthView(APIView):
     """Account 服务健康检查"""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, GeneralPermission]
 
     def get(self, request):
         """检查 Account 服务健康状态"""

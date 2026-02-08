@@ -44,6 +44,7 @@ urlpatterns = [
     path('admin/tokens/<int:user_id>/revoke/', views.revoke_user_token_view, name='revoke_user_token'),
     path('admin/users/<int:user_id>/approve/', views.approve_user_view, name='approve_user'),
     path('admin/users/<int:user_id>/reject/', views.reject_user_view, name='reject_user'),
+    path('admin/users/<int:user_id>/role/', views.set_user_role_view, name='set_user_role'),
     path('admin/users/<int:user_id>/reset/', views.reset_user_status_view, name='reset_user_status'),
     path('admin/settings/', views.system_settings_view, name='system_settings'),
 

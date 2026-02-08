@@ -29,6 +29,7 @@ MCP server uses SDK credentials to call AgomSAAF backend:
 - `AGOMSAAF_BASE_URL` (required)
 - `AGOMSAAF_API_TOKEN` (recommended)
 - Or `AGOMSAAF_USERNAME` + `AGOMSAAF_PASSWORD`
+- `AGOMSAAF_DEFAULT_PORTFOLIO_ID` (optional, used by account resources)
 
 Auth format on backend is DRF Token (`Authorization: Token <token>`).
 
@@ -65,12 +66,43 @@ Edit `~/.config/claude-code/mcp_servers.json`:
       "cwd": "D:/githv/agomSAAF/sdk",
       "env": {
         "AGOMSAAF_BASE_URL": "http://localhost:8000",
-        "AGOMSAAF_API_TOKEN": "your_token_here"
+        "AGOMSAAF_API_TOKEN": "your_token_here",
+        "AGOMSAAF_MCP_ENFORCE_RBAC": "true",
+        "AGOMSAAF_MCP_ROLE": "投资经理"
       }
     }
   }
 }
 ```
+
+## RBAC (Role-Based Access Control)
+
+Enable RBAC:
+
+- `AGOMSAAF_MCP_ENFORCE_RBAC=true`
+- 推荐：不设置 `AGOMSAAF_MCP_ROLE`，MCP 会自动从 `account/api/profile/` 的 `rbac_role` 读取当前用户角色
+- 可选覆盖：`AGOMSAAF_MCP_ROLE=<role>`（强制覆盖后端角色）
+- 角色来源开关：`AGOMSAAF_MCP_ROLE_SOURCE=backend`（默认）
+- 后备角色：`AGOMSAAF_MCP_DEFAULT_ROLE=read_only`
+
+Supported roles (Chinese/English aliases):
+
+- `管理员` / `admin`: full access
+- `所有者` / `owner`: full except system-admin operations
+- `分析师` / `analyst`: read-only tools
+- `投资经理` / `investment_manager`: read all + write on trading/strategy/risk domains
+- `交易员` / `trader`: read all + write on trading domain
+- `风控` / `risk`: read all + write on risk domain
+- `只读用户` / `read_only`: read-only (and stricter prompt limits)
+
+Optional hard overrides:
+
+- `AGOMSAAF_MCP_ALLOWED_TOOLS=tool_a,tool_b`
+- `AGOMSAAF_MCP_DENIED_TOOLS=tool_x`
+- `AGOMSAAF_MCP_ALLOWED_RESOURCES=agomsaaf://regime/current`
+- `AGOMSAAF_MCP_DENIED_RESOURCES=agomsaaf://account/summary`
+- `AGOMSAAF_MCP_ALLOWED_PROMPTS=analyze_macro_environment`
+- `AGOMSAAF_MCP_DENIED_PROMPTS=check_signal_eligibility`
 
 ### 3. Test the Connection
 
@@ -142,6 +174,75 @@ get_top_movers(direction)
 get_sector_realtime_performance()
 ```
 
+### Strategy Position Management Tools
+
+```
+list_position_rules(strategy_id, is_active, limit)
+create_position_rule(strategy_id, name, buy_price_expr, sell_price_expr, stop_loss_expr, take_profit_expr, position_size_expr, ...)
+get_strategy_position_rule(strategy_id)
+evaluate_position_rule(rule_id, context)
+evaluate_strategy_position_management(strategy_id, context)
+```
+
+`context` is a JSON object with runtime variables (for example `current_price`, `atr`, `account_equity`, `risk_per_trade_pct`).
+
+### Account Position Tools
+
+```
+get_positions_detailed(portfolio_id, include_closed)
+import_positions_csv(portfolio_id, csv_text, mode, dry_run)
+import_positions_json(portfolio_id, positions, mode, dry_run)
+export_positions_csv(portfolio_id, include_closed)
+export_positions_json(portfolio_id, include_closed)
+```
+
+`mode` supports:
+- `upsert`: create/update only imported symbols
+- `replace`: create/update imported symbols and close non-imported open positions
+
+### Transaction Tools
+
+```
+get_transactions_detailed(portfolio_id)
+import_transactions_csv(portfolio_id, csv_text, mode, dry_run)
+import_transactions_json(portfolio_id, transactions, mode, dry_run)
+export_transactions_csv(portfolio_id)
+export_transactions_json(portfolio_id)
+```
+
+`mode` supports:
+- `append`: append imported transactions
+- `replace`: delete existing transactions in portfolio and import new ones
+
+### Capital Flow Tools
+
+```
+get_capital_flows_detailed(portfolio_id)
+import_capital_flows_csv(portfolio_id, csv_text, mode, dry_run)
+import_capital_flows_json(portfolio_id, capital_flows, mode, dry_run)
+export_capital_flows_csv(portfolio_id)
+export_capital_flows_json(portfolio_id)
+```
+
+`mode` supports:
+- `append`: append imported flows
+- `replace`: delete existing flows in portfolio and import new ones
+
+### Account Bundle Tools
+
+```
+get_portfolio_statistics(portfolio_id)
+export_account_bundle_json(portfolio_id)
+export_account_bundle_csv(portfolio_id)
+```
+
+Bundle export aggregates:
+- portfolio detail
+- portfolio statistics
+- positions
+- transactions
+- capital flows
+
 ## Example Conversations
 
 ### Conversation 1: Macro Analysis
@@ -194,6 +295,9 @@ MCP Resources can be automatically read by AI:
 ```
 agomsaaf://regime/current    # Current regime state
 agomsaaf://policy/status     # Current policy status
+agomsaaf://account/summary   # Default portfolio summary
+agomsaaf://account/positions # Default portfolio position snapshot
+agomsaaf://account/recent-transactions # Default portfolio recent trades
 ```
 
 ## Prompts

@@ -62,7 +62,7 @@ api_docs_patterns = [
 
 module_patterns = [
     # Account & Auth.
-    path('account/', include('apps.account.interface.urls')),
+    path('account/', include(('apps.account.interface.urls', 'account'), namespace='account')),
     # Dashboard (requires login).
     path('dashboard/', include('apps.dashboard.interface.urls')),
     # Main module routes.

@@ -133,7 +133,13 @@ class RegimeModule(BaseModule):
             params["end_date"] = end_date.isoformat()
 
         response = self._get("history/", params=params)
-        return [self._parse_regime_state(item) for item in response.get("results", response)]
+        if isinstance(response, dict):
+            items = response.get("results", [])
+        elif isinstance(response, list):
+            items = response
+        else:
+            items = []
+        return [self._parse_regime_state(item) for item in items]
 
     def get_regime_distribution(
         self,

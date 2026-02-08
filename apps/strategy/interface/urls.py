@@ -14,6 +14,7 @@ app_name = 'strategy'
 
 from apps.strategy.interface.views import (
     StrategyViewSet,
+    PositionManagementRuleViewSet,
     RuleConditionViewSet,
     ScriptConfigViewSet,
     AIStrategyConfigViewSet,
@@ -36,6 +37,7 @@ router = DefaultRouter()
 
 # 注册 ViewSet
 router.register(r'strategies', StrategyViewSet, basename='strategy')
+router.register(r'position-rules', PositionManagementRuleViewSet, basename='positionrule')
 router.register(r'rules', RuleConditionViewSet, basename='rulecondition')
 router.register(r'script-configs', ScriptConfigViewSet, basename='scriptconfig')
 router.register(r'ai-configs', AIStrategyConfigViewSet, basename='aistrategyconfig')

@@ -196,6 +196,13 @@ client.strategy.execute_strategy(strategy_id, as_of_date) -> dict
 client.strategy.get_strategy_performance(strategy_id, start_date, end_date) -> dict
 client.strategy.get_strategy_signals(strategy_id, status, limit) -> list
 client.strategy.get_strategy_positions(strategy_id) -> list
+client.strategy.list_position_rules(strategy_id, is_active, limit) -> list
+client.strategy.get_position_rule(rule_id) -> dict
+client.strategy.create_position_rule(...) -> dict
+client.strategy.update_position_rule(rule_id, **updates) -> dict
+client.strategy.evaluate_position_rule(rule_id, context) -> dict
+client.strategy.get_strategy_position_rule(strategy_id) -> dict
+client.strategy.evaluate_strategy_position_management(strategy_id, context) -> dict
 ```
 
 ## Realtime Module
