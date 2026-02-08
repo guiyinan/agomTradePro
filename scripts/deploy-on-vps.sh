@@ -54,6 +54,17 @@ else
   die "docker compose is required"
 fi
 
+env_value() {
+  key="$1"
+  file="$2"
+  grep "^${key}=" "$file" | tail -n 1 | cut -d '=' -f2- || true
+}
+
+is_true() {
+  val=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+  [ "$val" = "1" ] || [ "$val" = "true" ] || [ "$val" = "yes" ] || [ "$val" = "on" ]
+}
+
 ask() {
   prompt="$1"
   default="$2"
@@ -152,12 +163,6 @@ if [ -z "$domain" ]; then
   domain=$(ask "Domain (empty for HTTP only)" "")
 fi
 
-postgres_password=$(grep '^POSTGRES_PASSWORD=' deploy/.env | cut -d '=' -f2-)
-if [ "$postgres_password" = "change-this-password" ] || [ -z "$postgres_password" ]; then
-  postgres_password=$(ask "POSTGRES_PASSWORD" "agomsaaf-change-me")
-  sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$postgres_password|" deploy/.env
-fi
-
 secret_key=$(grep '^SECRET_KEY=' deploy/.env | cut -d '=' -f2-)
 if [ "$secret_key" = "change-this-to-a-strong-secret" ] || [ -z "$secret_key" ]; then
   secret_key=$(ask "SECRET_KEY" "replace-me")
@@ -179,20 +184,32 @@ if [ -z "$web_image" ] || [ "$web_image" = "agomsaaf-web:latest" ]; then
   [ -n "$detected" ] && sed -i "s|^WEB_IMAGE=.*|WEB_IMAGE=$detected|" deploy/.env
 fi
 
+core_services="redis web caddy"
+extra_services=""
+if is_true "$(env_value ENABLE_RSSHUB deploy/.env)"; then
+  extra_services="$extra_services rsshub"
+fi
+if is_true "$(env_value ENABLE_CELERY deploy/.env)"; then
+  extra_services="$extra_services celery_worker celery_beat"
+fi
+
 if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "upgrade" ]; then
   log_info "Starting stack"
-  $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env up -d
+  $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env up -d $core_services $extra_services
 fi
 
 if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "restore-only" ]; then
   if [ "$ACTION" = "restore-only" ]; then
     log_info "Starting data services for restore"
-    $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env up -d postgres redis
+    $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env up -d redis web
   fi
 
-  if [ -f backups/postgres.sql ]; then
-    log_info "Restoring PostgreSQL"
-    cat backups/postgres.sql | $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env exec -T postgres psql -U "$(grep '^POSTGRES_USER=' deploy/.env | cut -d '=' -f2-)" -d "$(grep '^POSTGRES_DB=' deploy/.env | cut -d '=' -f2-)"
+  if [ -f backups/db.sqlite3 ]; then
+    log_info "Restoring SQLite database"
+    web_cid=$($COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env ps -q web)
+    [ -n "$web_cid" ] || die "Web container not found"
+    docker cp backups/db.sqlite3 "$web_cid:/app/data/db.sqlite3"
+    $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env restart web
   fi
 
   if [ -f backups/dump.rdb ]; then

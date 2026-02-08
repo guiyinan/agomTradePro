@@ -92,6 +92,7 @@
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
+| [VPS_BUNDLE_DEPLOYMENT.md](deployment/VPS_BUNDLE_DEPLOYMENT.md) | VPS Bundle 一体化部署与迁移指南（含 Postgres/Redis 迁移） | ✅ 新增 |
 | [DOCKER_DEPLOYMENT.md](deployment/DOCKER_DEPLOYMENT.md) | Docker 部署指南 | 完整 |
 | [postgres_windows_docker.md](deployment/postgres_windows_docker.md) | Windows PostgreSQL Docker 配置 | 完整 |
 | [database_configuration.md](deployment/database_configuration.md) | 数据库配置 | 完整 |
@@ -198,9 +199,10 @@
 3. [plans/implementation-progress-summary.md](plans/implementation-progress-summary.md) - 实施进度
 
 ### 部署运维
-1. [deployment/DOCKER_DEPLOYMENT.md](deployment/DOCKER_DEPLOYMENT.md) - 部署指南
-2. [deployment/database_configuration.md](deployment/database_configuration.md) - 数据库配置
-3. [development/startup-scripts.md](development/startup-scripts.md) - 启动脚本
+1. [deployment/VPS_BUNDLE_DEPLOYMENT.md](deployment/VPS_BUNDLE_DEPLOYMENT.md) - VPS 一体化打包与部署指南
+2. [deployment/DOCKER_DEPLOYMENT.md](deployment/DOCKER_DEPLOYMENT.md) - Docker 部署指南
+3. [deployment/database_configuration.md](deployment/database_configuration.md) - 数据库配置
+4. [development/startup-scripts.md](development/startup-scripts.md) - 启动脚本
 
 ---
 

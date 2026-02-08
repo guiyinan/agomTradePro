@@ -1,23 +1,17 @@
 services:
-  postgres:
-    image: ${POSTGRES_IMAGE:-postgres:15-alpine}
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-agomsaaf}
-      POSTGRES_USER: ${POSTGRES_USER:-agomsaaf}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agomsaaf} -d ${POSTGRES_DB:-agomsaaf}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   redis:
     image: ${REDIS_IMAGE:-redis:7-alpine}
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --maxmemory
+      - ${REDIS_MAXMEMORY:-256mb}
+      - --maxmemory-policy
+      - allkeys-lru
     volumes:
       - redis_data:/data
     healthcheck:
@@ -25,17 +19,16 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+    mem_limit: 300m
 
   web:
     image: ${WEB_IMAGE:?WEB_IMAGE is required}
     restart: unless-stopped
     environment:
       DJANGO_SETTINGS_MODULE: core.settings.production
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      DATABASE_URL: postgresql://${POSTGRES_USER:-agomsaaf}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agomsaaf}
+      DATABASE_URL: sqlite:////app/data/db.sqlite3
       REDIS_URL: redis://redis:6379/0
       SECRET_KEY: ${SECRET_KEY}
       DEBUG: ${DEBUG:-False}
@@ -44,12 +37,13 @@ services:
       FRED_API_KEY: ${FRED_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-120}
     volumes:
+      - sqlite_data:/app/data
       - static_data:/app/staticfiles
       - media_data:/app/media
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
@@ -58,27 +52,31 @@ services:
       timeout: 10s
       retries: 5
       start_period: 20s
+    mem_limit: 700m
 
   celery_worker:
     image: ${WEB_IMAGE:?WEB_IMAGE is required}
     restart: unless-stopped
-    command: ["celery", "-A", "core", "worker", "-l", "info", "--concurrency", "2"]
+    command: ["celery", "-A", "core", "worker", "-l", "info", "--concurrency", "1"]
     environment:
       DJANGO_SETTINGS_MODULE: core.settings.production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-agomsaaf}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agomsaaf}
+      DATABASE_URL: sqlite:////app/data/db.sqlite3
       REDIS_URL: redis://redis:6379/0
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
       SECRET_KEY: ${SECRET_KEY}
       DEBUG: ${DEBUG:-False}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-127.0.0.1,localhost}
+    volumes:
+      - sqlite_data:/app/data
+      - static_data:/app/staticfiles
+      - media_data:/app/media
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
+      web:
+        condition: service_healthy
+    mem_limit: 500m
 
   celery_beat:
     image: ${WEB_IMAGE:?WEB_IMAGE is required}
@@ -86,20 +84,46 @@ services:
     command: ["celery", "-A", "core", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
     environment:
       DJANGO_SETTINGS_MODULE: core.settings.production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-agomsaaf}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agomsaaf}
+      DATABASE_URL: sqlite:////app/data/db.sqlite3
       REDIS_URL: redis://redis:6379/0
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
       SECRET_KEY: ${SECRET_KEY}
       DEBUG: ${DEBUG:-False}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-127.0.0.1,localhost}
+    volumes:
+      - sqlite_data:/app/data
+      - static_data:/app/staticfiles
+      - media_data:/app/media
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
+      web:
+        condition: service_healthy
+    mem_limit: 300m
+
+  rsshub:
+    image: ${RSSHUB_IMAGE:-diygod/rsshub:latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      CACHE_TYPE: redis
+      REDIS_URL: redis://redis:6379/2
+      LISTEN_INADDR_ANY: "1"
+      PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "1"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"require('http').get('http://127.0.0.1:1200/healthz', r => process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1));\"",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    mem_limit: 500m
 
   caddy:
     image: ${CADDY_IMAGE:-caddy:2-alpine}
@@ -116,9 +140,10 @@ services:
     depends_on:
       web:
         condition: service_healthy
+    mem_limit: 200m
 
 volumes:
-  pg_data:
+  sqlite_data:
   redis_data:
   static_data:
   media_data:

@@ -10,10 +10,10 @@ $ErrorActionPreference = 'Stop'
 
 if (Test-Path "$PSScriptRoot/common.ps1") {
     . "$PSScriptRoot/common.ps1"
-} elseif (Test-Path "$PSScriptRoot/lib/common.ps1") {
-    . "$PSScriptRoot/lib/common.ps1"
 } elseif (Test-Path "$PSScriptRoot/shared/common.ps1") {
     . "$PSScriptRoot/shared/common.ps1"
+} elseif (Test-Path "$PSScriptRoot/lib/common.ps1") {
+    . "$PSScriptRoot/lib/common.ps1"
 } else {
     throw "common.ps1 not found"
 }
@@ -43,6 +43,24 @@ function Invoke-Compose {
     } else {
         & $ComposeCmd[0] @Args
     }
+}
+
+function Get-EnvValue {
+    param(
+        [string]$Name,
+        [string]$Text
+    )
+    $regex = [regex]::Match($Text, "(?m)^$Name=(.*)$")
+    if ($regex.Success) {
+        return $regex.Groups[1].Value.Trim()
+    }
+    return ""
+}
+
+function Test-Truthy {
+    param([string]$Value)
+    $v = ($Value ?? "").ToLowerInvariant()
+    return @('1','true','yes','on').Contains($v)
 }
 
 if ($Action -eq 'menu') {
@@ -137,16 +155,6 @@ if ([string]::IsNullOrWhiteSpace($domain)) {
     $domain = Read-Host "Domain (blank for HTTP only)"
 }
 
-if ($envText -match "POSTGRES_PASSWORD=(.*)") {
-    $pgPassword = $Matches[1].Trim()
-} else {
-    $pgPassword = ""
-}
-if ([string]::IsNullOrWhiteSpace($pgPassword) -or $pgPassword -eq 'change-this-password') {
-    $pgPassword = Read-Default -Prompt "POSTGRES_PASSWORD" -Default "agomsaaf-change-me"
-    $envText = $envText -replace "(?m)^POSTGRES_PASSWORD=.*$", "POSTGRES_PASSWORD=$pgPassword"
-}
-
 if ($envText -match "SECRET_KEY=(.*)") {
     $secret = $Matches[1].Trim()
 } else {
@@ -179,22 +187,36 @@ $envText | Set-Content "deploy/.env"
 
 (Get-Content "docker/Caddyfile.template" -Raw).Replace("__SITE_ADDRESS__", $siteAddress) | Set-Content "docker/Caddyfile"
 
+$services = @('redis', 'web', 'caddy')
+if (Test-Truthy (Get-EnvValue -Name 'ENABLE_RSSHUB' -Text $envText)) {
+    $services += 'rsshub'
+}
+if (Test-Truthy (Get-EnvValue -Name 'ENABLE_CELERY' -Text $envText)) {
+    $services += 'celery_worker'
+    $services += 'celery_beat'
+}
+
 if ($Action -in @('fresh', 'upgrade')) {
     Write-Info "Starting stack"
-    Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','up','-d')
+    $upArgs = @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','up','-d') + $services
+    Invoke-Compose -Args $upArgs
 }
 
 if ($Action -in @('fresh', 'restore-only')) {
     if ($Action -eq 'restore-only') {
         Write-Info "Starting data services for restore"
-        Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','up','-d','postgres','redis')
+        Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','up','-d','redis','web')
     }
 
-    if (Test-Path "backups/postgres.sql") {
-        Write-Info "Restoring PostgreSQL"
-        $pgUser = ((Get-Content deploy/.env | Where-Object { $_ -match '^POSTGRES_USER=' }) -replace '^POSTGRES_USER=', '')
-        $pgDb = ((Get-Content deploy/.env | Where-Object { $_ -match '^POSTGRES_DB=' }) -replace '^POSTGRES_DB=', '')
-        Get-Content "backups/postgres.sql" | Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','exec','-T','postgres','psql','-U',$pgUser,'-d',$pgDb)
+    if (Test-Path "backups/db.sqlite3") {
+        Write-Info "Restoring SQLite database"
+        $webCid = Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','ps','-q','web')
+        $webCid = ($webCid | Out-String).Trim()
+        if ([string]::IsNullOrWhiteSpace($webCid)) {
+            Throw-Err "Web container not found"
+        }
+        docker cp "backups/db.sqlite3" "$webCid`:/app/data/db.sqlite3"
+        Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','restart','web')
     }
 
     if (Test-Path "backups/dump.rdb") {

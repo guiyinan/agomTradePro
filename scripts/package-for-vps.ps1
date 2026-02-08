@@ -2,12 +2,10 @@ param(
     [string]$Tag,
     [string]$OutputDir = "dist",
     [string]$WebImageName = "agomsaaf-web",
-    [string]$PostgresImage = "postgres:15-alpine",
     [string]$RedisImage = "redis:7-alpine",
     [string]$CaddyImage = "caddy:2-alpine",
-    [string]$PostgresContainer,
-    [string]$PostgresDb = "agomsaaf",
-    [string]$PostgresUser = "agomsaaf",
+    [string]$RsshubImage = "diygod/rsshub:latest",
+    [string]$SqliteFile = "db.sqlite3",
     [string]$RedisContainer,
     [switch]$SkipData,
     [switch]$SkipRedisData
@@ -43,36 +41,23 @@ Write-Info "Building web image: $webImage"
 docker build -f docker/Dockerfile.prod -t $webImage .
 
 Write-Info "Pulling dependency images"
-docker pull $PostgresImage | Out-Null
 docker pull $RedisImage | Out-Null
 docker pull $CaddyImage | Out-Null
+docker pull $RsshubImage | Out-Null
 
 Write-Info "Saving images to tar"
 docker save -o (Join-Path $imagesDir "web.tar") $webImage
-docker save -o (Join-Path $imagesDir "postgres.tar") $PostgresImage
 docker save -o (Join-Path $imagesDir "redis.tar") $RedisImage
 docker save -o (Join-Path $imagesDir "caddy.tar") $CaddyImage
+docker save -o (Join-Path $imagesDir "rsshub.tar") $RsshubImage
 
 if (-not $SkipData) {
-    if ([string]::IsNullOrWhiteSpace($PostgresContainer)) {
-        $candidate = docker ps --format "{{.Names}}" | Where-Object { $_ -match "postgres" } | Select-Object -First 1
-        if (-not [string]::IsNullOrWhiteSpace($candidate)) {
-            $PostgresContainer = $candidate
-        }
+    if (-not (Test-Path $SqliteFile)) {
+        Throw-Err "SQLite file not found: $SqliteFile"
     }
-
-    if ([string]::IsNullOrWhiteSpace($PostgresContainer)) {
-        $PostgresContainer = Read-Default -Prompt "Postgres container name" -Default "agomsaaf_postgres"
-    }
-
-    $pgBackup = Join-Path $backupsDir "postgres.sql"
-    Write-Info "Dumping PostgreSQL from container: $PostgresContainer"
-    $dumpCmd = "docker exec $PostgresContainer pg_dump -U $PostgresUser -d $PostgresDb"
-    cmd /c "$dumpCmd > \"$pgBackup\""
-
-    if (-not (Test-Path $pgBackup)) {
-        Throw-Err "PostgreSQL backup was not created"
-    }
+    $sqliteBackup = Join-Path $backupsDir "db.sqlite3"
+    Write-Info "Backing up SQLite file: $SqliteFile"
+    Copy-Item $SqliteFile $sqliteBackup -Force
 }
 
 if ((-not $SkipData) -and (-not $SkipRedisData)) {
@@ -110,9 +95,9 @@ $manifest = [ordered]@{
     tag = $Tag
     images = [ordered]@{
         web = $webImage
-        postgres = $PostgresImage
         redis = $RedisImage
         caddy = $CaddyImage
+        rsshub = $RsshubImage
     }
     checksums = @()
 }

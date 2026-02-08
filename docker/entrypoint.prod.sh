@@ -32,7 +32,6 @@ while True:
 PY
 }
 
-wait_for_port "${POSTGRES_HOST:-postgres}" "${POSTGRES_PORT:-5432}" "postgres"
 wait_for_port "${REDIS_HOST:-redis}" "${REDIS_PORT:-6379}" "redis"
 
 python manage.py migrate --noinput
@@ -57,6 +56,13 @@ if not User.objects.filter(username=username).exists():
 else:
     print("Superuser already exists")
 PY
+fi
+
+if [ "$#" -eq 0 ] || [ "$1" = "gunicorn" ]; then
+  exec gunicorn core.wsgi:application \
+    --bind 0.0.0.0:8000 \
+    --workers "${GUNICORN_WORKERS:-2}" \
+    --timeout "${GUNICORN_TIMEOUT:-120}"
 fi
 
 exec "$@"

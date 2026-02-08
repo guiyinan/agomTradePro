@@ -18,11 +18,12 @@ bash scripts/deploy-on-vps.sh --bundle ./agomsaaf-vps-bundle-<tag>.tar.gz
 ## What is included
 
 - Docker image tars for app + postgres + redis + caddy
+- Docker image tars for app + redis + caddy + rsshub
 - `docker/docker-compose.vps.yml`
 - `docker/Caddyfile.template`
 - `.env` template
 - Optional backups:
-  - `backups/postgres.sql`
+  - `backups/db.sqlite3`
   - `backups/dump.rdb`
 - `deploy/manifest.json` with SHA-256 checksums
 
@@ -31,3 +32,5 @@ bash scripts/deploy-on-vps.sh --bundle ./agomsaaf-vps-bundle-<tag>.tar.gz
 - Scripts are ASCII-only.
 - Domain is optional. If omitted, Caddy is configured for HTTP only (`:80`).
 - App runtime uses `core.settings.production`.
+- `ENABLE_RSSHUB=true` enables self-hosted RSSHub service in the stack.
+- `ENABLE_CELERY=false` is recommended on 4G VPS, enable only when needed.
