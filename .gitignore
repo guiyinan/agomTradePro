@@ -1,5 +1,6 @@
 # Environment
 venv/
+agomsaaf/
 .env
 *.sqlite3
 db.sqlite3

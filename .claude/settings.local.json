@@ -103,7 +103,8 @@
       "Bash(__NEW_LINE_495c747339816a6b__ echo \"5. Decision Rhythm Quota Page:\")",
       "Bash(__NEW_LINE_495c747339816a6b__ echo \"6. Decision Rhythm Config Page:\")",
       "Bash(__NEW_LINE_495c747339816a6b__ echo \"\")",
-      "Bash(__NEW_LINE_495c747339816a6b__ echo \"2. Decision Rhythm Update Quota API:\")"
+      "Bash(__NEW_LINE_495c747339816a6b__ echo \"2. Decision Rhythm Update Quota API:\")",
+      "Bash(conda env list:*)"
     ]
   }
 }

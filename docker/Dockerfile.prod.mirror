@@ -1,4 +1,4 @@
-FROM python:3.11-slim AS builder
+FROM docker.1ms.run/library/python:3.11-slim AS builder
 
 WORKDIR /app
 
@@ -50,7 +50,7 @@ RUN set -eux; \
     echo "Primary index: $primary_url"; \
     (pip_try "$primary_url" || pip_try "$secondary_url" || pip_try "$TUNA_URL" || pip_try "$PYPI_URL")
 
-FROM python:3.11-slim
+FROM docker.1ms.run/library/python:3.11-slim
 
 WORKDIR /app
 

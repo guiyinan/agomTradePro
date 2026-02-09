@@ -48,4 +48,4 @@ bash scripts/vps-restore.sh --target-dir /opt/agomsaaf/current --backup-dir /opt
 - App runtime uses `core.settings.production`.
 - `ENABLE_RSSHUB=true` enables self-hosted RSSHub service in the stack.
 - `ENABLE_CELERY=false` is recommended on 4G VPS, enable only when needed.
-- Local build/download cache is stored in `.cache/docker-buildx` (gitignored).
+- Local build/download cache is stored in `.cache/pip-wheels` (gitignored).

@@ -32,32 +32,58 @@ $backupsDir = Join-Path $bundleRoot "backups"
 $deployDir = Join-Path $bundleRoot "deploy"
 $dockerDir = Join-Path $bundleRoot "docker"
 $scriptsDir = Join-Path $bundleRoot "scripts"
-$cacheRoot = Join-Path $ProjectRoot ".cache/docker-buildx"
-$cacheNew = Join-Path $ProjectRoot ".cache/docker-buildx-new"
+$wheelCache = Join-Path $ProjectRoot ".cache/pip-wheels"
 
 Write-Info "Preparing bundle workspace: $bundleRoot"
 New-Item -ItemType Directory -Force $imagesDir, $backupsDir, $deployDir, $dockerDir, $scriptsDir | Out-Null
 New-Item -ItemType Directory -Force (Join-Path $ProjectRoot ".cache") | Out-Null
-if (-not (Test-Path $cacheRoot)) {
-    New-Item -ItemType Directory -Force $cacheRoot | Out-Null
+if (-not (Test-Path $wheelCache)) {
+    New-Item -ItemType Directory -Force $wheelCache | Out-Null
 }
+
+Write-Info "Warming local wheel cache: $wheelCache"
+
+# Detect and activate virtual environment
+$pythonCmd = "python"
+$venvPath = Join-Path $ProjectRoot "venv"
+$condaEnv = $env:CONDA_DEFAULT_ENV
+
+if (-not [string]::IsNullOrWhiteSpace($condaEnv)) {
+    Write-Info "Using conda environment: $condaEnv"
+} elseif (Test-Path (Join-Path $ProjectRoot ".python-version")) {
+    # Check for pyenv
+    try {
+        $pyenvVersion = Get-Content (Join-Path $ProjectRoot ".python-version") -ErrorAction SilentlyContinue
+        if ($pyenvVersion) {
+            Write-Info "Detected pyenv version: $pyenvVersion"
+        }
+    } catch {}
+}
+
+# Try to find and use the agomsaaf virtual environment
+$possibleVenvPaths = @(
+    (Join-Path $ProjectRoot "agomsaaf\Scripts\python.exe"),
+    (Join-Path $ProjectRoot "venv\Scripts\python.exe"),
+    (Join-Path $ProjectRoot ".venv\Scripts\python.exe"),
+    (Join-Path $env:USERPROFILE "miniconda3\envs\agomsaaf\python.exe"),
+    (Join-Path $env:USERPROFILE "anaconda3\envs\agomsaaf\python.exe")
+)
+
+foreach ($path in $possibleVenvPaths) {
+    if (Test-Path $path) {
+        $pythonCmd = $path
+        Write-Info "Found virtual environment python: $pythonCmd"
+        break
+    }
+}
+
+& $pythonCmd -m pip download --retries 25 --timeout 180 -r requirements.txt -d $wheelCache
 
 $webImage = "$WebImageName`:$Tag"
 Write-Info "Building web image: $webImage"
-if (Test-Path $cacheNew) {
-    Remove-Item -Recurse -Force $cacheNew
-}
-docker buildx build --load -f docker/Dockerfile.prod -t $webImage `
-    --cache-from "type=local,src=.cache/docker-buildx" `
-    --cache-to "type=local,dest=.cache/docker-buildx-new,mode=max" .
+docker build -f docker/Dockerfile.prod -t $webImage .
 if ($LASTEXITCODE -ne 0) {
-    Throw-Err "docker buildx build failed"
-}
-if (Test-Path $cacheNew) {
-    if (Test-Path $cacheRoot) {
-        Remove-Item -Recurse -Force $cacheRoot
-    }
-    Move-Item -Path $cacheNew -Destination $cacheRoot -Force
+    Throw-Err "docker image build failed"
 }
 
 Write-Info "Pulling dependency images"

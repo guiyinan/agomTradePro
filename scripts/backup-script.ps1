@@ -13,6 +13,7 @@ $defaultExcludes = @(
     @{ Name = "__pycache__"; Type = "dir"; Enabled = $true },
     @{ Name = ".venv"; Type = "dir"; Enabled = $true },
     @{ Name = "venv"; Type = "dir"; Enabled = $true },
+    @{ Name = "agomsaaf"; Type = "dir"; Enabled = $true },
     @{ Name = "node_modules"; Type = "dir"; Enabled = $true },
     @{ Name = ".vscode"; Type = "dir"; Enabled = $true },
     @{ Name = ".idea"; Type = "dir"; Enabled = $true },

@@ -57,3 +57,25 @@ docker-compose*.yml
 # Other
 *.bak
 nul
+
+# Cache
+.cache/
+*.cache
+
+# Scripts (not needed in container)
+scripts/*.ps1
+scripts/*.sh
+scripts/dev.bat
+
+# Distribution files
+dist/
+*.tar.gz
+
+# Temporary files
+*.tmp
+*.temp
+
+# Lock files (will be regenerated)
+*.lock
+poetry.lock
+Pipfile.lock
