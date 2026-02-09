@@ -32,13 +32,33 @@ $backupsDir = Join-Path $bundleRoot "backups"
 $deployDir = Join-Path $bundleRoot "deploy"
 $dockerDir = Join-Path $bundleRoot "docker"
 $scriptsDir = Join-Path $bundleRoot "scripts"
+$cacheRoot = Join-Path $ProjectRoot ".cache/docker-buildx"
+$cacheNew = Join-Path $ProjectRoot ".cache/docker-buildx-new"
 
 Write-Info "Preparing bundle workspace: $bundleRoot"
 New-Item -ItemType Directory -Force $imagesDir, $backupsDir, $deployDir, $dockerDir, $scriptsDir | Out-Null
+New-Item -ItemType Directory -Force (Join-Path $ProjectRoot ".cache") | Out-Null
+if (-not (Test-Path $cacheRoot)) {
+    New-Item -ItemType Directory -Force $cacheRoot | Out-Null
+}
 
 $webImage = "$WebImageName`:$Tag"
 Write-Info "Building web image: $webImage"
-docker build -f docker/Dockerfile.prod -t $webImage .
+if (Test-Path $cacheNew) {
+    Remove-Item -Recurse -Force $cacheNew
+}
+docker buildx build --load -f docker/Dockerfile.prod -t $webImage `
+    --cache-from "type=local,src=.cache/docker-buildx" `
+    --cache-to "type=local,dest=.cache/docker-buildx-new,mode=max" .
+if ($LASTEXITCODE -ne 0) {
+    Throw-Err "docker buildx build failed"
+}
+if (Test-Path $cacheNew) {
+    if (Test-Path $cacheRoot) {
+        Remove-Item -Recurse -Force $cacheRoot
+    }
+    Move-Item -Path $cacheNew -Destination $cacheRoot -Force
+}
 
 Write-Info "Pulling dependency images"
 docker pull $RedisImage | Out-Null
@@ -87,6 +107,10 @@ Copy-Item deploy/.env.vps.example (Join-Path $deployDir ".env.vps.example") -For
 Copy-Item deploy/README_DEPLOY.md (Join-Path $deployDir "README_DEPLOY.md") -Force
 Copy-Item scripts/deploy-on-vps.sh (Join-Path $scriptsDir "deploy-on-vps.sh") -Force
 Copy-Item scripts/deploy-on-vps.ps1 (Join-Path $scriptsDir "deploy-on-vps.ps1") -Force
+Copy-Item scripts/vps-backup.sh (Join-Path $scriptsDir "vps-backup.sh") -Force
+Copy-Item scripts/vps-backup.ps1 (Join-Path $scriptsDir "vps-backup.ps1") -Force
+Copy-Item scripts/vps-restore.sh (Join-Path $scriptsDir "vps-restore.sh") -Force
+Copy-Item scripts/vps-restore.ps1 (Join-Path $scriptsDir "vps-restore.ps1") -Force
 Copy-Item scripts/shared/common.sh (Join-Path $scriptsDir "common.sh") -Force
 Copy-Item scripts/shared/common.ps1 (Join-Path $scriptsDir "common.ps1") -Force
 

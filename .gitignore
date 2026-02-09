@@ -54,6 +54,9 @@ Thumbs.db
 # Logs
 *.log
 
+# Build / download cache (local only)
+.cache/
+
 # Django
 media/
 # static/ - 开发源代码目录，需要提交
@@ -76,4 +79,3 @@ sqlite-backup-utf8.json
 
 # Celery beat schedule files
 celerybeat-schedule*
-

@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 FROM python:3.11-slim AS builder
 
 WORKDIR /app
@@ -13,9 +14,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt /tmp/requirements.txt
 
-RUN set -eux; \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    set -eux; \
     ALIYUN_URL="https://mirrors.aliyun.com/pypi/simple/"; \
     PYPI_URL="https://pypi.org/simple/"; \
+    TUNA_URL="https://pypi.tuna.tsinghua.edu.cn/simple/"; \
     test_url() { \
       url="$1"; \
       total=0; ok=0; \
@@ -27,15 +30,22 @@ RUN set -eux; \
       done; \
       if [ "$ok" -eq 0 ]; then echo "9999"; else awk "BEGIN {print $total / $ok}"; fi; \
     }; \
+    pip_try() { \
+      idx="$1"; \
+      echo "Trying pip index: $idx"; \
+      PIP_INDEX_URL="$idx" pip install --retries 25 --timeout 180 --user -r /tmp/requirements.txt; \
+    }; \
     aliyun_time=$(test_url "$ALIYUN_URL"); \
     pypi_time=$(test_url "$PYPI_URL"); \
     echo "Aliyun latency: ${aliyun_time}s"; \
     echo "PyPI latency: ${pypi_time}s"; \
-    chosen_url="$PYPI_URL"; \
-    if awk "BEGIN {exit !($aliyun_time < $pypi_time)}"; then chosen_url="$ALIYUN_URL"; fi; \
-    echo "Using index: $chosen_url"; \
-    PIP_INDEX_URL="$chosen_url" pip install --no-cache-dir --user -r /tmp/requirements.txt || \
-    PIP_INDEX_URL="$PYPI_URL" pip install --no-cache-dir --user -r /tmp/requirements.txt
+    primary_url="$PYPI_URL"; \
+    secondary_url="$ALIYUN_URL"; \
+    if awk "BEGIN {exit !($aliyun_time < $pypi_time)}"; then \
+      primary_url="$ALIYUN_URL"; secondary_url="$PYPI_URL"; \
+    fi; \
+    echo "Primary index: $primary_url"; \
+    (pip_try "$primary_url" || pip_try "$secondary_url" || pip_try "$TUNA_URL" || pip_try "$PYPI_URL")
 
 FROM python:3.11-slim
 

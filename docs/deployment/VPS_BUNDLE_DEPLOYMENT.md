@@ -242,7 +242,63 @@ Rollback approach:
 
 ---
 
-## 11. Troubleshooting
+## 11. Backup and Restore
+
+### 11.1 Backup (Linux)
+
+Run on VPS:
+
+```bash
+bash /opt/agomsaaf/current/scripts/vps-backup.sh \
+  --target-dir /opt/agomsaaf/current \
+  --backup-dir /opt/agomsaaf/backups \
+  --keep-days 14
+```
+
+What it backs up:
+
+1. SQLite database from `web` container (`/app/data/db.sqlite3`).
+2. Redis snapshot (`dump.rdb`).
+3. Deployment metadata (`deploy/.env`, compose file, optional Caddyfile).
+4. SHA-256 manifest file for backup integrity.
+
+### 11.2 Restore (Linux)
+
+Restore latest backup:
+
+```bash
+bash /opt/agomsaaf/current/scripts/vps-restore.sh \
+  --target-dir /opt/agomsaaf/current \
+  --backup-dir /opt/agomsaaf/backups
+```
+
+Restore specific files:
+
+```bash
+bash /opt/agomsaaf/current/scripts/vps-restore.sh \
+  --target-dir /opt/agomsaaf/current \
+  --backup-dir /opt/agomsaaf/backups \
+  --sqlite-file /opt/agomsaaf/backups/sqlite/db-20260208-130000.sqlite3.gz \
+  --redis-file /opt/agomsaaf/backups/redis/dump-20260208-130000.rdb.gz
+```
+
+### 11.3 PowerShell on Linux (optional)
+
+Backup:
+
+```powershell
+pwsh /opt/agomsaaf/current/scripts/vps-backup.ps1 -TargetDir /opt/agomsaaf/current -BackupDir /opt/agomsaaf/backups -KeepDays 14
+```
+
+Restore:
+
+```powershell
+pwsh /opt/agomsaaf/current/scripts/vps-restore.ps1 -TargetDir /opt/agomsaaf/current -BackupDir /opt/agomsaaf/backups
+```
+
+---
+
+## 12. Troubleshooting
 
 ### Bundle extraction fails
 
@@ -270,7 +326,7 @@ Rollback approach:
 
 ---
 
-## 12. Security Checklist
+## 13. Security Checklist
 
 1. Replace default `SECRET_KEY`.
 2. Protect and back up `db.sqlite3` regularly.
