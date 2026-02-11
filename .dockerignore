@@ -48,6 +48,8 @@ doc/
 .coverage
 htmlcov/
 .tox/
+tests/
+.mypy_cache/
 
 # Docker
 Dockerfile
@@ -61,6 +63,8 @@ nul
 # Cache
 .cache/
 *.cache
+# But keep pip wheels for faster builds
+!.cache/pip-wheels/
 
 # Scripts (not needed in container)
 scripts/*.ps1
@@ -70,6 +74,14 @@ scripts/dev.bat
 # Distribution files
 dist/
 *.tar.gz
+
+# Frontend and local tooling artifacts
+node_modules/
+screenshots/
+.claude/
+
+# Project docs not required at runtime
+docs/
 
 # Temporary files
 *.tmp

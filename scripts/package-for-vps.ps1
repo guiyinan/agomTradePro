@@ -8,11 +8,52 @@ param(
     [string]$SqliteFile = "db.sqlite3",
     [string]$RedisContainer,
     [switch]$SkipData,
-    [switch]$SkipRedisData
+    [switch]$SkipRedisData,
+    [switch]$DisableBuildKit,
+    [switch]$UseWslContext,
+    [switch]$NoStageContext,
+    [switch]$Help
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+function Show-Help {
+    @"
+Usage:
+  ./scripts/package-for-vps.ps1 [options]
+
+Options:
+  -Tag <string>               Image/bundle tag. Default: current timestamp (yyyyMMddHHmmss)
+  -OutputDir <string>         Bundle output directory. Default: dist
+  -WebImageName <string>      Web image repository name. Default: agomsaaf-web
+  -RedisImage <string>        Redis image to bundle. Default: redis:7-alpine
+  -CaddyImage <string>        Caddy image to bundle. Default: caddy:2-alpine
+  -RsshubImage <string>       RSSHub image to bundle. Default: diygod/rsshub:latest
+  -SqliteFile <string>        SQLite file path. Default: db.sqlite3
+  -RedisContainer <string>    Redis container name used for snapshot export (optional, explicit only)
+  -SkipData                   Skip backing up SQLite data
+  -SkipRedisData              Skip backing up Redis RDB data
+  -DisableBuildKit            Disable BuildKit and use legacy docker build mode
+  -UseWslContext              Build Docker image using temporary WSL context
+  -NoStageContext             Disable local staged build context (uses project root directly)
+  -Help, -h, --help           Show this help and exit
+
+Examples:
+  ./scripts/package-for-vps.ps1
+  ./scripts/package-for-vps.ps1 -Tag 20260210
+  ./scripts/package-for-vps.ps1 -UseWslContext
+  ./scripts/package-for-vps.ps1 -NoStageContext
+  ./scripts/package-for-vps.ps1 -DisableBuildKit
+  ./scripts/package-for-vps.ps1 -RedisContainer agomsaaf_redis
+  ./scripts/package-for-vps.ps1 -SkipData -SkipRedisData
+"@ | Write-Host
+}
+
+if ($Help -or $args -contains "-h" -or $args -contains "--help") {
+    Show-Help
+    exit 0
+}
 
 . "$PSScriptRoot/shared/common.ps1"
 
@@ -32,16 +73,9 @@ $backupsDir = Join-Path $bundleRoot "backups"
 $deployDir = Join-Path $bundleRoot "deploy"
 $dockerDir = Join-Path $bundleRoot "docker"
 $scriptsDir = Join-Path $bundleRoot "scripts"
-$wheelCache = Join-Path $ProjectRoot ".cache/pip-wheels"
 
 Write-Info "Preparing bundle workspace: $bundleRoot"
 New-Item -ItemType Directory -Force $imagesDir, $backupsDir, $deployDir, $dockerDir, $scriptsDir | Out-Null
-New-Item -ItemType Directory -Force (Join-Path $ProjectRoot ".cache") | Out-Null
-if (-not (Test-Path $wheelCache)) {
-    New-Item -ItemType Directory -Force $wheelCache | Out-Null
-}
-
-Write-Info "Warming local wheel cache: $wheelCache"
 
 # Detect and activate virtual environment
 $pythonCmd = "python"
@@ -60,30 +94,146 @@ if (-not [string]::IsNullOrWhiteSpace($condaEnv)) {
     } catch {}
 }
 
-# Try to find and use the agomsaaf virtual environment
-$possibleVenvPaths = @(
-    (Join-Path $ProjectRoot "agomsaaf\Scripts\python.exe"),
-    (Join-Path $ProjectRoot "venv\Scripts\python.exe"),
-    (Join-Path $ProjectRoot ".venv\Scripts\python.exe"),
-    (Join-Path $env:USERPROFILE "miniconda3\envs\agomsaaf\python.exe"),
-    (Join-Path $env:USERPROFILE "anaconda3\envs\agomsaaf\python.exe")
-)
+$webImage = "$WebImageName`:$Tag"
+$buildContext = "."
+$wslBuildDir = $null
+$stageBuildDir = $null
 
-foreach ($path in $possibleVenvPaths) {
-    if (Test-Path $path) {
-        $pythonCmd = $path
-        Write-Info "Found virtual environment python: $pythonCmd"
-        break
+if ($UseWslContext) {
+    try {
+        $wslDistros = @(
+            (& wsl.exe -l -q 2>$null) |
+            ForEach-Object { ($_ -replace "`0", "").Trim() } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and $_ -notin @("docker-desktop", "docker-desktop-data") }
+        )
+
+        if ($wslDistros.Count -gt 0) {
+            $wslDistro = $wslDistros[0]
+            $wslBuildDir = "/tmp/agomsaaf-build-$Tag"
+            $wslBuildDirEscaped = $wslBuildDir.Replace("'", "'\''")
+            $uncBuildContext = "\\wsl$\$wslDistro" + ($wslBuildDir -replace "/", "\")
+
+            Write-Info "Preparing WSL build context: ${wslDistro}:$wslBuildDir"
+            wsl.exe -d $wslDistro -- sh -lc "rm -rf '$wslBuildDirEscaped' && mkdir -p '$wslBuildDirEscaped'"
+            if ($LASTEXITCODE -ne 0) {
+                Throw-Err "failed to prepare WSL build directory: ${wslDistro}:$wslBuildDir"
+            }
+
+            $robocopyArgs = @(
+                $ProjectRoot,
+                $uncBuildContext,
+                "/MIR",
+                "/FFT",
+                "/R:2",
+                "/W:1",
+                "/NFL",
+                "/NDL",
+                "/NJH",
+                "/NJS",
+                "/NP",
+                "/XD",
+                ".git",
+                "node_modules",
+                "dist",
+                "htmlcov",
+                ".pytest_cache",
+                ".mypy_cache",
+                ".claude",
+                "screenshots",
+                "docs",
+                "doc",
+                "venv",
+                "env",
+                "ENV",
+                "agomsaaf",
+                "staticfiles",
+                "media"
+            )
+
+            Write-Info "Syncing project files to WSL temp context"
+            & robocopy @robocopyArgs | Out-Null
+            if ($LASTEXITCODE -gt 7) {
+                Throw-Err "failed to sync files to WSL build context"
+            }
+
+            $buildContext = $uncBuildContext
+            Write-Info "Using WSL build context: $buildContext"
+        } else {
+            Write-Info "No usable WSL distro found; using local build context"
+        }
+    } catch {
+        Write-Info "WSL staging unavailable; using local build context"
+    }
+} else {
+    if ($NoStageContext) {
+        Write-Info "Using local build context"
+    } else {
+        $stageBuildDir = Join-Path $env:TEMP "agomsaaf-build-$Tag"
+        Write-Info "Preparing local staged build context: $stageBuildDir"
+        New-Item -ItemType Directory -Force $stageBuildDir | Out-Null
+
+        $robocopyArgs = @(
+            $ProjectRoot,
+            $stageBuildDir,
+            "/MIR",
+            "/FFT",
+            "/R:2",
+            "/W:1",
+            "/NFL",
+            "/NDL",
+            "/NJH",
+            "/NJS",
+            "/NP",
+            "/XD",
+            ".git",
+            "node_modules",
+            "dist",
+            "htmlcov",
+            ".pytest_cache",
+            ".mypy_cache",
+            ".claude",
+            "screenshots",
+            "docs",
+            "doc",
+            "venv",
+            "env",
+            "ENV",
+            "agomsaaf",
+            "staticfiles",
+            "media"
+        )
+
+        Write-Info "Syncing project files to local staged context"
+        & robocopy @robocopyArgs | Out-Null
+        if ($LASTEXITCODE -gt 7) {
+            Throw-Err "failed to sync files to local staged build context"
+        }
+
+        $buildContext = $stageBuildDir
+        Write-Info "Using local staged build context: $buildContext"
     }
 }
 
-& $pythonCmd -m pip download --retries 25 --timeout 180 -r requirements.txt -d $wheelCache
-
-$webImage = "$WebImageName`:$Tag"
-Write-Info "Building web image: $webImage"
-docker build -f docker/Dockerfile.prod -t $webImage .
-if ($LASTEXITCODE -ne 0) {
-    Throw-Err "docker image build failed"
+if ($DisableBuildKit) {
+    Write-Info "Building web image: $webImage (legacy builder, BuildKit disabled)"
+    $env:DOCKER_BUILDKIT = "0"
+    docker build -f docker/Dockerfile.prod -t $webImage $buildContext
+    if ($LASTEXITCODE -ne 0) {
+        Throw-Err "docker image build failed (legacy builder mode)"
+    }
+} else {
+    Write-Info "Building web image: $webImage (with BuildKit cache)"
+    $env:DOCKER_BUILDKIT = "1"
+    # --compress is deprecated with BuildKit, use --output instead for faster builds
+    docker build --build-arg BUILDKIT_INLINE_CACHE=1 --progress=plain -f docker/Dockerfile.prod -t $webImage $buildContext
+    if ($LASTEXITCODE -ne 0) {
+        Write-Info "BuildKit build failed, retrying with legacy builder (DOCKER_BUILDKIT=0)"
+        $env:DOCKER_BUILDKIT = "0"
+        docker build -f docker/Dockerfile.prod -t $webImage $buildContext
+        if ($LASTEXITCODE -ne 0) {
+            Throw-Err "docker image build failed (BuildKit and legacy builder both failed)"
+        }
+    }
 }
 
 Write-Info "Pulling dependency images"
@@ -108,20 +258,49 @@ if (-not $SkipData) {
 
 if ((-not $SkipData) -and (-not $SkipRedisData)) {
     if ([string]::IsNullOrWhiteSpace($RedisContainer)) {
-        $candidate = docker ps --format "{{.Names}}" | Where-Object { $_ -match "redis" } | Select-Object -First 1
-        if (-not [string]::IsNullOrWhiteSpace($candidate)) {
-            $RedisContainer = $candidate
+        Write-Info "Skipping Redis data backup (no -RedisContainer provided). Redis image is still bundled for VPS."
+    } else {
+        Write-Info "Creating Redis snapshot from container: $RedisContainer"
+
+        $lastSaveBeforeRaw = (& docker exec $RedisContainer redis-cli LASTSAVE 2>$null | Out-String).Trim()
+        [int64]$lastSaveBefore = 0
+        if ($lastSaveBeforeRaw -match '^\d+$') {
+            $lastSaveBefore = [int64]$lastSaveBeforeRaw
         }
-    }
 
-    if ([string]::IsNullOrWhiteSpace($RedisContainer)) {
-        $RedisContainer = Read-Default -Prompt "Redis container name" -Default "agomsaaf_redis"
-    }
+        docker exec $RedisContainer redis-cli BGSAVE | Out-Null
 
-    Write-Info "Creating Redis snapshot from container: $RedisContainer"
-    docker exec $RedisContainer redis-cli BGSAVE | Out-Null
-    Start-Sleep -Seconds 2
-    docker cp "$RedisContainer`:/data/dump.rdb" (Join-Path $backupsDir "dump.rdb")
+        $deadline = (Get-Date).AddMinutes(2)
+        $snapshotReady = $false
+        while ((Get-Date) -lt $deadline) {
+            Start-Sleep -Milliseconds 1000
+
+            $lastSaveNowRaw = (& docker exec $RedisContainer redis-cli LASTSAVE 2>$null | Out-String).Trim()
+            if (-not ($lastSaveNowRaw -match '^\d+$')) {
+                continue
+            }
+
+            $persistenceInfo = (& docker exec $RedisContainer redis-cli INFO persistence 2>$null | Out-String)
+            $isSaving = $true
+            foreach ($line in ($persistenceInfo -split "`r?`n")) {
+                if ($line -match '^rdb_bgsave_in_progress:(\d+)$') {
+                    $isSaving = ($Matches[1] -eq '1')
+                    break
+                }
+            }
+
+            if ((-not $isSaving) -and ([int64]$lastSaveNowRaw -gt $lastSaveBefore)) {
+                $snapshotReady = $true
+                break
+            }
+        }
+
+        if (-not $snapshotReady) {
+            Throw-Err "timed out waiting for Redis BGSAVE to complete: $RedisContainer"
+        }
+
+        docker cp "$RedisContainer`:/data/dump.rdb" (Join-Path $backupsDir "dump.rdb")
+    }
 }
 
 Write-Info "Copying deployment assets"
@@ -173,6 +352,27 @@ Write-Info "Packing bundle: $finalTar"
 Push-Location (Join-Path $ProjectRoot $OutputDir)
 tar -czf "$finalTar" "$bundleName"
 Pop-Location
+
+if ($UseWslContext -and -not [string]::IsNullOrWhiteSpace($wslBuildDir)) {
+    $cleanupDistros = @(
+        (& wsl.exe -l -q 2>$null) |
+        ForEach-Object { ($_ -replace "`0", "").Trim() } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and $_ -notin @("docker-desktop", "docker-desktop-data") }
+    )
+    if ($cleanupDistros.Count -gt 0) {
+        $cleanupDistro = $cleanupDistros[0]
+        $wslBuildDirEscaped = $wslBuildDir.Replace("'", "'\''")
+        wsl.exe -d $cleanupDistro -- sh -lc "rm -rf '$wslBuildDirEscaped'" | Out-Null
+    }
+}
+
+if (-not [string]::IsNullOrWhiteSpace($stageBuildDir) -and (Test-Path $stageBuildDir)) {
+    try {
+        Remove-Item -Recurse -Force $stageBuildDir
+    } catch {
+        Write-Info "Warning: failed to clean local staged context: $stageBuildDir"
+    }
+}
 
 Write-Info "Bundle completed"
 Write-Host "Output: $finalTar"
