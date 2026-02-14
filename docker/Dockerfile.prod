@@ -3,74 +3,33 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    gcc \
-    g++ \
-    libpq-dev \
-    curl \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+COPY requirements-prod.txt /tmp/requirements-prod.txt
+COPY .cache/pip-wheels/linux-py311 /tmp/pip-wheels/linux-py311
 
-COPY requirements.txt /tmp/requirements.txt
-
-COPY .cache/pip-wheels /tmp/pip-wheels
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    set -eux; \
-    mkdir -p /root/.cache/pip && \
-    cp -r /tmp/pip-wheels/* /root/.cache/pip/ 2>/dev/null || true && \
-    ALIYUN_URL="https://mirrors.aliyun.com/pypi/simple/"; \
-    PYPI_URL="https://pypi.org/simple/"; \
-    TUNA_URL="https://pypi.tuna.tsinghua.edu.cn/simple/"; \
-    test_url() { \
-      url="$1"; \
-      total=0; ok=0; \
-      for i in 1 2 3; do \
-        value=$(curl -L -o /dev/null -sS -w "%{time_total}" --connect-timeout 3 --max-time 8 "$url" || true); \
-        if [ -n "$value" ] && [ "$value" != "0.000000" ]; then \
-          total=$(awk "BEGIN {print $total + $value}"); ok=$((ok+1)); \
-        fi \
-      done; \
-      if [ "$ok" -eq 0 ]; then echo "9999"; else awk "BEGIN {print $total / $ok}"; fi \
-    }; \
-    pip_try() { \
-      idx="$1"; \
-      echo "Trying pip index: $idx"; \
-      PIP_INDEX_URL="$idx" pip install --retries 25 --timeout 180 --find-links=/tmp/pip-wheels --no-index -r /tmp/requirements.txt; \
-    }; \
+RUN set -eu; \
     pip_install() { \
       idx="$1"; \
+      trusted="$2"; \
       echo "Installing from: $idx"; \
-      if [ -d "/tmp/pip-wheels" ] && [ "$(ls -A /tmp/pip-wheels 2>/dev/null)" ]; then \
-        echo "Using local wheels first"; \
-        PIP_INDEX_URL="$idx" pip install --retries 25 --timeout 180 --find-links=/tmp/pip-wheels -r /tmp/requirements.txt; \
-      else \
-        echo "No local wheels, installing from index"; \
-        PIP_INDEX_URL="$idx" pip install --retries 25 --timeout 180 -r /tmp/requirements.txt; \
-      fi \
+      pip install --prefer-binary --retries 25 --timeout 180 --trusted-host "$trusted" -i "$idx" -r /tmp/requirements-prod.txt; \
     }; \
-    aliyun_time=$(test_url "$ALIYUN_URL"); \
-    pypi_time=$(test_url "$PYPI_URL"); \
-    echo "Aliyun latency: ${aliyun_time}s"; \
-    echo "PyPI latency: ${pypi_time}s"; \
-    primary_url="$PYPI_URL"; \
-    secondary_url="$ALIYUN_URL"; \
-    if awk "BEGIN {exit !($aliyun_time < $pypi_time)}"; then \
-      primary_url="$ALIYUN_URL"; secondary_url="$PYPI_URL"; \
-    fi; \
-    echo "Primary index: $primary_url"; \
-    (pip_install "$primary_url" || pip_install "$secondary_url" || pip_install "$TUNA_URL" || pip_install "$PYPI_URL")
+    PYPI_URL="https://pypi.org/simple/"; \
+    ALIYUN_URL="http://mirrors.aliyun.com/pypi/simple/"; \
+    TUNA_URL="http://pypi.tuna.tsinghua.edu.cn/simple/"; \
+    if [ -d "/tmp/pip-wheels/linux-py311" ] && [ "$(ls -A /tmp/pip-wheels/linux-py311 2>/dev/null)" ]; then \
+      echo "Installing from local Linux wheelhouse first"; \
+      pip install --no-index --find-links=/tmp/pip-wheels/linux-py311 -r /tmp/requirements-prod.txt || \
+      (pip_install "$ALIYUN_URL" "mirrors.aliyun.com" || pip_install "$TUNA_URL" "pypi.tuna.tsinghua.edu.cn" || pip_install "$PYPI_URL" "pypi.org"); \
+    else \
+      echo "No local Linux wheelhouse found, using China mirrors first (HTTP)"; \
+      (pip_install "$ALIYUN_URL" "mirrors.aliyun.com" || pip_install "$TUNA_URL" "pypi.tuna.tsinghua.edu.cn" || pip_install "$PYPI_URL" "pypi.org"); \
+    fi
 
 FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
     ca-certificates \

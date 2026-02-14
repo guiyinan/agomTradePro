@@ -1,0 +1,22 @@
+# Development and CI requirements
+-r requirements-prod.txt
+
+# Testing
+pytest
+pytest-django
+pytest-cov
+pytest-mock
+pytest-asyncio>=0.21
+pytest-xdist>=3.5
+factory-boy>=3.3
+faker>=20.0
+
+# Code quality
+black
+isort
+ruff
+mypy
+
+# Developer tooling
+ipython
+ipdb

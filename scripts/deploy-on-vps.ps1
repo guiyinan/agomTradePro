@@ -127,12 +127,13 @@ if (Test-Path "deploy/manifest.json") {
     Write-Info "Verifying checksums"
     $manifest = Get-Content "deploy/manifest.json" -Raw | ConvertFrom-Json
     foreach ($item in $manifest.checksums) {
-        if (-not (Test-Path $item.path)) {
-            Throw-Err "Missing file from manifest: $($item.path)"
+        $manifestPath = ($item.path -replace '\\', '/')
+        if (-not (Test-Path $manifestPath)) {
+            Throw-Err "Missing file from manifest: $manifestPath"
         }
-        $hash = (Get-FileHash -Path $item.path -Algorithm SHA256).Hash.ToLowerInvariant()
+        $hash = (Get-FileHash -Path $manifestPath -Algorithm SHA256).Hash.ToLowerInvariant()
         if ($hash -ne $item.sha256.ToLowerInvariant()) {
-            Throw-Err "Checksum mismatch: $($item.path)"
+            Throw-Err "Checksum mismatch: $manifestPath"
         }
     }
 }
@@ -186,6 +187,22 @@ if ($foundWeb) {
 $envText | Set-Content "deploy/.env"
 
 (Get-Content "docker/Caddyfile.template" -Raw).Replace("__SITE_ADDRESS__", $siteAddress) | Set-Content "docker/Caddyfile"
+
+# Prompt ALLOWED_HOSTS for IP access (template defaults to localhost only)
+$allowedHosts = Get-EnvValue -Name 'ALLOWED_HOSTS' -Text $envText
+if ([string]::IsNullOrWhiteSpace($allowedHosts) -or $allowedHosts -eq '127.0.0.1,localhost') {
+    $defaultHosts = '127.0.0.1,localhost'
+    if (-not [string]::IsNullOrWhiteSpace($domain)) {
+        $defaultHosts = "$domain,$defaultHosts"
+    }
+    $allowedHosts = Read-Default -Prompt "ALLOWED_HOSTS (comma-separated)" -Default $defaultHosts
+    if ($envText -match "(?m)^ALLOWED_HOSTS=.*$") {
+        $envText = $envText -replace "(?m)^ALLOWED_HOSTS=.*$", "ALLOWED_HOSTS=$allowedHosts"
+    } else {
+        $envText += "`nALLOWED_HOSTS=$allowedHosts`n"
+    }
+    $envText | Set-Content "deploy/.env"
+}
 
 $services = @('redis', 'web', 'caddy')
 if (Test-Truthy (Get-EnvValue -Name 'ENABLE_RSSHUB' -Text $envText)) {

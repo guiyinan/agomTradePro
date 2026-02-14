@@ -37,15 +37,17 @@ bash scripts/vps-restore.sh --target-dir /opt/agomsaaf/current --backup-dir /opt
 - `docker/Caddyfile.template`
 - `.env` template
 - Optional backups:
-  - `backups/db.sqlite3`
-  - `backups/dump.rdb`
+  - `backups/db.sqlite3` (only when explicitly enabled during packaging)
+  - `backups/dump.rdb` (only when explicitly enabled with `-RedisContainer`)
 - `deploy/manifest.json` with SHA-256 checksums
+- `scripts/verify-vps-bundle.ps1` for local bundle verification
 
 ## Notes
 
 - Scripts are ASCII-only.
 - Domain is optional. If omitted, Caddy is configured for HTTP only (`:80`).
 - App runtime uses `core.settings.production`.
+- Package script defaults to "code upgrade bundle" (no local DB/Redis data).
 - `ENABLE_RSSHUB=true` enables self-hosted RSSHub service in the stack.
 - `ENABLE_CELERY=false` is recommended on 4G VPS, enable only when needed.
-- Local build/download cache is stored in `.cache/pip-wheels` (gitignored).
+- Production image installs from `requirements-prod.txt`.

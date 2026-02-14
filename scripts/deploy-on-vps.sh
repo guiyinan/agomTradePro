@@ -46,6 +46,11 @@ done
 require_cmd docker
 require_cmd tar
 
+IS_TTY=0
+if [ -t 0 ]; then
+  IS_TTY=1
+fi
+
 if docker compose version >/dev/null 2>&1; then
   COMPOSE="docker compose"
 elif command -v docker-compose >/dev/null 2>&1; then
@@ -68,7 +73,13 @@ is_true() {
 ask() {
   prompt="$1"
   default="$2"
-  printf '%s [%s]: ' "$prompt" "$default"
+  if [ "$IS_TTY" -ne 1 ]; then
+    # Non-interactive mode (e.g. SSH exec). Always use default.
+    printf '%s' "$default"
+    return 0
+  fi
+  # Print prompt to stderr so command-substitution doesn't capture it.
+  printf '%s [%s]: ' "$prompt" "$default" >&2
   read -r value
   if [ -z "$value" ]; then
     printf '%s' "$default"
@@ -143,6 +154,7 @@ if [ -f deploy/manifest.json ] && command -v sha256sum >/dev/null 2>&1; then
   awk '/"path":|"sha256":/ {gsub(/[",]/, "", $2); if ($1 ~ /path/) p=$2; if ($1 ~ /sha256/) {print $2"  "p}}' deploy/manifest.json | while read -r line; do
     sha=$(printf '%s' "$line" | awk '{print $1}')
     file=$(printf '%s' "$line" | awk '{print $2}')
+    file=$(printf '%s' "$file" | sed 's#\\#/#g')
     [ -f "$file" ] || die "Missing file from manifest: $file"
     real=$(sha256sum "$file" | awk '{print $1}')
     [ "$sha" = "$real" ] || die "Checksum mismatch: $file"
@@ -165,7 +177,21 @@ fi
 
 secret_key=$(grep '^SECRET_KEY=' deploy/.env | cut -d '=' -f2-)
 if [ "$secret_key" = "change-this-to-a-strong-secret" ] || [ -z "$secret_key" ]; then
-  secret_key=$(ask "SECRET_KEY" "replace-me")
+  if [ "$IS_TTY" -eq 1 ]; then
+    secret_key=$(ask "SECRET_KEY" "replace-me")
+  else
+    # Generate a random secret in non-interactive mode.
+    if command -v python3 >/dev/null 2>&1; then
+      secret_key=$(python3 -c 'import secrets; print(secrets.token_hex(32))' 2>/dev/null || true)
+    elif command -v python >/dev/null 2>&1; then
+      secret_key=$(python -c 'import secrets; print(secrets.token_hex(32))' 2>/dev/null || true)
+    elif command -v openssl >/dev/null 2>&1; then
+      secret_key=$(openssl rand -hex 32 2>/dev/null || true)
+    else
+      secret_key=$(dd if=/dev/urandom bs=1 count=48 2>/dev/null | tr -dc 'a-zA-Z0-9' | head -c 48 || true)
+    fi
+    [ -n "$secret_key" ] || secret_key="replace-me"
+  fi
   sed -i "s|^SECRET_KEY=.*|SECRET_KEY=$secret_key|" deploy/.env
 fi
 
@@ -178,10 +204,91 @@ fi
 
 sed "s|__SITE_ADDRESS__|$site_addr|g" docker/Caddyfile.template > docker/Caddyfile
 
+# ALLOWED_HOSTS is required for IP access; default template only allows localhost.
+allowed_hosts=$(grep '^ALLOWED_HOSTS=' deploy/.env | cut -d '=' -f2- || true)
+if [ -z "$allowed_hosts" ] || [ "$allowed_hosts" = "127.0.0.1,localhost" ]; then
+  default_hosts="127.0.0.1,localhost"
+  if [ -n "$domain" ]; then
+    default_hosts="$domain,$default_hosts"
+  fi
+  pub_ip=""
+  if command -v curl >/dev/null 2>&1; then
+    pub_ip=$(curl -fsS --max-time 3 https://api.ipify.org 2>/dev/null || true)
+  fi
+  if [ -n "$pub_ip" ]; then
+    default_hosts="$pub_ip,$default_hosts"
+  fi
+  allowed_hosts=$(ask "ALLOWED_HOSTS (comma-separated)" "$default_hosts")
+  if grep -q '^ALLOWED_HOSTS=' deploy/.env; then
+    sed -i "s|^ALLOWED_HOSTS=.*|ALLOWED_HOSTS=$allowed_hosts|" deploy/.env
+  else
+    printf '\\nALLOWED_HOSTS=%s\\n' "$allowed_hosts" >> deploy/.env
+  fi
+fi
+
+port_in_use() {
+  p="$1"
+  if command -v ss >/dev/null 2>&1; then
+    # ss output may contain IPv4/IPv6 entries; match port at end.
+    ss -ltnH 2>/dev/null | awk '{print $4}' | grep -Eq "(:|\\])${p}$"
+    return $?
+  fi
+  return 1
+}
+
+set_env_kv() {
+  k="$1"
+  v="$2"
+  if grep -q "^${k}=" deploy/.env; then
+    sed -i "s|^${k}=.*|${k}=${v}|" deploy/.env
+  else
+    printf '\\n%s=%s\\n' "$k" "$v" >> deploy/.env
+  fi
+}
+
+# If common ports are already occupied on the VPS, auto-adjust Caddy host port mappings.
+caddy_http_port=$(env_value CADDY_HTTP_PORT deploy/.env)
+[ -n "$caddy_http_port" ] || caddy_http_port="80"
+if port_in_use "$caddy_http_port"; then
+  fallback_http="8000"
+  if [ "$IS_TTY" -eq 1 ]; then
+    caddy_http_port=$(ask "CADDY_HTTP_PORT is busy, choose another" "$fallback_http")
+  else
+    caddy_http_port="$fallback_http"
+  fi
+  set_env_kv "CADDY_HTTP_PORT" "$caddy_http_port"
+fi
+
+caddy_https_port=$(env_value CADDY_HTTPS_PORT deploy/.env)
+[ -n "$caddy_https_port" ] || caddy_https_port="443"
+if port_in_use "$caddy_https_port"; then
+  fallback_https="8443"
+  if [ "$IS_TTY" -eq 1 ]; then
+    caddy_https_port=$(ask "CADDY_HTTPS_PORT is busy, choose another" "$fallback_https")
+  else
+    caddy_https_port="$fallback_https"
+  fi
+  set_env_kv "CADDY_HTTPS_PORT" "$caddy_https_port"
+fi
+
 web_image=$(grep '^WEB_IMAGE=' deploy/.env | cut -d '=' -f2-)
 if [ -z "$web_image" ] || [ "$web_image" = "agomsaaf-web:latest" ]; then
-  detected=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^agomsaaf-web:' | head -n 1 || true)
-  [ -n "$detected" ] && sed -i "s|^WEB_IMAGE=.*|WEB_IMAGE=$detected|" deploy/.env
+  manifest_web=""
+  if [ -f deploy/manifest.json ]; then
+    if command -v python3 >/dev/null 2>&1; then
+      manifest_web=$(python3 -c "import json;print(json.load(open('deploy/manifest.json'))['images']['web'])" 2>/dev/null || true)
+    elif command -v python >/dev/null 2>&1; then
+      manifest_web=$(python -c "import json;print(json.load(open('deploy/manifest.json'))['images']['web'])" 2>/dev/null || true)
+    else
+      manifest_web=$(awk -F'"' '/"web"[[:space:]]*:/ {print $4; exit}' deploy/manifest.json 2>/dev/null || true)
+    fi
+  fi
+  if [ -n "$manifest_web" ]; then
+    sed -i "s|^WEB_IMAGE=.*|WEB_IMAGE=$manifest_web|" deploy/.env
+  else
+    detected=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^agomsaaf-web:' | head -n 1 || true)
+    [ -n "$detected" ] && sed -i "s|^WEB_IMAGE=.*|WEB_IMAGE=$detected|" deploy/.env
+  fi
 fi
 
 core_services="redis web caddy"

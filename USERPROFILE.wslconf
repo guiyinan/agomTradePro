@@ -1,0 +1,6 @@
+[network]
+generateResolvConf = false
+generateHosts = false
+
+[boot]
+systemd = true

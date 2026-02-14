@@ -6,7 +6,7 @@ This guide covers the new bundle-based deployment flow:
 
 1. Build Docker images locally.
 2. Export Docker images as tar files.
-3. Export local SQLite and Redis data.
+3. Optionally export local SQLite and Redis data.
 4. Pack all deployment artifacts into one bundle.
 5. Upload bundle to Linux VPS and deploy interactively.
 
@@ -51,23 +51,37 @@ Optional example (explicit container names):
 ```powershell
 pwsh ./scripts/package-for-vps.ps1 `
   -Tag 20260208 `
+  -IncludeSqliteData `
   -RedisContainer agomsaaf_redis
+```
+
+Wheel cache options:
+
+```powershell
+# 强制刷新 Linux wheel 缓存
+pwsh ./scripts/package-for-vps.ps1 -RefreshWheelCache
 ```
 
 What this script does:
 
 1. Builds production image with `docker/Dockerfile.prod`.
-2. Auto-selects faster PyPI index between Aliyun mirror and official PyPI.
+2. Installs production-only Python dependencies from `requirements-prod.txt`.
 3. Pulls dependency images (`redis`, `caddy`, `rsshub`).
 4. Saves images to tar files.
-5. Copies local `db.sqlite3` to `backups/db.sqlite3`.
-6. Exports Redis snapshot `backups/dump.rdb`.
+5. Optionally copies local `db.sqlite3` to `backups/db.sqlite3` (default: No).
+6. Optionally exports Redis snapshot `backups/dump.rdb` (default: No; explicit container required).
 7. Copies deployment templates and scripts.
 8. Creates a final bundle tar.gz in `dist/`.
 
 Output example:
 
 - `dist/agomsaaf-vps-bundle-20260208153000.tar.gz`
+
+Bundle verification:
+
+```powershell
+pwsh ./scripts/verify-vps-bundle.ps1 -Bundle ./dist/agomsaaf-vps-bundle-20260208153000.tar.gz -NoDockerLoad
+```
 
 ---
 

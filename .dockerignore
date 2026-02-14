@@ -63,8 +63,11 @@ nul
 # Cache
 .cache/
 *.cache
-# But keep pip wheels for faster builds
+# Keep only Linux wheel cache used by Docker builds
 !.cache/pip-wheels/
+.cache/pip-wheels/*
+!.cache/pip-wheels/linux-py311/
+!.cache/pip-wheels/linux-py311/**
 
 # Scripts (not needed in container)
 scripts/*.ps1

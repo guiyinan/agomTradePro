@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+"""
+Upload a bundle tar.gz to a VPS over SSH and run the in-bundle deploy script.
+
+Design goals:
+- Interactive by default (prompt for missing values).
+- Non-destructive defaults (does not print passwords).
+- Works from Windows/macOS/Linux as long as Python + paramiko are available.
+"""
+
+from __future__ import annotations
+
+import argparse
+import getpass
+import os
+import posixpath
+import sys
+import time
+from pathlib import Path
+
+
+def _die(msg: str, code: int = 1) -> None:
+    print(f"[ERROR] {msg}", file=sys.stderr)
+    raise SystemExit(code)
+
+
+def _info(msg: str) -> None:
+    print(f"[INFO] {msg}")
+
+
+def _warn(msg: str) -> None:
+    print(f"[WARN] {msg}", file=sys.stderr)
+
+
+def _latest_bundle(dist_dir: Path) -> Path | None:
+    bundles = sorted(dist_dir.glob("agomsaaf-vps-bundle-*.tar.gz"), key=lambda p: p.stat().st_mtime, reverse=True)
+    return bundles[0] if bundles else None
+
+
+def _ssh_connect(host: str, port: int, username: str, password: str, timeout: int):
+    try:
+        import paramiko  # type: ignore
+    except Exception as e:
+        _die(f"paramiko not available (pip install paramiko). Import error: {e}")
+
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    # Avoid agent/key surprises. This is a password-first deploy script.
+    client.connect(
+        hostname=host,
+        port=port,
+        username=username,
+        password=password,
+        look_for_keys=False,
+        allow_agent=False,
+        timeout=timeout,
+        banner_timeout=timeout,
+        auth_timeout=timeout,
+    )
+    return client
+
+
+def _run(ssh, cmd: str, timeout: int) -> tuple[int, str, str]:
+    stdin, stdout, stderr = ssh.exec_command(cmd, get_pty=False, timeout=timeout)
+    out = stdout.read().decode("utf-8", errors="replace")
+    err = stderr.read().decode("utf-8", errors="replace")
+    return stdout.channel.recv_exit_status(), out, err
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Upload and deploy an AgomSAAF VPS bundle.")
+    ap.add_argument("--host", default=os.environ.get("AGOM_VPS_HOST", "").strip() or None)
+    ap.add_argument("--port", type=int, default=int(os.environ.get("AGOM_VPS_PORT", "22")))
+    ap.add_argument("--user", default=os.environ.get("AGOM_VPS_USER", "").strip() or None)
+    ap.add_argument("--bundle", default=os.environ.get("AGOM_VPS_BUNDLE", "").strip() or None)
+    ap.add_argument("--remote-dir", default=os.environ.get("AGOM_VPS_REMOTE_DIR", "/tmp/agomsaaf-upload"))
+    ap.add_argument("--action", choices=["fresh", "upgrade", "restore-only"], default=os.environ.get("AGOM_VPS_ACTION", "fresh"))
+    ap.add_argument("--target-dir", default=os.environ.get("AGOM_VPS_TARGET_DIR", "/opt/agomsaaf"))
+    ap.add_argument("--timeout", type=int, default=int(os.environ.get("AGOM_VPS_TIMEOUT", "60")))
+    args = ap.parse_args()
+
+    project_root = Path(__file__).resolve().parents[1]
+    dist_dir = project_root / "dist"
+
+    host = args.host or input("VPS host/IP: ").strip()
+    if not host:
+        _die("Missing --host")
+
+    user = args.user or input("SSH username [root]: ").strip() or "root"
+
+    bundle_path: Path
+    if args.bundle:
+        bundle_path = Path(args.bundle).expanduser().resolve()
+    else:
+        latest = _latest_bundle(dist_dir)
+        if not latest:
+            _die(f"No bundle found in {dist_dir}")
+        default = str(latest)
+        raw = input(f"Bundle tar.gz path [{default}]: ").strip()
+        bundle_path = Path(raw or default).expanduser().resolve()
+
+    if not bundle_path.exists():
+        _die(f"Bundle not found: {bundle_path}")
+
+    password = getpass.getpass("SSH password: ")
+    if not password:
+        _die("Empty password")
+
+    remote_dir = args.remote_dir.rstrip("/")
+    remote_bundle = posixpath.join(remote_dir, bundle_path.name)
+
+    _info(f"Connecting to {user}@{host}:{args.port}")
+    ssh = _ssh_connect(host=host, port=args.port, username=user, password=password, timeout=args.timeout)
+    try:
+        _info(f"Ensuring remote dir: {remote_dir}")
+        code, out, err = _run(ssh, f"mkdir -p {remote_dir}", timeout=args.timeout)
+        if code != 0:
+            _die(f"Failed to create remote dir. Exit={code}. Stderr={err.strip()}")
+
+        _info(f"Uploading bundle to: {remote_bundle}")
+        sftp = ssh.open_sftp()
+        try:
+            # Upload with a temp name, then atomically rename.
+            tmp_remote = remote_bundle + f".uploading.{int(time.time())}"
+            sftp.put(str(bundle_path), tmp_remote)
+            sftp.rename(tmp_remote, remote_bundle)
+        finally:
+            sftp.close()
+
+        _info("Bootstrapping deploy script from bundle (non-interactive)")
+        ts = int(time.time())
+        bootstrap_dir = f"/tmp/agomsaaf-bootstrap-{ts}"
+
+        # Use non-interactive defaults inside deploy-on-vps.sh:
+        # - DOMAIN stays empty => HTTP only (Caddy internal :80, host port comes from deploy/.env)
+        # - SECRET_KEY autogenerated
+        # - ALLOWED_HOSTS auto includes public IP (api.ipify.org) + localhost
+        cmd = (
+            "set -eu; "
+            f"rm -rf {bootstrap_dir}; mkdir -p {bootstrap_dir}; "
+            f"tar -xzf {remote_bundle} -C {bootstrap_dir}; "
+            f"rel=$(ls -d {bootstrap_dir}/agomsaaf-vps-bundle-* | head -n 1); "
+            "cd \"$rel\"; "
+            f"sh scripts/deploy-on-vps.sh --bundle {remote_bundle} --target-dir {args.target_dir} --action {args.action}"
+        )
+        code, out, err = _run(ssh, f"bash -lc {cmd!r}", timeout=max(args.timeout, 300))
+        if code != 0:
+            _warn(out.strip())
+            _die(f"Remote deploy failed. Exit={code}. Stderr={err.strip()}")
+
+        _info("Remote deploy completed")
+        if out.strip():
+            print(out.strip())
+        if err.strip():
+            print(err.strip(), file=sys.stderr)
+
+        _info("Checking health endpoint")
+        # Note: host ports are controlled by deploy/.env on VPS (CADDY_HTTP_PORT). Default is 8000.
+        code, out, err = _run(ssh, "curl -fsS --max-time 5 http://127.0.0.1:8000/health/ || true", timeout=args.timeout)
+        if out.strip():
+            _info(f"Health: {out.strip()}")
+        else:
+            _warn("Health check returned empty response (maybe port differs, or curl missing).")
+
+        return 0
+    finally:
+        ssh.close()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
