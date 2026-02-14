@@ -14,6 +14,7 @@ import argparse
 import getpass
 import os
 import posixpath
+import shlex
 import sys
 import time
 from pathlib import Path
@@ -47,18 +48,63 @@ def _ssh_connect(host: str, port: int, username: str, password: str, timeout: in
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
     # Avoid agent/key surprises. This is a password-first deploy script.
-    client.connect(
-        hostname=host,
-        port=port,
-        username=username,
-        password=password,
-        look_for_keys=False,
-        allow_agent=False,
-        timeout=timeout,
-        banner_timeout=timeout,
-        auth_timeout=timeout,
-    )
-    return client
+    try:
+        client.connect(
+            hostname=host,
+            port=port,
+            username=username,
+            password=password,
+            look_for_keys=False,
+            allow_agent=False,
+            timeout=timeout,
+            banner_timeout=timeout,
+            auth_timeout=timeout,
+        )
+        return client
+    except paramiko.ssh_exception.AuthenticationException:
+        # Probe allowed auth methods; some servers use keyboard-interactive (PAM) even for passwords.
+        import socket
+
+        sock = socket.create_connection((host, port), timeout=timeout)
+        transport = paramiko.Transport(sock)
+        transport.banner_timeout = timeout
+        transport.auth_timeout = timeout
+        transport.start_client(timeout=timeout)
+        allowed: str = ""
+        try:
+            # Paramiko 4 removed Transport.get_allowed_auths; use auth_none to discover allowed types.
+            transport.auth_none(username)
+        except paramiko.ssh_exception.BadAuthenticationType as e:
+            allowed = ",".join(getattr(e, "allowed_types", []) or [])
+        except Exception:
+            allowed = ""
+
+        # Try keyboard-interactive as a fallback using the same password.
+        if "keyboard-interactive" in allowed.split(","):
+            def handler(title, instructions, prompts):
+                answers = []
+                for prompt, _echo in prompts:
+                    # Most PAM prompts are "Password:"; respond with the provided password.
+                    if "password" in prompt.lower():
+                        answers.append(password)
+                    else:
+                        answers.append("")
+                return answers
+
+            transport.auth_interactive(username, handler)
+
+            if transport.is_authenticated():
+                ki_client = paramiko.SSHClient()
+                ki_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                # Reuse the authenticated transport.
+                ki_client._transport = transport  # type: ignore[attr-defined]
+                return ki_client
+
+        # Nothing worked; include allowed methods for debugging (no secrets).
+        msg = f"Authentication failed for {username}@{host}:{port}."
+        if allowed:
+            msg += f" Allowed auths: {allowed}"
+        raise paramiko.ssh_exception.AuthenticationException(msg)
 
 
 def _run(ssh, cmd: str, timeout: int) -> tuple[int, str, str]:
@@ -103,12 +149,15 @@ def main() -> int:
     if not bundle_path.exists():
         _die(f"Bundle not found: {bundle_path}")
 
-    password = getpass.getpass("SSH password: ")
+    password = (os.environ.get("AGOM_VPS_PASS") or "").strip()
+    if not password:
+        password = getpass.getpass("SSH password: ")
     if not password:
         _die("Empty password")
 
     remote_dir = args.remote_dir.rstrip("/")
     remote_bundle = posixpath.join(remote_dir, bundle_path.name)
+    remote_deploy = posixpath.join(remote_dir, "deploy-on-vps.fixed.sh")
 
     _info(f"Connecting to {user}@{host}:{args.port}")
     ssh = _ssh_connect(host=host, port=args.port, username=user, password=password, timeout=args.timeout)
@@ -118,13 +167,36 @@ def main() -> int:
         if code != 0:
             _die(f"Failed to create remote dir. Exit={code}. Stderr={err.strip()}")
 
-        _info(f"Uploading bundle to: {remote_bundle}")
+        # Cleanup leftovers from previous interrupted uploads.
+        _run(ssh, f"rm -f {remote_bundle}.uploading.* 2>/dev/null || true", timeout=args.timeout)
+
+        local_size = bundle_path.stat().st_size
+        code, out, err = _run(ssh, f"stat -c %s {remote_bundle} 2>/dev/null || true", timeout=args.timeout)
+        remote_size = int(out.strip()) if out.strip().isdigit() else -1
+        if remote_size == local_size:
+            _info(f"Remote bundle already present with matching size ({local_size} bytes), skipping upload")
+        else:
+            _info(f"Uploading bundle to: {remote_bundle}")
+            sftp = ssh.open_sftp()
+            try:
+                # Upload with a temp name, then rename into place.
+                tmp_remote = remote_bundle + f".uploading.{int(time.time())}"
+                sftp.put(str(bundle_path), tmp_remote)
+                # Some SFTP servers don't allow overwrite via rename.
+                try:
+                    sftp.remove(remote_bundle)
+                except OSError:
+                    pass
+                sftp.rename(tmp_remote, remote_bundle)
+            finally:
+                sftp.close()
+
+        # Upload a known-good deploy script (handles CRLF manifest parsing, port auto-fallback, etc.)
+        deploy_local = project_root / "scripts" / "deploy-on-vps.sh"
+        _info(f"Uploading deploy helper: {remote_deploy}")
         sftp = ssh.open_sftp()
         try:
-            # Upload with a temp name, then atomically rename.
-            tmp_remote = remote_bundle + f".uploading.{int(time.time())}"
-            sftp.put(str(bundle_path), tmp_remote)
-            sftp.rename(tmp_remote, remote_bundle)
+            sftp.put(str(deploy_local), remote_deploy)
         finally:
             sftp.close()
 
@@ -142,9 +214,17 @@ def main() -> int:
             f"tar -xzf {remote_bundle} -C {bootstrap_dir}; "
             f"rel=$(ls -d {bootstrap_dir}/agomsaaf-vps-bundle-* | head -n 1); "
             "cd \"$rel\"; "
-            f"sh scripts/deploy-on-vps.sh --bundle {remote_bundle} --target-dir {args.target_dir} --action {args.action}"
+            # Windows-produced bundles may contain CRLF scripts which break /bin/sh parsing on Linux.
+            "if command -v sed >/dev/null 2>&1; then "
+            "  find scripts -maxdepth 1 -type f -name '*.sh' -print0 | xargs -0 sed -i 's/\\r$//'; "
+            "  find docker -maxdepth 1 -type f -name '*.sh' -print0 | xargs -0 sed -i 's/\\r$//'; "
+            "  [ -f deploy/manifest.json ] && sed -i 's/\\r$//' deploy/manifest.json; "
+            "  find deploy -maxdepth 1 -type f -name '.env*' -print0 2>/dev/null | xargs -0 sed -i 's/\\r$//' || true; "
+            f"  sed -i 's/\\r$//' {remote_deploy} || true; "
+            "fi; "
+            f"sh {remote_deploy} --bundle {remote_bundle} --target-dir {args.target_dir} --action {args.action}"
         )
-        code, out, err = _run(ssh, f"bash -lc {cmd!r}", timeout=max(args.timeout, 300))
+        code, out, err = _run(ssh, f"bash -lc {shlex.quote(cmd)}", timeout=max(args.timeout, 300))
         if code != 0:
             _warn(out.strip())
             _die(f"Remote deploy failed. Exit={code}. Stderr={err.strip()}")
@@ -156,8 +236,16 @@ def main() -> int:
             print(err.strip(), file=sys.stderr)
 
         _info("Checking health endpoint")
-        # Note: host ports are controlled by deploy/.env on VPS (CADDY_HTTP_PORT). Default is 8000.
-        code, out, err = _run(ssh, "curl -fsS --max-time 5 http://127.0.0.1:8000/health/ || true", timeout=args.timeout)
+        # Host ports are controlled by deploy/.env on VPS (CADDY_HTTP_PORT). Default is 8000.
+        http_port = "8000"
+        code, out, err = _run(
+            ssh,
+            f"grep '^CADDY_HTTP_PORT=' {shlex.quote(args.target_dir)}/current/deploy/.env 2>/dev/null | tail -n 1 | cut -d '=' -f2- || true",
+            timeout=args.timeout,
+        )
+        if out.strip().isdigit():
+            http_port = out.strip()
+        code, out, err = _run(ssh, f"curl -fsS --max-time 5 http://127.0.0.1:{http_port}/health/ || true", timeout=args.timeout)
         if out.strip():
             _info(f"Health: {out.strip()}")
         else:
@@ -170,4 +258,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

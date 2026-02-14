@@ -93,6 +93,18 @@ $ProxyEnvClear = @(
     "-e", "no_proxy="
 )
 
+function Convert-ToLf {
+    param([string]$Path)
+    if (-not (Test-Path $Path)) { return }
+    # Normalize CRLF -> LF to avoid /bin/sh parse errors on Linux (CR can break closing '}' tokens).
+    $raw = Get-Content -Path $Path -Raw
+    $lf = $raw -replace "`r`n", "`n"
+    $lf = $lf -replace "`r", ""
+    if ($lf -ne $raw) {
+        Set-Content -Path $Path -Value $lf -Encoding utf8
+    }
+}
+
 function Read-YesNoDefault {
     param(
         [string]$Prompt,
@@ -499,6 +511,14 @@ Copy-Item scripts/verify-vps-bundle.ps1 (Join-Path $scriptsDir "verify-vps-bundl
 Copy-Item scripts/deploy-one-click.sh (Join-Path $scriptsDir "deploy-one-click.sh") -Force
 Copy-Item scripts/shared/common.sh (Join-Path $scriptsDir "common.sh") -Force
 Copy-Item scripts/shared/common.ps1 (Join-Path $scriptsDir "common.ps1") -Force
+
+# Ensure shell scripts have LF line endings for Linux hosts.
+Convert-ToLf -Path (Join-Path $dockerDir "entrypoint.prod.sh")
+Convert-ToLf -Path (Join-Path $scriptsDir "deploy-on-vps.sh")
+Convert-ToLf -Path (Join-Path $scriptsDir "vps-backup.sh")
+Convert-ToLf -Path (Join-Path $scriptsDir "vps-restore.sh")
+Convert-ToLf -Path (Join-Path $scriptsDir "deploy-one-click.sh")
+Convert-ToLf -Path (Join-Path $scriptsDir "common.sh")
 
 $manifest = [ordered]@{
     generated_at = (Get-Date).ToUniversalTime().ToString("o")

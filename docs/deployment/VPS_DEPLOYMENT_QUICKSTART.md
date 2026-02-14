@@ -1,174 +1,99 @@
 # VPS 快速部署指南
 
-## 一键部署（推荐）
+这份文档写给第一次把 bundle 部署到 Linux VPS 的人。
+
+默认架构：
+- VPS 上跑一套 docker compose（`web` + `redis` + `caddy` + 可选 `rsshub/celery`）。
+- 外部访问走 `caddy`（容器内监听 `:80/:443`），宿主机映射端口用 `deploy/.env` 里配置（默认 HTTP `8000`）。
+- 数据库默认 SQLite（容器 volume：`sqlite_data`），升级时会复用原有数据。
+
+## 1. 打包并上传 bundle
+
+本机（Windows）在项目根目录执行：
+
+```powershell
+pwsh ./scripts/package-for-vps.ps1
+```
+
+生成文件在 `dist/`，例如：
+- `dist/agomsaaf-vps-bundle-YYYYmmddHHMMSS.tar.gz`
+
+上传到 VPS（示例）：
 
 ```bash
-# 1. 上传 bundle 到 VPS
-scp agomsaaf-vps-bundle-20260212171836.tar.gz root@your-vps-ip:/root/
+scp dist/agomsaaf-vps-bundle-*.tar.gz root@your-vps-ip:/root/
+```
 
-# 2. 登录 VPS
+## 2. 在 VPS 上部署（推荐）
+
+登录 VPS：
+
+```bash
 ssh root@your-vps-ip
+```
 
-# 3. 运行一键部署脚本
+解压并运行部署脚本：
+
+```bash
 cd /root
-tar -xzf agomsaaf-vps-bundle-20260212171836.tar.gz
-cd agomsaaf-vps-bundle-20260212171836
-chmod +x scripts/deploy-one-click.sh
-./scripts/deploy-one-click.sh agomsaaf-vps-bundle-20260212171836.tar.gz
+tar -xzf agomsaaf-vps-bundle-*.tar.gz
+cd agomsaaf-vps-bundle-*
+
+# 交互式菜单（fresh/upgrade/restore/status/logs）
+bash ./scripts/deploy-on-vps.sh --bundle /root/agomsaaf-vps-bundle-*.tar.gz
 ```
 
-**一键脚本会自动完成**：
-- ✅ 解压 bundle
-- ✅ 生成随机 SECRET_KEY
-- ✅ 询问域名配置
-- ✅ 加载所有 Docker 镜像
-- ✅ 生成 Caddyfile
-- ✅ 启动所有服务
-- ✅ 恢复数据库备份（如果有）
-- ✅ 运行数据库迁移
-- ✅ 创建当前部署软链接
+部署根目录默认是：
+- `/opt/agomsaaf`
 
----
+部署脚本会：
+- 生成/更新 `deploy/.env`（必要时会生成随机 `SECRET_KEY`）
+- 渲染 `docker/Caddyfile`
+- `docker load` 导入镜像并启动服务
+- 如果 bundle 带了 `backups/db.sqlite3`，会恢复到容器 volume
+- 自动执行 `python manage.py migrate --noinput`
+- 设置 `/opt/agomsaaf/current` 指向当前 release（便于回滚）
 
-## 手动部署（高级）
+## 3. 配置端口（VPS 的 80 被占用时）
 
-### 1. 上传打包文件到 VPS
+不要改 `docker-compose.vps.yml` 的端口映射；端口靠 `deploy/.env` 配置：
+
+- `CADDY_HTTP_PORT=8000`（HTTP 对外端口）
+- `CADDY_HTTPS_PORT=8443`（可选，如果 443 被占用）
+
+配置文件路径（在 VPS 上）：
+- `/opt/agomsaaf/current/deploy/.env`
+
+改完后重启：
 
 ```bash
-# 方法 1: SCP 上传
-scp agomsaaf-vps-bundle-20260212171836.tar.gz root@your-vps-ip:/root/
-
-# 方法 2: 在 VPS 上直接下载（如果文件在可访问的 URL）
-cd /root
-wget http://your-url/agomsaaf-vps-bundle-20260212171836.tar.gz
+docker compose -f /opt/agomsaaf/current/docker/docker-compose.vps.yml --env-file /opt/agomsaaf/current/deploy/.env restart caddy
 ```
 
-## 2. 在 VPS 上解压
+## 4. 访问与验证
+
+健康检查：
 
 ```bash
-# 解压
-tar -xzf agomsaaf-vps-bundle-20260212171836.tar.gz
-cd agomsaaf-vps-bundle-20260212171836
+curl -fsS http://your-vps-ip:8000/health/
 ```
 
-## 3. 配置环境变量
+如果返回 HTTP 400 Bad Request，一般是 `ALLOWED_HOSTS` 没包含你的 IP/域名：
+- 修改 `/opt/agomsaaf/current/deploy/.env` 里的 `ALLOWED_HOSTS`
+- 然后重启 `web`：
+  ```bash
+  docker compose -f /opt/agomsaaf/current/docker/docker-compose.vps.yml --env-file /opt/agomsaaf/current/deploy/.env restart web
+  ```
+
+## 5. 常用维护命令
 
 ```bash
-# 复制环境变量模板
-cp deploy/.env.vps.example .env
-
-# 编辑 .env 文件（至少修改以下项）
-vim .env
+docker compose -f /opt/agomsaaf/current/docker/docker-compose.vps.yml --env-file /opt/agomsaaf/current/deploy/.env ps
+docker compose -f /opt/agomsaaf/current/docker/docker-compose.vps.yml --env-file /opt/agomsaaf/current/deploy/.env logs -f --tail=200
+docker compose -f /opt/agomsaaf/current/docker/docker-compose.vps.yml --env-file /opt/agomsaaf/current/deploy/.env restart
+docker compose -f /opt/agomsaaf/current/docker/docker-compose.vps.yml --env-file /opt/agomsaaf/current/deploy/.env down
 ```
 
-**必改配置**：
-```bash
-# 数据库密钥（随机生成）
-SECRET_KEY=your-random-secret-key-here
-
-# 数据库密码
-POSTGRES_PASSWORD=your-db-password
-
-# Redis 密码
-REDIS_PASSWORD=your-redis-password
-
-# 域名（如有）
-DOMAIN=your-domain.com
-```
-
-## 4. 加载 Docker 镜像
-
-```bash
-# 加载所有镜像
-docker load -i images/web.tar
-docker load -i images/redis.tar
-docker load -i images/caddy.tar
-docker load -i images/rsshub.tar
-```
-
-## 5. 启动服务
-
-```bash
-# 使用 docker-compose 启动
-docker compose -f docker/docker-compose.vps.yml up -d
-
-# 查看服务状态
-docker compose -f docker/docker-compose.vps.yml ps
-
-# 查看日志
-docker compose -f docker/docker-compose.vps.yml logs -f web
-```
-
-## 6. 初始化数据库（首次部署）
-
-```bash
-# 进入容器
-docker compose -f docker/docker-compose.vps.yml exec web bash
-
-# 运行迁移
-python manage.py migrate
-
-# 创建超级用户
-python manage.py createsuperuser
-
-# 退出容器
-exit
-```
-
-## 7. 验证部署
-
-```bash
-# 检查健康状态
-curl http://localhost:8000/health/
-
-# 检查服务
-docker compose -f docker/docker-compose.vps.yml ps
-```
-
-访问 `http://your-vps-ip:8000` 应该能看到应用。
-
-## 常用维护命令
-
-```bash
-# 停止服务
-docker compose -f docker/docker-compose.vps.yml down
-
-# 重启服务
-docker compose -f docker/docker-compose.vps.yml restart
-
-# 查看日志
-docker compose -f docker/docker-compose.vps.yml logs -f
-
-# 备份数据
-./scripts/vps-backup.sh
-
-# 恢复数据
-./scripts/vps-restore.sh
-```
-
-## 故障排查
-
-| 问题 | 解决方案 |
-|------|---------|
-| 容器启动失败 | `docker compose logs web` 查看日志 |
-| 数据库连接失败 | 检查 .env 中的数据库配置 |
-| 端口被占用 | 修改 docker-compose.vps.yml 中的端口映射 |
-| 静态文件 404 | `docker compose exec web python manage.py collectstatic` |
-
-## 目录结构
-
-```
-agomsaaf-vps-bundle-xxxxxxxx/
-├── images/          # Docker 镜像
-├── backups/         # 数据备份
-├── deploy/          # 部署配置
-│   └── .env.vps.example
-├── docker/          # Docker 配置
-│   ├── Dockerfile.prod
-│   ├── docker-compose.vps.yml
-│   └── entrypoint.prod.sh
-└── scripts/         # 维护脚本
-    ├── deploy-on-vps.sh
-    ├── vps-backup.sh
-    └── vps-restore.sh
-```
+更完整的说明见：
+- `docs/deployment/VPS_BUNDLE_DEPLOYMENT.md`
+- `docs/deployment/VPS_DEPLOYMENT_RUNBOOK_141.11.211.21.md`

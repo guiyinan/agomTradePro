@@ -1,6 +1,27 @@
 __SITE_ADDRESS__ {
     encode zstd gzip
 
+    # CORS headers for API requests
+    header {
+        Access-Control-Allow-Origin "*"
+        Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "Authorization, Content-Type, X-CSRFToken, User-Agent, X-Requested-With"
+        Access-Control-Allow-Credentials "true"
+        Access-Control-Max-Age "3600"
+
+        # Security headers (adjust as needed for HTTP vs HTTPS)
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    # Handle OPTIONS preflight requests
+    @options {
+        method OPTIONS
+    }
+    respond @options 204
+
     @static path /static/*
     handle @static {
         root * /srv

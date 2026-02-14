@@ -8,6 +8,9 @@ Last updated: 2026-02-14
 - Deploy root: `/opt/agomsaaf`
 - Current release dir: `/opt/agomsaaf/current`
 - Compose project name: `agomsaaf`
+- Bundle tag currently synced into `/opt/agomsaaf/current`: `agomsaaf-vps-bundle-20260214141304`
+- Caddy host ports: `8000` (HTTP) / `8443` (HTTPS port mapped, but domain is empty so you typically use HTTP)
+- **Important**: This deployment uses HTTP (not HTTPS), so security settings are configured accordingly.
 
 Services expected:
 
@@ -55,12 +58,59 @@ In `/opt/agomsaaf/current/deploy/.env`:
 
 - `WEB_IMAGE=...` (must point to the loaded web image tag)
 - `SECRET_KEY=...`
-- `ALLOWED_HOSTS=...`
+- `ALLOWED_HOSTS=...` (should include VPS IP: `141.11.211.21`)
 - `DOMAIN=` (blank means HTTP-only)
 - `CADDY_HTTP_PORT=8000`
 - `CADDY_HTTPS_PORT=8443`
 - `ENABLE_RSSHUB=true|false`
 - `ENABLE_CELERY=true|false`
+
+### HTTP Deployment Settings (Current Configuration)
+
+Since this VPS uses HTTP (not HTTPS), the following security settings are **disabled**:
+
+- `SECURE_SSL_REDIRECT=False`
+- `SESSION_COOKIE_SECURE=False`
+- `CSRF_COOKIE_SECURE=False`
+
+These are set via environment variables in docker-compose.vps.yml. For HTTPS deployments, set these to `True`.
+
+### CORS Configuration
+
+The application is configured to allow cross-origin requests for development ease:
+
+- Django `django-cors-headers` is enabled
+- Caddy adds CORS headers to all responses
+- For production with specific domains, configure `CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS`
+
+### Common Issues and Fixes
+
+#### 1. CORS Errors
+
+If you see CORS errors in browser console:
+
+```bash
+# Check Caddy is running and adding CORS headers
+curl -I http://141.11.211.21:8000/api/schema/
+
+# Should see Access-Control-Allow-Origin header
+```
+
+#### 2. 404 Errors
+
+If you see 404 errors for API endpoints:
+
+- Check that the URL path matches the configured patterns in `core/urls.py`
+- Example: `/macro/dashboard/` does NOT exist - use `/dashboard/` instead
+- API endpoints are under `/api/` prefix (e.g., `/api/schema/`)
+
+#### 3. Navigation Not Displaying
+
+If navigation bar is missing:
+
+- Check static files are being served: `http://141.11.211.21:8000/static/css/...`
+- Restart Caddy: `docker compose restart caddy`
+- Check Django logs: `docker compose logs web`
 
 ## Operations
 
@@ -132,9 +182,21 @@ These were hotfixed on the VPS image tag at the time. The repo-side fix is to in
 
 3. Caddy ports made configurable:
 - Host ports for Caddy are now environment-driven (`CADDY_HTTP_PORT`, `CADDY_HTTPS_PORT`).
+  Note: If you see `ports: - "80:80"` hardcoded in `docker/docker-compose.vps.yml`, update it to use env vars, otherwise Caddy will fail because `80/443` are occupied by system `nginx`.
 
 4. Caddyfile generation:
 - Ensure `/opt/agomsaaf/current/docker/Caddyfile` starts with a valid site address (e.g. `:80 { ... }`), not an interactive prompt prefix.
+
+5. CRLF pitfalls (Windows -> Linux):
+- If a `.sh` file in the bundle has CRLF, `/bin/sh` may error like `Syntax error: end of file unexpected (expecting "}")`.
+- Fix by running: `sed -i 's/\r$//' /opt/agomsaaf/current/scripts/*.sh` (and similarly under `docker/*.sh`).
+
+6. SQLite restore:
+- The running stack uses `DATABASE_URL=sqlite:////app/data/db.sqlite3` with a named volume.
+- To restore from a bundle’s backup:
+  - `web_cid=$(docker compose -f docker/docker-compose.vps.yml --env-file deploy/.env ps -q web)`
+  - `docker cp backups/db.sqlite3 "$web_cid:/app/data/db.sqlite3"`
+  - `docker compose -f docker/docker-compose.vps.yml --env-file deploy/.env restart web`
 
 ## Troubleshooting
 
@@ -159,4 +221,3 @@ If ports are occupied:
 ```sh
 ss -ltnp | grep -E ':80 |:443 |:8000 |:8443 ' || true
 ```
-

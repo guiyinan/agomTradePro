@@ -28,8 +28,9 @@ services:
       DJANGO_SETTINGS_MODULE: core.settings.production
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      DATABASE_URL: sqlite:////app/data/db.sqlite3
-      REDIS_URL: redis://redis:6379/0
+      # SQLite-first, but allow override via deploy/.env (e.g., Postgres) without editing compose.
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////app/data/db.sqlite3}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       SECRET_KEY: ${SECRET_KEY}
       DEBUG: ${DEBUG:-False}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-127.0.0.1,localhost}
@@ -66,8 +67,8 @@ services:
     command: ["celery", "-A", "core", "worker", "-l", "info", "--concurrency", "1"]
     environment:
       DJANGO_SETTINGS_MODULE: core.settings.production
-      DATABASE_URL: sqlite:////app/data/db.sqlite3
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////app/data/db.sqlite3}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       SECRET_KEY: ${SECRET_KEY}
@@ -96,8 +97,8 @@ services:
     command: ["celery", "-A", "core", "beat", "-l", "info", "--scheduler", "django_celery_beat.schedulers:DatabaseScheduler"]
     environment:
       DJANGO_SETTINGS_MODULE: core.settings.production
-      DATABASE_URL: sqlite:////app/data/db.sqlite3
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////app/data/db.sqlite3}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       SECRET_KEY: ${SECRET_KEY}

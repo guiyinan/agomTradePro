@@ -112,7 +112,7 @@ if [ "$ACTION" = "menu" ]; then
   choose_action
 fi
 
-mkdir -p "$TARGET_DIR/releases" "$TARGET_DIR/current"
+mkdir -p "$TARGET_DIR/releases"
 
 if [ "$ACTION" = "status" ]; then
   cd "$TARGET_DIR/current" || die "Current deployment missing"
@@ -151,9 +151,12 @@ cd "$release_dir"
 
 if [ -f deploy/manifest.json ] && command -v sha256sum >/dev/null 2>&1; then
   log_info "Verifying checksums"
+  # Bundles produced on Windows may contain CRLF JSON; strip trailing CR from parsed fields.
   awk '/"path":|"sha256":/ {gsub(/[",]/, "", $2); if ($1 ~ /path/) p=$2; if ($1 ~ /sha256/) {print $2"  "p}}' deploy/manifest.json | while read -r line; do
     sha=$(printf '%s' "$line" | awk '{print $1}')
     file=$(printf '%s' "$line" | awk '{print $2}')
+    sha=$(printf '%s' "$sha" | tr -d '\r')
+    file=$(printf '%s' "$file" | tr -d '\r')
     file=$(printf '%s' "$file" | sed 's#\\#/#g')
     [ -f "$file" ] || die "Missing file from manifest: $file"
     real=$(sha256sum "$file" | awk '{print $1}')
@@ -168,6 +171,24 @@ done
 
 if [ ! -f deploy/.env ]; then
   cp deploy/.env.vps.example deploy/.env
+fi
+
+# Heal a broken env file (common mistake: literal "\n" sequences appended).
+if grep -q '\\\\n' deploy/.env 2>/dev/null; then
+  log_warn "deploy/.env contains literal \\\\n sequences; recreating from template"
+  old_secret=$(env_value SECRET_KEY deploy/.env)
+  old_domain=$(env_value DOMAIN deploy/.env)
+  old_allowed=$(env_value ALLOWED_HOSTS deploy/.env)
+  cp deploy/.env.vps.example deploy/.env
+  [ -n "$old_secret" ] && sed -i "s|^SECRET_KEY=.*|SECRET_KEY=$old_secret|" deploy/.env
+  [ -n "$old_domain" ] && sed -i "s|^DOMAIN=.*|DOMAIN=$old_domain|" deploy/.env
+  if [ -n "$old_allowed" ]; then
+    if grep -q '^ALLOWED_HOSTS=' deploy/.env; then
+      sed -i "s|^ALLOWED_HOSTS=.*|ALLOWED_HOSTS=$old_allowed|" deploy/.env
+    else
+      printf '\nALLOWED_HOSTS=%s\n' "$old_allowed" >> deploy/.env
+    fi
+  fi
 fi
 
 domain=$(grep '^DOMAIN=' deploy/.env | cut -d '=' -f2-)
@@ -222,7 +243,7 @@ if [ -z "$allowed_hosts" ] || [ "$allowed_hosts" = "127.0.0.1,localhost" ]; then
   if grep -q '^ALLOWED_HOSTS=' deploy/.env; then
     sed -i "s|^ALLOWED_HOSTS=.*|ALLOWED_HOSTS=$allowed_hosts|" deploy/.env
   else
-    printf '\\nALLOWED_HOSTS=%s\\n' "$allowed_hosts" >> deploy/.env
+    printf '\nALLOWED_HOSTS=%s\n' "$allowed_hosts" >> deploy/.env
   fi
 fi
 
@@ -242,7 +263,7 @@ set_env_kv() {
   if grep -q "^${k}=" deploy/.env; then
     sed -i "s|^${k}=.*|${k}=${v}|" deploy/.env
   else
-    printf '\\n%s=%s\\n' "$k" "$v" >> deploy/.env
+    printf '\n%s=%s\n' "$k" "$v" >> deploy/.env
   fi
 }
 
@@ -329,9 +350,25 @@ if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "restore-only" ]; then
   fi
 fi
 
-rm -rf "$TARGET_DIR/current"
+if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "upgrade" ] || [ "$ACTION" = "restore-only" ]; then
+  log_info "Running database migrations"
+  tries=0
+  while :; do
+    if $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env exec -T web python manage.py migrate --noinput; then
+      break
+    fi
+    tries=$((tries + 1))
+    if [ "$tries" -ge 10 ]; then
+      die "Database migration failed after retries"
+    fi
+    log_warn "Migration failed (web might not be ready yet). Retrying in 5s..."
+    sleep 5
+  done
+fi
+
 mkdir -p "$TARGET_DIR"
-cp -R "$release_dir" "$TARGET_DIR/current"
+rm -rf "$TARGET_DIR/current"
+ln -s "$release_dir" "$TARGET_DIR/current"
 
 cd "$TARGET_DIR/current"
 $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env ps

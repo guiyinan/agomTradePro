@@ -32,9 +32,9 @@ Target scripts:
 1. Docker Engine installed.
 2. Docker Compose plugin available (`docker compose`).
 3. SSH access with permissions to manage Docker.
-4. Open ports:
-   - `80` (HTTP)
-   - `443` (HTTPS, optional if domain is configured)
+4. Open ports (host side):
+   - `CADDY_HTTP_PORT` (default `8000`)
+   - `CADDY_HTTPS_PORT` (default `443`, optional if you do not configure a domain)
 
 ---
 
@@ -69,6 +69,8 @@ What this script does:
 3. Pulls dependency images (`redis`, `caddy`, `rsshub`).
 4. Saves images to tar files.
 5. Optionally copies local `db.sqlite3` to `backups/db.sqlite3` (default: No).
+   - For upgrades on a VPS that already has data, you usually want **No** (keep the existing `sqlite_data` volume).
+   - Only include SQLite when you explicitly want to overwrite/seed the VPS database.
 6. Optionally exports Redis snapshot `backups/dump.rdb` (default: No; explicit container required).
 7. Copies deployment templates and scripts.
 8. Creates a final bundle tar.gz in `dist/`.
@@ -136,7 +138,7 @@ pwsh ./scripts/deploy-on-vps.ps1 -Bundle /tmp/agomsaaf-vps-bundle-20260208153000
 ## 7. Domain and HTTPS
 
 1. If `DOMAIN` is set in `deploy/.env`, Caddy uses domain mode and can issue HTTPS certs.
-2. If `DOMAIN` is empty, Caddy uses HTTP on `:80`.
+2. If `DOMAIN` is empty, Caddy uses HTTP on container `:80`, and the **host port** is controlled by `CADDY_HTTP_PORT` in `deploy/.env` (default `8000`).
 
 Template source:
 
@@ -227,7 +229,8 @@ docker compose -f /opt/agomsaaf/current/docker/docker-compose.vps.yml --env-file
 Health check:
 
 ```bash
-curl -f http://127.0.0.1/health/
+HTTP_PORT=$(grep '^CADDY_HTTP_PORT=' /opt/agomsaaf/current/deploy/.env | cut -d '=' -f2- | tail -n 1)
+curl -f "http://127.0.0.1:${HTTP_PORT:-8000}/health/"
 ```
 
 If domain is configured:
@@ -326,6 +329,17 @@ pwsh /opt/agomsaaf/current/scripts/vps-restore.ps1 -TargetDir /opt/agomsaaf/curr
    docker compose -f /opt/agomsaaf/current/docker/docker-compose.vps.yml --env-file /opt/agomsaaf/current/deploy/.env logs -f
    ```
 2. Confirm `SECRET_KEY` is not default placeholder.
+
+### HTTP 400 Bad Request
+
+This is almost always `ALLOWED_HOSTS` mismatch.
+
+1. Edit: `/opt/agomsaaf/current/deploy/.env`
+2. Set `ALLOWED_HOSTS` to include your access IP and/or domain (comma-separated).
+3. Restart web:
+   ```bash
+   docker compose -f /opt/agomsaaf/current/docker/docker-compose.vps.yml --env-file /opt/agomsaaf/current/deploy/.env restart web
+   ```
 
 ### SQLite restore fails
 
