@@ -1,11 +1,12 @@
 <!-- Script Editor Component -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/matchbrackets.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closebrackets.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/selection/active-line.min.js"></script>
+{% load static %}
+<link rel="stylesheet" href="{% static 'vendor/codemirror/5.65.13/codemirror.min.css' %}">
+<link rel="stylesheet" href="{% static 'vendor/codemirror/5.65.13/theme/dracula.min.css' %}">
+<script src="{% static 'vendor/codemirror/5.65.13/codemirror.min.js' %}"></script>
+<script src="{% static 'vendor/codemirror/5.65.13/mode/python/python.min.js' %}"></script>
+<script src="{% static 'vendor/codemirror/5.65.13/addon/edit/matchbrackets.min.js' %}"></script>
+<script src="{% static 'vendor/codemirror/5.65.13/addon/edit/closebrackets.min.js' %}"></script>
+<script src="{% static 'vendor/codemirror/5.65.13/addon/selection/active-line.min.js' %}"></script>
 
 <style>
 .script-editor-wrapper {

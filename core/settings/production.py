@@ -29,6 +29,11 @@ if SECURE_SSL_REDIRECT:
     SECURE_HSTS_SECONDS = env.int('SECURE_HSTS_SECONDS', default=31536000)
     SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=True)
     SECURE_HSTS_PRELOAD = env.bool('SECURE_HSTS_PRELOAD', default=True)
+else:
+    # COOP is only meaningful on potentially trustworthy origins (HTTPS/localhost).
+    # Disable it for plain HTTP deployments to avoid browser warnings like:
+    # "Cross-Origin-Opener-Policy header has been ignored, because the URL's origin was untrustworthy".
+    SECURE_CROSS_ORIGIN_OPENER_POLICY = None
 
 # CORS and CSRF trusted origins for production
 # Allow VPS IP and configured domains
