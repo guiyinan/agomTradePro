@@ -1,9 +1,10 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}AI聊天组件示例 - AgomSAAF{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="/static/css/components/chat-widget.css">
+<link rel="stylesheet" href="{% static 'css/components/chat-widget.css' %}">
 <style>
 .example-page {
     max-width: 1400px;
@@ -298,7 +299,7 @@ chat.state.currentModel = 'deepseek-chat';</code></div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/components/chat-widget.js"></script>
+<script src="{% static 'js/components/chat-widget.js' %}"></script>
 <script>
 // 1. 标准聊天窗口
 new AgomChatWidget({

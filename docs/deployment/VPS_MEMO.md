@@ -68,6 +68,20 @@ Deploy (interactive):
 bash ./scripts/deploy-on-vps.sh --bundle /tmp/agomsaaf-vps-bundle-<tag>.tar.gz
 ```
 
+Deploy from your local machine (recommended; uploads + runs deploy script on VPS):
+
+```powershell
+# Create a local password file once (do not commit it)
+New-Item -ItemType Directory -Force "$HOME\\.agomsaaf" | Out-Null
+Set-Content -Path "$HOME\\.agomsaaf\\vps.pass" -Value "<your-root-password>" -NoNewline
+
+python ./scripts/deploy-bundle-to-vps.py `
+  --host 141.11.211.21 `
+  --user root `
+  --action upgrade `
+  --password-file "$HOME\\.agomsaaf\\vps.pass"
+```
+
 Common actions:
 - `fresh`: first deploy
 - `upgrade`: keep volumes, update code/image, run migrations
@@ -113,6 +127,15 @@ curl -fsS "http://<vps-ip>:${HTTP_PORT:-8000}/health/"
   - Long-term fix: rebuild the web image from repo and ship a new bundle so the VPS does not need on-box patching.
 
 ## Troubleshooting
+
+### Browser Console Warning: Cross-Origin-Opener-Policy Ignored on HTTP
+
+If you access the site via plain HTTP (e.g. `http://<ip>:8000/...`), browsers will ignore COOP headers because the origin is not "potentially trustworthy".
+This is a warning and does not necessarily break the app. To remove it, deploy with HTTPS (domain + valid certificate) or keep COOP disabled for HTTP.
+
+### Page Not Working When CDN Is Blocked
+
+All runtime JS/CSS should be served from `/static/` (no CDN dependency). If a page breaks on the VPS but works locally, scan templates for `src="https://...*.js"` and vendor the library into `static/vendor/...`.
 
 ### HTTP 400 Bad Request
 

@@ -59,6 +59,7 @@ docker-compose*.yml
 # Other
 *.bak
 nul
+nbs_response.html
 
 # Cache
 .cache/

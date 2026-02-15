@@ -175,6 +175,16 @@ pwsh ./scripts/package-for-vps.ps1
 pwsh ./scripts/verify-vps-bundle.ps1 -Bundle ./dist/agomsaaf-vps-bundle-<tag>.tar.gz -NoDockerLoad
 ```
 
+3. Upload + deploy from local (no interactive SSH prompts; uses a local password file):
+
+```powershell
+python ./scripts/deploy-bundle-to-vps.py `
+  --host 141.11.211.21 `
+  --user root `
+  --action upgrade `
+  --password-file "$HOME\\.agomsaaf\\vps.pass"
+```
+
 On the VPS:
 
 1. Upload bundle to `/tmp/`.
@@ -217,6 +227,11 @@ These were hotfixed on the VPS image tag at the time. The repo-side fix is to in
   - `web_cid=$(docker compose -f docker/docker-compose.vps.yml --env-file deploy/.env ps -q web)`
   - `docker cp backups/db.sqlite3 "$web_cid:/app/data/db.sqlite3"`
   - `docker compose -f docker/docker-compose.vps.yml --env-file deploy/.env restart web`
+
+## Frontend Static Asset Policy
+
+- Do not rely on CDN JS/CSS in templates (some VPS networks block CDNs).
+- Vendor third-party libs into `static/vendor/...` and reference them via `{% static %}`.
 
 ## Troubleshooting
 

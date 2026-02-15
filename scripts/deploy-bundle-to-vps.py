@@ -120,6 +120,7 @@ def main() -> int:
     ap.add_argument("--port", type=int, default=int(os.environ.get("AGOM_VPS_PORT", "22")))
     ap.add_argument("--user", default=os.environ.get("AGOM_VPS_USER", "").strip() or None)
     ap.add_argument("--bundle", default=os.environ.get("AGOM_VPS_BUNDLE", "").strip() or None)
+    ap.add_argument("--password-file", default=os.environ.get("AGOM_VPS_PASS_FILE", "").strip() or None)
     ap.add_argument("--remote-dir", default=os.environ.get("AGOM_VPS_REMOTE_DIR", "/tmp/agomsaaf-upload"))
     ap.add_argument("--action", choices=["fresh", "upgrade", "restore-only"], default=os.environ.get("AGOM_VPS_ACTION", "fresh"))
     ap.add_argument("--target-dir", default=os.environ.get("AGOM_VPS_TARGET_DIR", "/opt/agomsaaf"))
@@ -150,6 +151,11 @@ def main() -> int:
         _die(f"Bundle not found: {bundle_path}")
 
     password = (os.environ.get("AGOM_VPS_PASS") or "").strip()
+    if not password and args.password_file:
+        try:
+            password = Path(args.password_file).expanduser().read_text(encoding="utf-8").strip()
+        except Exception as e:
+            _die(f"Failed to read --password-file: {args.password_file}. Error: {e}")
     if not password:
         password = getpass.getpass("SSH password: ")
     if not password:
