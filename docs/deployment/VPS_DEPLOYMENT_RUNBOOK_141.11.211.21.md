@@ -1,6 +1,6 @@
 # VPS Deployment Runbook (141.11.211.21)
 
-Last updated: 2026-02-14
+Last updated: 2026-02-15
 
 ## Current State
 
@@ -11,6 +11,7 @@ Last updated: 2026-02-14
 - Bundle tag currently synced into `/opt/agomsaaf/current`: `agomsaaf-vps-bundle-20260214141304`
 - Caddy host ports: `8000` (HTTP) / `8443` (HTTPS port mapped, but domain is empty so you typically use HTTP)
 - **Important**: This deployment uses HTTP (not HTTPS), so security settings are configured accordingly.
+- Current `WEB_IMAGE` on VPS: `agomsaaf-web:20260215-corsfix-hotfix10`
 
 Services expected:
 
@@ -25,6 +26,12 @@ Because system `nginx` is already binding `80`/`443`, Caddy is mapped to non-sta
 
 - App entry (HTTP via Caddy): `http://141.11.211.21:8000`
 - Health check: `http://141.11.211.21:8000/health/`
+
+Quick verification (from anywhere):
+
+```sh
+curl -fsS http://141.11.211.21:8000/health/
+```
 
 If you later free ports `80/443`, you can remap Caddy by editing `/opt/agomsaaf/current/deploy/.env`:
 
@@ -77,11 +84,19 @@ These are set via environment variables in docker-compose.vps.yml. For HTTPS dep
 
 ### CORS Configuration
 
-The application is configured to allow cross-origin requests for development ease:
+The application is configured to allow cross-origin requests for browser access:
 
-- Django `django-cors-headers` is enabled
-- Caddy adds CORS headers to all responses
-- For production with specific domains, configure `CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS`
+- Django `django-cors-headers` is enabled (preferred single source of truth)
+- Caddy **does not** inject CORS headers (avoid conflicts like `Access-Control-Allow-Origin: *` + credentials)
+- For production with specific domains, configure `CORS_ALLOWED_ORIGINS` and `CSRF_TRUSTED_ORIGINS` in `deploy/.env`
+
+Sanity check (preflight):
+
+```sh
+curl -i -X OPTIONS http://141.11.211.21:8000/api/schema/ \
+  -H 'Origin: http://example.com' \
+  -H 'Access-Control-Request-Method: GET' | grep -i access-control
+```
 
 ### Common Issues and Fixes
 
@@ -193,6 +208,11 @@ These were hotfixed on the VPS image tag at the time. The repo-side fix is to in
 
 6. SQLite restore:
 - The running stack uses `DATABASE_URL=sqlite:////app/data/db.sqlite3` with a named volume.
+
+7. Hotfix note (2026-02-15):
+- If the bundled `web` image lags behind repo settings (e.g., hardcoded `SECURE_SSL_REDIRECT=True`, missing CORS middleware),
+  we can build a small derived image on the VPS that patches `/app/core/settings/*.py` and adds missing runtime deps.
+- This is a stopgap; the real fix is: rebuild the `web` image from repo and re-bundle.
 - To restore from a bundle’s backup:
   - `web_cid=$(docker compose -f docker/docker-compose.vps.yml --env-file deploy/.env ps -q web)`
   - `docker cp backups/db.sqlite3 "$web_cid:/app/data/db.sqlite3"`

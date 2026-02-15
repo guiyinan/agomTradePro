@@ -101,6 +101,17 @@ HTTP_PORT=$(grep '^CADDY_HTTP_PORT=' /opt/agomsaaf/current/deploy/.env | cut -d 
 curl -fsS "http://<vps-ip>:${HTTP_PORT:-8000}/health/"
 ```
 
+## Current VPS Notes (141.11.211.21, 2026-02-15)
+
+- Current access:
+  - `http://141.11.211.21:8000/health/`
+- Host ports are `CADDY_HTTP_PORT=8000`, `CADDY_HTTPS_PORT=8443` (because system `nginx` binds `80/443`).
+- Current `WEB_IMAGE` was temporarily fixed on the VPS as: `agomsaaf-web:20260215-corsfix-hotfix10`.
+  - This derived image adds missing runtime deps (gunicorn) and patches Django production settings to:
+    - disable forced HTTPS redirects for HTTP deployments
+    - enable `django-cors-headers` (Django-side CORS)
+  - Long-term fix: rebuild the web image from repo and ship a new bundle so the VPS does not need on-box patching.
+
 ## Troubleshooting
 
 ### HTTP 400 Bad Request
@@ -129,4 +140,3 @@ sed -i 's/\r$//' /opt/agomsaaf/current/scripts/*.sh /opt/agomsaaf/current/docker
 Packaging script clears proxy build-args/env, but if you keep seeing proxy-related build errors:
 - Check `docker info` for `HTTP Proxy` / `HTTPS Proxy`
 - Disable proxy in Docker Desktop settings (daemon-level proxy overrides env vars)
-
