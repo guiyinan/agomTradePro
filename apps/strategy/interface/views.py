@@ -531,7 +531,7 @@ def strategy_list(request):
     strategies = StrategyModel._default_manager.filter(created_by=user_profile).annotate(
         rule_count=Count('rules'),
         execution_count=Count('execution_logs'),
-        portfolio_count=Count('portfolios')
+        portfolio_count=Count('portfolio_assignments')
     ).order_by('-created_at')
 
     # 计算统计数据
