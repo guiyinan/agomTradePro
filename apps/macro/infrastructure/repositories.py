@@ -36,15 +36,31 @@ class DjangoMacroRepository:
     # 通胀指标代码映射
     # 注意：CPI 需要使用同比增长率（百分比形式），而非指数形式
     # CN_CPI: 指数形式（上年同月=100），值如 100.8
-    # CN_CPI_NATIONAL_YOY: 同比增长率（百分比），值如 0.008（即 0.8%）
+    # CN_CPI_NATIONAL_YOY: 同比增长率，部分源可能给 0.008（比例）或 0.8（百分比）
     INFLATION_INDICATORS = {
-        # 线上历史数据常见只有 CN_CPI（指数形式，上年同月=100）。
-        # 为保证 Regime 面板可用，默认先使用 CN_CPI。
-        # 若库中有 CN_CPI_NATIONAL_YOY，可在后续切回同比口径。
-        "CPI": "CN_CPI",
+        # 默认使用同比口径；若无数据，在读取时回退到 CN_CPI 并做 value-100 转换。
+        "CPI": "CN_CPI_NATIONAL_YOY",
         "PPI": "CN_PPI",
         "GDP平减指数": "CN_GDP_DEFLATOR",
     }
+
+    @staticmethod
+    def _normalize_cpi_value(code: str, value: float) -> float:
+        """
+        统一 CPI 口径为“百分比（%）”。
+
+        - CN_CPI（指数口径，100.2） -> 0.2
+        - CN_CPI_NATIONAL_YOY 可能是比例值（0.008）或百分比值（0.8）
+          这里将绝对值小于 0.2 的视为比例并 *100 转百分比。
+        """
+        if code == "CN_CPI":
+            return float(value) - 100.0
+        if code == "CN_CPI_NATIONAL_YOY":
+            v = float(value)
+            if -0.2 < v < 0.2:
+                return v * 100.0
+            return v
+        return float(value)
 
     def __init__(self):
         self._model = MacroIndicatorORM
@@ -290,6 +306,15 @@ class DjangoMacroRepository:
         # 映射指标代码
         code = self.INFLATION_INDICATORS.get(indicator_code, indicator_code)
         indicators = self.get_series(code, start_date, end_date, use_pit, source)
+
+        # CPI 优先同比口径，若无数据则回退到指数口径并转换为同比百分比
+        if indicator_code == "CPI" and not indicators and code == "CN_CPI_NATIONAL_YOY":
+            code = "CN_CPI"
+            indicators = self.get_series(code, start_date, end_date, use_pit, source)
+
+        if indicator_code == "CPI":
+            return [self._normalize_cpi_value(code, ind.value) for ind in indicators]
+
         return [ind.value for ind in indicators]
 
     def get_inflation_series_full(
@@ -314,7 +339,31 @@ class DjangoMacroRepository:
             List[MacroIndicator]: 完整指标列表
         """
         code = self.INFLATION_INDICATORS.get(indicator_code, indicator_code)
-        return self.get_series(code, start_date, end_date, use_pit, source)
+        indicators = self.get_series(code, start_date, end_date, use_pit, source)
+
+        # 与 get_inflation_series 保持一致：CPI 支持同比->指数回退，并统一为百分比口径。
+        if indicator_code == "CPI" and not indicators and code == "CN_CPI_NATIONAL_YOY":
+            code = "CN_CPI"
+            indicators = self.get_series(code, start_date, end_date, use_pit, source)
+
+        if indicator_code != "CPI":
+            return indicators
+
+        normalized: List[MacroIndicator] = []
+        for ind in indicators:
+            normalized.append(
+                MacroIndicator(
+                    code=ind.code,
+                    value=self._normalize_cpi_value(code, ind.value),
+                    reporting_period=ind.reporting_period,
+                    period_type=ind.period_type,
+                    unit='%',
+                    original_unit=ind.original_unit,
+                    published_at=ind.published_at,
+                    source=ind.source,
+                )
+            )
+        return normalized
 
     def get_latest_observation_date(
         self,

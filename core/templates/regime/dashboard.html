@@ -311,7 +311,7 @@ async function clearRegimeCache() {
                 </div>
                 <div class="indicator-item">
                     <span class="indicator-label">CPI</span>
-                    <span class="indicator-val {{ result_v2.inflation_state }}">{{ result_v2.inflation_level }}%</span>
+                    <span class="indicator-val {{ result_v2.inflation_state }}">{{ result_v2.inflation_level|floatformat:1 }}%</span>
                     <span class="indicator-state state-{{ result_v2.inflation_state }}">
                         {% if result_v2.inflation_state == 'high' %}高通胀
                         {% elif result_v2.inflation_state == 'low' %}低通胀
