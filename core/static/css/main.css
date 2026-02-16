@@ -349,8 +349,29 @@ a {
 }
 
 @media (max-width: 768px) {
+    .header {
+        height: auto;
+        min-height: var(--header-height);
+    }
+
+    .header-container {
+        flex-wrap: wrap;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+
     .top-nav {
-        display: none;
+        display: flex;
+        order: 3;
+        width: 100%;
+        overflow-x: auto;
+        white-space: nowrap;
+        gap: var(--spacing-xs);
+        padding-bottom: var(--spacing-xs);
+    }
+
+    .top-nav-item {
+        flex: 0 0 auto;
     }
 
     .data-nav {

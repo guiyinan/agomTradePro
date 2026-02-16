@@ -13,6 +13,7 @@ param(
     [switch]$SkipWebBuild,
     [switch]$SkipWheelCache,
     [switch]$RefreshWheelCache,
+    [switch]$AllowOnlinePipFallback,
     [switch]$DisableBuildKit,
     [switch]$UseWslContext,
     [switch]$NoStageContext,
@@ -42,6 +43,7 @@ Options:
   -SkipWebBuild               Do not rebuild the web image; require that the image tag already exists locally
   -SkipWheelCache             Skip preparing local Linux wheel cache
   -RefreshWheelCache          Force refresh local Linux wheel cache
+  -AllowOnlinePipFallback     Allow online pip fallback during docker build (default: off, fail fast if wheel cache incomplete)
   -DisableBuildKit            Disable BuildKit and use legacy docker build mode
   -UseWslContext              Build Docker image using temporary WSL context
   -NoStageContext             Disable local staged build context (uses project root directly)
@@ -55,6 +57,7 @@ Examples:
   ./scripts/package-for-vps.ps1 -NoStageContext
   ./scripts/package-for-vps.ps1 -DisableBuildKit
   ./scripts/package-for-vps.ps1 -RefreshWheelCache
+  ./scripts/package-for-vps.ps1 -AllowOnlinePipFallback
   ./scripts/package-for-vps.ps1 -IncludeSqliteData
   ./scripts/package-for-vps.ps1 -RedisContainer agomsaaf_redis
   ./scripts/package-for-vps.ps1 -SkipData -SkipRedisData
@@ -171,6 +174,8 @@ function Ensure-LinuxWheelCache {
 
     $cacheRoot = Join-Path $ProjectRootPath ".cache\pip-wheels\linux-py311"
     $metaFile = Join-Path $cacheRoot ".requirements.sha256"
+    $projectMount = (Resolve-Path $ProjectRootPath).Path
+    $cacheMount = (Resolve-Path $cacheRoot).Path
     New-Item -ItemType Directory -Force $cacheRoot | Out-Null
 
     $reqHash = (Get-FileHash -Path $reqFile -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -183,43 +188,72 @@ function Ensure-LinuxWheelCache {
 
     if ($cacheValid) {
         Write-Info "Using cached Linux wheelhouse: $cacheRoot ($wheelCount files)"
-        return
+    } else {
+        Write-Info "Preparing Linux wheelhouse cache: $cacheRoot"
+        if ($ForceRefresh -and (Test-Path $cacheRoot)) {
+            Get-ChildItem -Path $cacheRoot -File -ErrorAction SilentlyContinue | Remove-Item -Force
+        }
+
+        Write-Host "Project mount: $projectMount" -ForegroundColor Gray
+        Write-Host "Cache mount: $cacheMount" -ForegroundColor Gray
+        Write-Host "Using Aliyun PyPI mirror (HTTP) for faster downloads..." -ForegroundColor Cyan
+
+        $downloadCmd = @(
+            "run", "--rm",
+            "-v", "${projectMount}:/workspace",
+            "-v", "${cacheMount}:/wheelhouse"
+        ) + $ProxyEnvClear + @(
+            "-e", "PIP_INDEX_URL=http://mirrors.aliyun.com/pypi/simple/",
+            "-e", "PIP_TRUSTED_HOST=mirrors.aliyun.com",
+            "-e", "PIP_DISABLE_PIP_VERSION_CHECK=1",
+            "python:3.11-slim",
+            "sh", "-lc",
+            "pip download --prefer-binary --index-url http://mirrors.aliyun.com/pypi/simple/ -r /workspace/requirements-prod.txt -d /wheelhouse"
+        )
+
+        & docker @downloadCmd
+        if ($LASTEXITCODE -ne 0) {
+            Throw-Err "Linux wheel cache refresh failed"
+        }
+
+        Set-Content -Path $metaFile -Value $reqHash
+        $newCount = @(Get-ChildItem -Path $cacheRoot -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '\.(whl|tar\.gz|zip)$' }).Count
+        Write-Info "Linux wheelhouse ready: $newCount files cached"
     }
 
-    Write-Info "Preparing Linux wheelhouse cache: $cacheRoot"
-    if ($ForceRefresh -and (Test-Path $cacheRoot)) {
-        Get-ChildItem -Path $cacheRoot -File -ErrorAction SilentlyContinue | Remove-Item -Force
-    }
-
-    $projectMount = (Resolve-Path $ProjectRootPath).Path
-    $cacheMount = (Resolve-Path $cacheRoot).Path
-
-    Write-Host "Project mount: $projectMount" -ForegroundColor Gray
-    Write-Host "Cache mount: $cacheMount" -ForegroundColor Gray
-    Write-Host "Using Aliyun PyPI mirror (HTTP) for faster downloads..." -ForegroundColor Cyan
-
-    $downloadCmd = @(
+    # Strict offline check: fail fast if wheelhouse cannot satisfy requirements-prod.txt.
+    $verifyCmd = @(
         "run", "--rm",
         "-v", "${projectMount}:/workspace",
         "-v", "${cacheMount}:/wheelhouse"
     ) + $ProxyEnvClear + @(
-        "-e", "PIP_INDEX_URL=http://mirrors.aliyun.com/pypi/simple/",
-        "-e", "PIP_TRUSTED_HOST=mirrors.aliyun.com",
-        "-e", "PIP_DISABLE_PIP_VERSION_CHECK=1",
         "python:3.11-slim",
         "sh", "-lc",
-        "pip download --prefer-binary --index-url http://mirrors.aliyun.com/pypi/simple/ -r /workspace/requirements-prod.txt -d /wheelhouse"
+        "pip install --no-index --find-links=/wheelhouse -r /workspace/requirements-prod.txt --dry-run"
     )
 
-    & docker @downloadCmd
+    & docker @verifyCmd
     if ($LASTEXITCODE -ne 0) {
-        Write-Warn "Linux wheel cache refresh failed; build will continue with online pip sources"
+        Throw-Err "Linux wheel cache is incomplete for requirements-prod.txt (offline verification failed). Run with -RefreshWheelCache, or pass -AllowOnlinePipFallback if you accept network install."
+    }
+    Write-Info "Offline wheelhouse verification passed"
+}
+
+function Sync-StaticVendor {
+    param(
+        [string]$ProjectRootPath
+    )
+    $src = Join-Path $ProjectRootPath "static\vendor"
+    $dst = Join-Path $ProjectRootPath "core\static\vendor"
+    if (-not (Test-Path $src)) {
         return
     }
-
-    Set-Content -Path $metaFile -Value $reqHash
-    $newCount = @(Get-ChildItem -Path $cacheRoot -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '\.(whl|tar\.gz|zip)$' }).Count
-    Write-Info "Linux wheelhouse ready: $newCount files cached"
+    New-Item -ItemType Directory -Force $dst | Out-Null
+    Write-Info "Syncing vendor static files: static/vendor -> core/static/vendor"
+    & robocopy $src $dst /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
+    if ($LASTEXITCODE -gt 7) {
+        Throw-Err "failed to sync vendor static files"
+    }
 }
 
 $bundleName = "agomsaaf-vps-bundle-$Tag"
@@ -233,13 +267,19 @@ $scriptsDir = Join-Path $bundleRoot "scripts"
 Write-Info "Preparing bundle workspace: $bundleRoot"
 New-Item -ItemType Directory -Force $imagesDir, $backupsDir, $deployDir, $dockerDir, $scriptsDir | Out-Null
 
-# Detect and activate virtual environment
-$pythonCmd = "python"
+# Prefer conda env "agomsaaf" for script-level python operations.
+$pythonCmdParts = @("python")
 $venvPath = Join-Path $ProjectRoot "venv"
 $condaEnv = $env:CONDA_DEFAULT_ENV
 
-if (-not [string]::IsNullOrWhiteSpace($condaEnv)) {
-    Write-Info "Using conda environment: $condaEnv"
+if (Get-Command conda -ErrorAction SilentlyContinue) {
+    $condaAgom = (& conda env list 2>$null | Select-String -Pattern '^\s*agomsaaf\s')
+    if ($condaAgom) {
+        $pythonCmdParts = @("conda", "run", "-n", "agomsaaf", "python")
+        Write-Info "Using conda environment: agomsaaf"
+    } elseif (-not [string]::IsNullOrWhiteSpace($condaEnv)) {
+        Write-Info "Using active conda environment: $condaEnv"
+    }
 } elseif (Test-Path (Join-Path $ProjectRoot ".python-version")) {
     # Check for pyenv
     try {
@@ -249,6 +289,18 @@ if (-not [string]::IsNullOrWhiteSpace($condaEnv)) {
         }
     } catch {}
 }
+
+$pyExe = $pythonCmdParts[0]
+$pyArgs = @()
+if ($pythonCmdParts.Count -gt 1) {
+    $pyArgs += $pythonCmdParts[1..($pythonCmdParts.Count - 1)]
+}
+& $pyExe @pyArgs "--version" | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    Throw-Err "python runtime check failed (expected usable Python / conda agomsaaf environment)"
+}
+
+Sync-StaticVendor -ProjectRootPath $ProjectRoot
 
 $webImage = "$WebImageName`:$Tag"
 $buildContext = "."
@@ -386,10 +438,11 @@ if ($SkipWebBuild) {
         Throw-Err "web image not found locally: $webImage (remove -SkipWebBuild or build/tag the image first)"
     }
 } else {
+    $pipOfflineOnly = if ($AllowOnlinePipFallback) { "0" } else { "1" }
     if ($DisableBuildKit) {
         Write-Info "Building web image: $webImage (legacy builder, BuildKit disabled)"
         $env:DOCKER_BUILDKIT = "0"
-        docker build $ProxyBuildArgs -f $dockerfilePath -t $webImage $buildContext
+        docker build $ProxyBuildArgs --build-arg PIP_OFFLINE_ONLY=$pipOfflineOnly -f $dockerfilePath -t $webImage $buildContext
         if ($LASTEXITCODE -ne 0) {
             Throw-Err "docker image build failed (legacy builder mode)"
         }
@@ -397,11 +450,11 @@ if ($SkipWebBuild) {
         Write-Info "Building web image: $webImage (with BuildKit cache)"
         $env:DOCKER_BUILDKIT = "1"
         # --compress is deprecated with BuildKit, use --output instead for faster builds
-        docker build $ProxyBuildArgs --build-arg BUILDKIT_INLINE_CACHE=1 --progress=plain -f $dockerfilePath -t $webImage $buildContext
+        docker build $ProxyBuildArgs --build-arg BUILDKIT_INLINE_CACHE=1 --build-arg PIP_OFFLINE_ONLY=$pipOfflineOnly --progress=plain -f $dockerfilePath -t $webImage $buildContext
         if ($LASTEXITCODE -ne 0) {
             Write-Info "BuildKit build failed, retrying with legacy builder (DOCKER_BUILDKIT=0)"
             $env:DOCKER_BUILDKIT = "0"
-            docker build $ProxyBuildArgs -f $dockerfilePath -t $webImage $buildContext
+            docker build $ProxyBuildArgs --build-arg PIP_OFFLINE_ONLY=$pipOfflineOnly -f $dockerfilePath -t $webImage $buildContext
             if ($LASTEXITCODE -ne 0) {
                 Throw-Err "docker image build failed (BuildKit and legacy builder both failed)"
             }

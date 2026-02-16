@@ -35,7 +35,7 @@ function dismissAlert(button) {
     
     // 存储到 localStorage
     const dismissed = JSON.parse(localStorage.getItem('dismissedAlerts') || '[]');
-    const key = 'alert_' + alertId + '_' + Date.today().toDateString();
+    const key = 'alert_' + alertId + '_' + new Date().toDateString();
     if (!dismissed.includes(key)) {
         dismissed.push(key);
         localStorage.setItem('dismissedAlerts', JSON.stringify(dismissed));

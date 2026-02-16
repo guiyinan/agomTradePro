@@ -2,6 +2,7 @@
 FROM python:3.11-slim AS builder
 
 WORKDIR /app
+ARG PIP_OFFLINE_ONLY=1
 
 COPY requirements-prod.txt /tmp/requirements-prod.txt
 COPY .cache/pip-wheels/linux-py311 /tmp/pip-wheels/linux-py311
@@ -18,11 +19,20 @@ RUN set -eu; \
     TUNA_URL="http://pypi.tuna.tsinghua.edu.cn/simple/"; \
     if [ -d "/tmp/pip-wheels/linux-py311" ] && [ "$(ls -A /tmp/pip-wheels/linux-py311 2>/dev/null)" ]; then \
       echo "Installing from local Linux wheelhouse first"; \
-      pip install --no-index --find-links=/tmp/pip-wheels/linux-py311 -r /tmp/requirements-prod.txt || \
-      (pip_install "$ALIYUN_URL" "mirrors.aliyun.com" || pip_install "$TUNA_URL" "pypi.tuna.tsinghua.edu.cn" || pip_install "$PYPI_URL" "pypi.org"); \
+      if [ "$PIP_OFFLINE_ONLY" = "1" ]; then \
+        pip install --no-index --find-links=/tmp/pip-wheels/linux-py311 -r /tmp/requirements-prod.txt; \
+      else \
+        pip install --no-index --find-links=/tmp/pip-wheels/linux-py311 -r /tmp/requirements-prod.txt || \
+        (pip_install "$ALIYUN_URL" "mirrors.aliyun.com" || pip_install "$TUNA_URL" "pypi.tuna.tsinghua.edu.cn" || pip_install "$PYPI_URL" "pypi.org"); \
+      fi; \
     else \
-      echo "No local Linux wheelhouse found, using China mirrors first (HTTP)"; \
-      (pip_install "$ALIYUN_URL" "mirrors.aliyun.com" || pip_install "$TUNA_URL" "pypi.tuna.tsinghua.edu.cn" || pip_install "$PYPI_URL" "pypi.org"); \
+      if [ "$PIP_OFFLINE_ONLY" = "1" ]; then \
+        echo "No local Linux wheelhouse found and PIP_OFFLINE_ONLY=1"; \
+        exit 1; \
+      else \
+        echo "No local Linux wheelhouse found, using China mirrors first (HTTP)"; \
+        (pip_install "$ALIYUN_URL" "mirrors.aliyun.com" || pip_install "$TUNA_URL" "pypi.tuna.tsinghua.edu.cn" || pip_install "$PYPI_URL" "pypi.org"); \
+      fi; \
     fi
 
 FROM python:3.11-slim
