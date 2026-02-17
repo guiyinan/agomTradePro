@@ -125,7 +125,7 @@ async function submitAIQuestion() {
     submitBtn.disabled = true;
 
     try {
-        const response = await fetch('/api/prompt/chat', {
+        const response = await fetch('/prompt/api/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

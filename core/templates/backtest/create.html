@@ -200,7 +200,7 @@ document.getElementById('backtest-form').addEventListener('submit', async functi
     btnLoading.style.display = 'inline';
 
     try {
-        const response = await fetch('/api/backtests/', {
+        const response = await fetch('/backtest/api/backtests/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

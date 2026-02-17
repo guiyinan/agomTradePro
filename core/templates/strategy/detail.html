@@ -468,7 +468,7 @@ async function toggleStatus() {
     formData.append('action', isActive ? 'deactivate' : 'activate');
 
     try {
-        const res = await fetch(`/api/strategy/{{ strategy.id }}/toggle-status/`, {
+        const res = await fetch(`/strategy/{{ strategy.id }}/toggle-status/`, {
             method: 'POST',
             body: formData
         });
@@ -490,7 +490,7 @@ async function executeStrategy(id) {
 
     try {
         showToast('正在执行策略...', 'info');
-        const res = await fetch(`/api/strategy/${id}/execute/`, {
+        const res = await fetch(`/strategy/${id}/execute/`, {
             method: 'POST'
         });
         const data = await res.json();
@@ -522,7 +522,7 @@ async function runStrategyTest() {
     resultsDiv.innerHTML = '';
 
     try {
-        const res = await fetch(`/api/strategy/{{ strategy.id }}/test/`, {
+        const res = await fetch(`/strategy/{{ strategy.id }}/test/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -613,7 +613,7 @@ function filterLogs() {
 let logsOffset = 20;
 async function loadMoreLogs() {
     try {
-        const res = await fetch(`/api/strategy/{{ strategy.id }}/execution-logs/?offset=${logsOffset}&limit=20`);
+        const res = await fetch(`/strategy/api/strategies/{{ strategy.id }}/execution_logs/?offset=${logsOffset}&limit=20`);
         const data = await res.json();
 
         if (data.results && data.results.length > 0) {
@@ -759,21 +759,22 @@ document.addEventListener('DOMContentLoaded', async function() {
     // 加载测试账户
     const select = document.getElementById('testAccount');
     try {
-        const res = await fetch('/api/simulated-trading/my-accounts/');
+        const res = await fetch('/simulated-trading/api/accounts/');
         const data = await res.json();
-        if (Array.isArray(data)) {
-            data.forEach(account => {
+        const accounts = Array.isArray(data) ? data : (data.accounts || []);
+        if (Array.isArray(accounts)) {
+            accounts.forEach(account => {
                 const option = document.createElement('option');
-                option.value = account.id;
+                option.value = account.account_id || account.id;
                 option.textContent = account.account_name;
                 select.appendChild(option);
             });
 
             // 同时填充投资组合筛选器
             const portfolioFilter = document.getElementById('logPortfolioFilter');
-            data.forEach(account => {
+            accounts.forEach(account => {
                 const option = document.createElement('option');
-                option.value = account.id;
+                option.value = account.account_id || account.id;
                 option.textContent = account.account_name;
                 portfolioFilter.appendChild(option);
             });

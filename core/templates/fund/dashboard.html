@@ -520,7 +520,7 @@ async function runMultiDimScreen() {
     };
 
     try {
-        const response = await fetch('/api/fund/multidim-screen/', {
+        const response = await fetch('/fund/multidim-screen/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -572,7 +572,7 @@ function showWeightConfig() {
     const configDiv = document.getElementById('weightConfig');
     if (configDiv.style.display === 'none') {
         // 加载权重配置
-        fetch('/api/asset-analysis/current-weight/?asset_type=fund')
+        fetch('/asset-analysis/current-weight/?asset_type=fund')
             .then(res => res.json())
             .then(data => {
                 if (data.success && data.weights) {
@@ -590,16 +590,7 @@ function showWeightConfig() {
 
 // 页面加载时获取激活信号数量
 document.addEventListener('DOMContentLoaded', function() {
-    fetch('/api/signal/active/')
-        .then(res => res.json())
-        .then(data => {
-            if (data.success && data.signals) {
-                document.getElementById('activeSignalsCount').textContent = data.signals.length;
-            }
-        })
-        .catch(() => {
-            document.getElementById('activeSignalsCount').textContent = '0';
-        });
+    document.getElementById('activeSignalsCount').textContent = '{{ active_signals_count|default:0 }}';
 });
 
 // 基金筛选
@@ -805,7 +796,7 @@ async function submitAIQuestion() {
     };
 
     try {
-        const response = await fetch('/api/prompt/chat', {
+        const response = await fetch('/prompt/api/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

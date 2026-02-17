@@ -229,7 +229,7 @@ async function toggleStatus(id, activate) {
     formData.append('action', activate ? 'activate' : 'deactivate');
 
     try {
-        const res = await fetch(`/api/strategy/${id}/toggle-status/`, {
+        const res = await fetch(`/strategy/${id}/toggle-status/`, {
             method: 'POST',
             body: formData
         });
@@ -251,15 +251,14 @@ async function deleteStrategy(id, name) {
     if (!confirm(`确认删除策略 "${name}"？\n\n此操作不可恢复！`)) return;
 
     try {
-        const res = await fetch(`/api/strategy/${id}/`, {
+        const res = await fetch(`/strategy/api/strategies/${id}/`, {
             method: 'DELETE'
         });
-        const data = await res.json();
-
-        if (data.success) {
+        if (res.ok) {
             showToast('删除成功');
             location.reload();
         } else {
+            const data = await res.json();
             showToast(`删除失败: ${data.error}`, 'error');
         }
     } catch (e) {

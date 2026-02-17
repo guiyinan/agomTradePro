@@ -49,6 +49,7 @@ def dashboard_view(request):
     from apps.regime.infrastructure.repositories import DjangoRegimeRepository
     from apps.policy.infrastructure.repositories import DjangoPolicyRepository
     from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
+    from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
     regime_repo = DjangoRegimeRepository()
     latest_regime = regime_repo.get_latest_snapshot()
@@ -60,6 +61,8 @@ def dashboard_view(request):
     # 获取最新情绪指数
     sentiment_repo = SentimentIndexRepository()
     latest_sentiment = sentiment_repo.get_latest()
+    signal_repo = DjangoSignalRepository()
+    active_signals = signal_repo.get_active_signals()
 
     regime_display = {
         'Recovery': '复苏',
@@ -99,6 +102,7 @@ def dashboard_view(request):
         'sentiment_index': f"{latest_sentiment.composite_index:.2f}" if latest_sentiment else "0.00",
         'sentiment_level': sentiment_level,
         'sentiment_date': latest_sentiment.index_date.strftime('%Y-%m-%d') if latest_sentiment else '-',
+        'active_signals_count': len(active_signals),
     }
 
     return render(request, 'fund/dashboard.html', context)

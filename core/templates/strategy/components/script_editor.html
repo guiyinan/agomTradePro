@@ -644,7 +644,7 @@ async function testScript() {
     resultPanel.textContent = '正在测试...';
 
     try {
-        const res = await fetch('/api/strategy/test-script/', {
+        const res = await fetch('/strategy/api/test-script/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

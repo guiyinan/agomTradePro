@@ -756,7 +756,7 @@ async function loadStrategies() {
     strategyList.innerHTML = '<div class="loading">正在加载策略列表...</div>';
 
     try {
-        const res = await fetch('/api/strategy/my-strategies/');
+        const res = await fetch('/strategy/api/strategies/my_strategies/');
         const data = await res.json();
 
         if (Array.isArray(data)) {
@@ -779,7 +779,7 @@ function renderStrategies(strategies) {
     }
 
     strategyList.innerHTML = strategies.map(strategy => `
-        <div class="strategy-option" onclick="selectStrategy(${strategy.id})" data-strategy-id="${strategy.id}">
+        <div class="strategy-option" onclick="selectStrategy(${strategy.id || strategy.strategy_id})" data-strategy-id="${strategy.id || strategy.strategy_id}">
             <div class="strategy-option-header">
                 <span class="strategy-option-name">${strategy.name}</span>
                 <div class="strategy-option-badges">
@@ -840,7 +840,7 @@ async function confirmBindStrategy() {
     }
 
     try {
-        const res = await fetch('/api/strategy/bind-strategy/', {
+        const res = await fetch('/strategy/api/bind-strategy/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -871,7 +871,7 @@ async function unbindStrategy(accountId) {
     }
 
     try {
-        const res = await fetch('/api/strategy/unbind-strategy/', {
+        const res = await fetch('/strategy/api/unbind-strategy/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
