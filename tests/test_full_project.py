@@ -175,7 +175,7 @@ class AgomSAAFBrowserTest:
 
         dashboard_pages = [
             ("/dashboard/", "主仪表板"),
-            ("/dashboard/positions/", "持仓列表"),
+            ("/dashboard/api/positions/", "持仓列表API"),
         ]
 
         for url, name in dashboard_pages:

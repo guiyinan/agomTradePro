@@ -1,70 +1,14 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}创建 Alpha 触发器 - AgomSAAF{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/alpha-triggers.css' %}">
+{% endblock %}
+
 {% block content %}
 {% include "components/json_assistant_assets.html" %}
-<style>
-.trigger-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
-.trigger-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.trigger-header h1 { font-size: 24px; margin: 0; }
-.regime-badge { padding: 8px 16px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 20px; font-size: 14px; }
-.policy-badge { padding: 8px 16px; background: linear-gradient(135deg, #f59e0b, #f97316); color: white; border-radius: 20px; font-size: 14px; }
-
-/* 创建表单 */
-.form-builder { background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
-.builder-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.builder-header h3 { margin: 0; font-size: 16px; }
-.form-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
-.form-row-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px; }
-.form-input, .form-select, .form-textarea { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
-.form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: #667eea; }
-.form-textarea { width: 100%; min-height: 80px; resize: vertical; font-family: inherit; }
-.form-label { display: block; font-size: 13px; font-weight: 500; color: #475569; margin-bottom: 4px; }
-
-/* 条件列表 */
-.conditions-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
-.condition-item { display: flex; align-items: center; gap: 8px; padding: 12px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; }
-.condition-text { flex: 1; font-size: 13px; }
-
-/* 触发条件编辑器 */
-.json-editor { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 13px; min-height: 120px; }
-
-/* AI 助手 */
-.ai-assistant { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-radius: 12px; padding: 20px; margin-bottom: 24px; border: 1px solid #bae6fd; }
-.ai-header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
-.ai-header h3 { margin: 0; font-size: 16px; color: #0369a1; }
-.ai-input-area { margin-bottom: 16px; }
-.ai-input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; resize: vertical; min-height: 80px; }
-.ai-input:focus { outline: none; border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1); }
-.ai-actions { display: flex; gap: 8px; }
-.btn-ai { padding: 10px 20px; background: #0ea5e9; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
-.btn-ai:hover { background: #0284c7; }
-.btn-clear { padding: 10px 20px; background: white; color: #64748b; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 14px; }
-.ai-result { background: white; padding: 12px; border-radius: 6px; margin-top: 16px; display: none; }
-.ai-result.show { display: block; }
-.ai-result-title { font-weight: 600; color: #0369a1; margin-bottom: 8px; }
-.ai-suggestions { background: #fef3c7; padding: 10px; border-radius: 6px; margin-top: 12px; font-size: 13px; }
-.ai-suggestions-title { font-weight: 600; margin-bottom: 4px; }
-
-/* 置信度滑块 */
-.confidence-slider { display: flex; align-items: center; gap: 12px; }
-.confidence-slider input[type="range"] { flex: 1; height: 6px; border-radius: 3px; background: #e2e8f0; }
-.confidence-slider input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #667eea; cursor: pointer; }
-.confidence-value { min-width: 50px; text-align: center; font-weight: 600; }
-
-/* 预览 */
-.rules-preview { background: #fef3c7; padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; }
-
-/* 按钮 */
-.btn-add { padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
-.btn-add:hover { background: #5a67d8; }
-.btn-remove { padding: 4px 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
-.btn-submit { width: 100%; padding: 14px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
-.btn-submit:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
-
-.error-banner { background: #fee2e2; color: #991b1b; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; }
-</style>
 
 <div class="trigger-container">
     <!-- 头部 -->

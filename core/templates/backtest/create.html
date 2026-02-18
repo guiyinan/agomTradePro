@@ -1,6 +1,11 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}创建回测{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/backtest.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="backtest-create-container">

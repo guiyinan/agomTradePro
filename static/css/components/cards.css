@@ -1,0 +1,247 @@
+/**
+ * AgomSAAF - Cards Component
+ *
+ * 卡片组件样式，基于设计Token
+ *
+ * @version 1.0.0
+ * @updated 2026-02-18
+ */
+
+/* 基础卡片 */
+.card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: var(--spacing-md);
+}
+
+/* 卡片头部 */
+.card-header {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+.card-header-title {
+  margin: 0;
+  font-size: var(--font-size-h4);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.card-header-subtitle {
+  margin: var(--spacing-xs) 0 0 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.card-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+/* 卡片主体 */
+.card-body {
+  padding: var(--spacing-lg);
+}
+
+.card-body-title {
+  margin: 0 0 var(--spacing-sm) 0;
+  font-size: var(--font-size-h4);
+  font-weight: var(--font-weight-semibold);
+}
+
+.card-body-text {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+/* 卡片底部 */
+.card-footer {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+/* 卡片图片 */
+.card-image {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.card-image-top {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.card-image-bottom {
+  border-top: 1px solid var(--color-border);
+}
+
+/* 卡片变体 */
+
+/* 无边框卡片 */
+.card-borderless {
+  border: none;
+  box-shadow: var(--shadow-sm);
+}
+
+/* 悬停效果卡片 */
+.card-hoverable {
+  transition: box-shadow var(--transition-base),
+              transform var(--transition-base);
+  cursor: pointer;
+}
+
+.card-hoverable:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+/* 可点击卡片 */
+.card-clickable {
+  cursor: pointer;
+  transition: background var(--transition-base);
+}
+
+.card-clickable:hover {
+  background: var(--color-surface);
+}
+
+/* 卡片网格 */
+.card-grid {
+  display: grid;
+  gap: var(--spacing-md);
+}
+
+.card-grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.card-grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.card-grid-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* 统计卡片 */
+.card-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+}
+
+.card-stat-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  color: var(--color-primary);
+}
+
+.card-stat-content {
+  flex: 1;
+}
+
+.card-stat-value {
+  margin: 0;
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.card-stat-label {
+  margin: var(--spacing-xs) 0 0 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.card-stat-change {
+  margin-top: var(--spacing-xs);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+}
+
+.card-stat-change-up {
+  color: var(--color-success);
+}
+
+.card-stat-change-down {
+  color: var(--color-error);
+}
+
+/* 信息卡片 */
+.card-info {
+  border-left: 4px solid var(--color-primary);
+}
+
+.card-info.card-info-success {
+  border-left-color: var(--color-success);
+}
+
+.card-info.card-info-warning {
+  border-left-color: var(--color-warning);
+}
+
+.card-info.card-info-error {
+  border-left-color: var(--color-error);
+}
+
+/* 卡片内部列表 */
+.card-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.card-list-item {
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-list-item:last-child {
+  border-bottom: none;
+}
+
+/* 卡片分组 */
+.card-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+/* 响应式卡片网格 */
+@media (max-width: 768px) {
+  .card-grid-2,
+  .card-grid-3,
+  .card-grid-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .card-grid-3,
+  .card-grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

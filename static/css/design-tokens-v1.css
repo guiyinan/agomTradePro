@@ -1,0 +1,186 @@
+/**
+ * AgomSAAF Design Tokens v1.0
+ *
+ * 基于 docs/architecture/ui_ux_design_tokens_v1.md
+ * 设计理念：简洁、淡雅、专业
+ * 目标：最大化数据可读性，最小化视觉干扰
+ *
+ * @version 1.0.0
+ * @updated 2026-02-18
+ */
+
+:root {
+  /* ============================================
+     1. 颜色系统 (Colors)
+     ============================================ */
+
+  /* 基础色 */
+  --color-bg: #FFFFFF;
+  --color-surface: #F8F9FA;
+  --color-surface-alt: #F0F1F3;
+
+  /* 边框色 */
+  --color-border: #E0E0E0;
+  --color-border-light: #F0F0F0;
+  --color-border-dark: #A2A9B1;
+
+  /* 文字色 */
+  --color-text-primary: #202122;
+  --color-text-secondary: #54595D;
+  --color-text-muted: #72777D;
+  --color-text-disabled: #A2A9B1;
+  --color-text-inverse: #FFFFFF;
+
+  /* 功能色 */
+  --color-primary: #3366CC;
+  --color-primary-hover: #447FF5;
+  --color-primary-active: #2952A3;
+  --color-primary-light: rgba(51, 102, 204, 0.1);
+  --color-primary-dark: #2952A3;
+
+  --color-success: #14866D;
+  --color-success-hover: #1AA88A;
+  --color-success-bg: #D5FBDD;
+  --color-success-dark: #0F6A56;
+
+  --color-warning: #AB7100;
+  --color-warning-hover: #D68C00;
+  --color-warning-bg: #FEF7E2;
+  --color-warning-dark: #8A5A00;
+
+  --color-error: #DD3333;
+  --color-error-hover: #FF4444;
+  --color-error-bg: #FEE7E7;
+  --color-error-dark: #AA2222;
+
+  --color-info: #3366CC;
+  --color-info-bg: #D5E9FF;
+  --color-info-dark: #2952A3;
+
+  /* Regime 象限色 */
+  --color-regime-recovery: #A7C7F7;
+  --color-regime-overheat: #F4C2C2;
+  --color-regime-stagflation: #E0E0E0;
+  --color-regime-deflation: #C8D8B8;
+
+  /* ============================================
+     2. 字体系统 (Typography)
+     ============================================ */
+
+  /* 字体家族 */
+  --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                       'Liberation Sans', 'Helvetica Neue', 'Arial', sans-serif;
+  --font-family-zh: -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                     'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-family-mono: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono',
+                       'Courier New', monospace;
+
+  /* 字体大小 */
+  --font-size-h1: 28px;
+  --font-size-h2: 24px;
+  --font-size-h3: 20px;
+  --font-size-h4: 18px;
+  --font-size-body: 14px;
+  --font-size-small: 12px;
+  --font-size-xs: 11px;
+
+  /* 行高 */
+  --line-height-h1: 36px;
+  --line-height-h2: 32px;
+  --line-height-h3: 28px;
+  --line-height-h4: 26px;
+  --line-height-body: 22px;
+  --line-height-small: 18px;
+
+  /* 字重 */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* ============================================
+     3. 间距系统 (Spacing)
+     基于 4px 基础单位
+     ============================================ */
+
+  --spacing-0: 0;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+  --spacing-xxxl: 64px;
+
+  /* ============================================
+     4. 圆角系统 (Border Radius)
+     ============================================ */
+
+  --radius-none: 0;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* ============================================
+     5. 阴影系统 (Shadows)
+     ============================================ */
+
+  --shadow-none: none;
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 8px 32px rgba(0, 0, 0, 0.16);
+
+  /* ============================================
+     6. 动画系统 (Animations)
+     ============================================ */
+
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --duration-slow: 500ms;
+
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ============================================
+     7. 响应式断点 (Breakpoints)
+     ============================================ */
+
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+
+  /* ============================================
+     8. 布局尺寸 (Layout)
+     ============================================ */
+
+  --container-max-width: 1200px;
+  --container-max-width-sm: 900px;
+  --container-max-width-lg: 1400px;
+
+  /* ============================================
+     9. Z-index 层级
+     ============================================ */
+
+  --z-base: 1;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-fixed: 300;
+  --z-modal-backdrop: 400;
+  --z-modal: 500;
+  --z-popover: 600;
+  --z-tooltip: 700;
+}
+
+/* 暗色模式支持（未来扩展） */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* TODO: 暗色模式变量定义 */
+  }
+}

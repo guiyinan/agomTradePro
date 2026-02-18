@@ -1,0 +1,122 @@
+/**
+ * AgomSAAF - Tables Component v1.0
+ *
+ * 表格组件样式，基于 ui_ux_design_tokens_v1.md
+ *
+ * @version 1.0.0
+ * @updated 2026-02-18
+ */
+
+/* 基础表格 */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-bg);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+.table thead {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-dark);
+}
+
+.table th {
+  padding: var(--spacing-sm);
+  text-align: left;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.table td {
+  padding: var(--spacing-sm);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table tbody tr:hover {
+  background: var(--color-surface);
+}
+
+/* 紧凑表格 */
+.table-sm th,
+.table-sm td {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-small);
+}
+
+/* 表格容器（支持响应式） */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table-wrapper {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+}
+
+/* 表格状态样式 */
+.table-active {
+  background: var(--color-surface);
+}
+
+.table-success td {
+  background: var(--color-success-bg);
+}
+
+.table-warning td {
+  background: var(--color-warning-bg);
+}
+
+.table-error td {
+  background: var(--color-error-bg);
+}
+
+/* 表格对齐 */
+.table th.text-left,
+.table td.text-left {
+  text-align: left;
+}
+
+.table th.text-center,
+.table td.text-center {
+  text-align: center;
+}
+
+.table th.text-right,
+.table td.text-right {
+  text-align: right;
+}
+
+/* 排序列 */
+.table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  padding-right: 30px;
+  position: relative;
+}
+
+.table th.sortable:hover {
+  background: var(--color-surface-alt);
+}
+
+.table th.sortable::after {
+  content: '⇅';
+  position: absolute;
+  right: var(--spacing-md);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+}
+
+.table th.sortable.sort-asc::after {
+  content: '↑';
+  color: var(--color-primary);
+}
+
+.table th.sortable.sort-desc::after {
+  content: '↓';
+  color: var(--color-primary);
+}

@@ -1,49 +1,13 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Beta 闸门配置 - AgomSAAF{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/beta-gate.css' %}">
+{% endblock %}
+
 {% block content %}
-<style>
-.beta-gate-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
-.beta-gate-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 24px; }
-.beta-gate-header h1 { font-size: 28px; margin-bottom: 8px; }
-.beta-gate-header p { color: #64748b; font-size: 14px; }
-
-.config-actions { display: flex; gap: 12px; }
-.btn-config { padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; display: flex; align-items: center; gap: 6px; transition: all 0.3s; }
-.btn-config:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-.btn-config.primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
-.btn-config.secondary { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
-.btn-config.secondary:hover { background: #f1f5f9; }
-
-.config-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 24px; }
-.config-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; }
-.config-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.config-card-title { font-size: 18px; font-weight: 600; }
-.config-badge { padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 500; }
-.config-badge.active { background: #d1fae5; color: #065f46; }
-.config-badge.inactive { background: #f3f4f6; color: #6b7280; }
-
-.constraint-section { margin-bottom: 16px; }
-.constraint-label { font-size: 13px; font-weight: 500; color: #64748b; margin-bottom: 8px; }
-.constraint-list { display: flex; flex-wrap: wrap; gap: 8px; }
-.constraint-item { padding: 6px 12px; background: #f8fafc; border-radius: 6px; font-size: 13px; }
-.constraint-item.allowed { background: #d1fae5; color: #065f46; }
-.constraint-item.blocked { background: #fee2e2; color: #991b1b; }
-
-.decision-table { width: 100%; border-collapse: collapse; }
-.decision-table th { padding: 12px; text-align: left; background: #f8fafc; font-weight: 600; font-size: 13px; color: #64748b; }
-.decision-table td { padding: 12px; border-top: 1px solid #e2e8f0; font-size: 14px; }
-.decision-table .status-passed { color: #10b981; font-weight: 500; }
-.decision-table .status-blocked { color: #ef4444; font-weight: 500; }
-
-.empty-state { text-align: center; padding: 60px 20px; color: #94a3b8; }
-.empty-icon { font-size: 48px; margin-bottom: 12px; }
-.empty-actions { margin-top: 20px; display: flex; justify-content: center; gap: 12px; }
-
-.admin-link { color: #667eea; text-decoration: none; font-weight: 500; }
-.admin-link:hover { text-decoration: underline; }
-</style>
 
 <div class="beta-gate-container">
     <!-- 头部 -->

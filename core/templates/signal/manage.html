@@ -1,89 +1,13 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}投资信号管理 - AgomSAAF{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/signal.css' %}">
+{% endblock %}
+
 {% block content %}
-<style>
-.signal-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
-.signal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.signal-header h1 { font-size: 24px; margin: 0; }
-.regime-badge { padding: 8px 16px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 20px; font-size: 14px; }
-.stats-row { display: flex; gap: 12px; margin-bottom: 20px; }
-.stat-card { flex: 1; padding: 16px; background: #f8fafc; border-radius: 8px; text-align: center; }
-.stat-value { font-size: 24px; font-weight: 700; }
-.stat-label { font-size: 12px; color: #64748b; }
-.batch-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 12px 16px; background: #eff6ff; border-radius: 8px; }
-
-/* 创建表单 */
-.condition-builder { background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
-.builder-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.builder-header h3 { margin: 0; font-size: 16px; }
-.builder-body { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
-.form-input, .form-select { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
-.form-input:focus, .form-select:focus { outline: none; border-color: #667eea; }
-
-/* 条件列表 */
-.conditions-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
-.condition-item { display: flex; align-items: center; gap: 8px; padding: 12px; background: white; border: 1px solid #e2e8f0; border-radius: 6px; }
-.condition-text { flex: 1; font-size: 13px; }
-
-/* AI 助手 */
-.ai-assistant { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-radius: 12px; padding: 20px; margin-bottom: 24px; border: 1px solid #bae6fd; }
-.ai-header { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
-.ai-header h3 { margin: 0; font-size: 16px; color: #0369a1; }
-.ai-input-area { margin-bottom: 16px; }
-.ai-input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; resize: vertical; min-height: 60px; }
-.ai-input:focus { outline: none; border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1); }
-.ai-actions { display: flex; gap: 8px; }
-.btn-ai { padding: 10px 20px; background: #0ea5e9; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
-.btn-ai:hover { background: #0284c7; }
-.btn-clear { padding: 10px 20px; background: white; color: #64748b; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 14px; }
-.ai-result { background: white; padding: 12px; border-radius: 6px; margin-top: 16px; display: none; }
-.ai-result.show { display: block; }
-.ai-result-title { font-weight: 600; color: #0369a1; margin-bottom: 8px; }
-.ai-suggestions { background: #fef3c7; padding: 10px; border-radius: 6px; margin-top: 12px; font-size: 13px; }
-.ai-suggestions-title { font-weight: 600; margin-bottom: 4px; }
-
-/* 信号列表 */
-.signal-list { display: flex; flex-direction: column; gap: 12px; }
-.signal-card { display: flex; align-items: flex-start; gap: 16px; padding: 16px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; border-left: 4px solid #cbd5e1; }
-.signal-card.status-approved { border-left-color: #10b981; }
-.signal-card.status-rejected { border-left-color: #ef4444; }
-.signal-card.status-pending { border-left-color: #f59e0b; }
-.signal-card.status-invalidated { border-left-color: #9ca3af; opacity: 0.7; }
-.signal-main { flex: 1; }
-.signal-title { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.signal-code { font-size: 16px; font-weight: 600; }
-.signal-tag { padding: 2px 8px; background: #e2e8f0; border-radius: 4px; font-size: 11px; }
-.signal-desc { font-size: 13px; color: #64748b; margin-bottom: 8px; }
-.signal-rules { background: #f1f5f9; padding: 10px; border-radius: 6px; font-size: 12px; margin-bottom: 8px; }
-.signal-rules .label { color: #94a3b8; font-weight: 500; }
-.signal-meta { display: flex; gap: 12px; font-size: 12px; color: #94a3b8; }
-.signal-actions { display: flex; gap: 6px; flex-shrink: 0; }
-.action-btn { padding: 6px 12px; border: 1px solid #e2e8f0; background: white; border-radius: 4px; font-size: 12px; cursor: pointer; }
-.action-btn.approve:hover { background: #10b981; border-color: #10b981; color: white; }
-.action-btn.reject:hover { background: #ef4444; border-color: #ef4444; color: white; }
-.action-btn.check:hover { background: #3b82f6; border-color: #3b82f6; color: white; }
-.action-btn.delete:hover { background: #64748b; border-color: #64748b; color: white; }
-.status-badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; }
-.status-approved { background: #d1fae5; color: #065f46; }
-.status-rejected { background: #fee2e2; color: #991b1b; }
-.status-pending { background: #fef3c7; color: #92400e; }
-.status-invalidated { background: #f3f4f6; color: #6b7280; }
-
-/* Toast & 按钮通用 */
-.toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; background: #1e293b; color: white; border-radius: 6px; font-size: 14px; opacity: 0; transform: translateY(10px); transition: all 0.3s; }
-.toast.show { opacity: 1; transform: translateY(0); }
-.toast.success { background: #10b981; }
-.toast.error { background: #ef4444; }
-.btn-add { padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
-.btn-remove { padding: 4px 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
-.rules-preview { background: #fef3c7; padding: 12px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; }
-.btn-batch { padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
-.btn-batch:hover { background: #2563eb; }
-.empty-state { text-align: center; padding: 60px 20px; color: #94a3b8; }
-</style>
-
 <div class="signal-container">
     <!-- 头部 -->
     <div class="signal-header">

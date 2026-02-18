@@ -1,0 +1,91 @@
+/**
+ * AgomSAAF - Cards Component v1.0
+ *
+ * 卡片组件样式，基于 ui_ux_design_tokens_v1.md
+ *
+ * @version 1.0.0
+ * @updated 2026-02-18
+ */
+
+/* 基础卡片 */
+.card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  padding: var(--spacing-md);
+}
+
+/* 卡片头部 */
+.card-header {
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+}
+
+/* 卡片主体 */
+.card-body {
+  margin: 0;
+}
+
+/* 卡片底部 */
+.card-footer {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+
+/* 无边框卡片 */
+.card-borderless {
+  border: none;
+  box-shadow: var(--shadow-sm);
+}
+
+/* 悬停效果卡片 */
+.card-hoverable {
+  transition: box-shadow var(--duration-normal) var(--ease-in-out);
+  cursor: pointer;
+}
+
+.card-hoverable:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* 统计卡片 */
+.card-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+}
+
+.card-stat-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+}
+
+.card-stat-content {
+  flex: 1;
+}
+
+.card-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--spacing-xs);
+}
+
+.card-stat-label {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}

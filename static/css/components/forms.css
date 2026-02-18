@@ -1,0 +1,385 @@
+/**
+ * AgomSAAF - Forms Component
+ *
+ * 表单组件样式，基于设计Token
+ *
+ * @version 1.0.0
+ * @updated 2026-02-18
+ */
+
+/* 表单容器 */
+.form {
+  width: 100%;
+}
+
+.form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.form-row {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.form-col {
+  flex: 1;
+}
+
+/* 标签 */
+.form-label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.form-label.required::after {
+  content: ' *';
+  color: var(--color-error);
+}
+
+.form-label-secondary {
+  display: block;
+  margin-top: var(--spacing-xs);
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+/* 输入框 */
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+  transition: border-color var(--transition-base),
+              box-shadow var(--transition-base);
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(51, 102, 204, 0.1);
+}
+
+.form-input:disabled,
+.form-select:disabled,
+.form-textarea:disabled {
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* 文本域 */
+.form-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* 选择框 */
+.form-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2354595D' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--spacing-md) center;
+  padding-right: var(--spacing-xl);
+}
+
+.form-select[multiple] {
+  background-image: none;
+  height: auto;
+  min-height: 80px;
+}
+
+/* 复选框和单选框 */
+.form-check,
+.form-radio {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+}
+
+.form-check-input,
+.form-radio-input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.form-check-label,
+.form-radio-label {
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  user-select: none;
+}
+
+/* 搜索框 */
+.form-search {
+  position: relative;
+}
+
+.form-search-input {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md) var(--spacing-sm) 36px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-body);
+}
+
+.form-search-icon {
+  position: absolute;
+  left: var(--spacing-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+/* 表单尺寸 */
+.form-input-sm,
+.form-select-sm,
+.form-textarea-sm {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-small);
+}
+
+.form-input-lg,
+.form-select-lg,
+.form-textarea-lg {
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: var(--font-size-h4);
+}
+
+/* 表单状态 */
+.form-input.is-invalid,
+.form-select.is-invalid,
+.form-textarea.is-invalid {
+  border-color: var(--color-error);
+}
+
+.form-input.is-invalid:focus,
+.form-select.is-invalid:focus,
+.form-textarea.is-invalid:focus {
+  box-shadow: 0 0 0 3px rgba(221, 51, 51, 0.1);
+}
+
+.form-input.is-valid,
+.form-select.is-valid,
+.form-textarea.is-valid {
+  border-color: var(--color-success);
+}
+
+.form-input.is-valid:focus,
+.form-select.is-valid:focus,
+.form-textarea.is-valid:focus {
+  box-shadow: 0 0 0 3px rgba(20, 134, 109, 0.1);
+}
+
+/* 表单帮助文本 */
+.form-text {
+  display: block;
+  margin-top: var(--spacing-xs);
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.form-text-error {
+  color: var(--color-error);
+}
+
+.form-text-success {
+  color: var(--color-success);
+}
+
+/* 表单前缀和后缀 */
+.input-group {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.input-group:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(51, 102, 204, 0.1);
+}
+
+.input-group-prepend,
+.input-group-append {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--spacing-md);
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.input-group-prepend {
+  border-left: none;
+  border-right: 1px solid var(--color-border);
+}
+
+.input-group-append {
+  border-left: 1px solid var(--color-border);
+  border-right: none;
+}
+
+.input-group .form-input,
+.input-group .form-select {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.input-group .form-input:focus,
+.input-group .form-select:focus {
+  box-shadow: none;
+}
+
+/* 范围滑块 */
+.form-range {
+  width: 100%;
+  height: 8px;
+  padding: 0;
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.form-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: pointer;
+  transition: background var(--transition-base);
+}
+
+.form-range::-webkit-slider-thumb:hover {
+  background: var(--color-primary-hover);
+}
+
+.form-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-primary);
+  cursor: pointer;
+  transition: background var(--transition-base);
+}
+
+.form-range::-moz-range-thumb:hover {
+  background: var(--color-primary-hover);
+}
+
+/* 开关 */
+.form-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.form-switch-input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.form-switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--color-border);
+  transition: background-color var(--transition-base);
+  border-radius: var(--radius-full);
+}
+
+.form-switch-slider::before {
+  position: absolute;
+  content: '';
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: transform var(--transition-base);
+  border-radius: 50%;
+}
+
+.form-switch-input:checked + .form-switch-slider {
+  background-color: var(--color-primary);
+}
+
+.form-switch-input:checked + .form-switch-slider::before {
+  transform: translateX(20px);
+}
+
+/* 文件上传 */
+.form-file {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.form-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.form-file-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.form-file-label:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}

@@ -1,0 +1,90 @@
+/**
+ * AgomSAAF - Badges/Tags Component v1.0
+ *
+ * 标签徽章组件样式，基于 ui_ux_design_tokens_v1.md
+ *
+ * @version 1.0.0
+ * @updated 2026-02-18
+ */
+
+/* 基础标签 */
+.tag {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-xs);
+  font-size: var(--font-size-small);
+  border-radius: var(--radius-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+/* 状态标签 */
+.tag-success {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.tag-warning {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.tag-error {
+  background: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+.tag-info {
+  background: var(--color-info-bg);
+  color: var(--color-info);
+}
+
+/* Regime 象限标签 */
+.tag-regime-recovery {
+  background: var(--color-regime-recovery);
+  color: var(--color-text-primary);
+}
+
+.tag-regime-overheat {
+  background: var(--color-regime-overheat);
+  color: var(--color-text-primary);
+}
+
+.tag-regime-stagflation {
+  background: var(--color-regime-stagflation);
+  color: var(--color-text-primary);
+}
+
+.tag-regime-deflation {
+  background: var(--color-regime-deflation);
+  color: var(--color-text-primary);
+}
+
+/* 圆形标签 */
+.tag-circle {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-xs);
+}
+
+/* 大号圆形标签 */
+.tag-circle-lg {
+  width: 32px;
+  height: 32px;
+}
+
+/* 小号标签 */
+.tag-sm {
+  padding: 2px 6px;
+  font-size: var(--font-size-xs);
+}
+
+/* 药丸标签 */
+.tag-pill {
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-full);
+}

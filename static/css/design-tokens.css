@@ -1,0 +1,193 @@
+/**
+ * AgomSAAF Design Tokens
+ *
+ * 全局 CSS 变量系统，统一颜色、字体、间距、圆角、阴影等设计规范。
+ *
+ * 设计理念：简洁、淡雅、专业 - 参考 Wikipedia 风格
+ * 目标：最大化数据可读性，最小化视觉干扰
+ *
+ * @version 1.0.0
+ * @updated 2026-02-18
+ */
+
+:root {
+  /* ============================================
+     1. 基础色 (Base Colors)
+     ============================================ */
+
+  --color-bg: #FFFFFF;
+  --color-surface: #F8F9FA;
+  --color-border: #E0E0E0;
+  --color-border-light: #EAEAEA;
+
+  /* 文字色 */
+  --color-text-primary: #202122;
+  --color-text-secondary: #54595D;
+  --color-text-muted: #72777D;
+  --color-text-inverse: #FFFFFF;
+
+  /* ============================================
+     2. 功能色 (Functional Colors)
+     ============================================ */
+
+  /* Primary - 主要操作、链接 */
+  --color-primary: #3366CC;
+  --color-primary-hover: #447FF5;
+  --color-primary-active: #2952A3;
+  --color-primary-light: #D5E9FF;
+  --color-primary-dark: #2952A3;
+
+  /* Success - 成功/Positive */
+  --color-success: #14866D;
+  --color-success-hover: #1A9E82;
+  --color-success-light: #D5FBDD;
+  --color-success-dark: #0F6A56;
+
+  /* Warning - 警告 */
+  --color-warning: #AB7100;
+  --color-warning-hover: #C98600;
+  --color-warning-light: #FEF7E2;
+  --color-warning-dark: #8A5A00;
+
+  /* Error - 错误/Negative */
+  --color-error: #DD3333;
+  --color-error-hover: #FF4444;
+  --color-error-light: #FEE7E7;
+  --color-error-dark: #AA2222;
+
+  /* Info - 信息提示 */
+  --color-info: #3366CC;
+  --color-info-hover: #447FF5;
+  --color-info-light: #D5E9FF;
+
+  /* ============================================
+     3. Regime 象限色 (Regime Quadrant Colors)
+     ============================================ */
+
+  --color-regime-recovery: #A7C7F7;
+  --color-regime-overheat: #F4C2C2;
+  --color-regime-stagflation: #E0E0E0;
+  --color-regime-deflation: #C8D8B8;
+
+  /* ============================================
+     4. 字体系统 (Typography)
+     ============================================ */
+
+  /* 字体家族 */
+  --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+                       'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-family-mono: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono',
+                       'Courier New', monospace;
+
+  /* 字体大小 */
+  --font-size-h1: 28px;
+  --font-size-h2: 24px;
+  --font-size-h3: 20px;
+  --font-size-h4: 18px;
+  --font-size-body: 14px;
+  --font-size-small: 12px;
+  --font-size-xs: 11px;
+
+  /* 行高 */
+  --line-height-h1: 36px;
+  --line-height-h2: 32px;
+  --line-height-h3: 28px;
+  --line-height-h4: 26px;
+  --line-height-body: 22px;
+  --line-height-small: 18px;
+
+  /* 字重 */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* ============================================
+     5. 间距系统 (Spacing)
+     ============================================ */
+
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-xxl: 48px;
+
+  /* ============================================
+     6. 圆角 (Border Radius)
+     ============================================ */
+
+  --radius-none: 0;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+
+  /* ============================================
+     7. 阴影 (Shadows)
+     ============================================ */
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 8px 32px rgba(0, 0, 0, 0.16);
+
+  /* ============================================
+     8. 过渡动画 (Transitions)
+     ============================================ */
+
+  --transition-fast: 150ms ease-in-out;
+  --transition-base: 200ms ease-in-out;
+  --transition-slow: 300ms ease-in-out;
+
+  /* ============================================
+     9. Z-index 层级
+     ============================================ */
+
+  --z-base: 1;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-fixed: 300;
+  --z-modal-backdrop: 400;
+  --z-modal: 500;
+  --z-popover: 600;
+  --z-tooltip: 700;
+
+  /* ============================================
+     10. 布局尺寸 (Layout Sizes)
+     ============================================ */
+
+  --header-height: 56px;
+  --sidebar-width: 200px;
+  --content-max-width: 1400px;
+  --container-max-width: 1200px;
+
+  /* ============================================
+     11. 图表配色 (Chart Colors)
+     ============================================ */
+
+  --chart-primary: #3366CC;
+  --chart-secondary: #72777D;
+  --chart-grid: #E0E0E0;
+  --chart-axis: #54595D;
+
+  /* 多系列配色（淡雅） */
+  --chart-series-1: #A7C7F7;
+  --chart-series-2: #C8D8B8;
+  --chart-series-3: #F4C2C2;
+  --chart-series-4: #E8D5E2;
+  --chart-series-5: #F5DEB3;
+  --chart-series-6: #B8C8D8;
+}
+
+/* ============================================
+     暗色模式支持（未来扩展）
+     ============================================ */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* TODO: 暗色模式变量定义 */
+  }
+}

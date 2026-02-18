@@ -3,6 +3,10 @@
 
 {% block title %}回测详情 - {{ backtest.name }}{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/backtest.css' %}">
+{% endblock %}
+
 {% block content %}
 <div class="backtest-detail-container">
     <div class="detail-header">

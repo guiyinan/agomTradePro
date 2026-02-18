@@ -69,7 +69,7 @@ STREAMLIT_DASHBOARD_URL=http://127.0.0.1:8501
 ```
 
 - `/dashboard/`：新入口（启用开关后跳转 Streamlit）
-- `/dashboard/legacy/`：Django 旧版回退入口
+- `/dashboard/__internal/legacy/`：Django 旧版内部调试入口（仅开发环境）
 
 ### Celery 命令
 

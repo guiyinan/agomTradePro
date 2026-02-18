@@ -1,69 +1,8 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}策略管理 - AgomSAAF{% endblock %}
 
-{% block content %}
-<style>
-.strategy-container { max-width: 1600px; margin: 0 auto; padding: 20px; }
-.strategy-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-.strategy-header h1 { font-size: 28px; margin: 0; }
-.btn-create { padding: 12px 24px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; }
-.btn-create:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
-
-.stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
-.stat-card { padding: 20px; background: linear-gradient(135deg, #f8fafc, #f1f5f9); border-radius: 12px; text-align: center; }
-.stat-value { font-size: 32px; font-weight: 700; margin-bottom: 4px; }
-.stat-label { font-size: 13px; color: #64748b; font-weight: 500; }
-.stat-card.total .stat-value { color: #667eea; }
-.stat-card.active .stat-value { color: #10b981; }
-.stat-card.inactive .stat-value { color: #94a3b8; }
-.stat-card.rule .stat-value { color: #3b82f6; }
-.stat-card.script .stat-value { color: #8b5cf6; }
-
-.filter-bar { display: flex; gap: 12px; margin-bottom: 20px; padding: 16px; background: #f8fafc; border-radius: 8px; }
-.filter-select { padding: 10px 16px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; background: white; }
-.filter-select:focus { outline: none; border-color: #667eea; }
-
-.strategy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 20px; }
-.strategy-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; transition: all 0.3s; }
-.strategy-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.1); }
-.card-header { padding: 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: start; }
-.card-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
-.card-meta { display: flex; gap: 8px; flex-wrap: wrap; }
-.badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; }
-.badge-type { background: #e0f2fe; color: #0369a1; }
-.badge-type.rule { background: #dbeafe; color: #1e40af; }
-.badge-type.script { background: #f3e8ff; color: #6b21a8; }
-.badge-type.hybrid { background: #ffedd5; color: #9a3412; }
-.badge-type.ai { background: #dcfce7; color: #166534; }
-.badge-status { background: #d1fae5; color: #065f46; }
-.badge-status.inactive { background: #f3f4f6; color: #6b7280; }
-.badge-version { background: #f1f5f9; color: #64748b; }
-
-.card-body { padding: 20px; }
-.card-desc { font-size: 14px; color: #64748b; margin-bottom: 16px; line-height: 1.6; }
-.card-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
-.card-stat { text-align: center; padding: 12px; background: #f8fafc; border-radius: 8px; }
-.card-stat-value { font-size: 18px; font-weight: 600; color: #334155; }
-.card-stat-label { font-size: 11px; color: #94a3b8; margin-top: 2px; }
-
-.card-rules { font-size: 12px; color: #64748b; }
-.rule-item { padding: 6px 10px; background: #f1f5f9; border-radius: 4px; margin-bottom: 6px; }
-
-.card-footer { padding: 16px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
-.card-actions { display: flex; gap: 8px; }
-.btn-action { padding: 8px 16px; border: 1px solid #e2e8f0; background: white; border-radius: 6px; cursor: pointer; font-size: 13px; }
-.btn-action:hover { background: #f1f5f9; }
-.btn-action.primary { background: #667eea; color: white; border-color: #667eea; }
-.btn-action.primary:hover { background: #5a67d8; }
-.btn-action.danger:hover { background: #fee2e2; border-color: #ef4444; color: #dc2626; }
-.card-date { font-size: 12px; color: #94a3b8; }
-
-.empty-state { text-align: center; padding: 80px 20px; color: #94a3b8; }
-.empty-icon { font-size: 64px; margin-bottom: 16px; }
-.empty-text { font-size: 16px; margin-bottom: 8px; }
-.empty-hint { font-size: 14px; }
-</style>
 
 <div class="strategy-container">
     <!-- 头部 -->

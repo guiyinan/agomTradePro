@@ -1,0 +1,287 @@
+/**
+ * Account Module Styles
+ * 账户模块样式
+ * 使用设计Token v1.0
+ */
+
+/* Login Page */
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+    padding: var(--spacing-lg);
+}
+
+.login-card {
+    background: white;
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xl);
+    width: 100%;
+    max-width: 400px;
+    box-shadow: var(--shadow-lg);
+}
+
+.login-title {
+    font-size: var(--font-size-h2);
+    font-weight: var(--font-weight-bold);
+    text-align: center;
+    margin: 0 0 var(--spacing-sm) 0;
+    color: var(--color-text-primary);
+}
+
+.login-subtitle {
+    text-align: center;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-lg);
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+/* Form Elements */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.form-group label {
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-primary);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-body);
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+.btn-submit {
+    padding: var(--spacing-md) var(--spacing-lg);
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-body);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--ease-in-out);
+}
+
+.btn-submit:hover {
+    background: var(--color-primary-dark);
+}
+
+/* Account Container */
+.account-container {
+    max-width: var(--content-max-width);
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+}
+
+.account-header {
+    margin-bottom: var(--spacing-xl);
+}
+
+.account-header h1 {
+    font-size: var(--font-size-h1);
+    margin: 0 0 var(--spacing-sm) 0;
+}
+
+.account-subtitle {
+    color: var(--color-text-secondary);
+}
+
+/* Profile Section */
+.profile-section {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+}
+
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-lg);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.profile-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: var(--radius-full);
+    background: var(--color-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+}
+
+.profile-info h2 {
+    margin: 0 0 var(--spacing-xs) 0;
+}
+
+.profile-role {
+    padding: var(--spacing-xs) var(--spacing-md);
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-semibold);
+}
+
+/* Settings Form */
+.settings-form {
+    display: grid;
+    gap: var(--spacing-lg);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
+}
+
+.form-section-title {
+    font-size: var(--font-size-h4);
+    font-weight: var(--font-weight-semibold);
+    margin: 0 0 var(--spacing-md) 0;
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--color-border);
+}
+
+/* User Management Table */
+.users-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.users-table thead {
+    border-bottom: 2px solid var(--color-border);
+}
+
+.users-table th {
+    padding: var(--spacing-md);
+    text-align: left;
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-small);
+}
+
+.users-table td {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+    font-size: var(--font-size-body);
+}
+
+.users-table tbody tr:hover {
+    background: var(--color-surface);
+}
+
+/* Token Management */
+.token-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.token-item {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+}
+
+.token-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.token-name {
+    font-size: var(--font-size-body);
+    font-weight: var(--font-weight-semibold);
+}
+
+.token-key {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
+    background: var(--color-bg);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+}
+
+/* Actions */
+.btn-secondary {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: var(--font-size-body);
+}
+
+.btn-secondary:hover {
+    background: var(--color-border);
+}
+
+.btn-danger {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: var(--color-error);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    font-size: var(--font-size-body);
+}
+
+.btn-danger:hover {
+    background: var(--color-error-dark);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .login-page {
+        padding: var(--spacing-md);
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-header {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .users-table {
+        display: block;
+        overflow-x: auto;
+    }
+}

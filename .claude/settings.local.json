@@ -116,7 +116,8 @@
       "Bash($env:HTTPS_PROXY=\"\")",
       "Bash($env:NO_PROXY=\"\")",
       "Bash(Select-String -Pattern \"Registry\")",
-      "Bash(tar:*)"
+      "Bash(tar:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }

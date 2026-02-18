@@ -1,0 +1,222 @@
+/**
+ * Decision Rhythm Module Styles
+ *
+ * 决策配额模块样式，使用设计Token
+ *
+ * @version 1.0.0
+ * @updated 2026-02-18
+ */
+
+/* 容器 */
+.decision-rhythm-container {
+    max-width: var(--content-max-width);
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+}
+
+/* 头部 */
+.decision-rhythm-header {
+    margin-bottom: var(--spacing-xl);
+}
+
+.decision-rhythm-header h1 {
+    font-size: var(--font-size-h1);
+    font-weight: var(--font-weight-bold);
+    margin: 0 0 var(--spacing-sm) 0;
+}
+
+.decision-rhythm-header p {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-body);
+}
+
+/* 配额卡片 */
+.quota-card {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    margin-bottom: var(--spacing-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.quota-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xl);
+    margin-bottom: var(--spacing-lg);
+}
+
+.quota-circle {
+    position: relative;
+    width: 150px;
+    height: 150px;
+}
+
+.quota-chart {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.quota-bg {
+    fill: none;
+    stroke: var(--color-border);
+    stroke-width: 8;
+}
+
+.quota-fill {
+    fill: none;
+    stroke: var(--color-primary);
+    stroke-width: 8;
+    transition: stroke-dasharray 0.5s ease;
+}
+
+.quota-fill.warning {
+    stroke: var(--color-warning);
+}
+
+.quota-fill.danger {
+    stroke: var(--color-error);
+}
+
+.quota-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.quota-percent {
+    display: block;
+    font-size: var(--font-size-h1);
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+}
+
+.quota-label {
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
+}
+
+/* 配额详情 */
+.quota-details {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-md);
+    text-align: center;
+}
+
+.quota-detail-item {
+    padding: var(--spacing-md);
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+}
+
+.quota-detail-value {
+    font-size: var(--font-size-h3);
+    font-weight: var(--font-weight-bold);
+    margin-bottom: var(--spacing-xs);
+}
+
+.quota-detail-label {
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
+}
+
+.quota-detail-item.low .quota-detail-value {
+    color: var(--color-error);
+}
+
+/* 配置表单 */
+.config-form {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+}
+
+.config-form h3 {
+    margin: 0 0 var(--spacing-md) 0;
+    font-size: var(--font-size-h4);
+    font-weight: var(--font-weight-semibold);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.form-full {
+    margin-bottom: var(--spacing-md);
+}
+
+.form-full label {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    font-size: var(--font-size-body);
+    font-weight: var(--font-weight-medium);
+}
+
+.form-full input,
+.form-full select,
+.form-full textarea {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-body);
+}
+
+/* 配置历史 */
+.history-section {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+}
+
+.history-section h3 {
+    margin: 0 0 var(--spacing-md) 0;
+    font-size: var(--font-size-h4);
+    font-weight: var(--font-weight-semibold);
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.history-table th,
+.history-table td {
+    padding: var(--spacing-md);
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.history-table th {
+    background: var(--color-surface);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-small);
+    color: var(--color-text-secondary);
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .quota-display {
+        flex-direction: column;
+    }
+
+    .quota-details {
+        grid-template-columns: 1fr;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}

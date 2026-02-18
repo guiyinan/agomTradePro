@@ -162,7 +162,7 @@ class TestAlphaDashboardE2E:
 
     def test_alpha_provider_status_api(self):
         """测试 Provider 状态 API"""
-        response = self.client.get('/dashboard/api/provider-status/')
+        response = self.client.get('/dashboard/api/alpha/provider-status/')
 
         assert response.status_code == 200
         data = response.json()
@@ -175,7 +175,7 @@ class TestAlphaDashboardE2E:
 
     def test_alpha_coverage_api(self):
         """测试覆盖率指标 API"""
-        response = self.client.get('/dashboard/api/coverage/')
+        response = self.client.get('/dashboard/api/alpha/coverage/')
 
         assert response.status_code == 200
         data = response.json()
@@ -189,7 +189,7 @@ class TestAlphaDashboardE2E:
 
     def test_alpha_ic_trends_api(self):
         """测试 IC 趋势 API"""
-        response = self.client.get('/dashboard/api/ic-trends/?days=7')
+        response = self.client.get('/dashboard/api/alpha/ic-trends/?days=7')
 
         assert response.status_code == 200
         data = response.json()
@@ -426,7 +426,7 @@ class TestDashboardAPIE2E:
     def test_positions_htmx(self):
         """测试持仓列表 HTMX"""
         # 添加 HTMX 请求头
-        response = self.client.get('/dashboard/positions/', HTTP_HX_REQUEST='true')
+        response = self.client.get('/dashboard/api/positions/', HTTP_HX_REQUEST='true')
 
         # HTMX 请求应该返回内容
         assert response.status_code == 200

@@ -1,59 +1,13 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}资产测试工具 - AgomSAAF{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/beta-gate.css' %}">
+{% endblock %}
+
 {% block content %}
-<style>
-.test-container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-.test-header { margin-bottom: 24px; }
-.test-header h1 { font-size: 24px; margin: 0; }
-.test-header p { color: #64748b; margin-top: 4px; }
-
-/* 状态面板 */
-.status-panel { display: flex; gap: 12px; margin-bottom: 20px; }
-.status-card { flex: 1; padding: 16px; background: linear-gradient(135deg, #f8fafc, #f1f5f9); border-radius: 12px; text-align: center; }
-.status-value { font-size: 20px; font-weight: 600; }
-.status-label { font-size: 12px; color: #64748b; margin-top: 4px; }
-
-/* 测试表单 */
-.test-form { background: #f8fafc; border-radius: 12px; padding: 20px; margin-bottom: 24px; }
-.form-row { display: grid; grid-template-columns: 2fr 1fr auto; gap: 12px; align-items: end; }
-.form-input, .form-select { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
-.form-textarea { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; font-family: monospace; min-height: 100px; }
-.form-label { display: block; font-size: 13px; font-weight: 500; color: #475569; margin-bottom: 4px; }
-.btn-test { padding: 10px 24px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; }
-.btn-test:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
-
-/* 结果展示 */
-.results-container { margin-top: 24px; }
-.results-summary { display: flex; gap: 12px; margin-bottom: 16px; }
-.summary-card { flex: 1; padding: 16px; border-radius: 8px; text-align: center; }
-.summary-card.passed { background: #d1fae5; }
-.summary-card.blocked { background: #fee2e2; }
-.summary-value { font-size: 24px; font-weight: 700; }
-.summary-label { font-size: 12px; margin-top: 4px; }
-.summary-passed .summary-value { color: #065f46; }
-.summary-blocked .summary-value { color: #991b1b; }
-
-.result-item { padding: 16px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 12px; }
-.result-item.passed { border-left: 4px solid #10b981; }
-.result-item.blocked { border-left: 4px solid #ef4444; }
-.result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.result-code { font-size: 16px; font-weight: 600; }
-.result-status { padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }
-.result-status.passed { background: #d1fae5; color: #065f46; }
-.result-status.blocked { background: #fee2e2; color: #991b1b; }
-.result-reason { font-size: 13px; color: #64748b; }
-.result-details { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; }
-
-/* 历史记录 */
-.history-section { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; }
-.history-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-.history-table th { padding: 10px; text-align: left; background: #f8fafc; font-weight: 600; font-size: 12px; color: #64748b; }
-.history-table td { padding: 10px; border-top: 1px solid #e2e8f0; font-size: 13px; }
-
-.empty-state { text-align: center; padding: 40px 20px; color: #94a3b8; }
-</style>
 
 <div class="test-container">
     <!-- 头部 -->

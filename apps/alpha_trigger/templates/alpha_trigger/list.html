@@ -2,57 +2,11 @@
 
 {% block title %}Alpha 触发器 - AgomSAAF{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/alpha-triggers.css' %}">
+{% endblock %}
+
 {% block content %}
-<style>
-.alpha-trigger-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
-.alpha-trigger-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-.alpha-trigger-header h1 { font-size: 28px; margin: 0; }
-.alpha-trigger-header p { color: #64748b; font-size: 14px; margin-top: 4px; }
-.btn-create { padding: 10px 20px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
-.btn-create:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
-
-.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-.stat-card { padding: 20px; background: linear-gradient(135deg, #f8fafc, #f1f5f9); border-radius: 12px; text-align: center; }
-.stat-value { font-size: 32px; font-weight: 700; margin-bottom: 4px; }
-.stat-label { font-size: 13px; color: #64748b; font-weight: 500; }
-.stat-card.watch .stat-value { color: #f59e0b; }
-.stat-card.candidate .stat-value { color: #3b82f6; }
-.stat-card.actionable .stat-value { color: #10b981; }
-.stat-card.triggered .stat-value { color: #8b5cf6; }
-
-.panel-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 24px; }
-.panel-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
-.panel-header { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
-.panel-title { font-size: 16px; font-weight: 600; }
-.panel-count { padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }
-.panel-count.watch { background: #fef3c7; color: #92400e; }
-.panel-count.candidate { background: #dbeafe; color: #1e40af; }
-.panel-count.actionable { background: #d1fae5; color: #065f46; }
-
-.panel-body { padding: 0; }
-.trigger-table { width: 100%; border-collapse: collapse; }
-.trigger-table th { padding: 12px 16px; text-align: left; background: #f8fafc; font-weight: 600; font-size: 12px; color: #64748b; }
-.trigger-table td { padding: 12px 16px; border-top: 1px solid #e2e8f0; font-size: 13px; }
-
-.strength-badge { padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; }
-.strength-weak { background: #f3f4f6; color: #6b7280; }
-.strength-moderate { background: #dbeafe; color: #1e40af; }
-.strength-strong { background: #fef3c7; color: #92400e; }
-.strength-very_strong { background: #fed7aa; color: #9a3412; }
-
-.direction-badge { padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; }
-.direction-long { background: #d1fae5; color: #065f46; }
-.direction-short { background: #fee2e2; color: #991b1b; }
-.direction-neutral { background: #f3f4f6; color: #6b7280; }
-
-.trigger-row { cursor: pointer; transition: background 0.2s; }
-.trigger-row:hover { background: #f8fafc; }
-.trigger-link { color: inherit; text-decoration: none; display: contents; }
-
-.empty-state { text-align: center; padding: 40px 20px; color: #94a3b8; }
-.empty-icon { font-size: 36px; margin-bottom: 8px; }
-</style>
-
 <div class="alpha-trigger-container">
     <!-- 头部 -->
     <div class="alpha-trigger-header">
@@ -60,13 +14,13 @@
             <h1>⚡ Alpha 触发器</h1>
             <p>离散、可证伪、可行动的 Alpha 信号触发机制</p>
         </div>
-        <a href="{% url 'alpha_trigger:create' %}" class="btn-create">
+        <a href="{% url 'alpha_trigger:create' %}" class="btn btn-primary">
             <i class="bi bi-plus-lg"></i> 创建触发器
         </a>
     </div>
 
     {% if error %}
-    <div class="alert alert-danger">
+    <div class="alert alert-error">
         <i class="bi bi-exclamation-triangle"></i> {{ error }}
     </div>
     {% endif %}
@@ -79,85 +33,52 @@
         </div>
         <div class="stat-card candidate">
             <div class="stat-value">{{ candidate_stats.candidate_count|default:0 }}</div>
-            <div class="stat-label">📋 候选中</div>
+            <div class="stat-label">📋 候选</div>
         </div>
         <div class="stat-card actionable">
             <div class="stat-value">{{ candidate_stats.actionable_count|default:0 }}</div>
-            <div class="stat-label">🎯 可行动</div>
+            <div class="stat-label">✅ 可行动</div>
         </div>
         <div class="stat-card triggered">
-            <div class="stat-value">{{ trigger_stats.active_count|default:0 }}</div>
-            <div class="stat-label">🔥 活跃触发器</div>
+            <div class="stat-value">{{ candidate_stats.triggered_count|default:0 }}</div>
+            <div class="stat-label">⚡ 已触发</div>
         </div>
     </div>
 
-    <!-- Alpha 面板 -->
+    <!-- 面板网格 -->
     <div class="panel-grid">
-        <!-- 可行动候选 -->
+        <!-- 观察中 -->
         <div class="panel-card">
             <div class="panel-header">
-                <div class="panel-title">🎯 可行动候选 (ACTIONABLE)</div>
-                <span class="panel-count actionable">{{ actionable_candidates|length }}</span>
-            </div>
-            <div class="panel-body">
-                {% if actionable_candidates %}
-                <table class="trigger-table">
-                    <thead>
-                        <tr>
-                            <th>资产</th>
-                            <th>方向</th>
-                            <th>强度</th>
-                            <th>置信度</th>
-                            <th>剩余天数</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for candidate in actionable_candidates|slice:":5" %}
-                        <tr>
-                            <td><strong>{{ candidate.asset_code }}</strong></td>
-                            <td><span class="direction-badge direction-{{ candidate.direction|lower }}">{{ candidate.direction }}</span></td>
-                            <td><span class="strength-badge strength-{{ candidate.strength|lower }}">{{ candidate.strength|title }}</span></td>
-                            <td>{{ candidate.confidence|floatformat:0 }}%</td>
-                            <td>{% if candidate.time_end %}{{ candidate.time_end|timeuntil }}{% else %}-{% endif %}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-                {% else %}
-                <div class="empty-state">
-                    <div class="empty-icon">🎯</div>
-                    <div>暂无可行动候选</div>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- 观察列表 -->
-        <div class="panel-card">
-            <div class="panel-header">
-                <div class="panel-title">👀 观察列表 (WATCH)</div>
-                <span class="panel-count watch">{{ watch_list|length }}</span>
+                <div class="panel-title">观察中</div>
+                <div class="panel-count watch">{{ watch_list|length }}</div>
             </div>
             <div class="panel-body">
                 {% if watch_list %}
                 <table class="trigger-table">
                     <thead>
                         <tr>
-                            <th>资产</th>
-                            <th>方向</th>
+                            <th>代码</th>
+                            <th>名称</th>
                             <th>强度</th>
-                            <th>置信度</th>
-                            <th>状态</th>
+                            <th>方向</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for candidate in watch_list|slice:":5" %}
-                        <tr>
-                            <td><strong>{{ candidate.asset_code }}</strong></td>
-                            <td><span class="direction-badge direction-{{ candidate.direction|lower }}">{{ candidate.direction }}</span></td>
-                            <td><span class="strength-badge strength-{{ candidate.strength|lower }}">{{ candidate.strength|title }}</span></td>
-                            <td>{{ candidate.confidence|floatformat:0 }}%</td>
-                            <td>{{ candidate.status }}</td>
+                        {% for trigger in watch_list %}
+                        <tr class="trigger-row">
+                            <td>{{ trigger.asset_code }}</td>
+                            <td>{{ trigger.asset_name|default:"-" }}</td>
+                            <td>
+                                <span class="strength-badge strength-{{ trigger.strength }}">
+                                    {{ trigger.get_strength_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="direction-badge direction-{{ trigger.direction|lower }}">
+                                    {{ trigger.get_direction_display }}
+                                </span>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -165,54 +86,175 @@
                 {% else %}
                 <div class="empty-state">
                     <div class="empty-icon">👀</div>
-                    <div>观察列表为空</div>
+                    <p>暂无观察中的触发器</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 候选 -->
+        <div class="panel-card">
+            <div class="panel-header">
+                <div class="panel-title">候选</div>
+                <div class="panel-count candidate">{{ candidate_list|length }}</div>
+            </div>
+            <div class="panel-body">
+                {% if candidate_list %}
+                <table class="trigger-table">
+                    <thead>
+                        <tr>
+                            <th>代码</th>
+                            <th>名称</th>
+                            <th>强度</th>
+                            <th>方向</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for trigger in candidate_list %}
+                        <tr class="trigger-row">
+                            <td>
+                                <a href="{% url 'alpha_trigger:detail' trigger.trigger_id %}" class="trigger-link">
+                                    {{ trigger.asset_code }}
+                                </a>
+                            </td>
+                            <td>{{ trigger.asset_name|default:"-" }}</td>
+                            <td>
+                                <span class="strength-badge strength-{{ trigger.strength }}">
+                                    {{ trigger.get_strength_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="direction-badge direction-{{ trigger.direction|lower }}">
+                                    {{ trigger.get_direction_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">📋</div>
+                    <p>暂无候选触发器</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 可行动 -->
+        <div class="panel-card">
+            <div class="panel-header">
+                <div class="panel-title">可行动</div>
+                <div class="panel-count actionable">{{ actionable_list|length }}</div>
+            </div>
+            <div class="panel-body">
+                {% if actionable_list %}
+                <table class="trigger-table">
+                    <thead>
+                        <tr>
+                            <th>代码</th>
+                            <th>名称</th>
+                            <th>强度</th>
+                            <th>方向</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for trigger in actionable_list %}
+                        <tr class="trigger-row">
+                            <td>
+                                <a href="{% url 'alpha_trigger:candidate-detail' trigger.candidate_id %}" class="trigger-link">
+                                    {{ trigger.asset_code }}
+                                </a>
+                            </td>
+                            <td>{{ trigger.asset_name|default:"-" }}</td>
+                            <td>
+                                <span class="strength-badge strength-{{ trigger.strength }}">
+                                    {{ trigger.get_strength_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="direction-badge direction-{{ trigger.direction|lower }}">
+                                    {{ trigger.get_direction_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">✅</div>
+                    <p>暂无可行动的触发器</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 已触发 -->
+        <div class="panel-card">
+            <div class="panel-header">
+                <div class="panel-title">已触发</div>
+                <div class="panel-count triggered">{{ triggered_list|length }}</div>
+            </div>
+            <div class="panel-body">
+                {% if triggered_list %}
+                <table class="trigger-table">
+                    <thead>
+                        <tr>
+                            <th>代码</th>
+                            <th>触发时间</th>
+                            <th>强度</th>
+                            <th>方向</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for trigger in triggered_list %}
+                        <tr class="trigger-row">
+                            <td>{{ trigger.asset_code }}</td>
+                            <td>{{ trigger.triggered_at|date:"Y-m-d H:i" }}</td>
+                            <td>
+                                <span class="strength-badge strength-{{ trigger.strength }}">
+                                    {{ trigger.get_strength_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="direction-badge direction-{{ trigger.direction|lower }}">
+                                    {{ trigger.get_direction_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">⚡</div>
+                    <p>暂无已触发的信号</p>
                 </div>
                 {% endif %}
             </div>
         </div>
     </div>
 
-    <!-- 活跃触发器 -->
-    <div class="panel-card">
-        <div class="panel-header">
-            <div class="panel-title">🔥 活跃触发器</div>
-            <span class="panel-count">{{ active_triggers|length }}</span>
+    <!-- 快速操作 -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-header-title">快速操作</h3>
         </div>
-        <div class="panel-body">
-            {% if active_triggers %}
-            <table class="trigger-table">
-                <thead>
-                    <tr>
-                        <th>触发器 ID</th>
-                        <th>资产</th>
-                        <th>类型</th>
-                        <th>方向</th>
-                        <th>强度</th>
-                        <th>创建时间</th>
-                        <th>状态</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for trigger in active_triggers|slice:":10" %}
-                    <tr class="trigger-row" onclick="window.location.href='{% url 'alpha_trigger:detail' trigger.trigger_id %}'">
-                        <td><code>{{ trigger.trigger_id|slice:":12" }}...</code></td>
-                        <td><strong>{{ trigger.asset_code }}</strong></td>
-                        <td>{{ trigger.trigger_type|lower|cut:"_" }}</td>
-                        <td><span class="direction-badge direction-{{ trigger.direction|lower }}">{{ trigger.direction }}</span></td>
-                        <td><span class="strength-badge strength-{{ trigger.strength|lower }}">{{ trigger.strength|title }}</span></td>
-                        <td>{{ trigger.created_at|date:"m-d H:i" }}</td>
-                        <td>{{ trigger.status|title }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <div class="empty-state">
-                <div class="empty-icon">🔥</div>
-                <div>暂无活跃触发器</div>
+        <div class="card-body">
+            <div class="d-flex gap-3">
+                <a href="{% url 'alpha_trigger:performance' %}" class="btn btn-secondary">
+                    <i class="bi bi-graph-up"></i> Alpha 表现
+                </a>
+                <a href="{% url 'alpha_trigger:invalidation-builder' %}" class="btn btn-secondary">
+                    <i class="bi bi-sliders"></i> 证伪规则构建器
+                </a>
+                <a href="{% url 'alpha_trigger:create' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-lg"></i> 创建新触发器
+                </a>
             </div>
-            {% endif %}
         </div>
     </div>
 </div>
+
 {% endblock %}

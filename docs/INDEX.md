@@ -32,6 +32,8 @@
 | [simulated_trading_design.md](architecture/simulated_trading_design.md) | 模拟盘交易设计 | 完整 |
 | [strategy_system_design.md](architecture/strategy_system_design.md) | 策略系统设计 | 完整 |
 | [frontend_design_guide.md](architecture/frontend_design_guide.md) | 前端设计指南 | 完整 |
+| [ui_ux_design_tokens_v1.md](architecture/ui_ux_design_tokens_v1.md) | UI/UX 设计 Token 规范 v1.0（✅ 新增） | ✅ 完成验收 |
+| [routing_naming_convention.md](architecture/routing_naming_convention.md) | 路由命名规范（✅ 新增） | ✅ 完成验收 |
 
 ### 2. 业务逻辑 (`business/`)
 
@@ -70,7 +72,7 @@
 | [system-code-doc-alignment-implementation-plan-2026-02-06.md](plans/system-code-doc-alignment-implementation-plan-2026-02-06.md) | 代码巡检与文档对齐实施方案 | 最新 |
 | [streamlit-dashboard-upgrade-plan.md](plans/streamlit-dashboard-upgrade-plan.md) | Streamlit 仪表盘交互升级实施方案 | 最新 |
 | [admin-to-modern-interaction-migration-plan.md](plans/admin-to-modern-interaction-migration-plan.md) | Admin 依赖迁移实施方案 | 最新 |
-| [ui-ux-improvement-prd-2026-02-18.md](plans/ui-ux-improvement-prd-2026-02-18.md) | 全站 UI/UX 改进 PRD（基于页面审计） | ✅ 最新 |
+| [ui-ux-improvement-prd-2026-02-18.md](plans/ui-ux-improvement-prd-2026-02-18.md) | 全站 UI/UX 改进 PRD（✅ 完成） | ✅ 完成验收 |
 
 ### 5. 测试文档 (`testing/`)
 
@@ -114,6 +116,8 @@
 |------|------|------|
 | [ui-ux-full-page-audit-2026-02-18.md](frontend/ui-ux-full-page-audit-2026-02-18.md) | 全站页面 UI/UX 盘点与功能清单 | ✅ 最新 |
 | [ux-user-journey-checklist-2026-02-18.md](frontend/ux-user-journey-checklist-2026-02-18.md) | 用户旅程式 UX 检查清单 | ✅ 最新 |
+| [epic-a-refactor-checklist-2026-02-18.md](frontend/epic-a-refactor-checklist-2026-02-18.md) | Epic A 改造清单（✅ 完成） | ✅ 完成验收 |
+| [equity-fund-refactor-guide-2026-02-18.md](frontend/equity-fund-refactor-guide-2026-02-18.md) | 证券分析模块改进指南（✅ 完成） | ✅ 完成验收 |
 
 ### 9. Regime 主题文档
 

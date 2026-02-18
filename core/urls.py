@@ -39,7 +39,7 @@ from core.admin_log_views import (
 
 core_patterns = [
     path('', index_view, name='index'),
-    path('health/', health_view, name='health'),
+    path('api/health/', health_view, name='health'),
     path('chat-example/', chat_example_view, name='chat-example'),
     path('policy/dashboard/', policy_dashboard_view, name='policy-dashboard'),
     path('asset-analysis/screen/', asset_screen_view, name='asset-screen'),
@@ -105,6 +105,40 @@ module_patterns = [
     path('hedge/', include('apps.hedge.interface.urls')),
     # Alpha signal abstraction.
     path('api/alpha/', include('apps.alpha.interface.urls')),
+
+    # ========== 统一 API 路由挂载（新规范） ==========
+    # 这些路由提供 /api/{module}/ 模式的 API 端点
+    # P0: Account 模块
+    path('api/account/', include(('apps.account.interface.urls', 'account'), namespace='api_account')),
+    # P1: Simulated Trading 模块
+    path('api/simulated-trading/', include(('apps.simulated_trading.interface.urls', 'simulated_trading'), namespace='api_simulated_trading')),
+    # P1: Strategy 模块
+    path('api/strategy/', include(('apps.strategy.interface.urls', 'strategy'), namespace='api_strategy')),
+    # P2: Regime 模块
+    path('api/regime/', include(('apps.regime.interface.urls', 'regime'), namespace='api_regime')),
+    # P2: Policy 模块
+    path('api/policy/', include(('apps.policy.interface.urls', 'policy'), namespace='api_policy')),
+    # P2: Signal 模块
+    path('api/signal/', include(('apps.signal.interface.urls', 'signal'), namespace='api_signal')),
+    # P2: Macro 模块
+    path('api/macro/', include(('apps.macro.interface.urls', 'macro'), namespace='api_macro')),
+    # P2: Filter 模块
+    path('api/filter/', include('apps.filter.interface.urls')),
+    # P2: Backtest 模块
+    path('api/backtest/', include('apps.backtest.interface.urls')),
+    # P2: Audit 模块
+    path('api/audit/', include('apps.audit.interface.urls')),
+    # P3: 其他模块
+    path('api/equity/', include('apps.equity.interface.urls')),
+    path('api/fund/', include('apps.fund.interface.urls')),
+    path('api/asset-analysis/', include('apps.asset_analysis.interface.urls')),
+    path('api/sector/', include('apps.sector.interface.urls')),
+    path('api/ai/', include('apps.ai_provider.interface.urls')),
+    path('api/prompt/', include('apps.prompt.interface.urls')),
+    path('api/realtime/', include('apps.realtime.interface.urls')),
+    path('api/factor/', include('apps.factor.interface.urls')),
+    path('api/rotation/', include('apps.rotation.interface.urls')),
+    path('api/hedge/', include('apps.hedge.interface.urls')),
 ]
 
 

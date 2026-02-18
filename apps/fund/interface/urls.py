@@ -3,6 +3,7 @@
 """
 
 from django.urls import path
+from django.views.generic import RedirectView
 from .views import (
     dashboard_view,
     ScreenFundsView,
@@ -42,6 +43,9 @@ urlpatterns = [
     # 基金持仓
     path('holding/<str:fund_code>/', FundHoldingView.as_view(), name='holding'),
 
+    # 向后兼容重定向
+    path('multidim-screen/', RedirectView.as_view(url='/fund/api/multidim-screen/', permanent=False)),
+
     # ========== 多维度筛选 API（通用资产分析框架集成） ==========
-    path('multidim-screen/', FundMultiDimScreenAPIView.as_view(), name='multidim_screen'),
+    path('api/multidim-screen/', FundMultiDimScreenAPIView.as_view(), name='multidim_screen'),
 ]

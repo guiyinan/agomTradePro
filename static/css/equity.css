@@ -1,0 +1,451 @@
+/**
+ * Equity Module Styles
+ * 个股分析模块样式
+ * 使用设计Token v1.0
+ */
+
+/* Container */
+.equity-container {
+    max-width: var(--content-max-width);
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+}
+
+/* Header */
+.equity-header {
+    margin-bottom: var(--spacing-xl);
+}
+
+.equity-header h1 {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    font-size: var(--font-size-h1);
+    margin: 0;
+}
+
+.stock-name {
+    font-size: var(--font-size-h3);
+    color: var(--color-text-secondary);
+}
+
+.stock-subtitle {
+    margin-top: var(--spacing-sm);
+    color: var(--color-text-secondary);
+}
+
+/* Stats Overview */
+.stats-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.stat-box {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    text-align: center;
+}
+
+.stat-label {
+    font-size: var(--font-size-small);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.stat-value {
+    font-size: var(--font-size-h3);
+    font-weight: var(--font-weight-semibold);
+}
+
+.stat-value.highlight {
+    color: var(--color-primary);
+}
+
+.stat-value.positive {
+    color: var(--color-success);
+}
+
+.stat-value.negative {
+    color: var(--color-error);
+}
+
+/* Sections */
+.equity-section {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.section-title {
+    font-size: var(--font-size-h4);
+    font-weight: var(--font-weight-semibold);
+    margin: 0;
+}
+
+/* Valuation Metrics */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.metric-item {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--spacing-sm);
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+}
+
+.metric-name {
+    font-size: var(--font-size-small);
+    color: var(--color-text-secondary);
+}
+
+.metric-value {
+    font-size: var(--font-size-body);
+    font-weight: var(--font-weight-semibold);
+}
+
+/* Chart Container */
+.chart-container {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.chart-title {
+    font-size: var(--font-size-body);
+    font-weight: var(--font-weight-semibold);
+}
+
+.chart-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.chart-btn {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-small);
+    cursor: pointer;
+}
+
+.chart-btn.active {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+}
+
+.chart-canvas {
+    width: 100%;
+    height: 300px;
+}
+
+/* Action Bar */
+.action-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+}
+
+.action-group {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+/* Filter Tags */
+.filter-tags {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.filter-tag {
+    padding: var(--spacing-xs) var(--spacing-md);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-small);
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--ease-in-out);
+}
+
+.filter-tag:hover {
+    background: var(--color-primary-light);
+    border-color: var(--color-primary);
+}
+
+.filter-tag.active {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-xxl) var(--spacing-lg);
+    color: var(--color-text-muted);
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: var(--spacing-md);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .equity-container {
+        padding: var(--spacing-md);
+    }
+
+    .equity-header h1 {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .stats-overview {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .metrics-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .action-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .chart-canvas {
+        height: 200px;
+    }
+}
+
+/* ========================
+   Equity Base Template Styles
+   从 equity/base.html 迁移
+   ======================== */
+
+/* Page Tabs */
+.page-tabs {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+    border-bottom: 2px solid var(--color-border);
+}
+
+.page-tab {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font-size: var(--font-size-body);
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    transition: all var(--duration-normal) var(--ease-in-out);
+}
+
+.page-tab:hover {
+    color: var(--color-primary);
+}
+
+.page-tab.active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+    font-weight: var(--font-weight-medium);
+}
+
+/* Buttons (通用) */
+.btn {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-body);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    border: none;
+    transition: all var(--duration-normal) var(--ease-in-out);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.btn-primary {
+    background: var(--color-primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--color-primary-dark);
+}
+
+.btn-secondary {
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+}
+
+.btn-secondary:hover {
+    background: var(--color-border);
+}
+
+.btn-success {
+    background: var(--color-success);
+    color: white;
+}
+
+.btn-success:hover {
+    background: var(--color-success-dark);
+}
+
+/* Table Container & Table */
+.table-container {
+    overflow-x: auto;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+table th,
+table td {
+    padding: var(--spacing-md) var(--spacing-lg);
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+}
+
+table th {
+    background: var(--color-surface);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-small);
+}
+
+table td {
+    font-size: var(--font-size-body);
+    color: var(--color-text-secondary);
+}
+
+table tr:hover {
+    background: var(--color-surface);
+}
+
+/* Stock Code Link */
+.stock-code {
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.stock-code:hover {
+    text-decoration: underline;
+}
+
+/* Text Colors */
+.text-green {
+    color: var(--color-success);
+}
+
+.text-red {
+    color: var(--color-error);
+}
+
+.text-muted {
+    color: var(--color-text-muted);
+}
+
+/* Metric Cards (from base.html) */
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.metric-card {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    text-align: center;
+}
+
+.metric-label {
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-xs);
+}
+
+.metric-value {
+    font-size: var(--font-size-h3);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+}
+
+/* Loading State */
+.loading {
+    text-align: center;
+    padding: var(--spacing-xxl);
+    color: var(--color-text-muted);
+}
+
+.spinner {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--color-border);
+    border-top-color: var(--color-primary);
+    border-radius: var(--radius-full);
+    animation: spin var(--duration-slow) linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Empty State (from base.html) */
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-xxl) var(--spacing-lg);
+    color: var(--color-text-muted);
+}
+
+.empty-state svg {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto var(--spacing-md);
+    opacity: 0.5;
+}
+

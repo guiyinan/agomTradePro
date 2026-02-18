@@ -3,6 +3,10 @@
 
 {% block title %}基金分析 - AgomSAAF{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/fund.css' %}">
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <div class="header-content">
@@ -21,7 +25,7 @@
         <div class="stat-info">
             <div class="stat-label">当前宏观环境</div>
             <div class="stat-value">{{ regime_display }}</div>
-            <div style="font-size: 12px; color: #666; margin-top: 4px;">{{ current_regime }}</div>
+            <div class="stat-detail">{{ current_regime }}</div>
         </div>
     </div>
     <div class="stat-card">
@@ -35,23 +39,23 @@
         <div class="stat-icon">📜</div>
         <div class="stat-info">
             <div class="stat-label">政策档位</div>
-            <div class="stat-value" style="font-size: 16px;">{{ current_policy }}</div>
-            <div style="font-size: 12px; color: #666; margin-top: 4px;">{{ policy_display }}</div>
+            <div class="stat-value">{{ current_policy }}</div>
+            <div class="stat-detail">{{ policy_display }}</div>
         </div>
     </div>
     <div class="stat-card">
         <div class="stat-icon">💭</div>
         <div class="stat-info">
             <div class="stat-label">市场情绪</div>
-            <div class="stat-value" style="font-size: 16px;">{{ sentiment_index }}</div>
-            <div style="font-size: 12px; color: #666; margin-top: 4px;">{{ sentiment_level }} ({{ sentiment_date }})</div>
+            <div class="stat-value">{{ sentiment_index }}</div>
+            <div class="stat-detail">{{ sentiment_level }} ({{ sentiment_date }})</div>
         </div>
     </div>
     <div class="stat-card">
         <div class="stat-icon">💡</div>
         <div class="stat-info">
             <div class="stat-label">推荐策略</div>
-            <div class="stat-value" style="font-size: 16px;">{{ regime_display }}环境优选</div>
+            <div class="stat-value">{{ regime_display }}环境优选</div>
         </div>
     </div>
 </div>
@@ -169,9 +173,9 @@
                     </div>
                 </div>
 
-                <div class="weight-config" id="weightConfig" style="display: none;">
-                    <h4 style="font-size: 13px; margin-bottom: 8px;">当前权重配置</h4>
-                    <div style="display: flex; gap: 16px; font-size: 12px;">
+                <div class="weight-config" id="weightConfig" class="hidden">
+                    <h4 class="text-small">当前权重配置</h4>
+                    <div class="weight-info">
                         <span>Regime: <strong id="weightRegime">-</strong></span>
                         <span>Policy: <strong id="weightPolicy">-</strong></span>
                         <span>Sentiment: <strong id="weightSentiment">-</strong></span>
@@ -179,7 +183,7 @@
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 12px; margin-top: 16px;">
+                <div class="flex-row-sm mt-md">
                     <button class="btn btn-primary" onclick="runMultiDimScreen()">
                         <span>🎯</span> 开始评分筛选
                     </button>
@@ -189,7 +193,7 @@
                 </div>
             </div>
 
-            <div id="multiDimResults" class="card" style="display: none;">
+            <div id="multiDimResults" class="card" class="hidden">
                 <h3 class="card-title">评分结果</h3>
                 <div class="table-container">
                     <table id="multiDimTable">
@@ -264,7 +268,7 @@
                 </button>
             </div>
 
-            <div id="screenResults" class="card" style="display: none;">
+            <div id="screenResults" class="card" class="hidden">
                 <h3 class="card-title">筛选结果</h3>
                 <div class="table-container">
                     <table id="screenTable">
@@ -315,7 +319,7 @@
                 </button>
             </div>
 
-            <div id="rankResults" class="card" style="display: none;">
+            <div id="rankResults" class="card" class="hidden">
                 <h3 class="card-title">排名结果</h3>
                 <div class="table-container">
                     <table id="rankTable">
@@ -357,7 +361,7 @@
                 </button>
             </div>
 
-            <div id="styleResult" class="card" style="display: none;">
+            <div id="styleResult" class="card" class="hidden">
                 <h3 class="card-title">风格分析结果</h3>
                 <div id="styleContent"></div>
             </div>
@@ -391,7 +395,7 @@
                 </button>
             </div>
 
-            <div id="perfResult" class="card" style="display: none;">
+            <div id="perfResult" class="card" class="hidden">
                 <h3 class="card-title">业绩指标</h3>
                 <div id="perfContent"></div>
             </div>
@@ -421,7 +425,7 @@
                 </button>
             </div>
 
-            <div id="holdingResult" class="card" style="display: none;">
+            <div id="holdingResult" class="card" class="hidden">
                 <h3 class="card-title">持仓明细</h3>
                 <div id="holdingContent"></div>
             </div>
@@ -470,7 +474,7 @@
                         <div class="ai-placeholder">
                             <div class="placeholder-icon">💭</div>
                             <p>我是您的基金分析 AI 助手</p>
-                            <p style="font-size: 12px; margin-top: 8px;">可以帮您推荐基金、分析风格、评估业绩</p>
+                            <p class="text-small">可以帮您推荐基金、分析风格、评估业绩</p>
                         </div>
                     </div>
                 </div>
@@ -506,7 +510,7 @@ async function runMultiDimScreen() {
     const maxCount = parseInt(document.getElementById('multiMaxCount').value);
 
     document.getElementById('multiDimResults').style.display = 'block';
-    document.getElementById('multiDimTableBody').innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 40px;">评分中...</td></tr>';
+    document.getElementById('multiDimTableBody').innerHTML = '<tr><td colspan="11" class="loading-text">评分中...</td></tr>';
 
     const filters = {};
     if (fundType) filters.fund_type = fundType;
@@ -538,10 +542,10 @@ async function runMultiDimScreen() {
         if (result.success && result.funds && result.funds.length > 0) {
             displayMultiDimResults(result.funds);
         } else {
-            document.getElementById('multiDimTableBody').innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 40px;">暂无符合条件的基金</td></tr>';
+            document.getElementById('multiDimTableBody').innerHTML = '<tr><td colspan="11" class="loading-text">暂无符合条件的基金</td></tr>';
         }
     } catch (error) {
-        document.getElementById('multiDimTableBody').innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 40px; color: red;">请求失败: ' + error.message + '</td></tr>';
+        document.getElementById('multiDimTableBody').innerHTML = '<tr><td colspan="11" class="error-text">请求失败: ' + error.message + '</td></tr>';
     }
 }
 
@@ -601,7 +605,7 @@ async function screenFunds() {
     const maxCount = parseInt(document.getElementById('maxCount').value);
 
     document.getElementById('screenResults').style.display = 'block';
-    document.getElementById('screenTableBody').innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px;">加载中...</td></tr>';
+    document.getElementById('screenTableBody').innerHTML = '<tr><td colspan="7" class="loading-text">加载中...</td></tr>';
 
     try {
         const response = await fetch('/fund/screen/', {
@@ -623,10 +627,10 @@ async function screenFunds() {
         if (result.success && result.funds) {
             displayFunds(result.funds, 'screenTableBody');
         } else {
-            document.getElementById('screenTableBody').innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px;">暂无数据</td></tr>';
+            document.getElementById('screenTableBody').innerHTML = '<tr><td colspan="7" class="loading-text">暂无数据</td></tr>';
         }
     } catch (error) {
-        document.getElementById('screenTableBody').innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: red;">请求失败: ' + error.message + '</td></tr>';
+        document.getElementById('screenTableBody').innerHTML = '<tr><td colspan="7" class="error-text">请求失败: ' + error.message + '</td></tr>';
     }
 }
 
@@ -636,7 +640,7 @@ async function rankFunds() {
     const maxCount = parseInt(document.getElementById('rankCount').value);
 
     document.getElementById('rankResults').style.display = 'block';
-    document.getElementById('rankTableBody').innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px;">加载中...</td></tr>';
+    document.getElementById('rankTableBody').innerHTML = '<tr><td colspan="7" class="loading-text">加载中...</td></tr>';
 
     try {
         const response = await fetch(`/fund/rank/?regime=${regime}&max_count=${maxCount}`);
@@ -645,10 +649,10 @@ async function rankFunds() {
         if (result.success && result.funds) {
             displayFunds(result.funds, 'rankTableBody');
         } else {
-            document.getElementById('rankTableBody').innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px;">暂无数据</td></tr>';
+            document.getElementById('rankTableBody').innerHTML = '<tr><td colspan="7" class="loading-text">暂无数据</td></tr>';
         }
     } catch (error) {
-        document.getElementById('rankTableBody').innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: red;">请求失败: ' + error.message + '</td></tr>';
+        document.getElementById('rankTableBody').innerHTML = '<tr><td colspan="7" class="error-text">请求失败: ' + error.message + '</td></tr>';
     }
 }
 
@@ -688,7 +692,7 @@ async function analyzeStyle() {
     }
 
     document.getElementById('styleResult').style.display = 'block';
-    document.getElementById('styleContent').innerHTML = '<p style="text-align: center; padding: 40px;">分析中...</p>';
+    document.getElementById('styleContent').innerHTML = '<p class="loading-text">分析中...</p>';
 
     try {
         const response = await fetch(`/fund/style/${fundCode}/`);
@@ -697,10 +701,10 @@ async function analyzeStyle() {
         if (result.success) {
             displayStyleResult(result);
         } else {
-            document.getElementById('styleContent').innerHTML = `<p style="text-align: center; padding: 40px; color: red;">${result.error || '分析失败'}</p>`;
+            document.getElementById('styleContent').innerHTML = `<p class="error-text">${result.error || '分析失败'}</p>`;
         }
     } catch (error) {
-        document.getElementById('styleContent').innerHTML = `<p style="text-align: center; padding: 40px; color: red;">请求失败: ${error.message}</p>`;
+        document.getElementById('styleContent').innerHTML = `<p class="error-text">请求失败: ${error.message}</p>`;
     }
 }
 
@@ -716,7 +720,7 @@ async function calculatePerformance() {
     }
 
     document.getElementById('perfResult').style.display = 'block';
-    document.getElementById('perfContent').innerHTML = '<p style="text-align: center; padding: 40px;">计算中...</p>';
+    document.getElementById('perfContent').innerHTML = '<p class="loading-text">计算中...</p>';
 
     try {
         const response = await fetch('/fund/performance/calculate/', {
@@ -736,10 +740,10 @@ async function calculatePerformance() {
         if (result.success) {
             displayPerformanceResult(result);
         } else {
-            document.getElementById('perfContent').innerHTML = `<p style="text-align: center; padding: 40px; color: red;">${result.error || '计算失败'}</p>`;
+            document.getElementById('perfContent').innerHTML = `<p class="error-text">${result.error || '计算失败'}</p>`;
         }
     } catch (error) {
-        document.getElementById('perfContent').innerHTML = `<p style="text-align: center; padding: 40px; color: red;">请求失败: ${error.message}</p>`;
+        document.getElementById('perfContent').innerHTML = `<p class="error-text">请求失败: ${error.message}</p>`;
     }
 }
 
@@ -754,7 +758,7 @@ async function queryHolding() {
     }
 
     document.getElementById('holdingResult').style.display = 'block';
-    document.getElementById('holdingContent').innerHTML = '<p style="text-align: center; padding: 40px;">查询中...</p>';
+    document.getElementById('holdingContent').innerHTML = '<p class="loading-text">查询中...</p>';
 
     try {
         const url = reportDate ? `/fund/holding/${fundCode}/?report_date=${reportDate}` : `/fund/holding/${fundCode}/`;
@@ -764,10 +768,10 @@ async function queryHolding() {
         if (result.success) {
             displayHoldingResult(result);
         } else {
-            document.getElementById('holdingContent').innerHTML = `<p style="text-align: center; padding: 40px; color: red;">${result.error || '查询失败'}</p>`;
+            document.getElementById('holdingContent').innerHTML = `<p class="error-text">${result.error || '查询失败'}</p>`;
         }
     } catch (error) {
-        document.getElementById('holdingContent').innerHTML = `<p style="text-align: center; padding: 40px; color: red;">请求失败: ${error.message}</p>`;
+        document.getElementById('holdingContent').innerHTML = `<p class="error-text">请求失败: ${error.message}</p>`;
     }
 }
 
@@ -899,595 +903,12 @@ function displayHoldingResult(result) {
         html += '</tbody></table></div>';
         content.innerHTML = html;
     } else {
-        content.innerHTML = '<p style="text-align: center; padding: 40px;">暂无持仓数据</p>';
+        content.innerHTML = '<p class="loading-text">暂无持仓数据</p>';
     }
 }
 </script>
 
-<style>
-/* 页面头部 */
-.header-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-}
-
-.header-controls {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-/* 统计卡片 */
-.stats-row {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 16px;
-    margin-bottom: 20px;
-}
-
-.stat-card {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 20px;
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-}
-
-.stat-icon {
-    font-size: 32px;
-    opacity: 0.8;
-}
-
-.stat-info {
-    flex: 1;
-}
-
-.stat-label {
-    font-size: 12px;
-    color: var(--color-text-secondary);
-    margin-bottom: 4px;
-}
-
-.stat-value {
-    font-size: 20px;
-    font-weight: 700;
-    color: #2563EB;
-}
-
-/* 主布局 */
-.fund-dashboard {
-    display: grid;
-    grid-template-columns: 260px 1fr 360px;
-    gap: 20px;
-    align-items: start;
-}
-
-/* 左侧边栏 */
-.left-sidebar {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    position: sticky;
-    top: 20px;
-    max-height: calc(100vh - 140px);
-    overflow-y: auto;
-}
-
-.sidebar-card {
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-}
-
-.sidebar-header {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--color-border);
-    background: var(--color-surface);
-}
-
-.sidebar-header h3 {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin: 0;
-}
-
-.nav-menu {
-    display: flex;
-    flex-direction: column;
-}
-
-.nav-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
-    text-decoration: none;
-    color: var(--color-text-primary);
-    border-left: 3px solid transparent;
-    transition: all 0.2s;
-}
-
-.nav-item:hover {
-    background: var(--color-surface);
-}
-
-.nav-item.active {
-    background: #EFF6FF;
-    border-left-color: #2563EB;
-}
-
-.nav-icon {
-    font-size: 16px;
-}
-
-.nav-text {
-    font-size: 13px;
-    font-weight: 500;
-}
-
-.quick-links {
-    padding: 8px;
-}
-
-.quick-link-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    text-decoration: none;
-    color: var(--color-text-secondary);
-    border-radius: var(--radius-sm);
-    font-size: 12px;
-    transition: all 0.2s;
-}
-
-.quick-link-item:hover {
-    background: var(--color-surface);
-    color: var(--color-text-primary);
-}
-
-/* 中间面板 */
-.main-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.section-content {
-    display: none;
-}
-
-.section-content.active {
-    display: block;
-}
-
-.section-header {
-    margin-bottom: 16px;
-}
-
-.section-header h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin: 0 0 8px 0;
-}
-
-.section-header p {
-    font-size: 14px;
-    color: var(--color-text-secondary);
-    margin: 0;
-}
-
-.card {
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 20px;
-    margin-bottom: 16px;
-}
-
-.card-title {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin: 0 0 16px 0;
-}
-
-.filter-group {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 12px;
-    margin-bottom: 16px;
-}
-
-.filter-item {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.filter-item label {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--color-text-secondary);
-}
-
-.filter-item input,
-.filter-item select {
-    padding: 8px 10px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-}
-
-.btn {
-    padding: 8px 16px;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-    transition: all 0.2s;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.btn-primary {
-    background: #2563EB;
-    color: white;
-}
-
-.btn-primary:hover {
-    background: #1D4ED8;
-}
-
-.btn-secondary {
-    background: var(--color-surface);
-    color: var(--color-text-primary);
-    border: 1px solid var(--color-border);
-}
-
-.btn-sm {
-    padding: 4px 10px;
-    font-size: 11px;
-    background: #EFF6FF;
-    color: #2563EB;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.table-container {
-    overflow-x: auto;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--color-border);
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-table th,
-table td {
-    padding: 10px 12px;
-    text-align: left;
-    border-bottom: 1px solid var(--color-border);
-    font-size: 13px;
-}
-
-table th {
-    background: var(--color-surface);
-    font-weight: 600;
-    color: var(--color-text-primary);
-}
-
-.fund-code {
-    font-weight: 600;
-    color: #2563EB;
-    font-family: monospace;
-}
-
-.score-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    background: #EFF6FF;
-    color: #2563EB;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 500;
-}
-
-.result-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 16px;
-}
-
-.result-item {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 12px;
-    background: var(--color-surface);
-    border-radius: var(--radius-sm);
-}
-
-.result-item label {
-    font-size: 11px;
-    color: var(--color-text-secondary);
-}
-
-.result-item span {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--color-text-primary);
-}
-
-.result-item span.highlight {
-    color: #10B981;
-    font-weight: 600;
-}
-
-.result-item span.negative {
-    color: #EF4444;
-}
-
-.welcome-card {
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 60px 40px;
-    text-align: center;
-}
-
-.welcome-icon {
-    font-size: 64px;
-    margin-bottom: 16px;
-}
-
-.welcome-card h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin: 0 0 8px 0;
-}
-
-.welcome-card p {
-    font-size: 14px;
-    color: var(--color-text-secondary);
-    margin: 0 0 24px 0;
-}
-
-.quick-actions {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-}
-
-/* 右侧边栏 */
-.right-sidebar {
-    position: sticky;
-    top: 20px;
-}
-
-.ai-panel {
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    max-height: calc(100vh - 140px);
-}
-
-.panel-header {
-    padding: 16px;
-    border-bottom: 1px solid var(--color-border);
-    background: var(--color-surface);
-}
-
-.panel-header h3 {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin: 0;
-}
-
-.ai-content {
-    display: flex;
-    flex-direction: column;
-    height: calc(100vh - 180px);
-}
-
-.ai-input-section {
-    padding: 16px;
-    border-bottom: 1px solid var(--color-border);
-}
-
-.quick-questions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 12px;
-}
-
-.quick-btn {
-    padding: 6px 10px;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    font-size: 11px;
-    color: var(--color-text-secondary);
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.quick-btn:hover {
-    border-color: #2563EB;
-    background: rgba(37, 99, 235, 0.05);
-    color: #2563EB;
-}
-
-.ai-textarea {
-    width: 100%;
-    min-height: 60px;
-    padding: 10px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    font-family: inherit;
-    resize: vertical;
-    margin-bottom: 10px;
-    box-sizing: border-box;
-}
-
-.ai-textarea:focus {
-    outline: none;
-    border-color: #2563EB;
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
-}
-
-.ai-submit-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    width: 100%;
-    padding: 10px;
-    background: #2563EB;
-    color: white;
-    border: none;
-    border-radius: var(--radius-sm);
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.ai-submit-btn:hover {
-    background: #1D4ED8;
-}
-
-.ai-submit-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.ai-output-section {
-    padding: 16px;
-    flex: 1;
-    overflow-y: auto;
-}
-
-.output-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-}
-
-.output-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-}
-
-.output-status {
-    font-size: 11px;
-    color: var(--color-text-muted);
-}
-
-.ai-response {
-    min-height: 100px;
-}
-
-.ai-placeholder {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 20px;
-    text-align: center;
-    color: var(--color-text-muted);
-}
-
-.ai-placeholder .placeholder-icon {
-    font-size: 48px;
-    margin-bottom: 12px;
-}
-
-.ai-response-content {
-    font-size: 13px;
-    line-height: 1.6;
-    color: var(--color-text-primary);
-    white-space: pre-wrap;
-}
-
-/* 多维度评分样式 */
-.multi-dim-info {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    padding: 16px;
-    background: var(--color-surface);
-    border-radius: var(--radius-sm);
-    margin-bottom: 16px;
-}
-
-.info-item {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.info-label {
-    font-size: 11px;
-    color: var(--color-text-secondary);
-    font-weight: 500;
-}
-
-.info-value {
-    font-size: 14px;
-    font-weight: 600;
-    color: #2563EB;
-}
-
-.weight-config {
-    padding: 12px;
-    background: #EFF6FF;
-    border: 1px solid #BFDBFE;
-    border-radius: var(--radius-sm);
-    margin-bottom: 16px;
-}
-
-/* 响应式 */
-@media (max-width: 1400px) {
-    .fund-dashboard {
-        grid-template-columns: 240px 1fr 320px;
-    }
-}
-
-@media (max-width: 1200px) {
-    .fund-dashboard {
-        grid-template-columns: 1fr;
-    }
-
-    .left-sidebar, .right-sidebar {
-        position: static;
-        max-height: none;
-    }
-
-    .stats-row {
-        grid-template-columns: 1fr;
-    }
-}
-</style>
-
+<!-- 页面样式已移至 static/css/fund.css -->
 <!-- Floating Widget Config -->
 <script>
     // Load floating widget config from JSON file

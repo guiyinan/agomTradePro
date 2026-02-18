@@ -1,0 +1,129 @@
+/**
+ * AgomSAAF - Forms Component v1.0
+ *
+ * 表单组件样式，基于 ui_ux_design_tokens_v1.md
+ *
+ * @version 1.0.0
+ * @updated 2026-02-18
+ */
+
+/* 表单容器 */
+.form {
+  width: 100%;
+}
+
+.form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.form-row {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+/* 标签 */
+.form-label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.form-label-secondary {
+  display: block;
+  margin-top: var(--spacing-xs);
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+/* 输入框 */
+.input {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-sm);
+  border: 1px solid var(--color-border-dark);
+  border-radius: var(--radius-xs);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  transition: border-color var(--duration-normal) var(--ease-in-out),
+              box-shadow var(--duration-normal) var(--ease-in-out);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-light);
+}
+
+.input:disabled {
+  background: var(--color-surface);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.input::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* 错误状态 */
+.input-error {
+  border-color: var(--color-error);
+}
+
+.input-error:focus {
+  box-shadow: 0 0 0 2px rgba(221, 51, 51, 0.1);
+}
+
+/* 选择框 */
+select.input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2354595D' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--spacing-md) center;
+  padding-right: var(--spacing-lg);
+}
+
+/* 文本域 */
+textarea.input {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* 复选框和单选框 */
+.form-check,
+.form-radio {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+}
+
+.form-check-input,
+.form-radio-input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.form-check-label,
+.form-radio-label {
+  font-size: var(--font-size-body);
+  cursor: pointer;
+  user-select: none;
+}
+
+/* 帮助文本 */
+.form-text {
+  display: block;
+  margin-top: var(--spacing-xs);
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.form-text-error {
+  color: var(--color-error);
+}

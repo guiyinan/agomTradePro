@@ -9,15 +9,24 @@ from apps.dashboard.interface import views
 app_name = 'dashboard'
 
 urlpatterns = [
+    # 页面路由
     path('', views.dashboard_entry, name='index'),
-    path('legacy/', views.dashboard_view, name='legacy'),
     path('ops-center/', RedirectView.as_view(url='/ops/', permanent=False), name='ops-center'),
 
-    # HTMX 端点
-    path('position/<str:asset_code>/', views.position_detail_htmx, name='position_detail'),
-    path('positions/', views.positions_list_htmx, name='positions_list'),
-    path('api/allocation/', views.allocation_chart_htmx, name='allocation_api'),
-    path('api/performance/', views.performance_chart_htmx, name='performance_api'),
+    # 向后兼容重定向 (旧 API 路由重定向到新路由)
+    path('position/<str:asset_code>/', RedirectView.as_view(url='/dashboard/api/position/%(asset_code)s/', permanent=False), name='position_detail'),
+    path('positions/', RedirectView.as_view(url='/dashboard/api/positions/', permanent=False), name='positions_list'),
+    path('alpha/stocks/', RedirectView.as_view(url='/dashboard/api/alpha/stocks/', permanent=False), name='alpha_stocks'),
+
+    # 内部调试路由 (仅供开发调试使用，不对普通用户开放)
+    path('__internal/legacy/', RedirectView.as_view(url='/dashboard/', permanent=False), name='internal_legacy'),
+
+    # API 路由 - 所有 HTMX 端点统一使用 /api/ 前缀
+    path('api/position/<str:asset_code>/', views.position_detail_htmx, name='api_position_detail'),
+    path('api/positions/', views.positions_list_htmx, name='api_positions_list'),
+    path('api/allocation/', views.allocation_chart_htmx, name='api_allocation'),
+    path('api/performance/', views.performance_chart_htmx, name='api_performance'),
+
     # Streamlit v1 API endpoints
     path('api/v1/summary/', views.dashboard_summary_v1, name='api_v1_summary'),
     path('api/v1/regime-quadrant/', views.regime_quadrant_v1, name='api_v1_regime_quadrant'),
@@ -25,8 +34,8 @@ urlpatterns = [
     path('api/v1/signal-status/', views.signal_status_v1, name='api_v1_signal_status'),
 
     # Alpha 可视化 HTMX 端点
-    path('alpha/stocks/', views.alpha_stocks_htmx, name='alpha_stocks'),
-    path('api/provider-status/', views.alpha_provider_status_htmx, name='alpha_provider_api'),
-    path('api/coverage/', views.alpha_coverage_htmx, name='alpha_coverage_api'),
-    path('api/ic-trends/', views.alpha_ic_trends_htmx, name='alpha_ic_trends_api'),
+    path('api/alpha/stocks/', views.alpha_stocks_htmx, name='api_alpha_stocks'),
+    path('api/alpha/provider-status/', views.alpha_provider_status_htmx, name='api_alpha_provider_status'),
+    path('api/alpha/coverage/', views.alpha_coverage_htmx, name='api_alpha_coverage'),
+    path('api/alpha/ic-trends/', views.alpha_ic_trends_htmx, name='api_alpha_ic_trends'),
 ]

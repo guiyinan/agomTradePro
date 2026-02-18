@@ -3,6 +3,10 @@
 
 {% block title %}{{ stock_code }} - 个股详情 - AgomSAAF{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/equity.css' %}">
+{% endblock %}
+
 {% block extra_js %}
 <script src="{% static 'vendor/chartjs/chart.umd.min.js' %}"></script>
 {% endblock %}

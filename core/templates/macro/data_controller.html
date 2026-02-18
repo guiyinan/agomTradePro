@@ -1,6 +1,11 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}数据管理器 - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/macro.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="data-manager-page">

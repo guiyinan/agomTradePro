@@ -4,6 +4,7 @@
 {% block title %}Regime 判定 - AgomSAAF{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/regime.css' %}">
 <link rel="stylesheet" href="{% static 'css/teaching.css' %}">
 {% endblock %}
 
@@ -18,7 +19,7 @@
             <input type="date" id="dateSelect" data-datepicker value="{{ as_of_date|date:'Y-m-d' }}"
                    hx-get="{% url 'regime:dashboard' %}" hx-trigger="change" hx-include="#dateSelect,#sourceSelect"
                    hx-push-url="true" hx-indicator="#syncProgress">
-            <label for="sourceSelect" style="margin-left: 16px;">数据源:</label>
+            <label for="sourceSelect">数据源:</label>
             <select id="sourceSelect"
                     hx-get="{% url 'regime:dashboard' %}" hx-trigger="change" hx-include="#dateSelect,#sourceSelect"
                     hx-push-url="true" hx-indicator="#syncProgress">
@@ -93,1701 +94,252 @@ function showToast(message, type = 'info') {
         top: 20px;
         right: 20px;
         padding: 12px 20px;
-        background: ${type === 'success' ? '#22C55E' : type === 'error' ? '#EF4444' : '#3366CC'};
+        background: ${type === 'success' ? 'var(--color-success)' : type === 'error' ? 'var(--color-error)' : 'var(--color-primary)'};
         color: white;
-        border-radius: 4px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-lg);
         z-index: 10000;
-        animation: slideIn 0.3s ease-out;
     `;
-
     document.body.appendChild(toast);
 
     // 3秒后自动消失
     setTimeout(() => {
-        toast.style.animation = 'slideOut 0.3s ease-out';
-        setTimeout(() => toast.remove(), 300);
+        toast.remove();
     }, 3000);
 }
 
-// 添加动画样式
-if (!document.querySelector('#toast-animations')) {
-    const style = document.createElement('style');
-    style.id = 'toast-animations';
-    style.textContent = `
-        @keyframes slideIn {
-            from { transform: translateX(400px); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes slideOut {
-            from { transform: translateX(0); opacity: 1; }
-            to { transform: translateX(400px); opacity: 0; }
-        }
-    `;
-    document.head.appendChild(style);
-}
-
-// 初始化 Flatpickr 日期选择器
-document.addEventListener('DOMContentLoaded', function() {
-    const dateInput = document.getElementById('dateSelect');
-    if (dateInput && typeof flatpickr !== 'undefined') {
-        flatpickr(dateInput, {
-            locale: 'zh',
-            dateFormat: 'Y-m-d',
-            maxDate: 'today',
-            onChange: function(selectedDates, dateStr, instance) {
-                // HTMX 会自动触发请求
-            }
-        });
-    }
-});
-
-// URL 配置
-const API_URLS = {
-    macroQuickSync: "{% url 'macro:api_quick_sync' %}"
-};
-
-function changeAnalysisDate(dateStr) {
-    const url = new URL(window.location);
-    url.searchParams.set('as_of_date', dateStr);
-    window.location.href = url.toString();
-}
-
-function changeDataSource(source) {
-    const url = new URL(window.location);
-    url.searchParams.set('source', source);
-    const dateSelect = document.getElementById('dateSelect');
-    if (dateSelect.value) {
-        url.searchParams.set('as_of_date', dateSelect.value);
-    }
-    window.location.href = url.toString();
-}
-
 async function syncData() {
-    const btn = document.getElementById('syncBtn');
-    const btnText = document.getElementById('syncBtnText');
-    const progressDiv = document.getElementById('syncProgress');
+    const syncBtn = document.getElementById('syncBtn');
+    const progress = document.getElementById('syncProgress');
     const progressFill = document.getElementById('progressFill');
     const progressText = document.getElementById('progressText');
-    const source = document.getElementById('sourceSelect').value;
 
-    btn.disabled = true;
-    btnText.textContent = '同步中...';
-    progressDiv.style.display = 'block';
-    progressFill.style.width = '10%';
-    progressText.textContent = '正在连接数据源...';
+    syncBtn.disabled = true;
+    progress.style.display = 'block';
+    progressFill.style.width = '0%';
+    progressText.textContent = '正在同步数据...';
 
     try {
-        const formData = new FormData();
-        formData.append('source', source);
-
-        // 模拟进度更新
-        let progress = 10;
-        const progressInterval = setInterval(() => {
-            if (progress < 70) {
-                progress += 10;
-                progressFill.style.width = progress + '%';
-                if (progress < 30) {
-                    progressText.textContent = '正在抓取数据...';
-                } else if (progress < 60) {
-                    progressText.textContent = '正在处理数据...';
-                } else {
-                    progressText.textContent = '即将完成...';
-                }
-            }
-        }, 500);
-
-        const response = await fetch(API_URLS.macroQuickSync, {
+        const response = await fetch('/macro/sync/', {
             method: 'POST',
-            body: formData,
             headers: {
-                'X-CSRFToken': window.csrfToken
+                'X-CSRFToken': window.csrfToken,
+                'Content-Type': 'application/json'
             }
         });
-
-        clearInterval(progressInterval);
 
         const data = await response.json();
 
         if (data.success) {
             progressFill.style.width = '100%';
             progressText.textContent = '同步完成！';
-            showToast('✓ ' + data.message + '，页面即将刷新...', 'success');
+            showToast('数据同步成功', 'success');
 
             setTimeout(() => {
-                window.location.href = window.location.href;
-            }, 1500);
+                location.reload();
+            }, 1000);
         } else {
-            progressDiv.style.display = 'none';
-            btn.disabled = false;
-            btnText.textContent = '同步数据';
-            showToast('✗ ' + data.message, 'error');
+            progressText.textContent = '同步失败: ' + (data.error || '未知错误');
+            showToast('数据同步失败', 'error');
+            syncBtn.disabled = false;
         }
     } catch (error) {
-        progressDiv.style.display = 'none';
-        btn.disabled = false;
-        btnText.textContent = '同步数据';
-        showToast('同步失败: ' + error.message, 'error');
+        progressText.textContent = '同步失败: ' + error.message;
+        showToast('数据同步失败', 'error');
+        syncBtn.disabled = false;
     }
 }
 
 async function clearRegimeCache() {
-    const btn = document.getElementById('clearCacheBtn');
-    const originalText = btn.innerHTML;
-
-    btn.disabled = true;
-    btn.innerHTML = '<span>⏳</span> <span>清除中...</span>';
-
     try {
-        const response = await fetch('{% url "regime:clear_cache" %}', {
+        const response = await fetch('/regime/clear-cache/', {
             method: 'POST',
             headers: {
                 'X-CSRFToken': window.csrfToken
             }
         });
 
-        const data = await response.json();
-
-        if (data.status === 'success') {
-            showToast('✓ ' + data.message, 'success');
-            // 刷新页面，使用 force_refresh 参数跳过缓存
-            setTimeout(() => {
-                const url = new URL(window.location);
-                url.searchParams.set('force_refresh', '1');
-                window.location.href = url.toString();
-            }, 500);
+        if (response.redirected) {
+            window.location.href = response.url;
         } else {
-            showToast('✗ ' + data.message, 'error');
-            btn.disabled = false;
-            btn.innerHTML = originalText;
+            showToast('缓存已清除', 'success');
+            setTimeout(() => location.reload(), 500);
         }
     } catch (error) {
-        showToast('清除缓存失败: ' + error.message, 'error');
-        btn.disabled = false;
-        btn.innerHTML = originalText;
+        showToast('清除缓存失败', 'error');
     }
 }
 </script>
 
+<!-- Regime 判定结果 -->
 {% if error %}
 <div class="alert alert-error">
-    <strong>错误:</strong> {{ error }}
+    <i class="bi bi-exclamation-triangle"></i> {{ error }}
 </div>
 {% endif %}
 
-{% if warnings %}
-<div class="alert alert-warning">
-    <strong>警告:</strong>
-    <ul>
-        {% for warning in warnings %}
-        <li>{{ warning }}</li>
-        {% endfor %}
-    </ul>
-</div>
-{% endif %}
-
-{% if result_v2 %}
-<div class="regime-dashboard-new">
-    <div class="main-panel">
-        <!-- Regime 状态卡片 -->
-        <div class="regime-status-card regime-{{ result_v2.regime.value.lower }}">
-            <div class="status-header">
-                <div class="status-icon">{{ result_v2.regime.value }}</div>
-                <div class="status-info">
-                    <h2>当前 Regime: {{ result_v2.regime.value }}</h2>
-                    <div class="confidence-bar">
-                        <div class="confidence-fill" style="width: {{ result_v2.confidence|floatformat:0 }}%"></div>
-                        <span class="confidence-label">置信度: {{ result_v2.confidence|floatformat:1 }}%</span>
-                    </div>
-                </div>
-            </div>
-            <div class="status-indicators">
-                <div class="indicator-item">
-                    <span class="indicator-label">PMI</span>
-                    <span class="indicator-val {{ result_v2.growth_state }}">{{ result_v2.growth_level }}</span>
-                    <span class="indicator-state state-{{ result_v2.growth_state }}">
-                        {% if result_v2.growth_state == 'expansion' %}扩张{% else %}收缩{% endif %}
-                    </span>
-                </div>
-                <div class="indicator-item">
-                    <span class="indicator-label">CPI</span>
-                    <span class="indicator-val {{ result_v2.inflation_state }}">{{ result_v2.inflation_level|floatformat:1 }}%</span>
-                    <span class="indicator-state state-{{ result_v2.inflation_state }}">
-                        {% if result_v2.inflation_state == 'high' %}高通胀
-                        {% elif result_v2.inflation_state == 'low' %}低通胀
-                        {% elif result_v2.inflation_state == 'deflation' %}通缩
-                        {% else %}温和{% endif %}
-                    </span>
-                </div>
-            </div>
-            <div class="status-actions">
-                <span class="algorithm-badge">水平判定法：PMI ≥ 50 为扩张，CPI > 2% 为高通胀</span>
-            </div>
+{% if regime_result %}
+<div class="regime-cards">
+    <!-- Recovery 复苏 -->
+    <div class="regime-card recovery {% if regime_result.quadrant == 'Recovery' %}active{% endif %}">
+        <div class="regime-card-icon">🌱</div>
+        <div class="regime-card-title">Recovery 复苏</div>
+        <div class="regime-card-description">
+            增长上行，通胀下行<br>
+            PMI > 50，CPI 同比下降
         </div>
-
-        <!-- 四象限分布 -->
-        <div class="regime-matrix-card">
-            <div class="matrix-compact">
-                <div class="quad-wrapper">
-                    <div class="axis-y">
-                        <span class="axis-label-top">增长↑</span>
-                    </div>
-                    <div class="quad-grid">
-                        <div class="quad-box {% if result_v2.regime.value == 'Recovery' %}quad-active-recovery{% endif %}">
-                            <div class="quad-title">复苏</div>
-                            <div class="quad-prob">{{ result_v2.distribution.Recovery|floatformat:2 }}</div>
-                            <div class="quad-hint">高增低胀</div>
-                        </div>
-                        <div class="quad-box {% if result_v2.regime.value == 'Overheat' %}quad-active-overheat{% endif %}">
-                            <div class="quad-title">过热</div>
-                            <div class="quad-prob">{{ result_v2.distribution.Overheat|floatformat:2 }}</div>
-                            <div class="quad-hint">双高</div>
-                        </div>
-                        <div class="quad-box {% if result_v2.regime.value == 'Deflation' %}quad-active-deflation{% endif %}">
-                            <div class="quad-title">通缩</div>
-                            <div class="quad-prob">{{ result_v2.distribution.Deflation|floatformat:2 }}</div>
-                            <div class="quad-hint">双低</div>
-                        </div>
-                        <div class="quad-box {% if result_v2.regime.value == 'Stagflation' %}quad-active-stagflation{% endif %}">
-                            <div class="quad-title">滞胀</div>
-                            <div class="quad-prob">{{ result_v2.distribution.Stagflation|floatformat:2 }}</div>
-                            <div class="quad-hint">低增高胀</div>
-                        </div>
-                    </div>
-                    <div class="quad-explanation">
-                        <div class="explain-header">📐 Regime 判定算法</div>
-                        <div class="explain-steps">
-                            <div class="step-item">
-                                <span class="step-num">1</span>
-                                <div class="step-text">
-                                    <span class="step-title">PMI 水平判定</span>
-                                    <span class="step-desc">PMI ≥ 50 为扩张<br>PMI < 50 为收缩</span>
-                                </div>
-                            </div>
-                            <div class="step-item">
-                                <span class="step-num">2</span>
-                                <div class="step-text">
-                                    <span class="step-title">CPI 水平判定</span>
-                                    <span class="step-desc">CPI > 2% 高通胀<br>CPI < 1% 低通胀</span>
-                                </div>
-                            </div>
-                            <div class="step-item">
-                                <span class="step-num">3</span>
-                                <div class="step-text">
-                                    <span class="step-title">象限映射</span>
-                                    <span class="step-desc">根据增长+通胀状态<br>映射到对应象限</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 趋势指标面板 -->
-        {% if result_v2.trend_indicators %}
-        <div class="trend-panel">
-            <h3 class="section-title-alt">趋势指标（用于预测）</h3>
-            <div class="trend-grid">
-                {% for trend in result_v2.trend_indicators %}
-                <div class="trend-card">
-                    <div class="trend-header">
-                        <span class="trend-code">{{ trend.indicator_code }}</span>
-                        <span class="trend-value">{{ trend.current_value }}</span>
-                    </div>
-                    <div class="trend-details">
-                        <div class="trend-row">
-                            <span class="trend-label">动量</span>
-                            <span class="trend-momentum {% if trend.momentum > 0 %}up{% elif trend.momentum < 0 %}down{% else %}neutral{% endif %}">
-                                {% if trend.momentum > 0 %}+{% endif %}{{ trend.momentum|floatformat:2 }}
-                            </span>
-                        </div>
-                        <div class="trend-row">
-                            <span class="trend-label">方向</span>
-                            <span class="trend-direction trend-{{ trend.direction }}">
-                                {% if trend.direction == 'up' %}▲ 上升
-                                {% elif trend.direction == 'down' %}▼ 下降
-                                {% else %}▶ 持平{% endif %}
-                            </span>
-                        </div>
-                        <div class="trend-row">
-                            <span class="trend-label">强度</span>
-                            <span class="trend-strength strength-{{ trend.strength }}">
-                                {% if trend.strength == 'strong' %}强
-                                {% elif trend.strength == 'moderate' %}中
-                                {% else %}弱{% endif %}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- 预测提示 -->
-        {% if result_v2.prediction %}
-        <div class="prediction-card">
-            <div class="prediction-header">
-                <span class="prediction-icon">📊</span>
-                <span>趋势预测</span>
-            </div>
-            <div class="prediction-content">
-                {{ result_v2.prediction }}
-            </div>
-        </div>
-        {% endif %}
     </div>
 
-    <!-- 右侧Tab面板 -->
-    <div class="side-panel">
-        <div class="tab-container">
-            <div class="tab-header">
-                <button class="tab-button active" data-tab="data" onclick="switchTab('data')">
-                    <span class="tab-icon">📊</span>
-                    原始数据
-                </button>
-            </div>
-            <div id="tab-data" class="tab-content active">
-                {% if raw_data %}
-                <div class="data-tab-content">
-                    <div class="data-subsection">
-                        <h4 class="subsection-title">增长指标 (PMI)</h4>
-                        <div class="table-wrapper">
-                            <table class="compact-table">
-                                <thead>
-                                    <tr>
-                                        <th>期间</th>
-                                        <th>数值</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for item in raw_data.growth|slice:"-18:" %}
-                                    <tr>
-                                        <td>{{ item.date }}</td>
-                                        <td class="numeric">{{ item.value|floatformat:2 }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="data-subsection">
-                        <h4 class="subsection-title">通胀指标 (CPI)</h4>
-                        <div class="table-wrapper">
-                            <table class="compact-table">
-                                <thead>
-                                    <tr>
-                                        <th>期间</th>
-                                        <th>数值</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for item in raw_data.inflation|slice:"-18:" %}
-                                    <tr>
-                                        <td>{{ item.date }}</td>
-                                        <td class="numeric">{{ item.value|floatformat:2 }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-                {% else %}
-                <div class="empty-tab">
-                    <div class="empty-icon">📭</div>
-                    <p>暂无原始数据</p>
-                </div>
-                {% endif %}
-            </div>
+    <!-- Overheat 过热 -->
+    <div class="regime-card overheat {% if regime_result.quadrant == 'Overheat' %}active{% endif %}">
+        <div class="regime-card-icon">🔥</div>
+        <div class="regime-card-title">Overheat 过热</div>
+        <div class="regime-card-description">
+            增长上行，通胀上行<br>
+            PMI > 50，CPI 同比上升
+        </div>
+    </div>
+
+    <!-- Stagflation 滞胀 -->
+    <div class="regime-card stagflation {% if regime_result.quadrant == 'Stagflation' %}active{% endif %}">
+        <div class="regime-card-icon">⚠️</div>
+        <div class="regime-card-title">Stagflation 滞胀</div>
+        <div class="regime-card-description">
+            增长下行，通胀上行<br>
+            PMI < 50，CPI 同比上升
+        </div>
+    </div>
+
+    <!-- Deflation 通缩 -->
+    <div class="regime-card deflation {% if regime_result.quadrant == 'Deflation' %}active{% endif %}">
+        <div class="regime-card-icon">❄️</div>
+        <div class="regime-card-title">Deflation 通缩</div>
+        <div class="regime-card-description">
+            增长下行，通胀下行<br>
+            PMI < 50，CPI 同比下降
         </div>
     </div>
 </div>
+
+<!-- 指标图表 -->
+<div class="charts-container">
+    <div class="chart-card">
+        <div class="chart-card-title">增长指标 (PMI)</div>
+        <div id="growthChart" class="chart-canvas"></div>
+    </div>
+    <div class="chart-card">
+        <div class="chart-card-title">通胀指标 (CPI 同比)</div>
+        <div id="inflationChart" class="chart-canvas"></div>
+    </div>
+</div>
+
+<!-- 判定详情 -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-header-title">判定详情</h3>
+    </div>
+    <div class="card-body">
+        <table class="table">
+            <tr>
+                <th>指标</th>
+                <th>当前值</th>
+                <th>阈值</th>
+                <th>趋势</th>
+            </tr>
+            <tr>
+                <td>PMI (制造业采购经理指数)</td>
+                <td>{{ regime_result.pmi_value|default:"-" }}</td>
+                <td>50</td>
+                <td>
+                    {% if regime_result.pmi_trend == 'up' %}
+                        <span class="badge badge-success">↑ 上升</span>
+                    {% elif regime_result.pmi_trend == 'down' %}
+                        <span class="badge badge-error">↓ 下降</span>
+                    {% else %}
+                        <span class="badge badge-neutral">→ 持平</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td>CPI 同比</td>
+                <td>{{ regime_result.cpi_value|default:"-" }}%</td>
+                <td>前值</td>
+                <td>
+                    {% if regime_result.cpi_trend == 'up' %}
+                        <span class="badge badge-warning">↑ 上升</span>
+                    {% elif regime_result.cpi_trend == 'down' %}
+                        <span class="badge badge-success">↓ 下降</span>
+                    {% else %}
+                        <span class="badge badge-neutral">→ 持平</span>
+                    {% endif %}
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<script>
+// 使用 ECharts 绘制图表
+if (typeof echarts !== 'undefined') {
+    // 增长指标图表
+    const growthChart = echarts.init(document.getElementById('growthChart'));
+    growthChart.setOption({
+        xAxis: {
+            type: 'category',
+            data: {{ regime_result.growth_dates|default:"[]"|safe }}
+        },
+        yAxis: {
+            type: 'value'
+        },
+        series: [{
+            data: {{ regime_result.growth_values|default:"[]"|safe }},
+            type: 'line',
+            smooth: true,
+            lineStyle: {
+                color: '#3366CC'
+            },
+            areaStyle: {
+                color: 'rgba(51, 102, 204, 0.1)'
+            }
+        }]
+    });
+
+    // 通胀指标图表
+    const inflationChart = echarts.init(document.getElementById('inflationChart'));
+    inflationChart.setOption({
+        xAxis: {
+            type: 'category',
+            data: {{ regime_result.inflation_dates|default:"[]"|safe }}
+        },
+        yAxis: {
+            type: 'value'
+        },
+        series: [{
+            data: {{ regime_result.inflation_values|default:"[]"|safe }},
+            type: 'line',
+            smooth: true,
+            lineStyle: {
+                color: '#DD3333'
+            },
+            areaStyle: {
+                color: 'rgba(221, 51, 51, 0.1)'
+            }
+        }]
+    });
+
+    // 响应式处理
+    window.addEventListener('resize', () => {
+        growthChart.resize();
+        inflationChart.resize();
+    });
+}
+</script>
 
 {% else %}
 <div class="empty-state">
     <div class="empty-icon">📊</div>
-    <div class="empty-title">暂无数据</div>
-    <div class="empty-desc">
-        请先同步宏观数据（PMI 和 CPI）<br>
-        <a href="{% url 'macro:data_controller' %}" class="btn btn-primary">前往数据管理器</a>
-    </div>
+    <p>暂无 Regime 判定数据，请同步宏观数据</p>
 </div>
 {% endif %}
-
-<style>
-/* ==================== 页面头部 ==================== */
-.header-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-}
-
-.data-source-selector {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    flex-wrap: wrap;
-}
-
-.data-source-selector label {
-    font-size: 13px;
-    color: var(--color-text-secondary);
-    font-weight: 500;
-    white-space: nowrap;
-}
-
-.data-source-selector input[type="date"] {
-    padding: 6px 10px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    background: white;
-    font-size: 13px;
-    font-family: inherit;
-}
-
-.data-source-selector select {
-    padding: 6px 10px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    background: white;
-    font-size: 13px;
-    cursor: pointer;
-}
-
-.sync-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    background: white;
-    color: var(--color-text-primary);
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.sync-btn:hover:not(:disabled) {
-    border-color: var(--color-primary);
-    background: #F6F8FA;
-}
-
-.sync-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.sync-icon {
-    display: inline-block;
-    font-size: 14px;
-    transition: transform 0.3s;
-}
-
-.sync-icon.syncing {
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-.config-link {
-    display: flex;
-    align-items: center;
-    padding: 6px 10px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    background: white;
-    text-decoration: none;
-    font-size: 16px;
-    transition: all 0.2s;
-}
-
-.config-link:hover {
-    border-color: var(--color-primary);
-    background: #F6F8FA;
-}
-
-.source-badge {
-    padding: 4px 10px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    border-radius: 3px;
-    letter-spacing: 0.5px;
-}
-
-.source-akshare {
-    background: #E8F4F8;
-    color: #0969DA;
-}
-
-.source-tushare {
-    background: #FFF4E6;
-    color: #E67700;
-}
-
-/* ==================== 新布局 ==================== */
-.regime-dashboard-new {
-    display: grid;
-    grid-template-columns: 1fr 380px;
-    gap: 20px;
-    align-items: start;
-}
-
-/* ==================== 左侧主面板 ==================== */
-.main-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-/* Regime矩阵卡片 */
-.regime-matrix-card {
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 20px;
-}
-
-.matrix-compact {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-/* 四象限包装器 */
-.quad-wrapper {
-    display: flex;
-    align-items: stretch;
-    gap: 16px;
-}
-
-/* 坐标轴标签 */
-.axis-y {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-    padding: 0 4px;
-}
-
-/* 四象限网格 */
-.quad-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 140px);
-    grid-template-rows: repeat(2, 100px);
-    gap: 8px;
-}
-
-.quad-box {
-    border: 2px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    transition: all 0.2s;
-}
-
-.quad-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-text-secondary);
-}
-
-.quad-prob {
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--color-text-primary);
-}
-
-.quad-hint {
-    font-size: 10px;
-    color: var(--color-text-muted);
-}
-
-/* 激活状态 */
-.quad-active-recovery {
-    border-color: #22C55E;
-    background: rgba(34, 197, 94, 0.08);
-}
-
-.quad-active-recovery .quad-prob { color: #22C55E; }
-
-.quad-active-overheat {
-    border-color: #EF4444;
-    background: rgba(239, 68, 68, 0.08);
-}
-
-.quad-active-overheat .quad-prob { color: #EF4444; }
-
-.quad-active-stagflation {
-    border-color: #F59E0B;
-    background: rgba(245, 158, 11, 0.08);
-}
-
-.quad-active-stagflation .quad-prob { color: #F59E0B; }
-
-.quad-active-deflation {
-    border-color: #3B82F6;
-    background: rgba(59, 130, 246, 0.08);
-}
-
-.quad-active-deflation .quad-prob { color: #3B82F6; }
-
-/* 关键指标 */
-.key-metrics {
-    display: flex;
-    justify-content: space-around;
-    padding: 12px;
-    background: var(--color-surface);
-    border-radius: var(--radius-sm);
-}
-
-.metric-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-}
-
-.metric-name {
-    font-size: 11px;
-    color: var(--color-text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.metric-val {
-    font-size: 16px;
-    font-weight: 700;
-    font-family: monospace;
-}
-
-.metric-dominant {
-    color: var(--color-text-primary);
-}
-
-.val-up { color: #22C55E; }
-.val-down { color: #EF4444; }
-
-/* 算法说明区 */
-.quad-explanation {
-    flex: 1;
-    min-width: 240px;
-    max-width: 320px;
-    padding: 16px;
-    background: var(--color-surface);
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--color-border);
-    display: flex;
-    flex-direction: column;
-}
-
-.explain-header {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin-bottom: 16px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--color-border);
-}
-
-.explain-steps {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    flex: 1;
-}
-
-.step-item {
-    display: flex;
-    gap: 10px;
-}
-
-.step-num {
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    min-width: 18px;
-    height: 18px;
-    background: var(--color-border);
-    border-radius: 50%;
-    font-size: 10px;
-    font-weight: 700;
-    color: var(--color-text-primary);
-    flex-shrink: 0;
-    padding-top: 1px;
-}
-
-.step-text {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.step-title {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-}
-
-.step-desc {
-    font-size: 11px;
-    color: var(--color-text-secondary);
-    line-height: 1.4;
-}
-
-.explain-footer {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 16px;
-    padding-top: 12px;
-    border-top: 1px dashed var(--color-border);
-}
-
-.footer-label {
-    font-size: 11px;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.footer-value {
-    font-size: 11px;
-    color: var(--color-text-secondary);
-    font-family: monospace;
-}
-
-/* 图表区域 */
-.charts-section {
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 20px;
-}
-
-.section-title-alt {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin-bottom: 16px;
-}
-
-.charts-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-}
-
-.charts-grid .chart-card:last-child {
-    grid-column: 1 / -1;
-}
-
-.chart-card {
-    background: var(--color-surface);
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--color-border);
-    overflow: hidden;
-}
-
-.chart-inner {
-    width: 100%;
-    height: 280px;
-}
-
-/* ==================== 右侧Tab面板 ==================== */
-.side-panel {
-    position: sticky;
-    top: 20px;
-}
-
-.tab-container {
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-}
-
-.tab-header {
-    display: flex;
-    border-bottom: 1px solid var(--color-border);
-}
-
-.tab-button {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 12px 16px;
-    background: transparent;
-    border: none;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--color-text-secondary);
-    cursor: pointer;
-    transition: all 0.2s;
-    border-bottom: 2px solid transparent;
-}
-
-.tab-button:hover {
-    background: var(--color-surface);
-    color: var(--color-text-primary);
-}
-
-.tab-button.active {
-    color: var(--color-primary);
-    border-bottom-color: var(--color-primary);
-    background: rgba(51, 102, 204, 0.05);
-}
-
-.tab-icon {
-    font-size: 16px;
-}
-
-.tab-content {
-    display: none;
-    max-height: calc(100vh - 200px);
-    overflow-y: auto;
-}
-
-.tab-content.active {
-    display: block;
-}
-
-/* 原始数据Tab */
-.data-tab-content {
-    padding: 16px;
-}
-
-.data-subsection {
-    margin-bottom: 20px;
-}
-
-.subsection-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--color-border);
-}
-
-.table-wrapper {
-    max-height: 250px;
-    overflow-y: auto;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-}
-
-.compact-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-}
-
-.compact-table thead {
-    background: var(--color-surface);
-    position: sticky;
-    top: 0;
-    z-index: 1;
-}
-
-.compact-table th {
-    padding: 8px 12px;
-    text-align: left;
-    font-weight: 600;
-    color: var(--color-text-secondary);
-    border-bottom: 1px solid var(--color-border);
-}
-
-.compact-table td {
-    padding: 6px 12px;
-    border-bottom: 1px solid var(--color-surface);
-    color: var(--color-text-primary);
-}
-
-.compact-table td.numeric {
-    text-align: right;
-    font-family: monospace;
-}
-
-.compact-table tbody tr:hover {
-    background: var(--color-surface);
-}
-
-/* 计算过程 */
-.calc-process {
-    background: var(--color-surface);
-    border-radius: var(--radius-sm);
-    padding: 12px;
-    border: 1px solid var(--color-border);
-}
-
-.calc-step {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--color-border);
-}
-
-.calc-step:last-child {
-    border-bottom: none;
-}
-
-.step-label {
-    font-size: 12px;
-    color: var(--color-text-secondary);
-}
-
-.step-value {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    font-family: monospace;
-}
-
-/* AI分析Tab */
-.ai-tab-content {
-    display: flex;
-    flex-direction: column;
-    height: calc(100vh - 200px);
-}
-
-.ai-input-section {
-    padding: 16px;
-    border-bottom: 1px solid var(--color-border);
-}
-
-.input-prompt label {
-    display: block;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--color-text-primary);
-    margin-bottom: 8px;
-}
-
-.quick-questions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 12px;
-}
-
-.quick-btn {
-    padding: 6px 10px;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    font-size: 11px;
-    color: var(--color-text-secondary);
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.quick-btn:hover {
-    border-color: var(--color-primary);
-    background: rgba(51, 102, 204, 0.05);
-    color: var(--color-primary);
-}
-
-.ai-textarea {
-    width: 100%;
-    min-height: 60px;
-    padding: 10px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    font-family: inherit;
-    resize: vertical;
-    margin-bottom: 10px;
-}
-
-.ai-textarea:focus {
-    outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 2px rgba(51, 102, 204, 0.1);
-}
-
-.ai-submit-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    width: 100%;
-    padding: 10px;
-    background: var(--color-primary);
-    color: white;
-    border: none;
-    border-radius: var(--radius-sm);
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.ai-submit-btn:hover {
-    background: var(--color-primary-hover);
-}
-
-.ai-submit-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-/* AI输出区域 */
-.ai-output-section {
-    padding: 16px;
-    border-bottom: 1px solid var(--color-border);
-    flex: 1;
-    overflow-y: auto;
-}
-
-.output-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-}
-
-.output-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-}
-
-.output-status {
-    font-size: 11px;
-    color: var(--color-text-muted);
-}
-
-.ai-response {
-    min-height: 100px;
-}
-
-.ai-placeholder {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 20px;
-    text-align: center;
-    color: var(--color-text-muted);
-}
-
-.placeholder-icon {
-    font-size: 36px;
-    margin-bottom: 12px;
-    opacity: 0.5;
-}
-
-.ai-response-content {
-    font-size: 13px;
-    line-height: 1.6;
-    color: var(--color-text-primary);
-    white-space: pre-wrap;
-}
-
-.ai-response-content p {
-    margin-bottom: 12px;
-}
-
-.ai-response-content ul {
-    margin: 12px 0;
-    padding-left: 20px;
-}
-
-.ai-response-content li {
-    margin-bottom: 6px;
-}
-
-/* AI历史 */
-.ai-history-section {
-    border-top: 1px solid var(--color-border);
-}
-
-.history-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    background: var(--color-surface);
-    border-bottom: 1px solid var(--color-border);
-}
-
-.history-header span {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--color-text-secondary);
-}
-
-.clear-history-btn {
-    padding: 4px 10px;
-    background: transparent;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    font-size: 11px;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.clear-history-btn:hover {
-    border-color: var(--color-error);
-    color: var(--color-error);
-}
-
-.history-list {
-    max-height: 200px;
-    overflow-y: auto;
-}
-
-.history-item {
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--color-surface);
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.history-item:hover {
-    background: var(--color-surface);
-}
-
-.history-question {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--color-text-primary);
-    margin-bottom: 4px;
-}
-
-.history-time {
-    font-size: 11px;
-    color: var(--color-text-muted);
-}
-
-/* 空状态 */
-.empty-tab {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 60px 20px;
-    text-align: center;
-}
-
-.empty-icon {
-    font-size: 48px;
-    margin-bottom: 12px;
-    opacity: 0.5;
-}
-
-.empty-tab p {
-    color: var(--color-text-muted);
-    font-size: 13px;
-}
-
-/* 其他样式 */
-.alert {
-    padding: 12px 16px;
-    border-radius: var(--radius-sm);
-    margin-bottom: 20px;
-    border-left: 4px solid;
-}
-
-.alert-error {
-    background: #FEE7E7;
-    border-color: var(--color-error);
-    color: var(--color-error);
-}
-
-.alert-warning {
-    background: #FEF7E2;
-    border-color: var(--color-warning);
-    color: var(--color-warning);
-}
-
-.alert ul {
-    margin: 0;
-    padding-left: 20px;
-}
-
-.empty-state {
-    text-align: center;
-    padding: 60px 20px;
-}
-
-.empty-state .empty-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-}
-
-.empty-title {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin-bottom: 8px;
-}
-
-.empty-desc {
-    color: var(--color-text-secondary);
-    line-height: 1.6;
-}
-
-.btn {
-    display: inline-block;
-    padding: 8px 16px;
-    background: var(--color-primary);
-    color: white;
-    text-decoration: none;
-    border-radius: var(--radius-sm);
-    font-size: 14px;
-    margin-top: 16px;
-}
-
-.btn:hover {
-    background: var(--color-primary-hover);
-}
-
-/* 响应式 */
-@media (max-width: 1200px) {
-    .regime-dashboard-new {
-        grid-template-columns: 1fr;
-    }
-
-    .side-panel {
-        position: static;
-    }
-
-    .tab-content {
-        max-height: 500px;
-    }
-
-    .ai-tab-content {
-        height: auto;
-    }
-}
-
-@media (max-width: 768px) {
-    .header-content {
-        flex-direction: column;
-        gap: 12px;
-    }
-
-    .data-source-selector {
-        width: 100%;
-        justify-content: center;
-    }
-
-    .charts-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .quad-wrapper {
-        flex-direction: column;
-    }
-
-    .axis-y {
-        writing-mode: horizontal-tb;
-    }
-
-    .quad-explanation {
-        min-width: 100%;
-        max-width: 100%;
-    }
-
-    .quad-grid {
-        grid-template-columns: repeat(2, 1fr);
-        grid-template-rows: repeat(2, 90px);
-    }
-
-    .key-metrics {
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-}
-
-/* ==================== Regime 组件样式 ==================== */
-
-/* Regime 状态卡片 */
-.regime-status-card {
-    background: var(--color-bg);
-    border: 2px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 20px;
-    margin-bottom: 20px;
-}
-
-.regime-status-card.regime-recovery {
-    border-color: #22C55E;
-    background: rgba(34, 197, 94, 0.05);
-}
-
-.regime-status-card.regime-overheat {
-    border-color: #EF4444;
-    background: rgba(239, 68, 68, 0.05);
-}
-
-.regime-status-card.regime-stagflation {
-    border-color: #F59E0B;
-    background: rgba(245, 158, 11, 0.05);
-}
-
-.regime-status-card.regime-deflation {
-    border-color: #3B82F6;
-    background: rgba(59, 130, 246, 0.05);
-}
-
-.status-header {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 16px;
-}
-
-.status-icon {
-    font-size: 48px;
-    font-weight: 700;
-}
-
-.status-info h2 {
-    font-size: 24px;
-    font-weight: 700;
-    margin: 0 0 8px 0;
-    color: var(--color-text-primary);
-}
-
-.confidence-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.confidence-fill {
-    height: 8px;
-    border-radius: 4px;
-    background: linear-gradient(90deg, var(--color-primary), #22C55E);
-}
-
-.confidence-label {
-    font-size: 12px;
-    color: var(--color-text-secondary);
-    font-weight: 600;
-}
-
-.status-indicators {
-    display: flex;
-    gap: 24px;
-}
-
-.indicator-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.indicator-label {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-text-secondary);
-}
-
-.indicator-val {
-    font-size: 20px;
-    font-weight: 700;
-    font-family: monospace;
-}
-
-.indicator-val.expansion { color: #22C55E; }
-.indicator-val.contraction { color: #EF4444; }
-.indicator-val.high { color: #EF4444; }
-.indicator-val.low { color: #3B82F6; }
-.indicator-val.deflation { color: #6366F1; }
-
-.indicator-state {
-    font-size: 12px;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-weight: 600;
-}
-
-.state-expansion { background: rgba(34, 197, 94, 0.15); color: #15803D; }
-.state-contraction { background: rgba(239, 68, 68, 0.15); color: #991B1B; }
-.state-high { background: rgba(239, 68, 68, 0.15); color: #991B1B; }
-.state-low { background: rgba(59, 130, 246, 0.15); color: #1E40AF; }
-.state-deflation { background: rgba(99, 102, 241, 0.15); color: #4338CA; }
-
-.status-actions {
-    margin-top: 12px;
-}
-
-.algorithm-badge {
-    display: inline-block;
-    padding: 6px 12px;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--color-text-secondary);
-}
-
-/* 趋势指标面板 */
-.trend-panel {
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: 20px;
-    margin-bottom: 20px;
-}
-
-.trend-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 12px;
-}
-
-.trend-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    padding: 12px;
-}
-
-.trend-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--color-border);
-}
-
-.trend-code {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-}
-
-.trend-value {
-    font-size: 16px;
-    font-weight: 700;
-    font-family: monospace;
-}
-
-.trend-details {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.trend-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.trend-label {
-    font-size: 11px;
-    color: var(--color-text-secondary);
-}
-
-.trend-momentum {
-    font-size: 12px;
-    font-weight: 600;
-    font-family: monospace;
-}
-
-.trend-momentum.up { color: #22C55E; }
-.trend-momentum.down { color: #EF4444; }
-.trend-momentum.neutral { color: var(--color-text-muted); }
-
-.trend-direction {
-    font-size: 12px;
-    font-weight: 600;
-}
-
-.trend-up { color: #22C55E; }
-.trend-down { color: #EF4444; }
-.trend-neutral { color: var(--color-text-muted); }
-
-.trend-strength {
-    font-size: 11px;
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-weight: 600;
-}
-
-.strength-strong {
-    background: rgba(245, 158, 11, 0.2);
-    color: #B45309;
-}
-
-.strength-moderate {
-    background: rgba(251, 191, 36, 0.15);
-    color: #D97706;
-}
-
-.strength-weak {
-    background: rgba(156, 163, 175, 0.15);
-    color: #6B7280;
-}
-
-/* 预测卡片 */
-.prediction-card {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(99, 102, 241, 0.1));
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    border-radius: var(--radius-md);
-    padding: 16px;
-    margin-bottom: 20px;
-}
-
-.prediction-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-text-primary);
-}
-
-.prediction-icon {
-    font-size: 18px;
-}
-
-.prediction-content {
-    font-size: 13px;
-    line-height: 1.6;
-    color: var(--color-text-primary);
-}
-</style>
-
-{% if raw_data_json %}
-<script>
-// V2 简化版：只显示原始数据表格，不需要复杂图表
-const rawData = {{ raw_data_json|safe }};
-
-// Tab切换
-function switchTab(tabName) {
-    // 更新按钮状态
-    document.querySelectorAll('.tab-button').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.dataset.tab === tabName) {
-            btn.classList.add('active');
-        }
-    });
-
-    // 更新内容显示
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.remove('active');
-    });
-    const tabContent = document.getElementById('tab-' + tabName);
-    if (tabContent) {
-        tabContent.classList.add('active');
-    }
-}
-
-// 初始化
-document.addEventListener('DOMContentLoaded', function() {
-    // 日期选择器
-    const dateInput = document.getElementById('dateSelect');
-    if (dateInput && typeof flatpickr !== 'undefined') {
-        flatpickr(dateInput, {
-            locale: 'zh',
-            dateFormat: 'Y-m-d',
-            maxDate: 'today',
-            onChange: function(selectedDates, dateStr, instance) {
-                // HTMX 会自动触发请求
-            }
-        });
-    }
-});
-</script>
-{% else %}
-<script>
-// Tab切换（无数据时）
-function switchTab(tabName) {
-    // 更新按钮状态
-    document.querySelectorAll('.tab-button').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.dataset.tab === tabName) {
-            btn.classList.add('active');
-        }
-    });
-
-    // 更新内容显示
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.remove('active');
-    });
-    const tabContent = document.getElementById('tab-' + tabName);
-    if (tabContent) {
-        tabContent.classList.add('active');
-    }
-}
-
-// 初始化
-document.addEventListener('DOMContentLoaded', function() {
-    // 日期选择器
-    const dateInput = document.getElementById('dateSelect');
-    if (dateInput && typeof flatpickr !== 'undefined') {
-        flatpickr(dateInput, {
-            locale: 'zh',
-            dateFormat: 'Y-m-d',
-            maxDate: 'today',
-            onChange: function(selectedDates, dateStr, instance) {
-                // HTMX 会自动触发请求
-            }
-        });
-    }
-});
-</script>
-{% endif %}
-
-<!-- Teaching Modal Template -->
-{% include "dashboard/teaching_modal.html" %}
-
-<!-- Teaching Module Scripts -->
-<script src="{% static 'js/teaching/teaching-modal.js' %}"></script>
-<script src="{% static 'js/teaching/regime-calculator.js' %}"></script>
-<script src="{% static 'js/teaching/policy-simulator.js' %}"></script>
-<script src="{% static 'js/teaching/policy-simulator-enhanced.js' %}"></script>
-<script src="{% static 'js/teaching/cases-library.js' %}"></script>
-<script src="{% static 'js/teaching/learning-progress.js' %}"></script>
-<script src="{% static 'js/teaching/interactive-charts.js' %}"></script>
-<script src="{% static 'js/teaching/bilingual-support.js' %}"></script>
-
-<!-- Floating Widget Config -->
-<script>
-    // Load floating widget config from JSON file
-    fetch('{% static "widgets/configs/regime_widget.json" %}')
-        .then(response => response.json())
-        .then(config => {
-            window.floatingWidgetConfig = config;
-            // Trigger initialization manually since DOM is already loaded
-            if (window.initFloatingWidget) {
-                window.initFloatingWidget(config);
-            }
-        })
-        .catch(err => console.error('Failed to load widget config:', err));
-</script>
 
 {% endblock %}
