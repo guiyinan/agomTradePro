@@ -50,7 +50,7 @@
 
                 <!-- 宏观环境：下拉菜单 -->
                 <div class="dropdown">
-                    <span class="top-nav-item">宏观环境</span>
+                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">宏观环境</button>
                     <div class="dropdown-menu">
                         <a href="{% url 'regime:dashboard' %}" class="dropdown-item">Regime判定</a>
                         <a href="{% url 'policy-dashboard' %}" class="dropdown-item">政策跟踪</a>
@@ -58,6 +58,12 @@
                         <a href="{% url 'macro:data' %}" class="dropdown-item">宏观数据</a>
                         <a href="{% url 'filter:dashboard' %}" class="dropdown-item">趋势滤波</a>
                         <a href="{% url 'policy:events-page' %}" class="dropdown-item">政策事件</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="{% url 'policy:rss-reader' %}" class="dropdown-item">RSS阅读器</a>
+                        <a href="{% url 'policy:rss-manage' %}" class="dropdown-item">RSS源管理</a>
+                        <a href="{% url 'policy:rss-keywords' %}" class="dropdown-item">关键词规则</a>
+                        <a href="{% url 'policy:rss-logs' %}" class="dropdown-item">抓取日志</a>
+                        <a href="{% url 'policy:audit-queue' %}" class="dropdown-item">政策审核队列</a>
                         {% endif %}
                     </div>
                 </div>
@@ -65,7 +71,7 @@
                 <!-- 投资管理：下拉菜单 -->
                 {% if user.is_authenticated %}
                 <div class="dropdown">
-                    <span class="top-nav-item">投资管理</span>
+                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">投资管理</button>
                     <div class="dropdown-menu">
                         <a href="{% url 'strategy:list' %}" class="dropdown-item">
                             <i class="bi bi-diagram-3"></i> 策略管理
@@ -83,7 +89,7 @@
                 <!-- 决策平面：下拉菜单 -->
                 {% if user.is_staff %}
                 <div class="dropdown">
-                    <span class="top-nav-item">决策平面</span>
+                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">决策平面</button>
                     <div class="dropdown-menu">
                         <a href="{% url 'beta_gate:config' %}" class="dropdown-item">
                             <i class="bi bi-door-closed"></i> Beta 闸门
@@ -106,7 +112,7 @@
 
                 <!-- 证券分析：下拉菜单 -->
                 <div class="dropdown">
-                    <span class="top-nav-item">证券分析</span>
+                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">证券分析</button>
                     <div class="dropdown-menu">
                         <a href="{% url 'asset-screen' %}" class="dropdown-item">资产筛选</a>
                         <div class="dropdown-divider"></div>
@@ -124,7 +130,7 @@
 
                 <!-- 系统：下拉菜单 -->
                 <div class="dropdown">
-                    <span class="top-nav-item">系统</span>
+                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">系统</button>
                     <div class="dropdown-menu">
                         <a href="{% url 'docs' %}" class="dropdown-item">文档中心</a>
                         <a href="/api/docs/" class="dropdown-item">API 文档</a>
@@ -138,19 +144,13 @@
                         <a href="{% url 'audit:reports' %}" class="dropdown-item">审计归因报告</a>
                         <a href="{% url 'audit:indicator_performance' %}" class="dropdown-item">指标表现校验</a>
                         <a href="{% url 'audit:threshold_validation' %}" class="dropdown-item">阈值验证</a>
-                        <div class="dropdown-divider"></div>
-                        <a href="{% url 'policy:audit-queue' %}" class="dropdown-item">政策审核队列</a>
-                        <a href="{% url 'policy:rss-reader' %}" class="dropdown-item">RSS阅读器</a>
-                        <a href="{% url 'policy:rss-manage' %}" class="dropdown-item">RSS源管理</a>
-                        <a href="{% url 'policy:rss-keywords' %}" class="dropdown-item">关键词规则</a>
-                        <a href="{% url 'policy:rss-logs' %}" class="dropdown-item">抓取日志</a>
                         {% endif %}
                     </div>
                 </div>
 
                 {% if user.is_staff %}
                 <div class="dropdown">
-                    <span class="top-nav-item">AI服务</span>
+                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">AI服务</button>
                     <div class="dropdown-menu">
                         <a href="{% url 'ai_provider:manage' %}" class="dropdown-item">AI接口管理</a>
                         <a href="{% url 'ai_provider:logs' %}" class="dropdown-item">AI调用日志</a>
@@ -161,7 +161,7 @@
 
                 {% if user.is_superuser %}
                 <div class="dropdown">
-                    <span class="top-nav-item">管理后台</span>
+                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">管理后台</button>
                     <div class="dropdown-menu">
                         <a href="{% url 'account:user_management' %}" class="dropdown-item">用户管理</a>
                         <a href="{% url 'account:token_management' %}" class="dropdown-item">Token管理</a>
@@ -174,9 +174,9 @@
             <div class="header-actions">
                 {% if user.is_authenticated %}
                 <div class="dropdown">
-                    <span class="top-nav-item">
+                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">
                         {{ user.account_profile.display_name|default:user.username }}
-                    </span>
+                    </button>
                     <div class="dropdown-menu">
                         <a href="{% url 'account:profile' %}" class="dropdown-item">我的账户</a>
                         <a href="{% url 'account:settings' %}" class="dropdown-item">设置</a>
@@ -370,6 +370,79 @@
     document.body.addEventListener('htmx:sendError', function(evt) {
         showToast('网络错误，请检查连接', 'error');
     });
+
+    // 顶部导航交互：支持点击、键盘与当前页高亮
+    (function() {
+        const dropdowns = Array.from(document.querySelectorAll('.header .dropdown'));
+
+        function closeAll(except) {
+            dropdowns.forEach((dropdown) => {
+                if (dropdown !== except) {
+                    dropdown.classList.remove('open');
+                    const trigger = dropdown.querySelector('.dropdown-trigger');
+                    if (trigger) {
+                        trigger.setAttribute('aria-expanded', 'false');
+                    }
+                }
+            });
+        }
+
+        dropdowns.forEach((dropdown) => {
+            const trigger = dropdown.querySelector('.dropdown-trigger');
+            if (!trigger) return;
+
+            trigger.addEventListener('click', function(e) {
+                e.preventDefault();
+                const isOpen = dropdown.classList.contains('open');
+                closeAll(dropdown);
+                dropdown.classList.toggle('open', !isOpen);
+                trigger.setAttribute('aria-expanded', String(!isOpen));
+            });
+
+            trigger.addEventListener('keydown', function(e) {
+                if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    closeAll(dropdown);
+                    dropdown.classList.add('open');
+                    trigger.setAttribute('aria-expanded', 'true');
+                    const firstItem = dropdown.querySelector('.dropdown-item');
+                    if (firstItem) firstItem.focus();
+                }
+            });
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.header .dropdown')) {
+                closeAll();
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeAll();
+            }
+        });
+
+        const currentPath = window.location.pathname;
+        document.querySelectorAll('.header .dropdown').forEach((dropdown) => {
+            const items = Array.from(dropdown.querySelectorAll('.dropdown-item[href]'));
+            const hasMatch = items.some((item) => {
+                try {
+                    const path = new URL(item.href, window.location.origin).pathname;
+                    if (path === '/') {
+                        return currentPath === '/';
+                    }
+                    return currentPath === path || currentPath.startsWith(path.endsWith('/') ? path : path + '/');
+                } catch {
+                    return false;
+                }
+            });
+            if (hasMatch) {
+                const trigger = dropdown.querySelector('.dropdown-trigger');
+                if (trigger) trigger.classList.add('active');
+            }
+        });
+    })();
 
     // 前端工具函数库
     </script>

@@ -129,6 +129,20 @@ a {
     cursor: pointer;
 }
 
+.dropdown-trigger {
+    background: none;
+    border: none;
+    font: inherit;
+    line-height: inherit;
+}
+
+.dropdown-trigger:focus-visible,
+.top-nav-item:focus-visible,
+.dropdown-item:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
 .top-nav-item:hover {
     background-color: var(--bg-tertiary);
     color: var(--primary-color);
@@ -161,6 +175,13 @@ a {
 }
 
 .dropdown:hover .dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(4px);
+}
+
+.dropdown:focus-within .dropdown-menu,
+.dropdown.open .dropdown-menu {
     opacity: 1;
     visibility: visible;
     transform: translateY(4px);
@@ -374,6 +395,19 @@ a {
         flex: 0 0 auto;
     }
 
+    .dropdown {
+        flex: 0 0 auto;
+    }
+
+    .dropdown-menu {
+        position: absolute;
+        left: 0;
+        right: auto;
+        min-width: 220px;
+        max-width: calc(100vw - 32px);
+        transform: translateY(-4px);
+    }
+
     .data-nav {
         display: none;
     }
@@ -451,6 +485,29 @@ a {
 
 .btn-secondary:hover {
     background-color: var(--border-color);
+}
+
+.btn-success {
+    background-color: var(--success-color);
+    color: #fff;
+}
+
+.btn-success:hover {
+    background-color: #059669;
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background-color: #dc2626;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
 }
 
 /* 表格样式 */
