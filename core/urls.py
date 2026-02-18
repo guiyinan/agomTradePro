@@ -29,6 +29,13 @@ from core.views import (
     decision_workspace_view,
     ops_center_view,
 )
+from core.admin_log_views import (
+    server_logs_page,
+    server_logs_stream,
+    server_logs_export,
+    automation_server_logs_stream,
+    automation_server_logs_export,
+)
 
 core_patterns = [
     path('', index_view, name='index'),
@@ -44,6 +51,9 @@ core_patterns = [
 ]
 
 admin_docs_patterns = [
+    path('admin/server-logs/', server_logs_page, name='admin-server-logs'),
+    path('admin/server-logs/stream/', server_logs_stream, name='admin-server-logs-stream'),
+    path('admin/server-logs/export/', server_logs_export, name='admin-server-logs-export'),
     path('admin/docs/manage/', docs_manage, name='admin-docs-manage'),
     path('admin/docs/edit/', doc_edit, name='admin-docs-create'),
     path('admin/docs/edit/<int:doc_id>/', doc_edit, name='admin-docs-edit'),
@@ -55,6 +65,8 @@ admin_docs_patterns = [
 
 api_docs_patterns = [
     path('admin/', admin.site.urls),
+    path('api/debug/server-logs/stream/', automation_server_logs_stream, name='api-debug-server-logs-stream'),
+    path('api/debug/server-logs/export/', automation_server_logs_export, name='api-debug-server-logs-export'),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),

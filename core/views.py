@@ -351,6 +351,7 @@ def ops_center_view(request):
                 "items": [
                     {"name": "账户系统设置", "url": "/account/admin/settings/"},
                     {"name": "文档管理", "url": "/admin/docs/manage/"},
+                    {"name": "服务端日志", "url": "/admin/server-logs/"},
                     {"name": "AI 接口管理", "url": "/ai/manage/"},
                     {"name": "AI 调用日志", "url": "/ai/logs/"},
                     {"name": "Prompt 模板管理", "url": "/prompt/manage/"},

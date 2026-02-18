@@ -102,6 +102,11 @@ pytest tests/ -v --cov=apps --cov-report=html
 pytest tests/unit/test_regime_services.py -v
 ```
 
+```powershell
+# 自动化调试日志 API 端到端回归（含鉴权/增量/导出）
+pwsh -File scripts/e2e_debug_log_api.ps1
+```
+
 ### 代码质量检查
 
 ```bash

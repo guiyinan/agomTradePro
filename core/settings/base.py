@@ -21,6 +21,13 @@ STREAMLIT_DASHBOARD_URL = env(
     default='http://127.0.0.1:8501',
 )
 
+# Debug automation API (for Codex / Claude Code log polling)
+# Disabled by default. Enable explicitly via .env.
+AUTOMATION_DEBUG_API_ENABLED = env.bool('AUTOMATION_DEBUG_API_ENABLED', default=False)
+AUTOMATION_DEBUG_API_TOKENS = [t.strip() for t in env.list('AUTOMATION_DEBUG_API_TOKENS', default=[]) if t.strip()]
+AUTOMATION_DEBUG_API_IP_ALLOWLIST = [ip.strip() for ip in env.list('AUTOMATION_DEBUG_API_IP_ALLOWLIST', default=[]) if ip.strip()]
+AUTOMATION_DEBUG_API_MAX_LIMIT = env.int('AUTOMATION_DEBUG_API_MAX_LIMIT', default=1000)
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-change-this-in-production')
 

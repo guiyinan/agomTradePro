@@ -31,18 +31,28 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'simple': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
         },
+        'in_memory': {
+            'class': 'core.logging_handlers.InMemoryLogHandler',
+            'formatter': 'simple',
+        },
     },
     'root': {
-        'handlers': ['console'],
+        'handlers': ['console', 'in_memory'],
         'level': 'INFO',
     },
     'loggers': {
         'django': {
-            'handlers': ['console'],
+            'handlers': ['console', 'in_memory'],
             'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
             'propagate': False,
         },

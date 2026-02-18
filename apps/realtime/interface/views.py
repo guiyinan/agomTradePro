@@ -9,6 +9,7 @@ Following AgomSaaS architecture rules:
 
 import logging
 from typing import List
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 
 from django.http import JsonResponse
 from django.views import View
@@ -157,12 +158,26 @@ class HealthCheckView(View):
         """
         from apps.realtime.infrastructure.repositories import CompositePriceDataProvider
 
-        # 检查数据源是否可用
+        # 检查数据源是否可用（加超时保护，避免健康检查阻塞）
         use_case = PricePollingUseCase()
-        is_available = use_case.price_provider.is_available()
+        is_available = False
+        health_error = None
+        executor = ThreadPoolExecutor(max_workers=1)
+        try:
+            future = executor.submit(use_case.price_provider.is_available)
+            is_available = future.result(timeout=2.0)
+        except FutureTimeoutError:
+            health_error = "provider_check_timeout"
+            logger.warning("Realtime health provider check timed out")
+        except Exception as exc:
+            health_error = str(exc)
+            logger.warning("Realtime health provider check failed: %s", exc)
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
 
         return JsonResponse({
             "status": "healthy" if is_available else "unhealthy",
             "data_provider_available": is_available,
-            "timestamp": use_case.service.config.to_dict()
+            "timestamp": use_case.service.config.to_dict(),
+            "error": health_error,
         })

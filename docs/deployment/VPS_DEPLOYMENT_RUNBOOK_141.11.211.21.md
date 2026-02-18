@@ -2,6 +2,12 @@
 
 Last updated: 2026-02-15
 
+## Standard Workflow
+
+For standardized release process (test -> package -> release -> rollback), see:
+
+- `docs/deployment/TEST_PACKAGE_RELEASE_WORKFLOW.md`
+
 ## Current State
 
 - VPS: `141.11.211.21` (Ubuntu 24.04.2 LTS)

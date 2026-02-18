@@ -222,7 +222,7 @@ chat.state.currentModel = 'deepseek-chat';</code></div>
         <div class="example-card">
             <h3>在Regime仪表盘中添加AI助手</h3>
             <p>编辑 <code>core/templates/regime/dashboard.html</code>，在侧边栏添加聊天组件：</p>
-            <div class="code-block"><code>{# 在 regime/dashboard.html 中添加 #}
+            <div class="code-block"><code>{% verbatim %}{# 在 regime/dashboard.html 中添加 #}
 
 {% block extra_css %}
     {{ block.super }}
@@ -253,7 +253,7 @@ chat.state.currentModel = 'deepseek-chat';</code></div>
             defaultModel: 'gpt-4'
         });
     &lt;/script&gt;
-{% endblock %}</code></div>
+{% endblock %}{% endverbatim %}</code></div>
         </div>
     </div>
 

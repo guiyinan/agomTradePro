@@ -208,6 +208,19 @@
             </div>
         </section>
 
+        {% if regime_warnings %}
+        <section class="section-card" style="margin-bottom: 16px; border-left: 4px solid #f59e0b;">
+            <div style="padding: 12px 16px;">
+                <strong>Regime 数据告警（{{ regime_data_health }}）</strong>
+                <ul style="margin: 8px 0 0 18px;">
+                    {% for warning in regime_warnings %}
+                    <li>{{ warning }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </section>
+        {% endif %}
+
         <!-- 决策平面状态卡片 -->
         <section class="decision-plane-section">
             <div class="section-header">

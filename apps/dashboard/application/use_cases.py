@@ -82,6 +82,8 @@ class DashboardData:
     regime_distribution: dict = None
     pmi_value: float = None
     cpi_value: float = None
+    regime_data_health: str = "unknown"
+    regime_warnings: List[str] = None
 
     def __post_init__(self):
         if self.recent_policies is None:
@@ -90,10 +92,14 @@ class DashboardData:
             self.allocation_data = {}
         if self.performance_data is None:
             self.performance_data = []
+        if self.regime_warnings is None:
+            self.regime_warnings = []
 
 
 class GetDashboardDataUseCase:
     """获取首页数据用例"""
+    MAX_MACRO_STALENESS_DAYS = 45
+    MIN_MACRO_POINTS = 12
 
     def __init__(
         self,
@@ -147,6 +153,11 @@ class GetDashboardDataUseCase:
         )
 
         regime_response = regime_use_case.execute(regime_request)
+        health = self._assess_macro_data_health(
+            growth_indicator="PMI",
+            inflation_indicator="CPI",
+            as_of_date=date.today(),
+        )
 
         if regime_response.success and regime_response.result:
             current_regime = regime_response.result.regime.value
@@ -156,13 +167,29 @@ class GetDashboardDataUseCase:
             growth_momentum_z = 0.0
             inflation_momentum_z = 0.0
             regime_distribution = regime_response.result.distribution
+            regime_data_health = "healthy" if health["is_healthy"] else "degraded"
+            regime_warnings = list(health["warnings"])
         else:
-            current_regime = "Unknown"
-            regime_date = date.today()
-            regime_confidence = 0.0
-            growth_momentum_z = 0.0
-            inflation_momentum_z = 0.0
-            regime_distribution = {}
+            # 当本地未同步宏观数据时，回退到已落库的最新 Regime 快照，避免首页完全空白。
+            latest_snapshot = self.regime_repo.get_latest_snapshot()
+            if latest_snapshot:
+                current_regime = latest_snapshot.dominant_regime
+                regime_date = latest_snapshot.observed_at
+                regime_confidence = latest_snapshot.confidence
+                growth_momentum_z = latest_snapshot.growth_momentum_z
+                inflation_momentum_z = latest_snapshot.inflation_momentum_z
+                regime_distribution = latest_snapshot.distribution or {}
+                regime_data_health = "fallback"
+                regime_warnings = ["Regime 实时计算失败，已回退到历史快照"]
+            else:
+                current_regime = "Unknown"
+                regime_date = date.today()
+                regime_confidence = 0.0
+                growth_momentum_z = 0.0
+                inflation_momentum_z = 0.0
+                regime_distribution = {}
+                regime_data_health = "unavailable"
+                regime_warnings = ["Regime 实时计算失败，且无可用历史快照"]
 
         # 获取最新的 PMI 和 CPI 值
         pmi_value, cpi_value = self._get_latest_macro_values()
@@ -225,6 +252,8 @@ class GetDashboardDataUseCase:
             regime_distribution=regime_distribution,
             pmi_value=pmi_value,
             cpi_value=cpi_value,
+            regime_data_health=regime_data_health,
+            regime_warnings=regime_warnings,
             total_assets=float(snapshot.total_value),
             initial_capital=float(profile.initial_capital),
             total_return=float(snapshot.total_return),
@@ -248,6 +277,58 @@ class GetDashboardDataUseCase:
             allocation_data=allocation_data,
             performance_data=performance_data,
         )
+
+    def _assess_macro_data_health(
+        self,
+        growth_indicator: str,
+        inflation_indicator: str,
+        as_of_date: date,
+    ) -> Dict[str, object]:
+        """评估 Regime 输入数据健康度（时效+完整性）。"""
+        from apps.macro.infrastructure.repositories import DjangoMacroRepository
+
+        repo = DjangoMacroRepository()
+        warnings: List[str] = []
+
+        growth_full = repo.get_growth_series_full(
+            indicator_code=growth_indicator,
+            end_date=as_of_date,
+            use_pit=False,
+        )
+        inflation_full = repo.get_inflation_series_full(
+            indicator_code=inflation_indicator,
+            end_date=as_of_date,
+            use_pit=False,
+        )
+
+        growth_points = len(growth_full)
+        inflation_points = len(inflation_full)
+
+        if growth_points < self.MIN_MACRO_POINTS:
+            warnings.append(f"增长指标样本不足（{growth_points} 条）")
+        if inflation_points < self.MIN_MACRO_POINTS:
+            warnings.append(f"通胀指标样本不足（{inflation_points} 条）")
+
+        if growth_full:
+            growth_latest = growth_full[-1].reporting_period
+            growth_staleness = (as_of_date - growth_latest).days
+            if growth_staleness > self.MAX_MACRO_STALENESS_DAYS:
+                warnings.append(f"PMI 数据陈旧（距今 {growth_staleness} 天）")
+        else:
+            warnings.append("PMI 无可用数据")
+
+        if inflation_full:
+            inflation_latest = inflation_full[-1].reporting_period
+            inflation_staleness = (as_of_date - inflation_latest).days
+            if inflation_staleness > self.MAX_MACRO_STALENESS_DAYS:
+                warnings.append(f"CPI 数据陈旧（距今 {inflation_staleness} 天）")
+        else:
+            warnings.append("CPI 无可用数据")
+
+        return {
+            "is_healthy": not warnings,
+            "warnings": warnings,
+        }
 
     def _format_positions(self, positions: List[Position]) -> List[Dict]:
         """格式化持仓数据为字典"""

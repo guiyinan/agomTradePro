@@ -59,9 +59,13 @@ handlers = {
         'class': 'logging.StreamHandler',
         'formatter': 'verbose',
     },
+    'in_memory': {
+        'class': 'core.logging_handlers.InMemoryLogHandler',
+        'formatter': 'simple',
+    },
 }
 
-django_handlers = ['console']
+django_handlers = ['console', 'in_memory']
 
 if LOG_TO_FILE:
     os.makedirs('/var/log/agomsaaf', exist_ok=True)
@@ -89,7 +93,7 @@ LOGGING = {
     },
     'handlers': handlers,
     'root': {
-        'handlers': ['console'],
+        'handlers': ['console', 'in_memory'],
         'level': 'INFO',
     },
     'loggers': {

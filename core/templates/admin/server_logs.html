@@ -1,0 +1,91 @@
+{% extends "admin/base_site.html" %}
+
+{% block title %}服务端日志 | AgomSAAF{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .log-tools { margin: 12px 0; display: flex; gap: 8px; align-items: center; }
+    .log-box {
+        background: #10151c;
+        color: #d5dee7;
+        padding: 12px;
+        border-radius: 8px;
+        height: 70vh;
+        overflow: auto;
+        font-family: Consolas, Menlo, Monaco, monospace;
+        font-size: 12px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        border: 1px solid #2a3645;
+    }
+    .muted { color: #6b7280; font-size: 12px; }
+    button { cursor: pointer; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>服务端实时日志</h1>
+<p class="muted">仅展示当前进程内缓存日志。默认每 2 秒刷新一次。</p>
+
+<div class="log-tools">
+    <button id="toggle-btn" type="button">暂停刷新</button>
+    <button id="clear-btn" type="button">清空当前视图</button>
+    <label><input id="autoscroll" type="checkbox" checked> 自动滚动到底部</label>
+    <a class="button" href="{% url 'admin-server-logs-export' %}">导出 TXT</a>
+</div>
+<div id="log-box" class="log-box"></div>
+<p id="status" class="muted">连接中...</p>
+
+<script>
+(() => {
+    const box = document.getElementById('log-box');
+    const status = document.getElementById('status');
+    const toggleBtn = document.getElementById('toggle-btn');
+    const clearBtn = document.getElementById('clear-btn');
+    const autoScroll = document.getElementById('autoscroll');
+    let running = true;
+    let since = 0;
+
+    function appendLines(entries) {
+        if (!entries || entries.length === 0) return;
+        const lines = entries.map(e => `${e.ts} [${e.level}] ${e.logger} | ${e.message}`);
+        box.textContent += (box.textContent ? '\n' : '') + lines.join('\n');
+        if (autoScroll.checked) {
+            box.scrollTop = box.scrollHeight;
+        }
+    }
+
+    async function poll() {
+        if (!running) return;
+        try {
+            const resp = await fetch(`/admin/server-logs/stream/?since=${since}&limit=400`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (!resp.ok) {
+                throw new Error(`HTTP ${resp.status}`);
+            }
+            const data = await resp.json();
+            appendLines(data.entries);
+            since = data.last_id || since;
+            status.textContent = `已连接，游标: ${since}，最近更新: ${new Date().toLocaleTimeString()}`;
+        } catch (err) {
+            status.textContent = `连接异常: ${err.message}`;
+        }
+    }
+
+    toggleBtn.addEventListener('click', () => {
+        running = !running;
+        toggleBtn.textContent = running ? '暂停刷新' : '继续刷新';
+        status.textContent = running ? '已恢复刷新' : '已暂停刷新';
+    });
+
+    clearBtn.addEventListener('click', () => {
+        box.textContent = '';
+    });
+
+    poll();
+    setInterval(poll, 2000);
+})();
+</script>
+{% endblock %}

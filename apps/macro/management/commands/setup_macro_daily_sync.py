@@ -1,0 +1,90 @@
+"""
+Configure daily macro sync periodic tasks in django-celery-beat.
+
+Usage:
+    python manage.py setup_macro_daily_sync
+    python manage.py setup_macro_daily_sync --hour 8 --minute 10
+    python manage.py setup_macro_daily_sync --disable
+"""
+
+import json
+
+from django.core.management.base import BaseCommand
+from django.db import transaction
+from django_celery_beat.models import CrontabSchedule, IntervalSchedule, PeriodicTask
+
+
+class Command(BaseCommand):
+    help = "Create/update daily macro sync tasks for robust decision data freshness."
+
+    def add_arguments(self, parser):
+        parser.add_argument("--hour", type=int, default=8, help="Daily sync hour (0-23)")
+        parser.add_argument("--minute", type=int, default=5, help="Daily sync minute (0-59)")
+        parser.add_argument(
+            "--disable",
+            action="store_true",
+            help="Create/update tasks but disable them",
+        )
+
+    def handle(self, *args, **options):
+        hour = options["hour"]
+        minute = options["minute"]
+        enabled = not options["disable"]
+
+        if hour < 0 or hour > 23:
+            self.stderr.write(self.style.ERROR("--hour must be between 0 and 23"))
+            return
+        if minute < 0 or minute > 59:
+            self.stderr.write(self.style.ERROR("--minute must be between 0 and 59"))
+            return
+
+        with transaction.atomic():
+            crontab_kwargs = {
+                "minute": str(minute),
+                "hour": str(hour),
+                "day_of_week": "*",
+                "day_of_month": "*",
+                "month_of_year": "*",
+            }
+            # django-celery-beat >=2.5 supports timezone on CrontabSchedule.
+            if any(f.name == "timezone" for f in CrontabSchedule._meta.fields):
+                crontab_kwargs["timezone"] = "Asia/Shanghai"
+
+            daily_crontab, _ = CrontabSchedule.objects.get_or_create(**crontab_kwargs)
+            freshness_interval, _ = IntervalSchedule.objects.get_or_create(
+                every=6,
+                period=IntervalSchedule.HOURS,
+            )
+
+            sync_kwargs = {
+                "source": "akshare",
+                "indicator": None,
+                "days_back": 60,
+                "use_pit": True,
+            }
+            sync_task, _ = PeriodicTask.objects.get_or_create(name="daily-sync-and-calculate")
+            sync_task.task = "apps.macro.application.tasks.sync_and_calculate_regime"
+            sync_task.enabled = enabled
+            sync_task.kwargs = json.dumps(sync_kwargs, ensure_ascii=True)
+            sync_task.description = "Daily macro sync + regime calculation for dashboard reliability"
+            sync_task.interval = None
+            sync_task.solar = None
+            sync_task.clocked = None
+            sync_task.crontab = daily_crontab
+            sync_task.save()
+
+            freshness_task, _ = PeriodicTask.objects.get_or_create(name="check-data-freshness")
+            freshness_task.task = "apps.macro.application.tasks.check_data_freshness"
+            freshness_task.enabled = enabled
+            freshness_task.kwargs = "{}"
+            freshness_task.description = "Check macro freshness every 6 hours and alert on stale inputs"
+            freshness_task.crontab = None
+            freshness_task.solar = None
+            freshness_task.clocked = None
+            freshness_task.interval = freshness_interval
+            freshness_task.save()
+
+        status = "enabled" if enabled else "disabled"
+        self.stdout.write(self.style.SUCCESS("Macro periodic tasks configured"))
+        self.stdout.write(f"  - daily-sync-and-calculate: {status} @ {hour:02d}:{minute:02d}")
+        self.stdout.write(f"  - check-data-freshness: {status} every 6 hours")

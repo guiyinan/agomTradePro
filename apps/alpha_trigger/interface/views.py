@@ -10,6 +10,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from django.shortcuts import render
+from django.http import Http404, HttpResponseNotFound
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -914,6 +915,8 @@ def alpha_trigger_edit_view(request, trigger_id):
 
         return render(request, "alpha_trigger/edit.html", context)
 
+    except Http404:
+        return HttpResponseNotFound(f"Trigger not found: {trigger_id}")
     except Exception as e:
         logger.error(f"Failed to load alpha trigger edit page: {e}", exc_info=True)
         context = {
@@ -959,6 +962,8 @@ def alpha_trigger_detail_view(request, trigger_id):
 
         return render(request, "alpha_trigger/detail.html", context)
 
+    except Http404:
+        return HttpResponseNotFound(f"Trigger not found: {trigger_id}")
     except Exception as e:
         logger.error(f"Failed to load alpha trigger detail page: {e}", exc_info=True)
         context = {
@@ -1080,6 +1085,8 @@ def alpha_candidate_detail_view(request, candidate_id):
 
         return render(request, "alpha_trigger/candidate_detail.html", context)
 
+    except Http404:
+        return HttpResponseNotFound(f"Candidate not found: {candidate_id}")
     except Exception as e:
         logger.error(f"Failed to load alpha candidate detail page: {e}", exc_info=True)
         context = {

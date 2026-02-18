@@ -49,6 +49,17 @@ function Invoke-Migrations {
     Write-Host "[OK] Migrations complete" -ForegroundColor Green
 }
 
+# Function: Ensure macro daily sync tasks
+function Ensure-MacroDailySyncTasks {
+    Write-Host "[INFO] Ensuring macro periodic tasks..." -ForegroundColor Yellow
+    & $PythonExe manage.py setup_macro_daily_sync --hour 8 --minute 5
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[WARN] Failed to configure macro periodic tasks" -ForegroundColor Yellow
+    } else {
+        Write-Host "[OK] Macro periodic tasks configured" -ForegroundColor Green
+    }
+}
+
 # Function: Check/Start Docker services
 function Start-DockerServices {
     Write-Host "[INFO] Checking Docker..." -ForegroundColor Yellow
@@ -141,6 +152,7 @@ if ($Mode -eq 'docker') {
 
 Write-Host ""
 Invoke-Migrations
+Ensure-MacroDailySyncTasks
 
 # Start Celery services (only in docker/postgres mode)
 if ($Mode -eq 'docker' -or $Mode -eq 'postgres') {

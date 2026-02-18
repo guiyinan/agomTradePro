@@ -292,6 +292,8 @@ def dashboard_view(request):
         "growth_momentum_z": data.growth_momentum_z,
         "inflation_momentum_z": data.inflation_momentum_z,
         "regime_distribution": data.regime_distribution,
+        "regime_data_health": data.regime_data_health,
+        "regime_warnings": data.regime_warnings,
         "pmi_value": data.pmi_value,
         "cpi_value": data.cpi_value,
         # 政策档位

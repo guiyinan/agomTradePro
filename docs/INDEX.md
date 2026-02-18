@@ -48,6 +48,7 @@
 | [api_structure_guide.md](development/api_structure_guide.md) | API 结构指南 | 完整 |
 | [coding_standards.md](development/coding_standards.md) | 代码规范 | 完整 |
 | [decision-platform.md](development/decision-platform.md) | 决策平台实现 | 完整 |
+| [debug-automation-log-api.md](development/debug-automation-log-api.md) | Codex/Claude 自动化调试日志 API（Bearer 鉴权） | ✅ 新增 |
 | [startup-scripts.md](development/startup-scripts.md) | 启动脚本使用指南 | 完整 |
 | [module-dependency-graph.md](development/module-dependency-graph.md) | 模块依赖关系图 | 完整 |
 
@@ -92,6 +93,7 @@
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
+| [TEST_PACKAGE_RELEASE_WORKFLOW.md](deployment/TEST_PACKAGE_RELEASE_WORKFLOW.md) | 标准流程：测试->打包->发布->回滚（含门禁） | ✅ 新增 |
 | [VPS_BUNDLE_DEPLOYMENT.md](deployment/VPS_BUNDLE_DEPLOYMENT.md) | VPS Bundle 一体化部署与迁移指南（含 Postgres/Redis 迁移） | ✅ 新增 |
 | [DOCKER_DEPLOYMENT.md](deployment/DOCKER_DEPLOYMENT.md) | Docker 部署指南 | 完整 |
 | [postgres_windows_docker.md](deployment/postgres_windows_docker.md) | Windows PostgreSQL Docker 配置 | 完整 |
@@ -200,9 +202,10 @@
 
 ### 部署运维
 1. [deployment/VPS_BUNDLE_DEPLOYMENT.md](deployment/VPS_BUNDLE_DEPLOYMENT.md) - VPS 一体化打包与部署指南
-2. [deployment/DOCKER_DEPLOYMENT.md](deployment/DOCKER_DEPLOYMENT.md) - Docker 部署指南
-3. [deployment/database_configuration.md](deployment/database_configuration.md) - 数据库配置
-4. [development/startup-scripts.md](development/startup-scripts.md) - 启动脚本
+2. [deployment/TEST_PACKAGE_RELEASE_WORKFLOW.md](deployment/TEST_PACKAGE_RELEASE_WORKFLOW.md) - 标准发布工作流（测试->打包->发布）
+3. [deployment/DOCKER_DEPLOYMENT.md](deployment/DOCKER_DEPLOYMENT.md) - Docker 部署指南
+4. [deployment/database_configuration.md](deployment/database_configuration.md) - 数据库配置
+5. [development/startup-scripts.md](development/startup-scripts.md) - 启动脚本
 
 ---
 

@@ -19,18 +19,20 @@ echo   [2] Docker Mode (PostgreSQL + Redis + Celery)
 echo   [3] Docker Mode - No Celery
 echo   [4] Activate venv only
 echo   [5] Stop all services
+echo   [6] Quick Start + URL/API Scan
 echo   [0] Exit
 echo.
 echo ========================================
 echo.
 
-set /p choice="Enter choice [0-5]: "
+set /p choice="Enter choice [0-6]: "
 
 if "%choice%"=="1" goto quick
 if "%choice%"=="2" goto docker
 if "%choice%"=="3" goto docker_no_celery
 if "%choice%"=="4" goto venv
 if "%choice%"=="5" goto stop
+if "%choice%"=="6" goto quick_scan
 if "%choice%"=="0" goto end
 goto menu
 
@@ -74,6 +76,10 @@ goto menu
 
 :stop
 call scripts\stop-dev.bat
+goto menu
+
+:quick_scan
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\dev-smoke.ps1
 goto menu
 
 :end
