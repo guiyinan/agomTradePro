@@ -8,7 +8,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import List, Dict, Optional, Tuple, Callable
+from typing import Any, List, Dict, Optional, Tuple, Callable
 
 from .stock_selection_backtest import (
     StockSelectionBacktestConfig,
@@ -18,6 +18,11 @@ from .stock_selection_backtest import (
     StockPerformance,
     RebalanceFrequency,
 )
+
+try:
+    from apps.alpha.application.services import AlphaService  # backward-compatible patch target
+except Exception:
+    AlphaService = None
 
 
 logger = logging.getLogger(__name__)
@@ -377,7 +382,10 @@ class RunAlphaBacktestUseCase:
         """获取 Alpha 服务（延迟初始化）"""
         if self._alpha_service is None:
             try:
-                from apps.alpha.application.services import AlphaService
+                global AlphaService
+                if AlphaService is None:
+                    from apps.alpha.application.services import AlphaService as _AlphaService
+                    AlphaService = _AlphaService
                 self._alpha_service = AlphaService()
             except ImportError:
                 logger.warning("Alpha 模块不可用")

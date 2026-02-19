@@ -50,6 +50,9 @@ class InvestmentSignal:
     # 证伪规则（替代原来的 invalidation_logic + invalidation_threshold）
     invalidation_rule: Optional["InvalidationRule"] = None
     invalidation_description: Optional[str] = None  # 人类可读描述
+    # backward-compatible legacy fields
+    invalidation_logic: Optional[str] = None
+    invalidation_threshold: Optional[float] = None
 
     target_regime: str = ""
     created_at: Optional[date] = None
@@ -59,6 +62,13 @@ class InvestmentSignal:
     # 回测评分
     backtest_performance_score: Optional[float] = None
     avg_backtest_return: Optional[float] = None
+
+    def __post_init__(self) -> None:
+        # Keep legacy and new fields interoperable.
+        if self.invalidation_description is None and self.invalidation_logic is not None:
+            self.invalidation_description = self.invalidation_logic
+        if self.invalidation_logic is None and self.invalidation_description is not None:
+            self.invalidation_logic = self.invalidation_description
 
     @property
     def has_invalidation_rule(self) -> bool:

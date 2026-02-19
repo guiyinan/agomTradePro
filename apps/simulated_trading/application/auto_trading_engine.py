@@ -167,9 +167,30 @@ class AutoTradingEngine:
         """
         try:
             from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+            from apps.strategy.infrastructure.models import PortfolioStrategyAssignmentModel
+
             account_model = SimulatedAccountModel._default_manager.filter(id=account_id).first()
-            if account_model and account_model.active_strategy:
-                return account_model.active_strategy.id
+            if not account_model:
+                return None
+
+            # 兼容旧模型字段（如果存在）
+            legacy_strategy = getattr(account_model, "active_strategy", None)
+            if legacy_strategy:
+                return legacy_strategy.id
+
+            # 现行实现：通过 portfolio_strategy_assignment 关联表读取
+            assignment = (
+                PortfolioStrategyAssignmentModel._default_manager
+                .select_related("strategy")
+                .filter(
+                    portfolio_id=account_id,
+                    is_active=True,
+                    strategy__is_active=True,
+                )
+                .first()
+            )
+            if assignment:
+                return assignment.strategy_id
             return None
         except Exception as e:
             logger.warning(f"获取账户策略失败: {e}")

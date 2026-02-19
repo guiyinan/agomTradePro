@@ -81,3 +81,4 @@ sqlite-backup-utf8.json
 # Celery beat schedule files
 celerybeat-schedule*
 /reports
+/tests/playwright/reports

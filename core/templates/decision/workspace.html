@@ -117,7 +117,7 @@
             </div>
             <div class="module-card-footer">
                 <a href="{% url 'alpha_trigger:create' %}" class="btn btn-sm btn-primary">创建触发器</a>
-                <a href="{% url 'alpha_trigger:invalidation-builder' %}" class="btn btn-sm btn-outline">证伪规则</a>
+                <a href="{% url 'alpha_trigger:invalidation_builder' %}" class="btn btn-sm btn-outline">证伪规则</a>
             </div>
         </div>
 
@@ -259,7 +259,7 @@
                     </div>
                 </div>
                 <div class="candidate-footer">
-                    <a href="{% url 'alpha_trigger:candidate-detail' candidate.candidate_id %}" class="btn btn-sm btn-primary">查看详情</a>
+                    <a href="{% url 'alpha_trigger:candidate_detail' candidate.candidate_id %}" class="btn btn-sm btn-primary">查看详情</a>
                     <a href="{% url 'alpha_trigger:detail' candidate.source_trigger_id %}" class="btn btn-sm btn-outline">来源触发器</a>
                 </div>
             </div>
@@ -308,7 +308,7 @@
                 <p>对比 Beta Gate 配置历史版本</p>
             </a>
 
-            <a href="{% url 'alpha_trigger:invalidation-builder' %}" class="quick-action-card">
+            <a href="{% url 'alpha_trigger:invalidation_builder' %}" class="quick-action-card">
                 <div class="action-icon">🔧</div>
                 <h4>证伪规则</h4>
                 <p>可视化配置证伪条件</p>

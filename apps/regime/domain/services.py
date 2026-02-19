@@ -35,11 +35,21 @@ def sigmoid(x: float, k: float = 2.0) -> float:
     Returns:
         float: (0, 1) 范围内的概率值
     """
-    try:
-        return 1.0 / (1.0 + math.exp(-k * x))
-    except OverflowError:
-        # 防止数值溢出
-        return 1.0 if x > 0 else 0.0
+    z = k * x
+
+    # Enforce odd symmetry: sigmoid(-z) = 1 - sigmoid(z)
+    if z < 0:
+        return 1.0 - sigmoid(-x, k)
+
+    # Regular logistic region where float precision is still expressive.
+    if z <= 20.0:
+        return 1.0 / (1.0 + math.exp(-z))
+
+    # Tail approximation to avoid float saturation to exactly 1.0.
+    z0 = 20.0
+    base = 1.0 / (1.0 + math.exp(-z0))
+    a = (1.0 - base) * (z0 + 1.0) ** 4
+    return 1.0 - a / (z + 1.0) ** 4
 
 
 def calculate_regime_distribution(

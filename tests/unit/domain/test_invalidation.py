@@ -491,24 +491,19 @@ class TestValidateRule:
 
     def test_validate_empty_conditions(self):
         """测试验证空条件"""
-        rule = InvalidationRule(conditions=[], logic=LogicOperator.AND)
-        errors = validate_rule(rule)
-        assert len(errors) > 0
-        assert any("不能为空" in e for e in errors)
+        with pytest.raises(ValueError, match="conditions 不能为空"):
+            InvalidationRule(conditions=[], logic=LogicOperator.AND)
 
     def test_validate_invalid_duration(self):
         """测试验证无效持续时间"""
-        cond = InvalidationCondition(
-            indicator_code="PMI",
-            indicator_type=IndicatorType.MACRO,
-            operator=ComparisonOperator.LT,
-            threshold=50.0,
-            duration=0,  # 无效
-        )
-        rule = InvalidationRule(conditions=[cond], logic=LogicOperator.AND)
-        errors = validate_rule(rule)
-        assert len(errors) > 0
-        assert any("duration" in e for e in errors)
+        with pytest.raises(ValueError, match="duration"):
+            InvalidationCondition(
+                indicator_code="PMI",
+                indicator_type=IndicatorType.MACRO,
+                operator=ComparisonOperator.LT,
+                threshold=50.0,
+                duration=0,  # 无效
+            )
 
 
 # ==================== Test InvalidationLogicParser ====================

@@ -474,3 +474,8 @@ class RSSRepository:
         count, _ = self._keyword_model.objects.filter(id=rule_id).delete()
         return count > 0
 
+
+def get_policy_repository() -> DjangoPolicyRepository:
+    """Backward-compatible repository factory."""
+    return DjangoPolicyRepository()
+

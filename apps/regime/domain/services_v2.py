@@ -103,14 +103,13 @@ def calculate_regime_by_level(
         inflation_state = "moderate"
 
     # 映射到 Regime
-    if growth_state == "expansion" and inflation_state in ["low", "moderate"]:
-        return RegimeType.RECOVERY
-    elif growth_state == "expansion" and inflation_state == "high":
+    if growth_state == "expansion" and inflation_state == "high":
         return RegimeType.OVERHEAT
-    elif growth_state == "contraction" and inflation_state in ["high", "moderate"]:
+    if growth_state == "expansion":
+        return RegimeType.RECOVERY
+    if inflation_state == "high":
         return RegimeType.STAGFLATION
-    else:  # contraction + low/deflation
-        return RegimeType.DEFLATION
+    return RegimeType.DEFLATION
 
 
 def calculate_regime_distribution_by_level(
@@ -155,8 +154,9 @@ def calculate_regime_distribution_by_level(
         distances[regime] = distance
 
     # 转换为概率（距离越小，概率越高）
-    # 使用 softmax: exp(-distance) / sum(exp(-distance))
-    weights = {r: math.exp(-d) for r, d in distances.items()}
+    # 使用带温度的 softmax: exp(-alpha * distance) / sum(...)
+    alpha = 2.0
+    weights = {r: math.exp(-alpha * d) for r, d in distances.items()}
     total = sum(weights.values())
 
     if total == 0:
@@ -319,7 +319,8 @@ class RegimeCalculatorV2:
         trend_indicators = []
 
         # PMI 趋势
-        pmi_momentum, pmi_direction = calculate_momentum_simple(pmi_series)
+        pmi_period = min(3, max(1, len(pmi_series) - 1))
+        pmi_momentum, pmi_direction = calculate_momentum_simple(pmi_series, period=pmi_period)
         pmi_z = calculate_zscore_simple(pmi_series, pmi_value)
         pmi_strength = classify_momentum_strength(pmi_z)
         pmi_dir_str = "up" if pmi_direction > 0 else ("down" if pmi_direction < 0 else "neutral")
@@ -334,7 +335,8 @@ class RegimeCalculatorV2:
         ))
 
         # CPI 趋势
-        cpi_momentum, cpi_direction = calculate_momentum_simple(cpi_series)
+        cpi_period = min(3, max(1, len(cpi_series) - 1))
+        cpi_momentum, cpi_direction = calculate_momentum_simple(cpi_series, period=cpi_period)
         cpi_z = calculate_zscore_simple(cpi_series, cpi_value)
         cpi_strength = classify_momentum_strength(cpi_z)
         cpi_dir_str = "up" if cpi_direction > 0 else ("down" if cpi_direction < 0 else "neutral")

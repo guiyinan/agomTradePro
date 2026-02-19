@@ -169,6 +169,7 @@ class AdminSelectors:
 
     # Admin branding
     admin_header: str = "#header"
+    admin_branding: str = "#site-name, h1:has-text('Django administration')"
     admin_breadcrumb: str = ".breadcrumbs"
     admin_user_tools: str = "#user-tools"
 

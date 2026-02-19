@@ -473,19 +473,24 @@ def _generate_mock_scores(top_n: int) -> List[dict]:
 
 def _calculate_artifact_hash(model_path: str) -> str:
     """
-    计算模型文件的哈希值
+    计算 artifact 哈希值
 
     Args:
-        model_path: 模型文件路径
+        model_path: 模型文件路径或任意稳定标识字符串
 
     Returns:
         SHA256 哈希值
     """
     sha256_hash = hashlib.sha256()
 
-    with open(model_path, "rb") as f:
-        for byte_block in iter(lambda: f.read(4096), b""):
-            sha256_hash.update(byte_block)
+    path_obj = Path(model_path)
+    if path_obj.is_file():
+        with path_obj.open("rb") as f:
+            for byte_block in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(byte_block)
+    else:
+        # 训练阶段可能还没有落盘文件，回退到稳定字符串哈希
+        sha256_hash.update(str(model_path).encode("utf-8"))
 
     return sha256_hash.hexdigest()
 

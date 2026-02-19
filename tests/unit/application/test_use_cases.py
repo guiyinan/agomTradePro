@@ -106,7 +106,16 @@ class TestSyncMacroDataUseCase:
         repository = Mock()
         # 第一次调用返回现有数据，第二次返回 None（新数据）
         repository.get_by_code_and_date.side_effect = [
-            Mock(),  # 数据已存在
+            MacroIndicator(  # 数据已存在（内容相同，应被去重）
+                code="CN_PMI",
+                value=50.5,
+                reporting_period=date(2024, 1, 1),
+                published_at=date(2024, 1, 2),
+                source="test",
+                unit="指数",
+                original_unit="指数",
+                period_type='M'
+            ),
             None    # 数据不存在
         ]
         repository.save_indicators_batch.return_value = None

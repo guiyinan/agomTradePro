@@ -32,6 +32,29 @@ from ..infrastructure.adapters.content_extractor import ContentExtractorError
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class GetCurrentPolicyResponse:
+    """Backward-compatible response for current policy query."""
+    success: bool
+    policy_level: Optional[PolicyLevel] = None
+    error: Optional[str] = None
+
+
+class GetCurrentPolicyUseCase:
+    """Backward-compatible use case: fetch current policy level."""
+
+    def __init__(self, repository: DjangoPolicyRepository):
+        self.repository = repository
+
+    def execute(self) -> GetCurrentPolicyResponse:
+        try:
+            level = self.repository.get_current_policy_level(date.today())
+            return GetCurrentPolicyResponse(success=True, policy_level=level)
+        except Exception as e:
+            logger.error("GetCurrentPolicyUseCase failed: %s", e, exc_info=True)
+            return GetCurrentPolicyResponse(success=False, policy_level=None, error=str(e))
+
+
 # Protocol 定义 - 用于依赖注入
 class AlertServiceProtocol(Protocol):
     """告警服务协议"""

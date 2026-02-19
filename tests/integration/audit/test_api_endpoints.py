@@ -27,6 +27,16 @@ from apps.backtest.infrastructure.models import BacktestResultModel
 User = get_user_model()
 
 
+def _build_authenticated_api_client(username: str = "testuser") -> APIClient:
+    """Create an authenticated client without failing on duplicate usernames."""
+    user, _ = User.objects.get_or_create(username=username)
+    user.set_password('testpass')
+    user.save(update_fields=['password'])
+    client = APIClient()
+    client.force_authenticate(user=user)
+    return client
+
+
 @pytest.mark.django_db
 class TestGenerateAttributionReportAPI:
     """Test POST /audit/reports/generate/ endpoint."""
@@ -34,10 +44,7 @@ class TestGenerateAttributionReportAPI:
     @pytest.fixture
     def api_client(self):
         """Create authenticated API client."""
-        client = APIClient()
-        user = User.objects.create_user(username='testuser', password='testpass')
-        client.force_authenticate(user=user)
-        return client
+        return _build_authenticated_api_client("testuser_audit_generate")
 
     @pytest.fixture
     def sample_backtest(self):
@@ -71,7 +78,7 @@ class TestGenerateAttributionReportAPI:
 
     def test_generate_attribution_report_success(self, api_client, sample_backtest):
         """Test successful generation of attribution report."""
-        url = '/audit/reports/generate/'
+        url = '/audit/api/reports/generate/'
         data = {'backtest_id': sample_backtest.id}
 
         response = api_client.post(url, data, format='json')
@@ -91,7 +98,7 @@ class TestGenerateAttributionReportAPI:
         sample_backtest
     ):
         """Test that response includes loss_analyses and experience_summaries."""
-        url = '/audit/reports/generate/'
+        url = '/audit/api/reports/generate/'
         data = {'backtest_id': sample_backtest.id}
 
         response = api_client.post(url, data, format='json')
@@ -103,7 +110,7 @@ class TestGenerateAttributionReportAPI:
 
     def test_generate_attribution_report_missing_backtest_id(self, api_client):
         """Test with missing backtest_id field."""
-        url = '/audit/reports/generate/'
+        url = '/audit/api/reports/generate/'
         data = {}  # Missing backtest_id
 
         response = api_client.post(url, data, format='json')
@@ -113,7 +120,7 @@ class TestGenerateAttributionReportAPI:
 
     def test_generate_attribution_report_nonexistent_backtest(self, api_client):
         """Test with non-existent backtest ID."""
-        url = '/audit/reports/generate/'
+        url = '/audit/api/reports/generate/'
         data = {'backtest_id': 99999}  # Non-existent
 
         response = api_client.post(url, data, format='json')
@@ -123,7 +130,7 @@ class TestGenerateAttributionReportAPI:
 
     def test_generate_attribution_report_invalid_backtest_id_type(self, api_client):
         """Test with invalid backtest_id type."""
-        url = '/audit/reports/generate/'
+        url = '/audit/api/reports/generate/'
         data = {'backtest_id': 'not_an_integer'}
 
         response = api_client.post(url, data, format='json')
@@ -136,7 +143,7 @@ class TestGenerateAttributionReportAPI:
         sample_backtest
     ):
         """Test that API creates database records."""
-        url = '/audit/reports/generate/'
+        url = '/audit/api/reports/generate/'
         data = {'backtest_id': sample_backtest.id}
 
         initial_count = AttributionReport.objects.count()
@@ -152,7 +159,7 @@ class TestGenerateAttributionReportAPI:
     def test_generate_attribution_report_unauthenticated(self):
         """Test that unauthenticated request is rejected."""
         client = APIClient()  # Not authenticated
-        url = '/audit/reports/generate/'
+        url = '/audit/api/reports/generate/'
         data = {'backtest_id': 1}
 
         response = client.post(url, data, format='json')
@@ -169,7 +176,7 @@ class TestGenerateAttributionReportAPI:
         sample_backtest
     ):
         """Test generating multiple reports for the same backtest."""
-        url = '/audit/reports/generate/'
+        url = '/audit/api/reports/generate/'
         data = {'backtest_id': sample_backtest.id}
 
         response1 = api_client.post(url, data, format='json')
@@ -210,7 +217,7 @@ class TestGenerateAttributionReportAPI:
             status='completed'
         )
 
-        url = '/audit/reports/generate/'
+        url = '/audit/api/reports/generate/'
         data = {'backtest_id': backtest.id}
 
         response = api_client.post(url, data, format='json')
@@ -231,10 +238,7 @@ class TestAuditSummaryAPI:
     @pytest.fixture
     def api_client(self):
         """Create authenticated API client."""
-        client = APIClient()
-        user = User.objects.create_user(username='testuser', password='testpass')
-        client.force_authenticate(user=user)
-        return client
+        return _build_authenticated_api_client("testuser_audit_summary")
 
     @pytest.fixture
     def sample_reports(self):
@@ -379,10 +383,7 @@ class TestAuditAPIResponseSerialization:
     @pytest.fixture
     def api_client(self):
         """Create authenticated API client."""
-        client = APIClient()
-        user = User.objects.create_user(username='testuser', password='testpass')
-        client.force_authenticate(user=user)
-        return client
+        return _build_authenticated_api_client("testuser_audit_serialization")
 
     @pytest.fixture
     def sample_backtest(self):
@@ -413,7 +414,7 @@ class TestAuditAPIResponseSerialization:
 
     def test_attribution_report_data_types(self, api_client, sample_backtest):
         """Test that response data has correct types."""
-        url = '/audit/reports/generate/'
+        url = '/audit/api/reports/generate/'
         data = {'backtest_id': sample_backtest.id}
 
         response = api_client.post(url, data, format='json')
@@ -432,7 +433,7 @@ class TestAuditAPIResponseSerialization:
     def test_summary_response_is_list(self, api_client, sample_backtest):
         """Test that summary API returns a list."""
         # First generate a report
-        url = '/audit/reports/generate/'
+        url = '/audit/api/reports/generate/'
         data = {'backtest_id': sample_backtest.id}
         api_client.post(url, data, format='json')
 
@@ -449,7 +450,7 @@ class TestAuditAPIResponseSerialization:
         sample_backtest
     ):
         """Test that date fields are serialized correctly."""
-        url = '/audit/reports/generate/'
+        url = '/audit/api/reports/generate/'
         data = {'backtest_id': sample_backtest.id}
 
         response = api_client.post(url, data, format='json')
@@ -464,7 +465,7 @@ class TestAuditAPIResponseSerialization:
 
     def test_nested_data_structure(self, api_client, sample_backtest):
         """Test that nested data has correct structure."""
-        url = '/audit/reports/generate/'
+        url = '/audit/api/reports/generate/'
         data = {'backtest_id': sample_backtest.id}
 
         response = api_client.post(url, data, format='json')
@@ -485,10 +486,7 @@ class TestAuditAPIErrorHandling:
     @pytest.fixture
     def api_client(self):
         """Create authenticated API client."""
-        client = APIClient()
-        user = User.objects.create_user(username='testuser', password='testpass')
-        client.force_authenticate(user=user)
-        return client
+        return _build_authenticated_api_client("testuser_audit_errors")
 
     def test_generate_report_concurrent_requests(self, api_client):
         """Test handling concurrent requests."""
@@ -513,7 +511,7 @@ class TestAuditAPIErrorHandling:
             backtests.append(backtest)
 
         # Generate reports concurrently (sequentially in test)
-        url = '/audit/reports/generate/'
+        url = '/audit/api/reports/generate/'
         responses = []
         for backtest in backtests:
             data = {'backtest_id': backtest.id}
@@ -553,7 +551,7 @@ class TestAuditAPIErrorHandling:
             status='in_progress'  # Not completed
         )
 
-        url = '/audit/reports/generate/'
+        url = '/audit/api/reports/generate/'
         data = {'backtest_id': backtest.id}
 
         response = api_client.post(url, data, format='json')
@@ -587,7 +585,7 @@ class TestAuditAPIErrorHandling:
             status='completed'
         )
 
-        url = '/audit/reports/generate/'
+        url = '/audit/api/reports/generate/'
         data = {'backtest_id': backtest.id}
 
         response = api_client.post(url, data, format='json')

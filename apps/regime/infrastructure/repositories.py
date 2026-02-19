@@ -286,3 +286,8 @@ class DjangoRegimeRepository:
             confidence=orm_obj.confidence,
             observed_at=orm_obj.observed_at
         )
+
+
+def get_regime_repository() -> DjangoRegimeRepository:
+    """Backward-compatible repository factory."""
+    return DjangoRegimeRepository()

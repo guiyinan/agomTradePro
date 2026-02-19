@@ -194,8 +194,6 @@ class InvalidationLogicParser:
         # 3. 提取阈值
         threshold = self._extract_threshold(text)
         if threshold is None:
-            threshold = indicator.suggested_threshold
-        if threshold is None:
             return ParseResult(
                 success=False,
                 error=f"无法提取阈值: {text}。请明确指定阈值，如 'PMI 跌破 50'"

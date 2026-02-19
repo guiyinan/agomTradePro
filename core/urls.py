@@ -3,6 +3,8 @@ URL configuration for AgomSAAF project.
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.http import JsonResponse
+from django.views.generic import RedirectView
 
 # Apply custom admin branding
 import core.admin as agom_admin_config
@@ -36,6 +38,13 @@ from core.admin_log_views import (
     automation_server_logs_stream,
     automation_server_logs_export,
 )
+
+
+def events_api_placeholder(request, *args, **kwargs):
+    return JsonResponse(
+        {"detail": "Events API endpoint is temporarily unavailable."},
+        status=501,
+    )
 
 core_patterns = [
     path('', index_view, name='index'),
@@ -78,31 +87,41 @@ module_patterns = [
     # Dashboard (requires login).
     path('dashboard/', include('apps.dashboard.interface.urls')),
     # Main module routes.
-    path('backtest/', include('apps.backtest.interface.urls')),
+    path('backtest/', include(('apps.backtest.interface.urls', 'backtest'), namespace='backtest')),
     path('regime/', include('apps.regime.interface.urls')),
     path('macro/', include(('apps.macro.interface.urls', 'macro'), namespace='macro')),
-    path('filter/', include('apps.filter.interface.urls')),
+    path('filter/', include(('apps.filter.interface.urls', 'filter'), namespace='filter')),
     path('signal/', include('apps.signal.interface.urls')),
-    path('ai/', include('apps.ai_provider.interface.urls')),
-    path('prompt/', include('apps.prompt.interface.urls')),
-    path('audit/', include('apps.audit.interface.urls')),
-    path('sector/', include('apps.sector.interface.urls')),
-    path('equity/', include('apps.equity.interface.urls')),
-    path('fund/', include('apps.fund.interface.urls')),
-    path('asset-analysis/', include('apps.asset_analysis.interface.urls')),
-    path('simulated-trading/', include('apps.simulated_trading.interface.urls')),
-    path('strategy/', include('apps.strategy.interface.urls')),
-    path('realtime/', include('apps.realtime.interface.urls')),
+    path('ai/', include(('apps.ai_provider.interface.urls', 'ai_provider'), namespace='ai_provider')),
+    path('prompt/', include(('apps.prompt.interface.urls', 'prompt'), namespace='prompt')),
+    path('audit/', include(('apps.audit.interface.urls', 'audit'), namespace='audit')),
+    path('sector/', include(('apps.sector.interface.urls', 'sector'), namespace='sector')),
+    path('equity/', include(('apps.equity.interface.urls', 'equity'), namespace='equity')),
+    path('fund/', include(('apps.fund.interface.urls', 'fund'), namespace='fund')),
+    path('asset-analysis/', include(('apps.asset_analysis.interface.urls', 'asset_analysis'), namespace='asset_analysis')),
+    path('simulated-trading/', include(('apps.simulated_trading.interface.urls', 'simulated_trading'), namespace='simulated_trading')),
+    path('strategy/', include(('apps.strategy.interface.urls', 'strategy'), namespace='strategy')),
+    path('realtime/', include(('apps.realtime.interface.urls', 'realtime'), namespace='realtime')),
     # Policy management (包含页面和 API).
-    path('policy/', include('apps.policy.interface.urls')),
+    path('policy/', include(('apps.policy.interface.urls', 'policy'), namespace='policy')),
+    path('events/publish/', RedirectView.as_view(url='/events/api/publish/', permanent=False)),
+    path('events/query/', RedirectView.as_view(url='/events/api/query/', permanent=False)),
+    path('events/metrics/', RedirectView.as_view(url='/events/api/metrics/', permanent=False)),
+    path('events/status/', RedirectView.as_view(url='/events/api/status/', permanent=False)),
+    path('events/replay/', RedirectView.as_view(url='/events/api/replay/', permanent=False)),
+    path('events/api/publish/', events_api_placeholder, name='events-api-publish'),
+    path('events/api/query/', events_api_placeholder, name='events-api-query'),
+    path('events/api/metrics/', events_api_placeholder, name='events-api-metrics'),
+    path('events/api/status/', events_api_placeholder, name='events-api-status'),
+    path('events/api/replay/', events_api_placeholder, name='events-api-replay'),
     # Decision workflow modules.
     path('', include('apps.decision_rhythm.interface.urls')),
     path('', include('apps.beta_gate.interface.urls')),
     path('', include('apps.alpha_trigger.interface.urls')),
     # Factor / Rotation / Hedge.
-    path('factor/', include('apps.factor.interface.urls')),
-    path('rotation/', include('apps.rotation.interface.urls')),
-    path('hedge/', include('apps.hedge.interface.urls')),
+    path('factor/', include(('apps.factor.interface.urls', 'factor'), namespace='factor')),
+    path('rotation/', include(('apps.rotation.interface.urls', 'rotation'), namespace='rotation')),
+    path('hedge/', include(('apps.hedge.interface.urls', 'hedge'), namespace='hedge')),
     # Alpha signal abstraction.
     path('api/alpha/', include('apps.alpha.interface.urls')),
 
@@ -123,22 +142,22 @@ module_patterns = [
     # P2: Macro 模块
     path('api/macro/', include(('apps.macro.interface.urls', 'macro'), namespace='api_macro')),
     # P2: Filter 模块
-    path('api/filter/', include('apps.filter.interface.urls')),
+    path('api/filter/', include(('apps.filter.interface.urls', 'api_filter'), namespace='api_filter')),
     # P2: Backtest 模块
-    path('api/backtest/', include('apps.backtest.interface.urls')),
+    path('api/backtest/', include(('apps.backtest.interface.urls', 'api_backtest'), namespace='api_backtest')),
     # P2: Audit 模块
-    path('api/audit/', include('apps.audit.interface.urls')),
+    path('api/audit/', include(('apps.audit.interface.urls', 'api_audit'), namespace='api_audit')),
     # P3: 其他模块
-    path('api/equity/', include('apps.equity.interface.urls')),
-    path('api/fund/', include('apps.fund.interface.urls')),
-    path('api/asset-analysis/', include('apps.asset_analysis.interface.urls')),
-    path('api/sector/', include('apps.sector.interface.urls')),
-    path('api/ai/', include('apps.ai_provider.interface.urls')),
-    path('api/prompt/', include('apps.prompt.interface.urls')),
-    path('api/realtime/', include('apps.realtime.interface.urls')),
-    path('api/factor/', include('apps.factor.interface.urls')),
-    path('api/rotation/', include('apps.rotation.interface.urls')),
-    path('api/hedge/', include('apps.hedge.interface.urls')),
+    path('api/equity/', include(('apps.equity.interface.urls', 'api_equity'), namespace='api_equity')),
+    path('api/fund/', include(('apps.fund.interface.urls', 'api_fund'), namespace='api_fund')),
+    path('api/asset-analysis/', include(('apps.asset_analysis.interface.urls', 'api_asset_analysis'), namespace='api_asset_analysis')),
+    path('api/sector/', include(('apps.sector.interface.urls', 'api_sector'), namespace='api_sector')),
+    path('api/ai/', include(('apps.ai_provider.interface.urls', 'api_ai_provider'), namespace='api_ai_provider')),
+    path('api/prompt/', include(('apps.prompt.interface.urls', 'api_prompt'), namespace='api_prompt')),
+    path('api/realtime/', include(('apps.realtime.interface.urls', 'api_realtime'), namespace='api_realtime')),
+    path('api/factor/', include(('apps.factor.interface.urls', 'api_factor'), namespace='api_factor')),
+    path('api/rotation/', include(('apps.rotation.interface.urls', 'api_rotation'), namespace='api_rotation')),
+    path('api/hedge/', include(('apps.hedge.interface.urls', 'api_hedge'), namespace='api_hedge')),
 ]
 
 

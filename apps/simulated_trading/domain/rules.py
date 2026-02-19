@@ -103,7 +103,8 @@ class TradingConstraintRule:
         account: SimulatedAccount,
         asset_code: str,
         quantity: int,
-        price: float
+        price: float,
+        current_position_value: float = 0.0
     ) -> Tuple[bool, str]:
         """
         验证买入订单
@@ -113,6 +114,7 @@ class TradingConstraintRule:
             asset_code: 资产代码
             quantity: 买入数量
             price: 买入价格
+            current_position_value: 当前该资产已持仓市值(元)
 
         Returns:
             (是否通过, 失败原因)
@@ -142,6 +144,15 @@ class TradingConstraintRule:
         # 6. 检查数量是否大于0
         if quantity <= 0:
             return False, "买入数量必须大于0"
+
+        # 7. 检查单资产最大持仓比例
+        max_single_value = account.max_position_value()
+        new_position_value = current_position_value + amount
+        if new_position_value > max_single_value:
+            return (
+                False,
+                f"超过最大持仓比例(上限{max_single_value:.2f},买入后{new_position_value:.2f})"
+            )
 
         return True, ""
 

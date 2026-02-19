@@ -9,7 +9,7 @@ from django.urls import reverse, resolve
 from django.conf import settings
 
 
-class APINamingConventionTest:
+class TestAPINamingConvention:
     """Test API naming conventions (independent of visual changes)."""
 
     @pytest.fixture
@@ -51,7 +51,7 @@ class APINamingConventionTest:
                 pytest.skip(f"Route {route} failed to resolve: {e}")
 
 
-class NavigationRouteDefinitionTest:
+class TestNavigationRouteDefinition:
     """Test that navigation routes are defined (independent of visual changes)."""
 
     @pytest.mark.uat
@@ -129,7 +129,7 @@ class NavigationRouteDefinitionTest:
             print(f"  {prefix:40s} -> {status}")
 
 
-class UserJourneyRouteAccessTest:
+class TestUserJourneyRouteAccess:
     """Test that user journey routes are accessible (independent of visual changes)."""
 
     @pytest.mark.uat
@@ -237,7 +237,7 @@ class UserJourneyRouteAccessTest:
         print(f"\nJourney E Routes Defined: {len(defined)}/{len(journey_e_routes)}")
 
 
-class APIDocumentationTest:
+class TestAPIDocumentation:
     """Test API documentation (independent of visual changes)."""
 
     @pytest.mark.uat
@@ -279,7 +279,7 @@ class APIDocumentationTest:
             "At least 50% of API docs routes should be defined"
 
 
-class ConfigurationTest:
+class TestConfiguration:
     """Test system configuration (independent of visual changes)."""
 
     @pytest.mark.uat

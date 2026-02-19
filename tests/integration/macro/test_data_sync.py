@@ -200,9 +200,12 @@ class TestMacroDataSyncWorkflow:
         assert response2.synced_count == 0, "重复数据不应被保存"
         assert response2.skipped_count == 1, "应有 1 条数据被跳过"
 
-        # 验证数据库中只有一条记录
-        count = repository.get_indicator_count(code="CN_PMI")
-        assert count == 1, f"应只有 1 条 PMI 数据，实际: {count}"
+        # 验证目标日期不会产生重复记录
+        same_day_count = repository._model.objects.filter(
+            code="CN_PMI",
+            reporting_period=date(2024, 1, 1)
+        ).count()
+        assert same_day_count == 1, f"目标日期应仅有 1 条记录，实际: {same_day_count}"
 
 
 @pytest.mark.django_db
@@ -382,12 +385,13 @@ class TestPitDataHandling:
         验证在指定日期只能看到该日期前已发布的数据
         """
         repository = DjangoMacroRepository()
+        test_code = "CN_PMI_PIT_TEST"
 
         # 保存数据（带发布延迟）
         # 1 月份数据在 2 月发布
         repository.save_indicator(
             MacroIndicator(
-                code="CN_PMI",
+                code=test_code,
                 value=50.0,
                 reporting_period=date(2024, 1, 1),
                 published_at=date(2024, 2, 15),  # 2 月 15 日发布
@@ -401,7 +405,7 @@ class TestPitDataHandling:
         # 2 月份数据在 3 月发布
         repository.save_indicator(
             MacroIndicator(
-                code="CN_PMI",
+                code=test_code,
                 value=51.0,
                 reporting_period=date(2024, 2, 1),
                 published_at=date(2024, 3, 15),  # 3 月 15 日发布
@@ -414,21 +418,21 @@ class TestPitDataHandling:
 
         # 验证：在 2024-02-01 时，1 月份数据不可见（尚未发布）
         latest_date = repository.get_latest_observation_date(
-            code="CN_PMI",
+            code=test_code,
             as_of_date=date(2024, 2, 1)
         )
         assert latest_date is None, "2024-02-01 时不应有可见数据"
 
         # 验证：在 2024-02-20 时，1 月份数据可见
         latest_date = repository.get_latest_observation_date(
-            code="CN_PMI",
+            code=test_code,
             as_of_date=date(2024, 2, 20)
         )
         assert latest_date == date(2024, 1, 1), "2024-02-20 时应可见 1 月数据"
 
         # 验证：在 2024-03-20 时，2 月份数据可见
         latest_date = repository.get_latest_observation_date(
-            code="CN_PMI",
+            code=test_code,
             as_of_date=date(2024, 3, 20)
         )
         assert latest_date == date(2024, 2, 1), "2024-03-20 时应可见 2 月数据"

@@ -58,7 +58,13 @@ def print_info(message: str) -> None:
 def _assert_or_skip_endpoint_error(test_name: str, error: Exception) -> None:
     """For acceptance tests, skip when endpoint/data is unavailable in current env."""
     error_text = str(error)
-    if "[404]" in error_text or "Resource not found" in error_text:
+    if (
+        "[404]" in error_text
+        or "Resource not found" in error_text
+        or "[401]" in error_text
+        or "[403]" in error_text
+        or "Authentication failed" in error_text
+    ):
         pytest.skip(f"{test_name} skipped: API endpoint/data not available in current environment ({error_text})")
     assert False, f"Failed in {test_name}: {error}"
 

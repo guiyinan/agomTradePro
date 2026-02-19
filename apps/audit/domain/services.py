@@ -138,12 +138,30 @@ def _calculate_period_performances(
     """计算各周期表现"""
     performances = []
 
-    equity_dict = dict(equity_curve)
+    if not equity_curve:
+        return performances
+
+    try:
+        sorted_curve = sorted(equity_curve, key=lambda x: x[0])
+    except TypeError:
+        return performances
+
+    def _get_value_on_or_after(target_date: date):
+        for d, v in sorted_curve:
+            if d >= target_date:
+                return v
+        return None
+
+    def _get_value_on_or_before(target_date: date):
+        for d, v in reversed(sorted_curve):
+            if d <= target_date:
+                return v
+        return None
 
     for period in periods:
         # 获取周期起止的组合价值
-        start_value = equity_dict.get(period.start_date)
-        end_value = equity_dict.get(period.end_date)
+        start_value = _get_value_on_or_after(period.start_date)
+        end_value = _get_value_on_or_before(period.end_date)
 
         if start_value is None or end_value is None:
             continue
@@ -812,7 +830,8 @@ class IndicatorPerformanceAnalyzer:
             pre_2015_correlation=pre_2015_corr,
             post_2015_correlation=post_2015_corr,
             stability_score=stability_score,
-            recommended_action=recommended_action.value,
+            # Report contract uses enum names ("KEEP"/"INCREASE"/"DECREASE"/"REMOVE").
+            recommended_action=recommended_action.name,
             recommended_weight=recommended_weight,
             confidence_level=confidence,
             decay_rate=decay_rate,
@@ -844,9 +863,11 @@ class IndicatorPerformanceAnalyzer:
         signals = []
         level_low = self.threshold_config.level_low
         level_high = self.threshold_config.level_high
+        # Macro data may be published 1-2 days after period end; keep a small grace window.
+        effective_end = end_date + timedelta(days=3)
 
         for obs_date, value in indicator_values:
-            if not (start_date <= obs_date <= end_date):
+            if not (start_date <= obs_date <= effective_end):
                 continue
 
             if value is None:
@@ -1237,7 +1258,11 @@ class IndicatorPerformanceAnalyzer:
             # 表现良好，保持或增加权重
             if f1_score > 0.8 and stability_score > 0.8:
                 action = RecommendedAction.INCREASE
-                new_weight = min(max_weight, base_weight * 1.2)
+                proposed_weight = base_weight * 1.2
+                if max_weight is None or max_weight <= base_weight:
+                    new_weight = proposed_weight
+                else:
+                    new_weight = min(max_weight, proposed_weight)
             else:
                 action = RecommendedAction.KEEP
                 new_weight = base_weight

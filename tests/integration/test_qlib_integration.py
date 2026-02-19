@@ -113,14 +113,25 @@ class TestQlibCeleryTasks:
         os.environ.get('CI') == 'true',
         reason="Skip in CI - requires Celery worker"
     )
-    def test_qlib_predict_scores_task(self):
-        """测试 Qlib 推理任务（需要 Celery worker）"""
-        # 这个测试需要运行 Celery worker
-        # celery -A core worker -l info -Q qlib_infer
+    @patch("apps.alpha.application.tasks._execute_qlib_prediction")
+    def test_qlib_predict_scores_task(self, mock_predict):
+        """测试 Qlib 推理任务（同步执行，避免依赖外部 broker）"""
+        mock_predict.return_value = _generate_mock_scores(10)
 
-        result = qlib_predict_scores.delay("csi300", "2026-02-05", 10)
+        QlibModelRegistryModel.objects.create(
+            model_name="test_qlib_model",
+            artifact_hash="test_hash_001",
+            model_type="LGBModel",
+            universe="csi300",
+            train_config={},
+            feature_set_id="v1",
+            label_id="return_5d",
+            data_version="2026-02-05",
+            model_path="/tmp/test_model.pkl",
+            is_active=True,
+        )
 
-        # 等待任务完成
+        result = qlib_predict_scores.apply(args=("csi300", "2026-02-05", 10))
         outcome = result.get(timeout=60)
 
         assert outcome["status"] == "success"

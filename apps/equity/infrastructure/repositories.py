@@ -77,12 +77,19 @@ class DjangoEquityAssetRepository:
         if market:
             queryset = queryset.filter(market=market)
 
-        # 需要关联估值表进行市值和PE过滤
-        queryset = queryset.select_related().all()
+        # 先筛出有估值数据的股票，避免先截断导致漏掉有效标的
+        valuation_exists = ValuationModel._default_manager.filter(
+            stock_code=models.OuterRef("stock_code")
+        )
+        queryset = (
+            queryset.annotate(has_valuation=models.Exists(valuation_exists))
+            .filter(has_valuation=True)
+            .order_by("stock_code")
+        )
 
         # 获取所有股票后再过滤（因为需要关联估值表）
         stocks_data = []
-        for stock_model in queryset[:max_count * 2]:  # 多取一些
+        for stock_model in queryset:
             stock_code = stock_model.stock_code
 
             # 获取最新估值数据

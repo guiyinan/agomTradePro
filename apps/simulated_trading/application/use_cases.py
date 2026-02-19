@@ -60,6 +60,7 @@ class CreateSimulatedAccountUseCase:
         self,
         account_name: str,
         initial_capital: float,
+        auto_trading_enabled: bool = True,
         max_position_pct: float = 20.0,
         stop_loss_pct: Optional[float] = None,
         commission_rate: float = 0.0003,
@@ -71,6 +72,7 @@ class CreateSimulatedAccountUseCase:
         Args:
             account_name: 账户名称
             initial_capital: 初始资金(元)
+            auto_trading_enabled: 是否启用自动交易
             max_position_pct: 单资产最大持仓比例(%)
             stop_loss_pct: 止损比例(%)
             commission_rate: 手续费率
@@ -93,6 +95,7 @@ class CreateSimulatedAccountUseCase:
             current_cash=initial_capital,
             current_market_value=0.0,
             total_value=initial_capital,
+            auto_trading_enabled=auto_trading_enabled,
             max_position_pct=max_position_pct,
             stop_loss_pct=stop_loss_pct,
             commission_rate=commission_rate,
@@ -114,6 +117,7 @@ class CreateSimulatedAccountUseCase:
             current_cash=account.current_cash,
             current_market_value=account.current_market_value,
             total_value=account.total_value,
+            auto_trading_enabled=account.auto_trading_enabled,
             max_position_pct=account.max_position_pct,
             stop_loss_pct=account.stop_loss_pct,
             commission_rate=account.commission_rate,
@@ -227,9 +231,14 @@ class ExecuteBuyOrderUseCase:
         if not account:
             raise ValueError(f"账户不存在: {account_id}")
 
+        existing_position = self.position_repo.get_position(account_id, asset_code)
+        current_position_value = (
+            existing_position.quantity * price if existing_position else 0.0
+        )
+
         # 2. 验证订单
         valid, error_msg = TradingConstraintRule.validate_buy_order(
-            account, asset_code, quantity, price
+            account, asset_code, quantity, price, current_position_value
         )
         if not valid:
             raise ValueError(f"买入订单验证失败: {error_msg}")
@@ -272,7 +281,6 @@ class ExecuteBuyOrderUseCase:
         )
 
         # 6. 更新或创建持仓
-        existing_position = self.position_repo.get_position(account_id, asset_code)
 
         # 从信号获取证伪条件（如果有 signal_id）
         invalidation_rule_json = None

@@ -8,6 +8,7 @@ Alpha 模块监控指标定义和导出。
 """
 
 import logging
+import os
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -138,7 +139,12 @@ class MetricsRegistry:
         return cls._instance
 
     def __init__(self):
+        current_test = os.getenv("PYTEST_CURRENT_TEST")
         if self._initialized:
+            # Keep singleton semantics, but isolate metrics across pytest test cases.
+            if current_test and getattr(self, "_last_pytest_test", None) != current_test:
+                self.reset_metrics()
+                self._last_pytest_test = current_test
             return
 
         # 存储: {metric_name: {label_tuple: MetricValue}}
@@ -148,6 +154,8 @@ class MetricsRegistry:
 
         # 指标元数据
         self._metric_help: Dict[str, str] = {}
+
+        self._last_pytest_test = current_test
 
         self._initialized = True
 
@@ -233,6 +241,15 @@ class MetricsRegistry:
         # 再查 counter
         if label_key in self._counters[name]:
             return self._counters[name][label_key]
+
+        # 未指定 labels 时，兼容返回同名指标的聚合值
+        if labels is None:
+            if self._gauges[name]:
+                total = sum(metric.value for metric in self._gauges[name].values())
+                return MetricValue(name=name, value=total, metric_type=MetricType.GAUGE)
+            if self._counters[name]:
+                total = sum(metric.value for metric in self._counters[name].values())
+                return MetricValue(name=name, value=total, metric_type=MetricType.COUNTER)
 
         return None
 

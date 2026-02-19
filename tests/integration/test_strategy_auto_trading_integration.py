@@ -39,6 +39,7 @@ from apps.strategy.infrastructure.models import (
     StrategyModel,
     RuleConditionModel,
     AIStrategyConfigModel,
+    PortfolioStrategyAssignmentModel,
 )
 from apps.strategy.domain.entities import (
     Strategy,
@@ -114,7 +115,12 @@ class TestStrategyAutoTradingIntegration(TestCase):
 
         # 验证账户未绑定策略
         account_model = SimulatedAccountModel.objects.get(id=account.account_id)
-        self.assertIsNone(account_model.active_strategy)
+        self.assertFalse(
+            PortfolioStrategyAssignmentModel.objects.filter(
+                portfolio=account_model,
+                is_active=True
+            ).exists()
+        )
 
         # 2. 创建自动交易引擎（不传入 strategy_executor）
         market_data = Mock()
@@ -186,8 +192,12 @@ class TestStrategyAutoTradingIntegration(TestCase):
 
         # 绑定策略到账户
         account_model = SimulatedAccountModel.objects.get(id=account.account_id)
-        account_model.active_strategy = strategy
-        account_model.save()
+        PortfolioStrategyAssignmentModel.objects.create(
+            portfolio=account_model,
+            strategy=strategy,
+            assigned_by=self.test_user,
+            is_active=True,
+        )
 
         # 4. 创建 Mock 的策略执行器
         mock_strategy_executor = Mock()
@@ -275,8 +285,12 @@ class TestStrategyAutoTradingIntegration(TestCase):
         )
 
         account_model = SimulatedAccountModel.objects.get(id=account.account_id)
-        account_model.active_strategy = strategy
-        account_model.save()
+        PortfolioStrategyAssignmentModel.objects.create(
+            portfolio=account_model,
+            strategy=strategy,
+            assigned_by=self.test_user,
+            is_active=True,
+        )
 
         # 3. 先创建一个持仓
         self.buy_use_case.execute(
@@ -366,8 +380,12 @@ class TestStrategyAutoTradingIntegration(TestCase):
             initial_capital=100000.00,
         )
         account_model2 = SimulatedAccountModel.objects.get(id=account2.account_id)
-        account_model2.active_strategy = strategy
-        account_model2.save()
+        PortfolioStrategyAssignmentModel.objects.create(
+            portfolio=account_model2,
+            strategy=strategy,
+            assigned_by=self.test_user,
+            is_active=True,
+        )
 
         # 4. 创建引擎并测试
         engine = AutoTradingEngine(
@@ -406,8 +424,12 @@ class TestStrategyAutoTradingIntegration(TestCase):
         )
 
         account_model = SimulatedAccountModel.objects.get(id=account.account_id)
-        account_model.active_strategy = strategy
-        account_model.save()
+        PortfolioStrategyAssignmentModel.objects.create(
+            portfolio=account_model,
+            strategy=strategy,
+            assigned_by=self.test_user,
+            is_active=True,
+        )
 
         # 2. 创建 Mock 的策略执行器（模拟失败）
         mock_strategy_executor = Mock()
@@ -446,8 +468,8 @@ class TestStrategyAutoTradingIntegration(TestCase):
 
 
 @pytest.mark.django_db
-class TestStrategyModelForeignKey(TestCase):
-    """测试 StrategyModel 外键关联"""
+class TestPortfolioStrategyAssignment(TestCase):
+    """测试账户与策略关联表"""
 
     def setUp(self):
         """创建测试用户"""
@@ -463,7 +485,7 @@ class TestStrategyModelForeignKey(TestCase):
         self.test_user = AccountProfileModel.objects.get(user=django_user)
 
     def test_simulated_account_can_have_strategy(self):
-        """测试 SimulatedAccount 可以关联 Strategy"""
+        """测试 SimulatedAccount 可以通过关联表绑定 Strategy"""
         # 1. 创建策略
         strategy = StrategyModel.objects.create(
             name='测试策略',
@@ -483,18 +505,23 @@ class TestStrategyModelForeignKey(TestCase):
             current_market_value=0.00,
             total_value=100000.00,
             auto_trading_enabled=True,
-            active_strategy=strategy
+        )
+        assignment = PortfolioStrategyAssignmentModel.objects.create(
+            portfolio=account,
+            strategy=strategy,
+            assigned_by=self.test_user,
+            is_active=True,
         )
 
         # 3. 验证关联
-        self.assertEqual(account.active_strategy, strategy)
-        self.assertEqual(account.active_strategy.name, '测试策略')
+        self.assertEqual(assignment.strategy, strategy)
+        self.assertEqual(assignment.strategy.name, '测试策略')
 
         # 4. 验证反向关联
-        self.assertIn(account, strategy.portfolios.all())
+        self.assertIn(assignment, strategy.portfolio_assignments.all())
 
-    def test_strategy_foreign_key_nullable(self):
-        """测试策略外键可以为空"""
+    def test_strategy_assignment_optional(self):
+        """测试账户可以不绑定策略"""
         account = SimulatedAccountModel.objects.create(
             user=None,
             account_name='无策略账户',
@@ -503,13 +530,17 @@ class TestStrategyModelForeignKey(TestCase):
             current_cash=100000.00,
             current_market_value=0.00,
             total_value=100000.00,
-            active_strategy=None  # 可以为空
         )
 
-        self.assertIsNone(account.active_strategy)
+        self.assertFalse(
+            PortfolioStrategyAssignmentModel.objects.filter(
+                portfolio=account,
+                is_active=True
+            ).exists()
+        )
 
-    def test_strategy_set_null_on_delete(self):
-        """测试策略删除时账户的外键设置为 NULL"""
+    def test_strategy_delete_cascades_assignment(self):
+        """测试策略删除时关联关系被级联删除"""
         # 1. 创建策略
         strategy = StrategyModel.objects.create(
             name='待删除策略',
@@ -528,15 +559,26 @@ class TestStrategyModelForeignKey(TestCase):
             current_cash=100000.00,
             current_market_value=0.00,
             total_value=100000.00,
-            active_strategy=strategy
+        )
+        assignment = PortfolioStrategyAssignmentModel.objects.create(
+            portfolio=account,
+            strategy=strategy,
+            assigned_by=self.test_user,
+            is_active=True,
         )
 
         account_id = account.id
-        self.assertIsNotNone(account.active_strategy)
+        self.assertTrue(
+            PortfolioStrategyAssignmentModel.objects.filter(id=assignment.id).exists()
+        )
 
         # 3. 删除策略
         strategy.delete()
 
-        # 4. 验证账户的外键被设置为 NULL
-        account.refresh_from_db()
-        self.assertIsNone(account.active_strategy)
+        # 4. 验证关联被删除，账户仍存在
+        self.assertFalse(
+            PortfolioStrategyAssignmentModel.objects.filter(id=assignment.id).exists()
+        )
+        self.assertTrue(
+            SimulatedAccountModel.objects.filter(id=account_id).exists()
+        )

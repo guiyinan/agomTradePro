@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Alpha 触发器 - AgomSAAF{% endblock %}
 
@@ -162,7 +163,7 @@
                         {% for trigger in actionable_list %}
                         <tr class="trigger-row">
                             <td>
-                                <a href="{% url 'alpha_trigger:candidate-detail' trigger.candidate_id %}" class="trigger-link">
+                                <a href="{% url 'alpha_trigger:candidate_detail' trigger.candidate_id %}" class="trigger-link">
                                     {{ trigger.asset_code }}
                                 </a>
                             </td>
@@ -246,7 +247,7 @@
                 <a href="{% url 'alpha_trigger:performance' %}" class="btn btn-secondary">
                     <i class="bi bi-graph-up"></i> Alpha 表现
                 </a>
-                <a href="{% url 'alpha_trigger:invalidation-builder' %}" class="btn btn-secondary">
+                <a href="{% url 'alpha_trigger:invalidation_builder' %}" class="btn btn-secondary">
                     <i class="bi bi-sliders"></i> 证伪规则构建器
                 </a>
                 <a href="{% url 'alpha_trigger:create' %}" class="btn btn-primary">

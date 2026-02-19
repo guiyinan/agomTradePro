@@ -124,10 +124,12 @@ def update_provider_metrics():
                 )
 
         # 2. 计算覆盖率
-        latest_cache = AlphaScoreCacheModel._default_manager.filter(
-            universe_id="csi300",
-            created_at__gte=timezone.now() - timedelta(days=1)
-            .order_by('-created_at')
+        latest_cache = (
+            AlphaScoreCacheModel._default_manager.filter(
+                universe_id="csi300",
+                created_at__gte=timezone.now() - timedelta(days=1),
+            )
+            .order_by("-created_at")
             .first()
         )
 

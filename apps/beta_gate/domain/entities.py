@@ -81,10 +81,14 @@ class RegimeConstraint:
         >>> is_allowed, reason = constraint.is_regime_allowed("Recovery", 0.6)
     """
 
-    allowed_regimes: List[str]
+    allowed_regimes: List[str] = field(default_factory=list)
     min_confidence: float = 0.3
     require_high_confidence: bool = False
     disallowed_regimes: List[str] = field(default_factory=list)
+    # Backward compatibility fields
+    current_regime: Optional[str] = None
+    confidence: Optional[float] = None
+    allowed_asset_classes: List[str] = field(default_factory=list)
 
     def is_regime_allowed(self, regime: str, confidence: float) -> Tuple[bool, str]:
         """
@@ -160,6 +164,10 @@ class PolicyConstraint:
     veto_on_p3: bool = True
     allowed_on_p2: bool = False
     allowed_on_p1: bool = True
+    # Backward compatibility fields
+    current_level: int = 0
+    max_risk_exposure: float = 100.0
+    hard_exclusions: List[str] = field(default_factory=list)
 
     def is_policy_allowed(self, policy_level: int) -> Tuple[bool, str]:
         """
@@ -235,6 +243,16 @@ class PortfolioConstraint:
     max_correlated_exposure: float = 60.0
     require_diversification: bool = True
     min_cash_pct: float = 5.0
+    # Backward compatibility fields
+    max_positions: Optional[int] = None
+    max_single_position_weight: Optional[float] = None
+    max_concentration_ratio: Optional[float] = None
+
+    def __post_init__(self):
+        if self.max_single_position_weight is not None:
+            object.__setattr__(self, "max_single_position_pct", self.max_single_position_weight)
+        if self.max_concentration_ratio is not None:
+            object.__setattr__(self, "max_correlated_exposure", self.max_concentration_ratio)
 
     def check_position_limit(
         self,
@@ -458,8 +476,13 @@ class GateConfig:
     portfolio_constraint: PortfolioConstraint
     version: int = 1
     is_active: bool = True
+    is_valid: Optional[bool] = None
     effective_date: date = field(default_factory=date.today)
     expires_at: Optional[date] = None
+
+    def __post_init__(self):
+        if self.is_valid is None:
+            object.__setattr__(self, "is_valid", self.is_active and not self.is_expired)
 
     @property
     def is_expired(self) -> bool:
@@ -467,11 +490,6 @@ class GateConfig:
         if self.expires_at is None:
             return False
         return date.today() > self.expires_at
-
-    @property
-    def is_valid(self) -> bool:
-        """是否有效（激活且未过期）"""
-        return self.is_active and not self.is_expired
 
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
@@ -483,6 +501,7 @@ class GateConfig:
             "portfolio_constraint": self.portfolio_constraint.to_dict(),
             "version": self.version,
             "is_active": self.is_active,
+            "is_valid": self.is_valid,
             "effective_date": self.effective_date.isoformat(),
             "expires_at": self.expires_at.isoformat() if self.expires_at else None,
         }

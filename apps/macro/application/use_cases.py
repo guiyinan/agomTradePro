@@ -96,12 +96,9 @@ class SyncMacroDataUseCase:
                     errors.append(f"无数据返回: {indicator_code}")
                     continue
 
-                # 2. 去重处理
-                new_points = self._deduplicate_data(indicator_code, data_points)
-
-                # 3. 批量保存 (映射 MacroDataPoint 到 ORM MacroIndicator)
-                indicators_to_save = []
-                for dp in new_points:
+                # 2. 映射 MacroDataPoint 到 Domain 实体（用于保存/去重）
+                candidate_indicators = []
+                for dp in data_points:
                     # 确定原始单位（优先使用适配器提供的，否则从配置获取）
                     original_unit_to_use = dp.original_unit if dp.original_unit else (
                         dp.unit if dp.unit else IndicatorUnitService.get_unit_for_indicator(dp.code)
@@ -120,7 +117,7 @@ class SyncMacroDataUseCase:
                         unit_to_save = original_unit_to_use
                         value_to_save = dp.value
 
-                    indicators_to_save.append(
+                    candidate_indicators.append(
                         MacroIndicator(
                             code=dp.code,
                             value=value_to_save,
@@ -133,11 +130,17 @@ class SyncMacroDataUseCase:
                         )
                     )
 
+                # 3. 去重处理（仅跳过“完全相同”的记录；有变化则更新）
+                indicators_to_save, skipped_for_indicator = self._filter_new_or_changed_indicators(
+                    candidate_indicators,
+                    force_refresh=request.force_refresh
+                )
+
                 if indicators_to_save:
                     self.repository.save_indicators_batch(indicators_to_save)
                     synced_count += len(indicators_to_save)
 
-                skipped_count = len(data_points) - len(new_points)
+                skipped_count += skipped_for_indicator
 
             except Exception as e:
                 errors.append(f"{indicator_code}: {str(e)}")
@@ -195,34 +198,52 @@ class SyncMacroDataUseCase:
 
         return None
 
-    def _deduplicate_data(
+    def _filter_new_or_changed_indicators(
         self,
-        code: str,
-        data_points: List[MacroDataPoint]
-    ) -> List[MacroDataPoint]:
+        indicators: List[MacroIndicator],
+        force_refresh: bool = False
+    ) -> tuple[List[MacroIndicator], int]:
         """
-        去重处理
-
-        Args:
-            code: 指标代码
-            data_points: 数据点列表
-
-        Returns:
-            List[MacroDataPoint]: 去重后的数据点列表
+        过滤需要保存的指标：
+        - 不存在 -> 保存
+        - 存在但内容有变化 -> 保存（走更新）
+        - 存在且内容完全一致 -> 跳过
         """
-        new_points = []
+        indicators_to_save: List[MacroIndicator] = []
+        skipped = 0
 
-        for dp in data_points:
-            # 检查数据库中是否已存在
+        for indicator in indicators:
+            if force_refresh:
+                indicators_to_save.append(indicator)
+                continue
+
             existing = self.repository.get_by_code_and_date(
-                code=code,
-                observed_at=dp.observed_at
+                code=indicator.code,
+                observed_at=indicator.reporting_period
             )
 
             if existing is None:
-                new_points.append(dp)
+                indicators_to_save.append(indicator)
+                continue
 
-        return new_points
+            if self._is_indicator_changed(existing, indicator):
+                indicators_to_save.append(indicator)
+            else:
+                skipped += 1
+
+        return indicators_to_save, skipped
+
+    @staticmethod
+    def _is_indicator_changed(existing: MacroIndicator, incoming: MacroIndicator) -> bool:
+        """判断新指标是否相对现有记录发生变化。"""
+        return (
+            float(existing.value) != float(incoming.value)
+            or existing.published_at != incoming.published_at
+            or existing.source != incoming.source
+            or existing.unit != incoming.unit
+            or existing.original_unit != incoming.original_unit
+            or existing.period_type != incoming.period_type
+        )
 
     def _get_default_indicators(self) -> List[str]:
         """

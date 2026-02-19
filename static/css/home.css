@@ -324,6 +324,122 @@
     color: var(--color-text-secondary);
 }
 
+/* Regime 象限区 */
+.regime-section {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.section-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+}
+
+.section-link {
+    font-size: 13px;
+    font-weight: var(--font-weight-medium);
+    color: var(--color-primary);
+    text-decoration: none;
+}
+
+.section-link:hover {
+    text-decoration: underline;
+}
+
+.regime-matrix {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.regime-axis-y {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: 2px;
+    color: var(--color-text-muted);
+}
+
+.regime-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.regime-quad {
+    padding: 24px;
+    border-radius: var(--radius-md);
+    text-align: center;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.regime-quad:hover {
+    transform: scale(1.02);
+    box-shadow: var(--shadow-md);
+}
+
+.regime-quad.active {
+    border-color: currentColor;
+    box-shadow: 0 0 0 4px currentColor, var(--shadow-lg);
+    opacity: 1;
+}
+
+.quad-recovery {
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    color: #1e40af;
+}
+
+.quad-overheat {
+    background: linear-gradient(135deg, #fef2f2, #fee2e2);
+    color: #991b1b;
+}
+
+.quad-deflation {
+    background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+    color: #166534;
+}
+
+.quad-stagflation {
+    background: linear-gradient(135deg, #fefce8, #fef9c3);
+    color: #854d0e;
+}
+
+.quad-name {
+    font-size: var(--font-size-h4);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: 8px;
+}
+
+.quad-prob {
+    font-size: 32px;
+    font-weight: var(--font-weight-bold);
+    margin-bottom: 4px;
+}
+
+.quad-hint {
+    font-size: var(--font-size-small);
+    opacity: 0.8;
+}
+
 /* 响应式 */
 @media (max-width: 1024px) {
     .home-layout {
@@ -333,5 +449,9 @@
     .home-sidebar {
         position: relative;
         height: auto;
+    }
+
+    .regime-axis-y {
+        display: none;
     }
 }

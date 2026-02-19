@@ -13,7 +13,7 @@ from tests.playwright.pages import LoginPage, DashboardPage
 from tests.playwright.utils.ux_auditor import UXAuditor, Severity
 
 
-class JourneyATestCase:
+class TestJourneyA:
     """Journey A: New User Onboarding."""
 
     @pytest.mark.uat
@@ -113,7 +113,7 @@ class JourneyATestCase:
         assert True, "Status color consistency check completed"
 
 
-class JourneyBTestCase:
+class TestJourneyB:
     """Journey B: Research and Asset Selection."""
 
     @pytest.mark.uat
@@ -178,7 +178,7 @@ class JourneyBTestCase:
         assert has_results, "Page should have results area or empty state message"
 
 
-class JourneyCTestCase:
+class TestJourneyC:
     """Journey C: Decision and Execution."""
 
     @pytest.mark.uat
@@ -239,7 +239,7 @@ class JourneyCTestCase:
         assert True, "Alert visibility check completed"
 
 
-class JourneyDTestCase:
+class TestJourneyD:
     """Journey D: Trading and Position Management."""
 
     @pytest.mark.uat
@@ -286,7 +286,7 @@ class JourneyDTestCase:
         expect(authenticated_page).not_to_have_url("/404/")
 
 
-class JourneyETestCase:
+class TestJourneyE:
     """Journey E: Review and Operations."""
 
     @pytest.mark.uat
@@ -338,11 +338,11 @@ class JourneyETestCase:
         expect(authenticated_page).not_to_have_url("/404/")
 
 
-class GlobalExperienceBaseline:
+class TestGlobalExperienceBaseline:
     """Global experience baseline checks across all journeys."""
 
     @pytest.mark.uat
-    @pytest.mark.global
+    @pytest.mark.global_experience
     def test_navigation_consistency(self, authenticated_page: Page) -> None:
         """Navigation: top nav, side nav, breadcrumbs are consistent."""
         # Test on dashboard
@@ -353,7 +353,7 @@ class GlobalExperienceBaseline:
         assert has_nav, "Page should have navigation elements"
 
     @pytest.mark.uat
-    @pytest.mark.global
+    @pytest.mark.global_experience
     def test_no_404_on_main_links(self, authenticated_page: Page, ux_auditor_instance: UXAuditor) -> None:
         """No 404 errors on main navigation links."""
         critical_urls = [
@@ -373,7 +373,7 @@ class GlobalExperienceBaseline:
         assert len(failed_urls) == 0, f"Found 404 errors on URLs: {failed_urls}"
 
     @pytest.mark.uat
-    @pytest.mark.global
+    @pytest.mark.global_experience
     def test_visual_consistency_buttons(self, authenticated_page: Page) -> None:
         """Visual consistency: buttons have consistent styling."""
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
@@ -385,7 +385,7 @@ class GlobalExperienceBaseline:
         assert True, f"Found {len(buttons)} buttons on page"
 
     @pytest.mark.uat
-    @pytest.mark.global
+    @pytest.mark.global_experience
     def test_feedback_loading_states(self, authenticated_page: Page) -> None:
         """Feedback: loading, success, failure, empty states are perceivable."""
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
@@ -399,7 +399,7 @@ class GlobalExperienceBaseline:
         assert True, "Feedback state check completed"
 
     @pytest.mark.uat
-    @pytest.mark.global
+    @pytest.mark.global_experience
     def test_terminology_consistency(self, authenticated_page: Page) -> None:
         """Terminology consistency: same concept uses same terminology."""
         authenticated_page.goto(f"{config.base_url}{config.dashboard_url}")
@@ -409,7 +409,7 @@ class GlobalExperienceBaseline:
         assert True, "Terminology consistency check completed"
 
     @pytest.mark.uat
-    @pytest.mark.global
+    @pytest.mark.global_experience
     def test_robustness_no_js_errors(self, page: Page, login_page: LoginPage) -> None:
         """Robustness: no 404s, no JS errors, no blocking exceptions."""
         login_page.goto()
@@ -423,7 +423,7 @@ class GlobalExperienceBaseline:
         expect(page).not_to_have_url("/error/", timeout=10000)
 
 
-class PriorityFocusChecks:
+class TestPriorityFocusChecks:
     """Priority focus checks based on current code audit."""
 
     @pytest.mark.uat
@@ -482,7 +482,7 @@ class PriorityFocusChecks:
         assert True, "Cross-module UI consistency check completed"
 
 
-class UATSummaryReport:
+class TestUATSummaryReport:
     """Generate UAT summary report."""
 
     @pytest.mark.uat

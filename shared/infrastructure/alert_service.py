@@ -62,6 +62,18 @@ class AlertChannel(ABC):
         """检查渠道是否可用"""
         pass
 
+    def send_alert(
+        self,
+        level: AlertLevel,
+        title: str,
+        message: str,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> AlertResult:
+        """
+        兼容旧接口：send_alert -> send
+        """
+        return self.send(level=level, title=title, message=message, metadata=metadata)
+
 
 class SlackAlertChannel(AlertChannel):
     """Slack 告警渠道"""

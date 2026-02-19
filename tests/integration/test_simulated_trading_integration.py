@@ -268,6 +268,7 @@ class TestPerformanceCalculation(TestCase):
         self.account = create_use_case.execute(
             account_name='绩效测试账户',
             initial_capital=100000.00,
+            max_position_pct=100.0,
         )
 
         # 执行一些交易
@@ -307,14 +308,14 @@ class TestPerformanceCalculation(TestCase):
             asset_name='贵州茅台',
             asset_type='equity',
             quantity=100,
-            price=1000.00,
+            price=900.00,
         )
 
         sell_use_case.execute(
             account_id=self.account.account_id,
             asset_code='600519.SH',
             quantity=100,
-            price=950.00,  # 5%亏损
+            price=855.00,  # 5%亏损
         )
 
     def test_total_return_calculation(self):

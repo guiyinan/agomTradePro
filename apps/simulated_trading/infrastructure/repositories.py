@@ -477,6 +477,43 @@ class DjangoTradeRepository:
 class DjangoFeeConfigRepository:
     """费率配置Repository实现"""
 
+    def create_config(
+        self,
+        config_name: str,
+        asset_type: str,
+        commission_rate_buy: float = 0.0003,
+        commission_rate_sell: float = 0.0003,
+        min_commission: float = 5.0,
+        stamp_duty_rate: float = 0.001,
+        transfer_fee_rate: float = 0.00002,
+        min_transfer_fee: float = 0.0,
+        slippage_rate: float = 0.001,
+        is_default: bool = False,
+        is_active: bool = True,
+        description: str = "",
+    ) -> FeeConfig:
+        """创建费率配置并返回实体（兼容旧接口）。"""
+        config = FeeConfig(
+            config_id=0,
+            config_name=config_name,
+            asset_type=asset_type,
+            commission_rate_buy=commission_rate_buy,
+            commission_rate_sell=commission_rate_sell,
+            min_commission=min_commission,
+            stamp_duty_rate=stamp_duty_rate,
+            transfer_fee_rate=transfer_fee_rate,
+            min_transfer_fee=min_transfer_fee,
+            slippage_rate=slippage_rate,
+            is_default=is_default,
+            is_active=is_active,
+            description=description,
+        )
+        config_id = self.save(config)
+        created = self.get_by_id(config_id)
+        if created is None:
+            raise ValueError(f"费率配置创建失败: {config_name}")
+        return created
+
     def save(self, config: FeeConfig) -> int:
         """
         保存费率配置

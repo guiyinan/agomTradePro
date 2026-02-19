@@ -3,6 +3,7 @@ Django base settings for AgomSAAF project.
 """
 
 import os
+import sys
 from pathlib import Path
 import environ
 from celery.schedules import crontab
@@ -127,6 +128,9 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [
+    # Keep core static assets ahead of project-level static to avoid accidental
+    # shadowing by duplicated filenames (e.g. css/main.css, css/home.css).
+    os.path.join(BASE_DIR, 'core', 'static'),
     os.path.join(BASE_DIR, 'static'),
 ]
 
@@ -279,6 +283,15 @@ else:
     # Development mode - tasks execute synchronously (no background worker needed)
     CELERY_TASK_ALWAYS_EAGER = True
     CELERY_TASK_EAGER_PROPAGATES = True
+
+# Pytest mode: force in-process Celery execution regardless of external broker config
+_is_pytest = ("pytest" in sys.modules) or any("pytest" in arg for arg in sys.argv)
+if _is_pytest or os.environ.get("PYTEST_CURRENT_TEST"):
+    CELERY_BROKER_URL = "memory://"
+    CELERY_RESULT_BACKEND = "cache+memory://"
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
+
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'

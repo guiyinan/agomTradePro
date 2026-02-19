@@ -43,7 +43,10 @@ class TestEquityDataPersistence(TestCase):
 
     def test_stock_info_persistence(self):
         """测试股票信息持久化"""
-        self.assertEqual(StockInfoModel.objects.count(), 2)
+        created_count = StockInfoModel.objects.filter(
+            stock_code__in=["000001", "600000"]
+        ).count()
+        self.assertEqual(created_count, 2)
         stock1 = StockInfoModel.objects.get(stock_code='000001')
         self.assertEqual(stock1.name, '平安银行')
         self.assertEqual(stock1.sector, '银行')

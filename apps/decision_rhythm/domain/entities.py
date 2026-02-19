@@ -36,6 +36,15 @@ class DecisionPriority(Enum):
     """信息：不执行，仅记录"""
 
 
+class DecisionStatus(Enum):
+    """决策请求状态枚举（向后兼容）"""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
+
+
 class QuotaPeriod(Enum):
     """
     配额周期枚举
@@ -105,7 +114,7 @@ class DecisionQuota:
 
     period: QuotaPeriod
     max_decisions: int
-    max_execution_count: int
+    max_execution_count: int = 0
     used_decisions: int = 0
     used_executions: int = 0
     period_start: Optional[datetime] = None
@@ -113,6 +122,13 @@ class DecisionQuota:
     quota_id: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    # Backward compatibility fields
+    max_executions: Optional[int] = None
+    is_active: bool = True
+
+    def __post_init__(self):
+        if self.max_execution_count == 0 and self.max_executions is not None:
+            object.__setattr__(self, "max_execution_count", self.max_executions)
 
     @property
     def remaining_decisions(self) -> int:
@@ -244,6 +260,7 @@ class DecisionQuota:
             "max_execution_count": self.max_execution_count,
             "used_decisions": self.used_decisions,
             "used_executions": self.used_executions,
+            "is_active": self.is_active,
             "remaining_decisions": self.remaining_decisions,
             "remaining_executions": self.remaining_executions,
             "utilization_rate": self.utilization_rate,
@@ -407,8 +424,11 @@ class DecisionRequest:
     trigger_id: Optional[str] = None
     reason: str = ""
     expected_confidence: float = 0.0
+    quota_period: Optional[QuotaPeriod] = None
     quantity: Optional[int] = None
     notional: Optional[float] = None
+    status: DecisionStatus = DecisionStatus.PENDING
+    created_at: Optional[datetime] = None
     requested_at: datetime = field(default_factory=datetime.now)
     expires_at: Optional[datetime] = None
 
@@ -428,6 +448,10 @@ class DecisionRequest:
         if self.expires_at is None:
             return False
         return datetime.now() > self.expires_at
+
+    def __post_init__(self):
+        if self.created_at is not None:
+            object.__setattr__(self, "requested_at", self.created_at)
 
     @property
     def priority_level(self) -> int:
@@ -453,8 +477,10 @@ class DecisionRequest:
             "trigger_id": self.trigger_id,
             "reason": self.reason,
             "expected_confidence": self.expected_confidence,
+            "quota_period": self.quota_period.value if self.quota_period else None,
             "quantity": self.quantity,
             "notional": self.notional,
+            "status": self.status.value,
             "requested_at": self.requested_at.isoformat(),
             "expires_at": self.expires_at.isoformat() if self.expires_at else None,
             "is_expired": self.is_expired,

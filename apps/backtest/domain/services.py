@@ -72,6 +72,18 @@ class PITDataProcessor:
         lag = self.publication_lags.get(indicator_code, timedelta(days=0))
         return observed_at + lag
 
+    def get_available_as_of_date(
+        self,
+        observed_at: date,
+        indicator_code: str
+    ) -> date:
+        """
+        Backward-compatible alias for publication date lookup.
+
+        Kept for older callers/tests that still use the previous API name.
+        """
+        return self.get_publication_date(observed_at, indicator_code)
+
     def is_data_available(
         self,
         observed_at: date,

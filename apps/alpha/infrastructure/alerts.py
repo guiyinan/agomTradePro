@@ -226,7 +226,7 @@ class AlphaAlertConfig:
         return cls.get_rules_by_severity("info")
 
 
-class AlphaAlertManager:
+class AlphaAlertManager(AlertManager):
     """
     Alpha 告警管理器
 

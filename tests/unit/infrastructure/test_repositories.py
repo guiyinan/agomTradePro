@@ -117,11 +117,12 @@ class TestDjangoMacroRepository:
     def test_get_latest_observation(self):
         """测试获取最新观测值"""
         repository = DjangoMacroRepository()
+        test_code = "TEST_LATEST_OBS"
 
         # 创建多个时期的指标
         for i in range(5):
             indicator = MacroIndicator(
-                code="CN_PMI",
+                code=test_code,
                 value=50.0 + i,
                 reporting_period=date(2024, 1, i * 7 + 1),  # 每周
                 period_type=PeriodType.MONTH,
@@ -133,12 +134,12 @@ class TestDjangoMacroRepository:
             repository.save_indicator(indicator)
 
         # 获取最新值
-        latest = repository.get_latest_observation("CN_PMI")
+        latest = repository.get_latest_observation(test_code)
         assert latest is not None
         assert latest.value == 54.0  # 最后一个值
 
         # 获取某个日期之前的最新值
-        before_date = repository.get_latest_observation("CN_PMI", before_date=date(2024, 1, 15))
+        before_date = repository.get_latest_observation(test_code, before_date=date(2024, 1, 15))
         assert before_date is not None
         assert before_date.reporting_period < date(2024, 1, 15)
 
@@ -186,11 +187,11 @@ class TestDjangoMacroRepository:
             repository.save_indicator(indicator)
 
         # 获取增长序列（数值）
-        growth_values = repository.get_growth_series("PMI")
+        growth_values = repository.get_growth_series("PMI", source="test")
         assert len(growth_values) == 12
 
         # 获取增长序列（完整指标）
-        growth_full = repository.get_growth_series_full("PMI")
+        growth_full = repository.get_growth_series_full("PMI", source="test")
         assert len(growth_full) == 12
         assert all(isinstance(g, MacroIndicator) for g in growth_full)
 
@@ -221,9 +222,10 @@ class TestDjangoMacroRepository:
     def test_statistics(self):
         """测试统计信息"""
         repository = DjangoMacroRepository()
+        before = repository.get_statistics()
 
         # 创建不同指标的数据
-        for code in ["CN_PMI", "CN_CPI", "CN_PPI"]:
+        for code in ["TEST_STAT_A", "TEST_STAT_B", "TEST_STAT_C"]:
             for i in range(5):
                 indicator = MacroIndicator(
                     code=code,
@@ -238,8 +240,8 @@ class TestDjangoMacroRepository:
                 repository.save_indicator(indicator)
 
         stats = repository.get_statistics()
-        assert stats['total_indicators'] == 3  # 3 个不同指标
-        assert stats['total_records'] == 15  # 15 条记录
+        assert stats['total_indicators'] - before['total_indicators'] == 3
+        assert stats['total_records'] - before['total_records'] == 15
         assert len(stats['sources']) > 0
 
 

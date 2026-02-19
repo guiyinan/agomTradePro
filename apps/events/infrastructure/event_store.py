@@ -725,6 +725,54 @@ def get_event_store() -> DatabaseEventStore:
     return DatabaseEventStore()
 
 
+class InMemoryEventStore:
+    """
+    轻量内存事件存储。
+
+    主要用于开发/测试环境初始化事件总线，避免在 URL 导入阶段依赖数据库表。
+    """
+
+    def __init__(self):
+        self._events: List[DomainEvent] = []
+
+    def append(self, event: DomainEvent) -> bool:
+        self._events.append(event)
+        return True
+
+    def append_batch(self, events: List[DomainEvent]) -> int:
+        self._events.extend(events)
+        return len(events)
+
+    def get_events(
+        self,
+        event_type: Optional[EventType] = None,
+        event_types: Optional[List[EventType]] = None,
+        correlation_id: Optional[str] = None,
+        since: Optional[datetime] = None,
+        until: Optional[datetime] = None,
+        limit: int = 100,
+    ) -> List[DomainEvent]:
+        events = self._events
+
+        if event_type:
+            events = [e for e in events if e.event_type == event_type]
+        if event_types:
+            allowed = set(event_types)
+            events = [e for e in events if e.event_type in allowed]
+        if correlation_id:
+            events = [e for e in events if e.metadata.get("correlation_id") == correlation_id]
+        if since:
+            events = [e for e in events if e.occurred_at >= since]
+        if until:
+            events = [e for e in events if e.occurred_at <= until]
+
+        return events[: max(limit, 0)]
+
+    def get_metrics(self, since: Optional[datetime] = None) -> EventMetrics:
+        events = self.get_events(since=since, limit=len(self._events))
+        return EventMetrics(total_published=len(events))
+
+
 def get_snapshot_store() -> SnapshotStore:
     """获取快照存储实例"""
     return SnapshotStore()

@@ -542,7 +542,11 @@ class BetaGateTestAPIView(APIView):
             current_regime = data.get("current_regime", "Recovery")
             regime_confidence = float(data.get("regime_confidence", 0.5))
             policy_level = int(data.get("policy_level", 0))
-            risk_profile = RiskProfile(data.get("risk_profile", "BALANCED"))
+            risk_profile_raw = str(data.get("risk_profile", "BALANCED"))
+            try:
+                risk_profile = RiskProfile(risk_profile_raw)
+            except ValueError:
+                risk_profile = RiskProfile(risk_profile_raw.lower())
 
             # 构建资产列表
             assets = [(code, asset_class) for code in asset_codes]
@@ -558,6 +562,7 @@ class BetaGateTestAPIView(APIView):
                         return configs[0]
                     # 返回默认配置
                     from ..domain.entities import GateConfig, RegimeConstraint, PolicyConstraint, PortfolioConstraint
+                    allowed_asset_classes = [asset_class] if asset_class else []
                     return GateConfig(
                         config_id="default",
                         version=1,
@@ -567,7 +572,7 @@ class BetaGateTestAPIView(APIView):
                         regime_constraint=RegimeConstraint(
                             current_regime="Recovery",
                             confidence=0.5,
-                            allowed_asset_classes=all_asset_classes,
+                            allowed_asset_classes=allowed_asset_classes,
                         ),
                         policy_constraint=PolicyConstraint(
                             current_level=0,

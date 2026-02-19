@@ -86,17 +86,13 @@ class SimpleAlphaProvider(BaseAlphaProvider):
             Provider 状态
         """
         try:
-            # 尝试获取一些数据来验证连接
             from apps.fund.infrastructure.adapters import TushareAdapter
 
             adapter = TushareAdapter()
-            # 简单检查能否获取基本面数据
-            has_data = True  # 实际实现中应该检查数据源
-
-            if has_data:
-                return AlphaProviderStatus.AVAILABLE
-            else:
-                return AlphaProviderStatus.DEGRADED
+            # 至少要求能完成客户端初始化（包含 token 校验）
+            if hasattr(adapter, "_ensure_initialized"):
+                adapter._ensure_initialized()
+            return AlphaProviderStatus.AVAILABLE
 
         except Exception as e:
             logger.error(f"Simple provider health check failed: {e}")

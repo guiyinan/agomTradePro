@@ -80,12 +80,12 @@ document.addEventListener('DOMContentLoaded', function() {
 <style>
 .global-alerts {
     position: fixed;
-    top: 0;
+    top: var(--header-height, 56px);
     left: 0;
     right: 0;
-    z-index: 9999;
+    z-index: 980;
     padding: 0;
-    background: var(--bg-primary);
+    background: var(--color-bg, #fff);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 

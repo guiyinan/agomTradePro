@@ -245,10 +245,13 @@
         function adjustMainContentPadding() {
             const alerts = document.getElementById('globalAlerts');
             const mainContent = document.getElementById('mainContent');
+            const headerHeight = getComputedStyle(document.documentElement)
+                .getPropertyValue('--header-height')
+                .trim() || '56px';
             if (mainContent) {
                 if (alerts && alerts.children.length > 0) {
                     const alertHeight = alerts.offsetHeight;
-                    mainContent.style.paddingTop = (alertHeight + 20) + 'px';
+                    mainContent.style.paddingTop = `calc(${headerHeight} + ${alertHeight}px + var(--spacing-xl, 32px))`;
                 } else {
                     mainContent.style.paddingTop = '';
                 }

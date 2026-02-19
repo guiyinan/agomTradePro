@@ -148,6 +148,11 @@ class CacheAlphaProvider(BaseAlphaProvider):
 
         # 4. 解析评分
         scores = self._parse_scores(cache.scores, top_n)
+        if not scores:
+            return self._create_error_result(
+                f"{universe_id} 缓存存在但评分为空或损坏",
+                status="unavailable",
+            )
 
         if is_stale:
             return self._create_degraded_result(
@@ -181,7 +186,9 @@ class CacheAlphaProvider(BaseAlphaProvider):
         scores = []
         for item in raw_scores[:top_n]:
             try:
-                scores.append(StockScore.from_dict(item))
+                payload = dict(item)
+                payload.setdefault("source", "cache")
+                scores.append(StockScore.from_dict(payload))
             except Exception as e:
                 logger.warning(f"解析评分失败: {item}, error: {e}")
                 continue

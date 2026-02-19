@@ -8,7 +8,7 @@ Alpha 事件触发的核心实体定义。
 """
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -78,6 +78,9 @@ class SignalStrength(Enum):
     定义 Alpha 信号的强度等级。
     """
 
+    VERY_WEAK = "very_weak"
+    """极弱信号：兼容旧版枚举"""
+
     WEAK = "weak"
     """弱信号：置信度 0-0.3"""
 
@@ -91,7 +94,7 @@ class SignalStrength(Enum):
     """极强信号：置信度 0.8-1.0"""
 
 
-class CandidateStatus(Enum):
+class CandidateStatus(str, Enum):
     """
     候选状态枚举
 
@@ -114,7 +117,7 @@ class CandidateStatus(Enum):
     """已取消：手动取消"""
 
 
-class InvalidationType(Enum):
+class InvalidationType(str, Enum):
     """
     证伪类型枚举
 
@@ -123,6 +126,8 @@ class InvalidationType(Enum):
 
     THRESHOLD_CROSS = "threshold_cross"
     """阈值穿越：指标穿越阈值时证伪"""
+    INDICATOR = "threshold_cross"
+    """兼容旧命名：指标条件（等价于 THRESHOLD_CROSS）"""
 
     TIME_DECAY = "time_decay"
     """时间衰减：超过最大持仓时间"""
@@ -163,7 +168,7 @@ class InvalidationCondition:
         ... )
     """
 
-    condition_type: str
+    condition_type: Any
     indicator_code: Optional[str] = None
     threshold_value: Optional[float] = None
     cross_direction: Optional[str] = None
@@ -172,11 +177,45 @@ class InvalidationCondition:
     time_window_hours: Optional[int] = None
     compare_with_prev: bool = False
     prev_diff_threshold: Optional[float] = None
+    # Backward-compatible aliases
+    threshold: Optional[float] = None
+    direction: Optional[str] = None
+    time_limit_hours: Optional[int] = None
+    custom_condition: Optional[Dict[str, Any]] = None
+
+    def __post_init__(self) -> None:
+        """Normalize legacy field names and enum values."""
+        if isinstance(self.condition_type, str):
+            object.__setattr__(self, "condition_type", InvalidationType(self.condition_type))
+        elif not isinstance(self.condition_type, InvalidationType):
+            object.__setattr__(self, "condition_type", InvalidationType(str(self.condition_type)))
+
+        if self.threshold_value is None and self.threshold is not None:
+            object.__setattr__(self, "threshold_value", self.threshold)
+        if self.threshold is None and self.threshold_value is not None:
+            object.__setattr__(self, "threshold", self.threshold_value)
+
+        if self.cross_direction is None and self.direction is not None:
+            object.__setattr__(self, "cross_direction", self.direction)
+        if self.direction is None and self.cross_direction is not None:
+            object.__setattr__(self, "direction", self.cross_direction)
+
+        if self.time_window_hours is None and self.time_limit_hours is not None:
+            object.__setattr__(self, "time_window_hours", self.time_limit_hours)
+        if self.time_limit_hours is None and self.time_window_hours is not None:
+            object.__setattr__(self, "time_limit_hours", self.time_window_hours)
+
+        if self.custom_condition is None and self.required_regime is not None:
+            object.__setattr__(self, "custom_condition", {"expected_regime": self.required_regime})
+        if self.required_regime is None and self.custom_condition:
+            expected = self.custom_condition.get("expected_regime")
+            if expected:
+                object.__setattr__(self, "required_regime", expected)
 
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
         return {
-            "condition_type": self.condition_type,
+            "condition_type": self.condition_type.value if isinstance(self.condition_type, InvalidationType) else self.condition_type,
             "indicator_code": self.indicator_code,
             "threshold_value": self.threshold_value,
             "cross_direction": self.cross_direction,
@@ -193,7 +232,7 @@ class InvalidationCondition:
         return cls(**data)
 
 
-@dataclass(frozen=True)
+@dataclass
 class AlphaTrigger:
     """
     Alpha 触发器实体
@@ -272,7 +311,8 @@ class AlphaTrigger:
         """是否已过期"""
         if self.expires_at is None:
             return False
-        return datetime.now() > self.expires_at
+        now = datetime.now(self.expires_at.tzinfo) if self.expires_at.tzinfo else datetime.now()
+        return now > self.expires_at
 
     @property
     def is_invalidated(self) -> bool:
@@ -408,7 +448,7 @@ class TriggerEvent:
         }
 
 
-@dataclass(frozen=True)
+@dataclass
 class AlphaCandidate:
     """
     Alpha 候选
@@ -456,24 +496,41 @@ class AlphaCandidate:
     strength: SignalStrength
     confidence: float
     thesis: str
-    invalidation: str
-    time_window_start: date
-    time_window_end: date
-    expected_asymmetry: str
-    status: str = "CANDIDATE"
+    invalidation: str = ""
+    time_window_start: date = field(default_factory=date.today)
+    time_window_end: date = field(default_factory=lambda: date.today() + timedelta(days=30))
+    expected_asymmetry: str = "MED"
+    status: Any = CandidateStatus.CANDIDATE
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
     audit_trail: List[str] = field(default_factory=list)
+    # Backward-compatible fields
+    entry_zone: Optional[Dict[str, Any]] = None
+    exit_zone: Optional[Dict[str, Any]] = None
+    time_horizon: Optional[int] = None
+    expected_return: Optional[float] = None
+    risk_level: Optional[str] = None
+    status_changed_at: Optional[datetime] = None
+    promoted_to_signal_at: Optional[datetime] = None
+
+    def __post_init__(self) -> None:
+        if isinstance(self.status, str):
+            try:
+                self.status = CandidateStatus(self.status)
+            except ValueError:
+                pass
+        if self.time_horizon is not None:
+            self.time_window_end = self.time_window_start + timedelta(days=self.time_horizon)
 
     @property
     def is_actionable(self) -> bool:
         """是否可行动"""
-        return self.status == "ACTIONABLE"
+        return self.status == CandidateStatus.ACTIONABLE or self.status == "ACTIONABLE"
 
     @property
     def is_watch(self) -> bool:
         """是否在观察列表"""
-        return self.status == "WATCH"
+        return self.status == CandidateStatus.WATCH or self.status == "WATCH"
 
     @property
     def is_dropped(self) -> bool:
@@ -505,10 +562,17 @@ class AlphaCandidate:
             "time_window_start": self.time_window_start.isoformat(),
             "time_window_end": self.time_window_end.isoformat(),
             "expected_asymmetry": self.expected_asymmetry,
-            "status": self.status,
+            "status": self.status.value if isinstance(self.status, Enum) else self.status,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
             "audit_trail": self.audit_trail,
+            "entry_zone": self.entry_zone,
+            "exit_zone": self.exit_zone,
+            "time_horizon": self.time_horizon,
+            "expected_return": self.expected_return,
+            "risk_level": self.risk_level,
+            "status_changed_at": self.status_changed_at.isoformat() if self.status_changed_at else None,
+            "promoted_to_signal_at": self.promoted_to_signal_at.isoformat() if self.promoted_to_signal_at else None,
         }
 
 
