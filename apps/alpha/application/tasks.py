@@ -545,7 +545,11 @@ def _save_model_artifact(
     feature_schema_file = artifact_dir / "feature_schema.json"
     with open(feature_schema_file, "w") as f:
         json.dump({
-            "features": ["Ref($close, 1)", "Mean($turnover, 5)", ...],
+            "features": [
+                "Ref($close, 1)",
+                "Mean($turnover, 5)",
+                "Std($volume, 10)",
+            ],
             "label": "Ref($close, 5) / $close - 1",
         }, f, indent=2)
 

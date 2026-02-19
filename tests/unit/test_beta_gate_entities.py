@@ -13,6 +13,9 @@ from apps.beta_gate.domain.entities import (
     GateDecision,
     GateStatus,
     RiskProfile,
+    GateMatchResult,
+    AssetCategory,
+    Strategy,
 )
 from apps.policy.domain.entities import PolicyLevel
 

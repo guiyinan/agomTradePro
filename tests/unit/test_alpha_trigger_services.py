@@ -14,6 +14,8 @@ from apps.alpha_trigger.domain.entities import (
     TriggerType,
     TriggerStatus,
     SignalStrength,
+    CandidateStatus,
+    InvalidationType,
     InvalidationCondition,
 )
 from apps.alpha_trigger.domain.services import (

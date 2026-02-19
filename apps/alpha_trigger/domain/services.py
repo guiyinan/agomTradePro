@@ -20,6 +20,7 @@ from .entities import (
     TriggerStatus,
     TriggerType,
     SignalStrength,
+    CandidateStatus,
     InvalidationCondition,
     calculate_strength,
 )
@@ -143,16 +144,18 @@ class TriggerEvaluator:
 
         actual_momentum = current_data.get("momentum")
         if actual_momentum is None:
-            return False, "没有动量数据"
+            actual_momentum = current_data.get("momentum_pct")
+        if actual_momentum is None:
+            return False, "no momentum data"
 
         if trigger.direction == "LONG":
             if actual_momentum >= momentum_pct:
-                return True, f"动量 {actual_momentum:.2%} 满足条件 {momentum_pct:.2%}"
+                return True, f"momentum met: {actual_momentum:.2%} >= {momentum_pct:.2%}"
         else:
             if actual_momentum <= -momentum_pct:
-                return True, f"负动量 {actual_momentum:.2%} 满足条件 {momentum_pct:.2%}"
+                return True, f"momentum met: {actual_momentum:.2%} <= -{momentum_pct:.2%}"
 
-        return False, f"动量 {actual_momentum:.2%} 不满足条件"
+        return False, f"momentum not met: {actual_momentum:.2%}"
 
     def _check_regime_transition(
         self,
@@ -223,19 +226,22 @@ class TriggerInvalidator:
         Returns:
             证伪检查结果
         """
-        conditions_met = []
+        conditions_met: List[str] = []
+        reasons: List[str] = []
         details = {}
 
         for condition in trigger.invalidation_conditions:
             met, reason, condition_details = self._check_condition(condition, current_data)
             if met:
-                conditions_met.append(condition.condition_type)
-                details[condition.condition_type] = condition_details
+                cond_key = str(condition.condition_type)
+                conditions_met.append(cond_key)
+                reasons.append(reason)
+                details[cond_key] = condition_details
 
         if conditions_met:
             return InvalidationCheckResult(
                 is_invalidated=True,
-                reason=f"满足证伪条件: {', '.join(conditions_met)}",
+                reason=f"满足证伪条件: {', '.join(reasons)}",
                 conditions_met=conditions_met,
                 details=details,
             )
@@ -310,8 +316,9 @@ class TriggerInvalidator:
     ) -> Tuple[bool, str, Dict[str, Any]]:
         """检查时间衰减条件"""
         max_days = condition.max_holding_days
-        if max_days is None:
-            return False, "未设置最大持仓天数", {}
+        max_hours = condition.time_window_hours or condition.time_limit_hours
+        if max_days is None and max_hours is None:
+            return False, "未设置时间衰减阈值", {}
 
         triggered_at = current_data.get("triggered_at")
         if triggered_at is None:
@@ -324,13 +331,24 @@ class TriggerInvalidator:
         else:
             return False, "无效的触发时间格式", {}
 
-        days_elapsed = (datetime.now() - triggered_at).days
+        now = datetime.now(triggered_at.tzinfo) if triggered_at.tzinfo else datetime.now()
+        elapsed = now - triggered_at
+        hours_elapsed = elapsed.total_seconds() / 3600
+        days_elapsed = elapsed.days
 
-        if days_elapsed > max_days:
+        if max_hours is not None:
+            if hours_elapsed > max_hours:
+                return True, f"time decay: {hours_elapsed:.1f}h > {max_hours}h", {
+                    "max_hours": max_hours,
+                    "hours_elapsed": round(hours_elapsed, 2),
+                }
+            return False, f"time decay not met: {hours_elapsed:.1f}h <= {max_hours}h", {}
+
+        if days_elapsed > (max_days or 0):
             details = {
                 "max_holding_days": max_days,
                 "days_elapsed": days_elapsed,
-                "exceeded_by": days_elapsed - max_days,
+                "exceeded_by": days_elapsed - (max_days or 0),
             }
             return True, f"持仓 {days_elapsed} 天超过最大 {max_days} 天", details
 
@@ -411,6 +429,8 @@ class CandidateGenerator:
         # 生成证伪描述
         invalidation_desc = self._describe_invalidations(trigger.invalidation_conditions)
 
+        status = CandidateStatus.ACTIONABLE if trigger.strength == SignalStrength.VERY_STRONG else CandidateStatus.CANDIDATE
+
         return AlphaCandidate(
             candidate_id=str(uuid4()),
             trigger_id=trigger.trigger_id,
@@ -423,8 +443,9 @@ class CandidateGenerator:
             invalidation=invalidation_desc,
             time_window_start=start_date,
             time_window_end=end_date,
+            time_horizon=time_window_days,
             expected_asymmetry=asymmetry,
-            status="CANDIDATE",
+            status=status,
             created_at=datetime.now(),
             updated_at=datetime.now(),
             audit_trail=[f"从触发器 {trigger.trigger_id} 生成"],

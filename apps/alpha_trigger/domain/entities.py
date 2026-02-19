@@ -601,14 +601,25 @@ class TriggerConfig:
         ... )
     """
 
-    weak_threshold: float = 0.3
-    moderate_threshold: float = 0.6
+    weak_threshold: float = 0.2
+    moderate_threshold: float = 0.5
     strong_threshold: float = 0.8
     min_interval_hours: int = 24
     default_expiry_days: int = 90
     invalidation_check_hours: int = 6
     enable_auto_trigger: bool = True
     max_active_triggers: int = 100
+
+    @property
+    def strength_thresholds(self) -> Dict[SignalStrength, float]:
+        """Backward-compatible threshold mapping."""
+        return {
+            SignalStrength.VERY_WEAK: 0.0,
+            SignalStrength.WEAK: self.weak_threshold,
+            SignalStrength.MODERATE: self.moderate_threshold,
+            SignalStrength.STRONG: (self.strong_threshold + self.moderate_threshold) / 2,
+            SignalStrength.VERY_STRONG: self.strong_threshold,
+        }
 
     def get_strength(self, confidence: float) -> SignalStrength:
         """
@@ -622,12 +633,14 @@ class TriggerConfig:
         """
         if confidence >= self.strong_threshold:
             return SignalStrength.VERY_STRONG
-        elif confidence >= self.strong_threshold * 0.75:
+        elif confidence >= self.strength_thresholds[SignalStrength.STRONG]:
             return SignalStrength.STRONG
         elif confidence >= self.moderate_threshold:
             return SignalStrength.MODERATE
-        else:
+        elif confidence >= self.weak_threshold:
             return SignalStrength.WEAK
+        else:
+            return SignalStrength.VERY_WEAK
 
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""

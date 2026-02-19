@@ -38,7 +38,7 @@ class TestVolatilityAdjustment:
         assert result.should_reduce == True
         # target/current = 0.15/0.25 = 0.6
         assert result.suggested_position_multiplier == 0.6
-        assert result.volatility_ratio == 1.6666666666666665
+        assert result.volatility_ratio == pytest.approx(1.6666666666666665)
 
     def test_severe_excess_hits_lower_bound(self):
         """测试：重度超限，触及下限"""

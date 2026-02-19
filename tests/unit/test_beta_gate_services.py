@@ -14,6 +14,9 @@ from apps.beta_gate.domain.entities import (
     GateStatus,
     RiskProfile,
     VisibilityUniverse,
+    GateMatchResult,
+    AssetCategory,
+    Strategy,
 )
 from apps.policy.domain.entities import PolicyLevel
 from apps.beta_gate.domain.services import (

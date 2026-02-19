@@ -7,7 +7,7 @@ Beta Gate Domain Entities
 仅使用 Python 标准库，不依赖 Django、pandas 等外部库。
 """
 
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from datetime import date, datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
@@ -41,6 +41,9 @@ class GateStatus(Enum):
     WATCH = "watch"
     """进入观察列表（暂不可执行）"""
 
+    BLOCKED = "blocked_regime"
+    """兼容旧命名：通用拦截状态（映射到 blocked_regime）"""
+
 
 class RiskProfile(Enum):
     """
@@ -57,6 +60,33 @@ class RiskProfile(Enum):
 
     AGGRESSIVE = "aggressive"
     """激进型：高风险偏好，追求最大收益"""
+
+
+class AssetCategory(str, Enum):
+    """兼容旧版资产分类枚举。"""
+
+    A_SHARE_LARGE_CAP = "a_share_large_cap"
+    BOND = "bond"
+    COMMODITY = "commodity"
+
+
+class Strategy(str, Enum):
+    """兼容旧版策略枚举。"""
+
+    TACTICAL_ASSET_ALLOCATION = "tactical_asset_allocation"
+    SECTOR_ROTATION = "sector_rotation"
+
+
+@dataclass
+class GateMatchResult:
+    """兼容旧版 Gate 匹配结果结构。"""
+
+    allowed_assets: List[str] = field(default_factory=list)
+    forbidden_assets: List[str] = field(default_factory=list)
+    allowed_categories: List[Any] = field(default_factory=list)
+    forbidden_categories: List[Any] = field(default_factory=list)
+    allowed_strategies: List[Any] = field(default_factory=list)
+    forbidden_strategies: List[Any] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -317,7 +347,7 @@ class PortfolioConstraint:
         )
 
 
-@dataclass(frozen=True)
+@dataclass
 class GateDecision:
     """
     闸门决策结果
@@ -360,7 +390,14 @@ class GateDecision:
     current_regime: str
     policy_level: int
     regime_confidence: float
-    evaluated_at: datetime
+    evaluated_at: Optional[datetime] = None
+    # Backward-compatible aliases
+    is_passed: Optional[bool] = None
+    blocking_reason: Optional[str] = None
+    risk_profile: Optional[RiskProfile] = None
+    evaluation_details: Dict[str, Any] = field(default_factory=dict)
+    created_at: Optional[datetime] = None
+    # Newer rich checks
     regime_check: Tuple[bool, str] = (True, "")
     policy_check: Tuple[bool, str] = (True, "")
     risk_check: Tuple[bool, str] = (True, "")
@@ -369,32 +406,29 @@ class GateDecision:
     waiting_period_days: Optional[int] = None
     score: Optional[float] = None
 
-    @property
-    def is_passed(self) -> bool:
-        """是否通过闸门"""
-        return self.status == GateStatus.PASSED
+    def __post_init__(self) -> None:
+        if self.evaluated_at is None:
+            self.evaluated_at = self.created_at or datetime.now()
+        if self.created_at is None:
+            self.created_at = self.evaluated_at
+        if self.is_passed is None:
+            self.is_passed = self.status == GateStatus.PASSED
+        if self.blocking_reason is None and self.is_blocked:
+            self.blocking_reason = self._derive_blocking_reason()
 
     @property
     def is_blocked(self) -> bool:
         """是否被拦截"""
-        return self.status.value.startswith("blocked_")
+        return self.status.value.startswith("blocked_") or self.status == GateStatus.BLOCKED
 
     @property
     def is_watch(self) -> bool:
         """是否进入观察列表"""
         return self.status == GateStatus.WATCH
 
-    @property
-    def blocking_reason(self) -> str:
-        """
-        获取拦截原因
-
-        Returns:
-            主要拦截原因的描述
-        """
+    def _derive_blocking_reason(self) -> str:
         if self.is_passed:
             return ""
-
         checks = [
             ("Regime", self.regime_check),
             ("Policy", self.policy_check),
@@ -441,7 +475,7 @@ class GateDecision:
         }
 
 
-@dataclass(frozen=True)
+@dataclass
 class GateConfig:
     """
     闸门全局配置
@@ -471,18 +505,58 @@ class GateConfig:
 
     config_id: str
     risk_profile: RiskProfile
-    regime_constraint: RegimeConstraint
-    policy_constraint: PolicyConstraint
-    portfolio_constraint: PortfolioConstraint
+    regime_constraint: Optional[RegimeConstraint] = None
+    policy_constraint: Optional[PolicyConstraint] = None
+    portfolio_constraint: Optional[PortfolioConstraint] = None
     version: int = 1
     is_active: bool = True
-    is_valid: Optional[bool] = None
     effective_date: date = field(default_factory=date.today)
     expires_at: Optional[date] = None
+    # Backward-compatible fields
+    regime_constraints: Dict[Any, Any] = field(default_factory=dict)
+    policy_constraints: Dict[Any, Any] = field(default_factory=dict)
+    asset_category_visibility: Dict[Any, bool] = field(default_factory=dict)
+    strategy_visibility: Dict[Any, bool] = field(default_factory=dict)
+    confidence_threshold: float = 0.3
+    portfolio_exposure_limit: float = 0.8
+    custom_rules: Dict[str, Any] = field(default_factory=dict)
+    created_at: Optional[datetime] = None
+    valid_from: Optional[datetime] = None
+    valid_until: Optional[datetime] = None
+    is_valid: InitVar[Optional[bool]] = None
+    _is_valid_override: Optional[bool] = field(default=None, init=False, repr=False)
 
-    def __post_init__(self):
-        if self.is_valid is None:
-            object.__setattr__(self, "is_valid", self.is_active and not self.is_expired)
+    def __post_init__(self, is_valid: Optional[bool] = None):
+        now = datetime.now()
+        # dataclass InitVar and same-name @property can leak the property object
+        # into __post_init__ when caller doesn't pass is_valid.
+        self._is_valid_override = None if isinstance(is_valid, property) else is_valid
+        if self.created_at is None:
+            self.created_at = now
+        if self.valid_from is None:
+            self.valid_from = self.created_at
+        if self.regime_constraint is None:
+            self.regime_constraint = RegimeConstraint(min_confidence=self.confidence_threshold)
+        if self.policy_constraint is None:
+            self.policy_constraint = PolicyConstraint()
+        if self.portfolio_constraint is None:
+            max_total = self.portfolio_exposure_limit * 100 if self.portfolio_exposure_limit <= 1 else self.portfolio_exposure_limit
+            self.portfolio_constraint = PortfolioConstraint(max_total_position_pct=max_total)
+
+    @property
+    def is_valid(self) -> bool:
+        """配置当前是否有效（兼容旧版 valid_from/valid_until 语义）。"""
+        if self._is_valid_override is not None:
+            return self._is_valid_override
+        tz = self.valid_from.tzinfo if self.valid_from and getattr(self.valid_from, "tzinfo", None) else None
+        now = datetime.now(tz) if tz else datetime.now()
+        if not self.is_active or self.is_expired:
+            return False
+        if self.valid_from and now < self.valid_from:
+            return False
+        if self.valid_until and now > self.valid_until:
+            return False
+        return True
 
     @property
     def is_expired(self) -> bool:
@@ -522,7 +596,7 @@ class GateConfig:
         )
 
 
-@dataclass(frozen=True)
+@dataclass
 class VisibilityUniverse:
     """
     可见性宇宙
@@ -556,11 +630,15 @@ class VisibilityUniverse:
     regime_snapshot_id: str
     policy_snapshot_id: str
     risk_profile: RiskProfile
-    visible_asset_categories: List[str] = field(default_factory=list)
-    visible_strategies: List[str] = field(default_factory=list)
-    hard_exclusions: List[Tuple[str, str]] = field(default_factory=list)
+    visible_asset_categories: List[Any] = field(default_factory=list)
+    visible_strategies: List[Any] = field(default_factory=list)
+    hard_exclusions: List[Any] = field(default_factory=list)
     watch_list: List[str] = field(default_factory=list)
     notes: str = ""
+    # Backward-compatible fields used by legacy tests
+    current_regime: str = ""
+    policy_level: int = 0
+    regime_confidence: float = 0.0
 
     def is_asset_visible(self, asset_class: str) -> bool:
         """
@@ -596,9 +674,13 @@ class VisibilityUniverse:
         Returns:
             排除原因，如果未被排除则返回 None
         """
-        for excluded_asset, reason in self.hard_exclusions:
-            if excluded_asset == asset_class:
-                return reason
+        for item in self.hard_exclusions:
+            if isinstance(item, tuple) and len(item) >= 2:
+                excluded_asset, reason = item[0], item[1]
+                if excluded_asset == asset_class:
+                    return reason
+            elif item == asset_class:
+                return "hard excluded"
         return None
 
     def to_dict(self) -> Dict[str, Any]:

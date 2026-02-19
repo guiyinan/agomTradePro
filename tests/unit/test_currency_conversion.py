@@ -98,7 +98,7 @@ class TestRealWorldScenarios:
         # 贸易顺差 500 亿美元
         value, unit = normalize_currency_unit(500, "亿美元", exchange_rate=7.2)
 
-        assert value == 36000000000  # 500 * 100000000 * 7.2
+        assert value == 360000000000  # 500 * 100000000 * 7.2
         assert unit == "元"
 
     def test_usd_conversion_impact(self):

@@ -9,7 +9,7 @@ Beta Gate Domain Services
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from .entities import (
     GateConfig,
@@ -89,6 +89,18 @@ class BetaGateEvaluator:
         Returns:
             GateDecision 决策结果
         """
+        # Legacy path: dict-based constraints from older domain model.
+        if self.config.regime_constraints:
+            return self._evaluate_legacy(
+                asset_code=asset_code,
+                asset_class=asset_class,
+                current_regime=current_regime,
+                regime_confidence=regime_confidence,
+                policy_level=policy_level,
+                current_portfolio_value=current_portfolio_value,
+                new_position_value=new_position_value,
+            )
+
         # 1. Regime 检查
         regime_passed, regime_reason = self.config.regime_constraint.is_regime_allowed(
             current_regime, regime_confidence
@@ -157,6 +169,115 @@ class BetaGateEvaluator:
             policy_check=(policy_passed, policy_reason),
             portfolio_check=(True, ""),
             risk_check=(True, ""),
+        )
+
+    def _evaluate_legacy(
+        self,
+        asset_code: str,
+        asset_class: str,
+        current_regime: str,
+        regime_confidence: float,
+        policy_level: int,
+        current_portfolio_value: float = 0.0,
+        new_position_value: float = 0.0,
+    ) -> GateDecision:
+        """Backward-compatible evaluator for legacy dict-based gate configs."""
+        if regime_confidence < self.config.confidence_threshold:
+            return GateDecision(
+                status=GateStatus.BLOCKED_CONFIDENCE,
+                asset_code=asset_code,
+                asset_class=asset_class,
+                current_regime=current_regime,
+                policy_level=policy_level,
+                regime_confidence=regime_confidence,
+                is_passed=False,
+                blocking_reason=f"confidence below threshold: {regime_confidence:.2f} < {self.config.confidence_threshold:.2f}",
+                evaluation_details={"confidence_check": "failed"},
+            )
+
+        regime_match = self.config.regime_constraints.get(current_regime)
+        if regime_match is None:
+            return GateDecision(
+                status=GateStatus.BLOCKED_REGIME,
+                asset_code=asset_code,
+                asset_class=asset_class,
+                current_regime=current_regime,
+                policy_level=policy_level,
+                regime_confidence=regime_confidence,
+                is_passed=False,
+                blocking_reason=f"regime {current_regime} not configured",
+                evaluation_details={"regime_check": "failed"},
+            )
+
+        if asset_code in regime_match.forbidden_assets or asset_class in [str(x).lower() for x in regime_match.forbidden_categories]:
+            return GateDecision(
+                status=GateStatus.BLOCKED_REGIME,
+                asset_code=asset_code,
+                asset_class=asset_class,
+                current_regime=current_regime,
+                policy_level=policy_level,
+                regime_confidence=regime_confidence,
+                is_passed=False,
+                blocking_reason="forbidden by regime constraint",
+                evaluation_details={"regime_check": "failed"},
+            )
+
+        if regime_match.allowed_categories:
+            allowed_categories = {str(x).lower() for x in regime_match.allowed_categories}
+            if asset_class.lower() not in allowed_categories:
+                # fallback: allow if caller passes broad chinese class names for A-share.
+                if not (asset_class.startswith("a_share") and any("a_share" in x for x in allowed_categories)):
+                    return GateDecision(
+                        status=GateStatus.BLOCKED_REGIME,
+                        asset_code=asset_code,
+                        asset_class=asset_class,
+                        current_regime=current_regime,
+                        policy_level=policy_level,
+                        regime_confidence=regime_confidence,
+                        is_passed=False,
+                        blocking_reason="forbidden category in regime",
+                        evaluation_details={"regime_check": "failed"},
+                    )
+
+        policy_match = self.config.policy_constraints.get(policy_level)
+        if policy_match and asset_class in [str(x).lower() for x in policy_match.forbidden_categories]:
+            return GateDecision(
+                status=GateStatus.BLOCKED_POLICY,
+                asset_code=asset_code,
+                asset_class=asset_class,
+                current_regime=current_regime,
+                policy_level=policy_level,
+                regime_confidence=regime_confidence,
+                is_passed=False,
+                blocking_reason="forbidden by policy constraint",
+                evaluation_details={"policy_check": "failed"},
+            )
+
+        if current_portfolio_value > 0:
+            ratio = new_position_value / current_portfolio_value if current_portfolio_value else 0.0
+            if ratio > self.config.portfolio_exposure_limit:
+                return GateDecision(
+                    status=GateStatus.BLOCKED_PORTFOLIO,
+                    asset_code=asset_code,
+                    asset_class=asset_class,
+                    current_regime=current_regime,
+                    policy_level=policy_level,
+                    regime_confidence=regime_confidence,
+                    is_passed=False,
+                    blocking_reason="portfolio exposure limit exceeded",
+                    evaluation_details={"portfolio_check": "failed"},
+                )
+
+        return GateDecision(
+            status=GateStatus.PASSED,
+            asset_code=asset_code,
+            asset_class=asset_class,
+            current_regime=current_regime,
+            policy_level=policy_level,
+            regime_confidence=regime_confidence,
+            is_passed=True,
+            blocking_reason="",
+            evaluation_details={},
         )
 
     def evaluate_batch(
@@ -257,6 +378,7 @@ class VisibilityUniverseBuilder:
         regime_confidence: float,
         policy_level: int,
         risk_profile: RiskProfile,
+        config_selector: Optional["GateConfigSelector"] = None,
         regime_snapshot_id: str = "",
         policy_snapshot_id: str = "",
         candidate_assets: Optional[List[Tuple[str, str]]] = None,
@@ -278,9 +400,12 @@ class VisibilityUniverseBuilder:
         """
         from datetime import date
 
-        config = self.configs.get(risk_profile)
-        if config is None:
-            config = get_default_configs()[risk_profile]
+        if config_selector is not None:
+            config = config_selector.get_config(risk_profile)
+        else:
+            config = self.configs.get(risk_profile)
+            if config is None:
+                config = get_default_configs()[risk_profile]
 
         # 评估候选资产
         visible_assets = []
@@ -304,8 +429,21 @@ class VisibilityUniverseBuilder:
                 else:
                     hard_exclusions.append((decision.asset_code, decision.blocking_reason))
 
-        # 提取可见资产类别
-        visible_asset_categories = list(set(asset_class for _, asset_class in visible_assets))
+        # 提取可见资产类别（legacy: prefer explicit visibility map if provided）
+        if config.asset_category_visibility:
+            visible_asset_categories = [k for k, v in config.asset_category_visibility.items() if v]
+            hard_exclusions.extend([k for k, v in config.asset_category_visibility.items() if not v])
+        else:
+            visible_asset_categories = list(set(asset_class for _, asset_class in visible_assets))
+
+        policy_match = config.policy_constraints.get(policy_level)
+        if policy_match:
+            for c in policy_match.forbidden_categories:
+                if c not in hard_exclusions:
+                    hard_exclusions.append(c)
+
+        if regime_confidence < config.confidence_threshold and visible_asset_categories:
+            watch_list.extend([str(c) for c in visible_asset_categories])
 
         # 根据环境确定可见策略
         visible_strategies = self._determine_visible_strategies(
@@ -322,6 +460,9 @@ class VisibilityUniverseBuilder:
             hard_exclusions=hard_exclusions,
             watch_list=watch_list,
             notes=f"Regime: {current_regime}, Policy: P{policy_level}",
+            current_regime=current_regime,
+            policy_level=policy_level,
+            regime_confidence=regime_confidence,
         )
 
     def _determine_visible_strategies(
@@ -352,8 +493,10 @@ class VisibilityUniverseBuilder:
             "Deflation": ["bond", "dividend", "stable"],
         }
 
+        policy_level_num = self._policy_level_num(policy_level)
+
         # 根据 Policy 档位调整
-        if policy_level >= 2:
+        if policy_level_num >= 2:
             # P2/P3: 限制风险策略
             regime_strategies = {
                 k: [s for s in v if s in ["observe", "defensive", "bond", "cash_equivalent"]]
@@ -374,6 +517,29 @@ class VisibilityUniverseBuilder:
         # 去重并排序
         return sorted(set(visible))
 
+    @staticmethod
+    def _policy_level_num(policy_level: Any) -> int:
+        """Convert PolicyLevel enum/string/int to numeric level."""
+        if isinstance(policy_level, int):
+            return policy_level
+        if hasattr(policy_level, "name") and str(policy_level.name).startswith("P"):
+            try:
+                return int(str(policy_level.name)[1:])
+            except ValueError:
+                return 0
+        if hasattr(policy_level, "value") and str(policy_level.value).startswith("P"):
+            try:
+                return int(str(policy_level.value)[1:])
+            except ValueError:
+                return 0
+        s = str(policy_level)
+        if s.startswith("P"):
+            try:
+                return int(s[1:])
+            except ValueError:
+                return 0
+        return 0
+
 
 class GateConfigSelector:
     """
@@ -389,14 +555,19 @@ class GateConfigSelector:
         >>> config = selector.get_config(RiskProfile.BALANCED)
     """
 
-    def __init__(self, configs: Optional[Dict[RiskProfile, GateConfig]] = None):
+    def __init__(self, configs: Optional[Iterable[GateConfig] | Dict[RiskProfile, GateConfig]] = None):
         """
         初始化选择器
 
         Args:
             configs: 配置映射（默认使用默认配置）
         """
-        self.configs = configs or get_default_configs()
+        if configs is None:
+            self.configs = get_default_configs()
+        elif isinstance(configs, dict):
+            self.configs = configs
+        else:
+            self.configs = {cfg.risk_profile: cfg for cfg in configs}
 
     def get_config(self, risk_profile: RiskProfile) -> GateConfig:
         """
