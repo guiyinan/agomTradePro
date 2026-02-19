@@ -11,6 +11,7 @@ from rest_framework import status
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
 from datetime import datetime, date
+import json
 import logging
 
 from apps.audit.application.use_cases import (
@@ -511,7 +512,7 @@ class ThresholdValidationDataView(APIView):
             validation_data = {
                 'summary': {
                     'validation_run_id': summary.validation_run_id,
-                    'run_date': summary.created_at,
+                    'run_date': summary.run_date,
                     'evaluation_period_start': summary.evaluation_period_start,
                     'evaluation_period_end': summary.evaluation_period_end,
                     'total_indicators': summary.total_indicators,
@@ -577,7 +578,7 @@ class AuditPageView(LoginRequiredMixin, TemplateView):
         try:
             latest_validation = ValidationSummaryModel._default_manager.filter(
                 is_shadow_mode=False
-            ).order_by('-created_at').first()
+            ).order_by('-run_date').first()
 
             # 获取最近的归因报告
             recent_reports = AttributionReport._default_manager.select_related(
@@ -631,7 +632,7 @@ class IndicatorPerformancePageView(LoginRequiredMixin, TemplateView):
             # 获取最新的验证摘要
             latest_summary = ValidationSummaryModel._default_manager.filter(
                 is_shadow_mode=False
-            ).order_by('-created_at').first()
+            ).order_by('-run_date').first()
 
             if latest_summary:
                 # 获取所有指标表现
@@ -673,6 +674,7 @@ class IndicatorPerformancePageView(LoginRequiredMixin, TemplateView):
                 context['avg_f1_score'] = latest_summary.avg_f1_score
                 context['avg_stability_score'] = latest_summary.avg_stability_score
                 context['indicator_reports'] = indicator_reports
+                context['indicator_data'] = json.dumps(indicator_reports, ensure_ascii=False)
             else:
                 # 没有验证记录时的默认数据
                 context['total_indicators'] = 0
@@ -682,12 +684,14 @@ class IndicatorPerformancePageView(LoginRequiredMixin, TemplateView):
                 context['avg_f1_score'] = 0
                 context['avg_stability_score'] = 0
                 context['indicator_reports'] = []
+                context['indicator_data'] = '[]'
 
         except Exception as e:
             logger.error(f"获取指标表现数据失败: {e}")
             # 设置默认值
             context['total_indicators'] = 0
             context['indicator_reports'] = []
+            context['indicator_data'] = '[]'
 
         return context
 
@@ -733,16 +737,26 @@ class ThresholdValidationPageView(LoginRequiredMixin, TemplateView):
                 configs_with_history.append(config_dict)
 
             context['threshold_configs'] = configs_with_history
+            context['threshold_data'] = json.dumps(
+                {
+                    c['indicator_code']: {
+                        'level_low': float(c['level_low'] or 0),
+                        'level_high': float(c['level_high'] or 0),
+                    }
+                    for c in configs_with_history
+                },
+                ensure_ascii=False,
+            )
 
             # 获取最新验证状态
             latest_validation = ValidationSummaryModel._default_manager.filter(
                 is_shadow_mode=False
-            ).order_by('-created_at').first()
+            ).order_by('-run_date').first()
 
             if latest_validation:
                 context['validation_status'] = latest_validation.status
                 context['validation_status_label'] = latest_validation.get_status_display()
-                context['validation_message'] = f"验证于 {latest_validation.created_at.strftime('%Y-%m-%d %H:%M')} 运行"
+                context['validation_message'] = f"验证于 {latest_validation.run_date.strftime('%Y-%m-%d %H:%M')} 运行"
             else:
                 context['validation_status'] = 'pending'
                 context['validation_status_label'] = '待运行'
@@ -751,6 +765,7 @@ class ThresholdValidationPageView(LoginRequiredMixin, TemplateView):
         except Exception as e:
             logger.error(f"获取阈值验证数据失败: {e}")
             context['threshold_configs'] = []
+            context['threshold_data'] = '{}'
             context['validation_status'] = 'pending'
             context['validation_status_label'] = '错误'
             context['validation_message'] = str(e)

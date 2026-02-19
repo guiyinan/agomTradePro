@@ -730,8 +730,10 @@ class VolatilityCalculator:
         for i in range(1, len(daily_snapshots)):
             prev_value = daily_snapshots[i - 1]["total_value"]
             curr_value = daily_snapshots[i]["total_value"]
-            daily_return = (curr_value - prev_value) / prev_value
-            returns.append(daily_return)
+            # Guard against invalid baseline snapshots to avoid divide-by-zero.
+            if prev_value and prev_value > 0:
+                daily_return = (curr_value - prev_value) / prev_value
+                returns.append(daily_return)
 
         # 计算滚动波动率
         metrics_list = []

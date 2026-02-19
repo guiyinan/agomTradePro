@@ -51,7 +51,7 @@
 {% endblock %}
 
 {% block header_actions %}
-<button onclick="location.href='{% url 'audit:validate_thresholds' %}'" class="btn btn-primary">
+<button onclick="location.href='{% url 'audit:threshold_validation' %}'" class="btn btn-primary">
     运行验证
 </button>
 {% endblock %}
@@ -231,7 +231,7 @@
 <script src="{% static 'js/audit/performance-dashboard.js' %}"></script>
 <script>
 // 指标数据
-const indicatorData = {{ indicator_data|safe }};
+const indicatorData = {{ indicator_data|default:'[]'|safe }};
 
 // 初始化图表和筛选
 document.addEventListener('DOMContentLoaded', function() {
