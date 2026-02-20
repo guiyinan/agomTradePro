@@ -159,12 +159,14 @@
 .status-value.regime-overheat { background: #fee2e2; color: #991b1b; }
 .status-value.regime-stagflation { background: #fef3c7; color: #92400e; }
 .status-value.regime-deflation { background: #dbeafe; color: #1e40af; }
+.status-value.regime-unknown { background: #e2e8f0; color: #334155; }
 
 /* 政策档位颜色 */
 .status-value.policy-p0 { background: #dcfce7; color: #166534; }
 .status-value.policy-p1 { background: #fef3c7; color: #92400e; }
 .status-value.policy-p2 { background: #fed7aa; color: #9a3412; }
 .status-value.policy-p3 { background: #fee2e2; color: #991b1b; }
+.status-value.policy-unknown { background: #e2e8f0; color: #334155; }
 
 /* ==================== 中间主内容区 ==================== */
 .home-main {

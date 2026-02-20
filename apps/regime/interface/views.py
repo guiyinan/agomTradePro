@@ -52,9 +52,43 @@ def regime_dashboard_view(request):
         # V2 结果格式
         result_v2 = response.result if response.success else None
         raw_data_json = json.dumps(response.raw_data) if response.raw_data else None
+        regime_result = None
+
+        if result_v2:
+            growth_series = (response.raw_data or {}).get('growth', []) or []
+            inflation_series = (response.raw_data or {}).get('inflation', []) or []
+
+            growth_tail = growth_series[-12:]
+            inflation_tail = inflation_series[-12:]
+
+            growth_values = [float(item.get('value', 0)) for item in growth_tail]
+            inflation_values = [float(item.get('value', 0)) for item in inflation_tail]
+
+            def _trend(values):
+                if len(values) < 2:
+                    return "flat"
+                if values[-1] > values[-2]:
+                    return "up"
+                if values[-1] < values[-2]:
+                    return "down"
+                return "flat"
+
+            regime_result = {
+                # 模板兼容字段（历史模板使用 regime_result）
+                'quadrant': result_v2.regime.value,
+                'pmi_value': round(float(result_v2.growth_level), 2),
+                'cpi_value': round(float(result_v2.inflation_level), 2),
+                'pmi_trend': _trend(growth_values),
+                'cpi_trend': _trend(inflation_values),
+                'growth_dates': json.dumps([item.get('date') for item in growth_tail], ensure_ascii=False),
+                'growth_values': json.dumps(growth_values, ensure_ascii=False),
+                'inflation_dates': json.dumps([item.get('date') for item in inflation_tail], ensure_ascii=False),
+                'inflation_values': json.dumps(inflation_values, ensure_ascii=False),
+            }
 
         context = {
             'result_v2': result_v2,
+            'regime_result': regime_result,
             'warnings': response.warnings if response.success else [],
             'error': response.error if not response.success else None,
             'current_date': date.today(),
@@ -78,6 +112,7 @@ def regime_dashboard_view(request):
 
         context = {
             'result_v2': None,
+            'regime_result': None,
             'warnings': [],
             'error': str(e),
             'current_date': date.today(),

@@ -121,7 +121,7 @@
             <div class="status-card">
                 <div class="status-item">
                     <span class="status-label">当前 Regime</span>
-                    <span class="status-value regime-{{ current_regime|lower }}">{{ current_regime|default:"-" }}</span>
+                    <span class="status-value regime-{{ current_regime|default:"unknown"|lower }}">{{ current_regime|default:"Unknown" }}</span>
                 </div>
                 <div class="status-item">
                     <span class="status-label">政策档位</span>
@@ -237,11 +237,11 @@
                     <div class="decision-card-body">
                         <div class="decision-status">
                             <span class="status-label">当前 Regime</span>
-                            <span class="status-value">{{ current_regime|default:"-" }}</span>
+                            <span class="status-value regime-{{ current_regime|default:"unknown"|lower }}">{{ current_regime|default:"Unknown" }}</span>
                         </div>
                         <div class="decision-status">
                             <span class="status-label">政策档位</span>
-                            <span class="status-value">P{{ policy_level|default:0 }}</span>
+                            <span class="status-value policy-{{ policy_level|default:"P0"|lower }}">{{ policy_level|default:"P0" }}</span>
                         </div>
                         <div class="decision-status">
                             <span class="status-label">可见资产类别</span>
@@ -934,7 +934,10 @@ async function checkQlibStatus() {
     if (!indicator || !desc) return;
 
     try {
-        const response = await fetch('/dashboard/api/provider-status/');
+        const response = await fetch('/dashboard/api/alpha/provider-status/');
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
         const result = await response.json();
 
         if (result.success && result.data && result.data.providers) {
@@ -1160,7 +1163,7 @@ if (icTrendsCtx) {
         const periodSelect = document.getElementById('icPeriodSelect');
         if (periodSelect) {
             periodSelect.addEventListener('change', function() {
-                fetch(`/dashboard/api/ic-trends/?days=${this.value}`)
+                fetch(`/dashboard/api/alpha/ic-trends/?days=${this.value}`)
                     .then(r => r.json())
                     .then(response => {
                         if (response.success && response.data) {

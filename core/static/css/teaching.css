@@ -367,19 +367,19 @@
     align-items: center;
 }
 
-.quad-recovery {
+.regime-quadrant-mini .quad-recovery {
     background: linear-gradient(135deg, #22c55e, #16a34a);
 }
 
-.quad-overheat {
+.regime-quadrant-mini .quad-overheat {
     background: linear-gradient(135deg, #ef4444, #dc2626);
 }
 
-.quad-deflation {
+.regime-quadrant-mini .quad-deflation {
     background: linear-gradient(135deg, #3b82f6, #2563eb);
 }
 
-.quad-stagflation {
+.regime-quadrant-mini .quad-stagflation {
     background: linear-gradient(135deg, #f59e0b, #d97706);
 }
 

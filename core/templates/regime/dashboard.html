@@ -120,26 +120,35 @@ async function syncData() {
     progressText.textContent = '正在同步数据...';
 
     try {
-        const response = await fetch('/macro/sync/', {
+        const formData = new FormData();
+        formData.append('source', '{{ current_source|default:"akshare" }}');
+
+        const response = await fetch('/macro/api/quick-sync/', {
             method: 'POST',
             headers: {
-                'X-CSRFToken': window.csrfToken,
-                'Content-Type': 'application/json'
-            }
+                'X-CSRFToken': window.csrfToken
+            },
+            body: formData
         });
 
-        const data = await response.json();
+        let data = {};
+        const text = await response.text();
+        try {
+            data = JSON.parse(text);
+        } catch (_) {
+            data = { success: false, message: text || '返回内容不是合法 JSON' };
+        }
 
-        if (data.success) {
+        if (response.ok && data.success) {
             progressFill.style.width = '100%';
             progressText.textContent = '同步完成！';
-            showToast('数据同步成功', 'success');
+            showToast(data.message || '数据同步成功', 'success');
 
             setTimeout(() => {
                 location.reload();
             }, 1000);
         } else {
-            progressText.textContent = '同步失败: ' + (data.error || '未知错误');
+            progressText.textContent = '同步失败: ' + (data.message || data.error || `HTTP ${response.status}`);
             showToast('数据同步失败', 'error');
             syncBtn.disabled = false;
         }
@@ -278,6 +287,47 @@ async function clearRegimeCache() {
     </div>
 </div>
 
+{% if raw_data %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-header-title">原始数据明细（最近12期）</h3>
+    </div>
+    <div class="card-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <div>
+            <h4 style="margin-bottom: 8px;">PMI</h4>
+            <table class="table">
+                <tr>
+                    <th>日期</th>
+                    <th>值</th>
+                </tr>
+                {% for item in raw_data.growth|slice:"-12:" %}
+                <tr>
+                    <td>{{ item.date }}</td>
+                    <td>{{ item.value }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+        <div>
+            <h4 style="margin-bottom: 8px;">CPI</h4>
+            <table class="table">
+                <tr>
+                    <th>日期</th>
+                    <th>值</th>
+                </tr>
+                {% for item in raw_data.inflation|slice:"-12:" %}
+                <tr>
+                    <td>{{ item.date }}</td>
+                    <td>{{ item.value }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script src="{% static 'vendor/js/echarts.min.js' %}"></script>
 <script>
 // 使用 ECharts 绘制图表
 if (typeof echarts !== 'undefined') {
@@ -341,5 +391,18 @@ if (typeof echarts !== 'undefined') {
     <p>暂无 Regime 判定数据，请同步宏观数据</p>
 </div>
 {% endif %}
+
+<!-- Teaching Module Scripts -->
+<script src="{% static 'js/teaching/teaching-modal.js' %}"></script>
+<script src="{% static 'js/teaching/regime-calculator.js' %}"></script>
+<script src="{% static 'js/teaching/policy-simulator.js' %}"></script>
+<script src="{% static 'js/teaching/policy-simulator-enhanced.js' %}"></script>
+<script src="{% static 'js/teaching/cases-library.js' %}"></script>
+<script src="{% static 'js/teaching/learning-progress.js' %}"></script>
+<script src="{% static 'js/teaching/interactive-charts.js' %}"></script>
+<script src="{% static 'js/teaching/bilingual-support.js' %}"></script>
+
+<!-- Teaching Modal Template -->
+{% include "dashboard/teaching_modal.html" %}
 
 {% endblock %}
