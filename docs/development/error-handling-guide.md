@@ -247,7 +247,7 @@ def call_ai_service(prompt: str) -> dict:
 
 ### 高优先级
 
-- [ ] 创建 `core/exceptions.py` 自定义异常
+- [x] 创建 `core/exceptions.py` 自定义异常 ✅ 2026-02-20
 - [ ] 更新 API ViewSet 使用新异常
 - [ ] 添加统一错误响应格式
 
@@ -262,3 +262,18 @@ def call_ai_service(prompt: str) -> dict:
 - [ ] 创建错误监控面板
 - [ ] 添加错误追踪 (Sentry)
 - [ ] 实现告警通知
+
+---
+
+## 已完成项目
+
+### 2026-02-20
+
+- ✅ 创建 `core/exceptions.py`，包含以下异常类：
+  - `AgomSAAFException` - 基础异常类
+  - `ValidationError`, `InvalidInputError`, `MissingRequiredFieldError` - 验证错误
+  - `AuthenticationError`, `AuthorizationError` - 认证授权错误
+  - `ResourceNotFoundError`, `DuplicateResourceError` - 资源错误
+  - `BusinessLogicError`, `RegimeNotDeterminedError`, `SignalValidationError`, `IneligibleAssetError` - 业务逻辑错误
+  - `ExternalServiceError`, `DataFetchError`, `AIServiceError`, `TushareError`, `AKShareError` - 外部服务错误
+  - `TimeoutError`, `ConfigurationError`, `MissingConfigError` - 其他错误

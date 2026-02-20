@@ -86,6 +86,7 @@
 | [full-integration-test-report.md](testing/full-integration-test-report.md) | 完整集成测试报告 | 完整 |
 | [system_algorithm_evaluation_report.md](testing/system_algorithm_evaluation_report.md) | 系统算法评估 | 完整 |
 | [doc-link-check-report.md](testing/doc-link-check-report.md) | 文档链接校验报告 | 最新 |
+| [outsourcing-test-fix-review-2026-02-20.md](testing/outsourcing-test-fix-review-2026-02-20.md) | 外包测试与修复批次审查报告（2026-02-20） | ✅ 新增 |
 | [bug-report-template.md](testing/bug-report-template.md) | Bug 报告模板 | 完整 |
 | [test-results-template.md](testing/test-results-template.md) | 测试结果模板 | 完整 |
 | [api/API_REFERENCE.md](testing/api/API_REFERENCE.md) | API 参考文档 | 完整 |

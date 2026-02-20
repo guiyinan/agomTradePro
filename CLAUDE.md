@@ -345,9 +345,17 @@ ak.macro_china_money_supply()
 - ✅ Hedge 模块（对冲策略）
 
 **Phase 8: 功能完善** (进行中):
-- [ ] Audit 模块补全 (45% → 100%)
-- [ ] Dashboard 图表优化 (60% → 100%)
+- [x] Audit 模块补全 ✅ (含 Brinson 归因 + 完整测试覆盖)
+- [x] Dashboard 图表优化 ✅ (Streamlit 集成)
 - [ ] 定时任务监控完善
+
+**架构合规性修复 (2026-02-20)** ✅:
+- ✅ 删除 `apps/shared/` 目录，移动到 `shared/infrastructure/htmx/`
+- ✅ 修复 `shared/` 对 `apps/` 的违规依赖（4 处）
+- ✅ 创建 `core/exceptions.py` 统一异常类
+- ✅ 补充 sentiment 模块路由配置
+- ✅ 修复 ai_provider 模块架构
+- ✅ 新增 31 个单元测试
 
 ## 注意事项
 

@@ -1,7 +1,8 @@
 # 前端性能优化分析
 
 > **分析日期**: 2026-02-20
-> **当前状态**: 可用，有优化空间
+> **最后更新**: 2026-02-20
+> **当前状态**: 可用，部分优化已完成
 
 ---
 
@@ -44,12 +45,18 @@
 - 浏览器需要解析不需要的 CSS
 - 带宽浪费
 
-### 2. 重复的 CSS 文件
+### 2. 重复的 CSS 文件 ✅ 已清理
 
-**发现**:
-- `components/` 和 `components-v1/` 目录存在重复
-- `main.css` 和 `main-v1.css` 同时存在
-- 部分模块 CSS 可能包含重复的组件样式
+**发现** (已修复):
+- ~~`components/` 和 `components-v1/` 目录存在重复~~ - 已删除 `components-v1/`
+- ~~`main.css` 和 `main-v1.css` 同时存在~~ - 已删除 `-v1.css` 文件
+- ~~`base-v1.html` 未使用~~ - 已删除
+- 部分模块 CSS 可能包含重复的组件样式（待检查）
+
+**清理操作** (2026-02-20):
+- 删除 `static/css/components-v1/` 目录
+- 删除 `static/css/*-v1.css` 文件
+- 删除 `core/templates/base-v1.html`
 
 ### 3. 无 CSS/JS 压缩
 
@@ -130,10 +137,18 @@ AWS_S3_OBJECT_PARAMETERS = {
 
 ## 实施计划
 
-### Phase 1: 清理 (1-2 小时)
+### Phase 1: 清理 ✅ 已完成 (2026-02-20)
 
-1. 删除 `-v1` 版本的重复文件
-2. 审查并删除未使用的 CSS
+1. ✅ 删除 `-v1` 版本的重复文件
+2. ✅ 删除 `base-v1.html` 模板
+3. ⏳ 审查并删除未使用的 CSS（待检查）
+
+**已删除文件**:
+- `static/css/components-v1/` 目录（含所有文件）
+- `static/css/design-tokens-v1.css`
+- `static/css/main-v1.css`
+- `static/css/components-v1.css`
+- `core/templates/base-v1.html`
 
 ### Phase 2: 按需加载 (2-4 小时)
 
