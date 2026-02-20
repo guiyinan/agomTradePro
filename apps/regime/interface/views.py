@@ -61,8 +61,16 @@ def regime_dashboard_view(request):
             growth_tail = growth_series[-12:]
             inflation_tail = inflation_series[-12:]
 
-            growth_values = [float(item.get('value', 0)) for item in growth_tail]
-            inflation_values = [float(item.get('value', 0)) for item in inflation_tail]
+            def _safe_float(value, default=0.0):
+                if value in (None, ""):
+                    return default
+                try:
+                    return float(value)
+                except (TypeError, ValueError):
+                    return default
+
+            growth_values = [_safe_float(item.get('value')) for item in growth_tail]
+            inflation_values = [_safe_float(item.get('value')) for item in inflation_tail]
 
             def _trend(values):
                 if len(values) < 2:
