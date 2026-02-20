@@ -122,6 +122,8 @@ module_patterns = [
     path('factor/', include(('apps.factor.interface.urls', 'factor'), namespace='factor')),
     path('rotation/', include(('apps.rotation.interface.urls', 'rotation'), namespace='rotation')),
     path('hedge/', include(('apps.hedge.interface.urls', 'hedge'), namespace='hedge')),
+    # Sentiment analysis.
+    path('sentiment/', include(('apps.sentiment.interface.urls', 'sentiment'), namespace='sentiment')),
     # Alpha signal abstraction.
     path('api/alpha/', include('apps.alpha.interface.urls')),
 
@@ -158,6 +160,7 @@ module_patterns = [
     path('api/factor/', include(('apps.factor.interface.urls', 'api_factor'), namespace='api_factor')),
     path('api/rotation/', include(('apps.rotation.interface.urls', 'api_rotation'), namespace='api_rotation')),
     path('api/hedge/', include(('apps.hedge.interface.urls', 'api_hedge'), namespace='api_hedge')),
+    path('api/sentiment/', include(('apps.sentiment.interface.urls', 'api_sentiment'), namespace='api_sentiment')),
 ]
 
 

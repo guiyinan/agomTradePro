@@ -4,7 +4,7 @@ Shared Domain Interfaces and Protocols.
 Defines protocols that infrastructure layer must implement.
 """
 
-from typing import Protocol, List
+from typing import Protocol, List, Optional
 from dataclasses import dataclass
 
 
@@ -32,4 +32,24 @@ class TrendCalculatorProtocol(Protocol):
         window: int = 60
     ) -> tuple[float, ...]:
         """计算 Z-score"""
+        ...
+
+
+@dataclass(frozen=True)
+class DataSourceSecretsDTO:
+    """数据源密钥数据传输对象"""
+    tushare_token: str
+    fred_api_key: str
+    juhe_api_key: Optional[str] = None
+
+
+class DatabaseSecretsLoaderProtocol(Protocol):
+    """数据库密钥加载协议"""
+
+    def __call__(self) -> Optional[DataSourceSecretsDTO]:
+        """从数据库加载密钥
+
+        Returns:
+            Optional[DataSourceSecretsDTO]: 如果数据库中有配置则返回，否则返回 None
+        """
         ...

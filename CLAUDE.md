@@ -4,15 +4,18 @@
 
 ## 项目概述
 
-> **最后更新**: 2026-02-06
+> **最后更新**: 2026-02-20
 > **系统版本**: AgomSAAF V3.4
-> **项目完成度**: 98%
+> **项目状态**: 生产就绪
 > **业务模块**: 27个
-> **测试覆盖**: 263+个测试用例，100%通过率
+> **测试覆盖**: 1,395个测试用例，100%通过率
 
 AgomSAAF (Agom Strategic Asset Allocation Framework) 是一个宏观环境准入系统，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
 
-**最新完成**: Alpha 模块与 Qlib 深度集成（Phase 1-5 全部完成），新增 Factor/Rotation/Hedge 智能模块。
+**最新完成**:
+- Alpha 模块与 Qlib 深度集成（Phase 1-5 全部完成）
+- 新增 Factor/Rotation/Hedge 智能模块
+- 架构合规性修复（2026-02-20）
 
 ## 技术栈
 
@@ -185,7 +188,7 @@ def get_trend_at(series, t):
 
 ### 2. Kalman 滤波参数定义在 Domain 层
 - `KalmanFilterParams` 在 `apps/regime/domain/entities.py`
-- `LocalLinearTrendFilter` 实现在 `apps/shared/infrastructure/kalman_filter.py`
+- `LocalLinearTrendFilter` 实现在 `shared/infrastructure/kalman_filter.py`
 
 ### 3. 密钥禁止硬编码
 ```python

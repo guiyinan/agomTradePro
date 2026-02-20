@@ -24,7 +24,7 @@ class OptimizedStockScreener(StockScreener):
     4. 并行计算：对独立计算使用多进程（TODO）
     """
 
-    def __init__(self, enable_cache: bool = True):
+    def __init__(self, enable_cache: bool = True) -> None:
         """
         初始化优化的筛选器
 
@@ -142,7 +142,7 @@ class IncrementalScreeningEngine:
     只处理数据更新的股票，而不是每次都全量筛选
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.last_screening_date: Optional[date] = None
         self.last_selected_stocks: Set[str] = set()
         self.stock_data_version: Dict[str, int] = {}  # {stock_code: version}
@@ -203,7 +203,7 @@ class ScreeningCacheManager:
     3. 支持主动失效
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._cache: Dict[str, Tuple[List[str], date]] = {}
 
     def get(

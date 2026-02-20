@@ -87,45 +87,24 @@ POST /api/macro/indicators/sync/
 
 ### 2.1 Regime API
 
+> **注意**: 大部分端点需要认证
+
 | 端点 | 方法 | 描述 |
 |------|------|------|
-| `/regime/snapshots/` | GET | 获取 Regime 历史记录 |
-| `/regime/current/` | GET | 获取当前 Regime 状态 |
-| `/regime/calculate/` | POST | 手动触发 Regime 计算 |
-| `/regime/health/` | GET | Regime 模块健康检查 |
+| `/api/regime/api/` | GET | 获取 Regime 历史记录 (需认证) |
+| `/api/regime/api/{id}/` | GET | 获取指定 Regime 详情 (需认证) |
+| `/api/regime/api/health/` | GET | Regime 模块健康检查 (需认证) |
+| `/regime/dashboard/` | GET | Regime 仪表盘页面 |
 
 #### 请求示例
 
 ```bash
-# 获取当前 Regime
-GET /api/regime/current/
+# 获取 Regime 列表 (需要认证)
+GET /api/regime/api/
+Authorization: Token your_api_token_here
 
-# 计算 Regime
-POST /api/regime/calculate/
-{
-  "as_of_date": "2024-12-31",
-  "use_pit": true
-}
-```
-
-#### 响应示例
-
-```json
-{
-  "as_of_date": "2024-12-31",
-  "growth_momentum": 1.2,
-  "inflation_momentum": 0.8,
-  "growth_z_score": 0.5,
-  "inflation_z_score": 0.3,
-  "distribution": {
-    "Recovery": 0.35,
-    "Overheat": 0.25,
-    "Stagflation": 0.20,
-    "Deflation": 0.20
-  },
-  "regime": "Recovery",
-  "confidence": 0.85
-}
+# 健康检查 (需要认证)
+GET /api/regime/api/health/
 ```
 
 ---
@@ -177,44 +156,57 @@ POST /api/policy/events/create/
 
 ### 4.1 投资信号 API
 
+> **注意**: 大部分端点需要认证
+
 | 端点 | 方法 | 描述 |
 |------|------|------|
-| `/signal/signals/` | GET | 获取投资信号列表 |
-| `/signal/signals/create/` | POST | 创建投资信号 |
-| `/signal/signals/{id}/validate/` | POST | 验证信号准入 |
-| `/signal/signals/{id}/approve/` | POST | 批准信号 |
-| `/signal/signals/{id}/reject/` | POST | 拒绝信号 |
-| `/signal/health/` | GET | 信号模块健康检查 |
+| `/api/signal/api/` | GET/POST | 获取/创建投资信号 (需认证) |
+| `/api/signal/api/{id}/` | GET | 获取信号详情 (需认证) |
+| `/api/signal/api/health/` | GET | 信号模块健康检查 (需认证) |
+| `/signal/manage/` | GET | 信号管理页面 |
 
 #### 请求示例
 
 ```bash
-# 创建信号
-POST /api/signal/signals/create/
-{
-  "asset_code": "000300.SH",
-  "logic_desc": "经济复苏预期强烈，买入沪深300",
-  "invalidation_logic": "PMI跌破49且连续2个月低于前值",
-  "invalidation_threshold": 49.0,
-  "target_weight": 0.3
-}
+# 获取信号列表 (需要认证)
+GET /api/signal/api/
+Authorization: Token your_api_token_here
 
-# 验证信号
-POST /api/signal/signals/1/validate/
+# 健康检查 (需要认证)
+GET /api/signal/api/health/
 ```
 
-#### 响应示例
+---
 
-```json
+## 4.1 舆情分析 (Sentiment)
+
+### 4.1.1 Sentiment API
+
+> **注意**: 所有端点需要认证
+
+| 端点 | 方法 | 描述 |
+|------|------|------|
+| `/api/sentiment/api/analyze/` | POST | 分析单条文本情感 |
+| `/api/sentiment/api/batch-analyze/` | POST | 批量分析多条文本 |
+| `/api/sentiment/api/index/` | GET | 获取情绪指数 |
+| `/api/sentiment/api/index/range/` | GET | 获取日期范围内指数 |
+| `/api/sentiment/api/index/recent/` | GET | 获取最近N天指数 |
+| `/api/sentiment/api/health/` | GET | 健康检查 |
+| `/sentiment/dashboard/` | GET | 舆情仪表盘页面 |
+
+#### 请求示例
+
+```bash
+# 分析文本情感 (需要认证)
+POST /api/sentiment/api/analyze/
+Authorization: Token your_api_token_here
 {
-  "id": 1,
-  "asset_code": "000300.SH",
-  "status": "APPROVED",
-  "eligibility": "PREFERRED",
-  "regime": "Recovery",
-  "policy_level": "P1",
-  "warnings": []
+  "text": "市场今日大涨，投资者信心恢复",
+  "source": "news"
 }
+
+# 获取情绪指数
+GET /api/sentiment/api/index/?date=2024-12-31
 ```
 
 ---

@@ -9,21 +9,10 @@
     <link rel="stylesheet" href="{% static 'css/design-tokens.css' %}">
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
 
-    <!-- Module Styles -->
-    <link rel="stylesheet" href="{% static 'css/regime.css' %}">
-    <link rel="stylesheet" href="{% static 'css/alpha-triggers.css' %}">
-    <link rel="stylesheet" href="{% static 'css/beta-gate.css' %}">
-    <link rel="stylesheet" href="{% static 'css/decision-rhythm.css' %}">
-    <link rel="stylesheet" href="{% static 'css/signal.css' %}">
-    <link rel="stylesheet" href="{% static 'css/policy.css' %}">
-    <link rel="stylesheet" href="{% static 'css/simulated-trading.css' %}">
-    <link rel="stylesheet" href="{% static 'css/equity.css' %}">
-    <link rel="stylesheet" href="{% static 'css/fund.css' %}">
-    <link rel="stylesheet" href="{% static 'css/strategy.css' %}">
-    <link rel="stylesheet" href="{% static 'css/audit.css' %}">
-    <link rel="stylesheet" href="{% static 'css/backtest.css' %}">
-    <link rel="stylesheet" href="{% static 'css/account.css' %}">
-    <link rel="stylesheet" href="{% static 'css/macro.css' %}">
+    <!-- Module Styles - 按需加载，子模板可覆盖 -->
+    {% block module_css %}
+    <!-- 默认加载常用模块样式 -->
+    {% endblock %}
 
     <!-- Legacy CSS (will be phased out) -->
     <link rel="stylesheet" href="{% static 'css/components.css' %}">

@@ -16,7 +16,7 @@ class StockScreeningRule:
     """个股筛选规则（值对象）
 
     ⚠️ 规则库从数据库加载，不在此处硬编码
-    使用 shared.infrastructure.config_loader.get_stock_screening_rule(regime) 获取规则
+    使用 apps.equity.infrastructure.config_loader.get_stock_screening_rule(regime) 获取规则
 
     Attributes:
         regime: 适用的 Regime（Recovery/Overheat/Stagflation/Deflation）

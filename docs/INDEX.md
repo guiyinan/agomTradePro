@@ -1,8 +1,8 @@
 # AgomSAAF 文档索引
 
 > **AgomSAAF V3.4** - 宏观环境准入系统
-> **最后更新**: 2026-02-18
-> **项目状态**: 持续迭代（以代码与发布说明为准）
+> **最后更新**: 2026-02-20
+> **项目状态**: 生产就绪
 
 ---
 
@@ -31,9 +31,9 @@
 | [project_structure.md](architecture/project_structure.md) | 项目结构说明 | 完整 |
 | [simulated_trading_design.md](architecture/simulated_trading_design.md) | 模拟盘交易设计 | 完整 |
 | [strategy_system_design.md](architecture/strategy_system_design.md) | 策略系统设计 | 完整 |
-| [frontend_design_guide.md](architecture/frontend_design_guide.md) | 前端设计指南 | 完整 |
-| [ui_ux_design_tokens_v1.md](architecture/ui_ux_design_tokens_v1.md) | UI/UX 设计 Token 规范 v1.0（✅ 新增） | ✅ 完成验收 |
-| [routing_naming_convention.md](architecture/routing_naming_convention.md) | 路由命名规范（✅ 新增） | ✅ 完成验收 |
+| [frontend_design_guide.md](architecture/frontend_design_guide.md) | 前端设计指南 | ✅ 2026-02-20 更新 |
+| [ui_ux_design_tokens_v1.md](architecture/ui_ux_design_tokens_v1.md) | UI/UX 设计 Token 规范 v1.0 | ✅ 完成验收 |
+| [routing_naming_convention.md](architecture/routing_naming_convention.md) | 路由命名规范 | ✅ 完成验收 |
 
 ### 2. 业务逻辑 (`business/`)
 
@@ -48,13 +48,17 @@
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [quick-reference.md](development/quick-reference.md) | 快速参考手册（329行） | 已更新 V1.1 |
+| [quick-reference.md](development/quick-reference.md) | 快速参考手册 | ✅ 2026-02-20 更新 |
 | [api_structure_guide.md](development/api_structure_guide.md) | API 结构指南 | 完整 |
 | [coding_standards.md](development/coding_standards.md) | 代码规范 | 完整 |
 | [decision-platform.md](development/decision-platform.md) | 决策平台实现 | 完整 |
-| [debug-automation-log-api.md](development/debug-automation-log-api.md) | Codex/Claude 自动化调试日志 API（Bearer 鉴权） | ✅ 新增 |
+| [debug-automation-log-api.md](development/debug-automation-log-api.md) | Codex/Claude 自动化调试日志 API | 完整 |
 | [startup-scripts.md](development/startup-scripts.md) | 启动脚本使用指南 | 完整 |
-| [module-dependency-graph.md](development/module-dependency-graph.md) | 模块依赖关系图 | 完整 |
+| [module-dependency-graph.md](development/module-dependency-graph.md) | 模块依赖关系图 | ✅ 2026-02-20 更新 |
+| [system-review-report.md](development/system-review-report.md) | 系统审视报告（✅ 新增） | ✅ 2026-02-20 |
+| [api-route-consistency.md](development/api-route-consistency.md) | API 路由一致性分析（✅ 新增） | ✅ 2026-02-20 |
+| [frontend-performance-analysis.md](development/frontend-performance-analysis.md) | 前端性能优化分析（✅ 新增） | ✅ 2026-02-20 |
+| [error-handling-guide.md](development/error-handling-guide.md) | 错误处理改进指南（✅ 新增） | ✅ 2026-02-20 |
 
 ### 4. 实施计划 (`plans/`)
 
@@ -248,5 +252,29 @@
 
 ---
 
+## 最近更新 (2026-02-20)
+
+### 架构修复
+- ✅ 删除 `apps/shared/` 目录，移动 HTMX 工具到 `shared/infrastructure/htmx/`
+- ✅ 修复 `shared/` 对 `apps/` 的违规依赖（4处）
+- ✅ 创建 `core/exceptions.py` 统一异常类
+
+### 新增功能
+- ✅ Sentiment 模块完整路由配置
+- ✅ AI Provider 模块 Application 层完善
+
+### 文档更新
+- ✅ API 路径文档同步
+- ✅ 新增系统审视报告
+- ✅ 新增 API 路由一致性分析
+- ✅ 新增前端性能优化指南
+- ✅ 新增错误处理改进指南
+
+### 测试
+- ✅ 新增 31 个单元测试
+- ✅ 全部 1,395 测试通过
+
+---
+
 **文档维护**: AgomSAAF Team
-**最后更新**: 2026-02-18
+**最后更新**: 2026-02-20

@@ -68,7 +68,7 @@ class ScreenStocksUseCase:
                 regime = latest_regime['dominant_regime']
 
             # 2. 获取筛选规则（从数据库配置加载）
-            from shared.infrastructure.config_loader import get_stock_screening_rule
+            from apps.equity.infrastructure.config_loader import get_stock_screening_rule
             rule = get_stock_screening_rule(regime)
 
             if not rule:

@@ -917,7 +917,7 @@ const throttledScroll = throttle(scrollFunc, 200)
 #### HtmxTemplateView
 
 ```python
-from apps.shared.interface.views import HtmxTemplateView
+from shared.infrastructure.htmx import HtmxTemplateView
 
 class MyView(HtmxTemplateView):
     template_name = 'my_template.html'
@@ -927,7 +927,7 @@ class MyView(HtmxTemplateView):
 #### HtmxListView
 
 ```python
-from apps.shared.interface.views import HtmxListView
+from shared.infrastructure.htmx import HtmxListView
 
 class ItemListView(HtmxListView):
     model = Item
@@ -941,7 +941,7 @@ class ItemListView(HtmxListView):
 #### HtmxFormView
 
 ```python
-from apps.shared.interface.views import HtmxFormView
+from shared.infrastructure.htmx import HtmxFormView
 
 class ItemFormView(HtmxFormView):
     template_name = 'items/form.html'
@@ -954,7 +954,7 @@ class ItemFormView(HtmxFormView):
 #### HtmxDeleteView
 
 ```python
-from apps.shared.interface.views import HtmxDeleteView
+from shared.infrastructure.htmx import HtmxDeleteView
 
 class ItemDeleteView(HtmxDeleteView):
     model = Item
@@ -965,7 +965,7 @@ class ItemDeleteView(HtmxDeleteView):
 ### 17.2 权限混合类
 
 ```python
-from apps.shared.interface.views import StaffRequiredMixin, SuperuserRequiredMixin
+from shared.infrastructure.htmx import StaffRequiredMixin, SuperuserRequiredMixin
 
 class AdminOnlyView(StaffRequiredMixin, TemplateView):
     template_name = 'admin/page.html'
@@ -981,7 +981,7 @@ class SuperuserView(SuperuserRequiredMixin, TemplateView):
 ### 18.1 权限装饰器
 
 ```python
-from apps.shared.interface.decorators import (
+from shared.infrastructure.htmx import (
     staff_required,
     superuser_required,
     login_htmx_view
@@ -1001,7 +1001,7 @@ def protected_view(request):
 ### 18.2 HTMX 装饰器
 
 ```python
-from apps.shared.interface.decorators import (
+from shared.infrastructure.htmx import (
     htmx_only,
     htmx_trigger,
     htmx_view
@@ -1021,7 +1021,7 @@ def trigger_view(request):
 ### 18.3 消息装饰器
 
 ```python
-from apps.shared.interface.decorators import (
+from shared.infrastructure.htmx import (
     success_message,
     error_message
 )
@@ -1039,7 +1039,7 @@ def my_view(request):
 ### 19.1 Python 端检测
 
 ```python
-from apps.shared.interface.decorators import is_htmx
+from shared.infrastructure.htmx import is_htmx
 
 def my_view(request):
     if is_htmx(request):

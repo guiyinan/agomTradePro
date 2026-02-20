@@ -11,3 +11,13 @@ class MacroConfig(AppConfig):
         """Import admin and tasks modules when app is ready"""
         import apps.macro.interface.admin  # noqa: F401
         import apps.macro.application.tasks  # noqa: F401 - Import Celery tasks
+
+        # Register the database secrets loader with shared.config.secrets
+        # This allows secrets.py to load from database without directly importing from apps/
+        try:
+            from shared.config.secrets import register_database_secrets_loader
+            from apps.macro.infrastructure.secrets_loader import load_secrets_from_database
+            register_database_secrets_loader(load_secrets_from_database)
+        except Exception:
+            # Ignore errors during development or if shared is not available
+            pass

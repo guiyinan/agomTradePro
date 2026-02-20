@@ -2,15 +2,21 @@
 Page Views for AI Provider Management.
 
 页面视图，用于渲染HTML页面。
+遵循项目架构约束：Interface 层调用 Application 层，不直接访问 Infrastructure 层。
 """
 
 from django.shortcuts import render, redirect, get_object_or_404
-from django.db.models import Q, Count, Sum
+from django.db.models import Count
 from django.contrib import messages
-from datetime import date
 
-from ...infrastructure.models import AIProviderConfig, AIUsageLog
-from ...infrastructure.repositories import AIProviderRepository, AIUsageRepository
+from ...application.use_cases import (
+    ListProvidersUseCase,
+    GetProviderStatsUseCase,
+    GetOverallStatsUseCase,
+    ListUsageLogsUseCase,
+    UpdateProviderUseCase,
+)
+from ...infrastructure.models import AIProviderConfig
 from ..forms import AIProviderConfigForm
 
 
@@ -19,51 +25,37 @@ def ai_manage_view(request):
     AI接口管理页面
 
     显示所有AI提供商配置及其使用统计。
+    通过 Application 层获取数据。
     """
-    provider_repo = AIProviderRepository()
-    usage_repo = AIUsageRepository()
+    # 使用 Application 层获取提供商列表（含统计数据）
+    list_use_case = ListProvidersUseCase()
+    providers_dto = list_use_case.execute(include_inactive=False)
 
-    # 获取所有启用的提供商
-    providers = provider_repo.get_active_providers()
-
-    # 为每个提供商获取今日统计
+    # 转换为模板所需格式
     providers_with_stats = []
-    for p in providers:
-        today_usage = usage_repo.get_daily_usage(p.id, date.today())
-
-        # 获取本月统计
-        month_usage = usage_repo.get_monthly_usage(
-            p.id,
-            date.today().year,
-            date.today().month
-        )
-
+    for dto in providers_dto:
+        # 获取原始 ORM 对象（用于模板中访问所有字段）
+        provider = AIProviderConfig._default_manager.get(id=dto.id)
         providers_with_stats.append({
-            'provider': p,
-            'today_requests': today_usage['total_requests'],
-            'today_cost': today_usage['total_cost'],
-            'month_requests': month_usage['total_requests'],
-            'month_cost': month_usage['total_cost'],
+            'provider': provider,
+            'today_requests': dto.today_requests,
+            'today_cost': dto.today_cost,
+            'month_requests': dto.month_requests,
+            'month_cost': dto.month_cost,
         })
 
-    # 获取总体统计
+    # 使用 Application 层获取总体统计
+    stats_use_case = GetOverallStatsUseCase()
+    overall_dto = stats_use_case.execute()
+
     overall_stats = {
-        'total_providers': AIProviderConfig._default_manager.count(),
-        'active_providers': AIProviderConfig._default_manager.filter(is_active=True).count(),
-        'total_requests_today': AIUsageLog._default_manager.filter(
-            created_at__date=date.today()
-        ).count(),
-        'total_cost_today': float(
-            AIUsageLog._default_manager.filter(
-                created_at__date=date.today(),
-                status='success'
-            ).aggregate(
-                total=Sum('estimated_cost')
-            )['total'] or 0
-        ),
+        'total_providers': overall_dto.total_providers,
+        'active_providers': overall_dto.active_providers,
+        'total_requests_today': overall_dto.total_requests_today,
+        'total_cost_today': overall_dto.total_cost_today,
     }
 
-    # 获取提供商类型统计
+    # 提供商类型统计（仅用于展示，保留 ORM 查询）
     provider_types = AIProviderConfig._default_manager.values('provider_type').annotate(
         count=Count('id')
     ).order_by('provider_type')
@@ -82,32 +74,33 @@ def ai_usage_logs_view(request):
     AI调用日志页面
 
     显示API调用日志记录。
+    通过 Application 层获取数据。
     """
     # 获取过滤参数
     provider_id = request.GET.get('provider')
-    status = request.GET.get('status')
+    status_filter = request.GET.get('status')
     limit = int(request.GET.get('limit', 100))
 
-    usage_repo = AIUsageRepository()
-
-    # 获取日志
-    logs = usage_repo.get_recent_logs(
+    # 使用 Application 层获取日志
+    list_logs_use_case = ListUsageLogsUseCase()
+    logs_dto = list_logs_use_case.execute(
         provider_id=int(provider_id) if provider_id else None,
+        status=status_filter if status_filter else None,
         limit=limit,
-        status=status if status else None
     )
 
-    # 获取所有提供商用于过滤
+    # 获取所有提供商用于过滤下拉框
     providers = AIProviderConfig._default_manager.all().order_by('priority', 'name')
 
-    # 状态选择
+    # 状态选择（保留从模型获取）
+    from ...infrastructure.models import AIUsageLog
     status_choices = AIUsageLog.STATUS_CHOICES
 
     context = {
-        'logs': logs,
+        'logs': logs_dto,
         'providers': providers,
         'filter_provider': provider_id,
-        'filter_status': status,
+        'filter_status': status_filter,
         'filter_limit': limit,
         'status_choices': status_choices,
     }
@@ -120,57 +113,81 @@ def ai_provider_detail_view(request, provider_id):
     AI提供商详情页面
 
     显示单个提供商的详细统计信息。
+    通过 Application 层获取数据。
     """
-    provider_repo = AIProviderRepository()
-    usage_repo = AIUsageRepository()
+    # 使用 Application 层获取提供商统计
+    stats_use_case = GetProviderStatsUseCase()
 
-    provider = provider_repo.get_by_id(provider_id)
-    if not provider:
-        # 返回404或重定向
+    try:
+        stats_dto = stats_use_case.execute(pk=provider_id, days=30)
+    except ValueError:
         from django.http import Http404
         raise Http404(f"Provider {provider_id} not found")
 
-    # 今日统计
-    today_usage = usage_repo.get_daily_usage(provider.id, date.today())
+    # 获取原始提供商对象（用于模板访问所有字段）
+    provider = get_object_or_404(AIProviderConfig, id=provider_id)
 
-    # 本月统计
-    month_usage = usage_repo.get_monthly_usage(
-        provider.id,
-        date.today().year,
-        date.today().month
+    # 使用 Application 层获取最近日志
+    list_logs_use_case = ListUsageLogsUseCase()
+    recent_logs_dto = list_logs_use_case.execute(
+        provider_id=provider_id,
+        limit=50,
     )
-
-    # 最近日志
-    recent_logs = usage_repo.get_recent_logs(provider_id=provider.id, limit=50)
-
-    # 按日期的统计（最近30天）
-    usage_by_date = usage_repo.get_usage_by_date(provider.id, days=30)
-
-    # 按模型的统计
-    model_stats = usage_repo.get_model_stats(provider.id, days=30)
 
     context = {
         'provider': provider,
-        'today_usage': today_usage,
-        'month_usage': month_usage,
-        'recent_logs': recent_logs[:20],  # 只显示最近20条
-        'usage_by_date': usage_by_date,
-        'model_stats': model_stats,
+        'today_usage': {
+            'total_requests': stats_dto.today_requests,
+            'total_cost': stats_dto.today_cost,
+        },
+        'month_usage': {
+            'total_requests': stats_dto.month_requests,
+            'total_cost': stats_dto.month_cost,
+        },
+        'recent_logs': recent_logs_dto[:20],  # 只显示最近20条
+        'usage_by_date': stats_dto.usage_by_date,
+        'model_stats': stats_dto.model_stats,
     }
 
     return render(request, 'ai_provider/detail.html', context)
 
 
 def ai_provider_edit_view(request, provider_id):
-    """AI 提供商编辑页面（非 Admin）。"""
+    """
+    AI 提供商编辑页面（非 Admin）。
+
+    通过 Application 层更新数据。
+    """
     provider = get_object_or_404(AIProviderConfig, id=provider_id)
 
     if request.method == "POST":
         form = AIProviderConfigForm(request.POST, instance=provider)
         if form.is_valid():
-            form.save()
-            messages.success(request, "AI 提供商配置已更新")
-            return redirect("ai_provider:detail", provider_id=provider.id)
+            # 使用 Application 层更新提供商
+            # 注意：form.cleaned_data 中有 extra_config_text，需要转换为 extra_config
+            update_data = {
+                "name": form.cleaned_data.get("name"),
+                "provider_type": form.cleaned_data.get("provider_type"),
+                "is_active": form.cleaned_data.get("is_active", False),
+                "priority": form.cleaned_data.get("priority"),
+                "base_url": form.cleaned_data.get("base_url"),
+                "default_model": form.cleaned_data.get("default_model"),
+                "daily_budget_limit": form.cleaned_data.get("daily_budget_limit"),
+                "monthly_budget_limit": form.cleaned_data.get("monthly_budget_limit"),
+                "description": form.cleaned_data.get("description", ""),
+                "extra_config": form.cleaned_data.get("extra_config_text", {}),
+            }
+            # 只有当 api_key 有值时才更新（留空表示不修改）
+            if form.cleaned_data.get("api_key"):
+                update_data["api_key"] = form.cleaned_data["api_key"]
+
+            update_use_case = UpdateProviderUseCase()
+            try:
+                update_use_case.execute(pk=provider_id, **update_data)
+                messages.success(request, "AI 提供商配置已更新")
+                return redirect("ai_provider:detail", provider_id=provider_id)
+            except ValueError as e:
+                messages.error(request, str(e))
     else:
         form = AIProviderConfigForm(instance=provider)
 

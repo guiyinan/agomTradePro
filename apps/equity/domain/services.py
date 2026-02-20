@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class StockScreener:
     """个股筛选服务（纯 Domain 层逻辑）"""
 
-    def __init__(self, scoring_config: Optional[ScoringWeightConfig] = None):
+    def __init__(self, scoring_config: Optional[ScoringWeightConfig] = None) -> None:
         """
         初始化筛选器
 

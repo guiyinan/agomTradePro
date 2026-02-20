@@ -125,26 +125,40 @@ mypy apps/ --strict
 
 ## 核心 API 端点
 
-> 说明：接口以运行时 OpenAPI 文档为准（`/api/schema/`、`/api/docs/`）。
+> **注意**: 接口以运行时 OpenAPI 文档为准（`/api/schema/`、`/api/docs/`）。
+>
+> **路由格式说明**:
+> - 新格式: `/api/{module}/api/{endpoint}/` (如 regime, signal)
+> - 统一格式: `/api/{module}/{endpoint}/` (如 alpha, rotation)
+> - 页面路由: `/{module}/dashboard/` 等需要登录
 
 ### Regime API
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/regime/current/` | GET | 获取当前 Regime |
-| `/api/regime/history/` | GET | 获取 Regime 历史 |
-| `/api/regime/chart-data/` | GET | 获取图表数据 |
-| `/api/regime/calculate/` | POST | 触发 Regime 计算 |
+| `/api/regime/api/` | GET | 获取 Regime 列表 (需认证) |
+| `/api/regime/api/{id}/` | GET | 获取指定 Regime 详情 (需认证) |
+| `/api/regime/api/health/` | GET | 健康检查 (需认证) |
+| `/regime/dashboard/` | GET | Regime 仪表盘页面 |
 
 ### Signal API
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/signals/` | GET | 列出所有信号 |
-| `/api/signals/` | POST | 创建新信号 |
-| `/api/signals/{id}/` | GET | 获取信号详情 |
-| `/api/signals/{id}/validate/` | POST | 验证信号 |
-| `/api/signals/{id}/invalidate/` | POST | 证伪信号 |
+| `/api/signal/api/` | GET/POST | 列出/创建信号 (需认证) |
+| `/api/signal/api/{id}/` | GET | 获取信号详情 (需认证) |
+| `/api/signal/api/health/` | GET | 健康检查 (需认证) |
+| `/signal/manage/` | GET | 信号管理页面 |
+
+### Sentiment API (舆情分析)
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/sentiment/api/analyze/` | POST | 分析文本情感 (需认证) |
+| `/api/sentiment/api/batch-analyze/` | POST | 批量分析 (需认证) |
+| `/api/sentiment/api/index/` | GET | 获取情绪指数 (需认证) |
+| `/api/sentiment/api/health/` | GET | 健康检查 (需认证) |
+| `/sentiment/dashboard/` | GET | 舆情仪表盘页面 |
 
 ### Asset Analysis API
 
@@ -169,10 +183,10 @@ mypy apps/ --strict
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/realtime/prices/` | GET | 查询价格 |
-| `/api/realtime/prices/` | POST | 手动触发轮询 |
-| `/api/realtime/prices/{code}/` | GET | 查询单个资产价格 |
-| `/api/realtime/health/` | GET | 健康检查 |
+| `/api/realtime/api/prices/` | GET | 查询价格 |
+| `/api/realtime/api/poll/` | POST | 手动触发轮询 |
+| `/api/realtime/api/prices/{code}/` | GET | 查询单个资产价格 |
+| `/api/realtime/api/health/` | GET | 健康检查 |
 
 ### Alpha API (AI 选股)
 
@@ -180,36 +194,29 @@ mypy apps/ --strict
 |------|------|------|
 | `/api/alpha/scores/` | GET | 获取股票评分 |
 | `/api/alpha/providers/status/` | GET | Provider 状态 |
-| `/api/alpha/models/` | GET | 模型列表 |
-| `/api/alpha/models/activate/` | POST | 激活模型 |
-| `/api/alpha/models/rollback/` | POST | 回滚模型 |
-| `/api/alpha/metrics/` | GET | 监控指标 |
-| `/api/alpha/alerts/` | GET | 告警列表 |
 
 ### Factor API (因子管理)
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/factors/` | GET | 因子列表 |
-| `/api/factors/{id}/` | GET | 因子详情 |
-| `/api/factors/calculate/` | POST | 计算因子 |
-| `/api/factors/analysis/` | GET | 因子分析 |
+| `/factor/api/definitions/` | GET | 因子定义列表 (需认证) |
+| `/factor/api/configs/` | GET | 因子配置列表 (需认证) |
 
 ### Rotation API (板块轮动)
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/rotation/signals/` | GET | 轮动信号 |
-| `/api/rotation/sectors/` | GET | 板块排名 |
-| `/api/rotation/matrix/` | GET | Regime-板块映射 |
+| `/rotation/api/` | GET | API 操作列表 |
+| `/rotation/api/recommendation/` | GET | 轮动建议 |
+| `/rotation/api/signals/` | GET | 轮动信号 |
+| `/rotation/api/compare/` | POST | 资产比较 |
 
 ### Hedge API (对冲策略)
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/hedge/positions/` | GET | 对冲持仓 |
-| `/api/hedge/calculate/` | POST | 计算对冲 |
-| `/api/hedge/instruments/` | GET | 对冲工具 |
+| `/hedge/api/pairs/` | GET | 对冲配对列表 (需认证) |
+| `/hedge/api/alerts/` | GET | 对冲告警 (需认证) |
 
 ### Dashboard v1 API (Streamlit)
 

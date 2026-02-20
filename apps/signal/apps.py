@@ -11,3 +11,11 @@ class SignalConfig(AppConfig):
         """Import admin and tasks modules when app is ready"""
         import apps.signal.interface.admin  # noqa: F401
         import apps.signal.application.tasks  # noqa: F401 - Import Celery tasks
+
+        # Initialize domain config from database
+        try:
+            from apps.signal.infrastructure.config_init import initialize_domain_config
+            initialize_domain_config()
+        except Exception:
+            # Development or database not migrated, ignore
+            pass

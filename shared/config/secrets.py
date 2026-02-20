@@ -3,12 +3,19 @@ Unified Secrets Management.
 
 支持从环境变量和数据库加载敏感配置。
 优先级: 数据库 > 环境变量
+
+架构说明：
+- 本模块使用注册表模式，避免直接依赖 apps/ 模块
+- 数据库加载器由 apps.macro 在启动时注册
+- 这确保了 shared/ 不依赖 apps/，符合四层架构规范
 """
 
 import os
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Optional
+from typing import Optional, Callable
+
+from shared.domain.interfaces import DataSourceSecretsDTO
 
 
 @dataclass(frozen=True)
@@ -25,6 +32,27 @@ class AppSecrets:
     data_sources: DataSourceSecrets
     slack_webhook: Optional[str] = None
     alert_email: Optional[str] = None
+
+
+# ========== 注册表模式 ==========
+
+# 数据库密钥加载器注册表
+# 由 apps.macro.apps.MacroConfig.ready() 注册
+_database_secrets_loader: Optional[Callable[[], Optional[DataSourceSecretsDTO]]] = None
+
+
+def register_database_secrets_loader(loader: Callable[[], Optional[DataSourceSecretsDTO]]) -> None:
+    """
+    注册数据库密钥加载器
+
+    由 apps.macro.apps.MacroConfig.ready() 调用，
+    将数据库加载逻辑注册到本模块。
+
+    Args:
+        loader: 返回 DataSourceSecretsDTO 的可调用对象
+    """
+    global _database_secrets_loader
+    _database_secrets_loader = loader
 
 
 def _load_from_env() -> AppSecrets:
@@ -47,51 +75,31 @@ def _load_from_database() -> Optional[AppSecrets]:
     """
     从数据库加载数据源配置
 
+    使用注册的加载器，避免直接依赖 apps/ 模块。
+
     Returns:
         Optional[AppSecrets]: 如果数据库中有配置则返回，否则返回 None
     """
+    global _database_secrets_loader
+
+    if _database_secrets_loader is None:
+        return None
+
     try:
-        # 延迟导入 Django（避免启动循环）
-        import django
-        from django.conf import settings
-
-        # 如果 Django 未配置，跳过数据库读取
-        if not settings.configured:
-            return None
-
-        django.setup()
-
-        from apps.macro.infrastructure.models import DataSourceConfig
-
-        # 只获取启用的配置
-        configs = DataSourceConfig.objects.filter(is_active=True).order_by('priority')
-
-        tushare_token = None
-        fred_api_key = ""
-        juhe_api_key = None
-
-        for config in configs:
-            if config.source_type == 'tushare' and config.api_key:
-                tushare_token = config.api_key
-            elif config.source_type == 'fred' and config.api_key:
-                fred_api_key = config.api_key
-            elif config.source_type == 'juhe' and config.api_key:
-                juhe_api_key = config.api_key
-
-        if tushare_token:
+        db_secrets = _database_secrets_loader()
+        if db_secrets and db_secrets.tushare_token:
             return AppSecrets(
                 data_sources=DataSourceSecrets(
-                    tushare_token=tushare_token,
-                    fred_api_key=fred_api_key,
-                    juhe_api_key=juhe_api_key,
+                    tushare_token=db_secrets.tushare_token,
+                    fred_api_key=db_secrets.fred_api_key,
+                    juhe_api_key=db_secrets.juhe_api_key,
                 ),
                 slack_webhook=os.environ.get("SLACK_WEBHOOK_URL"),
                 alert_email=os.environ.get("ALERT_EMAIL"),
             )
-
         return None
 
-    except Exception as e:
+    except Exception:
         # 数据库未初始化或其他错误，静默失败
         # 开发环境下这很正常
         return None

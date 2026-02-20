@@ -200,7 +200,7 @@ class MarketDataProvider:
         """
         return self.get_price(asset_code, trade_date=None)
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """清空价格缓存"""
         self._price_cache.clear()
         logger.info("价格缓存已清空")
