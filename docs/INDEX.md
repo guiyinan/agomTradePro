@@ -1,7 +1,7 @@
 # AgomSAAF 文档索引
 
 > **AgomSAAF V3.4** - 宏观环境准入系统
-> **最后更新**: 2026-02-20
+> **最后更新**: 2026-02-21
 > **项目状态**: 生产就绪
 
 ---
@@ -12,6 +12,7 @@
 |------|----------|------|
 | 开发人员 | [development/quick-reference.md](development/quick-reference.md) | 命令速查、API端点、模块速查 |
 | 新加入者 | [architecture/SYSTEM_OVERVIEW.md](architecture/SYSTEM_OVERVIEW.md) | 系统全景、模块说明、数据流 |
+| 外包团队 | [development/outsourcing-work-guidelines.md](development/outsourcing-work-guidelines.md) | **外包工作指南、代码规范、自查清单** |
 | 产品/业务 | [business/AgomSAAF_V3.4.md](business/AgomSAAF_V3.4.md) | 业务逻辑、金融规则、数据源 |
 | 最终用户 | [user/decision-platform-guide.md](user/decision-platform-guide.md) | 决策平台使用指南 |
 | 产品/设计 | [frontend/ui-ux-full-page-audit-2026-02-18.md](frontend/ui-ux-full-page-audit-2026-02-18.md) | 全站页面 UI/UX 与功能清单 |
@@ -49,6 +50,7 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [quick-reference.md](development/quick-reference.md) | 快速参考手册 | ✅ 2026-02-20 更新 |
+| [outsourcing-work-guidelines.md](development/outsourcing-work-guidelines.md) | **外包团队工作指南（✅ 2026-02-21 新增）** | ✅ 必读 |
 | [api_structure_guide.md](development/api_structure_guide.md) | API 结构指南 | 完整 |
 | [coding_standards.md](development/coding_standards.md) | 代码规范 | 完整 |
 | [decision-platform.md](development/decision-platform.md) | 决策平台实现 | 完整 |
@@ -253,7 +255,12 @@
 
 ---
 
-## 最近更新 (2026-02-20)
+## 最近更新 (2026-02-20 ~ 2026-02-21)
+
+### 2026-02-21
+- ✅ 新增 [外包团队工作指南](development/outsourcing-work-guidelines.md)
+
+### 2026-02-20
 
 ### 架构修复
 - ✅ 删除 `apps/shared/` 目录，移动 HTMX 工具到 `shared/infrastructure/htmx/`
@@ -278,4 +285,4 @@
 ---
 
 **文档维护**: AgomSAAF Team
-**最后更新**: 2026-02-20
+**最后更新**: 2026-02-21

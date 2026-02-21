@@ -43,7 +43,11 @@ urlpatterns = [
     path('ai/parse-logic/', views.ai_parse_logic_view, name='ai_parse_logic'),
     path('ai/indicators/', views.get_indicators_view, name='ai_indicators'),
 
-    # API routes
+    # API routes - new standard format (when mounted under /api/signal/)
+    path('', include(router.urls)),
+    path('health/', SignalHealthView.as_view(), name='api_health'),
+
+    # API routes - legacy format (backward compatibility when mounted under /signal/)
     path('api/', include(router.urls)),
-    path('api/health/', SignalHealthView.as_view(), name='api_health'),
+    path('api/health/', SignalHealthView.as_view(), name='api_health_legacy'),
 ]

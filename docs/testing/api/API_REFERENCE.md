@@ -88,23 +88,33 @@ POST /api/macro/indicators/sync/
 ### 2.1 Regime API
 
 > **注意**: 大部分端点需要认证
+> **路由格式**: 统一使用 `/api/{module}/{endpoint}/` 格式
+> **向后兼容**: 旧格式 `/api/{module}/api/{endpoint}/` 仍可用
 
 | 端点 | 方法 | 描述 |
 |------|------|------|
-| `/api/regime/api/` | GET | 获取 Regime 历史记录 (需认证) |
-| `/api/regime/api/{id}/` | GET | 获取指定 Regime 详情 (需认证) |
-| `/api/regime/api/health/` | GET | Regime 模块健康检查 (需认证) |
+| `/api/regime/` | GET | 获取 Regime 历史记录 (需认证) |
+| `/api/regime/{id}/` | GET | 获取指定 Regime 详情 (需认证) |
+| `/api/regime/health/` | GET | Regime 模块健康检查 (需认证) |
+| `/api/regime/current/` | GET | 获取当前 Regime 状态 (需认证) |
+| `/api/regime/calculate/` | POST | 计算 Regime 判定 (需认证) |
+| `/api/regime/history/` | GET | 获取 Regime 历史趋势 (需认证) |
+| `/api/regime/distribution/` | GET | 获取 Regime 分布统计 (需认证) |
 | `/regime/dashboard/` | GET | Regime 仪表盘页面 |
 
 #### 请求示例
 
 ```bash
 # 获取 Regime 列表 (需要认证)
-GET /api/regime/api/
+GET /api/regime/
+Authorization: Token your_api_token_here
+
+# 获取当前 Regime (需要认证)
+GET /api/regime/current/
 Authorization: Token your_api_token_here
 
 # 健康检查 (需要认证)
-GET /api/regime/api/health/
+GET /api/regime/health/
 ```
 
 ---
@@ -113,10 +123,15 @@ GET /api/regime/api/health/
 
 ### 3.1 政策事件 API
 
+> **路由格式**: 统一使用 `/api/{module}/{endpoint}/` 格式
+> **向后兼容**: 旧格式 `/policy/api/{endpoint}/` 仍可用
+
 | 端点 | 方法 | 描述 |
 |------|------|------|
-| `/policy/events/` | GET | 获取政策事件列表 |
-| `/policy/events/{event_date}/` | GET | 获取指定日期政策事件 |
+| `/api/policy/events/` | GET | 获取政策事件列表 (需认证) |
+| `/api/policy/events/{event_date}/` | GET | 获取指定日期政策事件 (需认证) |
+| `/policy/events/` | GET | 获取政策事件列表 (页面路由) |
+| `/policy/events/{event_date}/` | GET | 获取指定日期政策事件 (页面路由) |
 | `/policy/events/create/` | POST | 创建政策事件 |
 | `/policy/status/` | GET | 获取当前政策档位 |
 | `/policy/hedges/` | GET | 获取对冲头寸 |
@@ -126,7 +141,7 @@ GET /api/regime/api/health/
 
 ```bash
 # 创建政策事件
-POST /api/policy/events/create/
+POST /policy/events/new/
 {
   "event_date": "2024-12-31",
   "level": "P1",

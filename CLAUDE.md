@@ -367,6 +367,19 @@ ak.macro_china_money_supply()
 6. 每步工作后，更新 docs 下的对应文档
 7. **文档索引**: 查看 `docs/INDEX.md` 获取完整文档导航
 8. **快速参考**: 查看 `docs/development/quick-reference.md` 获取常用命令和 API 端点
+9. **外包工作指南**: 查看 `docs/development/outsourcing-work-guidelines.md` 了解代码规范和质量要求
+
+## 外包团队必读规则
+
+> 技术团队审核发现的问题及改进要求，详见 `docs/development/outsourcing-work-guidelines.md`
+
+### 关键改进点
+
+1. **数据解析健壮性**: 所有从外部获取的数值必须使用 `_safe_float()` 等安全解析函数
+2. **错误处理规范**: 使用 `core/exceptions.py` 中的异常类，禁止裸 `Exception`
+3. **测试驱动**: 任何修复必须配合测试用例，测试覆盖率要求 Domain ≥ 90%
+4. **文档同步**: 代码修改后必须更新相关文档
+5. **提交规范**: 单一职责提交，清晰的提交消息
 
 **环境配置**:
 - python 虚拟环境为 `agomsaaf`

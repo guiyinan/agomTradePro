@@ -24,16 +24,25 @@ urlpatterns = [
     path('dashboard/', views.SentimentDashboardView.as_view(), name='dashboard'),
     path('analyze/', views.SentimentAnalyzePageView.as_view(), name='analyze'),
 
-    # API routes - Analysis
-    path('api/analyze/', views.SentimentAnalyzeView.as_view(), name='api_analyze'),
-    path('api/batch-analyze/', views.SentimentBatchAnalyzeView.as_view(), name='api_batch_analyze'),
+    # API routes - Analysis (new standard format - when mounted under /api/sentiment/)
+    path('analyze/', views.SentimentAnalyzeView.as_view(), name='api_analyze'),
+    path('batch-analyze/', views.SentimentBatchAnalyzeView.as_view(), name='api_batch_analyze'),
 
-    # API routes - Index
-    path('api/index/', views.SentimentIndexView.as_view(), name='api_index'),
-    path('api/index/range/', views.SentimentIndexRangeView.as_view(), name='api_index_range'),
-    path('api/index/recent/', views.SentimentIndexRecentView.as_view(), name='api_index_recent'),
+    # API routes - Index (new standard format)
+    path('index/', views.SentimentIndexView.as_view(), name='api_index'),
+    path('index/range/', views.SentimentIndexRangeView.as_view(), name='api_index_range'),
+    path('index/recent/', views.SentimentIndexRecentView.as_view(), name='api_index_recent'),
 
-    # API routes - System
-    path('api/health/', views.SentimentHealthView.as_view(), name='api_health'),
-    path('api/cache/clear/', views.SentimentCacheClearView.as_view(), name='api_cache_clear'),
+    # API routes - System (new standard format)
+    path('health/', views.SentimentHealthView.as_view(), name='api_health'),
+    path('cache/clear/', views.SentimentCacheClearView.as_view(), name='api_cache_clear'),
+
+    # API routes - legacy format (backward compatibility when mounted under /sentiment/)
+    path('api/analyze/', views.SentimentAnalyzeView.as_view(), name='api_analyze_legacy'),
+    path('api/batch-analyze/', views.SentimentBatchAnalyzeView.as_view(), name='api_batch_analyze_legacy'),
+    path('api/index/', views.SentimentIndexView.as_view(), name='api_index_legacy'),
+    path('api/index/range/', views.SentimentIndexRangeView.as_view(), name='api_index_range_legacy'),
+    path('api/index/recent/', views.SentimentIndexRecentView.as_view(), name='api_index_recent_legacy'),
+    path('api/health/', views.SentimentHealthView.as_view(), name='api_health_legacy'),
+    path('api/cache/clear/', views.SentimentCacheClearView.as_view(), name='api_cache_clear_legacy'),
 ]

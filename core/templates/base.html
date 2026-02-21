@@ -9,11 +9,6 @@
     <link rel="stylesheet" href="{% static 'css/design-tokens.css' %}">
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
 
-    <!-- Module Styles - 按需加载，子模板可覆盖 -->
-    {% block module_css %}
-    <!-- 默认加载常用模块样式 -->
-    {% endblock %}
-
     <!-- Legacy CSS (will be phased out) -->
     <link rel="stylesheet" href="{% static 'css/components.css' %}">
 

@@ -161,6 +161,8 @@ module_patterns = [
     path('api/rotation/', include(('apps.rotation.interface.urls', 'api_rotation'), namespace='api_rotation')),
     path('api/hedge/', include(('apps.hedge.interface.urls', 'api_hedge'), namespace='api_hedge')),
     path('api/sentiment/', include(('apps.sentiment.interface.urls', 'api_sentiment'), namespace='api_sentiment')),
+    # Task Monitor
+    path('api/system/', include(('apps.task_monitor.interface.urls', 'task_monitor'), namespace='task_monitor')),
 ]
 
 

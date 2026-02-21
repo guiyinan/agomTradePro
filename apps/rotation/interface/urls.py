@@ -23,5 +23,9 @@ router.register(r'signals', RotationSignalViewSet, basename='rotation-signal')
 router.register(r'', RotationActionViewSet, basename='rotation-action')
 
 urlpatterns = [
+    # API routes - new standard format (when mounted under /api/rotation/)
+    path('', include(router.urls)),
+
+    # API routes - legacy format (backward compatibility when mounted under /rotation/)
     path('api/', include(router.urls)),
 ]

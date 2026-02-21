@@ -88,6 +88,9 @@ INSTALLED_APPS = [
     'apps.factor',         # 因子选股模块（新增）
     'apps.rotation',       # 资产轮动模块（新增）
     'apps.hedge',          # 对冲组合模块（新增）
+
+    # ========== 新模块：任务监控 ==========
+    'apps.task_monitor',   # 任务监控模块（新增）
 ]
 
 MIDDLEWARE = [
@@ -500,6 +503,17 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(hour=3, minute=0, day_of_week="sun"),  # 每周日凌晨 3:00
         "options": {
             "days": 30,  # 保留 30 天
+            "expires": 3600,  # 1 小时超时
+        }
+    },
+    # ============================================
+
+    # ========== 任务监控清理 ==========
+    "task-monitor-cleanup": {
+        "task": "apps.task_monitor.application.tasks.cleanup_old_task_records",
+        "schedule": crontab(hour=4, minute=0, day_of_week="sun"),  # 每周日凌晨 4:00
+        "options": {
+            "days_to_keep": 30,  # 保留 30 天
             "expires": 3600,  # 1 小时超时
         }
     },

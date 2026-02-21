@@ -29,7 +29,11 @@ urlpatterns = [
     path('dashboard/', views.regime_dashboard_view, name='dashboard'),
     path('clear-cache/', views.clear_regime_cache, name='clear_cache'),
 
-    # API routes
+    # API routes - new standard format (when mounted under /api/regime/)
+    path('', include(router.urls)),
+    path('health/', RegimeHealthView.as_view(), name='api_health'),
+
+    # API routes - legacy format (backward compatibility when mounted under /regime/)
     path('api/', include(router.urls)),
-    path('api/health/', RegimeHealthView.as_view(), name='api_health'),
+    path('api/health/', RegimeHealthView.as_view(), name='api_health_legacy'),
 ]

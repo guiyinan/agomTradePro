@@ -22,5 +22,9 @@ router.register(r'configs', FactorPortfolioConfigViewSet, basename='factor-confi
 router.register(r'', FactorActionViewSet, basename='factor-action')
 
 urlpatterns = [
+    # API routes - new standard format (when mounted under /api/factor/)
+    path('', include(router.urls)),
+
+    # API routes - legacy format (backward compatibility when mounted under /factor/)
     path('api/', include(router.urls)),
 ]

@@ -860,7 +860,7 @@ document.querySelectorAll('.suggestion-btn').forEach(btn => {
 
 // 定期刷新数据
 setInterval(() => {
-    fetch('/regime/api/current/')
+    fetch('/api/regime/current/')
         .then(r => r.json())
         .then(data => {
             // 只刷新关键指标，不刷新整个页面

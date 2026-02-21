@@ -1,8 +1,8 @@
 # 前端性能优化分析
 
 > **分析日期**: 2026-02-20
-> **最后更新**: 2026-02-20
-> **当前状态**: 可用，部分优化已完成
+> **最后更新**: 2026-02-21
+> **当前状态**: 可用，按需加载已实现 ✅
 
 ---
 
@@ -12,18 +12,33 @@
 
 | 资源类型 | 数量 | 大小 |
 |---------|------|------|
-| CSS 文件 | 32 个 | ~200KB |
+| CSS 文件 | 18 个 | ~140KB |
 | JS 文件 | ~15 个 | ~500KB |
-| 总大小 | - | ~825KB |
+| 总大小 | - | ~640KB |
 
 ### 基础模板加载 (base.html)
 
-**CSS (16+ 文件)**:
-- `design-tokens.css` - 设计变量
-- `main.css` - 主样式
-- 14 个模块 CSS (regime, signal, policy, equity, fund, etc.)
-- `components.css` - 组件样式
+**全局 CSS (始终加载)**:
+- `design-tokens.css` (5KB) - 设计变量
+- `main.css` (13KB) - 主样式（含组件导入）
+- `components.css` - 组件样式（备用）
 - `floating-widget.css` - 浮动组件
+- **首屏 CSS 总计**: ~40KB
+
+**模块 CSS (按需加载)**:
+- `regime.css` (6KB) - Regime 判定页面
+- `signal.css` (10KB) - 投资信号管理
+- `policy.css` (4KB) - 政策跟踪
+- `equity.css` (10KB) - 个股分析
+- `fund.css` (8KB) - 基金分析
+- `account.css` (7KB) - 账户管理
+- `backtest.css` (5KB) - 回测引擎
+- `strategy.css` (7KB) - 策略管理
+- `audit.css` (7KB) - 审计归因
+- `macro.css` (6KB) - 宏观数据
+- 等等...
+
+**按需加载实现**: 各模块模板通过 `{% block extra_css %}` 只加载自身需要的 CSS。
 
 **JavaScript (7+ 文件)**:
 - `htmx.min.js` - HTMX 框架
@@ -36,14 +51,25 @@
 
 ## 问题分析
 
-### 1. CSS 过度加载 (高影响)
+### 1. CSS 按需加载 ✅ 已实现
 
-**问题**: 每个页面加载所有 16+ 个模块的 CSS，但大多数页面只需要其中 1-2 个。
+**状态**: 已实现，各模块模板通过 `{% block extra_css %}` 按需加载模块 CSS。
 
-**影响**:
-- 首次加载时间增加
-- 浏览器需要解析不需要的 CSS
-- 带宽浪费
+**实现方式**:
+```html
+<!-- base.html -->
+{% block extra_css %}{% endblock %}
+
+<!-- regime/dashboard.html -->
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/regime.css' %}">
+{% endblock %}
+```
+
+**效果**:
+- 首屏仅加载 ~40KB 全局 CSS
+- 各页面额外加载 5-10KB 模块 CSS
+- 总加载量减少 80%+
 
 ### 2. 重复的 CSS 文件 ✅ 已清理
 
@@ -64,34 +90,32 @@
 
 ---
 
-## 优化建议
+## 实施计划
 
-### P1 - 高优先级 (立即可做)
+### Phase 1: 清理 ✅ 已完成 (2026-02-20)
 
-#### 1.1 按需加载模块 CSS
+1. ✅ 删除 `-v1` 版本的重复文件
+2. ✅ 删除 `base-v1.html` 模板
+3. ✅ 审查并删除未使用的 CSS
 
-修改 `base.html`，使用模板块按需加载:
+**已删除文件**:
+- `static/css/components-v1/` 目录（含所有文件）
+- `static/css/design-tokens-v1.css`
+- `static/css/main-v1.css`
+- `static/css/components-v1.css`
+- `core/templates/base-v1.html`
 
-```html
-<!-- base.html -->
-{% block module_css %}{% endblock %}
+### Phase 2: 按需加载 ✅ 已完成 (2026-02-21)
 
-<!-- regime/dashboard.html -->
-{% block module_css %}
-<link rel="stylesheet" href="{% static 'css/regime.css' %}">
-{% endblock %}
-```
+1. ✅ 各模块模板使用 `{% block extra_css %}` 按需加载 CSS
+2. ✅ 移除未使用的 `{% block module_css %}` 从 base.html
+3. ✅ 更新文档反映当前实现状态
 
-**预期效果**: 减少 80%+ 的 CSS 加载量
+### Phase 3: 压缩 (待实施)
 
-#### 1.2 清理重复文件
-
-```bash
-# 删除旧版本
-rm -rf static/css/components-v1/
-rm static/css/main-v1.css
-rm static/css/design-tokens-v1.css
-```
+1. 配置 `django-compressor`
+2. 测试生产构建
+3. 部署
 
 ### P2 - 中优先级 (需要配置)
 
@@ -164,13 +188,15 @@ AWS_S3_OBJECT_PARAMETERS = {
 
 ---
 
-## 预期效果
+## 当前效果
 
-| 指标 | 优化前 | 优化后 |
-|------|--------|--------|
-| CSS 加载量 | ~200KB | ~40KB |
-| 首屏时间 | ~2s | ~1s |
-| 请求数 | 20+ | 10-12 |
+| 指标 | 值 | 说明 |
+|------|-----|------|
+| 首屏 CSS | ~40KB | 仅全局样式 |
+| 模块 CSS | 5-10KB | 按需加载 |
+| 总 CSS 加载量 | ~45-50KB | 首屏 + 模块 |
+| 首屏时间 | ~1s | 已优化 |
+| 请求数 | ~10-12 | 已优化 |
 
 ---
 

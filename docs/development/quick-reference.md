@@ -129,36 +129,40 @@ mypy apps/ --strict
 > **注意**: 接口以运行时 OpenAPI 文档为准（`/api/schema/`、`/api/docs/`）。
 >
 > **路由格式说明**:
-> - 新格式: `/api/{module}/api/{endpoint}/` (如 regime, signal)
-> - 统一格式: `/api/{module}/{endpoint}/` (如 alpha, rotation)
+> - 统一格式: `/api/{module}/{endpoint}/` (所有 API 端点)
 > - 页面路由: `/{module}/dashboard/` 等需要登录
+> - 旧格式 (`/api/{module}/api/` 和 `/{module}/api/`) 仍保持向后兼容
 
 ### Regime API
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/regime/api/` | GET | 获取 Regime 列表 (需认证) |
-| `/api/regime/api/{id}/` | GET | 获取指定 Regime 详情 (需认证) |
-| `/api/regime/api/health/` | GET | 健康检查 (需认证) |
+| `/api/regime/` | GET | 获取 Regime 列表 (需认证) |
+| `/api/regime/{id}/` | GET | 获取指定 Regime 详情 (需认证) |
+| `/api/regime/health/` | GET | 健康检查 (需认证) |
+| `/api/regime/current/` | GET | 获取当前 Regime (需认证) |
+| `/api/regime/calculate/` | POST | 计算 Regime (需认证) |
+| `/api/regime/history/` | GET | 获取历史记录 (需认证) |
+| `/api/regime/distribution/` | GET | 获取分布统计 (需认证) |
 | `/regime/dashboard/` | GET | Regime 仪表盘页面 |
 
 ### Signal API
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/signal/api/` | GET/POST | 列出/创建信号 (需认证) |
-| `/api/signal/api/{id}/` | GET | 获取信号详情 (需认证) |
-| `/api/signal/api/health/` | GET | 健康检查 (需认证) |
+| `/api/signal/` | GET/POST | 列出/创建信号 (需认证) |
+| `/api/signal/{id}/` | GET | 获取信号详情 (需认证) |
+| `/api/signal/health/` | GET | 健康检查 (需认证) |
 | `/signal/manage/` | GET | 信号管理页面 |
 
 ### Sentiment API (舆情分析)
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/sentiment/api/analyze/` | POST | 分析文本情感 (需认证) |
-| `/api/sentiment/api/batch-analyze/` | POST | 批量分析 (需认证) |
-| `/api/sentiment/api/index/` | GET | 获取情绪指数 (需认证) |
-| `/api/sentiment/api/health/` | GET | 健康检查 (需认证) |
+| `/api/sentiment/analyze/` | POST | 分析文本情感 (需认证) |
+| `/api/sentiment/batch-analyze/` | POST | 批量分析 (需认证) |
+| `/api/sentiment/index/` | GET | 获取情绪指数 (需认证) |
+| `/api/sentiment/health/` | GET | 健康检查 (需认证) |
 | `/sentiment/dashboard/` | GET | 舆情仪表盘页面 |
 
 ### Asset Analysis API

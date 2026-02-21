@@ -120,7 +120,9 @@
       "Bash(git checkout:*)",
       "Bash(xargs:*)",
       "Bash(pkill:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(git show:*)",
+      "Bash(sort:*)"
     ]
   }
 }

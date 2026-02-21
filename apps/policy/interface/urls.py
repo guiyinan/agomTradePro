@@ -45,9 +45,13 @@ urlpatterns = [
     path("events/", PolicyEventsPageView.as_view(), name="events-page"),
     path("events/new/", PolicyEventCreateView.as_view(), name="event-create"),
 
-    # 政策事件列表 (API)
+    # 政策事件列表 (API) - new standard format (when mounted under /api/policy/)
+    path("events/", PolicyEventListView.as_view(), name="event-list-api"),
+    path("events/<str:event_date>/", PolicyEventDetailView.as_view(), name="event-detail-api"),
+
+    # 政策事件列表 (API) - legacy format (backward compatibility)
     path("api/events/", PolicyEventListView.as_view(), name="event-list"),
-    path("api/events/<str:event_date>/", PolicyEventDetailView.as_view(), name="event-detail-api"),
+    path("api/events/<str:event_date>/", PolicyEventDetailView.as_view(), name="event-detail-api-legacy"),
 
     # ========== 审核相关API ==========
     path("audit/queue/", AuditQueueView.as_view(), name="audit-queue"),
@@ -65,6 +69,9 @@ urlpatterns = [
     path("rss/keywords/<int:keyword_id>/edit/", PolicyKeywordUpdateView.as_view(), name="rss-keyword-edit"),
     path("rss/logs/", RSSFetchLogListView.as_view(), name="rss-logs"),
 
-    # RSS REST API
+    # RSS REST API - new standard format (when mounted under /api/policy/)
+    path("", include(router.urls)),
+
+    # RSS REST API - legacy format (backward compatibility)
     path("api/", include(router.urls)),
 ]
