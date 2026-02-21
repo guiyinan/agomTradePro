@@ -4,11 +4,12 @@ Unit tests for Sentiment Interface Views.
 Tests for API and page views in the sentiment module.
 """
 
+import uuid
 import pytest
 from datetime import datetime, date
 from unittest.mock import Mock, MagicMock, patch
 from django.test import RequestFactory, TestCase
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework import status
 
@@ -30,12 +31,21 @@ from apps.sentiment.domain.entities import (
 )
 
 
+def _make_test_user():
+    User = get_user_model()
+    return User.objects.create_user(
+        username=f"testuser_{uuid.uuid4().hex[:8]}",
+        password='testpass'
+    )
+
+
 class TestSentimentAnalyzeView(TestCase):
     """Tests for SentimentAnalyzeView API"""
 
     def setUp(self):
         self.factory = APIRequestFactory()
         self.view = SentimentAnalyzeView.as_view()
+        self.user = _make_test_user()
 
     @patch('apps.sentiment.interface.views.SentimentCacheRepository')
     @patch('apps.sentiment.interface.views.AIProviderRepository')
@@ -70,6 +80,7 @@ class TestSentimentAnalyzeView(TestCase):
             {'text': '测试文本'},
             content_type='application/json'
         )
+        force_authenticate(request, user=self.user)
 
         # Get response
         response = self.view(request)
@@ -85,6 +96,7 @@ class TestSentimentAnalyzeView(TestCase):
             {},
             content_type='application/json'
         )
+        force_authenticate(request, user=self.user)
         response = self.view(request)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
@@ -105,6 +117,7 @@ class TestSentimentAnalyzeView(TestCase):
                 {'text': '测试文本', 'use_cache': True},
                 content_type='application/json'
             )
+            force_authenticate(request, user=self.user)
             response = self.view(request)
             assert response.status_code == status.HTTP_200_OK
             assert response.data['sentiment_score'] == 1.0
@@ -116,6 +129,7 @@ class TestSentimentBatchAnalyzeView(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
         self.view = SentimentBatchAnalyzeView.as_view()
+        self.user = _make_test_user()
 
     @patch('apps.sentiment.interface.views.SentimentAnalyzer')
     @patch('apps.sentiment.interface.views.AIProviderRepository')
@@ -144,6 +158,7 @@ class TestSentimentBatchAnalyzeView(TestCase):
             {'texts': ['文本1', '文本2']},
             content_type='application/json'
         )
+        force_authenticate(request, user=self.user)
         response = self.view(request)
 
         assert response.status_code == status.HTTP_200_OK
@@ -157,6 +172,7 @@ class TestSentimentBatchAnalyzeView(TestCase):
             {},
             content_type='application/json'
         )
+        force_authenticate(request, user=self.user)
         response = self.view(request)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
@@ -167,6 +183,7 @@ class TestSentimentIndexView(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
         self.view = SentimentIndexView.as_view()
+        self.user = _make_test_user()
 
     @patch('apps.sentiment.interface.views.SentimentIndexRepository')
     def test_get_latest_index(self, mock_repo_class):
@@ -181,6 +198,7 @@ class TestSentimentIndexView(TestCase):
         mock_repo_class.return_value = mock_repo
 
         request = self.factory.get('/sentiment/api/index/')
+        force_authenticate(request, user=self.user)
         response = self.view(request)
 
         assert response.status_code == status.HTTP_200_OK
@@ -198,6 +216,7 @@ class TestSentimentIndexView(TestCase):
         mock_repo_class.return_value = mock_repo
 
         request = self.factory.get('/sentiment/api/index/?date=2024-01-15')
+        force_authenticate(request, user=self.user)
         response = self.view(request)
 
         assert response.status_code == status.HTTP_200_OK
@@ -211,6 +230,7 @@ class TestSentimentIndexView(TestCase):
         mock_repo_class.return_value = mock_repo
 
         request = self.factory.get('/sentiment/api/index/')
+        force_authenticate(request, user=self.user)
         response = self.view(request)
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
@@ -218,6 +238,7 @@ class TestSentimentIndexView(TestCase):
     def test_get_index_invalid_date_format(self):
         """Test getting index with invalid date format"""
         request = self.factory.get('/sentiment/api/index/?date=invalid')
+        force_authenticate(request, user=self.user)
         with patch('apps.sentiment.interface.views.SentimentIndexRepository'):
             response = self.view(request)
             assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -229,6 +250,7 @@ class TestSentimentIndexRangeView(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
         self.view = SentimentIndexRangeView.as_view()
+        self.user = _make_test_user()
 
     @patch('apps.sentiment.interface.views.SentimentIndexRepository')
     def test_get_index_range(self, mock_repo_class):
@@ -245,6 +267,7 @@ class TestSentimentIndexRangeView(TestCase):
         request = self.factory.get(
             '/sentiment/api/index/range/?start_date=2024-01-01&end_date=2024-01-03'
         )
+        force_authenticate(request, user=self.user)
         response = self.view(request)
 
         assert response.status_code == status.HTTP_200_OK
@@ -253,6 +276,7 @@ class TestSentimentIndexRangeView(TestCase):
     def test_get_index_range_missing_params(self):
         """Test getting range with missing parameters"""
         request = self.factory.get('/sentiment/api/index/range/?start_date=2024-01-01')
+        force_authenticate(request, user=self.user)
         response = self.view(request)
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
@@ -263,6 +287,7 @@ class TestSentimentIndexRecentView(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
         self.view = SentimentIndexRecentView.as_view()
+        self.user = _make_test_user()
 
     @patch('apps.sentiment.interface.views.SentimentIndexRepository')
     def test_get_recent_indices_default_days(self, mock_repo_class):
@@ -272,6 +297,7 @@ class TestSentimentIndexRecentView(TestCase):
         mock_repo_class.return_value = mock_repo
 
         request = self.factory.get('/sentiment/api/index/recent/')
+        force_authenticate(request, user=self.user)
         response = self.view(request)
 
         assert response.status_code == status.HTTP_200_OK
@@ -285,6 +311,7 @@ class TestSentimentIndexRecentView(TestCase):
         mock_repo_class.return_value = mock_repo
 
         request = self.factory.get('/sentiment/api/index/recent/?days=7')
+        force_authenticate(request, user=self.user)
         response = self.view(request)
 
         assert response.status_code == status.HTTP_200_OK
@@ -299,12 +326,14 @@ class TestSentimentIndexRecentView(TestCase):
 
         # Test exceeding maximum
         request = self.factory.get('/sentiment/api/index/recent/?days=400')
+        force_authenticate(request, user=self.user)
         response = self.view(request)
         assert response.status_code == status.HTTP_200_OK
         mock_repo.get_recent.assert_called_once_with(days=30)
 
         # Test below minimum
         request2 = self.factory.get('/sentiment/api/index/recent/?days=0')
+        force_authenticate(request2, user=self.user)
         response2 = self.view(request2)
         assert response2.status_code == status.HTTP_200_OK
 
@@ -315,6 +344,7 @@ class TestSentimentHealthView(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
         self.view = SentimentHealthView.as_view()
+        self.user = _make_test_user()
 
     @patch('apps.sentiment.interface.views.AIProviderRepository')
     @patch('apps.sentiment.interface.views.SentimentCache')
@@ -330,6 +360,7 @@ class TestSentimentHealthView(TestCase):
         mock_index_model._default_manager.order_by.return_value.first.return_value = mock_latest
 
         request = self.factory.get('/sentiment/api/health/')
+        force_authenticate(request, user=self.user)
         response = self.view(request)
 
         assert response.status_code == status.HTTP_200_OK
@@ -342,6 +373,7 @@ class TestSentimentHealthView(TestCase):
         mock_provider_repo.return_value.get_active_providers.return_value = []
 
         request = self.factory.get('/sentiment/api/health/')
+        force_authenticate(request, user=self.user)
         response = self.view(request)
 
         assert response.status_code == status.HTTP_200_OK
@@ -355,6 +387,7 @@ class TestSentimentCacheClearView(TestCase):
     def setUp(self):
         self.factory = APIRequestFactory()
         self.view = SentimentCacheClearView.as_view()
+        self.user = _make_test_user()
 
     @patch('apps.sentiment.interface.views.SentimentCacheRepository')
     def test_clear_cache(self, mock_repo_class):
@@ -364,6 +397,7 @@ class TestSentimentCacheClearView(TestCase):
         mock_repo_class.return_value = mock_repo
 
         request = self.factory.post('/sentiment/api/cache/clear/')
+        force_authenticate(request, user=self.user)
         response = self.view(request)
 
         assert response.status_code == status.HTTP_200_OK
@@ -376,10 +410,7 @@ class TestSentimentDashboardView(TestCase):
 
     def setUp(self):
         self.factory = RequestFactory()
-        self.user = User.objects.create_user(
-            username='testuser',
-            password='testpass'
-        )
+        self.user = _make_test_user()
 
     @patch('apps.sentiment.interface.views.SentimentIndexRepository')
     @patch('apps.sentiment.interface.views.AIProviderRepository')
@@ -421,10 +452,7 @@ class TestSentimentAnalyzePageView(TestCase):
 
     def setUp(self):
         self.factory = RequestFactory()
-        self.user = User.objects.create_user(
-            username='testuser',
-            password='testpass'
-        )
+        self.user = _make_test_user()
 
     @patch('apps.sentiment.interface.views.AIProviderRepository')
     def test_analyze_page_authenticated(self, mock_provider_repo):

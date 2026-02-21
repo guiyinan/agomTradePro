@@ -1,0 +1,48 @@
+{
+  "generated_date": "2026-02-21",
+  "source": [
+    "core/urls.py",
+    "apps/*/interface/urls.py"
+  ],
+  "page_route_corrections": {
+    "/macro/indicator/": "/macro/data/",
+    "/regime/state/": "/regime/dashboard/",
+    "/signal/list/": "/signal/manage/",
+    "/policy/manage/": "/policy/events/",
+    "/backtest/history/": "/backtest/",
+    "/simulated-trading/positions/": "/simulated-trading/my-accounts/",
+    "/filter/manage/": "/filter/dashboard/",
+    "/sector/analysis/": "/sector/",
+    "/strategy/list/": "/strategy/",
+    "/realtime/monitor/": "/realtime/",
+    "/alpha/": null
+  },
+  "api_route_corrections": {
+    "/api/account/": "/api/account/api/",
+    "/api/equity/": "/api/equity/api/",
+    "/api/fund/": "/api/fund/api/multidim-screen/",
+    "/api/asset-analysis/": "/api/asset-analysis/multidim-screen/",
+    "/api/simulated-trading/": "/api/simulated-trading/api/accounts/",
+    "/api/alpha/": "/api/alpha/scores/",
+    "/api/system/": "/api/system/list/"
+  },
+  "must_resolve_paths": [
+    "/macro/data/",
+    "/regime/dashboard/",
+    "/signal/manage/",
+    "/policy/events/",
+    "/backtest/",
+    "/simulated-trading/my-accounts/",
+    "/filter/dashboard/",
+    "/sector/",
+    "/strategy/",
+    "/realtime/",
+    "/api/account/api/",
+    "/api/equity/api/",
+    "/api/fund/api/multidim-screen/",
+    "/api/asset-analysis/multidim-screen/",
+    "/api/simulated-trading/api/accounts/",
+    "/api/alpha/scores/",
+    "/api/system/list/"
+  ]
+}

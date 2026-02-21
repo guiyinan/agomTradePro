@@ -41,7 +41,7 @@
 | E2E Page Tests | 28 | 16 | 11 | 1 (Sentiment) |
 | API Module Tests | 21 | 13 | 7 | 1 (Sentiment) |
 
-> **Note:** "Baseline Mismatch" items are not failures - they are test paths that don't match actual route configuration. See `docs/testing/uat-route-baseline-2026-02-21.md` for details.
+> **Note:** "Baseline Mismatch" items are not failures - they are test paths that don't match actual route configuration. Baseline source: `tests/uat/route_baseline.json`, rendered in `docs/testing/uat-route-baseline-2026-02-21.md`.
 
 ---
 
@@ -158,7 +158,7 @@ These paths returned 404 due to test configuration using outdated paths. They ar
 
 | Module | Path | Status | Resolution |
 |--------|------|--------|------------|
-| Sentiment Analysis | /sentiment/ | ~~500~~ 200 | Created missing templates |
+| Sentiment Analysis | /sentiment/ | ~~500~~ 302 (redirect) | Root path redirects to `/sentiment/dashboard/` (200) |
 
 ---
 
@@ -189,8 +189,8 @@ These paths returned 404 due to test configuration using outdated paths. They ar
 | /api/account/ | /api/account/api/ |
 | /api/equity/ | /api/equity/api/ |
 | /api/fund/ | /api/fund/api/multidim-screen/ |
-| /api/asset-analysis/ | /api/asset-analysis/api/ |
-| /api/simulated-trading/ | /api/simulated-trading/api/ |
+| /api/asset-analysis/ | /api/asset-analysis/multidim-screen/ |
+| /api/simulated-trading/ | /api/simulated-trading/api/accounts/ |
 | /api/alpha/ | /api/alpha/scores/ |
 | /api/system/ | /api/system/list/ |
 
@@ -198,7 +198,7 @@ These paths returned 404 due to test configuration using outdated paths. They ar
 
 | API | Path | Status | Resolution |
 |-----|------|--------|------------|
-| Sentiment | /api/sentiment/ | ~~500~~ 200 | Created missing templates |
+| Sentiment | /api/sentiment/ | ~~500~~ 302 (redirect) | Root path redirects to `/sentiment/dashboard/` (200) |
 
 ---
 

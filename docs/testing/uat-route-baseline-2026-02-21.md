@@ -7,7 +7,7 @@
 
 ## Summary
 
-本文档基于 `core/urls.py` 和各模块 `urls.py` 自动生成，用于 UAT 测试的路径基线。
+本文档基于 `tests/uat/route_baseline.json`（单一事实源）生成，并使用 `scripts/validate_uat_route_baseline.py` 校验可解析性。
 
 ### Statistics
 
@@ -40,7 +40,7 @@
 | Regime | `/regime/` | Dashboard page | OK |
 | Rotation | `/rotation/` | Analysis page | OK |
 | Sector | `/sector/` | Analysis page | OK |
-| Sentiment | `/sentiment/` | Dashboard page | OK (Fixed) |
+| Sentiment | `/sentiment/` | Redirect to dashboard | OK (302 -> 200) |
 | Signal | `/signal/` | Manage page | OK |
 | Strategy | `/strategy/` | List page | OK |
 
@@ -107,8 +107,8 @@
 | Alpha | 404 | `/api/alpha/scores/`, `/api/alpha/health/`, `/api/alpha/providers/status/` |
 | Equity | 404 | `/api/equity/api/` (ViewSet) |
 | Fund | 404 | `/api/fund/api/multidim-screen/` |
-| Asset Analysis | 404 | `/api/asset-analysis/api/` |
-| Simulated Trading | 404 | `/api/simulated-trading/api/` |
+| Asset Analysis | 404 | `/api/asset-analysis/multidim-screen/`, `/api/asset-analysis/pool-summary/` |
+| Simulated Trading | 404 | `/api/simulated-trading/api/accounts/`, `/api/simulated-trading/api/fee-configs/` |
 | System (Task Monitor) | 404 | `/api/system/status/<id>/`, `/api/system/list/`, `/api/system/celery/health/` |
 
 ---
@@ -134,9 +134,9 @@
 | `/alpha/` | 404 | N/A (API only, use `/api/alpha/scores/`) |
 | `/api/account/` | 404 | `/api/account/api/` |
 | `/api/equity/` | 404 | `/api/equity/api/` |
-| `/api/fund/` | 404 | `/api/fund/api/` or `/api/fund/api/multidim-screen/` |
-| `/api/asset-analysis/` | 404 | `/api/asset-analysis/api/` |
-| `/api/simulated-trading/` | 404 | `/api/simulated-trading/api/` |
+| `/api/fund/` | 404 | `/api/fund/api/multidim-screen/` |
+| `/api/asset-analysis/` | 404 | `/api/asset-analysis/multidim-screen/` |
+| `/api/simulated-trading/` | 404 | `/api/simulated-trading/api/accounts/` |
 | `/api/alpha/` | 404 | `/api/alpha/scores/` |
 | `/api/system/` | 404 | `/api/system/list/` or `/api/system/dashboard/` |
 
@@ -192,6 +192,9 @@ for p in paths:
 curl http://127.0.0.1:8000/api/health/
 curl http://127.0.0.1:8000/api/schema/
 curl http://127.0.0.1:8000/api/regime/
+
+# 自动校验基线（CI 可直接运行）
+python scripts/validate_uat_route_baseline.py
 ```
 
 ---
