@@ -1,0 +1,397 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}情感分析 - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+<style>
+.sentiment-analyze {
+    padding: var(--spacing-xl, 24px);
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.sentiment-analyze h1 {
+    margin-bottom: var(--spacing-xl, 24px);
+}
+
+.analyze-form {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg, 12px);
+    padding: var(--spacing-xl, 24px);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+    margin-bottom: var(--spacing-xl, 24px);
+}
+
+.form-group {
+    margin-bottom: var(--spacing-lg, 16px);
+}
+
+.form-group label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: var(--spacing-sm, 8px);
+    color: var(--color-text-primary);
+}
+
+.form-group textarea {
+    width: 100%;
+    min-height: 150px;
+    padding: var(--spacing-md, 12px);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md, 8px);
+    font-size: 1rem;
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+}
+
+.form-options {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md, 12px);
+    margin-bottom: var(--spacing-lg, 16px);
+}
+
+.form-options label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm, 8px);
+    cursor: pointer;
+}
+
+.btn-submit {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm, 8px);
+    padding: var(--spacing-md, 12px) var(--spacing-xl, 24px);
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md, 8px);
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-submit:hover {
+    background: var(--color-primary-dark);
+}
+
+.btn-submit:disabled {
+    background: var(--color-text-muted);
+    cursor: not-allowed;
+}
+
+.analyze-result {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg, 12px);
+    padding: var(--spacing-xl, 24px);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--color-border);
+}
+
+.result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg, 16px);
+}
+
+.result-score {
+    font-size: 2.5rem;
+    font-weight: 600;
+}
+
+.result-score.positive {
+    color: var(--color-success, #10b981);
+}
+
+.result-score.negative {
+    color: var(--color-error, #ef4444);
+}
+
+.result-score.neutral {
+    color: var(--color-warning, #f59e0b);
+}
+
+.result-category {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm, 8px);
+    padding: var(--spacing-sm, 8px) var(--spacing-md, 12px);
+    border-radius: var(--radius-md, 8px);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.result-category.positive {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--color-success, #10b981);
+}
+
+.result-category.negative {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--color-error, #ef4444);
+}
+
+.result-category.neutral {
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--color-warning, #f59e0b);
+}
+
+.result-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--spacing-md, 12px);
+    margin-bottom: var(--spacing-lg, 16px);
+    padding: var(--spacing-md, 12px);
+    background: var(--color-background);
+    border-radius: var(--radius-md, 8px);
+}
+
+.meta-item {
+    text-align: center;
+}
+
+.meta-label {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-xs, 4px);
+}
+
+.meta-value {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--color-text-primary);
+}
+
+.result-keywords {
+    margin-top: var(--spacing-lg, 16px);
+}
+
+.result-keywords h4 {
+    margin-bottom: var(--spacing-sm, 8px);
+    color: var(--color-text-primary);
+}
+
+.keywords-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm, 8px);
+}
+
+.keyword-tag {
+    padding: var(--spacing-xs, 4px) var(--spacing-sm, 8px);
+    background: var(--color-background);
+    border-radius: var(--radius-sm, 4px);
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+}
+
+.ai-status {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm, 8px);
+    padding: var(--spacing-md, 12px);
+    background: rgba(245, 158, 11, 0.1);
+    border-radius: var(--radius-md, 8px);
+    margin-bottom: var(--spacing-lg, 16px);
+    color: var(--color-warning, #f59e0b);
+}
+
+.loading-spinner {
+    display: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sentiment-analyze">
+    <h1>情感分析</h1>
+
+    {% if not ai_available %}
+    <div class="ai-status">
+        <i class="bi bi-exclamation-triangle"></i>
+        AI 服务当前不可用，部分功能可能受限。请先配置 AI 提供商。
+    </div>
+    {% endif %}
+
+    <div class="analyze-form">
+        <form id="analyzeForm">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="inputText">输入待分析文本</label>
+                <textarea id="inputText" name="text" placeholder="请输入新闻、评论或其他文本内容，系统将分析其情感倾向..."></textarea>
+            </div>
+            <div class="form-options">
+                <label>
+                    <input type="checkbox" name="use_cache" checked>
+                    使用缓存（加速重复分析）
+                </label>
+            </div>
+            <button type="submit" class="btn-submit" {% if not ai_available %}disabled{% endif %}>
+                <span class="loading-spinner"></span>
+                <i class="bi bi-cpu"></i>
+                <span>开始分析</span>
+            </button>
+        </form>
+    </div>
+
+    <div id="resultContainer" class="analyze-result" style="display: none;">
+        <div class="result-header">
+            <div id="resultScore" class="result-score"></div>
+            <div id="resultCategory" class="result-category"></div>
+        </div>
+        <div class="result-meta">
+            <div class="meta-item">
+                <div class="meta-label">置信度</div>
+                <div id="resultConfidence" class="meta-value"></div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">AI 提供商</div>
+                <div id="resultProvider" class="meta-value"></div>
+            </div>
+            <div class="meta-item">
+                <div class="meta-label">响应时间</div>
+                <div id="resultTime" class="meta-value"></div>
+            </div>
+        </div>
+        <div class="result-keywords">
+            <h4>关键词</h4>
+            <div id="resultKeywords" class="keywords-list"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const form = document.getElementById('analyzeForm');
+    const submitBtn = form.querySelector('.btn-submit');
+    const spinner = submitBtn.querySelector('.loading-spinner');
+    const resultContainer = document.getElementById('resultContainer');
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const text = document.getElementById('inputText').value.trim();
+        if (!text) {
+            showToast('请输入待分析文本', 'warning');
+            return;
+        }
+
+        const useCache = form.querySelector('input[name="use_cache"]').checked;
+
+        // 显示加载状态
+        submitBtn.disabled = true;
+        spinner.style.display = 'inline-block';
+        resultContainer.style.display = 'none';
+
+        try {
+            const response = await fetch('{% url "sentiment:api_analyze" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': window.csrfToken
+                },
+                body: JSON.stringify({
+                    text: text,
+                    use_cache: useCache
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || '分析失败');
+            }
+
+            // 显示结果
+            displayResult(data);
+
+        } catch (error) {
+            showToast('分析失败: ' + error.message, 'error');
+        } finally {
+            submitBtn.disabled = false;
+            spinner.style.display = 'none';
+        }
+    });
+
+    function displayResult(data) {
+        resultContainer.style.display = 'block';
+
+        // 分数
+        const scoreEl = document.getElementById('resultScore');
+        const score = data.sentiment_score || data.score || 0;
+        scoreEl.textContent = score.toFixed(2);
+        scoreEl.className = 'result-score ' + getSentimentClass(score);
+
+        // 分类
+        const categoryEl = document.getElementById('resultCategory');
+        const category = data.category || getCategoryFromScore(score);
+        categoryEl.innerHTML = '<i class="bi bi-' + getCategoryIcon(category) + '"></i> ' + category;
+        categoryEl.className = 'result-category ' + getSentimentClass(score);
+
+        // 置信度
+        document.getElementById('resultConfidence').textContent =
+            ((data.confidence || 0) * 100).toFixed(1) + '%';
+
+        // 提供商
+        document.getElementById('resultProvider').textContent =
+            data.ai_provider || '-';
+
+        // 响应时间
+        document.getElementById('resultTime').textContent =
+            data.ai_response_time_ms ? data.ai_response_time_ms + 'ms' : '-';
+
+        // 关键词
+        const keywordsEl = document.getElementById('resultKeywords');
+        const keywords = data.keywords || [];
+        keywordsEl.innerHTML = keywords.length
+            ? keywords.map(k => '<span class="keyword-tag">' + k + '</span>').join('')
+            : '<span class="text-muted">无关键词</span>';
+    }
+
+    function getSentimentClass(score) {
+        if (score > 0.5) return 'positive';
+        if (score < -0.5) return 'negative';
+        return 'neutral';
+    }
+
+    function getCategoryFromScore(score) {
+        if (score >= 1.5) return '极度乐观';
+        if (score >= 0.5) return '乐观';
+        if (score >= -0.5) return '中性';
+        if (score >= -1.5) return '悲观';
+        return '极度悲观';
+    }
+
+    function getCategoryIcon(category) {
+        const icons = {
+            '极度乐观': 'emoji-smile',
+            '乐观': 'emoji-smile',
+            '中性': 'emoji-neutral',
+            '悲观': 'emoji-frown',
+            '极度悲观': 'emoji-frown'
+        };
+        return icons[category] || 'question-circle';
+    }
+})();
+</script>
+{% endblock %}
