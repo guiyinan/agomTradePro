@@ -468,7 +468,36 @@ class UpdatePolicyEventUseCase:
         Returns:
             CreatePolicyEventOutput: 输出结果
         """
-        # 使用创建用例的逻辑（Repository 已处理更新）
+        # 对 Django 仓储走明确更新路径，避免与“同日多事件”安全策略冲突
+        if isinstance(self.event_store, DjangoPolicyRepository):
+            output = CreatePolicyEventOutput(success=False, errors=[], warnings=[])
+            try:
+                existing = self.event_store._model.objects.filter(event_date=event_date).first()
+                if not existing:
+                    output.errors.append(f"未找到日期为 {event_date} 的事件")
+                    return output
+
+                updated_event = PolicyEvent(
+                    event_date=event_date,
+                    level=level,
+                    title=title,
+                    description=description,
+                    evidence_url=evidence_url
+                )
+                saved = self.event_store.save_event(
+                    updated_event,
+                    _update_id=existing.id
+                )
+                output.success = True
+                output.event = saved
+                output.warnings.append("⚠️ 政策事件已更新")
+                return output
+            except Exception as e:
+                output.errors.append(f"更新失败: {str(e)}")
+                logger.error(f"Failed to update policy event on {event_date}: {e}", exc_info=True)
+                return output
+
+        # 非 Django 仓储保持原流程
         create_input = CreatePolicyEventInput(
             event_date=event_date,
             level=level,
@@ -476,18 +505,13 @@ class UpdatePolicyEventUseCase:
             description=description,
             evidence_url=evidence_url
         )
-
         create_use_case = CreatePolicyEventUseCase(
             event_store=self.event_store,
             alert_service=self.alert_service
         )
-
         output = create_use_case.execute(create_input)
-
-        # 添加更新标记
         if output.success:
             output.warnings.insert(0, "⚠️ 政策事件已更新")
-
         return output
 
 
@@ -496,27 +520,42 @@ class DeletePolicyEventUseCase:
     删除政策事件用例
 
     谨慎使用！仅用于删除错误记录的事件。
+    优先使用 event_id 删除单个事件，避免误删同日其他事件。
     """
 
     def __init__(self, event_store: EventStoreProtocol):
         self.event_store = event_store
 
-    def execute(self, event_date: date) -> tuple[bool, str]:
+    def execute(self, event_date: Optional[date] = None, event_id: Optional[int] = None) -> tuple[bool, str]:
         """
         执行用例
 
         Args:
-            event_date: 要删除的事件日期
+            event_date: 要删除的事件日期（会删除该日期所有事件，不推荐）
+            event_id: 要删除的事件 ID（推荐，精确删除单个事件）
 
         Returns:
             tuple[bool, str]: (是否成功, 消息)
         """
         if isinstance(self.event_store, DjangoPolicyRepository):
-            success = self.event_store.delete_event(event_date)
-            if success:
-                return True, f"事件 {event_date} 已删除"
+            # 优先使用 ID 删除
+            if event_id is not None:
+                success = self.event_store.delete_event_by_id(event_id)
+                if success:
+                    return True, f"事件 ID={event_id} 已删除"
+                else:
+                    return False, f"未找到 ID={event_id} 的事件"
+            elif event_date is not None:
+                # 警告：按日期删除会删除同日所有事件
+                events = self.event_store.get_events_by_date(event_date)
+                count = len(events)
+                success = self.event_store.delete_event(event_date)
+                if success:
+                    return True, f"已删除 {event_date} 的 {count} 个事件（警告：按日期删除）"
+                else:
+                    return False, f"未找到日期为 {event_date} 的事件"
             else:
-                return False, f"未找到日期为 {event_date} 的事件"
+                return False, "必须提供 event_date 或 event_id"
         else:
             return False, "当前仓储不支持删除操作"
 

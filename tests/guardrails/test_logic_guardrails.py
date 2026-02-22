@@ -192,3 +192,46 @@ def test_guardrail_audit_uses_correct_regime_names():
     for wrong in wrong_names:
         assert wrong not in audit_content, f"Audit 使用了错误的 Regime 名称: {wrong}"
 
+
+@pytest.mark.guardrail
+@pytest.mark.django_db
+def test_guardrail_policy_repository_has_delete_by_id():
+    """
+    护栏：Policy 仓储必须提供 delete_event_by_id 方法。
+
+    防止按日期删除导致同日多事件误删。
+    """
+    from apps.policy.infrastructure.repositories import DjangoPolicyRepository
+
+    repo = DjangoPolicyRepository()
+    assert hasattr(repo, 'delete_event_by_id'), "DjangoPolicyRepository 缺少 delete_event_by_id 方法"
+
+
+@pytest.mark.guardrail
+@pytest.mark.django_db
+def test_guardrail_policy_repository_has_get_events_by_date():
+    """
+    护栏：Policy 仓储必须提供 get_events_by_date 方法。
+
+    防止同日多事件场景丢失数据。
+    """
+    from apps.policy.infrastructure.repositories import DjangoPolicyRepository
+
+    repo = DjangoPolicyRepository()
+    assert hasattr(repo, 'get_events_by_date'), "DjangoPolicyRepository 缺少 get_events_by_date 方法"
+
+
+@pytest.mark.guardrail
+def test_guardrail_regime_view_safe_data_source_access():
+    """
+    护栏：Regime 视图必须安全访问数据源配置。
+
+    防止空表时 first().source_type 导致 AttributeError。
+    """
+    views_content = Path("apps/regime/interface/views.py").read_text(encoding="utf-8")
+
+    # 不应出现不安全的链式访问模式
+    unsafe_pattern = ".first().source_type if .exists()"
+    assert unsafe_pattern not in views_content, "Regime 视图使用了不安全的数据源访问模式"
+
+

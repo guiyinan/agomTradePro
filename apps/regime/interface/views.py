@@ -22,7 +22,8 @@ def regime_dashboard_view(request):
         available_sources = DataSourceConfig._default_manager.filter(is_active=True).order_by('priority')
 
         # 获取查询参数
-        default_source = available_sources.first().source_type if available_sources.exists() else 'akshare'
+        first_source = available_sources.first()
+        default_source = first_source.source_type if first_source else 'akshare'
         data_source = request.GET.get('source', default_source)
 
         # 获取分析时点参数

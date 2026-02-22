@@ -51,10 +51,27 @@ class DjangoPolicyRepository:
             else event.level
         )
 
-        # 检查是否已存在
-        existing = self._model.objects.filter(
-            event_date=event.event_date
-        ).first()
+        # 控制参数（不落库）
+        upsert_by_date = kwargs.pop("_upsert_by_date", False)
+        update_id = kwargs.pop("_update_id", None)
+
+        # 检查是否已存在（优先使用更安全的唯一键）
+        existing = None
+        rss_item_guid = kwargs.get("rss_item_guid")
+        if update_id:
+            existing = self._model.objects.filter(id=update_id).first()
+        elif rss_item_guid:
+            existing = self._model.objects.filter(rss_item_guid=rss_item_guid).first()
+        elif upsert_by_date:
+            # 兼容旧行为：按日期更新（仅用于明确更新场景）
+            existing = self._model.objects.filter(event_date=event.event_date).first()
+        else:
+            # 默认安全行为：同日不同事件不应互相覆盖
+            existing = self._model.objects.filter(
+                event_date=event.event_date,
+                title=event.title,
+                evidence_url=event.evidence_url
+            ).first()
 
         if existing:
             # 更新
@@ -90,7 +107,10 @@ class DjangoPolicyRepository:
         event_date: date
     ) -> Optional[PolicyEvent]:
         """
-        按日期获取政策事件
+        按日期获取政策事件（返回第一个匹配）
+
+        注意：如果同一天有多个事件，只返回第一个。
+        如需获取全部，请使用 get_events_by_date 方法。
 
         Args:
             event_date: 事件日期
@@ -105,6 +125,25 @@ class DjangoPolicyRepository:
         if orm_obj:
             return self._orm_to_entity(orm_obj)
         return None
+
+    def get_events_by_date(
+        self,
+        event_date: date
+    ) -> List[PolicyEvent]:
+        """
+        按日期获取所有政策事件
+
+        Args:
+            event_date: 事件日期
+
+        Returns:
+            List[PolicyEvent]: 该日期的所有事件列表
+        """
+        query = self._model.objects.filter(
+            event_date=event_date
+        ).order_by('created_at')
+
+        return [self._orm_to_entity(obj) for obj in query]
 
     def get_latest_event(
         self,
@@ -240,7 +279,10 @@ class DjangoPolicyRepository:
 
     def delete_event(self, event_date: date) -> bool:
         """
-        删除指定日期的事件
+        删除指定日期的所有事件
+
+        警告：此方法会删除同一天的所有事件！
+        如需删除单个事件，请使用 delete_event_by_id 方法。
 
         Args:
             event_date: 事件日期
@@ -252,6 +294,23 @@ class DjangoPolicyRepository:
             event_date=event_date
         ).delete()
         return count > 0
+
+    def delete_event_by_id(self, event_id: int) -> bool:
+        """
+        按 ID 删除单个事件
+
+        Args:
+            event_id: 事件 ID
+
+        Returns:
+            bool: 是否成功删除
+        """
+        try:
+            obj = self._model.objects.get(pk=event_id)
+            obj.delete()
+            return True
+        except self._model.DoesNotExist:
+            return False
 
     def get_event_count(self) -> int:
         """
