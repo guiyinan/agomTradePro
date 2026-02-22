@@ -42,6 +42,9 @@ class RunBacktestResponse:
     result: Optional[Dict[str, Any]]
     errors: List[str]
     warnings: List[str]
+    audit_status: str = "pending"  # 'pending', 'success', 'failed', 'skipped'
+    audit_error: Optional[str] = None
+    audit_report_id: Optional[int] = None
 
 
 class RunBacktestUseCase:
@@ -125,7 +128,11 @@ class RunBacktestUseCase:
             # 6. 保存结果
             self.repository.save_result(backtest_id, result)
 
-            # ========== 新增：自动触发审计分析 ==========
+            # ========== 自动触发审计分析 ==========
+            audit_status = "skipped"
+            audit_error = None
+            audit_report_id = None
+
             try:
                 from apps.audit.application.use_cases import (
                     GenerateAttributionReportUseCase,
@@ -134,6 +141,7 @@ class RunBacktestUseCase:
                 from apps.audit.infrastructure.repositories import DjangoAuditRepository
 
                 logger.info(f"Backtest {backtest_id} 完成，触发审计分析...")
+                audit_status = "pending"
 
                 audit_use_case = GenerateAttributionReportUseCase(
                     audit_repository=DjangoAuditRepository(),
@@ -145,13 +153,19 @@ class RunBacktestUseCase:
                 )
 
                 if audit_response.success:
+                    audit_status = "success"
+                    audit_report_id = audit_response.report_id
                     logger.info(f"审计分析完成: report_id={audit_response.report_id}")
                 else:
-                    logger.warning(f"审计分析失败（不影响回测）: {audit_response.error}")
+                    audit_status = "failed"
+                    audit_error = audit_response.error
+                    logger.warning(f"审计分析失败: {audit_response.error}")
 
-            except Exception as audit_error:
-                # 审计失败不影响回测结果
-                logger.warning(f"审计分析异常（不影响回测）: {audit_error}", exc_info=True)
+            except Exception as audit_exc:
+                # 审计失败不影响回测结果，但记录状态
+                audit_status = "failed"
+                audit_error = str(audit_exc)
+                logger.warning(f"审计分析异常: {audit_error}", exc_info=True)
             # ============================================
 
             logger.info(f"Backtest {backtest_id} completed successfully")
@@ -162,6 +176,9 @@ class RunBacktestUseCase:
                 result=result.to_summary_dict(),
                 errors=errors,
                 warnings=warnings,
+                audit_status=audit_status,
+                audit_error=audit_error,
+                audit_report_id=audit_report_id,
             )
 
         except Exception as e:
@@ -177,6 +194,7 @@ class RunBacktestUseCase:
                 result=None,
                 errors=[str(e)],
                 warnings=warnings,
+                audit_status="skipped",  # 回测失败时审计被跳过
             )
 
 

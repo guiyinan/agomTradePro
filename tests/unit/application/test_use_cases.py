@@ -24,7 +24,8 @@ from apps.macro.domain.entities import MacroIndicator, PeriodType
 from apps.regime.application.use_cases import (
     CalculateRegimeUseCase,
     CalculateRegimeRequest,
-    CalculateRegimeResponse
+    CalculateRegimeResponse,
+    RegimeCalculationError
 )
 from apps.regime.domain.entities import RegimeSnapshot
 
@@ -673,3 +674,93 @@ class TestCalculateRegimeUseCase:
 
         # 由于无前值且无 regime_repository，应该失败
         assert not response.success
+
+    def test_fallback_count_limit(self):
+        """测试降级次数限制（防止无限循环）"""
+        repository = Mock()
+        repository.GROWTH_INDICATORS = {"PMI": "CN_PMI"}
+        repository.INFLATION_INDICATORS = {"CPI": "CN_CPI"}
+        repository.get_growth_series.return_value = []  # 持续无数据
+        repository.get_inflation_series.return_value = []
+        repository.get_growth_series_full.return_value = []
+        repository.get_inflation_series_full.return_value = []
+
+        # Mock regime repository for fallback
+        regime_repository = Mock()
+        regime_repository.get_latest_snapshot.return_value = RegimeSnapshot(
+            growth_momentum_z=1.0,
+            inflation_momentum_z=-0.5,
+            distribution={"Recovery": 0.6, "Overheat": 0.2, "Stagflation": 0.1, "Deflation": 0.1},
+            dominant_regime="Recovery",
+            confidence=0.6,
+            observed_at=date(2023, 12, 31)
+        )
+
+        use_case = CalculateRegimeUseCase(
+            repository=repository,
+            regime_repository=regime_repository
+        )
+
+        # 第一次降级 - 应该成功
+        request = CalculateRegimeRequest(as_of_date=date(2024, 1, 1))
+        response = use_case.execute(request)
+        assert response.success, "First fallback should succeed"
+        assert response.snapshot.confidence < 0.6, "Confidence should be reduced"
+
+        # 第二次降级 - 应该成功
+        response = use_case.execute(request)
+        assert response.success, "Second fallback should succeed"
+
+        # 第三次降级 - 应该成功（达到限制边界）
+        response = use_case.execute(request)
+        assert response.success, "Third fallback should succeed"
+
+        # 第四次降级 - 应该失败（超过限制）
+        # 直接调用 _fallback_regime_estimation 来模拟第4次连续降级
+        with pytest.raises(RegimeCalculationError, match="Maximum fallback count"):
+            # 模拟已经降级了3次，这是第4次
+            use_case._consecutive_fallback_count = 3
+            use_case._fallback_regime_estimation(date(2024, 1, 1))
+
+    def test_fallback_count_reset_on_success(self):
+        """测试成功计算后重置降级计数器"""
+        repository = Mock()
+        repository.GROWTH_INDICATORS = {"PMI": "CN_PMI"}
+        repository.INFLATION_INDICATORS = {"CPI": "CN_CPI"}
+
+        regime_repository = Mock()
+        regime_repository.get_latest_snapshot.return_value = RegimeSnapshot(
+            growth_momentum_z=1.0,
+            inflation_momentum_z=-0.5,
+            distribution={"Recovery": 0.6, "Overheat": 0.2, "Stagflation": 0.1, "Deflation": 0.1},
+            dominant_regime="Recovery",
+            confidence=0.6,
+            observed_at=date(2023, 12, 31)
+        )
+
+        use_case = CalculateRegimeUseCase(
+            repository=repository,
+            regime_repository=regime_repository
+        )
+
+        # 第一次：降级
+        repository.get_growth_series.return_value = []
+        repository.get_inflation_series.return_value = []
+        repository.get_growth_series_full.return_value = []
+        repository.get_inflation_series_full.return_value = []
+        request = CalculateRegimeRequest(as_of_date=date(2024, 1, 1))
+        response = use_case.execute(request)
+        assert response.success, "First fallback should succeed"
+        assert use_case._consecutive_fallback_count == 1
+
+        # 第二次：数据恢复，正常计算
+        growth_series = [50.0 + i * 0.1 for i in range(24)]
+        inflation_series = [2.0 + i * 0.05 for i in range(24)]
+        repository.get_growth_series.return_value = growth_series
+        repository.get_inflation_series.return_value = inflation_series
+        repository.get_growth_series_full.return_value = []
+        repository.get_inflation_series_full.return_value = []
+        response = use_case.execute(request)
+        assert response.success, "Normal calculation should succeed"
+        # 成功计算后计数器应被重置
+        assert use_case._consecutive_fallback_count == 0, "Fallback counter should reset after success"

@@ -31,6 +31,7 @@ class SentimentAnalysisResult:
     category: SentimentCategory               # 情感分类
     keywords: List[str] = field(default_factory=list)  # 关键词列表
     analyzed_at: datetime = field(default_factory=datetime.now)
+    error_message: Optional[str] = None       # 错误信息（AI 调用失败时）
 
     def __post_init__(self):
         """验证数据有效性"""
@@ -71,6 +72,9 @@ class SentimentIndex:
     # 置信度
     confidence_level: float = 0.0            # 综合置信度
 
+    # 数据充足性标记（区分"无数据"和"中性情绪"）
+    data_sufficient: bool = False            # 数据是否充足
+
     # 分类情绪（按行业、资产类型等）
     sector_sentiment: Dict[str, float] = field(default_factory=dict)
 
@@ -102,8 +106,9 @@ class SentimentIndex:
                 "news": self.news_sentiment,
                 "policy": self.policy_sentiment,
             },
-            "level": self._get_sentiment_level(),
+            "level": self._get_sentiment_level() if self.data_sufficient else "数据不足",
             "confidence": self.confidence_level,
+            "data_sufficient": self.data_sufficient,
             "sector_sentiment": self.sector_sentiment,
             "sources": {
                 "news_count": self.news_count,

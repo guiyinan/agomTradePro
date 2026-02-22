@@ -36,6 +36,7 @@ from apps.audit.domain.entities import (
     ValidationStatus,
     DynamicWeightConfig,
 )
+from apps.backtest.infrastructure.adapters.base import AssetPricePoint
 
 
 # ============ Fixtures ============
@@ -81,6 +82,66 @@ def sample_backtest_model():
     return model
 
 
+@pytest.fixture
+def mock_price_adapter():
+    """Create mock price adapter with sample data."""
+    mock_adapter = Mock()
+    from datetime import date as dt_date
+
+    # Create sample price points for multiple asset classes
+    sample_prices_equity = [
+        AssetPricePoint(
+            asset_class='a_share_growth',
+            price=100.0,
+            as_of_date=dt_date(2024, 1, 1),
+            source='mock'
+        ),
+        AssetPricePoint(
+            asset_class='a_share_growth',
+            price=101.0,
+            as_of_date=dt_date(2024, 1, 2),
+            source='mock'
+        ),
+        AssetPricePoint(
+            asset_class='a_share_growth',
+            price=102.0,
+            as_of_date=dt_date(2024, 1, 3),
+            source='mock'
+        ),
+    ]
+    sample_prices_bond = [
+        AssetPricePoint(
+            asset_class='china_bond',
+            price=100.0,
+            as_of_date=dt_date(2024, 1, 1),
+            source='mock'
+        ),
+        AssetPricePoint(
+            asset_class='china_bond',
+            price=100.5,
+            as_of_date=dt_date(2024, 1, 2),
+            source='mock'
+        ),
+        AssetPricePoint(
+            asset_class='china_bond',
+            price=101.0,
+            as_of_date=dt_date(2024, 1, 3),
+            source='mock'
+        ),
+    ]
+
+    # Setup mock to return different data based on asset_class
+    def mock_get_prices(asset_class, start_date, end_date):
+        if asset_class == 'a_share_growth':
+            return sample_prices_equity
+        elif asset_class == 'china_bond':
+            return sample_prices_bond
+        return []
+
+    mock_adapter.get_prices.side_effect = mock_get_prices
+    return mock_adapter
+
+
 # ============ Test GenerateAttributionReportUseCase ============
 
 class TestGenerateAttributionReportUseCase:
@@ -103,13 +164,24 @@ class TestGenerateAttributionReportUseCase:
         assert use_case.audit_repo == mock_audit_repository
         assert use_case.backtest_repo == mock_backtest_repository
 
+    @patch('shared.config.secrets.get_secrets')
+    @patch('apps.backtest.infrastructure.adapters.composite_price_adapter.create_default_price_adapter')
     def test_execute_success(
         self,
+        mock_create_adapter,
+        mock_get_secrets,
         use_case,
         mock_backtest_repository,
-        sample_backtest_model
+        sample_backtest_model,
+        mock_price_adapter
     ):
         """Test successful execution."""
+        # Setup mocks
+        mock_secrets = Mock()
+        mock_secrets.data_sources.tushare_token = "test_token"
+        mock_get_secrets.return_value = mock_secrets
+        mock_create_adapter.return_value = mock_price_adapter
+
         mock_backtest_repository.get_backtest_by_id = Mock(return_value=sample_backtest_model)
 
         request = GenerateAttributionReportRequest(backtest_id=1)
@@ -130,14 +202,25 @@ class TestGenerateAttributionReportUseCase:
         assert "不存在" in response.error
         assert response.report_id is None
 
+    @patch('shared.config.secrets.get_secrets')
+    @patch('apps.backtest.infrastructure.adapters.composite_price_adapter.create_default_price_adapter')
     def test_execute_saves_attribution_report(
         self,
+        mock_create_adapter,
+        mock_get_secrets,
         use_case,
         mock_backtest_repository,
         mock_audit_repository,
-        sample_backtest_model
+        sample_backtest_model,
+        mock_price_adapter
     ):
         """Test that attribution report is saved."""
+        # Setup mocks
+        mock_secrets = Mock()
+        mock_secrets.data_sources.tushare_token = "test_token"
+        mock_get_secrets.return_value = mock_secrets
+        mock_create_adapter.return_value = mock_price_adapter
+
         mock_backtest_repository.get_backtest_by_id = Mock(return_value=sample_backtest_model)
 
         request = GenerateAttributionReportRequest(backtest_id=1)
@@ -146,14 +229,25 @@ class TestGenerateAttributionReportUseCase:
         # Verify save_attribution_report was called
         mock_audit_repository.save_attribution_report.assert_called_once()
 
+    @patch('shared.config.secrets.get_secrets')
+    @patch('apps.backtest.infrastructure.adapters.composite_price_adapter.create_default_price_adapter')
     def test_execute_saves_loss_analysis_when_losses(
         self,
+        mock_create_adapter,
+        mock_get_secrets,
         use_case,
         mock_backtest_repository,
         mock_audit_repository,
-        sample_backtest_model
+        sample_backtest_model,
+        mock_price_adapter
     ):
         """Test that loss analysis is saved when there are losses."""
+        # Setup mocks
+        mock_secrets = Mock()
+        mock_secrets.data_sources.tushare_token = "test_token"
+        mock_get_secrets.return_value = mock_secrets
+        mock_create_adapter.return_value = mock_price_adapter
+
         mock_backtest_repository.get_backtest_by_id = Mock(return_value=sample_backtest_model)
 
         request = GenerateAttributionReportRequest(backtest_id=1)
@@ -162,14 +256,25 @@ class TestGenerateAttributionReportUseCase:
         # Verify loss analysis methods were called (may or may not save depending on loss)
         assert mock_audit_repository.save_loss_analysis.called or mock_audit_repository.save_experience_summary.called
 
+    @patch('shared.config.secrets.get_secrets')
+    @patch('apps.backtest.infrastructure.adapters.composite_price_adapter.create_default_price_adapter')
     def test_execute_saves_experience_summary(
         self,
+        mock_create_adapter,
+        mock_get_secrets,
         use_case,
         mock_backtest_repository,
         mock_audit_repository,
-        sample_backtest_model
+        sample_backtest_model,
+        mock_price_adapter
     ):
         """Test that experience summary is saved."""
+        # Setup mocks
+        mock_secrets = Mock()
+        mock_secrets.data_sources.tushare_token = "test_token"
+        mock_get_secrets.return_value = mock_secrets
+        mock_create_adapter.return_value = mock_price_adapter
+
         mock_backtest_repository.get_backtest_by_id = Mock(return_value=sample_backtest_model)
 
         request = GenerateAttributionReportRequest(backtest_id=1)
@@ -189,8 +294,66 @@ class TestGenerateAttributionReportUseCase:
         assert result['total_return'] == 0.10
         assert isinstance(result['equity_curve'], list)
 
-    def test_build_asset_returns(self, use_case, sample_backtest_model):
-        """Test _build_asset_returns method."""
+    @patch('shared.config.secrets.get_secrets')
+    @patch('apps.backtest.infrastructure.adapters.composite_price_adapter.create_default_price_adapter')
+    def test_build_asset_returns(
+        self,
+        mock_create_adapter,
+        mock_get_secrets,
+        use_case,
+        sample_backtest_model
+    ):
+        """Test _build_asset_returns method with mocked price adapter."""
+        # Mock the secrets
+        mock_secrets = Mock()
+        mock_secrets.data_sources.tushare_token = "test_token"
+        mock_get_secrets.return_value = mock_secrets
+
+        # Mock the price adapter with sample data
+        mock_adapter = Mock()
+        from datetime import date as dt_date
+
+        # Create sample price points for multiple asset classes
+        sample_prices_equity = [
+            AssetPricePoint(
+                asset_class='a_share_growth',
+                price=100.0,
+                as_of_date=dt_date(2024, 1, 1),
+                source='mock'
+            ),
+            AssetPricePoint(
+                asset_class='a_share_growth',
+                price=101.0,
+                as_of_date=dt_date(2024, 1, 2),
+                source='mock'
+            ),
+        ]
+        sample_prices_bond = [
+            AssetPricePoint(
+                asset_class='china_bond',
+                price=100.0,
+                as_of_date=dt_date(2024, 1, 1),
+                source='mock'
+            ),
+            AssetPricePoint(
+                asset_class='china_bond',
+                price=100.5,
+                as_of_date=dt_date(2024, 1, 2),
+                source='mock'
+            ),
+        ]
+
+        # Setup mock to return different data based on asset_class
+        def mock_get_prices(asset_class, start_date, end_date):
+            if asset_class == 'a_share_growth':
+                return sample_prices_equity
+            elif asset_class == 'china_bond':
+                return sample_prices_bond
+            return []
+
+        mock_adapter.get_prices.side_effect = mock_get_prices
+        mock_create_adapter.return_value = mock_adapter
+
         backtest_dict = {
             'start_date': date(2024, 1, 1),
             'end_date': date(2024, 1, 31),
@@ -198,14 +361,28 @@ class TestGenerateAttributionReportUseCase:
         asset_returns = use_case._build_asset_returns(backtest_dict)
 
         assert isinstance(asset_returns, dict)
-        assert 'equity' in asset_returns or 'bond' in asset_returns
+        assert 'equity' in asset_returns  # a_share_growth maps to 'equity'
+        assert 'bond' in asset_returns  # china_bond maps to 'bond'
+        # Should have calculated returns from the price points
+        assert len(asset_returns['equity']) == 1  # One return from two price points
 
+    @patch('shared.config.secrets.get_secrets')
+    @patch('apps.backtest.infrastructure.adapters.composite_price_adapter.create_default_price_adapter')
     def test_execute_handles_json_decode_error(
         self,
+        mock_create_adapter,
+        mock_get_secrets,
         use_case,
-        mock_backtest_repository
+        mock_backtest_repository,
+        mock_price_adapter
     ):
         """Test handling of invalid JSON in regime_history."""
+        # Setup mocks
+        mock_secrets = Mock()
+        mock_secrets.data_sources.tushare_token = "test_token"
+        mock_get_secrets.return_value = mock_secrets
+        mock_create_adapter.return_value = mock_price_adapter
+
         model = Mock()
         model.id = 1
         model.start_date = date(2024, 1, 1)

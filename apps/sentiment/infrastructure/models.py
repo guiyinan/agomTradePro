@@ -6,6 +6,7 @@ Sentiment 模块 - Infrastructure 层数据模型
 
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.utils import timezone
 
 
 class SentimentIndexModel(models.Model):
@@ -46,6 +47,14 @@ class SentimentIndexModel(models.Model):
         default=0.0,
         validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
         verbose_name="置信度"
+    )
+
+    # 数据充足性标记（区分"无数据"和"中性情绪"）
+    data_sufficient = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="数据充足性",
+        help_text="True 表示数据充足，False 表示无数据或数据不足"
     )
 
     # 分类情绪（JSON）
@@ -89,6 +98,9 @@ class SentimentIndexModel(models.Model):
     @property
     def sentiment_level(self) -> str:
         """获取情绪等级"""
+        if not self.data_sufficient:
+            return "数据不足"
+
         score = self.composite_index
         if score >= 1.5:
             return "极度乐观"
@@ -245,3 +257,112 @@ class SentimentCache(models.Model):
 
     def __str__(self):
         return f"{self.text_hash[:8]}... - {self.sentiment_score:.2f}"
+
+
+class SentimentAlertModel(models.Model):
+    """
+    Sentiment 告警 ORM 模型
+
+    存储 Sentiment 系统的告警信息，包括 AI 调用失败等。
+
+    Attributes:
+        alert_type: 告警类型
+        severity: 严重程度（info/warning/error/critical）
+        title: 告警标题
+        message: 告警详情
+        metadata: 元数据（JSON）
+        is_resolved: 是否已解决
+        resolved_at: 解决时间
+        created_at: 创建时间
+    """
+
+    # Severity Choices
+    SEVERITY_INFO = "info"
+    SEVERITY_WARNING = "warning"
+    SEVERITY_ERROR = "error"
+    SEVERITY_CRITICAL = "critical"
+
+    SEVERITY_CHOICES = [
+        (SEVERITY_INFO, "信息"),
+        (SEVERITY_WARNING, "警告"),
+        (SEVERITY_ERROR, "错误"),
+        (SEVERITY_CRITICAL, "严重"),
+    ]
+
+    # Alert Type Choices
+    ALERT_AI_FAILURE = "ai_failure"
+    ALERT_NO_DATA = "no_data"
+    ALERT_DATA_STALE = "data_stale"
+
+    ALERT_TYPE_CHOICES = [
+        (ALERT_AI_FAILURE, "AI 调用失败"),
+        (ALERT_NO_DATA, "无数据"),
+        (ALERT_DATA_STALE, "数据过期"),
+    ]
+
+    alert_type = models.CharField(
+        max_length=50,
+        choices=ALERT_TYPE_CHOICES,
+        db_index=True,
+        verbose_name="告警类型"
+    )
+
+    severity = models.CharField(
+        max_length=20,
+        choices=SEVERITY_CHOICES,
+        default=SEVERITY_WARNING,
+        db_index=True,
+        verbose_name="严重程度"
+    )
+
+    title = models.CharField(
+        max_length=255,
+        verbose_name="告警标题"
+    )
+
+    message = models.TextField(
+        verbose_name="告警详情"
+    )
+
+    metadata = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name="元数据"
+    )
+
+    is_resolved = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="是否已解决"
+    )
+
+    resolved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="解决时间"
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        verbose_name="创建时间"
+    )
+
+    class Meta:
+        db_table = "sentiment_alert"
+        verbose_name = "Sentiment 告警"
+        verbose_name_plural = "Sentiment 告警"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["alert_type", "is_resolved"]),
+            models.Index(fields=["severity", "is_resolved"]),
+        ]
+
+    def __str__(self):
+        return f"[{self.severity.upper()}] {self.title}"
+
+    def resolve(self) -> None:
+        """标记告警为已解决"""
+        self.is_resolved = True
+        self.resolved_at = timezone.now()
+        self.save()

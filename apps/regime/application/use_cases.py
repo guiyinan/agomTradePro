@@ -12,8 +12,16 @@ from typing import Optional, List, Dict, Set, Tuple
 
 from ..domain.services import RegimeCalculator, calculate_momentum, calculate_absolute_momentum, calculate_rolling_zscore
 from ..domain.entities import RegimeSnapshot
+from shared.infrastructure.config_helper import ConfigHelper, ConfigKeys
 
 logger = logging.getLogger(__name__)
+
+
+# 默认阈值（从配置读取失败时使用）
+DEFAULT_SPREAD_BP_THRESHOLD = 100.0
+DEFAULT_US_YIELD_THRESHOLD = 4.5
+DEFAULT_DAILY_PERSIST_DAYS = 10
+DEFAULT_CONFLICT_CONFIDENCE_BOOST = 0.2
 
 
 @dataclass
@@ -236,14 +244,18 @@ class HighFrequencySignalUseCase:
                 })
 
                 # Score: -1 (bearish) to +1 (bullish)
-                # Normalized: spread > 100 BP = +1, spread < 0 BP = -1
+                # Normalized: spread > threshold BP = +1, spread < 0 BP = -1
                 spread_bp = term_spread_result['spread_value']
-                if spread_bp > 100:
+                spread_threshold = ConfigHelper.get_float(
+                    ConfigKeys.REGIME_SPREAD_BP_THRESHOLD,
+                    DEFAULT_SPREAD_BP_THRESHOLD
+                )
+                if spread_bp > spread_threshold:
                     score = 1.0
                 elif spread_bp < 0:
                     score = -1.0
                 else:
-                    score = (spread_bp / 100)  # Linear interpolation
+                    score = (spread_bp / spread_threshold)  # Linear interpolation
                 signal_scores.append((score, 1.0))  # Weight 1.0 for term spread
 
                 if term_spread_result['is_inverted']:
@@ -454,8 +466,12 @@ class HighFrequencySignalUseCase:
             # US bond yield interpretation for China regime:
             # - Rising US yields -> capital outflow pressure -> BEARISH for China
             # - Falling US yields -> easing pressure -> BULLISH for China
-            # - Threshold around 3.5% (historical average)
-            if us_yield > 4.5:
+            # - Threshold from configuration
+            us_yield_threshold = ConfigHelper.get_float(
+                ConfigKeys.REGIME_US_YIELD_THRESHOLD,
+                DEFAULT_US_YIELD_THRESHOLD
+            )
+            if us_yield > us_yield_threshold:
                 signal = 'BEARISH'
                 score = -1.0
             elif us_yield < 3.0:
@@ -463,8 +479,8 @@ class HighFrequencySignalUseCase:
                 score = 1.0
             else:
                 signal = 'NEUTRAL'
-                # Linear interpolation between 3.0% and 4.5%
-                score = 1.0 - ((us_yield - 3.0) / 1.5) * 2
+                # Linear interpolation between 3.0% and threshold
+                score = 1.0 - ((us_yield - 3.0) / (us_yield_threshold - 3.0)) * 2
 
             return {
                 'success': True,
@@ -503,7 +519,7 @@ class ResolveSignalConflictUseCase:
 
     Rules:
     1. Daily == Monthly: High confidence (0.9)
-    2. Daily persists >= 10 days: Use daily (0.7 confidence)
+    2. Daily persists >= N days: Use daily (configurable)
     3. Daily + Weekly一致 (both differ from monthly): Consider switching (0.6 confidence)
     4. Default: Use monthly, lower confidence (0.5)
     """
@@ -518,18 +534,28 @@ class ResolveSignalConflictUseCase:
         Returns:
             ResolveSignalConflictResponse: Resolution result
         """
+        # Get configurable values
+        daily_persist_days = ConfigHelper.get_int(
+            ConfigKeys.REGIME_DAILY_PERSIST_DAYS,
+            DEFAULT_DAILY_PERSIST_DAYS
+        )
+        confidence_boost = ConfigHelper.get_float(
+            ConfigKeys.REGIME_CONFLICT_CONFIDENCE_BOOST,
+            DEFAULT_CONFLICT_CONFIDENCE_BOOST
+        )
+
         # Rule 1: Daily and Monthly一致
         if request.daily_signal == request.monthly_signal:
             avg_confidence = (request.daily_confidence + request.monthly_confidence) / 2
             return ResolveSignalConflictResponse(
                 final_signal=request.daily_signal,
-                final_confidence=min(avg_confidence + 0.2, 1.0),  # Boost confidence
+                final_confidence=min(avg_confidence + confidence_boost, 1.0),  # Boost confidence
                 resolution_reason="Daily and monthly signals一致",
                 source="ALL_CONSISTENT"
             )
 
-        # Rule 2: Daily signal persists for >= 10 days
-        if request.daily_duration_days >= 10:
+        # Rule 2: Daily signal persists for >= N days
+        if request.daily_duration_days >= daily_persist_days:
             return ResolveSignalConflictResponse(
                 final_signal=request.daily_signal,
                 final_confidence=min(request.daily_confidence + 0.1, 1.0),
@@ -598,6 +624,7 @@ class CalculateRegimeUseCase:
     # 定义关键指标的最小数据量要求
     MIN_DATA_POINTS = 24  # 至少24个月的数据
     CRITICAL_INDICATORS = {'CN_PMI', 'CN_CPI', 'CN_CPI_NATIONAL_YOY'}  # 关键指标
+    MAX_FALLBACK_COUNT = 3  # 最大降级次数限制（防止无限循环）
 
     def __init__(self, repository, regime_repository=None, calculator: Optional[RegimeCalculator] = None):
         """
@@ -609,6 +636,7 @@ class CalculateRegimeUseCase:
         self.repository = repository
         self.regime_repository = regime_repository
         self.calculator = calculator or RegimeCalculator()
+        self._consecutive_fallback_count = 0  # 连续降级计数器（每次计算重置）
 
     def _check_data_completeness(
         self,
@@ -748,7 +776,7 @@ class CalculateRegimeUseCase:
             RegimeSnapshot: 降级后的快照
 
         Raises:
-            RegimeCalculationError: 无可用的降级数据
+            RegimeCalculationError: 无可用的降级数据或降级次数超限
         """
         if not self.regime_repository:
             raise RegimeCalculationError("No regime repository available for fallback")
@@ -758,12 +786,26 @@ class CalculateRegimeUseCase:
         if not last_regime:
             raise RegimeCalculationError("No fallback regime available")
 
+        # 检查降级次数限制
+        self._consecutive_fallback_count += 1
+        if self._consecutive_fallback_count > self.MAX_FALLBACK_COUNT:
+            logger.error(
+                f"Exceeded maximum fallback count ({self.MAX_FALLBACK_COUNT}). "
+                f"Data has been missing for too long. Refusing to return stale regime."
+            )
+            raise RegimeCalculationError(
+                f"Maximum fallback count ({self.MAX_FALLBACK_COUNT}) exceeded. "
+                f"Data has been unavailable for {self._consecutive_fallback_count} consecutive attempts. "
+                f"Please check data source availability."
+            )
+
         # 降低置信度（最多降低到 0.1）
         new_confidence = max(last_regime.confidence * 0.8, 0.1)
 
         logger.warning(
             f"Using fallback regime from {last_regime.observed_at}, "
-            f"confidence reduced from {last_regime.confidence:.2f} to {new_confidence:.2f}"
+            f"confidence reduced from {last_regime.confidence:.2f} to {new_confidence:.2f} "
+            f"(fallback count: {self._consecutive_fallback_count}/{self.MAX_FALLBACK_COUNT})"
         )
 
         return RegimeSnapshot(
@@ -772,7 +814,9 @@ class CalculateRegimeUseCase:
             distribution=last_regime.distribution,
             dominant_regime=last_regime.dominant_regime,
             confidence=new_confidence,
-            observed_at=as_of_date
+            observed_at=as_of_date,
+            data_source="fallback",
+            fallback_count=self._consecutive_fallback_count
         )
 
     def execute(self, request: CalculateRegimeRequest) -> CalculateRegimeResponse:
@@ -809,6 +853,8 @@ class CalculateRegimeUseCase:
                         dominant_regime=cached_data['dominant_regime'],
                         confidence=cached_data['confidence'],
                         observed_at=date.fromisoformat(cached_data['observed_at']),
+                        data_source=cached_data.get('data_source', 'cached'),
+                        fallback_count=cached_data.get('fallback_count', 0),
                     )
                     return CalculateRegimeResponse(
                         success=True,
@@ -825,6 +871,9 @@ class CalculateRegimeUseCase:
                 logger.warning(f"缓存检查失败: {e}，继续正常计算")
 
         try:
+            # 重置降级计数器（每次新的计算尝试）
+            self._consecutive_fallback_count = 0
+
             # 转换指标代码
             growth_code = self.repository.GROWTH_INDICATORS.get(request.growth_indicator, request.growth_indicator)
             inflation_code = self.repository.INFLATION_INDICATORS.get(request.inflation_indicator, request.inflation_indicator)
@@ -903,6 +952,9 @@ class CalculateRegimeUseCase:
                     )
 
             # 7. 调用 Domain 层计算
+            # 重置降级计数器（成功获取数据并计算）
+            self._consecutive_fallback_count = 0
+
             result = self.calculator.calculate(
                 growth_series=growth_series,
                 inflation_series=inflation_series,
@@ -976,7 +1028,9 @@ class CalculateRegimeUseCase:
                 distribution=result.snapshot.distribution,
                 dominant_regime=result.snapshot.dominant_regime,
                 confidence=result.snapshot.confidence,
-                observed_at=actual_observed_at  # 使用实际数据日期
+                observed_at=actual_observed_at,  # 使用实际数据日期
+                data_source=getattr(result.snapshot, 'data_source', 'calculated'),
+                fallback_count=getattr(result.snapshot, 'fallback_count', 0),
             )
 
             response = CalculateRegimeResponse(

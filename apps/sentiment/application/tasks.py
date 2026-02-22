@@ -70,13 +70,12 @@ def calculate_daily_sentiment_index(self, target_date: str = None) -> Dict[str, 
         # 目前新闻部分为空，使用默认权重
         news_scores = []
 
-        # 5. 计算综合指数
+        # 5. 计算综合指数（权重从配置读取）
         calculator = SentimentIndexCalculator()
         sentiment_index = calculator.calculate_index(
             news_scores=news_scores,
             policy_scores=policy_scores,
-            news_weight=0.4,
-            policy_weight=0.6,
+            # news_weight 和 policy_weight 从配置读取，无需显式传递
         )
 
         # 6. 保存到数据库

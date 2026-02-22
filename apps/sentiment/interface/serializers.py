@@ -39,6 +39,7 @@ class SentimentIndexSerializer(serializers.Serializer):
     index = serializers.DictField(help_text="各项指数值")
     level = serializers.CharField(help_text="情绪等级描述")
     confidence = serializers.FloatField(help_text="置信度")
+    data_sufficient = serializers.BooleanField(help_text="数据是否充足（区分无数据和中性情绪）")
     sector_sentiment = serializers.DictField(help_text="行业情绪分布")
     sources = serializers.DictField(help_text="数据来源统计")
 

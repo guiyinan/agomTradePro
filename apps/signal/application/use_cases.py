@@ -316,14 +316,17 @@ class ReevaluateSignalsUseCase:
     重评所有活跃信号的用例
 
     当政策档位变化时，重新评估所有活跃的信号是否应该被拒绝。
+    同时检查信号自身的证伪条件是否满足。
     """
 
-    def __init__(self, signal_repository):
+    def __init__(self, signal_repository, invalidation_check_service=None):
         """
         Args:
             signal_repository: SignalRepository 实例
+            invalidation_check_service: InvalidationCheckService 实例（可选）
         """
         self.signal_repository = signal_repository
+        self.invalidation_check_service = invalidation_check_service
 
     def execute(self, request: ReevaluateSignalsRequest) -> ReevaluateSignalsResponse:
         """
@@ -345,7 +348,9 @@ class ReevaluateSignalsUseCase:
         rejected_signal_ids = []
 
         for signal in active_signals:
-            # 根据新的 policy_level 重评
+            reject_reason = None
+
+            # 1. 根据新的 policy_level 重评
             current_regime = request.current_regime or signal.target_regime
 
             should_reject, reason, _ = should_reject_signal(
@@ -356,17 +361,32 @@ class ReevaluateSignalsUseCase:
             )
 
             if should_reject:
+                reject_reason = f"Policy level change: {reason}"
+
+            # 2. 检查信号自身的证伪条件
+            if not reject_reason and self.invalidation_check_service and signal.invalidation_logic:
+                try:
+                    invalidation_result = self.invalidation_check_service.check_signal_by_id(signal.id)
+                    if invalidation_result and invalidation_result.is_invalidated:
+                        reject_reason = f"Invalidation condition met: {invalidation_result.reason}"
+                        logger.info(
+                            f"Signal {signal.id} ({signal.asset_code}) invalidated: {invalidation_result.reason}"
+                        )
+                except Exception as e:
+                    logger.warning(f"Failed to check invalidation for signal {signal.id}: {e}")
+
+            if reject_reason:
                 # 更新信号状态
                 self.signal_repository.update_signal_status(
                     signal_id=signal.id,
                     new_status=SignalStatus.REJECTED,
-                    rejection_reason=reason
+                    rejection_reason=reject_reason
                 )
                 rejected_count += 1
                 rejected_signal_ids.append(signal.id)
 
                 logger.info(
-                    f"Signal {signal.id} ({signal.asset_code}) rejected due to policy level change: {reason}"
+                    f"Signal {signal.id} ({signal.asset_code}) rejected: {reject_reason}"
                 )
 
         logger.info(

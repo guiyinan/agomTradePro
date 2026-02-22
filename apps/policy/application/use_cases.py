@@ -739,23 +739,29 @@ class FetchRSSUseCase:
                     except Exception as e:
                         logger.error(f"AI classification error for {item.title}: {e}")
 
-                # ========== 关键词匹配（Fallback） ==========
-                # 如果AI分类失败或置信度太低，使用关键词匹配作为fallback
+                # ========== 确定政策档位 ==========
                 level = None
-                if not classification_result or not classification_result.success:
+
+                # 优先使用 AI 推荐的档位
+                if classification_result and classification_result.success and classification_result.policy_level:
+                    level = classification_result.policy_level
+                    logger.info(f"Using AI recommended level: {level.value} for: {item.title}")
+
+                # AI 未推荐档位时，使用关键词匹配作为 fallback
+                if not level:
                     level = matcher.match(item)
                     if level:
                         info_category = InfoCategory.MACRO  # 默认为宏观
                         audit_status = AuditStatus.PENDING_REVIEW
                         ai_confidence = 0.5  # 关键词匹配的默认置信度
-                else:
-                    # AI分类成功，但还需要匹配level
-                    level = matcher.match(item)
 
-                # 如果AI和关键词都没匹配到level，跳过
+                # 如果 AI 和关键词都没匹配到 level，使用默认值 PENDING（待分类，后续 AI 打标签）
                 if not level:
-                    logger.debug(f"No policy level matched for: {item.title}")
-                    continue
+                    level = PolicyLevel.PENDING
+                    info_category = InfoCategory.OTHER
+                    audit_status = AuditStatus.PENDING_REVIEW
+                    ai_confidence = None
+                    logger.info(f"No policy level matched, using PENDING (unclassified) for: {item.title}")
 
                 # 内容提取（如果启用）
                 description = item.description or item.title
@@ -790,8 +796,8 @@ class FetchRSSUseCase:
                     except ContentExtractorError as e:
                         logger.warning(f"Failed to extract content from {item.link}: {e}")
 
-                # 转换结构化数据为字典
-                structured_data_dict = None
+                # 转换结构化数据为字典（使用空字典而非 None）
+                structured_data_dict = {}
                 if structured_data:
                     structured_data_dict = asdict(structured_data)
 
@@ -817,19 +823,13 @@ class FetchRSSUseCase:
                     evidence_url=item.link
                 )
 
-                saved_event = self.policy_repository.save_event(event, **extra_fields)
-
-                # 获取保存后的ORM对象ID（通过查询）
-                from ..infrastructure.models import PolicyLog
-                policy_log_orm = PolicyLog._default_manager.filter(
-                    event_date=item.pub_date.date(),
-                    title=item.title
-                ).first()
+                # 保存事件并直接获取ORM对象（避免额外查询）
+                policy_log_orm = self.policy_repository.save_event(event, return_orm=True, **extra_fields)
 
                 new_events_count += 1
 
                 # ========== 审核队列管理 ==========
-                # 如果需要人工审核，加入审核队列
+                # 如果需要人工审核，加入审核队列（使用 get_or_create 避免重复）
                 if audit_status == AuditStatus.PENDING_REVIEW and policy_log_orm:
                     # 根据风险级别设置优先级
                     if level in [PolicyLevel.P2, PolicyLevel.P3]:
@@ -839,12 +839,12 @@ class FetchRSSUseCase:
                     else:
                         priority = 'normal'
 
-                    PolicyAuditQueue._default_manager.create(
-                        policy_log=policy_log_orm,  # 直接使用ORM对象
-                        priority=priority
+                    _, created = PolicyAuditQueue._default_manager.get_or_create(
+                        policy_log=policy_log_orm,
+                        defaults={'priority': priority}
                     )
-
-                    logger.info(f"Added policy {policy_log_orm.id} to audit queue (priority: {priority})")
+                    if created:
+                        logger.info(f"Added policy {policy_log_orm.id} to audit queue (priority: {priority})")
 
                 logger.info(
                     f"Created policy event from RSS: {level.value} - {item.title} "
@@ -865,7 +865,31 @@ class FetchRSSUseCase:
                     )
 
             except Exception as e:
-                logger.warning(f"Failed to process RSS item {item.link}: {e}")
+                # 处理失败时仍保存原始数据，避免数据丢失
+                logger.warning(f"Failed to process RSS item {item.link}: {e}, saving as pending")
+
+                # 使用最基础的值保存
+                try:
+                    from ..infrastructure.models import PolicyLog
+                    PolicyLog._default_manager.create(
+                        event_date=item.pub_date.date(),
+                        level='PX',  # 待分类
+                        title=item.title,
+                        description=item.description or item.title,
+                        evidence_url=item.link,
+                        info_category='other',
+                        audit_status='pending_review',
+                        ai_confidence=None,
+                        structured_data={},
+                        risk_impact='unknown',
+                        rss_source_id=source.id,
+                        rss_item_guid=item.guid or item.link,
+                        processing_metadata={'error': str(e), 'saved_as_pending': True}
+                    )
+                    new_events_count += 1
+                    logger.info(f"Saved RSS item as pending (processing failed): {item.title}")
+                except Exception as save_error:
+                    logger.error(f"Failed to save pending RSS item {item.link}: {save_error}")
                 continue
 
         # 6. 记录日志

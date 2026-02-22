@@ -33,6 +33,11 @@ class AuditReport(models.Model):
 class AttributionReport(models.Model):
     """归因分析报告（详细版本）"""
 
+    ATTRIBUTION_METHOD_CHOICES = [
+        ('heuristic', '启发式方法（30%/50%规则）'),
+        ('brinson', '标准Brinson模型'),
+    ]
+
     backtest = models.ForeignKey(
         BacktestResultModel,
         on_delete=models.CASCADE,
@@ -43,7 +48,16 @@ class AttributionReport(models.Model):
     period_start = models.DateField(verbose_name='分析起始日期')
     period_end = models.DateField(verbose_name='分析结束日期')
 
-    # Brinson 归因分析结果
+    # 归因方法标识
+    attribution_method = models.CharField(
+        max_length=20,
+        choices=ATTRIBUTION_METHOD_CHOICES,
+        default='heuristic',
+        verbose_name='归因方法',
+        help_text='使用的归因分析方法'
+    )
+
+    # 归因分析结果
     regime_timing_pnl = models.FloatField(
         verbose_name='Regime 择时贡献',
         help_text='因 Regime 判断正确/错误产生的收益/损失'

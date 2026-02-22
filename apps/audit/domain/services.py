@@ -78,6 +78,7 @@ def analyze_attribution(
         asset_selection_pnl=selection_pnl,
         interaction_pnl=interaction_pnl,
         transaction_cost_pnl=cost_pnl,
+        attribution_method=config.attribution_method,  # 使用配置中的归因方法
         loss_source=loss_source,
         loss_amount=loss_amount,
         loss_periods=loss_periods,

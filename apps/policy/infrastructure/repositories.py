@@ -31,17 +31,19 @@ class DjangoPolicyRepository:
     def save_event(
         self,
         event: PolicyEvent,
+        return_orm: bool = False,
         **kwargs
-    ) -> PolicyEvent:
+    ):
         """
         保存政策事件
 
         Args:
             event: 政策事件实体
+            return_orm: 是否返回ORM对象（含ID），默认返回Domain实体
             **kwargs: 额外字段（如info_category, audit_status, ai_confidence等）
 
         Returns:
-            PolicyEvent: 保存后的事件
+            Union[PolicyEvent, PolicyLog]: 根据return_orm参数返回Domain实体或ORM对象
         """
         # 转换 level 枚举
         level_value = (
@@ -79,6 +81,8 @@ class DjangoPolicyRepository:
             create_data.update(kwargs)
             orm_obj = self._model.objects.create(**create_data)
 
+        if return_orm:
+            return orm_obj
         return self._orm_to_entity(orm_obj)
 
     def get_event_by_date(

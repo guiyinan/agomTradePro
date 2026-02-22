@@ -38,13 +38,68 @@ from apps.audit.infrastructure.models import (
 )
 from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
 from apps.backtest.infrastructure.models import BacktestResultModel
+from apps.backtest.infrastructure.adapters.base import AssetPricePoint
+
+
+@pytest.fixture
+def mock_price_adapter():
+    """Create mock price adapter with sample data for integration tests."""
+    mock_adapter = Mock()
+
+    # Create sample price points for multiple asset classes
+    sample_prices_equity = [
+        AssetPricePoint(
+            asset_class='a_share_growth',
+            price=100.0,
+            as_of_date=date(2024, 1, 1),
+            source='mock'
+        ),
+        AssetPricePoint(
+            asset_class='a_share_growth',
+            price=101.0,
+            as_of_date=date(2024, 1, 2),
+            source='mock'
+        ),
+    ]
+    sample_prices_bond = [
+        AssetPricePoint(
+            asset_class='china_bond',
+            price=100.0,
+            as_of_date=date(2024, 1, 1),
+            source='mock'
+        ),
+        AssetPricePoint(
+            asset_class='china_bond',
+            price=100.5,
+            as_of_date=date(2024, 1, 2),
+            source='mock'
+        ),
+    ]
+
+    # Setup mock to return different data based on asset_class
+    def mock_get_prices(asset_class, start_date, end_date):
+        if asset_class == 'a_share_growth':
+            return sample_prices_equity
+        elif asset_class == 'china_bond':
+            return sample_prices_bond
+        return []
+
+    mock_adapter.get_prices.side_effect = mock_get_prices
+    return mock_adapter
 
 
 @pytest.mark.django_db
 class TestFullAttributionWorkflow:
     """Test complete attribution workflow from backtest to report."""
 
-    def test_end_to_end_attribution_workflow(self):
+    @patch('apps.backtest.infrastructure.adapters.composite_price_adapter.create_default_price_adapter')
+    @patch('shared.config.secrets.get_secrets')
+    def test_end_to_end_attribution_workflow(
+        self,
+        mock_get_secrets,
+        mock_create_adapter,
+        mock_price_adapter
+    ):
         """Test end-to-end attribution workflow.
 
         Workflow:
@@ -54,6 +109,12 @@ class TestFullAttributionWorkflow:
         4. Verify experience summary
         5. Retrieve and validate report
         """
+        # Setup mocks
+        mock_secrets = Mock()
+        mock_secrets.data_sources.tushare_token = "test_token"
+        mock_get_secrets.return_value = mock_secrets
+        mock_create_adapter.return_value = mock_price_adapter
+
         # 1. Create backtest result
         backtest_model = self._create_sample_backtest()
         backtest_model.save()
@@ -75,16 +136,22 @@ class TestFullAttributionWorkflow:
         assert report.backtest_id == backtest_model.id
         assert report.total_pnl is not None
 
-        # 5. Verify loss analysis if applicable
+        # 5. Verify attribution method is labeled (Issue #4 fix)
+        assert report.attribution_method is not None
+        assert report.attribution_method in ['heuristic', 'brinson']
+        # Default should be heuristic
+        assert report.attribution_method == 'heuristic'
+
+        # 6. Verify loss analysis if applicable
         loss_analyses = LossAnalysis.objects.filter(report_id=response.report_id)
         if report.total_pnl < 0:
             assert loss_analyses.exists(), "Loss analysis should exist for negative returns"
 
-        # 6. Verify experience summary
+        # 7. Verify experience summary
         summaries = ExperienceSummary.objects.filter(report_id=response.report_id)
         assert summaries.exists(), "Experience summary should exist"
 
-        # 7. Retrieve via summary use case
+        # 8. Retrieve via summary use case
         summary_use_case = GetAuditSummaryUseCase(audit_repo)
         summary_request = GetAuditSummaryRequest(backtest_id=backtest_model.id)
         summary_response = summary_use_case.execute(summary_request)
@@ -93,9 +160,25 @@ class TestFullAttributionWorkflow:
         assert len(summary_response.reports) > 0
         assert 'loss_analyses' in summary_response.reports[0]
         assert 'experience_summaries' in summary_response.reports[0]
+        # Verify attribution method is in serialized output
+        assert 'attribution_method' in summary_response.reports[0]
+        assert 'attribution_method_display' in summary_response.reports[0]
 
-    def test_attribution_with_multiple_regime_changes(self):
+    @patch('apps.backtest.infrastructure.adapters.composite_price_adapter.create_default_price_adapter')
+    @patch('shared.config.secrets.get_secrets')
+    def test_attribution_with_multiple_regime_changes(
+        self,
+        mock_get_secrets,
+        mock_create_adapter,
+        mock_price_adapter
+    ):
         """Test attribution with multiple regime changes."""
+        # Setup mocks
+        mock_secrets = Mock()
+        mock_secrets.data_sources.tushare_token = "test_token"
+        mock_get_secrets.return_value = mock_secrets
+        mock_create_adapter.return_value = mock_price_adapter
+
         # Create backtest with multiple regime changes
         backtest_model = self._create_multi_regime_backtest()
         backtest_model.save()
@@ -115,8 +198,21 @@ class TestFullAttributionWorkflow:
         report = AttributionReport.objects.get(id=response.report_id)
         assert report.regime_accuracy is not None
 
-    def test_attribution_with_losses(self):
+    @patch('apps.backtest.infrastructure.adapters.composite_price_adapter.create_default_price_adapter')
+    @patch('shared.config.secrets.get_secrets')
+    def test_attribution_with_losses(
+        self,
+        mock_get_secrets,
+        mock_create_adapter,
+        mock_price_adapter
+    ):
         """Test attribution correctly identifies and categorizes losses."""
+        # Setup mocks
+        mock_secrets = Mock()
+        mock_secrets.data_sources.tushare_token = "test_token"
+        mock_get_secrets.return_value = mock_secrets
+        mock_create_adapter.return_value = mock_price_adapter
+
         # Create backtest with losses
         backtest_model = self._create_loss_backtest()
         backtest_model.save()
@@ -143,8 +239,21 @@ class TestFullAttributionWorkflow:
         ]
         assert loss_analysis.impact < 0  # Should be negative
 
-    def test_attribution_summary_by_date_range(self):
+    @patch('apps.backtest.infrastructure.adapters.composite_price_adapter.create_default_price_adapter')
+    @patch('shared.config.secrets.get_secrets')
+    def test_attribution_summary_by_date_range(
+        self,
+        mock_get_secrets,
+        mock_create_adapter,
+        mock_price_adapter
+    ):
         """Test retrieving attribution summary by date range."""
+        # Setup mocks
+        mock_secrets = Mock()
+        mock_secrets.data_sources.tushare_token = "test_token"
+        mock_get_secrets.return_value = mock_secrets
+        mock_create_adapter.return_value = mock_price_adapter
+
         # Create multiple backtests
         backtest1 = self._create_sample_backtest(
             start_date=date(2024, 1, 1),
@@ -302,8 +411,38 @@ class TestFullAttributionWorkflow:
 class TestAttributionAnalysisAccuracy:
     """Test accuracy of attribution analysis."""
 
-    def test_regime_timing_attribution(self):
+    @patch('apps.backtest.infrastructure.adapters.composite_price_adapter.create_default_price_adapter')
+    @patch('shared.config.secrets.get_secrets')
+    def test_regime_timing_attribution(
+        self,
+        mock_get_secrets,
+        mock_create_adapter
+    ):
         """Test regime timing attribution accuracy."""
+        # Setup mocks
+        mock_secrets = Mock()
+        mock_secrets.data_sources.tushare_token = "test_token"
+        mock_get_secrets.return_value = mock_secrets
+
+        mock_adapter = Mock()
+        # Create sample price points
+        sample_prices = [
+            AssetPricePoint(
+                asset_class='a_share_growth',
+                price=100.0,
+                as_of_date=date(2024, 1, 1),
+                source='mock'
+            ),
+            AssetPricePoint(
+                asset_class='a_share_growth',
+                price=101.0,
+                as_of_date=date(2024, 1, 2),
+                source='mock'
+            ),
+        ]
+        mock_adapter.get_prices.return_value = sample_prices
+        mock_create_adapter.return_value = mock_adapter
+
         # Create scenario where regime timing is clearly the issue
         backtest = self._create_regime_timing_scenario()
         backtest.save()
@@ -321,8 +460,38 @@ class TestAttributionAnalysisAccuracy:
         # The regime_timing_pnl should be calculated
         assert report.regime_timing_pnl is not None
 
-    def test_asset_selection_attribution(self):
+    @patch('apps.backtest.infrastructure.adapters.composite_price_adapter.create_default_price_adapter')
+    @patch('shared.config.secrets.get_secrets')
+    def test_asset_selection_attribution(
+        self,
+        mock_get_secrets,
+        mock_create_adapter
+    ):
         """Test asset selection attribution accuracy."""
+        # Setup mocks
+        mock_secrets = Mock()
+        mock_secrets.data_sources.tushare_token = "test_token"
+        mock_get_secrets.return_value = mock_secrets
+
+        mock_adapter = Mock()
+        # Create sample price points
+        sample_prices = [
+            AssetPricePoint(
+                asset_class='a_share_growth',
+                price=100.0,
+                as_of_date=date(2024, 1, 1),
+                source='mock'
+            ),
+            AssetPricePoint(
+                asset_class='a_share_growth',
+                price=101.0,
+                as_of_date=date(2024, 1, 2),
+                source='mock'
+            ),
+        ]
+        mock_adapter.get_prices.return_value = sample_prices
+        mock_create_adapter.return_value = mock_adapter
+
         # Create scenario where asset selection is the issue
         backtest = self._create_asset_selection_scenario()
         backtest.save()
@@ -338,8 +507,38 @@ class TestAttributionAnalysisAccuracy:
         report = AttributionReport.objects.get(id=response.report_id)
         assert report.asset_selection_pnl is not None
 
-    def test_interaction_effect_attribution(self):
+    @patch('apps.backtest.infrastructure.adapters.composite_price_adapter.create_default_price_adapter')
+    @patch('shared.config.secrets.get_secrets')
+    def test_interaction_effect_attribution(
+        self,
+        mock_get_secrets,
+        mock_create_adapter
+    ):
         """Test interaction effect attribution."""
+        # Setup mocks
+        mock_secrets = Mock()
+        mock_secrets.data_sources.tushare_token = "test_token"
+        mock_get_secrets.return_value = mock_secrets
+
+        mock_adapter = Mock()
+        # Create sample price points
+        sample_prices = [
+            AssetPricePoint(
+                asset_class='a_share_growth',
+                price=100.0,
+                as_of_date=date(2024, 1, 1),
+                source='mock'
+            ),
+            AssetPricePoint(
+                asset_class='a_share_growth',
+                price=101.0,
+                as_of_date=date(2024, 1, 2),
+                source='mock'
+            ),
+        ]
+        mock_adapter.get_prices.return_value = sample_prices
+        mock_create_adapter.return_value = mock_adapter
+
         backtest = self._create_interaction_scenario()
         backtest.save()
 
@@ -462,8 +661,38 @@ class TestAttributionAnalysisAccuracy:
 class TestAttributionPersistence:
     """Test persistence and retrieval of attribution data."""
 
-    def test_loss_analysis_persistence(self):
+    @patch('apps.backtest.infrastructure.adapters.composite_price_adapter.create_default_price_adapter')
+    @patch('shared.config.secrets.get_secrets')
+    def test_loss_analysis_persistence(
+        self,
+        mock_get_secrets,
+        mock_create_adapter
+    ):
         """Test that loss analysis is correctly persisted."""
+        # Setup mocks
+        mock_secrets = Mock()
+        mock_secrets.data_sources.tushare_token = "test_token"
+        mock_get_secrets.return_value = mock_secrets
+
+        mock_adapter = Mock()
+        # Create sample price points
+        sample_prices = [
+            AssetPricePoint(
+                asset_class='a_share_growth',
+                price=100.0,
+                as_of_date=date(2024, 1, 1),
+                source='mock'
+            ),
+            AssetPricePoint(
+                asset_class='a_share_growth',
+                price=101.0,
+                as_of_date=date(2024, 1, 2),
+                source='mock'
+            ),
+        ]
+        mock_adapter.get_prices.return_value = sample_prices
+        mock_create_adapter.return_value = mock_adapter
+
         backtest = self._create_loss_backtest()
         backtest.save()
 
@@ -484,8 +713,38 @@ class TestAttributionPersistence:
         assert loss.description is not None
         assert loss.improvement_suggestion is not None
 
-    def test_experience_summary_persistence(self):
+    @patch('apps.backtest.infrastructure.adapters.composite_price_adapter.create_default_price_adapter')
+    @patch('shared.config.secrets.get_secrets')
+    def test_experience_summary_persistence(
+        self,
+        mock_get_secrets,
+        mock_create_adapter
+    ):
         """Test that experience summaries are correctly persisted."""
+        # Setup mocks
+        mock_secrets = Mock()
+        mock_secrets.data_sources.tushare_token = "test_token"
+        mock_get_secrets.return_value = mock_secrets
+
+        mock_adapter = Mock()
+        # Create sample price points
+        sample_prices = [
+            AssetPricePoint(
+                asset_class='a_share_growth',
+                price=100.0,
+                as_of_date=date(2024, 1, 1),
+                source='mock'
+            ),
+            AssetPricePoint(
+                asset_class='a_share_growth',
+                price=101.0,
+                as_of_date=date(2024, 1, 2),
+                source='mock'
+            ),
+        ]
+        mock_adapter.get_prices.return_value = sample_prices
+        mock_create_adapter.return_value = mock_adapter
+
         backtest = self._create_sample_backtest()
         backtest.save()
 
@@ -504,8 +763,38 @@ class TestAttributionPersistence:
         assert summary.recommendation is not None
         assert summary.priority in ['HIGH', 'MEDIUM', 'LOW']
 
-    def test_multiple_reports_same_backtest(self):
+    @patch('apps.backtest.infrastructure.adapters.composite_price_adapter.create_default_price_adapter')
+    @patch('shared.config.secrets.get_secrets')
+    def test_multiple_reports_same_backtest(
+        self,
+        mock_get_secrets,
+        mock_create_adapter
+    ):
         """Test handling multiple reports for the same backtest."""
+        # Setup mocks
+        mock_secrets = Mock()
+        mock_secrets.data_sources.tushare_token = "test_token"
+        mock_get_secrets.return_value = mock_secrets
+
+        mock_adapter = Mock()
+        # Create sample price points
+        sample_prices = [
+            AssetPricePoint(
+                asset_class='a_share_growth',
+                price=100.0,
+                as_of_date=date(2024, 1, 1),
+                source='mock'
+            ),
+            AssetPricePoint(
+                asset_class='a_share_growth',
+                price=101.0,
+                as_of_date=date(2024, 1, 2),
+                source='mock'
+            ),
+        ]
+        mock_adapter.get_prices.return_value = sample_prices
+        mock_create_adapter.return_value = mock_adapter
+
         backtest = self._create_sample_backtest()
         backtest.save()
 

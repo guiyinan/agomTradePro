@@ -484,3 +484,115 @@ class QlibModelRegistryModel(models.Model):
         self.is_active = False
         self.save()
 
+
+class AlphaAlertModel(models.Model):
+    """
+    Alpha 告警 ORM 模型
+
+    存储 Alpha 系统的告警信息，包括推理失败、数据缺失等。
+
+    Attributes:
+        alert_type: 告警类型
+        severity: 严重程度（info/warning/error/critical）
+        title: 告警标题
+        message: 告警详情
+        metadata: 元数据（JSON）
+        is_resolved: 是否已解决
+        resolved_at: 解决时间
+        created_at: 创建时间
+    """
+
+    # Severity Choices
+    SEVERITY_INFO = "info"
+    SEVERITY_WARNING = "warning"
+    SEVERITY_ERROR = "error"
+    SEVERITY_CRITICAL = "critical"
+
+    SEVERITY_CHOICES = [
+        (SEVERITY_INFO, "信息"),
+        (SEVERITY_WARNING, "警告"),
+        (SEVERITY_ERROR, "错误"),
+        (SEVERITY_CRITICAL, "严重"),
+    ]
+
+    # Alert Type Choices
+    ALERT_INFERENCE_FAILURE = "inference_failure"
+    ALERT_DATA_STALE = "data_stale"
+    ALERT_MODEL_DEGRADED = "model_degraded"
+    ALERT_PROVIDER_UNAVAILABLE = "provider_unavailable"
+
+    ALERT_TYPE_CHOICES = [
+        (ALERT_INFERENCE_FAILURE, "推理失败"),
+        (ALERT_DATA_STALE, "数据过期"),
+        (ALERT_MODEL_DEGRADED, "模型降级"),
+        (ALERT_PROVIDER_UNAVAILABLE, "提供者不可用"),
+    ]
+
+    alert_type = models.CharField(
+        max_length=50,
+        choices=ALERT_TYPE_CHOICES,
+        db_index=True,
+        help_text="告警类型"
+    )
+
+    severity = models.CharField(
+        max_length=20,
+        choices=SEVERITY_CHOICES,
+        default=SEVERITY_WARNING,
+        db_index=True,
+        help_text="严重程度"
+    )
+
+    title = models.CharField(
+        max_length=255,
+        help_text="告警标题"
+    )
+
+    message = models.TextField(
+        help_text="告警详情"
+    )
+
+    metadata = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="元数据"
+    )
+
+    is_resolved = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="是否已解决"
+    )
+
+    resolved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="解决时间"
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        help_text="创建时间"
+    )
+
+    class Meta:
+        app_label = "alpha"
+        db_table = "alpha_alert"
+        verbose_name = "Alpha 告警"
+        verbose_name_plural = "Alpha 告警"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["alert_type", "is_resolved"]),
+            models.Index(fields=["severity", "is_resolved"]),
+        ]
+
+    def __str__(self):
+        return f"[{self.severity.upper()}] {self.title}"
+
+    def resolve(self) -> None:
+        """标记告警为已解决"""
+        self.is_resolved = True
+        self.resolved_at = timezone.now()
+        self.save()
+

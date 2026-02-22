@@ -149,10 +149,15 @@ class GenerateAttributionReportUseCase:
                 config=config
             )
 
-            # 5. 分析 Regime 准确性（简化版本）
+            # 5. 分析 Regime 准确性
             analyzer = AttributionAnalyzer(config)
-            # TODO: 需要实际的市场数据来验证准确率
-            regime_accuracy = 0.75  # 默认值
+
+            # 计算 Regime 准确率（基于回测中的 Regime 预测与实际收益的一致性）
+            regime_accuracy = self._calculate_regime_accuracy(
+                normalized_regime_history,
+                backtest_dict.get('equity_curve', [])
+            )
+
             dominant_regime = (
                 normalized_regime_history[-1].get('dominant_regime')
                 or normalized_regime_history[-1].get('regime')
@@ -171,6 +176,7 @@ class GenerateAttributionReportUseCase:
                 regime_accuracy=regime_accuracy,
                 regime_predicted=dominant_regime,
                 regime_actual=None,  # TODO: 需要实际数据
+                attribution_method=attribution.attribution_method.value,  # 归因方法标注
             )
 
             # 6. 保存损失分析
@@ -211,38 +217,172 @@ class GenerateAttributionReportUseCase:
                 error=str(e)
             )
 
+    def _calculate_regime_accuracy(
+        self,
+        regime_history: list,
+        equity_curve: list
+    ) -> float:
+        """
+        计算 Regime 预测准确率
+
+        基于 Regime 预测与实际收益方向的一致性来计算准确率。
+        - GROWTH/REFLATION 预期正收益
+        - RECESSION/STAGFLATION 预期负收益或低收益
+
+        Args:
+            regime_history: Regime 历史记录
+            equity_curve: 权益曲线
+
+        Returns:
+            float: 准确率 (0.0 - 1.0)
+        """
+        if not regime_history or not equity_curve or len(equity_curve) < 2:
+            return 0.5  # 数据不足时返回中性值
+
+        correct_predictions = 0
+        total_predictions = 0
+
+        # 构建日期到收益的映射
+        returns_by_date = {}
+        for i in range(1, len(equity_curve)):
+            prev = equity_curve[i - 1]
+            curr = equity_curve[i]
+            if isinstance(prev, dict) and isinstance(curr, dict):
+                date = curr.get('date')
+                prev_value = prev.get('value', 0)
+                curr_value = curr.get('value', 0)
+                if date and prev_value > 0:
+                    returns_by_date[date] = (curr_value - prev_value) / prev_value
+
+        # 检查每个 Regime 预测
+        for regime_record in regime_history:
+            regime = regime_record.get('regime', '').upper()
+            date = regime_record.get('date')
+
+            if not regime or not date:
+                continue
+
+            actual_return = returns_by_date.get(date)
+            if actual_return is None:
+                continue
+
+            total_predictions += 1
+
+            # 判断预测是否正确
+            # GROWTH/REFLATION 预期正收益
+            # RECESSION/STAGFLATION 预期负收益
+            if regime in ('GROWTH', 'REFLATION'):
+                if actual_return > 0:
+                    correct_predictions += 1
+            elif regime in ('RECESSION', 'STAGFLATION'):
+                if actual_return < 0:
+                    correct_predictions += 1
+            else:
+                # UNKNOWN 或其他，不计入准确率
+                total_predictions -= 1
+
+        if total_predictions == 0:
+            return 0.5  # 无有效预测时返回中性值
+
+        return correct_predictions / total_predictions
+
     def _build_asset_returns(self, backtest: dict) -> dict:
         """
-        构建资产收益数据（简化版本）
+        构建资产收益数据（从真实数据源获取）
 
-        实际应从数据库获取各资产的历史收益
+        使用 CompositeAssetPriceAdapter 获取各资产的历史价格数据，
+        并计算收益率。如果数据不可用，抛出异常而非使用假数据。
+
+        Returns:
+            dict: 资产收益率数据 {asset_class: [(date, return), ...]}
+
+        Raises:
+            ValueError: 当无法获取真实数据时
         """
-        # 简化版本：基于回测结果推算
         from datetime import timedelta
+        from apps.backtest.infrastructure.adapters.composite_price_adapter import (
+            create_default_price_adapter,
+        )
+        from shared.config.secrets import get_secrets
 
         start_date = backtest['start_date']
         end_date = backtest['end_date']
 
-        # 生成每日收益（模拟数据）
-        days = (end_date - start_date).days
-        dates = [start_date + timedelta(days=i) for i in range(days + 1)]
+        # 资产类别映射（与 backtest 模块保持一致）
+        asset_classes = {
+            'a_share_growth': 'equity',   # 沪深300
+            'a_share_value': 'equity',    # 中证500
+            'china_bond': 'bond',         # 债券
+            'gold': 'commodity',          # 黄金
+            'commodity': 'commodity',     # 商品
+            'cash': 'cash',               # 现金
+        }
 
-        # 简化：为每个资产类别生成模拟收益
-        asset_classes = ['bond', 'equity', 'commodity', 'cash']
+        # 创建价格适配器（使用 Tushare 作为数据源）
+        try:
+            tushare_token = get_secrets().data_sources.tushare_token
+            price_adapter = create_default_price_adapter(tushare_token=tushare_token)
+        except Exception as e:
+            logger.error(f"无法初始化价格适配器: {e}")
+            raise ValueError(
+                f"无法初始化价格数据源，归因分析需要真实的历史价格数据。"
+                f"请确保 Tushare token 配置正确。错误: {e}"
+            ) from e
+
         asset_returns = {}
+        data_source_status = {}
 
-        for asset in asset_classes:
-            # 生成随机收益（实际应从数据库获取）
-            import random
-            random.seed(42)  # 固定种子确保可重复
+        # 获取各资产的价格数据并计算收益率
+        for asset_class, return_category in asset_classes.items():
+            try:
+                # 获取价格序列
+                price_points = price_adapter.get_prices(
+                    asset_class=asset_class,
+                    start_date=start_date,
+                    end_date=end_date
+                )
 
-            returns = []
-            for i in range(1, len(dates)):
-                daily_return = random.gauss(0.0005, 0.01)  # 日收益均值0.05%，标准差1%
-                returns.append((dates[i], daily_return))
+                if not price_points:
+                    data_source_status[asset_class] = "无数据"
+                    logger.warning(f"无法获取 {asset_class} 的价格数据")
+                    continue
 
-            asset_returns[asset] = returns
+                # 计算日收益率
+                returns = []
+                for i in range(1, len(price_points)):
+                    prev_price = price_points[i - 1].price
+                    curr_price = price_points[i].price
 
+                    if prev_price > 0:
+                        daily_return = (curr_price - prev_price) / prev_price
+                        returns.append((price_points[i].as_of_date, daily_return))
+
+                if returns:
+                    # 使用 return_category 作为键，与归因分析期望的格式一致
+                    if return_category not in asset_returns:
+                        asset_returns[return_category] = []
+                    asset_returns[return_category].extend(returns)
+                    data_source_status[asset_class] = f"成功 ({len(returns)} 个数据点)"
+                else:
+                    data_source_status[asset_class] = "无收益率数据"
+
+            except Exception as e:
+                data_source_status[asset_class] = f"错误: {e}"
+                logger.warning(f"获取 {asset_class} 数据失败: {e}")
+
+        # 至少需要一种非现金资产数据
+        non_cash_assets = [k for k in asset_returns.keys() if k != 'cash']
+        if not non_cash_assets:
+            error_msg = (
+                f"无法获取任何有效的资产价格数据用于归因分析。\n"
+                f"数据源状态: {data_source_status}\n"
+                f"查询时间范围: {start_date} 至 {end_date}\n"
+                f"归因分析需要真实的历史价格数据，请检查数据源配置。"
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        logger.info(f"成功获取资产收益数据: {data_source_status}")
         return asset_returns
 
     def _backtest_model_to_dict(self, model) -> dict:

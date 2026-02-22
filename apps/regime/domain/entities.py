@@ -63,6 +63,8 @@ class RegimeSnapshot:
     dominant_regime: str
     confidence: float
     observed_at: date
+    data_source: str = "calculated"  # calculated, fallback, degraded
+    fallback_count: int = 0  # 降级次数
 
     def is_high_confidence(self, threshold: float = 0.3) -> bool:
         return self.confidence >= threshold
@@ -71,6 +73,11 @@ class RegimeSnapshot:
     def confidence_percent(self) -> float:
         """置信度百分比 (0-100)"""
         return self.confidence * 100
+
+    @property
+    def is_degraded(self) -> bool:
+        """是否为降级数据"""
+        return self.data_source in ("fallback", "degraded")
 
 
 # ==================== Phase 4: Probability Confidence Model ====================

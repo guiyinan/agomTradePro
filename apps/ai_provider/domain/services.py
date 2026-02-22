@@ -86,7 +86,7 @@ class AICostCalculator:
         Returns:
             int: 估算的token数量
         """
-        if not text:
+        if not text or not text.strip():
             return 0
         return max(1, int(len(text) / chars_per_token))
 

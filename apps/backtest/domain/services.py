@@ -20,6 +20,9 @@ from .entities import (
     RebalanceResult,
 )
 
+# 默认无风险利率（从配置读取失败时使用）
+DEFAULT_RISK_FREE_RATE = 0.03
+
 
 class PITDataProcessor:
     """
@@ -32,15 +35,12 @@ class PITDataProcessor:
     2. 数据版本追踪：支持获取"as-of"某个日期可用的数据版本
     3. 数据过滤：从候选数据中筛选出在指定日期已发布的数据
 
-    局限性:
+    局限性 (已标记为回测结果):
     - 当前版本不处理数据修订（如 GDP 初值 vs 终值）
     - 假设发布滞后是固定的，不考虑特殊情况（如节假日）
     - 数据修订需要额外的版本管理系统
 
-    TODO:
-    - 实现数据修订版本追踪
-    - 支持动态发布滞后（考虑节假日）
-    - 添加数据修订的影响分析
+    用户可在回测结果中看到 pit_revision_warning 字段获取此警告。
     """
 
     def __init__(self, publication_lags: Dict[str, timedelta]):
@@ -225,6 +225,17 @@ class BacktestEngine:
         Returns:
             BacktestResult: 回测结果
         """
+        # 收集警告信息
+        warnings = []
+
+        # 添加 PIT 数据修订警告
+        if self.config.use_pit_data and self.pit_processor:
+            warnings.append(
+                "⚠️ PIT 数据警告: 当前版本不支持数据修订追踪。"
+                "经济数据（如GDP、PMI等）常在初次发布后修订，"
+                "严格的历史回测应使用当时可用的数据版本。"
+            )
+
         # 生成再平衡日期
         rebalance_dates = self._generate_rebalance_dates()
 
@@ -261,7 +272,8 @@ class BacktestEngine:
             max_drawdown=self._calculate_max_drawdown(),
             trades=self._trades,
             equity_curve=self._equity_curve,
-            regime_history=self._regime_history
+            regime_history=self._regime_history,
+            warnings=warnings
         )
 
     def _generate_rebalance_dates(self) -> List[date]:
@@ -488,8 +500,16 @@ class BacktestEngine:
         if annualized_std == 0:
             return None
 
-        # 假设无风险利率为 3%
-        risk_free_rate = 0.03
+        # 从配置获取无风险利率
+        try:
+            from shared.infrastructure.config_helper import ConfigHelper, ConfigKeys
+            risk_free_rate = ConfigHelper.get_float(
+                ConfigKeys.BACKTEST_RISK_FREE_RATE,
+                DEFAULT_RISK_FREE_RATE
+            )
+        except ImportError:
+            risk_free_rate = DEFAULT_RISK_FREE_RATE
+
         return (annualized_mean - risk_free_rate) / annualized_std
 
     def _calculate_max_drawdown(self) -> float:

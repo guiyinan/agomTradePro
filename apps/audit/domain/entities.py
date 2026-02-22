@@ -29,6 +29,12 @@ class RegimeTransition(Enum):
     WRONG_PREDICTION = "wrong_prediction"  # 错误预测
 
 
+class AttributionMethod(Enum):
+    """归因方法"""
+    HEURISTIC = "heuristic"  # 启发式方法（30%/50% 规则）
+    BRINSON = "brinson"  # 标准 Brinson 模型
+
+
 @dataclass(frozen=True)
 class RegimePeriod:
     """Regime 周期"""
@@ -56,7 +62,17 @@ class PeriodPerformance:
 
 @dataclass(frozen=True)
 class AttributionResult:
-    """归因分析结果"""
+    """归因分析结果
+
+    ⚠️ 归因方法说明：
+    - HEURISTIC: 启发式方法（30%/50% 规则），用于快速识别收益来源
+    - BRINSON: 标准 Brinson 模型，提供严格的配置/选股/交互效应分解
+
+    启发式方法注意事项：
+    - 择时收益：正收益的 30% 归因于 Regime 择时
+    - 选资产收益：超额收益的 50% 归因于资产选择
+    - 这是简化估算，如需严格归因应使用 Brinson 模型
+    """
     # 收益归因
     total_return: float
     regime_timing_pnl: float  # 择时收益（Regime 判断正确带来的收益）
@@ -75,6 +91,9 @@ class AttributionResult:
 
     # 详细分解
     period_attributions: List[Dict]  # 每个周期的归因
+
+    # 归因方法标识（放在最后，因为有默认值）
+    attribution_method: AttributionMethod = AttributionMethod.HEURISTIC  # 使用的归因方法
 
 
 @dataclass(frozen=True)
@@ -117,12 +136,6 @@ class BrinsonAttributionResult:
     # 分资产类别分解
     sector_breakdown: Dict[str, Dict]  # 各资产类别的详细分解
     # 格式: {asset_class: {"allocation": float, "selection": float, "interaction": float}}
-
-
-class AttributionMethod(Enum):
-    """归因方法"""
-    HEURISTIC = "heuristic"  # 启发式方法（30%/50% 规则）
-    BRINSON = "brinson"  # 标准 Brinson 模型
 
 
 @dataclass(frozen=True)

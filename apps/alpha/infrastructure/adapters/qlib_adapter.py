@@ -352,18 +352,55 @@ class QlibAlphaProvider(BaseAlphaProvider):
             from ..tasks import qlib_predict_scores
 
             # 异步投递任务，不等待结果
-            qlib_predict_scores.apply_async(
+            result = qlib_predict_scores.apply_async(
                 args=[universe_id, intended_trade_date.isoformat(), top_n],
                 queue="qlib_infer"
             )
 
             logger.info(
                 f"已触发 Qlib 推理任务: universe={universe_id}, "
-                f"date={intended_trade_date}, top_n={top_n}"
+                f"date={intended_trade_date}, top_n={top_n}, task_id={result.id}"
             )
 
         except Exception as e:
             logger.error(f"触发推理任务失败: {e}", exc_info=True)
+            # 发送告警通知
+            self._send_inference_failure_alert(universe_id, intended_trade_date, str(e))
+
+    def _send_inference_failure_alert(
+        self,
+        universe_id: str,
+        intended_trade_date: date,
+        error_message: str
+    ) -> None:
+        """
+        发送推理失败告警
+
+        Args:
+            universe_id: 股票池标识
+            intended_trade_date: 计划交易日期
+            error_message: 错误信息
+        """
+        try:
+            # 创建告警记录到数据库
+            from ...infrastructure.models import AlphaAlertModel
+
+            AlphaAlertModel._default_manager.create(
+                alert_type="inference_failure",
+                severity="warning",
+                title=f"Qlib 推理任务触发失败: {universe_id}@{intended_trade_date}",
+                message=f"无法触发异步推理任务，将使用降级数据源。\n错误: {error_message}",
+                metadata={
+                    "universe_id": universe_id,
+                    "intended_trade_date": intended_trade_date.isoformat(),
+                    "error": error_message,
+                    "provider": "qlib",
+                }
+            )
+            logger.warning(f"已创建推理失败告警: {universe_id}@{intended_trade_date}")
+        except Exception as e:
+            # 告警失败不应影响主流程
+            logger.error(f"发送推理失败告警时出错: {e}")
 
     def get_factor_exposure(
         self,

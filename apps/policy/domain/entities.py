@@ -10,6 +10,7 @@ from typing import Optional, List, Dict, Any
 
 class PolicyLevel(Enum):
     """政策档位"""
+    PENDING = "PX"  # 待分类
     P0 = "P0"  # 常态
     P1 = "P1"  # 预警
     P2 = "P2"  # 干预
@@ -135,6 +136,7 @@ class AIClassificationResult:
     info_category: Optional[InfoCategory] = None
     audit_status: Optional[AuditStatus] = None
     ai_confidence: Optional[float] = None
+    policy_level: Optional['PolicyLevel'] = None  # AI 推荐的政策档位
     structured_data: Optional[StructuredPolicyData] = None
     risk_impact: Optional[RiskImpact] = None
     error_message: Optional[str] = None

@@ -6,7 +6,7 @@ Composite Asset Price Adapter.
 
 import logging
 from datetime import date, timedelta
-from typing import Optional, list
+from typing import Optional
 
 from .base import (
     AssetPriceAdapterProtocol,

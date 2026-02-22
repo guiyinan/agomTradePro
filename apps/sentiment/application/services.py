@@ -7,6 +7,7 @@ Application 层依赖 Domain 层和 Infrastructure 层的接口。
 
 import re
 import json
+import logging
 from typing import List, Optional
 from datetime import datetime
 
@@ -19,6 +20,14 @@ from apps.sentiment.domain.entities import (
 from apps.ai_provider.infrastructure.repositories import AIProviderRepository
 from apps.ai_provider.infrastructure.adapters import OpenAICompatibleAdapter
 from apps.ai_provider.domain.entities import AIChatRequest
+from shared.infrastructure.config_helper import ConfigHelper, ConfigKeys
+
+
+logger = logging.getLogger(__name__)
+
+# 默认权重值（从配置读取失败时使用）
+DEFAULT_NEWS_WEIGHT = 0.4
+DEFAULT_POLICY_WEIGHT = 0.6
 
 
 class SentimentAnalyzer:
@@ -66,13 +75,16 @@ class SentimentAnalyzer:
 
         # 4. 解析结果
         if response["status"] != "success":
-            # AI 调用失败，返回中性结果
+            # AI 调用失败，返回中性结果并发送告警
+            self._send_ai_failure_alert(text, response.get("error", "Unknown error"))
             return SentimentAnalysisResult(
                 text=text,
                 sentiment_score=0.0,
                 confidence=0.0,
                 category=SentimentCategory.NEUTRAL,
                 keywords=[],
+                analyzed_at=datetime.now(),
+                error_message=f"AI 调用失败: {response.get('error', 'Unknown error')}",
             )
 
         sentiment_score = self._parse_sentiment_score(response["content"])
@@ -283,6 +295,34 @@ class SentimentAnalyzer:
 
         return keywords[:5]
 
+    def _send_ai_failure_alert(self, text: str, error_message: str) -> None:
+        """
+        发送 AI 调用失败告警
+
+        Args:
+            text: 分析失败的文本
+            error_message: 错误信息
+        """
+        logger.warning(f"Sentiment AI 调用失败: {error_message}, 文本: {text[:50]}...")
+
+        try:
+            # 创建告警记录到数据库
+            from ..infrastructure.models import SentimentAlertModel
+
+            SentimentAlertModel._default_manager.create(
+                alert_type="ai_failure",
+                severity="warning",
+                title="Sentiment AI 调用失败",
+                message=f"情感分析 AI 调用失败，已降级为中性结果。\n错误: {error_message}",
+                metadata={
+                    "text_preview": text[:200] if text else "",
+                    "error": error_message,
+                }
+            )
+        except Exception as e:
+            # 告警失败不应影响主流程
+            logger.error(f"发送 AI 失败告警时出错: {e}")
+
 
 class SentimentIndexCalculator:
     """
@@ -295,8 +335,8 @@ class SentimentIndexCalculator:
         self,
         news_scores: List[float],
         policy_scores: List[float],
-        news_weight: float = 0.4,
-        policy_weight: float = 0.6,
+        news_weight: Optional[float] = None,
+        policy_weight: Optional[float] = None,
     ) -> SentimentIndex:
         """
         计算综合情绪指数
@@ -304,12 +344,23 @@ class SentimentIndexCalculator:
         Args:
             news_scores: 新闻情感评分列表
             policy_scores: 政策情感评分列表
-            news_weight: 新闻权重
-            policy_weight: 政策权重
+            news_weight: 新闻权重（None 表示从配置读取）
+            policy_weight: 政策权重（None 表示从配置读取）
 
         Returns:
             SentimentIndex 情绪指数
         """
+        # 从配置读取权重（如果未指定）
+        if news_weight is None:
+            news_weight = ConfigHelper.get_float(
+                ConfigKeys.SENTIMENT_NEWS_WEIGHT,
+                DEFAULT_NEWS_WEIGHT
+            )
+        if policy_weight is None:
+            policy_weight = ConfigHelper.get_float(
+                ConfigKeys.SENTIMENT_POLICY_WEIGHT,
+                DEFAULT_POLICY_WEIGHT
+            )
         # 计算新闻情绪
         news_sentiment = self._weighted_average(news_scores) if news_scores else 0.0
 
@@ -323,12 +374,17 @@ class SentimentIndexCalculator:
         total_count = len(news_scores) + len(policy_scores)
         confidence_level = min(1.0, total_count / 10.0)  # 最多 10 条数据达到满置信
 
+        # 判断数据是否充足
+        # 定义：至少有 1 条新闻或 1 条政策事件才算数据充足
+        data_sufficient = len(news_scores) > 0 or len(policy_scores) > 0
+
         return SentimentIndex(
             index_date=datetime.now(),
             news_sentiment=news_sentiment,
             policy_sentiment=policy_sentiment,
             composite_index=composite_index,
             confidence_level=confidence_level,
+            data_sufficient=data_sufficient,
             news_count=len(news_scores),
             policy_events_count=len(policy_scores),
         )

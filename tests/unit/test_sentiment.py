@@ -133,11 +133,13 @@ class TestSentimentIndex:
             news_sentiment=0.3,
             policy_sentiment=0.7,
             confidence_level=0.8,
+            data_sufficient=True,  # 添加数据充足标记
         )
         d = index.to_dict()
         assert d["date"] == "2026-01-01"
         assert d["index"]["composite"] == 0.5
         assert d["level"] == "乐观"
+        assert d["data_sufficient"] is True  # 验证新字段
 
 
 class TestSentimentSource:
@@ -188,6 +190,8 @@ class TestSentimentIndexCalculator:
         assert index.news_count == 3
         assert index.policy_events_count == 3
         assert 0.0 <= index.confidence_level <= 1.0
+        # 有数据时应该标记为 True
+        assert index.data_sufficient is True
 
     def test_calculate_empty(self):
         """测试空数据计算"""
@@ -202,6 +206,56 @@ class TestSentimentIndexCalculator:
         assert index.news_count == 0
         assert index.policy_events_count == 0
         assert index.confidence_level == 0.0
+        # 数据不足时应该标记为 False
+        assert index.data_sufficient is False
+
+    def test_calculate_with_only_news_data(self):
+        """测试只有新闻数据的计算"""
+        calculator = SentimentIndexCalculator()
+
+        index = calculator.calculate_index(
+            news_scores=[0.5, 1.0],
+            policy_scores=[],
+        )
+
+        # 有新闻数据时应该标记为 True
+        assert index.data_sufficient is True
+        assert index.news_count == 2
+        assert index.policy_events_count == 0
+
+    def test_calculate_with_only_policy_data(self):
+        """测试只有政策数据的计算"""
+        calculator = SentimentIndexCalculator()
+
+        index = calculator.calculate_index(
+            news_scores=[],
+            policy_scores=[1.5, -0.5],
+        )
+
+        # 有政策数据时应该标记为 True
+        assert index.data_sufficient is True
+        assert index.news_count == 0
+        assert index.policy_events_count == 2
+
+    def test_sentiment_level_with_insufficient_data(self):
+        """测试数据不足时的情绪等级"""
+        index = SentimentIndex(
+            index_date=datetime.now(),
+            composite_index=0.0,
+            data_sufficient=False,  # 数据不足
+        )
+        # 数据不足时应该返回"数据不足"
+        assert index.to_dict()["level"] == "数据不足"
+
+    def test_sentiment_level_with_sufficient_data(self):
+        """测试数据充足时的情绪等级"""
+        index = SentimentIndex(
+            index_date=datetime.now(),
+            composite_index=0.0,
+            data_sufficient=True,  # 数据充足
+        )
+        # 数据充足且指数为 0 时应该是"中性"
+        assert index.to_dict()["level"] == "中性"
 
     def test_weighted_average(self):
         """测试加权平均"""
@@ -254,6 +308,7 @@ class TestSentimentIndexRepository:
             'policy_sentiment': 1.0,
             'composite_index': 0.8,
             'confidence_level': 0.75,
+            'data_sufficient': True,  # 添加新字段
             'sector_sentiment': {"金融": 0.5},
             'news_count': 10,
             'policy_events_count': 5,
@@ -267,6 +322,7 @@ class TestSentimentIndexRepository:
         assert entity.composite_index == 0.8
         assert entity.news_count == 10
         assert entity.sector_sentiment == {"金融": 0.5}
+        assert entity.data_sufficient is True  # 验证新字段
 
 
 class TestSentimentAnalyzer:

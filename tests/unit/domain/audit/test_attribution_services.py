@@ -23,6 +23,7 @@ from apps.audit.domain.entities import (
     PeriodPerformance,
     AttributionResult,
     AttributionConfig,
+    AttributionMethod,
 )
 from apps.audit.domain.services import (
     analyze_attribution,
@@ -663,6 +664,8 @@ class TestAnalyzeAttribution:
         assert isinstance(result, AttributionResult)
         assert result.total_return == 0.10
         assert result.transaction_cost_pnl == 8.0  # 5 + 3
+        # Verify attribution method is set (Issue #4 fix)
+        assert result.attribution_method == AttributionMethod.HEURISTIC
 
     def test_default_config(self, mock_backtest_result, sample_regime_history, sample_asset_returns):
         """Test with default configuration."""
@@ -671,14 +674,16 @@ class TestAnalyzeAttribution:
             sample_regime_history,
             sample_asset_returns
         )
-        # Should use default config
+        # Should use default config with HEURISTIC method
         assert isinstance(result, AttributionResult)
+        assert result.attribution_method == AttributionMethod.HEURISTIC
 
     def test_custom_config(self, mock_backtest_result, sample_regime_history, sample_asset_returns):
         """Test with custom configuration."""
         custom_config = AttributionConfig(
             risk_free_rate=0.025,
-            benchmark_return=0.10
+            benchmark_return=0.10,
+            attribution_method=AttributionMethod.BRINSON  # Use Brinson method
         )
         result = analyze_attribution(
             mock_backtest_result,
@@ -687,6 +692,8 @@ class TestAnalyzeAttribution:
             custom_config
         )
         assert isinstance(result, AttributionResult)
+        # Verify the method is passed through
+        assert result.attribution_method == AttributionMethod.BRINSON
 
     def test_empty_regime_history(self, mock_backtest_result):
         """Test with empty regime history."""
@@ -698,6 +705,8 @@ class TestAnalyzeAttribution:
         # Should return result with empty period_attributions
         assert isinstance(result, AttributionResult)
         assert result.period_attributions == []
+        # Method should still be set
+        assert result.attribution_method == AttributionMethod.HEURISTIC
 
     def test_lesson_and_suggestions_generated(
         self,
@@ -713,3 +722,5 @@ class TestAnalyzeAttribution:
         )
         assert result.lesson_learned
         assert len(result.improvement_suggestions) > 0
+        # Attribution method should be set
+        assert hasattr(result, 'attribution_method')

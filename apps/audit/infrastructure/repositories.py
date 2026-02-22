@@ -32,9 +32,13 @@ class DjangoAuditRepository:
         regime_accuracy: float,
         regime_predicted: str,
         regime_actual: Optional[str] = None,
+        attribution_method: str = 'heuristic',
     ) -> int:
         """
         保存归因分析报告
+
+        Args:
+            attribution_method: 归因方法 ('heuristic' 或 'brinson')
 
         Returns:
             int: 报告 ID
@@ -43,6 +47,7 @@ class DjangoAuditRepository:
             backtest_id=backtest_id,
             period_start=period_start,
             period_end=period_end,
+            attribution_method=attribution_method,
             regime_timing_pnl=regime_timing_pnl,
             asset_selection_pnl=asset_selection_pnl,
             interaction_pnl=interaction_pnl,
@@ -162,6 +167,8 @@ class DjangoAuditRepository:
             'backtest_id': report.backtest_id,
             'period_start': report.period_start.isoformat(),
             'period_end': report.period_end.isoformat(),
+            'attribution_method': report.attribution_method,
+            'attribution_method_display': report.get_attribution_method_display(),
             'regime_timing_pnl': float(report.regime_timing_pnl),
             'asset_selection_pnl': float(report.asset_selection_pnl),
             'interaction_pnl': float(report.interaction_pnl),

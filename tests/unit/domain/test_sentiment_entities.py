@@ -282,6 +282,7 @@ class TestSentimentIndex:
             policy_sentiment=0.3,
             composite_index=0.4,
             confidence_level=0.7,
+            data_sufficient=True,  # 明确标记数据充足
             sector_sentiment={"科技": 0.8, "金融": 0.2},
             news_count=10,
             policy_events_count=2,

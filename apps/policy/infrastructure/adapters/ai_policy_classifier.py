@@ -21,8 +21,10 @@ from apps.policy.domain.entities import (
     InfoCategory,
     AuditStatus,
     RiskImpact,
+    PolicyLevel,
 )
 from apps.policy.domain.interfaces import PolicyClassifierProtocol
+from shared.infrastructure.config_helper import ConfigHelper, ConfigKeys
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +37,9 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
     支持自动通过/拒绝/人工审核的决策。
     """
 
-    # 置信度阈值
-    AUTO_APPROVE_THRESHOLD = 0.75  # 高于此值自动通过
-    AUTO_REJECT_THRESHOLD = 0.3    # 低于此值自动拒绝
+    # 默认阈值（从配置读取失败时使用）
+    DEFAULT_AUTO_APPROVE_THRESHOLD = 0.75
+    DEFAULT_AUTO_REJECT_THRESHOLD = 0.3
 
     def __init__(self, ai_helper: AIFailoverHelper, usage_repo=None):
         """
@@ -50,6 +52,22 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
         self.ai_helper = ai_helper
         self.usage_repo = usage_repo
         self.cost_calculator = AICostCalculator()
+
+    @property
+    def auto_approve_threshold(self) -> float:
+        """获取自动通过阈值（从配置读取）"""
+        return ConfigHelper.get_float(
+            ConfigKeys.AI_AUTO_APPROVE_THRESHOLD,
+            self.DEFAULT_AUTO_APPROVE_THRESHOLD
+        )
+
+    @property
+    def auto_reject_threshold(self) -> float:
+        """获取自动拒绝阈值（从配置读取）"""
+        return ConfigHelper.get_float(
+            ConfigKeys.AI_AUTO_REJECT_THRESHOLD,
+            self.DEFAULT_AUTO_REJECT_THRESHOLD
+        )
 
     def classify_rss_item(
         self,
@@ -117,18 +135,28 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
 
             # 确定审核状态
             confidence = parsed_data.get('confidence', 0.5)
-            if confidence >= self.AUTO_APPROVE_THRESHOLD:
+            if confidence >= self.auto_approve_threshold:
                 audit_status = AuditStatus.AUTO_APPROVED
-            elif confidence < self.AUTO_REJECT_THRESHOLD:
+            elif confidence < self.auto_reject_threshold:
                 audit_status = AuditStatus.REJECTED
             else:
                 audit_status = AuditStatus.PENDING_REVIEW
+
+            # 解析政策档位
+            policy_level_str = parsed_data.get('policy_level')
+            policy_level = None
+            if policy_level_str:
+                try:
+                    policy_level = PolicyLevel(policy_level_str)
+                except ValueError:
+                    logger.warning(f"Invalid policy_level from AI: {policy_level_str}")
 
             return AIClassificationResult(
                 success=True,
                 info_category=InfoCategory(parsed_data.get('info_category', 'macro')),
                 audit_status=audit_status,
                 ai_confidence=confidence,
+                policy_level=policy_level,
                 structured_data=structured_data,
                 risk_impact=RiskImpact(parsed_data.get('risk_impact', 'unknown')),
                 processing_metadata={

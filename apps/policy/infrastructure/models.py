@@ -11,6 +11,7 @@ class PolicyLog(models.Model):
     """政策事件日志"""
 
     POLICY_LEVELS = [
+        ('PX', 'PX - 待分类'),
         ('P0', 'P0 - 常态'),
         ('P1', 'P1 - 预警'),
         ('P2', 'P2 - 干预'),
@@ -456,6 +457,7 @@ class PolicyLevelKeywordModel(models.Model):
     """政策档位关键词规则ORM"""
 
     POLICY_LEVELS = [
+        ('PX', 'PX - 待分类'),
         ('P0', 'P0 - 常态'),
         ('P1', 'P1 - 预警'),
         ('P2', 'P2 - 干预'),
