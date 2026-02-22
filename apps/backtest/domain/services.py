@@ -286,12 +286,13 @@ class BacktestEngine:
 
             # 计算下一个再平衡日期
             if self.config.rebalance_frequency == "monthly":
-                # 下个月第一天
-                year = current.year + ((current.month + 1) // 12)
-                month = (current.month + 1) % 12
-                if month == 0:
-                    month = 12
-                    year -= 1
+                # 下个月第一天 - 使用标准库函数处理边界
+                if current.month == 12:
+                    year = current.year + 1
+                    month = 1
+                else:
+                    year = current.year
+                    month = current.month + 1
                 current = date(year, month, 1)
             elif self.config.rebalance_frequency == "quarterly":
                 # 下季度第一天

@@ -45,9 +45,8 @@ urlpatterns = [
     path("events/", PolicyEventsPageView.as_view(), name="events-page"),
     path("events/new/", PolicyEventCreateView.as_view(), name="event-create"),
 
-    # 政策事件列表 (API) - new standard format (when mounted under /api/policy/)
-    path("events/", PolicyEventListView.as_view(), name="event-list-api"),
-    path("events/<str:event_date>/", PolicyEventDetailView.as_view(), name="event-detail-api"),
+    # 政策事件详情页面 (HTML)
+    path("events/<str:event_date>/", PolicyEventsPageView.as_view(), name="events-page-detail"),
 
     # 政策事件列表 (API) - legacy format (backward compatibility)
     path("api/events/", PolicyEventListView.as_view(), name="event-list"),

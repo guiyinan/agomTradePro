@@ -269,12 +269,12 @@ class GenerateAttributionReportUseCase:
             total_predictions += 1
 
             # 判断预测是否正确
-            # GROWTH/REFLATION 预期正收益
-            # RECESSION/STAGFLATION 预期负收益
-            if regime in ('GROWTH', 'REFLATION'):
+            # Recovery/Overheat (增长环境) 预期正收益
+            # Stagflation/Deflation (衰退环境) 预期负收益
+            if regime in ('Recovery', 'Overheat'):
                 if actual_return > 0:
                     correct_predictions += 1
-            elif regime in ('RECESSION', 'STAGFLATION'):
+            elif regime in ('Stagflation', 'Deflation'):
                 if actual_return < 0:
                     correct_predictions += 1
             else:
