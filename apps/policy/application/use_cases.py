@@ -25,7 +25,7 @@ from ..domain.rules import (
     PolicyResponse,
 )
 from ..infrastructure.repositories import DjangoPolicyRepository, RSSRepository
-from ..infrastructure.models import RSSSourceConfigModel, PolicyAuditQueue
+from ..infrastructure.models import RSSSourceConfigModel, PolicyAuditQueue, PolicyLog
 from ..infrastructure.adapters import FeedparserAdapter, create_content_extractor
 from ..infrastructure.adapters.content_extractor import ContentExtractorError
 
@@ -699,11 +699,30 @@ class FetchRSSUseCase:
         # 5. 处理每个条目
         new_events_count = 0
         for item in items:
+            policy_log_orm = None
             try:
                 # 去重检查
                 if not force_refetch and self.rss_repository.is_item_exists(item.link, item.guid):
                     logger.debug(f"Item already exists, skipping: {item.link}")
                     continue
+
+                # 阶段1：先落库原始记录，保证后续处理失败也不会丢数据
+                policy_log_orm = PolicyLog._default_manager.create(
+                    event_date=item.pub_date.date(),
+                    level='PX',  # 待分类
+                    title=item.title,
+                    description=item.description or item.title,
+                    evidence_url=item.link,
+                    info_category='other',
+                    audit_status='pending_review',
+                    ai_confidence=None,
+                    structured_data={},
+                    risk_impact='unknown',
+                    rss_source_id=source.id,
+                    rss_item_guid=item.guid or item.link,
+                    processing_metadata={'processing_stage': 'raw_ingested'}
+                )
+                new_events_count += 1
 
                 # ========== AI分类（新功能） ==========
                 classification_result = None
@@ -814,19 +833,28 @@ class FetchRSSUseCase:
                     'processing_metadata': classification_result.processing_metadata if classification_result else {}
                 }
 
-                # 首先创建PolicyEvent并保存
-                event = PolicyEvent(
-                    event_date=item.pub_date.date(),
-                    level=level,
-                    title=item.title,
-                    description=description,
-                    evidence_url=item.link
-                )
-
-                # 保存事件并直接获取ORM对象（避免额外查询）
-                policy_log_orm = self.policy_repository.save_event(event, return_orm=True, **extra_fields)
-
-                new_events_count += 1
+                # 阶段2：处理完成后更新已落库记录
+                policy_log_orm.level = level.value
+                policy_log_orm.description = description
+                policy_log_orm.info_category = extra_fields['info_category']
+                policy_log_orm.audit_status = extra_fields['audit_status']
+                policy_log_orm.ai_confidence = extra_fields['ai_confidence']
+                policy_log_orm.structured_data = extra_fields['structured_data']
+                policy_log_orm.risk_impact = extra_fields['risk_impact']
+                policy_log_orm.processing_metadata = {
+                    **extra_fields['processing_metadata'],
+                    'processing_stage': 'processed'
+                }
+                policy_log_orm.save(update_fields=[
+                    'level',
+                    'description',
+                    'info_category',
+                    'audit_status',
+                    'ai_confidence',
+                    'structured_data',
+                    'risk_impact',
+                    'processing_metadata'
+                ])
 
                 # ========== 审核队列管理 ==========
                 # 如果需要人工审核，加入审核队列（使用 get_or_create 避免重复）
@@ -865,29 +893,40 @@ class FetchRSSUseCase:
                     )
 
             except Exception as e:
-                # 处理失败时仍保存原始数据，避免数据丢失
-                logger.warning(f"Failed to process RSS item {item.link}: {e}, saving as pending")
-
-                # 使用最基础的值保存
+                # 处理失败时保留原始记录，避免数据丢失
+                logger.warning(f"Failed to process RSS item {item.link}: {e}, keeping pending raw record")
                 try:
-                    from ..infrastructure.models import PolicyLog
-                    PolicyLog._default_manager.create(
-                        event_date=item.pub_date.date(),
-                        level='PX',  # 待分类
-                        title=item.title,
-                        description=item.description or item.title,
-                        evidence_url=item.link,
-                        info_category='other',
-                        audit_status='pending_review',
-                        ai_confidence=None,
-                        structured_data={},
-                        risk_impact='unknown',
-                        rss_source_id=source.id,
-                        rss_item_guid=item.guid or item.link,
-                        processing_metadata={'error': str(e), 'saved_as_pending': True}
-                    )
-                    new_events_count += 1
-                    logger.info(f"Saved RSS item as pending (processing failed): {item.title}")
+                    if policy_log_orm:
+                        policy_log_orm.processing_metadata = {
+                            **(policy_log_orm.processing_metadata or {}),
+                            'error': str(e),
+                            'saved_as_pending': True,
+                            'processing_stage': 'failed'
+                        }
+                        policy_log_orm.save(update_fields=['processing_metadata'])
+                        logger.info(f"Kept pending RSS item (processing failed): {item.title}")
+                    else:
+                        PolicyLog._default_manager.create(
+                            event_date=item.pub_date.date(),
+                            level='PX',
+                            title=item.title,
+                            description=item.description or item.title,
+                            evidence_url=item.link,
+                            info_category='other',
+                            audit_status='pending_review',
+                            ai_confidence=None,
+                            structured_data={},
+                            risk_impact='unknown',
+                            rss_source_id=source.id,
+                            rss_item_guid=item.guid or item.link,
+                            processing_metadata={
+                                'error': str(e),
+                                'saved_as_pending': True,
+                                'processing_stage': 'failed'
+                            }
+                        )
+                        new_events_count += 1
+                        logger.info(f"Saved pending RSS item after early failure: {item.title}")
                 except Exception as save_error:
                     logger.error(f"Failed to save pending RSS item {item.link}: {save_error}")
                 continue

@@ -9,7 +9,7 @@ from datetime import date, timedelta
 from django.test import TestCase
 
 from apps.policy.domain.entities import PolicyLevel, PolicyEvent
-from apps.policy.infrastructure.models import PolicyLog
+from apps.policy.infrastructure.models import PolicyLog, PolicyAuditQueue
 from apps.policy.infrastructure.repositories import DjangoPolicyRepository
 from apps.policy.application.use_cases import (
     CreatePolicyEventUseCase,
@@ -20,6 +20,20 @@ from apps.policy.application.use_cases import (
     DeletePolicyEventUseCase,
 )
 from shared.infrastructure.alert_service import ConsoleAlertChannel, AlertLevel
+
+
+@pytest.fixture(autouse=True)
+def clean_policy_tables():
+    """
+    保证集成测试不受环境初始数据影响。
+
+    说明：
+    - 当前工程某些环境会存在预置 PolicyLog 数据；
+    - 这些用例断言基于“空表起步”，因此每个用例前做清理。
+    """
+    PolicyAuditQueue._default_manager.all().delete()
+    PolicyLog._default_manager.all().delete()
+    yield
 
 
 @pytest.mark.django_db

@@ -374,9 +374,13 @@ class HighFrequencySignalUseCase:
             spread_bp = spread_data.value  # Already in BP
             is_inverted = spread_bp < 0
 
+            spread_threshold = ConfigHelper.get_float(
+                ConfigKeys.REGIME_SPREAD_BP_THRESHOLD,
+                DEFAULT_SPREAD_BP_THRESHOLD
+            )
             if is_inverted:
                 signal = 'BEARISH'
-            elif spread_bp > 100:
+            elif spread_bp > spread_threshold:
                 signal = 'BULLISH'
             else:
                 signal = 'NEUTRAL'
@@ -1317,4 +1321,3 @@ class CalculateRegimeV2UseCase:
                 warnings=warnings_list,
                 error=f"计算失败: {str(e)}"
             )
-

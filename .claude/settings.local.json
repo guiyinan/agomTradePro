@@ -122,7 +122,10 @@
       "Bash(pkill:*)",
       "Bash(taskkill:*)",
       "Bash(git show:*)",
-      "Bash(sort:*)"
+      "Bash(sort:*)",
+      "Bash(\"C:/Program Files/Docker/Docker/resources/bin/docker.exe\" ps:*)",
+      "Bash(git diff:*)",
+      "Bash(git stash:*)"
     ]
   }
 }
