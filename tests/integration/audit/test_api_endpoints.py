@@ -12,6 +12,7 @@ Tests for:
 import pytest
 import json
 from datetime import date
+from unittest.mock import patch, MagicMock
 from rest_framework.test import APIClient
 from rest_framework import status
 from django.contrib.auth import get_user_model
@@ -25,6 +26,21 @@ from apps.backtest.infrastructure.models import BacktestResultModel
 
 
 User = get_user_model()
+
+
+# Mock asset returns for all tests that need it
+@pytest.fixture(autouse=True)
+def mock_asset_returns():
+    """Auto-mock _build_asset_returns to avoid external API calls."""
+    mock_data = {
+        'equity': [(date(2024, 1, 15), 0.02), (date(2024, 2, 15), 0.015)],
+        'bond': [(date(2024, 1, 15), 0.005), (date(2024, 2, 15), 0.003)],
+    }
+    with patch(
+        'apps.audit.application.use_cases.GenerateAttributionReportUseCase._build_asset_returns',
+        return_value=mock_data
+    ):
+        yield
 
 
 def _build_authenticated_api_client(username: str = "testuser") -> APIClient:
