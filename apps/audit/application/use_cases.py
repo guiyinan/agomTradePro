@@ -417,6 +417,9 @@ class GenerateAttributionReportUseCase:
         trades = model.trades if model.trades else []
 
         def _safe_float(value, default=0.0):
+            """安全转换为浮点数，处理脏数据"""
+            if value is None or value == "" or value in ("N/A", "NA", "-", "null", "None"):
+                return default
             try:
                 return float(value)
             except (TypeError, ValueError):

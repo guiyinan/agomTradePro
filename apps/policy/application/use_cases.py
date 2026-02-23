@@ -849,8 +849,8 @@ class FetchRSSUseCase:
                                             ai_confidence = classification_result.ai_confidence
                                             structured_data = classification_result.structured_data
                                             risk_impact = classification_result.risk_impact
-                                    except:
-                                        pass
+                                    except Exception as e:
+                                        logger.warning(f"AI classification failed: {e}")
                     except ContentExtractorError as e:
                         logger.warning(f"Failed to extract content from {item.link}: {e}")
 

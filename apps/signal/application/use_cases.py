@@ -217,7 +217,10 @@ class CheckSignalInvalidationUseCase:
                 import re
                 numbers = re.findall(r'\d+\.?\d*', logic)
                 for num_str in numbers:
-                    threshold = float(num_str)
+                    try:
+                        threshold = float(num_str)
+                    except (ValueError, TypeError):
+                        continue  # 跳过无法解析的数字
                     if "<" in logic or "低于" in logic or "跌破" in logic:
                         if value < threshold:
                             return CheckSignalInvalidationResponse(
