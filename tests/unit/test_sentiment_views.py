@@ -480,3 +480,27 @@ class TestSentimentAnalyzePageView(TestCase):
             response = view(request)
             assert response.status_code == 200
             assert response.context_data['ai_available'] is False
+
+
+class TestSentimentTemplateRendering(TestCase):
+    """Tests for sentiment template rendering - catches NoReverseMatch errors"""
+
+    def test_analyze_template_renders_without_url_error(self):
+        """
+        Regression test: Template must use valid URL names.
+
+        Previously failed with NoReverseMatch when template used
+        'sentiment:api_analyze' but route was renamed to 'analyze'.
+        """
+        from django.template.loader import render_to_string
+
+        # This should not raise NoReverseMatch
+        try:
+            render_to_string('sentiment/analyze.html', {
+                'ai_available': True,
+                'ai_providers': [],
+            })
+        except Exception as e:
+            if 'NoReverseMatch' in str(type(e).__name__):
+                pytest.fail(f"Template uses invalid URL name: {e}")
+            raise
