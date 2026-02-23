@@ -328,8 +328,8 @@ class PolicyEventDetailView(APIView):
     政策事件详情视图
 
     GET /api/policy/events/{date}/ - 获取指定日期的事件
-    PUT /api/policy/events/{date}/ - 更新指定日期的事件
-    DELETE /api/policy/events/{date}/ - 删除指定日期的事件
+    PUT /api/policy/events/{date}/ - 更新指定日期的事件（支持 ?event_id= 精确更新）
+    DELETE /api/policy/events/{date}/ - 删除指定日期的事件（支持 ?event_id= 精确删除）
     """
 
     @extend_schema(
@@ -387,6 +387,15 @@ class PolicyEventDetailView(APIView):
         tags=["Policy"],
         summary="更新政策事件",
         description="更新指定日期的政策事件",
+        parameters=[
+            OpenApiParameter(
+                name="event_id",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="事件 ID（可选，传入后优先按 ID 精确更新）",
+                required=False
+            )
+        ],
         request=PolicyEventSerializer,
         responses={200: PolicyCreateResponseSerializer}
     )
@@ -394,6 +403,8 @@ class PolicyEventDetailView(APIView):
         """更新指定日期的政策事件"""
         try:
             event_date_obj = date.fromisoformat(event_date)
+            event_id_raw = request.query_params.get("event_id")
+            event_id = int(event_id_raw) if event_id_raw else None
 
             # 验证输入
             serializer = PolicyEventSerializer(data=request.data)
@@ -421,6 +432,7 @@ class PolicyEventDetailView(APIView):
                 title=serializer.validated_data["title"],
                 description=serializer.validated_data["description"],
                 evidence_url=serializer.validated_data["evidence_url"],
+                event_id=event_id,
             )
 
             response_data = {
@@ -462,7 +474,7 @@ class PolicyEventDetailView(APIView):
     @extend_schema(
         tags=["Policy"],
         summary="删除政策事件",
-        description="删除指定日期的政策事件",
+        description="删除指定日期的政策事件（可通过 event_id 精确删除单条）",
         parameters=[
             OpenApiParameter(
                 name="event_date",
@@ -470,6 +482,13 @@ class PolicyEventDetailView(APIView):
                 location=OpenApiParameter.PATH,
                 description="事件日期 (YYYY-MM-DD)",
                 required=True
+            ),
+            OpenApiParameter(
+                name="event_id",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="事件 ID（可选，传入后优先按 ID 精确删除）",
+                required=False
             )
         ],
         responses={204: None}
@@ -478,11 +497,13 @@ class PolicyEventDetailView(APIView):
         """删除指定日期的政策事件"""
         try:
             event_date_obj = date.fromisoformat(event_date)
+            event_id_raw = request.query_params.get("event_id")
+            event_id = int(event_id_raw) if event_id_raw else None
 
             repo = DjangoPolicyRepository()
             use_case = DeletePolicyEventUseCase(event_store=repo)
 
-            success, message = use_case.execute(event_date_obj)
+            success, message = use_case.execute(event_date=event_date_obj, event_id=event_id)
 
             if success:
                 return Response(status=status.HTTP_204_NO_CONTENT)

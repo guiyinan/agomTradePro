@@ -453,7 +453,8 @@ class UpdatePolicyEventUseCase:
         level: PolicyLevel,
         title: str,
         description: str,
-        evidence_url: str
+        evidence_url: str,
+        event_id: Optional[int] = None
     ) -> CreatePolicyEventOutput:
         """
         执行用例
@@ -464,6 +465,7 @@ class UpdatePolicyEventUseCase:
             title: 新的标题
             description: 新的描述
             evidence_url: 新的证据 URL
+            event_id: 要更新的事件 ID（推荐，精确更新）
 
         Returns:
             CreatePolicyEventOutput: 输出结果
@@ -472,9 +474,21 @@ class UpdatePolicyEventUseCase:
         if isinstance(self.event_store, DjangoPolicyRepository):
             output = CreatePolicyEventOutput(success=False, errors=[], warnings=[])
             try:
-                existing = self.event_store._model.objects.filter(event_date=event_date).first()
+                if event_id is not None:
+                    existing = self.event_store._model.objects.filter(id=event_id).first()
+                    if existing and existing.event_date != event_date:
+                        output.errors.append(
+                            f"event_id={event_id} 与路径日期 {event_date} 不匹配"
+                        )
+                        return output
+                else:
+                    existing = self.event_store._model.objects.filter(event_date=event_date).first()
+
                 if not existing:
-                    output.errors.append(f"未找到日期为 {event_date} 的事件")
+                    if event_id is not None:
+                        output.errors.append(f"未找到 ID={event_id} 的事件")
+                    else:
+                        output.errors.append(f"未找到日期为 {event_date} 的事件")
                     return output
 
                 updated_event = PolicyEvent(

@@ -137,8 +137,8 @@ module_patterns = [
     path('api/strategy/', include(('apps.strategy.interface.urls', 'strategy'), namespace='api_strategy')),
     # P2: Regime 模块
     path('api/regime/', include(('apps.regime.interface.urls', 'regime'), namespace='api_regime')),
-    # P2: Policy 模块
-    path('api/policy/', include(('apps.policy.interface.urls', 'policy'), namespace='api_policy')),
+    # P2: Policy 模块（仅挂载 API 路由，避免与页面路由冲突）
+    path('api/policy/', include(('apps.policy.interface.api_urls', 'policy'), namespace='api_policy')),
     # P2: Signal 模块
     path('api/signal/', include(('apps.signal.interface.urls', 'signal'), namespace='api_signal')),
     # P2: Macro 模块
