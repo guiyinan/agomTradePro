@@ -148,8 +148,42 @@ Guardrail 测试只覆盖了"防止回归"，未覆盖"契约验证"：
 | API 路由契约不完整 | 10% | 需创建独立 API 路由文件 |
 | UpdateUseCase 遗漏修复 | 5% | 需同步修复成对操作 |
 | 缺少契约测试 | 5% | 需添加 API 契约测试 |
+| Sentiment 模板路由名错误 | 5% | 路由重命名后未同步更新模板 |
 
-**合计扣除：20%**
+**合计扣除：25%**
+
+---
+
+## 四-B、第二轮验收问题（2026-02-23 下午）
+
+### 问题 4：Sentiment 模板 NoReverseMatch 错误
+
+**问题描述**：
+路由重命名（`api_analyze` → `analyze`）后，模板文件未同步更新，导致渲染时报 `NoReverseMatch` 错误。
+
+**位置**：
+- `core/templates/sentiment/analyze.html:307`
+- 模板使用 `{% url "sentiment:api_analyze" %}`，但路由名已改为 `analyze`
+
+**影响**：
+- Sentiment 分析页面完全不可用
+- 阻断级回归
+
+**修复方案**：
+```html
+<!-- 修复前 -->
+{% url "sentiment:api_analyze" %}
+
+<!-- 修复后 -->
+{% url "api_sentiment:analyze" %}
+```
+
+**新增测试**：
+- `TestSentimentTemplateRendering.test_analyze_template_renders_without_url_error`
+
+**教训**：
+- 路由重命名时必须检查所有引用（模板、JS、其他代码）
+- 需要添加模板渲染测试来捕获此类问题
 
 ---
 

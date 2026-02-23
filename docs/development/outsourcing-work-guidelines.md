@@ -563,6 +563,35 @@ def update(event_date, level, ..., event_id=None):  # 也支持 event_id
 - [x] 添加精确操作测试
 ```
 
+### 9.5 路由重命名同步检查（2026-02-23 新增）
+
+**规则**：修改路由名称时，必须同步更新所有引用。
+
+**必须检查的位置**：
+1. 模板文件（`.html`）中的 `{% url %}` 标签
+2. JavaScript 文件中的 AJAX 请求 URL
+3. Python 代码中的 `reverse()` 调用
+4. 其他模块的 URL 引用
+
+**检查命令**：
+```bash
+# 搜索旧路由名的所有引用
+grep -r "old_route_name" --include="*.html" --include="*.js" --include="*.py"
+```
+
+**必须添加的测试**：
+- 模板渲染测试，验证不会抛出 `NoReverseMatch`
+
+**案例**：
+```
+路由重命名：api_analyze → analyze
+
+必须同步更新：
+- [x] urls.py 中的路由定义
+- [ ] 模板文件中的 {% url "sentiment:api_analyze" %} ← 容易遗漏！
+- [x] 添加模板渲染测试
+```
+
 ---
 
 ## 十、参考资料

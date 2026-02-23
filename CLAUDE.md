@@ -385,6 +385,7 @@ ak.macro_china_money_supply()
 7. **API 契约测试**: 每个 API 端点必须有契约测试，验证 Content-Type 和状态码
 8. **成对操作一致性**: CRUD 操作的参数签名必须保持一致（如 Delete 支持 event_id，Update 也必须支持）
 9. **修复完整性**: 修复问题时必须检查所有相关场景，不可只修复"眼前"问题
+10. **路由重命名同步**: 修改路由名时必须同步更新模板、JS、Python 中的所有引用，并添加模板渲染测试
 
 **环境配置**:
 - python 虚拟环境为 `agomsaaf`
