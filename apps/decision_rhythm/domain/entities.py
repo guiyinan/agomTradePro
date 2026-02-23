@@ -231,9 +231,14 @@ class DecisionQuota:
             updated_at=datetime.now(),
         )
 
-    def _calculate_period_end(self) -> Optional[datetime]:
-        """计算周期结束时间"""
-        now = datetime.now()
+    def _calculate_period_end(self, now: Optional[datetime] = None) -> Optional[datetime]:
+        """计算周期结束时间
+
+        Args:
+            now: 可选的时间戳，用于避免竞态条件
+        """
+        if now is None:
+            now = datetime.now()
         if self.period == QuotaPeriod.DAILY:
             return now.replace(hour=23, minute=59, second=59)
         elif self.period == QuotaPeriod.WEEKLY:
@@ -650,8 +655,8 @@ def create_quota(
         quota_id=str(uuid4()),
         created_at=now,
     )
-    # 计算周期结束时间
-    period_end = quota._calculate_period_end()
+    # 计算周期结束时间 - 使用同一时间戳避免竞态条件
+    period_end = quota._calculate_period_end(now)
     return DecisionQuota(
         period=quota.period,
         max_decisions=quota.max_decisions,

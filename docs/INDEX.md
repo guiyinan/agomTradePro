@@ -1,8 +1,8 @@
 # AgomSAAF 文档索引
 
 > **AgomSAAF V3.4** - 宏观环境准入系统
-> **最后更新**: 2026-02-21
-> **项目状态**: 生产就绪
+> **最后更新**: 2026-02-24
+> **项目状态**: 生产就绪（RC 阶段）
 
 ---
 
@@ -84,6 +84,8 @@
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
+| [master-test-strategy-2026-02.md](testing/master-test-strategy-2026-02.md) | **全面测试策略（L0-L7 层级、门禁定义）** | ✅ 2026-02-24 更新 |
+| [requirements-traceability-matrix-2026-02.md](testing/requirements-traceability-matrix-2026-02.md) | **需求-测试追踪矩阵（RTM）** | ✅ 2026-02-24 更新 |
 | [sdk-mcp-integration-test-plan.md](testing/sdk-mcp-integration-test-plan.md) | SDK & MCP 集成测试计划（1000行） | 完整 |
 | [full-integration-test-report.md](testing/full-integration-test-report.md) | 完整集成测试报告 | 完整 |
 | [system_algorithm_evaluation_report.md](testing/system_algorithm_evaluation_report.md) | 系统算法评估 | 完整 |
@@ -255,7 +257,14 @@
 
 ---
 
-## 最近更新 (2026-02-20 ~ 2026-02-21)
+## 最近更新 (2026-02-20 ~ 2026-02-24)
+
+### 2026-02-24
+- ✅ 执行全面测试（L0-L6 层级）
+- ✅ 修复 DEF-001: `test_check_quota_exhausted` 竞态条件
+- ✅ 修复 DEF-002: 22 个 API 路由命名规范问题
+- ✅ **V3.4-RC1 通过 RC Gate**
+- ✅ 更新测试策略文档和需求追踪矩阵
 
 ### 2026-02-21
 - ✅ 新增 [外包团队工作指南](development/outsourcing-work-guidelines.md)
@@ -285,4 +294,4 @@
 ---
 
 **文档维护**: AgomSAAF Team
-**最后更新**: 2026-02-21
+**最后更新**: 2026-02-24

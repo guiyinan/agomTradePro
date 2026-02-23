@@ -125,7 +125,9 @@
       "Bash(sort:*)",
       "Bash(\"C:/Program Files/Docker/Docker/resources/bin/docker.exe\" ps:*)",
       "Bash(git diff:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(ruff check:*)",
+      "Bash(black:*)"
     ]
   }
 }
