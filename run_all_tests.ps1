@@ -226,6 +226,36 @@ function Test-Pytest {
     }
 }
 
+function Test-LogicGuardrails {
+    Write-Section "Running Logic Guardrail Tests"
+
+    $testTargets = @(
+        "tests\guardrails\test_logic_guardrails.py",
+        "tests\integration\policy\test_policy_integration.py",
+        "tests\unit\policy\test_fetch_rss_use_case.py",
+        "tests\unit\regime\test_config_threshold_regression.py"
+    )
+    $outputFile = Join-Path $OutputPath "logic_guardrails.log"
+
+    Push-Location $PSScriptRoot
+    try {
+        & $PythonExe -m pytest -q @testTargets *>&1 | Tee-Object -FilePath $outputFile
+        $result = $LASTEXITCODE
+    }
+    finally {
+        Pop-Location
+    }
+
+    if ($result -eq 0) {
+        Write-Success "Logic guardrail tests passed"
+        return $true
+    }
+    else {
+        Write-Error "Logic guardrail tests failed"
+        return $false
+    }
+}
+
 # ==============================================================================
 # Main Execution
 # ==============================================================================
@@ -269,6 +299,7 @@ switch ($TestMode) {
         $results += @(
             @{Name = "SDK Connection"; Result = (Test-SDKConnection)}
             @{Name = "MCP Server"; Result = (Test-MCPServer)}
+            @{Name = "Logic Guardrails"; Result = (Test-LogicGuardrails)}
         )
     }
 
@@ -278,6 +309,7 @@ switch ($TestMode) {
             @{Name = "MCP Server"; Result = (Test-MCPServer)}
             @{Name = "Integration Tests"; Result = (Test-Integration)}
             @{Name = "Pytest Tests"; Result = (Test-Pytest)}
+            @{Name = "Logic Guardrails"; Result = (Test-LogicGuardrails)}
         )
     }
 }

@@ -471,6 +471,7 @@ data = result.data
 
 ## 十、参考资料
 
+- `docs/development/outsourcing-task-book-2026-02-22.md` - 外包测试与修复任务书（当前执行批次）
 - `CLAUDE.md` - 项目主规则文件
 - `docs/development/error-handling-guide.md` - 错误处理详细指南
 - `docs/development/api-route-consistency.md` - API 路由一致性分析

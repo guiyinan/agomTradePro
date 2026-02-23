@@ -81,20 +81,43 @@ class TestPolicyRepository:
         event2 = PolicyEvent(
             event_date=event_date,
             level=PolicyLevel.P2,
-            title="新标题",
+            title="原标题",
             description="新描述",
-            evidence_url="https://example.com/2"
+            evidence_url="https://example.com/1"
         )
 
         saved = repo.save_event(event2)
 
         # 验证更新成功
-        assert saved.title == "新标题"
+        assert saved.title == "原标题"
         assert saved.level == PolicyLevel.P2
+        assert saved.description == "新描述"
 
         # 验证数据库中只有一条记录
         count = repo.get_event_count()
         assert count == 1
+
+    def test_same_day_distinct_events_should_not_merge(self):
+        """测试同一天不同事件不应被覆盖"""
+        repo = DjangoPolicyRepository()
+        event_date = date.today()
+
+        repo.save_event(PolicyEvent(
+            event_date=event_date,
+            level=PolicyLevel.P1,
+            title="事件A",
+            description="描述A",
+            evidence_url="https://example.com/a"
+        ))
+        repo.save_event(PolicyEvent(
+            event_date=event_date,
+            level=PolicyLevel.P2,
+            title="事件B",
+            description="描述B",
+            evidence_url="https://example.com/b"
+        ))
+
+        assert repo.get_event_count() == 2
 
     def test_get_events_in_range(self):
         """测试获取日期范围内的事件"""

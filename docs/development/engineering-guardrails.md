@@ -26,6 +26,15 @@
 2. 阶段2：再进行解析、分类、提取、打标，并回写同一条记录。
 3. 阶段2失败时，必须保留阶段1记录并写入失败元数据（错误、阶段、时间）。
 
+### 2.1) 事件唯一键与更新策略
+
+1. 仓储层禁止默认“按日期覆盖”更新事件。
+2. 事件更新必须基于明确标识：
+   - RSS 场景：`rss_item_guid`；
+   - 通用场景：`event_date + title + evidence_url`；
+   - 人工更新场景：显式 `id`。
+3. 只有在明确的迁移/补录脚本中，才允许按日期批量修订。
+
 ### 3) 异常处理分层
 
 1. 业务层禁止无说明 `except Exception` 直接吞错并返回成功。
@@ -37,6 +46,10 @@
 1. 集成测试不得假设数据库天然为空。
 2. 用例应通过 fixture 主动清理或构建自己的测试数据基线。
 3. 对“配置生效”与“失败兜底”必须有回归测试。
+4. 诊断类测试（guardrails）默认纳入 CI，不允许长期 `xfail` 漂移。
+5. 当前 CI 工作流：`.github/workflows/logic-guardrails.yml`。
+6. Guardrail 必跑命令：
+   `pytest -q tests/guardrails/test_logic_guardrails.py tests/integration/policy/test_policy_integration.py tests/unit/policy/test_fetch_rss_use_case.py tests/unit/regime/test_config_threshold_regression.py`
 
 ## 代码评审清单（PR Checklist）
 
