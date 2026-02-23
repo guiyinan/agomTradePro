@@ -1,8 +1,8 @@
 # 外包团队工作指南
 
 > **创建日期**: 2026-02-21
-> **最后更新**: 2026-02-21
-> **审核来源**: 技术团队审核意见 (2026-02-20)
+> **最后更新**: 2026-02-23
+> **审核来源**: 技术团队审核意见 (2026-02-20) + 甲方验收整改 (2026-02-23)
 
 ---
 
@@ -469,9 +469,106 @@ data = result.data
 
 ---
 
+## 九、API 路由与契约规范（2026-02-23 新增）
+
+> 本节基于甲方验收整改要求新增
+
+### 9.1 API 与页面路由分离
+
+**规则**：API 路由和页面路由必须分离到不同的文件中。
+
+**正确做法**：
+```
+apps/policy/interface/
+├── urls.py        # 页面路由（返回 HTML）
+└── api_urls.py    # API 路由（返回 JSON）
+```
+
+**错误做法**：
+```python
+# ❌ 在同一个 urls.py 中混用 API 和页面路由
+urlpatterns = [
+    path("events/", PageView.as_view()),      # HTML
+    path("events/", APIView.as_view()),       # API - 冲突！
+]
+```
+
+### 9.2 API 契约测试
+
+**规则**：每个 API 端点必须有契约测试，验证返回格式。
+
+**必测内容**：
+1. Content-Type 是否正确（application/json）
+2. 状态码是否符合预期
+3. 响应结构是否符合契约
+
+**示例**：
+```python
+@pytest.mark.django_db
+def test_api_policy_events_endpoint_returns_json_contract():
+    """API 端点必须返回 JSON，不是 HTML"""
+    response = client.get("/api/policy/events/")
+
+    assert response.headers["Content-Type"].startswith("application/json")
+    # 不是 text/html
+```
+
+### 9.3 成对操作一致性
+
+**规则**：CRUD 操作的参数签名必须保持一致。
+
+**检查清单**：
+- [ ] 如果 Delete 支持 `event_id` 参数，Update 也必须支持
+- [ ] 如果 Create 返回特定字段，Update 也应返回相同字段
+- [ ] 所有操作的错误处理方式必须一致
+
+**错误案例**：
+```python
+# ❌ Delete 支持 event_id，Update 不支持
+def delete(event_date, event_id=None):  # 支持 event_id
+    ...
+
+def update(event_date, level, ...):     # 缺少 event_id
+    ...
+```
+
+**正确做法**：
+```python
+# ✅ 成对操作参数一致
+def delete(event_date, event_id=None):
+    ...
+
+def update(event_date, level, ..., event_id=None):  # 也支持 event_id
+    ...
+```
+
+### 9.4 修复完整性检查
+
+**规则**：修复问题时，必须检查所有相关场景。
+
+**检查步骤**：
+1. 识别问题的影响范围
+2. 列出所有相似的操作/模块
+3. 确认是否需要同步修复
+4. 添加回归测试
+
+**案例**：
+```
+问题：Delete 按日期删除会影响同日所有事件
+
+检查清单：
+- [x] DeleteUseCase 添加 event_id 参数
+- [x] UpdateUseCase 添加 event_id 参数 ← 容易遗漏！
+- [x] 添加契约测试
+- [x] 添加精确操作测试
+```
+
+---
+
 ## 十、参考资料
 
 - `docs/development/outsourcing-task-book-2026-02-22.md` - 外包测试与修复任务书（当前执行批次）
+- `docs/development/rectification-2026-02-23.md` - 外包交付整改报告（甲方验收）
 - `CLAUDE.md` - 项目主规则文件
 - `docs/development/error-handling-guide.md` - 错误处理详细指南
 - `docs/development/api-route-consistency.md` - API 路由一致性分析
