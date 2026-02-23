@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-> **最后更新**: 2026-02-20
+> **最后更新**: 2026-02-23
 > **系统版本**: AgomSAAF V3.4
 > **项目状态**: 生产就绪
 > **业务模块**: 27个
@@ -372,6 +372,7 @@ ak.macro_china_money_supply()
 ## 外包团队必读规则
 
 > 技术团队审核发现的问题及改进要求，详见 `docs/development/outsourcing-work-guidelines.md`
+> 甲方验收整改报告，详见 `docs/development/rectification-2026-02-23.md`
 
 ### 关键改进点
 
@@ -380,6 +381,10 @@ ak.macro_china_money_supply()
 3. **测试驱动**: 任何修复必须配合测试用例，测试覆盖率要求 Domain ≥ 90%
 4. **文档同步**: 代码修改后必须更新相关文档
 5. **提交规范**: 单一职责提交，清晰的提交消息
+6. **API 路由分离**: API 路由放在 `api_urls.py`，页面路由放在 `urls.py`，不得混用
+7. **API 契约测试**: 每个 API 端点必须有契约测试，验证 Content-Type 和状态码
+8. **成对操作一致性**: CRUD 操作的参数签名必须保持一致（如 Delete 支持 event_id，Update 也必须支持）
+9. **修复完整性**: 修复问题时必须检查所有相关场景，不可只修复"眼前"问题
 
 **环境配置**:
 - python 虚拟环境为 `agomsaaf`
