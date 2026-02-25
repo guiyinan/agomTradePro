@@ -62,6 +62,14 @@ pwsh ./scripts/inject-sqlite-into-bundle.ps1 `
 
 ## VPS Deploy (Linux)
 
+Use one fixed Compose project name everywhere:
+
+```bash
+export COMPOSE_PROJECT_NAME=agomsaaf
+```
+
+Or pass `-p agomsaaf` explicitly in every `docker compose` command.
+
 Deploy (interactive):
 
 ```bash
@@ -105,20 +113,20 @@ CADDY_HTTPS_PORT=8443
 Restart Caddy:
 
 ```bash
-docker compose -f /opt/agomsaaf/current/docker/docker-compose.vps.yml --env-file /opt/agomsaaf/current/deploy/.env restart caddy
+docker compose -p agomsaaf -f /opt/agomsaaf/current/docker/docker-compose.vps.yml --env-file /opt/agomsaaf/current/deploy/.env restart caddy
 ```
 
 ## Access & Health Check
 
 ```bash
 HTTP_PORT=$(grep '^CADDY_HTTP_PORT=' /opt/agomsaaf/current/deploy/.env | cut -d '=' -f2- | tail -n 1)
-curl -fsS "http://<vps-ip>:${HTTP_PORT:-8000}/health/"
+curl -fsS "http://<vps-ip>:${HTTP_PORT:-8000}/api/health/"
 ```
 
 ## Current VPS Notes (141.11.211.21, 2026-02-15)
 
 - Current access:
-  - `http://141.11.211.21:8000/health/`
+  - `http://141.11.211.21:8000/api/health/`
 - Host ports are `CADDY_HTTP_PORT=8000`, `CADDY_HTTPS_PORT=8443` (because system `nginx` binds `80/443`).
 - Current `WEB_IMAGE` was temporarily fixed on the VPS as: `agomsaaf-web:20260215-corsfix-hotfix10`.
   - This derived image adds missing runtime deps (gunicorn) and patches Django production settings to:
@@ -144,8 +152,23 @@ Almost always `ALLOWED_HOSTS` mismatch.
 - Edit `/opt/agomsaaf/current/deploy/.env` and set `ALLOWED_HOSTS` to include your IP/domain.
 - Restart:
   ```bash
-  docker compose -f /opt/agomsaaf/current/docker/docker-compose.vps.yml --env-file /opt/agomsaaf/current/deploy/.env restart web
+  docker compose -p agomsaaf -f /opt/agomsaaf/current/docker/docker-compose.vps.yml --env-file /opt/agomsaaf/current/deploy/.env restart web
   ```
+
+### Mixed Stack (docker-* and agomsaaf-* both exist)
+
+Reason:
+- Some commands used default compose project name (folder-based, often `docker`), while deploy scripts used `agomsaaf`.
+
+Prevention:
+- Always use `-p agomsaaf` (or export `COMPOSE_PROJECT_NAME=agomsaaf`) before any compose operation.
+
+Cleanup:
+```bash
+cd /opt/agomsaaf/current
+docker compose -p docker -f docker/docker-compose.vps.yml --env-file deploy/.env down --remove-orphans
+docker compose -p agomsaaf -f docker/docker-compose.vps.yml --env-file deploy/.env up -d
+```
 
 ### Windows CRLF Breaks Linux /bin/sh
 

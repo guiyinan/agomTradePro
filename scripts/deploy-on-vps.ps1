@@ -18,7 +18,8 @@ if (Test-Path "$PSScriptRoot/common.ps1") {
     throw "common.ps1 not found"
 }
 
-$env:COMPOSE_PROJECT_NAME = 'agomsaaf'
+$ProjectName = if ([string]::IsNullOrWhiteSpace($env:COMPOSE_PROJECT_NAME)) { 'agomsaaf' } else { $env:COMPOSE_PROJECT_NAME }
+$env:COMPOSE_PROJECT_NAME = $ProjectName
 
 Require-Command docker
 Require-Command tar
@@ -38,10 +39,21 @@ $ComposeCmd = Get-ComposeCmd
 
 function Invoke-Compose {
     param([string[]]$Args)
+    $fullArgs = @('-p', $ProjectName) + $Args
     if ($ComposeCmd.Count -eq 2) {
-        & $ComposeCmd[0] $ComposeCmd[1] @Args
+        & $ComposeCmd[0] $ComposeCmd[1] @fullArgs
     } else {
-        & $ComposeCmd[0] @Args
+        & $ComposeCmd[0] @fullArgs
+    }
+}
+
+function Assert-NoConflictingProject {
+    $candidates = @('docker', 'agomsaaf') | Where-Object { $_ -ne $ProjectName }
+    $names = docker ps -a --format "{{.Names}}"
+    foreach ($candidate in $candidates) {
+        if ($names | Select-String -Pattern "^$candidate-(web|redis|caddy)-1$" -Quiet) {
+            Throw-Err "Detected compose project '$candidate' alongside '$ProjectName'. Clean old stack first to avoid mixed deployments."
+        }
     }
 }
 
@@ -214,12 +226,14 @@ if (Test-Truthy (Get-EnvValue -Name 'ENABLE_CELERY' -Text $envText)) {
 }
 
 if ($Action -in @('fresh', 'upgrade')) {
+    Assert-NoConflictingProject
     Write-Info "Starting stack"
     $upArgs = @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','up','-d') + $services
     Invoke-Compose -Args $upArgs
 }
 
 if ($Action -in @('fresh', 'restore-only')) {
+    Assert-NoConflictingProject
     if ($Action -eq 'restore-only') {
         Write-Info "Starting data services for restore"
         Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','up','-d','redis','web')

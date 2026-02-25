@@ -17,7 +17,8 @@ else
   require_cmd() { command -v "$1" >/dev/null 2>&1 || die "Missing command: $1"; }
 fi
 
-export COMPOSE_PROJECT_NAME=agomsaaf
+PROJECT_NAME="${COMPOSE_PROJECT_NAME:-agomsaaf}"
+export COMPOSE_PROJECT_NAME="$PROJECT_NAME"
 
 BUNDLE=""
 TARGET_DIR="/opt/agomsaaf"
@@ -58,6 +59,19 @@ elif command -v docker-compose >/dev/null 2>&1; then
 else
   die "docker compose is required"
 fi
+
+compose_vps() {
+  $COMPOSE -p "$PROJECT_NAME" -f docker/docker-compose.vps.yml --env-file deploy/.env "$@"
+}
+
+detect_conflicting_project() {
+  for candidate in docker agomsaaf; do
+    [ "$candidate" = "$PROJECT_NAME" ] && continue
+    if docker ps -a --format '{{.Names}}' | grep -Eq "^${candidate}-(web|redis|caddy)-1$"; then
+      die "Detected compose project '${candidate}' alongside '${PROJECT_NAME}'. Clean old stack first to avoid mixed deployments."
+    fi
+  done
+}
 
 env_value() {
   key="$1"
@@ -116,13 +130,13 @@ mkdir -p "$TARGET_DIR/releases"
 
 if [ "$ACTION" = "status" ]; then
   cd "$TARGET_DIR/current" || die "Current deployment missing"
-  $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env ps
+  compose_vps ps
   exit 0
 fi
 
 if [ "$ACTION" = "logs" ]; then
   cd "$TARGET_DIR/current" || die "Current deployment missing"
-  $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env logs -f
+  compose_vps logs -f
   exit 0
 fi
 
@@ -321,32 +335,36 @@ if is_true "$(env_value ENABLE_CELERY deploy/.env)"; then
   extra_services="$extra_services celery_worker celery_beat"
 fi
 
+if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "upgrade" ] || [ "$ACTION" = "restore-only" ]; then
+  detect_conflicting_project
+fi
+
 if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "upgrade" ]; then
   log_info "Starting stack"
-  $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env up -d $core_services $extra_services
+  compose_vps up -d $core_services $extra_services
 fi
 
 if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "restore-only" ]; then
   if [ "$ACTION" = "restore-only" ]; then
     log_info "Starting data services for restore"
-    $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env up -d redis web
+    compose_vps up -d redis web
   fi
 
   if [ -f backups/db.sqlite3 ]; then
     log_info "Restoring SQLite database"
-    web_cid=$($COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env ps -q web)
+    web_cid=$(compose_vps ps -q web)
     [ -n "$web_cid" ] || die "Web container not found"
     docker cp backups/db.sqlite3 "$web_cid:/app/data/db.sqlite3"
-    $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env restart web
+    compose_vps restart web
   fi
 
   if [ -f backups/dump.rdb ]; then
     log_info "Restoring Redis snapshot"
-    redis_cid=$($COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env ps -q redis)
+    redis_cid=$(compose_vps ps -q redis)
     [ -n "$redis_cid" ] || die "Redis container not found"
-    $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env stop redis
+    compose_vps stop redis
     docker cp backups/dump.rdb "$redis_cid:/data/dump.rdb"
-    $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env start redis
+    compose_vps start redis
   fi
 fi
 
@@ -354,7 +372,7 @@ if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "upgrade" ] || [ "$ACTION" = "restor
   log_info "Running database migrations"
   tries=0
   while :; do
-    if $COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env exec -T web python manage.py migrate --noinput; then
+    if compose_vps exec -T web python manage.py migrate --noinput; then
       break
     fi
     tries=$((tries + 1))
@@ -371,5 +389,5 @@ rm -rf "$TARGET_DIR/current"
 ln -s "$release_dir" "$TARGET_DIR/current"
 
 cd "$TARGET_DIR/current"
-$COMPOSE -f docker/docker-compose.vps.yml --env-file deploy/.env ps
+compose_vps ps
 log_info "Deployment done"
