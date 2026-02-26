@@ -21,6 +21,11 @@ class AIProviderConfig(models.Model):
         ('moonshot', 'Moonshot'),
         ('custom', '自定义'),
     ]
+    API_MODE_CHOICES = [
+        ("dual", "Dual (Responses + Chat Fallback)"),
+        ("responses_only", "Responses Only"),
+        ("chat_only", "Chat Completions Only"),
+    ]
 
     # 基本信息
     name = models.CharField(
@@ -57,6 +62,16 @@ class AIProviderConfig(models.Model):
         max_length=50,
         default="gpt-3.5-turbo",
         help_text="默认模型名称"
+    )
+    api_mode = models.CharField(
+        max_length=20,
+        choices=API_MODE_CHOICES,
+        default="dual",
+        help_text="OpenAI API 模式：dual/responses_only/chat_only",
+    )
+    fallback_enabled = models.BooleanField(
+        default=True,
+        help_text="dual 模式下是否允许从 Responses 回退到 Chat Completions",
     )
 
     # 预算控制

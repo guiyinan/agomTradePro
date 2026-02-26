@@ -18,6 +18,14 @@ from agomsaaf_mcp import rbac
         ("risk", "import_positions_csv", False),
         ("read_only", "get_portfolio_statistics", True),
         ("read_only", "import_capital_flows_csv", False),
+        ("analyst", "publish_event", False),
+        ("analyst", "submit_decision_request", False),
+        ("read_only", "replay_events", False),
+        ("read_only", "toggle_ai_provider", False),
+        ("investment_manager", "publish_event", True),
+        ("investment_manager", "submit_decision_request", True),
+        ("owner", "toggle_ai_provider", True),
+        ("risk", "submit_decision_request", False),
     ],
 )
 def test_role_tool_matrix_enforcement(

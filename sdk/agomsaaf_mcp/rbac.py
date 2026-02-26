@@ -109,6 +109,10 @@ def _classify_tool_level(tool_name: str) -> str:
         "reset_",
         "bind_",
         "unbind_",
+        "toggle_",
+        "publish_",
+        "submit_",
+        "replay_",
     )
     if name.startswith(write_prefixes):
         return "write"

@@ -13,6 +13,7 @@
 | **新用户** | [QUICK_START.md](QUICK_START.md) | **个人实战上手手册（冷启动版）** |
 | 开发人员 | [development/quick-reference.md](development/quick-reference.md) | 命令速查、API端点、模块速查 |
 | 新加入者 | [architecture/SYSTEM_OVERVIEW.md](architecture/SYSTEM_OVERVIEW.md) | 系统全景、模块说明、数据流 |
+| AI Agent/集成开发 | [../sdk/README.md](../sdk/README.md) | SDK 与 MCP 服务接入、认证、工具清单 |
 | 外包团队 | [development/outsourcing-work-guidelines.md](development/outsourcing-work-guidelines.md) | **外包工作指南、代码规范、自查清单** |
 | 产品/业务 | [business/AgomSAAF_V3.4.md](business/AgomSAAF_V3.4.md) | 业务逻辑、金融规则、数据源 |
 | 最终用户 | [user/topdown-bottomup-execution-playbook.md](user/topdown-bottomup-execution-playbook.md) | 环境-标的-执行-审计一体化操作手册 |
@@ -72,6 +73,7 @@
 | [agomsaaf-qlib-integration-plan-v1.1.md](plans/agomsaaf-qlib-integration-plan-v1.1.md) | Qlib 集成方案 v1.1 | 完整 |
 | [factor-rotation-hedge-implementation-plan.md](plans/factor-rotation-hedge-implementation-plan.md) | 因子轮动对冲实施计划 | 完整 |
 | [sdk-mcp-implementation.md](plans/sdk-mcp-implementation.md) | SDK & MCP 实施方案 | 完整 |
+| [sdk_mcp_coverage_matrix_20260226.md](plans/sdk_mcp_coverage_matrix_20260226.md) | SDK/MCP 覆盖矩阵（按模块） | ✅ 2026-02-26 更新 |
 | [decision-making-improvement.md](plans/decision-making-improvement.md) | 决策流程改进方案 | 完整 |
 | [streamlit-dashboard-upgrade-plan.md](plans/streamlit-dashboard-upgrade-plan.md) | Streamlit 仪表盘交互升级实施方案 | 最新 |
 | [admin-to-modern-interaction-migration-plan.md](plans/admin-to-modern-interaction-migration-plan.md) | Admin 依赖迁移实施方案 | 最新 |
@@ -82,6 +84,7 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [master-test-strategy-2026-02.md](testing/master-test-strategy-2026-02.md) | **全面测试策略（L0-L7 层级、门禁定义）** | ✅ 2026-02-24 更新 |
+| [outsourcing-full-regression-plan-2026-02-26.md](testing/outsourcing-full-regression-plan-2026-02-26.md) | 外包全量回归执行方案（双环境+分层门禁+证据包） | ✅ 2026-02-26 新增 |
 | [outsourcing-acceptance-plan-post-v34-2026-02-26.md](testing/outsourcing-acceptance-plan-post-v34-2026-02-26.md) | 外包开发验收方案（V3.4 后续路线图） | ✅ 最新 |
 | [requirements-traceability-matrix-2026-02.md](testing/requirements-traceability-matrix-2026-02.md) | **需求-测试追踪矩阵（RTM）** | ✅ 2026-02-26 更新 |
 | [sdk-mcp-integration-test-plan.md](testing/sdk-mcp-integration-test-plan.md) | SDK & MCP 集成测试计划（1000行） | 完整 |
@@ -156,6 +159,13 @@
 - Phase 1-5 实施总结（已整合到 `implementation-progress-summary.md`）
 - 修复记录、前端改造清单、UAT 测试报告等过程性文档
 
+### 13. SDK 与 MCP (`../sdk/`)
+
+| 文档 | 说明 | 状态 |
+|------|------|------|
+| [../sdk/README.md](../sdk/README.md) | SDK/MCP 总览、安装、认证、工具与模块清单 | ✅ 2026-02-26 更新 |
+| [testing/sdk-mcp-integration-test-plan.md](testing/sdk-mcp-integration-test-plan.md) | SDK/MCP 集成测试方案 | ✅ 最新 |
+
 ---
 
 ## 项目状态
@@ -167,6 +177,12 @@
 **完成度**: 持续迭代（请以里程碑文档与代码状态为准）
 
 **测试覆盖**: 使用 `pytest` + `coverage` 持续验证（覆盖率以最新 CI/本地执行结果为准）
+
+### SDK/MCP 口径（2026-02-26）
+
+- 对外接入层：`sdk/agomsaaf`（Python SDK）+ `sdk/agomsaaf_mcp`（MCP Server）
+- 本地 MCP 回归：`98 passed`（tool registration + tool execution + RBAC）
+- 说明：测试数字为当日快照，最终以最新 CI/本地执行结果为准
 
 ### 完整四层架构模块 (28个)
 

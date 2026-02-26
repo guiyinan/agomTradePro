@@ -79,10 +79,13 @@ class AIClientFactory:
             raise ValueError(f"AI Provider not found: {provider_id}")
 
         # 创建客户端
+        extra_config = provider_config.extra_config if isinstance(provider_config.extra_config, dict) else {}
         client = OpenAICompatibleAdapter(
             base_url=provider_config.base_url,
             api_key=provider_config.api_key,
-            default_model=provider_config.default_model
+            default_model=provider_config.default_model,
+            api_mode=extra_config.get("api_mode"),
+            fallback_enabled=extra_config.get("fallback_enabled"),
         )
 
         # 缓存

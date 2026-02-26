@@ -52,6 +52,8 @@ class ProviderListItemDTO:
     priority: int
     base_url: str
     default_model: str
+    api_mode: str
+    fallback_enabled: bool
     description: str
     created_at: datetime
     updated_at: datetime

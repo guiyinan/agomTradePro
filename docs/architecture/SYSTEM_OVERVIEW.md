@@ -2,12 +2,12 @@
 
 > **文档版本**: V1.5
 > **生成日期**: 2026-01-04
-> **最后更新**: 2026-02-06
+> **最后更新**: 2026-02-26
 > **系统版本**: AgomSAAF V3.4
 > **项目状态**: 持续迭代（以代码与发布说明为准）
 > **文档目的**: 基于现有文档和代码库,梳理系统的模块、功能(应然和实然)及后续实施建议
 
-> **自动校验状态（2026-02-06）**
+> **自动校验状态（2026-02-26）**
 > - `python manage.py check`: 通过
 > - 模块口径：`apps/` 业务模块 27 个（不含 `shared`）
 > - 四层目录完整性：26/27（`ai_provider` 缺少 `application/`）
@@ -29,6 +29,8 @@
 - ✅ **Qlib 集成** - Alpha 选股信号深度集成
 - ✅ **决策平台** - Beta Gate + Alpha Trigger + Decision Rhythm
 - ✅ **事件驱动系统** - Events模块完整实现(2026-02-06)
+- ✅ **Python SDK** - `sdk/agomsaaf` 提供模块化 API 客户端（业务模块覆盖）
+- ✅ **MCP Server** - `sdk/agomsaaf_mcp` 提供 AI Agent 原生工具（含 RBAC）
 
 ---
 
@@ -89,6 +91,34 @@
 - 依赖方向: Interface → Application → Domain → Infrastructure ✅
 - 所有ORM模型统一后缀 `Model` ✅
 - 所有Repository实现Protocol接口 ✅
+
+### 1.3 对外接入层（SDK + MCP）
+
+在 Django 四层架构之上，系统提供统一的对外接入层：
+
+- **Python SDK**（`sdk/agomsaaf`）  
+  - 面向 Python 开发者与自动化脚本
+  - 通过 `AgomSAAFClient` 访问业务模块（如 `regime/signal/backtest/ai_provider/prompt/audit/events` 等）
+  - 使用后端统一认证（DRF Token）
+
+- **MCP Server**（`sdk/agomsaaf_mcp`）  
+  - 面向 Claude Code 等 AI Agent 工具调用
+  - 工具层映射 SDK 模块能力，支持读写操作
+  - 提供 RBAC 控制：按角色限制工具权限（`admin/owner/analyst/investment_manager/trader/risk/read_only`）
+
+#### 1.3.1 当前覆盖状态（2026-02-26）
+
+- 业务模块：SDK/MCP 已覆盖系统主模块（含治理与运维模块）
+- OpenAI 兼容链路：`ai_provider` 支持 `dual / responses_only / chat_only` 与回退开关
+- 测试状态：SDK 扩展端点契约测试 + MCP 注册/执行/RBAC 测试已通过
+- MCP 本地回归：`98 passed`（tool registration + tool execution + RBAC）
+- 说明：测试数字为当日快照，最终以最新 CI/本地执行结果为准
+
+#### 1.3.2 运维与文档入口
+
+- SDK/MCP 主文档：`sdk/README.md`
+- 覆盖矩阵：`docs/plans/sdk_mcp_coverage_matrix_20260226.md`
+- 集成测试方案：`docs/testing/sdk-mcp-integration-test-plan.md`
 
 ---
 
@@ -1648,11 +1678,12 @@ pytest tests/ -v --cov=apps --cov-report=html
 ---
 
 **文档版本**: V1.5
-**最后更新**: 2026-02-06
+**最后更新**: 2026-02-26
 **下次审核**: 每月审核一次,根据实施进度更新
 **维护者**: Claude Code Agent
 
 **更新记录**:
+- V1.7 (2026-02-26): 增补 SDK/MCP 对外接入层与统一测试口径（MCP: 98 passed）
 - V1.6 (2026-02-06): 同步代码扫描口径，补充自动校验状态，移除易漂移百分比描述
 - V1.5 (2026-02-06): Dashboard/Events模块4层架构完善
 - V1.4 (2026-01-04): 基础版本，系统全景概览

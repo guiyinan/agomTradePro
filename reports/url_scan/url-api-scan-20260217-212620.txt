@@ -1,0 +1,40 @@
+Total: 717
+OK: 683
+Fail: 34
+ServerError(5xx): 4
+
+Failures:
+- /account/api/<drf_format_suffix:format>/ -> status=404 category=not_found elapsed=94ms error=
+- /ai/<drf_format_suffix:format>/ -> status=404 category=not_found elapsed=26ms error=
+- /ai/detail/1/ -> status=404 category=not_found elapsed=36ms error=
+- /ai/detail/1/edit/ -> status=404 category=not_found elapsed=36ms error=
+- /alpha-triggers/candidates/sample/ -> status=500 category=server_error elapsed=476ms error=
+- /alpha-triggers/detail/sample/ -> status=500 category=server_error elapsed=172ms error=
+- /alpha-triggers/edit/sample/ -> status=500 category=server_error elapsed=403ms error=
+- /api/alpha-triggers/<drf_format_suffix:format>/ -> status=404 category=not_found elapsed=19ms error=
+- /api/beta-gate/<drf_format_suffix:format>/ -> status=404 category=not_found elapsed=18ms error=
+- /api/decision-rhythm/<drf_format_suffix:format>/ -> status=404 category=not_found elapsed=13ms error=
+- /backtest/1/ -> status=404 category=not_found elapsed=31ms error=
+- /backtest/<drf_format_suffix:format>/ -> status=404 category=not_found elapsed=11ms error=
+- /beta-gate/config/sample/edit/ -> status=404 category=not_found elapsed=45ms error=
+- /chat-example/ -> status=500 category=server_error elapsed=123ms error=
+- /docs/sample/ -> status=404 category=not_found elapsed=33ms error=
+- /equity/api/<drf_format_suffix:format>/ -> status=404 category=not_found elapsed=22ms error=
+- /factor/api/<drf_format_suffix:format>/ -> status=404 category=not_found elapsed=15ms error=
+- /filter/api/<drf_format_suffix:format>/ -> status=404 category=not_found elapsed=13ms error=
+- /hedge/api/<drf_format_suffix:format>/ -> status=404 category=not_found elapsed=17ms error=
+- /macro/api/indicator-data/ -> status=400 category=other elapsed=3ms error=
+- /policy/api/<drf_format_suffix:format>/ -> status=404 category=not_found elapsed=25ms error=
+- /prompt/api/<drf_format_suffix:format>/ -> status=404 category=not_found elapsed=31ms error=
+- /prompt/api/chat/ -> status=404 category=not_found elapsed=22ms error=
+- /prompt/api/chat/models/ -> status=404 category=not_found elapsed=14ms error=
+- /prompt/api/chat/providers/ -> status=404 category=not_found elapsed=17ms error=
+- /prompt/api/reports/generate/ -> status=404 category=not_found elapsed=35ms error=
+- /prompt/api/signals/generate/ -> status=404 category=not_found elapsed=16ms error=
+- /realtime/health/ -> status=0 category=error elapsed=8029ms error=HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=8)
+- /realtime/prices/sample/ -> status=404 category=not_found elapsed=6365ms error=
+- /regime/api/<drf_format_suffix:format>/ -> status=404 category=not_found elapsed=29ms error=
+- /rotation/api/<drf_format_suffix:format>/ -> status=404 category=not_found elapsed=27ms error=
+- /sector/<drf_format_suffix:format>/ -> status=404 category=not_found elapsed=11ms error=
+- /signal/eligibility/ -> status=400 category=other elapsed=5ms error=
+- /strategy/api/<drf_format_suffix:format>/ -> status=404 category=not_found elapsed=20ms error=

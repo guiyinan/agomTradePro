@@ -1,0 +1,6 @@
+Total: 701
+OK: 701
+Fail: 0
+ServerError(5xx): 0
+
+Failures:

@@ -186,17 +186,29 @@ def test_tool_imports() -> None:
     try:
         from agomsaaf_mcp.tools import (
             account_tools,
+            ai_provider_tools,
+            alpha_trigger_tools,
+            asset_analysis_tools,
+            audit_tools,
             backtest_tools,
+            beta_gate_tools,
+            dashboard_tools,
+            decision_rhythm_tools,
             equity_tools,
+            events_tools,
+            filter_tools,
             fund_tools,
             macro_tools,
             policy_tools,
+            prompt_tools,
             realtime_tools,
             regime_tools,
             sector_tools,
+            sentiment_tools,
             signal_tools,
             simulated_trading_tools,
             strategy_tools,
+            task_monitor_tools,
         )
 
         print_success("All tool modules imported successfully")
@@ -213,6 +225,18 @@ def test_tool_imports() -> None:
         print_info("  - sector_tools")
         print_info("  - strategy_tools")
         print_info("  - realtime_tools")
+        print_info("  - ai_provider_tools")
+        print_info("  - prompt_tools")
+        print_info("  - audit_tools")
+        print_info("  - events_tools")
+        print_info("  - decision_rhythm_tools")
+        print_info("  - beta_gate_tools")
+        print_info("  - alpha_trigger_tools")
+        print_info("  - dashboard_tools")
+        print_info("  - asset_analysis_tools")
+        print_info("  - sentiment_tools")
+        print_info("  - task_monitor_tools")
+        print_info("  - filter_tools")
     except ImportError as e:
         assert False, f"Failed to import tool modules: {e}"
 

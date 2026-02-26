@@ -1,0 +1,5738 @@
+[
+  {
+    "path": "/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 171,
+    "error": ""
+  },
+  {
+    "path": "/account/admin/settings/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 13,
+    "error": ""
+  },
+  {
+    "path": "/account/admin/tokens/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 20,
+    "error": ""
+  },
+  {
+    "path": "/account/admin/tokens/1/revoke/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/account/admin/tokens/1/rotate/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/account/admin/users/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/account/admin/users/1/approve/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 19,
+    "error": ""
+  },
+  {
+    "path": "/account/admin/users/1/reject/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/account/admin/users/1/reset/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 2,
+    "error": ""
+  },
+  {
+    "path": "/account/admin/users/1/role/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/account/api/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/account/api/<drf_format_suffix:format>/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 94,
+    "error": ""
+  },
+  {
+    "path": "/account/api/assets/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/account/api/capital-flows/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 11,
+    "error": ""
+  },
+  {
+    "path": "/account/api/categories/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/account/api/categories/roots/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 19,
+    "error": ""
+  },
+  {
+    "path": "/account/api/categories/tree/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/account/api/currencies/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/account/api/currencies/base/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 13,
+    "error": ""
+  },
+  {
+    "path": "/account/api/exchange-rates/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/account/api/exchange-rates/convert/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/account/api/health/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/account/api/portfolios/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 19,
+    "error": ""
+  },
+  {
+    "path": "/account/api/portfolios/1/allocation/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 11,
+    "error": ""
+  },
+  {
+    "path": "/account/api/positions/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 18,
+    "error": ""
+  },
+  {
+    "path": "/account/api/profile/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 19,
+    "error": ""
+  },
+  {
+    "path": "/account/api/transactions/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 26,
+    "error": ""
+  },
+  {
+    "path": "/account/api/volatility/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/account/backtest/1/apply/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/account/capital-flow/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/account/login/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 258,
+    "error": ""
+  },
+  {
+    "path": "/account/logout/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/account/profile/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/account/register/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 91,
+    "error": ""
+  },
+  {
+    "path": "/account/settings/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 74,
+    "error": ""
+  },
+  {
+    "path": "/admin/ai_provider/aiproviderconfig/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/admin/ai_provider/aiproviderconfig/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/admin/ai_provider/aiproviderconfig/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/admin/ai_provider/aiproviderconfig/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/ai_provider/aiproviderconfig/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 13,
+    "error": ""
+  },
+  {
+    "path": "/admin/ai_provider/aiproviderconfig/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/ai_provider/aiusagelog/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 22,
+    "error": ""
+  },
+  {
+    "path": "/admin/ai_provider/aiusagelog/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 31,
+    "error": ""
+  },
+  {
+    "path": "/admin/ai_provider/aiusagelog/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 12,
+    "error": ""
+  },
+  {
+    "path": "/admin/ai_provider/aiusagelog/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 18,
+    "error": ""
+  },
+  {
+    "path": "/admin/ai_provider/aiusagelog/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/ai_provider/aiusagelog/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 11,
+    "error": ""
+  },
+  {
+    "path": "/admin/alpha_trigger/alphacandidatemodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/admin/alpha_trigger/alphacandidatemodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 24,
+    "error": ""
+  },
+  {
+    "path": "/admin/alpha_trigger/alphacandidatemodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/admin/alpha_trigger/alphacandidatemodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 31,
+    "error": ""
+  },
+  {
+    "path": "/admin/alpha_trigger/alphacandidatemodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 23,
+    "error": ""
+  },
+  {
+    "path": "/admin/alpha_trigger/alphacandidatemodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/admin/alpha_trigger/alphatriggermodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 13,
+    "error": ""
+  },
+  {
+    "path": "/admin/alpha_trigger/alphatriggermodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/alpha_trigger/alphatriggermodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 26,
+    "error": ""
+  },
+  {
+    "path": "/admin/alpha_trigger/alphatriggermodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/admin/alpha_trigger/alphatriggermodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/admin/alpha_trigger/alphatriggermodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 18,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/attributionreport/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/attributionreport/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/attributionreport/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/attributionreport/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/attributionreport/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/attributionreport/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/auditreport/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/auditreport/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/auditreport/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/auditreport/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/auditreport/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/auditreport/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 14,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/experiencesummary/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/experiencesummary/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/experiencesummary/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/experiencesummary/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 30,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/experiencesummary/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 39,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/experiencesummary/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 18,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/indicatorperformancemodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 12,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/indicatorperformancemodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/indicatorperformancemodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/indicatorperformancemodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 20,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/indicatorperformancemodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 12,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/indicatorperformancemodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/indicatorthresholdconfigmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/indicatorthresholdconfigmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/indicatorthresholdconfigmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/indicatorthresholdconfigmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/indicatorthresholdconfigmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/indicatorthresholdconfigmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 24,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/lossanalysis/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/lossanalysis/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 12,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/lossanalysis/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 22,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/lossanalysis/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/lossanalysis/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/lossanalysis/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/validationsummarymodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/validationsummarymodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 26,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/validationsummarymodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/validationsummarymodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/validationsummarymodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/audit/validationsummarymodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 20,
+    "error": ""
+  },
+  {
+    "path": "/admin/auth/group/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/auth/group/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/auth/group/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 25,
+    "error": ""
+  },
+  {
+    "path": "/admin/auth/group/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/auth/group/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 23,
+    "error": ""
+  },
+  {
+    "path": "/admin/auth/group/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 19,
+    "error": ""
+  },
+  {
+    "path": "/admin/auth/user/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/admin/auth/user/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/auth/user/sample/password/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 14,
+    "error": ""
+  },
+  {
+    "path": "/admin/auth/user/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/admin/auth/user/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/admin/auth/user/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/admin/auth/user/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 25,
+    "error": ""
+  },
+  {
+    "path": "/admin/authtoken/tokenproxy/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 11,
+    "error": ""
+  },
+  {
+    "path": "/admin/authtoken/tokenproxy/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/admin/authtoken/tokenproxy/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/admin/authtoken/tokenproxy/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/authtoken/tokenproxy/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 21,
+    "error": ""
+  },
+  {
+    "path": "/admin/authtoken/tokenproxy/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/autocomplete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 2,
+    "error": ""
+  },
+  {
+    "path": "/admin/backtest/backtestresultmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/backtest/backtestresultmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/backtest/backtestresultmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/backtest/backtestresultmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/backtest/backtestresultmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 23,
+    "error": ""
+  },
+  {
+    "path": "/admin/backtest/backtestresultmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/admin/backtest/backtesttrademodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/backtest/backtesttrademodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 11,
+    "error": ""
+  },
+  {
+    "path": "/admin/backtest/backtesttrademodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 23,
+    "error": ""
+  },
+  {
+    "path": "/admin/backtest/backtesttrademodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 28,
+    "error": ""
+  },
+  {
+    "path": "/admin/backtest/backtesttrademodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/admin/backtest/backtesttrademodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 28,
+    "error": ""
+  },
+  {
+    "path": "/admin/beta_gate/gateconfigmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/admin/beta_gate/gateconfigmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 24,
+    "error": ""
+  },
+  {
+    "path": "/admin/beta_gate/gateconfigmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/admin/beta_gate/gateconfigmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/beta_gate/gateconfigmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 10,
+    "error": ""
+  },
+  {
+    "path": "/admin/beta_gate/gateconfigmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 19,
+    "error": ""
+  },
+  {
+    "path": "/admin/beta_gate/gatedecisionmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/admin/beta_gate/gatedecisionmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 12,
+    "error": ""
+  },
+  {
+    "path": "/admin/beta_gate/gatedecisionmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 28,
+    "error": ""
+  },
+  {
+    "path": "/admin/beta_gate/gatedecisionmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/beta_gate/gatedecisionmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 24,
+    "error": ""
+  },
+  {
+    "path": "/admin/beta_gate/gatedecisionmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/admin/beta_gate/visibilityuniversesnapshotmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 21,
+    "error": ""
+  },
+  {
+    "path": "/admin/beta_gate/visibilityuniversesnapshotmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/beta_gate/visibilityuniversesnapshotmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 14,
+    "error": ""
+  },
+  {
+    "path": "/admin/beta_gate/visibilityuniversesnapshotmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 12,
+    "error": ""
+  },
+  {
+    "path": "/admin/beta_gate/visibilityuniversesnapshotmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/beta_gate/visibilityuniversesnapshotmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 26,
+    "error": ""
+  },
+  {
+    "path": "/admin/decision_rhythm/cooldownperiodmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/admin/decision_rhythm/cooldownperiodmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 13,
+    "error": ""
+  },
+  {
+    "path": "/admin/decision_rhythm/cooldownperiodmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/admin/decision_rhythm/cooldownperiodmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 11,
+    "error": ""
+  },
+  {
+    "path": "/admin/decision_rhythm/cooldownperiodmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 33,
+    "error": ""
+  },
+  {
+    "path": "/admin/decision_rhythm/cooldownperiodmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/admin/decision_rhythm/decisionquotamodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/decision_rhythm/decisionquotamodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/decision_rhythm/decisionquotamodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 22,
+    "error": ""
+  },
+  {
+    "path": "/admin/decision_rhythm/decisionquotamodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/admin/decision_rhythm/decisionquotamodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 14,
+    "error": ""
+  },
+  {
+    "path": "/admin/decision_rhythm/decisionquotamodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/decision_rhythm/decisionrequestmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/decision_rhythm/decisionrequestmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 20,
+    "error": ""
+  },
+  {
+    "path": "/admin/decision_rhythm/decisionrequestmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/admin/decision_rhythm/decisionrequestmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/decision_rhythm/decisionrequestmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 13,
+    "error": ""
+  },
+  {
+    "path": "/admin/decision_rhythm/decisionrequestmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 31,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/clockedschedule/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 30,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/clockedschedule/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 27,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/clockedschedule/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 14,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/clockedschedule/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/clockedschedule/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/clockedschedule/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/crontabschedule/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 27,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/crontabschedule/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/crontabschedule/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 22,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/crontabschedule/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/crontabschedule/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/crontabschedule/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/intervalschedule/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/intervalschedule/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 12,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/intervalschedule/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 33,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/intervalschedule/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/intervalschedule/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/intervalschedule/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/periodictask/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 23,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/periodictask/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 14,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/periodictask/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/periodictask/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/periodictask/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 20,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/periodictask/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/solarschedule/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/solarschedule/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/solarschedule/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 28,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/solarschedule/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 30,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/solarschedule/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/django_celery_beat/solarschedule/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 22,
+    "error": ""
+  },
+  {
+    "path": "/admin/docs/delete/1/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/admin/docs/edit/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/admin/docs/edit/1/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/docs/export/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/admin/docs/export/1/md/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/admin/docs/import/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 18,
+    "error": ""
+  },
+  {
+    "path": "/admin/docs/manage/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/login/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 318,
+    "error": ""
+  },
+  {
+    "path": "/admin/logout/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/dataprovidersettings/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 24,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/dataprovidersettings/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/dataprovidersettings/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 12,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/dataprovidersettings/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/dataprovidersettings/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 14,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/dataprovidersettings/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 25,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/datasourceconfig/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/datasourceconfig/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 24,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/datasourceconfig/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 18,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/datasourceconfig/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 19,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/datasourceconfig/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/datasourceconfig/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/indicatorunitconfig/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 14,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/indicatorunitconfig/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/indicatorunitconfig/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/indicatorunitconfig/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/indicatorunitconfig/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/indicatorunitconfig/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/macroindicator/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/macroindicator/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 20,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/macroindicator/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 10,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/macroindicator/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 23,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/macroindicator/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 12,
+    "error": ""
+  },
+  {
+    "path": "/admin/macro/macroindicator/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/admin/password_change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/password_change/done/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/policyauditqueue/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 24,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/policyauditqueue/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/policyauditqueue/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 25,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/policyauditqueue/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/policyauditqueue/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 20,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/policyauditqueue/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/policylevelkeywordmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 23,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/policylevelkeywordmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/policylevelkeywordmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/policylevelkeywordmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/policylevelkeywordmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/policylevelkeywordmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/policylog/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 14,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/policylog/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 11,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/policylog/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/policylog/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 27,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/policylog/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/policylog/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 29,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/rssfetchlog/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 10,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/rssfetchlog/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 21,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/rssfetchlog/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/rssfetchlog/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 23,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/rssfetchlog/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 14,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/rssfetchlog/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/rsshubglobalconfig/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 14,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/rsshubglobalconfig/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/rsshubglobalconfig/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 11,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/rsshubglobalconfig/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/rsshubglobalconfig/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 27,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/rsshubglobalconfig/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/rsssourceconfigmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 13,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/rsssourceconfigmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/rsssourceconfigmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 10,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/rsssourceconfigmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/rsssourceconfigmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/admin/policy/rsssourceconfigmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/r/sample/path/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 29,
+    "error": ""
+  },
+  {
+    "path": "/admin/regime/regimeindicatorthreshold/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 18,
+    "error": ""
+  },
+  {
+    "path": "/admin/regime/regimeindicatorthreshold/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/regime/regimeindicatorthreshold/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 21,
+    "error": ""
+  },
+  {
+    "path": "/admin/regime/regimeindicatorthreshold/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 11,
+    "error": ""
+  },
+  {
+    "path": "/admin/regime/regimeindicatorthreshold/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/admin/regime/regimeindicatorthreshold/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 13,
+    "error": ""
+  },
+  {
+    "path": "/admin/regime/regimelog/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 43,
+    "error": ""
+  },
+  {
+    "path": "/admin/regime/regimelog/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/regime/regimelog/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/regime/regimelog/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/regime/regimelog/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 19,
+    "error": ""
+  },
+  {
+    "path": "/admin/regime/regimelog/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 12,
+    "error": ""
+  },
+  {
+    "path": "/admin/regime/regimethresholdconfig/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/admin/regime/regimethresholdconfig/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/admin/regime/regimethresholdconfig/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/admin/regime/regimethresholdconfig/sample/path/activate/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 24,
+    "error": ""
+  },
+  {
+    "path": "/admin/regime/regimethresholdconfig/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/regime/regimethresholdconfig/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 25,
+    "error": ""
+  },
+  {
+    "path": "/admin/regime/regimethresholdconfig/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/assetconfigmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/assetconfigmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 14,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/assetconfigmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/assetconfigmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/assetconfigmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/assetconfigmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/filterparameterconfigmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 32,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/filterparameterconfigmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/filterparameterconfigmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 22,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/filterparameterconfigmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/filterparameterconfigmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/filterparameterconfigmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/fundtypepreferenceconfigmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 28,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/fundtypepreferenceconfigmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/fundtypepreferenceconfigmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 28,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/fundtypepreferenceconfigmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 14,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/fundtypepreferenceconfigmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/fundtypepreferenceconfigmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 28,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/hedginginstrumentconfigmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 27,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/hedginginstrumentconfigmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/hedginginstrumentconfigmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/hedginginstrumentconfigmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/hedginginstrumentconfigmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 11,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/hedginginstrumentconfigmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 18,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/indicatorconfigmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/indicatorconfigmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/indicatorconfigmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/indicatorconfigmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/indicatorconfigmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/indicatorconfigmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 27,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/regimeeligibilityconfigmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/regimeeligibilityconfigmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 25,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/regimeeligibilityconfigmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/regimeeligibilityconfigmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 20,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/regimeeligibilityconfigmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/regimeeligibilityconfigmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 25,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/riskparameterconfigmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 14,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/riskparameterconfigmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 14,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/riskparameterconfigmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/riskparameterconfigmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 10,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/riskparameterconfigmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/riskparameterconfigmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 25,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/sectorpreferenceconfigmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 13,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/sectorpreferenceconfigmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/sectorpreferenceconfigmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/sectorpreferenceconfigmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/sectorpreferenceconfigmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/sectorpreferenceconfigmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 28,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/stockscreeningruleconfigmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/stockscreeningruleconfigmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 25,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/stockscreeningruleconfigmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/stockscreeningruleconfigmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 21,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/stockscreeningruleconfigmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/stockscreeningruleconfigmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/transactioncostconfigmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/transactioncostconfigmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/transactioncostconfigmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/transactioncostconfigmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 20,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/transactioncostconfigmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/shared/transactioncostconfigmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/admin/signal/investmentsignalmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/signal/investmentsignalmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/admin/signal/investmentsignalmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 19,
+    "error": ""
+  },
+  {
+    "path": "/admin/signal/investmentsignalmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 25,
+    "error": ""
+  },
+  {
+    "path": "/admin/signal/investmentsignalmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/admin/signal/investmentsignalmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/dailyinspectionnotificationconfigmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 18,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/dailyinspectionnotificationconfigmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/dailyinspectionnotificationconfigmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 19,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/dailyinspectionnotificationconfigmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 12,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/dailyinspectionnotificationconfigmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/dailyinspectionnotificationconfigmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 21,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/dailyinspectionreportmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/dailyinspectionreportmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 12,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/dailyinspectionreportmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/dailyinspectionreportmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/dailyinspectionreportmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/dailyinspectionreportmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/feeconfigmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/feeconfigmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 19,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/feeconfigmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/feeconfigmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 23,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/feeconfigmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 27,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/feeconfigmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 20,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/positionmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/positionmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/positionmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/positionmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/positionmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/positionmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 20,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/simulatedaccountmodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 19,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/simulatedaccountmodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/simulatedaccountmodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 12,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/simulatedaccountmodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 33,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/simulatedaccountmodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/simulatedaccountmodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 13,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/simulatedtrademodel/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 20,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/simulatedtrademodel/add/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 18,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/simulatedtrademodel/sample/path/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/simulatedtrademodel/sample/path/change/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/simulatedtrademodel/sample/path/delete/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/admin/simulated_trading/simulatedtrademodel/sample/path/history/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/ai/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 95,
+    "error": ""
+  },
+  {
+    "path": "/ai/<drf_format_suffix:format>/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 26,
+    "error": ""
+  },
+  {
+    "path": "/ai/api/logs/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/ai/api/providers/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 29,
+    "error": ""
+  },
+  {
+    "path": "/ai/api/providers/overall_stats/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/ai/detail/1/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 36,
+    "error": ""
+  },
+  {
+    "path": "/ai/detail/1/edit/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 36,
+    "error": ""
+  },
+  {
+    "path": "/ai/logs/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 63,
+    "error": ""
+  },
+  {
+    "path": "/alpha-triggers/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 48,
+    "error": ""
+  },
+  {
+    "path": "/alpha-triggers/candidates/sample/",
+    "status": 500,
+    "ok": false,
+    "category": "server_error",
+    "elapsed_ms": 476,
+    "error": ""
+  },
+  {
+    "path": "/alpha-triggers/create/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 164,
+    "error": ""
+  },
+  {
+    "path": "/alpha-triggers/detail/sample/",
+    "status": 500,
+    "ok": false,
+    "category": "server_error",
+    "elapsed_ms": 172,
+    "error": ""
+  },
+  {
+    "path": "/alpha-triggers/edit/sample/",
+    "status": 500,
+    "ok": false,
+    "category": "server_error",
+    "elapsed_ms": 403,
+    "error": ""
+  },
+  {
+    "path": "/alpha-triggers/invalidation-builder/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 69,
+    "error": ""
+  },
+  {
+    "path": "/alpha-triggers/performance/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 48,
+    "error": ""
+  },
+  {
+    "path": "/api/alpha-triggers/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 28,
+    "error": ""
+  },
+  {
+    "path": "/api/alpha-triggers/<drf_format_suffix:format>/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 19,
+    "error": ""
+  },
+  {
+    "path": "/api/alpha-triggers/candidates/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 26,
+    "error": ""
+  },
+  {
+    "path": "/api/alpha-triggers/candidates/actionable/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/api/alpha-triggers/candidates/statistics/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 19,
+    "error": ""
+  },
+  {
+    "path": "/api/alpha-triggers/candidates/watch-list/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 12,
+    "error": ""
+  },
+  {
+    "path": "/api/alpha-triggers/check-invalidation/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 32,
+    "error": ""
+  },
+  {
+    "path": "/api/alpha-triggers/create/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/api/alpha-triggers/evaluate/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/api/alpha-triggers/generate-candidate/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 28,
+    "error": ""
+  },
+  {
+    "path": "/api/alpha-triggers/performance/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/api/alpha-triggers/triggers/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/api/alpha-triggers/triggers/active/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 10,
+    "error": ""
+  },
+  {
+    "path": "/api/alpha-triggers/triggers/statistics/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 20,
+    "error": ""
+  },
+  {
+    "path": "/api/alpha/health/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 72,
+    "error": ""
+  },
+  {
+    "path": "/api/alpha/providers/status/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 25,
+    "error": ""
+  },
+  {
+    "path": "/api/alpha/scores/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 45,
+    "error": ""
+  },
+  {
+    "path": "/api/alpha/universes/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 29,
+    "error": ""
+  },
+  {
+    "path": "/api/beta-gate/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 29,
+    "error": ""
+  },
+  {
+    "path": "/api/beta-gate/<drf_format_suffix:format>/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 18,
+    "error": ""
+  },
+  {
+    "path": "/api/beta-gate/config/rollback/sample/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/api/beta-gate/config/suggest/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/api/beta-gate/configs/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/api/beta-gate/decisions/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/api/beta-gate/test/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/api/beta-gate/universe/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 29,
+    "error": ""
+  },
+  {
+    "path": "/api/beta-gate/version/compare/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 30,
+    "error": ""
+  },
+  {
+    "path": "/api/decision-rhythm/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 18,
+    "error": ""
+  },
+  {
+    "path": "/api/decision-rhythm/<drf_format_suffix:format>/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 13,
+    "error": ""
+  },
+  {
+    "path": "/api/decision-rhythm/cooldowns/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/api/decision-rhythm/cooldowns/remaining-hours/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 21,
+    "error": ""
+  },
+  {
+    "path": "/api/decision-rhythm/quota/update/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/api/decision-rhythm/quotas/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/api/decision-rhythm/quotas/by-period/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/api/decision-rhythm/requests/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/api/decision-rhythm/requests/statistics/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/api/decision-rhythm/reset-quota/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 10,
+    "error": ""
+  },
+  {
+    "path": "/api/decision-rhythm/submit-batch/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/api/decision-rhythm/submit/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 13,
+    "error": ""
+  },
+  {
+    "path": "/api/decision-rhythm/summary/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 18,
+    "error": ""
+  },
+  {
+    "path": "/api/decision-rhythm/trend-data/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 13,
+    "error": ""
+  },
+  {
+    "path": "/api/docs/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 98,
+    "error": ""
+  },
+  {
+    "path": "/api/redoc/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 70,
+    "error": ""
+  },
+  {
+    "path": "/api/schema/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 3657,
+    "error": ""
+  },
+  {
+    "path": "/asset-analysis/current-weight/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 26,
+    "error": ""
+  },
+  {
+    "path": "/asset-analysis/multidim-screen/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 10,
+    "error": ""
+  },
+  {
+    "path": "/asset-analysis/pool-summary/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/asset-analysis/screen/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 14,
+    "error": ""
+  },
+  {
+    "path": "/asset-analysis/screen/sample/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/asset-analysis/weight-configs/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/audit/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/audit/api/attribution-chart-data/1/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/audit/api/indicator-performance-data/1/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/audit/api/indicator-performance/sample/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/audit/api/reports/generate/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/audit/api/run-validation/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/audit/api/summary/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 28,
+    "error": ""
+  },
+  {
+    "path": "/audit/api/threshold-validation-data/1/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/audit/api/update-threshold/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/audit/api/validate-all-indicators/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/audit/indicator-performance/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/audit/page/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/audit/reports/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/audit/reports/1/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/audit/review/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/audit/threshold-validation/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/backtest/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 59,
+    "error": ""
+  },
+  {
+    "path": "/backtest/1/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 31,
+    "error": ""
+  },
+  {
+    "path": "/backtest/<drf_format_suffix:format>/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 11,
+    "error": ""
+  },
+  {
+    "path": "/backtest/api/backtests/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/backtest/api/backtests/statistics/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 12,
+    "error": ""
+  },
+  {
+    "path": "/backtest/api/run/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/backtest/api/statistics/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 10,
+    "error": ""
+  },
+  {
+    "path": "/backtest/create/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 69,
+    "error": ""
+  },
+  {
+    "path": "/beta-gate/config/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 31,
+    "error": ""
+  },
+  {
+    "path": "/beta-gate/config/new/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 119,
+    "error": ""
+  },
+  {
+    "path": "/beta-gate/config/sample/activate/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 19,
+    "error": ""
+  },
+  {
+    "path": "/beta-gate/config/sample/edit/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 45,
+    "error": ""
+  },
+  {
+    "path": "/beta-gate/test/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 62,
+    "error": ""
+  },
+  {
+    "path": "/beta-gate/version/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 92,
+    "error": ""
+  },
+  {
+    "path": "/chat-example/",
+    "status": 500,
+    "ok": false,
+    "category": "server_error",
+    "elapsed_ms": 123,
+    "error": ""
+  },
+  {
+    "path": "/dashboard/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 31,
+    "error": ""
+  },
+  {
+    "path": "/dashboard/alpha/stocks/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/dashboard/api/allocation/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 23,
+    "error": ""
+  },
+  {
+    "path": "/dashboard/api/coverage/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/dashboard/api/ic-trends/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/dashboard/api/performance/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/dashboard/api/provider-status/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/dashboard/api/v1/equity-curve/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/dashboard/api/v1/regime-quadrant/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 21,
+    "error": ""
+  },
+  {
+    "path": "/dashboard/api/v1/signal-status/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/dashboard/api/v1/summary/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/dashboard/legacy/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 11,
+    "error": ""
+  },
+  {
+    "path": "/dashboard/ops-center/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/dashboard/position/sample/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/dashboard/positions/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/decision-rhythm/config/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 70,
+    "error": ""
+  },
+  {
+    "path": "/decision-rhythm/quota/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 35,
+    "error": ""
+  },
+  {
+    "path": "/decision/workspace/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/docs/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 45,
+    "error": ""
+  },
+  {
+    "path": "/docs/sample/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 33,
+    "error": ""
+  },
+  {
+    "path": "/equity/api/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/equity/api/<drf_format_suffix:format>/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 22,
+    "error": ""
+  },
+  {
+    "path": "/equity/api/comprehensive-valuation/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 27,
+    "error": ""
+  },
+  {
+    "path": "/equity/api/dcf/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/equity/api/multidim-screen/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 30,
+    "error": ""
+  },
+  {
+    "path": "/equity/api/pool/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/equity/api/pool/refresh/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/equity/api/screen/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 20,
+    "error": ""
+  },
+  {
+    "path": "/equity/detail/sample/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 84,
+    "error": ""
+  },
+  {
+    "path": "/equity/pool/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 63,
+    "error": ""
+  },
+  {
+    "path": "/equity/screen/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 86,
+    "error": ""
+  },
+  {
+    "path": "/factor/api/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/factor/api/<drf_format_suffix:format>/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/factor/api/all-configs/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 28,
+    "error": ""
+  },
+  {
+    "path": "/factor/api/all-factors/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/factor/api/configs/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/factor/api/create-portfolio/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/factor/api/definitions/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 23,
+    "error": ""
+  },
+  {
+    "path": "/factor/api/definitions/all_active/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/factor/api/explain-stock/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/factor/api/top-stocks/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 23,
+    "error": ""
+  },
+  {
+    "path": "/filter/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/filter/api/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 13,
+    "error": ""
+  },
+  {
+    "path": "/filter/api/<drf_format_suffix:format>/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 13,
+    "error": ""
+  },
+  {
+    "path": "/filter/api/compare/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/filter/api/get-data/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 30,
+    "error": ""
+  },
+  {
+    "path": "/filter/api/health/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/filter/api/indicators/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/filter/dashboard/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 96,
+    "error": ""
+  },
+  {
+    "path": "/fund/dashboard/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 79,
+    "error": ""
+  },
+  {
+    "path": "/fund/holding/sample/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 23,
+    "error": ""
+  },
+  {
+    "path": "/fund/info/sample/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/fund/multidim-screen/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/fund/nav/sample/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/fund/performance/calculate/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 21,
+    "error": ""
+  },
+  {
+    "path": "/fund/rank/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/fund/screen/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/fund/style/sample/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/health/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 2,
+    "error": ""
+  },
+  {
+    "path": "/hedge/api/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/hedge/api/<drf_format_suffix:format>/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/hedge/api/actions/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 30,
+    "error": ""
+  },
+  {
+    "path": "/hedge/api/actions/calculate_correlation/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/hedge/api/actions/check_hedge_ratio/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 13,
+    "error": ""
+  },
+  {
+    "path": "/hedge/api/actions/get_correlation_matrix/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 21,
+    "error": ""
+  },
+  {
+    "path": "/hedge/api/alerts/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 12,
+    "error": ""
+  },
+  {
+    "path": "/hedge/api/alerts/active/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 27,
+    "error": ""
+  },
+  {
+    "path": "/hedge/api/alerts/monitor/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 31,
+    "error": ""
+  },
+  {
+    "path": "/hedge/api/correlations/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/hedge/api/correlations/calculate/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/hedge/api/holdings/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 20,
+    "error": ""
+  },
+  {
+    "path": "/hedge/api/holdings/latest/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/hedge/api/holdings/update_all/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/hedge/api/pairs/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/hedge/api/pairs/all_effectiveness/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 10,
+    "error": ""
+  },
+  {
+    "path": "/hedge/api/pairs/correlation_matrix/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 20,
+    "error": ""
+  },
+  {
+    "path": "/macro/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/macro/api/batch-delete/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 21,
+    "error": ""
+  },
+  {
+    "path": "/macro/api/delete/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/macro/api/due-indicators/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 55,
+    "error": ""
+  },
+  {
+    "path": "/macro/api/fetch/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/macro/api/fetch/stream/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/macro/api/indicator-data/",
+    "status": 400,
+    "ok": false,
+    "category": "other",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/macro/api/quick-sync/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/macro/api/record/1/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/macro/api/record/1/update/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/macro/api/record/create/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/macro/api/supported-indicators/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 19,
+    "error": ""
+  },
+  {
+    "path": "/macro/api/sync-due/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/macro/api/table/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/macro/controller/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 72,
+    "error": ""
+  },
+  {
+    "path": "/macro/data/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 52,
+    "error": ""
+  },
+  {
+    "path": "/macro/datasources/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 52,
+    "error": ""
+  },
+  {
+    "path": "/macro/datasources/1/edit/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/macro/datasources/new/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/ops/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/policy/api/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/policy/api/<drf_format_suffix:format>/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 25,
+    "error": ""
+  },
+  {
+    "path": "/policy/api/events/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/policy/api/events/sample/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/policy/api/rss/keywords/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 27,
+    "error": ""
+  },
+  {
+    "path": "/policy/api/rss/logs/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/policy/api/rss/sources/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 25,
+    "error": ""
+  },
+  {
+    "path": "/policy/api/rss/sources/fetch_all/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/policy/audit/auto_assign/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/policy/audit/bulk_review/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/policy/audit/queue/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/policy/audit/review/1/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/policy/dashboard/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/policy/events/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/policy/events/new/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/policy/rss/keywords/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/policy/rss/keywords/1/edit/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/policy/rss/keywords/new/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 19,
+    "error": ""
+  },
+  {
+    "path": "/policy/rss/logs/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/policy/rss/manage/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/policy/rss/manage/1/edit/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/policy/rss/manage/new/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/policy/rss/reader/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/policy/status/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/prompt/api/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/prompt/api/<drf_format_suffix:format>/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 31,
+    "error": ""
+  },
+  {
+    "path": "/prompt/api/chains/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/prompt/api/chains/execution_modes/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/prompt/api/chat/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 22,
+    "error": ""
+  },
+  {
+    "path": "/prompt/api/chat/models/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 14,
+    "error": ""
+  },
+  {
+    "path": "/prompt/api/chat/providers/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/prompt/api/logs/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 21,
+    "error": ""
+  },
+  {
+    "path": "/prompt/api/logs/recent/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/prompt/api/reports/generate/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 35,
+    "error": ""
+  },
+  {
+    "path": "/prompt/api/signals/generate/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/prompt/api/templates/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 10,
+    "error": ""
+  },
+  {
+    "path": "/prompt/api/templates/categories/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 31,
+    "error": ""
+  },
+  {
+    "path": "/prompt/manage/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 63,
+    "error": ""
+  },
+  {
+    "path": "/realtime/health/",
+    "status": 0,
+    "ok": false,
+    "category": "error",
+    "elapsed_ms": 8029,
+    "error": "HTTPConnectionPool(host='127.0.0.1', port=8000): Read timed out. (read timeout=8)"
+  },
+  {
+    "path": "/realtime/poll/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/realtime/prices/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/realtime/prices/sample/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 6365,
+    "error": ""
+  },
+  {
+    "path": "/regime/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/regime/api/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/regime/api/<drf_format_suffix:format>/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 29,
+    "error": ""
+  },
+  {
+    "path": "/regime/api/calculate/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 11,
+    "error": ""
+  },
+  {
+    "path": "/regime/api/current/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 28,
+    "error": ""
+  },
+  {
+    "path": "/regime/api/distribution/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/regime/api/health/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 28,
+    "error": ""
+  },
+  {
+    "path": "/regime/api/history/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/regime/clear-cache/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/regime/dashboard/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 174,
+    "error": ""
+  },
+  {
+    "path": "/rotation/api/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/rotation/api/<drf_format_suffix:format>/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 27,
+    "error": ""
+  },
+  {
+    "path": "/rotation/api/assets/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/rotation/api/assets/with_prices/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/rotation/api/clear-cache/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 11,
+    "error": ""
+  },
+  {
+    "path": "/rotation/api/compare/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 31,
+    "error": ""
+  },
+  {
+    "path": "/rotation/api/configs/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 23,
+    "error": ""
+  },
+  {
+    "path": "/rotation/api/correlation/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 21,
+    "error": ""
+  },
+  {
+    "path": "/rotation/api/generate-signal/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 14,
+    "error": ""
+  },
+  {
+    "path": "/rotation/api/recommendation/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 13,
+    "error": ""
+  },
+  {
+    "path": "/rotation/api/signals/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/rotation/api/signals/latest/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/sector/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 26,
+    "error": ""
+  },
+  {
+    "path": "/sector/<drf_format_suffix:format>/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 11,
+    "error": ""
+  },
+  {
+    "path": "/sector/analyze/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/sector/rotation/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/sector/update-data/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/signal/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/signal/ai/indicators/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 37,
+    "error": ""
+  },
+  {
+    "path": "/signal/ai/parse-logic/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/signal/api/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/signal/api/<drf_format_suffix:format>/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/signal/api/check_eligibility/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 15,
+    "error": ""
+  },
+  {
+    "path": "/signal/api/health/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 24,
+    "error": ""
+  },
+  {
+    "path": "/signal/api/stats/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/signal/api/unified/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 25,
+    "error": ""
+  },
+  {
+    "path": "/signal/api/unified/by_asset/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/signal/api/unified/collect/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/signal/api/unified/pending/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/signal/api/unified/summary/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/signal/approve/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/signal/batch-check/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 18,
+    "error": ""
+  },
+  {
+    "path": "/signal/check/1/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 12,
+    "error": ""
+  },
+  {
+    "path": "/signal/create/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 31,
+    "error": ""
+  },
+  {
+    "path": "/signal/delete/1/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/signal/eligibility/",
+    "status": 400,
+    "ok": false,
+    "category": "other",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/signal/invalidate/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/signal/manage/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 82,
+    "error": ""
+  },
+  {
+    "path": "/signal/reject/",
+    "status": 405,
+    "ok": true,
+    "category": "method_not_allowed",
+    "elapsed_ms": 27,
+    "error": ""
+  },
+  {
+    "path": "/simulated-trading/accounts/1/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 26,
+    "error": ""
+  },
+  {
+    "path": "/simulated-trading/api/accounts/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/simulated-trading/api/accounts/1/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 24,
+    "error": ""
+  },
+  {
+    "path": "/simulated-trading/api/accounts/1/equity-curve/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 28,
+    "error": ""
+  },
+  {
+    "path": "/simulated-trading/api/accounts/1/inspections/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/simulated-trading/api/accounts/1/inspections/run/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 10,
+    "error": ""
+  },
+  {
+    "path": "/simulated-trading/api/accounts/1/performance/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 17,
+    "error": ""
+  },
+  {
+    "path": "/simulated-trading/api/accounts/1/positions/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/simulated-trading/api/accounts/1/trade/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 33,
+    "error": ""
+  },
+  {
+    "path": "/simulated-trading/api/accounts/1/trades/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 5,
+    "error": ""
+  },
+  {
+    "path": "/simulated-trading/api/auto-trading/run/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/simulated-trading/api/fee-configs/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 28,
+    "error": ""
+  },
+  {
+    "path": "/simulated-trading/dashboard/",
+    "status": 200,
+    "ok": true,
+    "category": "ok",
+    "elapsed_ms": 43,
+    "error": ""
+  },
+  {
+    "path": "/simulated-trading/my-accounts/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 22,
+    "error": ""
+  },
+  {
+    "path": "/simulated-trading/my-accounts/1/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/simulated-trading/my-accounts/1/inspection-notify/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/simulated-trading/my-accounts/1/positions/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/simulated-trading/my-accounts/1/trades/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/strategy/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 16,
+    "error": ""
+  },
+  {
+    "path": "/strategy/1/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/strategy/1/edit/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 4,
+    "error": ""
+  },
+  {
+    "path": "/strategy/1/execute/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 23,
+    "error": ""
+  },
+  {
+    "path": "/strategy/1/test/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 14,
+    "error": ""
+  },
+  {
+    "path": "/strategy/1/toggle-status/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 2,
+    "error": ""
+  },
+  {
+    "path": "/strategy/api/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/strategy/api/<drf_format_suffix:format>/",
+    "status": 404,
+    "ok": false,
+    "category": "not_found",
+    "elapsed_ms": 20,
+    "error": ""
+  },
+  {
+    "path": "/strategy/api/ai-configs/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/strategy/api/assignments/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/strategy/api/assignments/by_portfolio/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/strategy/api/bind-strategy/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/strategy/api/execution-logs/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 9,
+    "error": ""
+  },
+  {
+    "path": "/strategy/api/execution-logs/by_portfolio/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 27,
+    "error": ""
+  },
+  {
+    "path": "/strategy/api/execution-logs/by_strategy/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 14,
+    "error": ""
+  },
+  {
+    "path": "/strategy/api/position-rules/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 7,
+    "error": ""
+  },
+  {
+    "path": "/strategy/api/rules/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 3,
+    "error": ""
+  },
+  {
+    "path": "/strategy/api/script-configs/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 8,
+    "error": ""
+  },
+  {
+    "path": "/strategy/api/strategies/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 29,
+    "error": ""
+  },
+  {
+    "path": "/strategy/api/strategies/my_strategies/",
+    "status": 403,
+    "ok": true,
+    "category": "auth",
+    "elapsed_ms": 6,
+    "error": ""
+  },
+  {
+    "path": "/strategy/api/test-script/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 25,
+    "error": ""
+  },
+  {
+    "path": "/strategy/api/unbind-strategy/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 2,
+    "error": ""
+  },
+  {
+    "path": "/strategy/create/",
+    "status": 302,
+    "ok": true,
+    "category": "redirect",
+    "elapsed_ms": 7,
+    "error": ""
+  }
+]

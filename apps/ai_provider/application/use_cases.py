@@ -71,6 +71,8 @@ class ListProvidersUseCase:
                     priority=provider.priority,
                     base_url=provider.base_url,
                     default_model=provider.default_model,
+                    api_mode=provider.api_mode,
+                    fallback_enabled=provider.fallback_enabled,
                     description=provider.description,
                     created_at=provider.created_at,
                     updated_at=provider.updated_at,
@@ -103,6 +105,8 @@ class CreateProviderUseCase:
         base_url: str,
         api_key: str,
         default_model: str = "gpt-3.5-turbo",
+        api_mode: str = "dual",
+        fallback_enabled: bool = True,
         is_active: bool = True,
         priority: int = 10,
         daily_budget_limit: Optional[float] = None,
@@ -119,6 +123,8 @@ class CreateProviderUseCase:
             base_url: API Base URL
             api_key: API Key
             default_model: 默认模型
+            api_mode: OpenAI API 模式
+            fallback_enabled: 是否允许回退
             is_active: 是否启用
             priority: 优先级
             daily_budget_limit: 每日预算限制
@@ -133,6 +139,8 @@ class CreateProviderUseCase:
         valid_types = [t.value for t in AIProviderType]
         if provider_type not in valid_types:
             raise ValueError(f"Invalid provider_type: {provider_type}. Must be one of {valid_types}")
+        if api_mode not in {"dual", "responses_only", "chat_only"}:
+            raise ValueError("Invalid api_mode. Must be one of ['dual', 'responses_only', 'chat_only']")
 
         # 检查名称是否已存在
         existing = self._provider_repo.get_by_name(name)
@@ -145,6 +153,8 @@ class CreateProviderUseCase:
             base_url=base_url,
             api_key=api_key,
             default_model=default_model,
+            api_mode=api_mode,
+            fallback_enabled=fallback_enabled,
             is_active=is_active,
             priority=priority,
             daily_budget_limit=daily_budget_limit,
@@ -184,6 +194,8 @@ class UpdateProviderUseCase:
             valid_types = [t.value for t in AIProviderType]
             if kwargs["provider_type"] not in valid_types:
                 raise ValueError(f"Invalid provider_type. Must be one of {valid_types}")
+        if "api_mode" in kwargs and kwargs["api_mode"] not in {"dual", "responses_only", "chat_only"}:
+            raise ValueError("Invalid api_mode. Must be one of ['dual', 'responses_only', 'chat_only']")
 
         # 如果更新名称，检查是否重复
         if "name" in kwargs:

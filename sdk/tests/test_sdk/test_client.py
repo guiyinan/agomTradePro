@@ -45,7 +45,7 @@ class TestAgomSAAFClient:
             base_url="http://test.com",
             api_token="secret_token",
         )
-        assert client._headers["Authorization"] == "Bearer secret_token"
+        assert client._headers["Authorization"] == "Token secret_token"
         assert client._headers["Content-Type"] == "application/json"
 
     def test_regime_module_property(self):

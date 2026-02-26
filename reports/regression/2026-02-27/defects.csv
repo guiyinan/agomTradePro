@@ -1,0 +1,9 @@
+defect_id,severity,module,case_id,summary,status,assignee,eta,retest_result
+DEF-001,P2,infrastructure,TestDjangoMacroRepository::* (8 cases),SQLite database lock in concurrent write operations - environment limitation,acknowledged,,-,N/A (env issue)
+DEF-002,P2,infrastructure,TestDjangoRegimeRepository::* (6 cases),SQLite database lock in concurrent write operations - environment limitation,acknowledged,,-,N/A (env issue)
+DEF-003,P3,task_monitor,TestDjangoTaskRecordRepository::test_save_and_get_by_task_id,SQLite database lock - environment limitation,acknowledged,,-,N/A (env issue)
+DEF-004,P2,alpha_provider,TestETFFallbackProvider::test_supported_universes,ETF fallback provider universe test failure,open,,2026-03-01,pending
+DEF-005,P2,alpha_provider,TestETFFallbackProvider::test_get_stock_scores,ETF fallback provider stock scores test failure,open,,2026-03-01,pending
+DEF-006,P2,audit,TestGenerateAttributionReportUseCase::* (5 cases),Audit use cases test failures,open,,2026-03-01,pending
+DEF-007,P2,playwright,test_login_to_dashboard_path[chromium],Login to dashboard path test failure in Chromium,open,,2026-03-01,pending
+DEF-008,P2,playwright,test_A1_login_redirects_to_dashboard[chromium],Login redirects to dashboard test failure in Chromium,open,,2026-03-01,pending

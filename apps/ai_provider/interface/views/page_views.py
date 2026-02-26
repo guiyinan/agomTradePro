@@ -172,6 +172,8 @@ def ai_provider_edit_view(request, provider_id):
                 "priority": form.cleaned_data.get("priority"),
                 "base_url": form.cleaned_data.get("base_url"),
                 "default_model": form.cleaned_data.get("default_model"),
+                "api_mode": form.cleaned_data.get("api_mode"),
+                "fallback_enabled": form.cleaned_data.get("fallback_enabled", True),
                 "daily_budget_limit": form.cleaned_data.get("daily_budget_limit"),
                 "monthly_budget_limit": form.cleaned_data.get("monthly_budget_limit"),
                 "description": form.cleaned_data.get("description", ""),
@@ -197,4 +199,3 @@ def ai_provider_edit_view(request, provider_id):
         "page_title": f"编辑 AI 提供商：{provider.name}",
     }
     return render(request, "ai_provider/form.html", context)
-

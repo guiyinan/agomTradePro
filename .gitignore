@@ -1,6 +1,8 @@
 # Environment
 venv/
 agomsaaf/
+!sdk/agomsaaf/
+!sdk/agomsaaf/**
 .env
 *.sqlite3
 db.sqlite3
@@ -80,5 +82,5 @@ sqlite-backup-utf8.json
 
 # Celery beat schedule files
 celerybeat-schedule*
-/reports
-/tests/playwright/reports
+# /reports
+# /tests/playwright/reports

@@ -142,10 +142,13 @@ class SentimentAnalyzer:
             provider = providers[0]
 
             # 创建适配器
+            extra_config = provider.extra_config if isinstance(provider.extra_config, dict) else {}
             self._adapter_cache = OpenAICompatibleAdapter(
                 base_url=provider.base_url,
                 api_key=provider.api_key,
                 default_model=provider.default_model,
+                api_mode=extra_config.get("api_mode"),
+                fallback_enabled=extra_config.get("fallback_enabled"),
             )
 
         return self._adapter_cache

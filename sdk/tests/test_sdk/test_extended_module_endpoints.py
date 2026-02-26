@@ -1,0 +1,138 @@
+"""Endpoint contract tests for newly added SDK modules."""
+
+from unittest.mock import patch
+
+import pytest
+
+from agomsaaf import AgomSAAFClient
+
+
+@pytest.fixture
+def client():
+    return AgomSAAFClient(base_url="http://test.com", api_token="test_token")
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        (lambda c: c.ai_provider.list_providers(), "GET", "/ai/api/providers/"),
+        (lambda c: c.ai_provider.get_provider(7), "GET", "/ai/api/providers/7/"),
+        (lambda c: c.ai_provider.create_provider({"name": "p1"}), "POST", "/ai/api/providers/", {"json": {"name": "p1"}}),
+        (lambda c: c.ai_provider.update_provider(7, {"name": "p2"}), "PATCH", "/ai/api/providers/7/", {"json": {"name": "p2"}}),
+        (lambda c: c.ai_provider.delete_provider(7), "DELETE", "/ai/api/providers/7/"),
+        (lambda c: c.ai_provider.toggle_provider(7), "POST", "/ai/api/providers/7/toggle_active/", {"json": {}}),
+        (lambda c: c.ai_provider.provider_usage_stats(7), "GET", "/ai/api/providers/7/usage_stats/"),
+        (lambda c: c.ai_provider.overall_stats(), "GET", "/ai/api/providers/overall_stats/"),
+        (lambda c: c.ai_provider.list_usage_logs(provider_id=7, status="success"), "GET", "/ai/api/logs/", {"params": {"provider": 7, "status": "success"}}),
+        (lambda c: c.prompt.list_templates(), "GET", "/prompt/api/templates/"),
+        (lambda c: c.prompt.get_template(3), "GET", "/prompt/api/templates/3/"),
+        (lambda c: c.prompt.create_template({"name": "t1"}), "POST", "/prompt/api/templates/", {"json": {"name": "t1"}}),
+        (lambda c: c.prompt.update_template(3, {"name": "t2"}), "PATCH", "/prompt/api/templates/3/", {"json": {"name": "t2"}}),
+        (lambda c: c.prompt.delete_template(3), "DELETE", "/prompt/api/templates/3/"),
+        (lambda c: c.prompt.list_chains(), "GET", "/prompt/api/chains/"),
+        (lambda c: c.prompt.create_chain({"name": "c1"}), "POST", "/prompt/api/chains/", {"json": {"name": "c1"}}),
+        (lambda c: c.prompt.list_logs(), "GET", "/prompt/api/logs/"),
+        (lambda c: c.prompt.chat({"messages": []}), "POST", "/prompt/api/chat"),
+        (lambda c: c.prompt.generate_report({"template_id": 1}), "POST", "/prompt/api/reports/generate", {"json": {"template_id": 1}}),
+        (lambda c: c.prompt.generate_signal({"template_id": 1}), "POST", "/prompt/api/signals/generate", {"json": {"template_id": 1}}),
+        (lambda c: c.prompt.chat_providers(), "GET", "/prompt/api/chat/providers"),
+        (lambda c: c.prompt.chat_models(), "GET", "/prompt/api/chat/models"),
+        (lambda c: c.audit.get_summary(), "GET", "/audit/api/summary/"),
+        (lambda c: c.audit.generate_report({"days": 7}), "POST", "/audit/api/reports/generate/", {"json": {"days": 7}}),
+        (lambda c: c.audit.get_attribution_chart_data(12), "GET", "/audit/api/attribution-chart-data/12/"),
+        (lambda c: c.audit.indicator_performance("CPI"), "GET", "/audit/api/indicator-performance/CPI/"),
+        (lambda c: c.audit.indicator_performance_chart(9), "GET", "/audit/api/indicator-performance-data/9/"),
+        (lambda c: c.audit.validate_all_indicators(), "POST", "/audit/api/validate-all-indicators/", {"json": {}}),
+        (lambda c: c.audit.update_threshold({"threshold": 0.3}), "POST", "/audit/api/update-threshold/", {"json": {"threshold": 0.3}}),
+        (lambda c: c.audit.threshold_validation_data(5), "GET", "/audit/api/threshold-validation-data/5/"),
+        (lambda c: c.audit.run_validation({"force": True}), "POST", "/audit/api/run-validation/"),
+        (lambda c: c.events.status(), "GET", "/events/api/status/"),
+        (lambda c: c.events.publish({"event_type": "test"}), "POST", "/events/api/publish/"),
+        (lambda c: c.events.query({"event_type": "test"}), "POST", "/events/api/query/", {"json": {"event_type": "test"}}),
+        (lambda c: c.events.metrics(), "GET", "/events/api/metrics/"),
+        (lambda c: c.events.replay({"event_ids": [1]}), "POST", "/events/api/replay/", {"json": {"event_ids": [1]}}),
+        (lambda c: c.decision_rhythm.list_quotas(), "GET", "/api/decision-rhythm/quotas/"),
+        (lambda c: c.decision_rhythm.list_cooldowns(), "GET", "/api/decision-rhythm/cooldowns/"),
+        (lambda c: c.decision_rhythm.list_requests(), "GET", "/api/decision-rhythm/requests/"),
+        (lambda c: c.decision_rhythm.submit({"request_type": "rebalance"}), "POST", "/api/decision-rhythm/submit/"),
+        (lambda c: c.decision_rhythm.submit_batch({"requests": []}), "POST", "/api/decision-rhythm/submit-batch/", {"json": {"requests": []}}),
+        (lambda c: c.decision_rhythm.summary(), "GET", "/api/decision-rhythm/summary/"),
+        (lambda c: c.decision_rhythm.summary({"days": 7}), "POST", "/api/decision-rhythm/summary/", {"json": {"days": 7}}),
+        (lambda c: c.decision_rhythm.reset_quota({"user_id": "u1"}), "POST", "/api/decision-rhythm/reset-quota/", {"json": {"user_id": "u1"}}),
+        (lambda c: c.decision_rhythm.trend_data(), "GET", "/api/decision-rhythm/trend-data/"),
+        (lambda c: c.decision_rhythm.trend_data({"days": 30}), "POST", "/api/decision-rhythm/trend-data/", {"json": {"days": 30}}),
+        (lambda c: c.decision_rhythm.update_quota({"limit": 5}), "POST", "/api/decision-rhythm/quota/update/", {"json": {"limit": 5}}),
+        (lambda c: c.beta_gate.list_configs(), "GET", "/api/beta-gate/configs/"),
+        (lambda c: c.beta_gate.get_config("cfg1"), "GET", "/api/beta-gate/configs/cfg1/"),
+        (lambda c: c.beta_gate.create_config({"name": "cfg"}), "POST", "/api/beta-gate/configs/", {"json": {"name": "cfg"}}),
+        (lambda c: c.beta_gate.update_config("cfg1", {"name": "cfg2"}), "PATCH", "/api/beta-gate/configs/cfg1/", {"json": {"name": "cfg2"}}),
+        (lambda c: c.beta_gate.delete_config("cfg1"), "DELETE", "/api/beta-gate/configs/cfg1/"),
+        (lambda c: c.beta_gate.test_gate({"scenario": "smoke"}), "POST", "/api/beta-gate/test/"),
+        (lambda c: c.beta_gate.version_compare({"from": "v1", "to": "v2"}), "POST", "/api/beta-gate/version/compare/", {"json": {"from": "v1", "to": "v2"}}),
+        (lambda c: c.beta_gate.rollback_config("cfg1"), "POST", "/api/beta-gate/config/rollback/cfg1/", {"json": {}}),
+        (lambda c: c.beta_gate.suggest_config({"signal": "s1"}), "POST", "/api/beta-gate/config/suggest/", {"json": {"signal": "s1"}}),
+        (lambda c: c.alpha_trigger.list_triggers(), "GET", "/api/alpha-triggers/triggers/"),
+        (lambda c: c.alpha_trigger.get_trigger("t1"), "GET", "/api/alpha-triggers/triggers/t1/"),
+        (lambda c: c.alpha_trigger.create_trigger({"name": "t2"}), "POST", "/api/alpha-triggers/create/", {"json": {"name": "t2"}}),
+        (lambda c: c.alpha_trigger.evaluate({"trigger_id": "t1"}), "POST", "/api/alpha-triggers/evaluate/"),
+        (lambda c: c.alpha_trigger.check_invalidation({"trigger_id": "t1"}), "POST", "/api/alpha-triggers/check-invalidation/", {"json": {"trigger_id": "t1"}}),
+        (lambda c: c.alpha_trigger.generate_candidate({"symbol": "AAPL"}), "POST", "/api/alpha-triggers/generate-candidate/", {"json": {"symbol": "AAPL"}}),
+        (lambda c: c.alpha_trigger.performance(), "GET", "/api/alpha-triggers/performance/"),
+        (lambda c: c.alpha_trigger.performance({"days": 30}), "POST", "/api/alpha-triggers/performance/", {"json": {"days": 30}}),
+        (lambda c: c.alpha_trigger.list_candidates(), "GET", "/api/alpha-triggers/candidates/"),
+        (lambda c: c.alpha_trigger.get_candidate("c1"), "GET", "/api/alpha-triggers/candidates/c1/"),
+        (lambda c: c.dashboard.summary_v1(), "GET", "/dashboard/api/v1/summary/"),
+        (lambda c: c.dashboard.position_detail("AAPL"), "GET", "/dashboard/api/position/AAPL/"),
+        (lambda c: c.dashboard.positions(), "GET", "/dashboard/api/positions/"),
+        (lambda c: c.dashboard.allocation(), "GET", "/dashboard/api/allocation/"),
+        (lambda c: c.dashboard.performance(), "GET", "/dashboard/api/performance/"),
+        (lambda c: c.dashboard.regime_quadrant_v1(), "GET", "/dashboard/api/v1/regime-quadrant/"),
+        (lambda c: c.dashboard.equity_curve_v1(), "GET", "/dashboard/api/v1/equity-curve/"),
+        (lambda c: c.dashboard.signal_status_v1(), "GET", "/dashboard/api/v1/signal-status/"),
+        (lambda c: c.dashboard.alpha_stocks(), "GET", "/dashboard/api/alpha/stocks/"),
+        (lambda c: c.dashboard.alpha_provider_status(), "GET", "/dashboard/api/alpha/provider-status/"),
+        (lambda c: c.dashboard.alpha_coverage(), "GET", "/dashboard/api/alpha/coverage/"),
+        (lambda c: c.dashboard.alpha_ic_trends(), "GET", "/dashboard/api/alpha/ic-trends/"),
+        (lambda c: c.asset_analysis.get_weight_configs(), "GET", "/api/asset-analysis/weight-configs/"),
+        (lambda c: c.asset_analysis.multidim_screen({"asset_type": "equity"}), "POST", "/api/asset-analysis/multidim-screen/"),
+        (lambda c: c.asset_analysis.get_current_weight(), "GET", "/api/asset-analysis/current-weight/"),
+        (lambda c: c.asset_analysis.screen_asset_pool("equity"), "GET", "/api/asset-analysis/screen/equity/"),
+        (lambda c: c.asset_analysis.screen_asset_pool("equity", {"top_n": 10}), "POST", "/api/asset-analysis/screen/equity/", {"json": {"top_n": 10}}),
+        (lambda c: c.asset_analysis.pool_summary(), "GET", "/api/asset-analysis/pool-summary/"),
+        (lambda c: c.asset_analysis.pool_summary({"asset_type": "equity"}), "POST", "/api/asset-analysis/pool-summary/", {"json": {"asset_type": "equity"}}),
+        (lambda c: c.sentiment.health(), "GET", "/api/sentiment/health/"),
+        (lambda c: c.sentiment.analyze({"text": "hello"}), "POST", "/api/sentiment/analyze/"),
+        (lambda c: c.sentiment.batch_analyze({"texts": ["a", "b"]}), "POST", "/api/sentiment/batch-analyze/", {"json": {"texts": ["a", "b"]}}),
+        (lambda c: c.sentiment.get_index(), "GET", "/api/sentiment/index/"),
+        (lambda c: c.sentiment.get_index({"window_days": 7}), "POST", "/api/sentiment/index/", {"json": {"window_days": 7}}),
+        (lambda c: c.sentiment.index_range(), "GET", "/api/sentiment/index/range/"),
+        (lambda c: c.sentiment.index_range({"start_date": "2026-01-01"}), "POST", "/api/sentiment/index/range/", {"json": {"start_date": "2026-01-01"}}),
+        (lambda c: c.sentiment.index_recent(), "GET", "/api/sentiment/index/recent/"),
+        (lambda c: c.sentiment.index_recent({"limit": 10}), "POST", "/api/sentiment/index/recent/", {"json": {"limit": 10}}),
+        (lambda c: c.sentiment.clear_cache(), "POST", "/api/sentiment/cache/clear/", {"json": {}}),
+        (lambda c: c.task_monitor.get_task_status("task-1"), "GET", "/api/system/status/task-1/"),
+        (lambda c: c.task_monitor.list_tasks(), "GET", "/api/system/list/"),
+        (lambda c: c.task_monitor.statistics(), "GET", "/api/system/statistics/"),
+        (lambda c: c.task_monitor.dashboard(), "GET", "/api/system/dashboard/"),
+        (lambda c: c.task_monitor.celery_health(), "GET", "/api/system/celery/health/"),
+        (lambda c: c.filter.list_filters(), "GET", "/filter/api/"),
+        (lambda c: c.filter.get_filter(11), "GET", "/filter/api/11/"),
+        (lambda c: c.filter.create_filter({"name": "f1"}), "POST", "/filter/api/", {"json": {"name": "f1"}}),
+        (lambda c: c.filter.update_filter(11, {"name": "f2"}), "PATCH", "/filter/api/11/", {"json": {"name": "f2"}}),
+        (lambda c: c.filter.delete_filter(11), "DELETE", "/filter/api/11/"),
+        (lambda c: c.filter.health(), "GET", "/filter/api/health/"),
+    ],
+)
+def test_extended_module_endpoint_contract(client, case):
+    if len(case) == 3:
+        invoker, expected_method, expected_endpoint = case
+        expected_kwargs = {}
+    else:
+        invoker, expected_method, expected_endpoint, expected_kwargs = case
+    with patch.object(client, "_request", return_value={"results": []}) as mock_request:
+        invoker(client)
+        args, kwargs = mock_request.call_args
+        assert args[0] == expected_method
+        assert args[1] == expected_endpoint
+        for k, v in expected_kwargs.items():
+            assert kwargs.get(k) == v

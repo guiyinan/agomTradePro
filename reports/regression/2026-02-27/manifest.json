@@ -1,0 +1,82 @@
+{
+  "build_id": "2026-02-27-001",
+  "commit": "c55293e",
+  "branch": "main",
+  "env": "SQLite (development)",
+  "date": "2026-02-27",
+  "suites": [
+    {
+      "name": "system_health",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "duration_sec": 5
+    },
+    {
+      "name": "guardrails",
+      "passed": 26,
+      "failed": 0,
+      "skipped": 0,
+      "duration_sec": 56
+    },
+    {
+      "name": "unit",
+      "passed": 1349,
+      "failed": 18,
+      "skipped": 19,
+      "duration_sec": 48
+    },
+    {
+      "name": "integration",
+      "passed": 421,
+      "failed": 0,
+      "skipped": 2,
+      "duration_sec": 156
+    },
+    {
+      "name": "uat_api_contract",
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "duration_sec": 17
+    },
+    {
+      "name": "playwright_smoke",
+      "passed": 27,
+      "failed": 1,
+      "skipped": 0,
+      "duration_sec": 138
+    },
+    {
+      "name": "playwright_uat",
+      "passed": 30,
+      "failed": 1,
+      "skipped": 0,
+      "duration_sec": 114
+    },
+    {
+      "name": "sdk_modules",
+      "passed": 108,
+      "failed": 0,
+      "skipped": 0,
+      "duration_sec": 2
+    },
+    {
+      "name": "mcp_tools",
+      "passed": 98,
+      "failed": 0,
+      "skipped": 0,
+      "duration_sec": 5
+    }
+  ],
+  "totals": {
+    "passed": 2071,
+    "failed": 20,
+    "skipped": 21,
+    "total": 2112,
+    "pass_rate": "98.1%",
+    "duration_sec": 541
+  },
+  "owner": "regression-test-team",
+  "notes": "SQLite lock issues (14) are environment limitations, not code defects. Playwright login failures need investigation."
+}

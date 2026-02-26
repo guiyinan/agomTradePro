@@ -211,7 +211,6 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
 
             # 计算预估成本
             estimated_cost = self.cost_calculator.calculate_cost(
-                provider=provider,
                 model=ai_result.get('model', provider.default_model),
                 prompt_tokens=ai_result.get('prompt_tokens', 0),
                 completion_tokens=ai_result.get('completion_tokens', 0)
@@ -383,12 +382,15 @@ def create_ai_policy_classifier() -> Optional[AIPolicyClassifier]:
         # 构建提供商列表（按优先级排序）
         providers_list = []
         for provider in active_providers:
+            extra_config = provider.extra_config if isinstance(provider.extra_config, dict) else {}
             providers_list.append({
                 'name': provider.name,
                 'base_url': provider.base_url,
                 'api_key': provider.api_key,
                 'default_model': provider.default_model,
                 'priority': provider.priority,
+                'api_mode': extra_config.get('api_mode'),
+                'fallback_enabled': extra_config.get('fallback_enabled'),
             })
 
         # 创建故障转移辅助类

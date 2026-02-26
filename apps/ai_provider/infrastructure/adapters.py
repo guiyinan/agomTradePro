@@ -1,49 +1,76 @@
 """
 OpenAI Compatible API Adapter.
 
-通用OpenAI兼容API适配器，支持多个AI提供商。
-只需配置不同的base_url和api_key即可使用不同提供商。
+通用 OpenAI 兼容 API 适配器，支持 OpenAI 最新 Responses API，
+并保留 chat.completions 回退路径。
 """
 
+import os
 import time
-from typing import List, Dict, Optional, Any
+from typing import Any, Dict, List, Optional
 
 try:
     from openai import OpenAI
+
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
 
 
+def _infer_provider_name(base_url: str) -> str:
+    text = (base_url or "").lower()
+    if "openai" in text:
+        return "openai"
+    if "deepseek" in text:
+        return "deepseek"
+    if "dashscope" in text or "aliyuncs" in text or "qwen" in text:
+        return "qwen"
+    if "moonshot" in text:
+        return "moonshot"
+    return "custom"
+
+
 class OpenAICompatibleAdapter:
     """
-    通用OpenAI兼容API适配器
+    通用 OpenAI 兼容 API 适配器。
 
-    支持的提供商（只需配置不同的base_url）:
-    - OpenAI: https://api.openai.com/v1
-    - DeepSeek: https://api.deepseek.com/v1
-    - 通义千问: https://dashscope.aliyuncs.com/compatible-mode/v1
-    - Moonshot: https://api.moonshot.cn/v1
-    - 以及其他兼容OpenAI API格式的提供商
+    支持两种调用模式：
+    - responses_only: 仅使用 Responses API
+    - chat_only: 仅使用 chat.completions
+    - dual: 优先 Responses，失败后回退 chat.completions
     """
 
-    def __init__(self, base_url: str, api_key: str, default_model: str = "gpt-3.5-turbo"):
-        """
-        初始化适配器
+    VALID_API_MODES = {"dual", "responses_only", "chat_only"}
 
-        Args:
-            base_url: API Base URL
-            api_key: API密钥
-            default_model: 默认模型名称
-        """
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        default_model: str = "gpt-4o-mini",
+        api_mode: Optional[str] = None,
+        fallback_enabled: Optional[bool] = None,
+    ):
         if not OPENAI_AVAILABLE:
-            raise ImportError(
-                "需要安装 openai 库。请运行: agomsaaf/Scripts/pip install openai"
-            )
+            raise ImportError("需要安装 openai 库。请运行: agomsaaf/Scripts/pip install openai")
 
         self.client = OpenAI(base_url=base_url, api_key=api_key)
         self.default_model = default_model
         self.base_url = base_url
+        self.provider_name = _infer_provider_name(base_url)
+
+        resolved_mode = (api_mode or os.getenv("AGOMSAAF_OPENAI_API_MODE", "dual")).strip().lower()
+        if resolved_mode not in self.VALID_API_MODES:
+            resolved_mode = "dual"
+        self.api_mode = resolved_mode
+
+        env_fallback = os.getenv("AGOMSAAF_OPENAI_FALLBACK_ENABLED")
+        if fallback_enabled is None:
+            if env_fallback is None:
+                self.fallback_enabled = True
+            else:
+                self.fallback_enabled = env_fallback.strip().lower() in {"1", "true", "yes", "y", "on"}
+        else:
+            self.fallback_enabled = bool(fallback_enabled)
 
     def chat_completion(
         self,
@@ -51,193 +78,268 @@ class OpenAICompatibleAdapter:
         model: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
-        stream: bool = False
+        stream: bool = False,
     ) -> Dict[str, Any]:
         """
-        执行聊天补全请求
-
-        Args:
-            messages: 消息列表 [{"role": "user", "content": "..."}]
-            model: 模型名称（不指定则使用default_model）
-            temperature: 温度参数（0-2）
-            max_tokens: 最大输出token数
-            stream: 是否流式输出
-
-        Returns:
-            Dict: 响应结果
-                {
-                    "content": str,
-                    "model": str,
-                    "prompt_tokens": int,
-                    "completion_tokens": int,
-                    "total_tokens": int,
-                    "finish_reason": str,
-                    "response_time_ms": int,
-                    "status": "success" | "error",
-                    "error_message": str | None
-                }
+        统一聊天接口，内部按 api_mode 决定调用 Responses 或 Chat Completions。
         """
         model = model or self.default_model
         start_time = time.time()
 
+        if self.api_mode == "chat_only":
+            return self._chat_completion_chat(messages, model, temperature, max_tokens, stream, start_time)
+
+        # responses_only / dual
+        result = self._chat_completion_responses(messages, model, temperature, max_tokens, start_time)
+        if result["status"] == "success":
+            return result
+
+        if self.api_mode == "responses_only" or not self.fallback_enabled:
+            return result
+
+        # dual 模式且允许回退
+        fallback = self._chat_completion_chat(messages, model, temperature, max_tokens, stream, start_time)
+        if fallback["status"] == "success":
+            fallback["fallback_used"] = True
+        else:
+            fallback["error_message"] = (
+                f"Responses failed: {result.get('error_message')}; "
+                f"Chat fallback failed: {fallback.get('error_message')}"
+            )
+        return fallback
+
+    def _chat_completion_responses(
+        self,
+        messages: List[Dict[str, str]],
+        model: str,
+        temperature: float,
+        max_tokens: Optional[int],
+        start_time: float,
+    ) -> Dict[str, Any]:
+        try:
+            kwargs: dict[str, Any] = {
+                "model": model,
+                "input": messages,
+                "temperature": temperature,
+            }
+            if max_tokens is not None:
+                kwargs["max_output_tokens"] = max_tokens
+
+            response = self.client.responses.create(**kwargs)
+            content = self._extract_text_from_responses(response)
+            usage = getattr(response, "usage", None)
+            prompt_tokens = int(getattr(usage, "input_tokens", 0) or 0)
+            completion_tokens = int(getattr(usage, "output_tokens", 0) or 0)
+            total_tokens = int(
+                getattr(usage, "total_tokens", prompt_tokens + completion_tokens)
+                or (prompt_tokens + completion_tokens)
+            )
+
+            return self._success_result(
+                content=content,
+                model=getattr(response, "model", model),
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens,
+                finish_reason=getattr(response, "status", "completed"),
+                response_time_ms=int((time.time() - start_time) * 1000),
+                request_type="responses",
+            )
+        except Exception as exc:
+            return self._error_result(
+                model=model,
+                error_msg=str(exc),
+                response_time_ms=int((time.time() - start_time) * 1000),
+                request_type="responses",
+            )
+
+    def _chat_completion_chat(
+        self,
+        messages: List[Dict[str, str]],
+        model: str,
+        temperature: float,
+        max_tokens: Optional[int],
+        stream: bool,
+        start_time: float,
+    ) -> Dict[str, Any]:
         try:
             response = self.client.chat.completions.create(
                 model=model,
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
-                stream=stream
+                stream=stream,
+            )
+            # 不支持在此路径向上层透传 stream generator，统一走非流式数据对象
+            if stream:
+                return self._error_result(
+                    model=model,
+                    error_msg="stream=True is not supported in OpenAICompatibleAdapter return format",
+                    response_time_ms=int((time.time() - start_time) * 1000),
+                    request_type="chat",
+                )
+
+            usage = getattr(response, "usage", None)
+            return self._success_result(
+                content=(response.choices[0].message.content if response.choices else ""),
+                model=getattr(response, "model", model),
+                prompt_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
+                completion_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
+                total_tokens=int(getattr(usage, "total_tokens", 0) or 0),
+                finish_reason=(response.choices[0].finish_reason if response.choices else None),
+                response_time_ms=int((time.time() - start_time) * 1000),
+                request_type="chat",
+            )
+        except Exception as exc:
+            return self._error_result(
+                model=model,
+                error_msg=str(exc),
+                response_time_ms=int((time.time() - start_time) * 1000),
+                request_type="chat",
             )
 
-            response_time_ms = int((time.time() - start_time) * 1000)
+    @staticmethod
+    def _extract_text_from_responses(response: Any) -> str:
+        output_text = getattr(response, "output_text", None)
+        if output_text:
+            return str(output_text)
+        # 兼容不同 SDK 结构
+        output = getattr(response, "output", None) or []
+        chunks: list[str] = []
+        for item in output:
+            content_list = getattr(item, "content", None) or []
+            for content in content_list:
+                text = getattr(content, "text", None)
+                if text:
+                    chunks.append(str(text))
+        return "\n".join(chunks).strip()
 
-            return {
-                "content": response.choices[0].message.content,
-                "model": response.model,
-                "prompt_tokens": response.usage.prompt_tokens,
-                "completion_tokens": response.usage.completion_tokens,
-                "total_tokens": response.usage.total_tokens,
-                "finish_reason": response.choices[0].finish_reason,
-                "response_time_ms": response_time_ms,
-                "status": "success",
-                "error_message": None
-            }
+    def _success_result(
+        self,
+        content: str,
+        model: str,
+        prompt_tokens: int,
+        completion_tokens: int,
+        total_tokens: int,
+        finish_reason: Optional[str],
+        response_time_ms: int,
+        request_type: str,
+    ) -> Dict[str, Any]:
+        return {
+            "content": content,
+            "model": model,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": total_tokens,
+            "finish_reason": finish_reason,
+            "response_time_ms": response_time_ms,
+            "status": "success",
+            "error_message": None,
+            "estimated_cost": 0.0,
+            "provider_used": self.provider_name,
+            "request_type": request_type,
+            "api_mode_used": self.api_mode,
+            "fallback_used": False,
+        }
 
-        except Exception as e:
-            response_time_ms = int((time.time() - start_time) * 1000)
-            error_msg = str(e)
+    def _error_result(
+        self,
+        model: str,
+        error_msg: str,
+        response_time_ms: int,
+        request_type: str,
+    ) -> Dict[str, Any]:
+        status = "error"
+        lowered = error_msg.lower()
+        if "rate" in lowered or "limit" in lowered:
+            status = "rate_limited"
+        elif "timeout" in lowered:
+            status = "timeout"
 
-            # 判断错误类型
-            status = "error"
-            if "rate" in error_msg.lower() or "limit" in error_msg.lower():
-                status = "rate_limited"
-            elif "timeout" in error_msg.lower():
-                status = "timeout"
-
-            return {
-                "content": None,
-                "model": model,
-                "prompt_tokens": 0,
-                "completion_tokens": 0,
-                "total_tokens": 0,
-                "finish_reason": None,
-                "response_time_ms": response_time_ms,
-                "status": status,
-                "error_message": error_msg
-            }
+        return {
+            "content": None,
+            "model": model,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "finish_reason": None,
+            "response_time_ms": response_time_ms,
+            "status": status,
+            "error_message": error_msg,
+            "estimated_cost": 0.0,
+            "provider_used": self.provider_name,
+            "request_type": request_type,
+            "api_mode_used": self.api_mode,
+            "fallback_used": False,
+        }
 
     def is_available(self) -> bool:
-        """
-        检查服务是否可用
-
-        Returns:
-            bool: 服务是否可用
-        """
         try:
-            # 尝试获取模型列表
             self.client.models.list()
             return True
         except Exception:
             return False
 
-    def estimate_tokens(self, text: str) -> int:
-        """
-        粗略估算文本的token数量
-
-        Args:
-            text: 输入文本
-
-        Returns:
-            int: 估算的token数量
-        """
-        # 粗略估算：英文约4字符/token，中文约1.5字符/token
-        # 这里使用平均值
+    @staticmethod
+    def estimate_tokens(text: str) -> int:
         return max(1, len(text) // 3)
 
 
 class AIFailoverHelper:
-    """
-    AI故障转移辅助类
-
-    支持按优先级尝试多个AI提供商。
-    """
+    """AI 故障转移辅助类，按优先级依次尝试多个提供商。"""
 
     def __init__(self, providers: List[Dict[str, Any]]):
-        """
-        初始化故障转移辅助类
-
-        Args:
-            providers: 提供商列表
-                [
-                    {"base_url": "...", "api_key": "...", "default_model": "...", "name": "..."},
-                    ...
-                ]
-        """
         self.providers = providers
         self.adapters = []
 
-        for p in providers:
+        for provider in providers:
             try:
                 adapter = OpenAICompatibleAdapter(
-                    base_url=p['base_url'],
-                    api_key=p['api_key'],
-                    default_model=p.get('default_model', 'gpt-3.5-turbo')
+                    base_url=provider["base_url"],
+                    api_key=provider["api_key"],
+                    default_model=provider.get("default_model", "gpt-4o-mini"),
+                    api_mode=provider.get("api_mode"),
+                    fallback_enabled=provider.get("fallback_enabled"),
                 )
-                self.adapters.append({
-                    'adapter': adapter,
-                    'name': p.get('name', 'unknown'),
-                    'is_available': adapter.is_available()
-                })
-            except Exception as e:
-                # 某个适配器初始化失败不影响其他
-                pass
+                self.adapters.append(
+                    {
+                        "adapter": adapter,
+                        "name": provider.get("name", "unknown"),
+                        "is_available": adapter.is_available(),
+                    }
+                )
+            except Exception:
+                # 单个 provider 初始化失败不阻断其余 provider
+                continue
 
     def chat_completion_with_failover(
         self,
         messages: List[Dict[str, str]],
         model: Optional[str] = None,
         temperature: float = 0.7,
-        max_tokens: Optional[int] = None
+        max_tokens: Optional[int] = None,
     ) -> Dict[str, Any]:
-        """
-        带故障转移的聊天补全
-
-        按优先级依次尝试每个可用的提供商，直到成功或全部失败。
-
-        Args:
-            messages: 消息列表
-            model: 模型名称
-            temperature: 温度参数
-            max_tokens: 最大token数
-
-        Returns:
-            Dict: 响应结果（包含实际使用的提供商信息）
-        """
         last_error = None
 
         for item in self.adapters:
-            if not item['is_available']:
+            if not item["is_available"]:
                 continue
 
             try:
-                result = item['adapter'].chat_completion(
+                result = item["adapter"].chat_completion(
                     messages=messages,
                     model=model,
                     temperature=temperature,
-                    max_tokens=max_tokens
+                    max_tokens=max_tokens,
                 )
-
-                if result['status'] == 'success':
-                    result['provider_used'] = item['name']
+                result["provider_used"] = item["name"]
+                if result["status"] == "success":
                     return result
 
-                last_error = result.get('error_message')
+                last_error = result.get("error_message")
+            except Exception as exc:
+                last_error = str(exc)
 
-            except Exception as e:
-                last_error = str(e)
-                continue
-
-        # 全部失败
         return {
             "content": None,
             "model": model or "unknown",
@@ -248,5 +350,9 @@ class AIFailoverHelper:
             "response_time_ms": 0,
             "status": "error",
             "error_message": f"All providers failed. Last error: {last_error}",
-            "provider_used": None
+            "provider_used": None,
+            "estimated_cost": 0.0,
+            "request_type": "chat",
+            "api_mode_used": None,
+            "fallback_used": False,
         }

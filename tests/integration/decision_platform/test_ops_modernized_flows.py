@@ -46,6 +46,8 @@ class TestOpsModernizedFlows:
                 "base_url": "https://api.openai.com/v1",
                 "api_key": "",
                 "default_model": "gpt-4o",
+                "api_mode": "dual",
+                "fallback_enabled": "on",
                 "daily_budget_limit": "20.00",
                 "monthly_budget_limit": "300.00",
                 "description": "updated by test",

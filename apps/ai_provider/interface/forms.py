@@ -11,6 +11,7 @@ class AIProviderConfigForm(forms.ModelForm):
         "max_retries": 2,
         "temperature": 0.2,
         "max_tokens": 1200,
+        "response_format": "json",
     }
 
     extra_config_text = forms.CharField(
@@ -35,6 +36,8 @@ class AIProviderConfigForm(forms.ModelForm):
             "base_url",
             "api_key",
             "default_model",
+            "api_mode",
+            "fallback_enabled",
             "daily_budget_limit",
             "monthly_budget_limit",
             "description",

@@ -15,7 +15,7 @@ class AIProviderConfigSerializer(serializers.ModelSerializer):
         model = AIProviderConfig
         fields = [
             'id', 'name', 'provider_type', 'is_active', 'priority',
-            'base_url', 'api_key', 'default_model',
+            'base_url', 'api_key', 'default_model', 'api_mode', 'fallback_enabled',
             'daily_budget_limit', 'monthly_budget_limit',
             'extra_config', 'description',
             'created_at', 'updated_at', 'last_used_at'
@@ -40,7 +40,7 @@ class AIProviderConfigCreateSerializer(serializers.ModelSerializer):
         model = AIProviderConfig
         fields = [
             'name', 'provider_type', 'is_active', 'priority',
-            'base_url', 'api_key', 'default_model',
+            'base_url', 'api_key', 'default_model', 'api_mode', 'fallback_enabled',
             'daily_budget_limit', 'monthly_budget_limit',
             'extra_config', 'description'
         ]

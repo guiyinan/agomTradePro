@@ -23,21 +23,33 @@ from .exceptions import (
     TimeoutError as SDKTimeoutError,
 )
 from .modules.account import AccountModule
+from .modules.ai_provider import AIProviderModule
 from .modules.alpha import AlphaModule
+from .modules.alpha_trigger import AlphaTriggerModule
+from .modules.asset_analysis import AssetAnalysisModule
+from .modules.audit import AuditModule
 from .modules.backtest import BacktestModule
+from .modules.beta_gate import BetaGateModule
+from .modules.dashboard import DashboardModule
+from .modules.decision_rhythm import DecisionRhythmModule
 from .modules.equity import EquityModule
+from .modules.events import EventsModule
 from .modules.factor import FactorModule
+from .modules.filter import FilterModule
 from .modules.fund import FundModule
 from .modules.hedge import HedgeModule
 from .modules.macro import MacroModule
 from .modules.policy import PolicyModule
+from .modules.prompt import PromptModule
 from .modules.realtime import RealtimeModule
 from .modules.regime import RegimeModule
 from .modules.rotation import RotationModule
 from .modules.sector import SectorModule
+from .modules.sentiment import SentimentModule
 from .modules.signal import SignalModule
 from .modules.simulated_trading import SimulatedTradingModule
 from .modules.strategy import StrategyModule
+from .modules.task_monitor import TaskMonitorModule
 
 
 class AgomSAAFClient:
@@ -72,6 +84,18 @@ class AgomSAAFClient:
     _rotation: Optional[RotationModule] = None
     _hedge: Optional[HedgeModule] = None
     _alpha: Optional[AlphaModule] = None
+    _ai_provider: Optional[AIProviderModule] = None
+    _prompt: Optional[PromptModule] = None
+    _audit: Optional[AuditModule] = None
+    _events: Optional[EventsModule] = None
+    _decision_rhythm: Optional[DecisionRhythmModule] = None
+    _beta_gate: Optional[BetaGateModule] = None
+    _alpha_trigger: Optional[AlphaTriggerModule] = None
+    _dashboard: Optional[DashboardModule] = None
+    _asset_analysis: Optional[AssetAnalysisModule] = None
+    _sentiment: Optional[SentimentModule] = None
+    _task_monitor: Optional[TaskMonitorModule] = None
+    _filter: Optional[FilterModule] = None
 
     def __init__(
         self,
@@ -447,6 +471,90 @@ class AgomSAAFClient:
         if self._alpha is None:
             self._alpha = AlphaModule(self)
         return self._alpha
+
+    @property
+    def ai_provider(self) -> AIProviderModule:
+        """AI Provider 管理模块"""
+        if self._ai_provider is None:
+            self._ai_provider = AIProviderModule(self)
+        return self._ai_provider
+
+    @property
+    def prompt(self) -> PromptModule:
+        """Prompt 管理模块"""
+        if self._prompt is None:
+            self._prompt = PromptModule(self)
+        return self._prompt
+
+    @property
+    def audit(self) -> AuditModule:
+        """审计模块"""
+        if self._audit is None:
+            self._audit = AuditModule(self)
+        return self._audit
+
+    @property
+    def events(self) -> EventsModule:
+        """事件总线模块"""
+        if self._events is None:
+            self._events = EventsModule(self)
+        return self._events
+
+    @property
+    def decision_rhythm(self) -> DecisionRhythmModule:
+        """决策频率模块"""
+        if self._decision_rhythm is None:
+            self._decision_rhythm = DecisionRhythmModule(self)
+        return self._decision_rhythm
+
+    @property
+    def beta_gate(self) -> BetaGateModule:
+        """Beta Gate 模块"""
+        if self._beta_gate is None:
+            self._beta_gate = BetaGateModule(self)
+        return self._beta_gate
+
+    @property
+    def alpha_trigger(self) -> AlphaTriggerModule:
+        """Alpha Trigger 模块"""
+        if self._alpha_trigger is None:
+            self._alpha_trigger = AlphaTriggerModule(self)
+        return self._alpha_trigger
+
+    @property
+    def dashboard(self) -> DashboardModule:
+        """Dashboard 模块"""
+        if self._dashboard is None:
+            self._dashboard = DashboardModule(self)
+        return self._dashboard
+
+    @property
+    def asset_analysis(self) -> AssetAnalysisModule:
+        """资产分析模块"""
+        if self._asset_analysis is None:
+            self._asset_analysis = AssetAnalysisModule(self)
+        return self._asset_analysis
+
+    @property
+    def sentiment(self) -> SentimentModule:
+        """情绪分析模块"""
+        if self._sentiment is None:
+            self._sentiment = SentimentModule(self)
+        return self._sentiment
+
+    @property
+    def task_monitor(self) -> TaskMonitorModule:
+        """系统任务监控模块"""
+        if self._task_monitor is None:
+            self._task_monitor = TaskMonitorModule(self)
+        return self._task_monitor
+
+    @property
+    def filter(self) -> FilterModule:
+        """过滤模块"""
+        if self._filter is None:
+            self._filter = FilterModule(self)
+        return self._filter
 
     # ========================================================================
     # 会话管理

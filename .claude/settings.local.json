@@ -129,7 +129,9 @@
       "Bash(ruff check:*)",
       "Bash(black:*)",
       "Bash(tail:*)",
-      "Bash(head:*)"
+      "Bash(head:*)",
+      "Bash(PYTHONPATH=D:/githv/agomSAAF/sdk:$PYTHONPATH python:*)",
+      "Bash(export:*)"
     ]
   }
 }

@@ -21,6 +21,8 @@ class AIProviderConfigAdmin(admin.ModelAdmin):
         'is_active',
         'priority',
         'default_model',
+        'api_mode',
+        'fallback_enabled',
         'last_used_at',
         'created_at'
     ]
@@ -33,7 +35,7 @@ class AIProviderConfigAdmin(admin.ModelAdmin):
             'fields': ('name', 'provider_type', 'description')
         }),
         ('连接配置', {
-            'fields': ('base_url', 'api_key', 'default_model')
+            'fields': ('base_url', 'api_key', 'default_model', 'api_mode', 'fallback_enabled')
         }),
         ('状态与优先级', {
             'fields': ('is_active', 'priority')

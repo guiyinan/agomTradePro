@@ -28,6 +28,31 @@
 * **适用市场**：中国 A 股、港股、美股及全球主要债券市场
 * **技术栈**：Django 5.x + SQLite（初期）/ PostgreSQL（生产） + Celery + Redis + Pandas
 
+### 1.1 对外接入能力（SDK + MCP）
+
+为支持自动化脚本与 AI Agent，系统提供两类对外接入层（位于 `sdk/` 目录）：
+
+- **Python SDK**（`sdk/agomsaaf`）
+  - 统一入口：`AgomSAAFClient`
+  - 提供按业务模块分组的方法访问（含核心业务与治理模块）
+  - 认证方式：DRF Token（`Authorization: Token <token>`）
+
+- **MCP Server**（`sdk/agomsaaf_mcp`）
+  - 面向 Claude Code 等 AI 工具调用场景
+  - 工具能力映射 SDK 模块，并支持读写操作
+  - 内置 RBAC 角色权限控制（`admin/owner/analyst/investment_manager/trader/risk/read_only`）
+
+当前状态（2026-02-26）：
+- SDK 扩展模块端点契约测试已覆盖主要 CRUD/动作路径
+- MCP 工具注册、执行与 RBAC 测试已通过（本地测试 `98 passed`）
+- OpenAI 兼容链路支持 `dual / responses_only / chat_only` 三种模式
+- 说明：测试数字为当日快照，最终以最新 CI/本地执行结果为准
+
+相关文档：
+- `sdk/README.md`
+- `docs/plans/sdk_mcp_coverage_matrix_20260226.md`
+- `docs/testing/sdk-mcp-integration-test-plan.md`
+
 ---
 
 ## 2. 核心金融逻辑定义 (Financial Logic Specification)
@@ -2097,6 +2122,8 @@ docker-compose -f docker-compose.prod.yml up -d
 | **dashboard** | 50% | 可视化仪表盘 | RegimeChart, SignalTimeline | apps/dashboard/ |
 | **shared** | 70% | 跨应用共享基础设施 | RiskParameterConfig, AlertService | shared/ |
 
+说明：`sdk/agomsaaf` 与 `sdk/agomsaaf_mcp` 为系统对外接入层，独立于 `apps/` 业务模块统计口径。
+
 ### 11.2 模块职责与分层定位
 
 #### 数据采集层
@@ -2648,5 +2675,5 @@ AgomSAAF 的风险管理采用**多层级、全流程**的防御体系：
 ---
 
 **文档版本**: V3.0  
-**最后更新**: {当前日期}  
+**最后更新**: 2026-02-26  
 **维护者**: AgomSAAF Team
