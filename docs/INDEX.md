@@ -10,13 +10,13 @@
 
 | 角色 | 入口文档 | 说明 |
 |------|----------|------|
+| **新用户** | [QUICK_START.md](QUICK_START.md) | **个人实战上手手册（冷启动版）** |
 | 开发人员 | [development/quick-reference.md](development/quick-reference.md) | 命令速查、API端点、模块速查 |
 | 新加入者 | [architecture/SYSTEM_OVERVIEW.md](architecture/SYSTEM_OVERVIEW.md) | 系统全景、模块说明、数据流 |
 | 外包团队 | [development/outsourcing-work-guidelines.md](development/outsourcing-work-guidelines.md) | **外包工作指南、代码规范、自查清单** |
 | 产品/业务 | [business/AgomSAAF_V3.4.md](business/AgomSAAF_V3.4.md) | 业务逻辑、金融规则、数据源 |
 | 最终用户 | [user/topdown-bottomup-execution-playbook.md](user/topdown-bottomup-execution-playbook.md) | 环境-标的-执行-审计一体化操作手册 |
 | 产品/设计 | [frontend/ui-ux-full-page-audit-2026-02-18.md](frontend/ui-ux-full-page-audit-2026-02-18.md) | 全站页面 UI/UX 与功能清单 |
-| 产品/测试 | [frontend/ux-user-journey-checklist-2026-02-18.md](frontend/ux-user-journey-checklist-2026-02-18.md) | 用户旅程式 UX 检查清单 |
 | 运维人员 | [deployment/DOCKER_DEPLOYMENT.md](deployment/DOCKER_DEPLOYMENT.md) | 部署指南 |
 
 ---
@@ -41,6 +41,7 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [AgomSAAF_V3.4.md](business/AgomSAAF_V3.4.md) | 核心业务需求文档（2650行） | 最新 |
+| [alpha-quickstart.md](business/alpha-quickstart.md) | Alpha 模块快速开始指南 | 完整 |
 | [equity-valuation-logic.md](business/equity-valuation-logic.md) | 个股估值逻辑 | 完整 |
 | [regime_calculation_logic.md](business/regime_calculation_logic.md) | Regime 计算逻辑 | 完整 |
 | [signal_and_position.md](business/signal_and_position.md) | 信号与持仓关系 | 完整 |
@@ -50,36 +51,31 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [quick-reference.md](development/quick-reference.md) | 快速参考手册 | ✅ 2026-02-20 更新 |
-| [outsourcing-work-guidelines.md](development/outsourcing-work-guidelines.md) | **外包团队工作指南（✅ 2026-02-21 新增）** | ✅ 必读 |
+| [outsourcing-work-guidelines.md](development/outsourcing-work-guidelines.md) | **外包团队工作指南** | ✅ 必读 |
 | [api_structure_guide.md](development/api_structure_guide.md) | API 结构指南 | 完整 |
 | [coding_standards.md](development/coding_standards.md) | 代码规范 | 完整 |
 | [decision-platform.md](development/decision-platform.md) | 决策平台实现 | 完整 |
 | [debug-automation-log-api.md](development/debug-automation-log-api.md) | Codex/Claude 自动化调试日志 API | 完整 |
 | [startup-scripts.md](development/startup-scripts.md) | 启动脚本使用指南 | 完整 |
 | [module-dependency-graph.md](development/module-dependency-graph.md) | 模块依赖关系图 | ✅ 2026-02-20 更新 |
-| [system-review-report.md](development/system-review-report.md) | 系统审视报告（✅ 新增） | ✅ 2026-02-20 |
-| [api-route-consistency.md](development/api-route-consistency.md) | API 路由一致性分析（✅ 新增） | ✅ 2026-02-20 |
-| [frontend-performance-analysis.md](development/frontend-performance-analysis.md) | 前端性能优化分析（✅ 新增） | ✅ 2026-02-20 |
-| [error-handling-guide.md](development/error-handling-guide.md) | 错误处理改进指南（✅ 新增） | ✅ 2026-02-20 |
+| [system-review-report.md](development/system-review-report.md) | 系统审视报告 | ✅ 2026-02-20 |
+| [api-route-consistency.md](development/api-route-consistency.md) | API 路由一致性分析 | ✅ 2026-02-20 |
+| [frontend-performance-analysis.md](development/frontend-performance-analysis.md) | 前端性能优化分析 | ✅ 2026-02-20 |
+| [error-handling-guide.md](development/error-handling-guide.md) | 错误处理改进指南 | ✅ 2026-02-20 |
 
 ### 4. 实施计划 (`plans/`)
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [implementation-progress-summary.md](plans/implementation-progress-summary.md) | 总体进度总结（Phase 1-5 完成） | 最新 |
+| [implementation-progress-summary.md](plans/implementation-progress-summary.md) | **总体进度总结（Phase 1-5 完成）** | 最新 |
 | [post-v34-followup-roadmap-2026-02-26.md](plans/post-v34-followup-roadmap-2026-02-26.md) | V3.4 后续开发与完善路线图（12周） | ✅ 最新 |
 | [agomsaaf-qlib-integration-plan-v1.1.md](plans/agomsaaf-qlib-integration-plan-v1.1.md) | Qlib 集成方案 v1.1 | 完整 |
 | [factor-rotation-hedge-implementation-plan.md](plans/factor-rotation-hedge-implementation-plan.md) | 因子轮动对冲实施计划 | 完整 |
 | [sdk-mcp-implementation.md](plans/sdk-mcp-implementation.md) | SDK & MCP 实施方案 | 完整 |
-| [phase1-alpha-implementation-summary.md](plans/phase1-alpha-implementation-summary.md) | Phase 1 Alpha 模块总结 | 完整 |
-| [phase2-qlib-inference-summary.md](plans/phase2-qlib-inference-summary.md) | Phase 2 Qlib 推理总结 | 完整 |
-| [phase3-training-summary.md](plans/phase3-training-summary.md) | Phase 3 训练流水线总结 | 完整 |
-| [phase4-monitoring-summary.md](plans/phase4-monitoring-summary.md) | Phase 4 监控评估总结 | 完整 |
-| [phase5-integration-summary.md](plans/phase5-integration-summary.md) | Phase 5 宏观集成总结 | 完整 |
-| [system-code-doc-alignment-implementation-plan-2026-02-06.md](plans/system-code-doc-alignment-implementation-plan-2026-02-06.md) | 代码巡检与文档对齐实施方案 | 最新 |
+| [decision-making-improvement.md](plans/decision-making-improvement.md) | 决策流程改进方案 | 完整 |
 | [streamlit-dashboard-upgrade-plan.md](plans/streamlit-dashboard-upgrade-plan.md) | Streamlit 仪表盘交互升级实施方案 | 最新 |
 | [admin-to-modern-interaction-migration-plan.md](plans/admin-to-modern-interaction-migration-plan.md) | Admin 依赖迁移实施方案 | 最新 |
-| [ui-ux-improvement-prd-2026-02-18.md](plans/ui-ux-improvement-prd-2026-02-18.md) | 全站 UI/UX 改进 PRD（✅ 完成） | ✅ 完成验收 |
+| [system-code-doc-alignment-implementation-plan-2026-02-06.md](plans/system-code-doc-alignment-implementation-plan-2026-02-06.md) | 代码巡检与文档对齐实施方案 | 最新 |
 
 ### 5. 测试文档 (`testing/`)
 
@@ -92,7 +88,6 @@
 | [full-integration-test-report.md](testing/full-integration-test-report.md) | 完整集成测试报告 | 完整 |
 | [system_algorithm_evaluation_report.md](testing/system_algorithm_evaluation_report.md) | 系统算法评估 | 完整 |
 | [doc-link-check-report.md](testing/doc-link-check-report.md) | 文档链接校验报告 | 最新 |
-| [outsourcing-test-fix-review-2026-02-20.md](testing/outsourcing-test-fix-review-2026-02-20.md) | 外包测试与修复批次审查报告（2026-02-20） | ✅ 新增 |
 | [bug-report-template.md](testing/bug-report-template.md) | Bug 报告模板 | 完整 |
 | [test-results-template.md](testing/test-results-template.md) | 测试结果模板 | 完整 |
 | [api/API_REFERENCE.md](testing/api/API_REFERENCE.md) | API 参考文档 | 完整 |
@@ -122,40 +117,44 @@
 | [decision-platform-guide.md](user/decision-platform-guide.md) | 决策平台用户指南（442行） | 完整 |
 | [topdown-bottomup-execution-playbook.md](user/topdown-bottomup-execution-playbook.md) | 环境-标的-执行-审计一体化操作手册 | ✅ 最新 |
 
-### 8.1 前端体验 (`frontend/`)
+### 9. 前端体验 (`frontend/`)
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [ui-ux-full-page-audit-2026-02-18.md](frontend/ui-ux-full-page-audit-2026-02-18.md) | 全站页面 UI/UX 盘点与功能清单 | ✅ 最新 |
 | [ux-user-journey-checklist-2026-02-18.md](frontend/ux-user-journey-checklist-2026-02-18.md) | 用户旅程式 UX 检查清单 | ✅ 最新 |
-| [epic-a-refactor-checklist-2026-02-18.md](frontend/epic-a-refactor-checklist-2026-02-18.md) | Epic A 改造清单（✅ 完成） | ✅ 完成验收 |
-| [equity-fund-refactor-guide-2026-02-18.md](frontend/equity-fund-refactor-guide-2026-02-18.md) | 证券分析模块改进指南（✅ 完成） | ✅ 完成验收 |
-
-### 9. Regime 主题文档
-
-| 文档 | 说明 | 状态 |
-|------|------|------|
-| [regime_calculation_logic.md](business/regime_calculation_logic.md) | Regime 计算逻辑（业务规则） | 最新 |
-| [SYSTEM_OVERVIEW.md](architecture/SYSTEM_OVERVIEW.md) | Regime 在全系统中的位置与数据流 | 最新 |
 
 ### 10. 模块文档 (`modules/`)
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [alpha/alpha-guide.md](modules/alpha/alpha-guide.md) | Alpha 模块指南 | 完整 |
-| [audit/audit-module-guide.md](modules/audit/audit-module-guide.md) | Audit 模块指南（新增） | ✅ 新增 |
-| [audit/attribution-methodology.md](modules/audit/attribution-methodology.md) | Brinson 归因方法论（新增） | ✅ 新增 |
+| [audit/audit-module-guide.md](modules/audit/audit-module-guide.md) | Audit 模块指南 | ✅ 新增 |
+| [audit/attribution-methodology.md](modules/audit/attribution-methodology.md) | Brinson 归因方法论 | ✅ 新增 |
 | [factor/factor-guide.md](modules/factor/factor-guide.md) | Factor 模块指南 | 完整 |
 | [rotation/rotation-guide.md](modules/rotation/rotation-guide.md) | Rotation 模块指南 | 完整 |
 | [hedge/hedge-guide.md](modules/hedge/hedge-guide.md) | Hedge 模块指南 | 完整 |
+| [simulated_trading/daily-inspection.md](modules/simulated_trading/daily-inspection.md) | 模拟盘日更巡检 | ✅ 新增 |
+| [strategy/position-management.md](modules/strategy/position-management.md) | 策略仓位管理 | ✅ 新增 |
 
----
+### 11. 集成文档 (`integration/`)
 
-## 根目录文件
+| 文档 | 说明 | 状态 |
+|------|------|------|
+| [akshare_realtime_guide.md](integration/akshare_realtime_guide.md) | AKShare 实时数据指南 | 完整 |
+| [how2usersshub.md](integration/how2usersshub.md) | RSSHub 使用指南 | 完整 |
+| [realtime_data_system.md](integration/realtime_data_system.md) | 实时数据系统 | 完整 |
+| [rss_policy_integration.md](integration/rss_policy_integration.md) | RSS 政策集成 | 完整 |
 
-| 文件 | 说明 |
+### 12. 归档文档 (`archive/`)
+
+| 文档 | 说明 |
 |------|------|
-| [alpha-quickstart.md](business/alpha-quickstart.md) | Alpha 模块快速开始指南 |
+| [ARCHIVE_INDEX.md](archive/ARCHIVE_INDEX.md) | **归档文档索引** |
+
+归档内容包括：
+- Phase 1-5 实施总结（已整合到 `implementation-progress-summary.md`）
+- 修复记录、前端改造清单、UAT 测试报告等过程性文档
 
 ---
 
@@ -163,13 +162,13 @@
 
 **系统版本**: AgomSAAF V3.4
 
-**业务模块**: 27个
+**业务模块**: 28个
 
 **完成度**: 持续迭代（请以里程碑文档与代码状态为准）
 
 **测试覆盖**: 使用 `pytest` + `coverage` 持续验证（覆盖率以最新 CI/本地执行结果为准）
 
-### 完整四层架构模块 (26个)
+### 完整四层架构模块 (28个)
 
 #### 核心引擎模块 (5个)
 - `macro` - 宏观数据采集
@@ -196,33 +195,32 @@
 
 #### 风控与账户模块 (5个)
 - `account` - 账户与持仓管理
-- `audit` - 事后审计（✅ 新增：完整测试覆盖 + Brinson 归因 + 前端可视化）
+- `audit` - 事后审计（完整测试覆盖 + Brinson 归因 + 前端可视化）
 - `simulated_trading` - 模拟盘自动交易
 - `realtime` - 实时价格监控
 - `strategy` - 策略系统
 
-#### 工具模块 (5个)
+#### 工具模块 (6个)
 - `ai_provider` - AI 服务商管理
 - `prompt` - AI Prompt 模板
 - `dashboard` - 仪表盘
 - `backtest` - 回测引擎
 - `events` - 事件系统
-
-### 完整四层架构 (27个)
-所有业务模块均已完成四层架构重构。
+- `task_monitor` - 定时任务监控（✅ 新增）
 
 ---
 
 ## 阅读路径
 
 ### 新加入开发人员
-1. [development/quick-reference.md](development/quick-reference.md) - 快速了解常用命令和 API
-2. [architecture/SYSTEM_OVERVIEW.md](architecture/SYSTEM_OVERVIEW.md) - 理解系统架构
-3. [business/AgomSAAF_V3.4.md](business/AgomSAAF_V3.4.md) - 学习业务逻辑
-4. [development/coding_standards.md](development/coding_standards.md) - 遵循代码规范
+1. [QUICK_START.md](QUICK_START.md) - 系统实战理念
+2. [development/quick-reference.md](development/quick-reference.md) - 快速了解常用命令和 API
+3. [architecture/SYSTEM_OVERVIEW.md](architecture/SYSTEM_OVERVIEW.md) - 理解系统架构
+4. [business/AgomSAAF_V3.4.md](business/AgomSAAF_V3.4.md) - 学习业务逻辑
+5. [development/coding_standards.md](development/coding_standards.md) - 遵循代码规范
 
 ### 理解 AI 选股
-1. [alpha-quickstart.md](business/alpha-quickstart.md) - Alpha 模块快速开始
+1. [business/alpha-quickstart.md](business/alpha-quickstart.md) - Alpha 模块快速开始
 2. [plans/agomsaaf-qlib-integration-plan-v1.1.md](plans/agomsaaf-qlib-integration-plan-v1.1.md) - Qlib 集成方案
 3. [plans/implementation-progress-summary.md](plans/implementation-progress-summary.md) - 实施进度
 
@@ -237,15 +235,15 @@
 
 ## 文档口径来源
 
-- 代码扫描日期：`2026-02-06`
+- 代码扫描日期：`2026-02-26`
 - 事实来源：
   - `core/settings/base.py`（`INSTALLED_APPS` 模块清单）
   - `apps/*` 目录结构扫描（四层完整性）
   - `python manage.py check`（系统健康）
 - 口径说明：
-  - “业务模块数”按 `apps/`（排除 `shared` 与 `__pycache__`）统计
-  - “完成度”使用里程碑状态，不再维护固定百分比
-  - “测试覆盖”以最新 CI/本地执行结果为准
+  - "业务模块数"按 `apps/`（排除 `shared` 与 `__pycache__`）统计
+  - "完成度"使用里程碑状态，不再维护固定百分比
+  - "测试覆盖"以最新 CI/本地执行结果为准
 
 ---
 
@@ -263,9 +261,13 @@
 ## 最近更新 (2026-02-20 ~ 2026-02-26)
 
 ### 2026-02-26
+- ✅ **文档整理与归档**
+  - 归档 20+ 过程性文档到 `archive/`
+  - 整理模块文档结构
+  - 新增 `QUICK_START.md` 快速启动指南
+  - 更新模块数量（27 → 28，新增 `task_monitor`）
 - ✅ Phase 3: 完善 RTM 和 CI 门禁
 - ✅ 新增"主链路禁止 501"守护测试（8项静态检查）
-- ✅ 更新 CI 配置添加新守护测试和 RTM 检查
 - ✅ RTM Pending 项全部完成（R-SIG-001, R-AUD-001）
 - ✅ **V3.4-RC2: RTM 关键项 100% 通过**
 
@@ -280,26 +282,12 @@
 - ✅ 新增 [外包团队工作指南](development/outsourcing-work-guidelines.md)
 
 ### 2026-02-20
-
-### 架构修复
-- ✅ 删除 `apps/shared/` 目录，移动 HTMX 工具到 `shared/infrastructure/htmx/`
+- ✅ 架构修复：删除 `apps/shared/`，移动到 `shared/infrastructure/htmx/`
 - ✅ 修复 `shared/` 对 `apps/` 的违规依赖（4处）
 - ✅ 创建 `core/exceptions.py` 统一异常类
-
-### 新增功能
 - ✅ Sentiment 模块完整路由配置
 - ✅ AI Provider 模块 Application 层完善
-
-### 文档更新
-- ✅ API 路径文档同步
-- ✅ 新增系统审视报告
-- ✅ 新增 API 路由一致性分析
-- ✅ 新增前端性能优化指南
-- ✅ 新增错误处理改进指南
-
-### 测试
-- ✅ 新增 31 个单元测试
-- ✅ 全部 1,395 测试通过
+- ✅ 新增 31 个单元测试，全部 1,395 测试通过
 
 ---
 
