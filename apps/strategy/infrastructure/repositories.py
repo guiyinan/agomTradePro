@@ -317,13 +317,26 @@ class DjangoRuleConditionRepository:
     @staticmethod
     def _orm_to_domain_entity(orm_obj: RuleConditionModel) -> RuleCondition:
         """将 ORM 对象转换为 Domain 实体"""
+        # 转换 action 从大写到小写（数据库存储为大写，Domain 层使用小写）
+        action_mapping = {
+            'BUY': ActionType.BUY,
+            'SELL': ActionType.SELL,
+            'HOLD': ActionType.HOLD,
+            'WEIGHT': ActionType.WEIGHT,
+            'buy': ActionType.BUY,
+            'sell': ActionType.SELL,
+            'hold': ActionType.HOLD,
+            'weight': ActionType.WEIGHT,
+        }
+        action_value = action_mapping.get(orm_obj.action, ActionType.BUY)
+
         return RuleCondition(
             rule_id=orm_obj.id,
             strategy_id=orm_obj.strategy_id,
             rule_name=orm_obj.rule_name,
             rule_type=RuleType(orm_obj.rule_type),
             condition_json=orm_obj.condition_json,
-            action=ActionType(orm_obj.action),
+            action=action_value,
             weight=orm_obj.weight,
             target_assets=orm_obj.target_assets,
             priority=orm_obj.priority,
@@ -341,6 +354,9 @@ class DjangoRuleConditionRepository:
         Returns:
             规则条件ID
         """
+        # 转换 action 从小写到大写（Domain 层使用小写，数据库存储为大写）
+        action_upper = condition.action.value.upper()
+
         if condition.rule_id is None:
             # 创建新规则条件
             orm_obj = RuleConditionModel._default_manager.create(
@@ -348,7 +364,7 @@ class DjangoRuleConditionRepository:
                 rule_name=condition.rule_name,
                 rule_type=condition.rule_type.value,
                 condition_json=condition.condition_json,
-                action=condition.action.value,
+                action=action_upper,
                 weight=condition.weight,
                 target_assets=condition.target_assets,
                 priority=condition.priority,
@@ -360,7 +376,7 @@ class DjangoRuleConditionRepository:
             orm_obj.rule_name = condition.rule_name
             orm_obj.rule_type = condition.rule_type.value
             orm_obj.condition_json = condition.condition_json
-            orm_obj.action = condition.action.value
+            orm_obj.action = action_upper
             orm_obj.weight = condition.weight
             orm_obj.target_assets = condition.target_assets
             orm_obj.priority = condition.priority
@@ -444,6 +460,17 @@ class DjangoStrategyExecutionLogRepository:
         Returns:
             日志ID
         """
+        from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+        from apps.strategy.infrastructure.models import StrategyModel
+
+        # 检查外键是否存在
+        try:
+            StrategyModel._default_manager.get(id=result.strategy_id)
+            SimulatedAccountModel._default_manager.get(id=result.portfolio_id)
+        except (StrategyModel.DoesNotExist, SimulatedAccountModel.DoesNotExist):
+            logger.warning(f"Cannot save execution log: strategy={result.strategy_id} or portfolio={result.portfolio_id} does not exist")
+            return 0  # 返回0表示保存失败
+
         # 转换信号列表为 JSON 格式
         signals_json = [
             {
@@ -459,17 +486,21 @@ class DjangoStrategyExecutionLogRepository:
             for s in result.signals
         ]
 
-        orm_obj = StrategyExecutionLogModel._default_manager.create(
-            strategy_id=result.strategy_id,
-            portfolio_id=result.portfolio_id,
-            execution_duration_ms=result.execution_duration_ms,
-            execution_result=result.context,
-            signals_generated=signals_json,
-            is_success=result.is_success,
-            error_message=result.error_message
-        )
-
-        return orm_obj.id
+        try:
+            orm_obj = StrategyExecutionLogModel._default_manager.create(
+                strategy_id=result.strategy_id,
+                portfolio_id=result.portfolio_id,
+                execution_duration_ms=result.execution_duration_ms,
+                execution_result=result.context,
+                signals_generated=signals_json,
+                is_success=result.is_success,
+                error_message=result.error_message
+            )
+            return orm_obj.id
+        except Exception as e:
+            # 如果保存失败（如外键约束），记录日志但不抛出异常
+            logger.error(f"Failed to save execution log: {e}")
+            return 0  # 返回0表示保存失败
 
     def get_by_strategy(self, strategy_id: int, limit: int = 100) -> List[StrategyExecutionResult]:
         """

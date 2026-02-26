@@ -178,6 +178,201 @@ class InvalidationCheckService:
                 f"已被证伪: {result.reason}"
             )
 
+            # 发送证伪通知（仅对已批准的信号）
+            self._send_invalidation_notification(signal, result)
+
+    def _send_invalidation_notification(
+        self,
+        signal: InvestmentSignalModel,
+        result: InvalidationCheckResult
+    ):
+        """
+        发送信号证伪通知
+
+        Args:
+            signal: 已证伪的信号
+            result: 证伪检查结果
+        """
+        try:
+            from shared.infrastructure.notification_service import (
+                get_notification_service,
+                NotificationMessage,
+                NotificationPriority,
+            )
+            from django.contrib.auth import get_user_model
+
+            service = get_notification_service()
+            User = get_user_model()
+
+            # 获取通知收件人
+            recipients = self._get_signal_recipients(signal, User)
+
+            if not recipients:
+                logger.debug(f"信号 #{signal.id} 没有通知收件人，跳过发送")
+                return
+
+            # 构建通知内容
+            status_text = "已证伪" if signal.status == 'invalidated' else "已拒绝"
+            subject = f"[AgomSAAF] 信号{status_text}: {signal.asset_code}"
+
+            # 构建详情
+            condition_details = []
+            for cond in result.checked_conditions:
+                status = "✓" if cond.is_met else "✗"
+                condition_details.append(
+                    f"{status} {cond.description}: "
+                    f"当前值={cond.actual_value}, 阈值={cond.threshold}"
+                )
+
+            body_lines = [
+                f"# 投资信号{status_text}通知",
+                f"",
+                f"## 信号信息",
+                f"- **资产代码**: {signal.asset_code}",
+                f"- **逻辑描述**: {signal.logic_desc or 'N/A'}",
+                f"- **状态**: {signal.status}",
+                f"- **证伪时间**: {signal.invalidated_at or timezone.now()}",
+                f"",
+                f"## 证伪原因",
+                f"{result.reason}",
+                f"",
+                f"## 条件详情",
+            ]
+            body_lines.extend(condition_details)
+            body_lines.extend([
+                f"",
+                f"## 原始投资逻辑",
+                f"{signal.invalidation_rule_json or 'N/A'}",
+                f"",
+                f"---",
+                f"请登录系统查看详情并处理相关持仓。",
+            ])
+
+            body = "\n".join(body_lines)
+
+            # 构建 HTML 内容
+            html_body = f"""
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                    .header {{ background-color: #dc3545; color: white; padding: 20px; text-align: center; }}
+                    .info-box {{ margin: 20px 0; padding: 15px; background-color: #f8f9fa; border-radius: 5px; }}
+                    .condition {{ padding: 10px; margin: 5px 0; border-left: 3px solid #dc3545; background-color: #fff5f5; }}
+                    .condition.met {{ border-left-color: #28a745; background-color: #f0fff4; }}
+                    table {{ width: 100%; border-collapse: collapse; }}
+                    th, td {{ padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }}
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h2>⚠️ 投资信号{status_text}通知</h2>
+                    <p>{signal.asset_code}</p>
+                </div>
+
+                <div class="info-box">
+                    <h3>信号信息</h3>
+                    <table>
+                        <tr><th>资产代码</th><td>{signal.asset_code}</td></tr>
+                        <tr><th>逻辑描述</th><td>{signal.logic_desc or 'N/A'}</td></tr>
+                        <tr><th>状态</th><td><strong>{signal.status}</strong></td></tr>
+                        <tr><th>证伪时间</th><td>{signal.invalidated_at or timezone.now()}</td></tr>
+                    </table>
+                </div>
+
+                <div class="info-box">
+                    <h3>证伪原因</h3>
+                    <p>{result.reason}</p>
+                </div>
+
+                <div class="info-box">
+                    <h3>条件详情</h3>
+            """
+
+            for cond in result.checked_conditions:
+                css_class = "met" if cond.is_met else ""
+                html_body += f"""
+                    <div class="condition {css_class}">
+                        <strong>{cond.description}</strong><br>
+                        当前值: {cond.actual_value} | 阈值: {cond.threshold}
+                    </div>
+                """
+
+            html_body += f"""
+                </div>
+
+                <div class="info-box">
+                    <h3>原始投资逻辑</h3>
+                    <pre>{signal.invalidation_rule_json or 'N/A'}</pre>
+                </div>
+
+                <div style="text-align: center; padding: 20px; color: #6c757d;">
+                    <p>请登录系统查看详情并处理相关持仓。</p>
+                    <p>AgomSAAF - 自动发送，请勿回复</p>
+                </div>
+            </body>
+            </html>
+            """
+
+            # 发送通知
+            notify_results = service.send_email(
+                subject=subject,
+                body=body,
+                recipients=recipients,
+                html_body=html_body,
+                priority=NotificationPriority.HIGH,
+            )
+
+            success = any(r.success for r in notify_results)
+            if success:
+                logger.info(f"信号 #{signal.id} 证伪通知已发送: recipients={len(recipients)}")
+            else:
+                logger.warning(f"信号 #{signal.id} 证伪通知发送失败")
+
+        except Exception as e:
+            logger.error(f"发送信号 #{signal.id} 证伪通知失败: {e}", exc_info=True)
+
+    def _get_signal_recipients(self, signal: InvestmentSignalModel, User) -> list:
+        """
+        获取信号通知收件人列表
+
+        Args:
+            signal: 信号模型
+            User: User 模型类
+
+        Returns:
+            list: 收件人邮箱列表
+        """
+        from django.conf import settings
+
+        recipients = []
+
+        # 1. 信号创建者
+        if signal.created_by and signal.created_by.email:
+            recipients.append(signal.created_by.email)
+
+        # 2. 信号关联的用户（如果有）
+        if hasattr(signal, 'user') and signal.user and signal.user.email:
+            recipients.append(signal.user.email)
+
+        # 3. 从配置获取管理员列表
+        admin_emails = getattr(settings, 'SIGNAL_NOTIFICATION_EMAILS', [])
+        recipients.extend(admin_emails)
+
+        # 4. 所有 staff 用户
+        staff_emails = list(User.objects.filter(
+            is_staff=True,
+            is_active=True
+        ).exclude(
+            email=''
+        ).values_list('email', flat=True))
+        recipients.extend(staff_emails)
+
+        # 去重并过滤空值
+        recipients = list(set(r for r in recipients if r and '@' in r))
+
+        return recipients
+
     def check_all_approved_signals(self) -> List[InvestmentSignalModel]:
         """检查所有已批准的信号
 

@@ -7,11 +7,14 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
+from django.utils import timezone
+
 from apps.policy.infrastructure.models import PolicyLog
 from apps.regime.infrastructure.models import RegimeLog
 from apps.simulated_trading.infrastructure.models import (
     DailyInspectionReportModel,
     PositionModel,
+    RebalanceProposalModel,
     SimulatedAccountModel,
 )
 from apps.strategy.application.position_management_service import PositionManagementService
@@ -207,3 +210,194 @@ class DailyInspectionService:
     def _latest_policy_gear() -> str:
         latest = PolicyLog._default_manager.order_by("-event_date", "-created_at").first()
         return latest.level if latest else ""
+
+    @classmethod
+    def run_and_create_proposal(
+        cls,
+        account_id: int,
+        inspection_date: date | None = None,
+        strategy_id: int | None = None,
+        auto_create_proposal: bool = True,
+    ) -> dict[str, Any]:
+        """
+        运行日更巡检并创建再平衡建议草案
+
+        Args:
+            account_id: 账户ID
+            inspection_date: 巡检日期
+            strategy_id: 策略ID
+            auto_create_proposal: 是否自动创建再平衡建议
+
+        Returns:
+            包含巡检结果和再平衡建议ID的字典
+        """
+        # 先运行巡检
+        inspection_result = cls.run(
+            account_id=account_id,
+            inspection_date=inspection_date,
+            strategy_id=strategy_id,
+        )
+
+        result = {
+            **inspection_result,
+            "proposal_id": None,
+            "proposal_created": False,
+        }
+
+        # 如果需要自动创建建议且存在需要再平衡的资产
+        if auto_create_proposal:
+            summary = inspection_result.get("summary", {})
+            rebalance_count = summary.get("rebalance_required_count", 0)
+
+            if rebalance_count > 0:
+                proposal = cls.create_rebalance_proposal(
+                    account_id=account_id,
+                    inspection_result=inspection_result,
+                )
+                result["proposal_id"] = proposal.id
+                result["proposal_created"] = True
+
+        return result
+
+    @classmethod
+    def create_rebalance_proposal(
+        cls,
+        account_id: int,
+        inspection_result: dict[str, Any],
+    ) -> RebalanceProposalModel:
+        """
+        根据巡检结果创建再平衡建议草案
+
+        Args:
+            account_id: 账户ID
+            inspection_result: 巡检结果
+
+        Returns:
+            RebalanceProposalModel: 创建的再平衡建议
+        """
+        account = SimulatedAccountModel._default_manager.get(id=account_id)
+        checks = inspection_result.get("checks", [])
+        summary = inspection_result.get("summary", {})
+
+        # 构建再平衡建议
+        proposals = []
+        total_buy_amount = 0.0
+        total_sell_amount = 0.0
+
+        for check in checks:
+            action = check.get("rebalance_action", "hold")
+
+            if action == "hold":
+                continue
+
+            current_price = check.get("current_price", 0)
+            qty_suggest = check.get("rebalance_qty_suggest", 0)
+            estimated_amount = abs(qty_suggest * current_price)
+
+            proposal_item = {
+                "asset_code": check.get("asset_code"),
+                "asset_name": check.get("asset_name"),
+                "action": action,
+                "current_quantity": check.get("quantity", 0),
+                "current_weight": check.get("weight", 0),
+                "target_weight": check.get("target_weight", 0),
+                "drift": check.get("drift", 0),
+                "suggested_quantity": abs(qty_suggest),
+                "estimated_amount": round(estimated_amount, 2),
+                "reason": cls._get_rebalance_reason(check),
+            }
+
+            proposals.append(proposal_item)
+
+            if action == "buy":
+                total_buy_amount += estimated_amount
+            else:
+                total_sell_amount += estimated_amount
+
+        # 构建汇总信息
+        proposal_summary = {
+            "total_value": summary.get("total_value", 0),
+            "current_cash": summary.get("current_cash", 0),
+            "current_market_value": summary.get("current_market_value", 0),
+            "rebalance_assets": summary.get("rebalance_assets", []),
+            "buy_count": len([p for p in proposals if p["action"] == "buy"]),
+            "sell_count": len([p for p in proposals if p["action"] == "sell"]),
+            "estimated_buy_amount": round(total_buy_amount, 2),
+            "estimated_sell_amount": round(total_sell_amount, 2),
+            "estimated_trade_amount": round(total_buy_amount + total_sell_amount, 2),
+        }
+
+        # 确定优先级
+        priority = cls._determine_priority(summary)
+
+        # 创建再平衡建议
+        proposal = RebalanceProposalModel._default_manager.create(
+            account=account,
+            inspection_report_id=inspection_result.get("report_id"),
+            strategy_id=inspection_result.get("strategy_id"),
+            source=RebalanceProposalModel.SOURCE_DAILY_INSPECTION,
+            source_description=cls._build_source_description(inspection_result),
+            status=RebalanceProposalModel.STATUS_PENDING,
+            priority=priority,
+            proposals=proposals,
+            summary=proposal_summary,
+            proposed_by="daily_inspection",
+            metadata={
+                "inspection_date": inspection_result.get("inspection_date"),
+                "macro_regime": inspection_result.get("macro_regime"),
+                "policy_gear": inspection_result.get("policy_gear"),
+                "position_rule_id": inspection_result.get("position_rule_id"),
+            },
+        )
+
+        return proposal
+
+    @classmethod
+    def _get_rebalance_reason(cls, check: dict[str, Any]) -> str:
+        """获取再平衡原因"""
+        drift = check.get("drift", 0)
+        target_weight = check.get("target_weight", 0)
+        current_weight = check.get("weight", 0)
+        asset_name = check.get("asset_name", "")
+
+        if drift > 0:
+            return f"{asset_name} 当前权重 {current_weight:.2%} 超过目标 {target_weight:.2%}，需要减持"
+        else:
+            return f"{asset_name} 当前权重 {current_weight:.2%} 低于目标 {target_weight:.2%}，需要增持"
+
+    @classmethod
+    def _build_source_description(cls, inspection_result: dict[str, Any]) -> str:
+        """构建建议来源描述"""
+        regime = inspection_result.get("macro_regime", "")
+        policy = inspection_result.get("policy_gear", "")
+        rebalance_count = inspection_result.get("summary", {}).get("rebalance_required_count", 0)
+
+        parts = ["日更巡检发现"]
+
+        if regime:
+            parts.append(f"宏观象限为 {regime}")
+
+        if policy:
+            parts.append(f"政策档位为 {policy}")
+
+        parts.append(f"{rebalance_count} 个资产需要再平衡")
+
+        return "，".join(parts) + "。"
+
+    @classmethod
+    def _determine_priority(cls, summary: dict[str, Any]) -> str:
+        """根据巡检结果确定建议优先级"""
+        rebalance_count = summary.get("rebalance_required_count", 0)
+        total_value = summary.get("total_value", 0)
+        current_cash = summary.get("current_cash", 0)
+
+        # 如果需要再平衡的资产数量超过 3 个，优先级设为高
+        if rebalance_count >= 3:
+            return "high"
+
+        # 如果现金比例过低（低于 5%），优先级设为高
+        if total_value > 0 and (current_cash / total_value) < 0.05:
+            return "high"
+
+        # 默认普通优先级
+        return "normal"

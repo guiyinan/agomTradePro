@@ -4,15 +4,18 @@
 
 ## 项目概述
 
-> **最后更新**: 2026-02-23
+> **最后更新**: 2026-02-26
 > **系统版本**: AgomSAAF V3.4
 > **项目状态**: 生产就绪
 > **业务模块**: 27个
-> **测试覆盖**: 1,395个测试用例，100%通过率
+> **测试覆盖**: 1,500+ 个测试用例
 
 AgomSAAF (Agom Strategic Asset Allocation Framework) 是一个宏观环境准入系统，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
 
 **最新完成**:
+- V3.4 后续开发路线图全部完成（2026-02-26）
+- 主链路无 501 占位接口
+- 完整的 CI 门禁和守护测试
 - Alpha 模块与 Qlib 深度集成（Phase 1-5 全部完成）
 - 新增 Factor/Rotation/Hedge 智能模块
 - 架构合规性修复（2026-02-20）
@@ -253,6 +256,101 @@ value, unit = normalize_currency_unit(3.2, "万亿美元")
 - `元/g` - 元/克（黄金期货）
 - `元/吨` - 元/吨（铜期货）
 
+### 7. 时区感知 datetime（必须遵守）⚠️
+
+Django 项目启用了 `USE_TZ=True`，所有 datetime 操作必须使用 timezone-aware 版本。
+
+```python
+# ❌ 错误：naive datetime（会触发 RuntimeWarning）
+from datetime import datetime
+now = datetime.now()
+
+# ✅ 正确：timezone-aware datetime
+from datetime import datetime, timezone
+now = datetime.now(timezone.utc)
+
+# ✅ 或者使用 Django 的 timezone 工具
+from django.utils import timezone
+now = timezone.now()
+```
+
+**适用范围**：
+- Domain 层：使用 `datetime.now(timezone.utc)`
+- Application/Infrastructure 层：可使用 Django 的 `timezone.now()`
+- 所有时间比较、存储、序列化都必须使用 timezone-aware datetime
+
+### 8. 实体接口一致性（跨模块协作）⚠️
+
+编写测试或调用其他模块实体时，必须先查看实体定义，确保参数匹配。
+
+```python
+# ❌ 错误：未查看实体定义，使用不存在的参数
+StockScore(
+    code="000001",
+    score=0.8,
+    timestamp=datetime.now().isoformat(),  # StockScore 没有 timestamp 字段！
+)
+
+# ✅ 正确：查看实体定义后使用正确的参数
+StockScore(
+    code="000001",
+    score=0.8,
+    rank=1,
+    factors={"momentum": 0.8},  # 必需字段
+    source="cache",
+    confidence=0.85,  # 必需字段
+    asof_date=date.today(),
+)
+```
+
+**检查清单**：
+- [ ] 查看目标实体的完整定义（所有字段和类型）
+- [ ] 确认哪些字段是必需的，哪些有默认值
+- [ ] 检查字段类型（如 `date` vs `datetime`）
+- [ ] 运行测试验证参数正确性
+
+### 9. 事件类型处理规范
+
+处理未知事件类型时，不得映射到业务事件类型，应使用专门的 `UNKNOWN` 类型。
+
+```python
+# ❌ 错误：未知类型映射到业务事件
+try:
+    event_type = EventType(model.event_type)
+except ValueError:
+    event_type = EventType.REGIME_CHANGED  # 会污染业务数据！
+
+# ✅ 正确：使用 UNKNOWN 类型并记录日志
+try:
+    event_type = EventType(model.event_type)
+except ValueError:
+    logger.warning(f"Unknown event type: {model.event_type}")
+    event_type = EventType.UNKNOWN
+```
+
+### 10. 测试数据构造规范
+
+构造测试数据时，必须符合实体定义的所有约束。
+
+```python
+# ✅ 正确的测试数据构造流程
+# 1. 先导入并查看实体定义
+from apps.alpha.domain.entities import StockScore
+
+# 2. 查看实体字段（通过 IDE 或阅读源码）
+# StockScore 需要：code, score, rank, factors, source, confidence
+
+# 3. 构造完整的测试数据
+test_score = StockScore(
+    code="000001",
+    score=0.8,
+    rank=1,
+    factors={"momentum": 0.8, "value": 0.7},
+    source="test",
+    confidence=0.85,
+)
+```
+
 ## 代码风格
 
 - 类型标注：强制，所有函数必须有类型提示
@@ -386,6 +484,9 @@ ak.macro_china_money_supply()
 8. **成对操作一致性**: CRUD 操作的参数签名必须保持一致（如 Delete 支持 event_id，Update 也必须支持）
 9. **修复完整性**: 修复问题时必须检查所有相关场景，不可只修复"眼前"问题
 10. **路由重命名同步**: 修改路由名时必须同步更新模板、JS、Python 中的所有引用，并添加模板渲染测试
+11. **时区感知 datetime**: 必须使用 `datetime.now(timezone.utc)` 或 Django 的 `timezone.now()`，禁止使用 `datetime.now()`
+12. **实体参数验证**: 构造实体或编写测试时，必须先查看实体定义，确保参数名和类型完全匹配
+13. **事件类型处理**: 未知事件类型必须使用 `UNKNOWN` 类型，不得映射到业务事件类型
 
 **环境配置**:
 - python 虚拟环境为 `agomsaaf`

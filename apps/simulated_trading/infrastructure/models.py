@@ -13,6 +13,7 @@ Infrastructure层:
 """
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 
 
 class SimulatedAccountModel(models.Model):
@@ -453,4 +454,502 @@ class DailyInspectionNotificationConfigModel(models.Model):
 
     def __str__(self):
         return f"{self.account.account_name} notify={self.is_enabled}"
+
+
+class DailyNetValueModel(models.Model):
+    """
+    每日净值记录模型
+
+    用于记录账户每日的净值数据，支持绘制净值曲线和计算绩效指标。
+    """
+
+    account = models.ForeignKey(
+        SimulatedAccountModel,
+        on_delete=models.CASCADE,
+        related_name="daily_net_values",
+        verbose_name="所属账户",
+        db_index=True,
+    )
+
+    record_date = models.DateField("记录日期", db_index=True)
+    net_value = models.DecimalField("净值", max_digits=15, decimal_places=4, help_text="账户总资产（元）")
+    cash = models.DecimalField("现金", max_digits=15, decimal_places=2, help_text="可用现金（元）")
+    market_value = models.DecimalField("持仓市值", max_digits=15, decimal_places=2, help_text="持仓市值（元）")
+    daily_return = models.FloatField("日收益率(%)", default=0.0, help_text="相对于前一日的收益率")
+    cumulative_return = models.FloatField("累计收益率(%)", default=0.0, help_text="相对于初始资金的收益率")
+    drawdown = models.FloatField("回撤(%)", default=0.0, help_text="相对于历史最高点的回撤")
+
+    # 统计信息
+    total_trades = models.IntegerField("当日交易次数", default=0)
+    positions_count = models.IntegerField("持仓数量", default=0)
+
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        db_table = "simulated_daily_net_value"
+        verbose_name = "每日净值记录"
+        verbose_name_plural = "每日净值记录"
+        ordering = ["record_date"]
+        unique_together = [["account", "record_date"]]
+        indexes = [
+            models.Index(fields=["account", "-record_date"]),
+            models.Index(fields=["-record_date"]),
+        ]
+
+    def __str__(self):
+        return f"{self.account.account_name} - {self.record_date} - 净值:{self.net_value}"
+
+
+class RebalanceProposalModel(models.Model):
+    """
+    再平衡建议草案模型
+
+    存储日更巡检生成的再平衡建议，支持追踪建议来源和执行状态。
+    """
+
+    # 建议来源类型
+    SOURCE_DAILY_INSPECTION = "daily_inspection"
+    SOURCE_SIGNAL = "signal"
+    SOURCE_MANUAL = "manual"
+    SOURCE_REGIME_CHANGE = "regime_change"
+    SOURCE_POLICY_CHANGE = "policy_change"
+
+    SOURCE_CHOICES = [
+        (SOURCE_DAILY_INSPECTION, "日更巡检"),
+        (SOURCE_SIGNAL, "投资信号"),
+        (SOURCE_MANUAL, "手动创建"),
+        (SOURCE_REGIME_CHANGE, "宏观象限变化"),
+        (SOURCE_POLICY_CHANGE, "政策档位变化"),
+    ]
+
+    # 执行状态
+    STATUS_PENDING = "pending"
+    STATUS_APPROVED = "approved"
+    STATUS_REJECTED = "rejected"
+    STATUS_EXECUTING = "executing"
+    STATUS_COMPLETED = "completed"
+    STATUS_FAILED = "failed"
+    STATUS_CANCELLED = "cancelled"
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "待审核"),
+        (STATUS_APPROVED, "已批准"),
+        (STATUS_REJECTED, "已拒绝"),
+        (STATUS_EXECUTING, "执行中"),
+        (STATUS_COMPLETED, "已完成"),
+        (STATUS_FAILED, "执行失败"),
+        (STATUS_CANCELLED, "已取消"),
+    ]
+
+    # 关联账户
+    account = models.ForeignKey(
+        SimulatedAccountModel,
+        on_delete=models.CASCADE,
+        related_name="rebalance_proposals",
+        verbose_name="所属账户",
+        db_index=True,
+    )
+
+    # 关联巡检报告（可选）
+    inspection_report = models.ForeignKey(
+        DailyInspectionReportModel,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="rebalance_proposals",
+        verbose_name="关联巡检报告",
+    )
+
+    # 关联策略（可选）
+    strategy = models.ForeignKey(
+        "strategy.StrategyModel",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="rebalance_proposals",
+        verbose_name="关联策略",
+    )
+
+    # 建议来源
+    source = models.CharField(
+        "建议来源",
+        max_length=50,
+        choices=SOURCE_CHOICES,
+        default=SOURCE_DAILY_INSPECTION,
+        db_index=True,
+    )
+
+    source_description = models.TextField(
+        "来源描述",
+        blank=True,
+        help_text="建议生成的原因说明",
+    )
+
+    # 状态
+    status = models.CharField(
+        "执行状态",
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        db_index=True,
+    )
+
+    # 优先级
+    priority = models.CharField(
+        "优先级",
+        max_length=20,
+        choices=[
+            ("low", "低"),
+            ("normal", "普通"),
+            ("high", "高"),
+            ("urgent", "紧急"),
+        ],
+        default="normal",
+        db_index=True,
+    )
+
+    # 建议详情（JSON）
+    proposals = models.JSONField(
+        "再平衡建议",
+        default=list,
+        help_text="""再平衡建议列表:
+        [
+            {
+                "asset_code": "512880.SH",
+                "asset_name": "证券ETF",
+                "action": "buy" | "sell" | "hold",
+                "current_quantity": 1000,
+                "current_weight": 0.25,
+                "target_weight": 0.30,
+                "suggested_quantity": 200,
+                "reason": "仓位偏离目标",
+                "estimated_amount": 5000.00
+            }
+        ]
+        """,
+    )
+
+    # 汇总信息（JSON）
+    summary = models.JSONField(
+        "汇总信息",
+        default=dict,
+        help_text="""汇总信息:
+        {
+            "total_value": 100000.00,
+            "current_cash": 5000.00,
+            "rebalance_assets": ["512880.SH", "515050.SH"],
+            "buy_count": 2,
+            "sell_count": 1,
+            "estimated_trade_amount": 15000.00
+        }
+        """,
+    )
+
+    # 审计字段
+    proposed_by = models.CharField(
+        "建议人",
+        max_length=100,
+        default="system",
+        help_text="谁创建了这个建议",
+    )
+
+    proposed_at = models.DateTimeField(
+        "建议时间",
+        auto_now_add=True,
+        db_index=True,
+    )
+
+    # 审核字段
+    reviewed_by = models.CharField(
+        "审核人",
+        max_length=100,
+        blank=True,
+    )
+
+    reviewed_at = models.DateTimeField(
+        "审核时间",
+        null=True,
+        blank=True,
+    )
+
+    review_comment = models.TextField(
+        "审核意见",
+        blank=True,
+    )
+
+    # 执行字段
+    executed_by = models.CharField(
+        "执行人",
+        max_length=100,
+        blank=True,
+    )
+
+    executed_at = models.DateTimeField(
+        "执行时间",
+        null=True,
+        blank=True,
+    )
+
+    execution_result = models.JSONField(
+        "执行结果",
+        null=True,
+        blank=True,
+        help_text="实际执行的交易结果",
+    )
+
+    # 元数据
+    metadata = models.JSONField(
+        "元数据",
+        default=dict,
+        blank=True,
+        help_text="额外的上下文信息",
+    )
+
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        db_table = "simulated_rebalance_proposal"
+        verbose_name = "再平衡建议草案"
+        verbose_name_plural = "再平衡建议草案"
+        ordering = ["-proposed_at"]
+        indexes = [
+            models.Index(fields=["account", "-proposed_at"]),
+            models.Index(fields=["status", "-proposed_at"]),
+            models.Index(fields=["source", "-proposed_at"]),
+            models.Index(fields=["priority", "-proposed_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.account.account_name} - {self.get_source_display()} - {self.get_status_display()}"
+
+    def approve(self, reviewed_by: str, comment: str = "") -> None:
+        """批准建议"""
+        self.status = self.STATUS_APPROVED
+        self.reviewed_by = reviewed_by
+        self.reviewed_at = timezone.now()
+        self.review_comment = comment
+        self.save()
+
+    def reject(self, reviewed_by: str, comment: str) -> None:
+        """拒绝建议"""
+        self.status = self.STATUS_REJECTED
+        self.reviewed_by = reviewed_by
+        self.reviewed_at = timezone.now()
+        self.review_comment = comment
+        self.save()
+
+    def start_execution(self, executed_by: str) -> None:
+        """开始执行"""
+        self.status = self.STATUS_EXECUTING
+        self.executed_by = executed_by
+        self.save()
+
+    def complete_execution(self, result: dict) -> None:
+        """完成执行"""
+        self.status = self.STATUS_COMPLETED
+        self.executed_at = timezone.now()
+        self.execution_result = result
+        self.save()
+
+    def fail_execution(self, error: str) -> None:
+        """执行失败"""
+        self.status = self.STATUS_FAILED
+        self.executed_at = timezone.now()
+        self.execution_result = {"error": error}
+        self.save()
+
+    def cancel(self) -> None:
+        """取消建议"""
+        self.status = self.STATUS_CANCELLED
+        self.save()
+
+    def get_rebalance_actions(self) -> dict:
+        """获取再平衡操作汇总"""
+        buy_actions = [p for p in self.proposals if p.get("action") == "buy"]
+        sell_actions = [p for p in self.proposals if p.get("action") == "sell"]
+
+        return {
+            "buy_count": len(buy_actions),
+            "sell_count": len(sell_actions),
+            "buy_assets": [p["asset_code"] for p in buy_actions],
+            "sell_assets": [p["asset_code"] for p in sell_actions],
+            "total_buy_amount": sum(p.get("estimated_amount", 0) for p in buy_actions),
+            "total_sell_amount": sum(p.get("estimated_amount", 0) for p in sell_actions),
+        }
+
+
+class NotificationHistoryModel(models.Model):
+    """
+    通知历史记录模型
+
+    记录所有发送的通知，用于追踪和审计。
+    """
+
+    # 通知通道类型
+    CHANNEL_EMAIL = "email"
+    CHANNEL_IN_APP = "in_app"
+    CHANNEL_ALERT = "alert"
+    CHANNEL_SMS = "sms"
+    CHANNEL_WEBHOOK = "webhook"
+
+    CHANNEL_CHOICES = [
+        (CHANNEL_EMAIL, "邮件"),
+        (CHANNEL_IN_APP, "站内"),
+        (CHANNEL_ALERT, "告警"),
+        (CHANNEL_SMS, "短信"),
+        (CHANNEL_WEBHOOK, "Webhook"),
+    ]
+
+    # 通知状态
+    STATUS_PENDING = "pending"
+    STATUS_SENDING = "sending"
+    STATUS_SENT = "sent"
+    STATUS_FAILED = "failed"
+    STATUS_RETRYING = "retrying"
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "待发送"),
+        (STATUS_SENDING, "发送中"),
+        (STATUS_SENT, "已发送"),
+        (STATUS_FAILED, "发送失败"),
+        (STATUS_RETRYING, "重试中"),
+    ]
+
+    # 关联账户（可选）
+    account = models.ForeignKey(
+        SimulatedAccountModel,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notifications",
+        verbose_name="关联账户",
+        db_index=True,
+    )
+
+    # 关联再平衡建议（可选）
+    rebalance_proposal = models.ForeignKey(
+        RebalanceProposalModel,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notifications",
+        verbose_name="关联再平衡建议",
+    )
+
+    # 通知类型
+    notification_type = models.CharField(
+        "通知类型",
+        max_length=50,
+        help_text="如: daily_inspection, rebalance_proposal, position_invalidated",
+        db_index=True,
+    )
+
+    # 通道
+    channel = models.CharField(
+        "通知通道",
+        max_length=20,
+        choices=CHANNEL_CHOICES,
+        db_index=True,
+    )
+
+    # 接收者
+    recipient_user_id = models.IntegerField(
+        "接收者用户ID",
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+
+    recipient_email = models.EmailField(
+        "接收者邮箱",
+        null=True,
+        blank=True,
+    )
+
+    # 通知内容
+    subject = models.CharField(
+        "通知主题",
+        max_length=500,
+    )
+
+    body = models.TextField(
+        "通知内容",
+    )
+
+    # 状态
+    status = models.CharField(
+        "发送状态",
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        db_index=True,
+    )
+
+    # 错误信息
+    error_message = models.TextField(
+        "错误信息",
+        blank=True,
+    )
+
+    # 重试信息
+    retry_count = models.IntegerField(
+        "重试次数",
+        default=0,
+    )
+
+    # 时间
+    created_at = models.DateTimeField(
+        "创建时间",
+        auto_now_add=True,
+        db_index=True,
+    )
+
+    sent_at = models.DateTimeField(
+        "发送时间",
+        null=True,
+        blank=True,
+    )
+
+    # 元数据
+    metadata = models.JSONField(
+        "元数据",
+        default=dict,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "simulated_notification_history"
+        verbose_name = "通知历史记录"
+        verbose_name_plural = "通知历史记录"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["account", "-created_at"]),
+            models.Index(fields=["status", "-created_at"]),
+            models.Index(fields=["channel", "-created_at"]),
+            models.Index(fields=["notification_type", "-created_at"]),
+            models.Index(fields=["recipient_user_id", "-created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.notification_type} - {self.recipient_email or self.recipient_user_id} - {self.status}"
+
+    def mark_sent(self) -> None:
+        """标记为已发送"""
+        self.status = self.STATUS_SENT
+        self.sent_at = timezone.now()
+        self.save()
+
+    def mark_failed(self, error: str) -> None:
+        """标记为失败"""
+        self.status = self.STATUS_FAILED
+        self.error_message = error
+        self.save()
+
+    def increment_retry(self) -> None:
+        """增加重试计数"""
+        self.retry_count += 1
+        self.status = self.STATUS_RETRYING
+        self.save()
 

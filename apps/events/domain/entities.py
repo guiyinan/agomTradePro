@@ -10,7 +10,7 @@ that integrates Beta Gate, Alpha Trigger, and Decision Rhythm modules.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Protocol
 from uuid import uuid4
@@ -128,6 +128,10 @@ class EventType(Enum):
     BACKTEST_COMPLETED = "backtest_completed"
     """回测任务完成时触发"""
 
+    # ========== Unknown 事件 ==========
+    UNKNOWN = "unknown"
+    """未知事件类型（用于处理无法识别的事件类型）"""
+
 
 @dataclass(frozen=True)
 class DomainEvent:
@@ -149,7 +153,7 @@ class DomainEvent:
         >>> event = DomainEvent(
         ...     event_id="evt_123",
         ...     event_type=EventType.REGIME_CHANGED,
-        ...     occurred_at=datetime.now(),
+        ...     occurred_at=datetime.now(timezone.utc),
         ...     payload={"old_regime": "Recovery", "new_regime": "Overheat"}
         ... )
     """
@@ -414,7 +418,7 @@ class EventBusConfig:
     enable_metrics: bool = True
 
 
-@dataclass(frozen=True)
+@dataclass
 class EventMetrics:
     """
     事件指标
@@ -436,6 +440,8 @@ class EventMetrics:
     total_subscribers: int = 0
     avg_processing_time_ms: float = 0.0
     last_event_at: Optional[datetime] = None
+    total_events: int = 0
+    events_by_type: Dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -494,7 +500,7 @@ def create_event(
     return DomainEvent(
         event_id=event_id or str(uuid4()),
         event_type=event_type,
-        occurred_at=occurred_at or datetime.now(),
+        occurred_at=occurred_at or datetime.now(timezone.utc),
         payload=payload,
         metadata=metadata or {},
     )

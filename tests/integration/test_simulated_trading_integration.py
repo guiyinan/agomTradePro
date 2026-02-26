@@ -508,9 +508,19 @@ class testEquityCurve(TestCase):
         # 应该至少有一天的数据
         self.assertGreater(len(curve), 0)
 
-        # 验证数据结构
+        # 验证数据结构（Phase 2 更新后的字段）
         if curve:
             point = curve[0]
+            # 验证完整字段：cash/market_value/net_value/drawdown_pct
             self.assertIn('date', point)
-            self.assertIn('trades_count', point)
-            self.assertIn('daily_pnl', point)
+            self.assertIn('net_value', point)
+            self.assertIn('cash', point)
+            self.assertIn('market_value', point)
+            self.assertIn('drawdown_pct', point)
+
+            # 验证净值 = 现金 + 持仓市值
+            self.assertAlmostEqual(
+                point['net_value'],
+                point['cash'] + point['market_value'],
+                places=2
+            )

@@ -33,6 +33,8 @@ from apps.audit.infrastructure.models import (
 from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
 from apps.macro.infrastructure.models import MacroIndicator
 from apps.regime.infrastructure.models import RegimeLog
+from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+from core.exceptions import InsufficientDataError, DataValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +56,11 @@ class GenerateAttributionReportResponse:
 class GenerateAttributionReportUseCase:
     """生成归因分析报告的用例"""
 
+    # 错误码常量
+    ERROR_NO_REGIME_DATA = "NO_REGIME_DATA"
+    ERROR_INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
+    ERROR_CANNOT_DETERMINE = "CANNOT_DETERMINE"
+
     def __init__(
         self,
         audit_repository: DjangoAuditRepository,
@@ -61,6 +68,7 @@ class GenerateAttributionReportUseCase:
     ):
         self.audit_repo = audit_repository
         self.backtest_repo = backtest_repository
+        self.regime_repo = DjangoRegimeRepository()
 
     def execute(
         self,
@@ -164,6 +172,12 @@ class GenerateAttributionReportUseCase:
                 or 'UNKNOWN'
             ) if normalized_regime_history else 'UNKNOWN'
 
+            # 5.5 计算 regime_actual（从 RegimeLog 获取实际数据）
+            regime_actual = self._calculate_regime_actual(
+                backtest_dict['start_date'],
+                backtest_dict['end_date']
+            )
+
             # 6. 保存归因报告
             report_id = self.audit_repo.save_attribution_report(
                 backtest_id=request.backtest_id,
@@ -175,7 +189,7 @@ class GenerateAttributionReportUseCase:
                 total_pnl=attribution.total_return,
                 regime_accuracy=regime_accuracy,
                 regime_predicted=dominant_regime,
-                regime_actual=None,  # TODO: 需要实际数据
+                regime_actual=regime_actual,
                 attribution_method=attribution.attribution_method.value,  # 归因方法标注
             )
 
@@ -216,6 +230,93 @@ class GenerateAttributionReportUseCase:
                 success=False,
                 error=str(e)
             )
+
+    def _calculate_regime_actual(
+        self,
+        start_date: date,
+        end_date: date
+    ) -> str:
+        """
+        计算回测期间的实际 Regime
+
+        从 RegimeLog 表获取实际的 Regime 判定数据，并计算回测期间的主导 Regime。
+        如果没有数据，返回明确的错误码而非空值。
+
+        Args:
+            start_date: 回测起始日期
+            end_date: 回测结束日期
+
+        Returns:
+            str: 实际的 Regime 值，或错误码
+                - "Recovery", "Overheat", "Stagflation", "Deflation": 正常值
+                - "ERROR:NO_REGIME_DATA": RegimeLog 表中没有数据
+                - "ERROR:INSUFFICIENT_DATA": 数据不足（少于30天）
+                - "ERROR:CANNOT_DETERMINE": 无法确定主导 Regime（分布过于分散）
+
+        Raises:
+            InsufficientDataError: 当回测期间没有足够的 Regime 数据时
+        """
+        # 1. 从 RegimeLog 获取期间的 Regime 数据
+        regime_snapshots = self.regime_repo.get_snapshots_in_range(start_date, end_date)
+
+        if not regime_snapshots:
+            # 尝试获取最近的 Regime 数据
+            latest_snapshot = self.regime_repo.get_latest_snapshot(before_date=end_date)
+            if latest_snapshot:
+                # 如果有最近的数据，但不在回测期间，返回带时间戳的错误
+                logger.warning(
+                    f"No regime data in backtest period [{start_date}, {end_date}]. "
+                    f"Using latest data from {latest_snapshot.observed_at}"
+                )
+                return f"EXTRAPOLATED:{latest_snapshot.dominant_regime}:{latest_snapshot.observed_at.isoformat()}"
+            else:
+                # 完全没有数据，返回明确的错误码
+                logger.error(f"No regime data available for period [{start_date}, {end_date}]")
+                return self.ERROR_NO_REGIME_DATA
+
+        # 2. 检查数据充足性
+        period_days = (end_date - start_date).days
+        data_points = len(regime_snapshots)
+        coverage_ratio = data_points / max(period_days, 1)
+
+        if data_points < 10:
+            logger.warning(
+                f"Insufficient regime data: only {data_points} points for {period_days} days"
+            )
+            return self.ERROR_INSUFFICIENT_DATA
+
+        # 3. 统计各 Regime 的出现频率
+        regime_counts = {}
+        for snapshot in regime_snapshots:
+            regime = snapshot.dominant_regime
+            regime_counts[regime] = regime_counts.get(regime, 0) + 1
+
+        # 4. 找出主导 Regime（出现频率最高）
+        max_count = max(regime_counts.values())
+        dominant_regimes = [r for r, c in regime_counts.items() if c == max_count]
+
+        # 5. 检查主导 Regime 的显著性
+        if len(dominant_regimes) > 1:
+            # 多个 Regime 并列第一，说明分布过于分散
+            logger.warning(f"Cannot determine dominant regime: {regime_counts}")
+            return self.ERROR_CANNOT_DETERMINE
+
+        dominant_regime = dominant_regimes[0]
+        dominance_ratio = max_count / data_points
+
+        # 6. 如果主导 Regime 不足 40%，认为无法确定
+        if dominance_ratio < 0.4:
+            logger.warning(
+                f"Dominant regime {dominant_regime} only accounts for {dominance_ratio:.1%} of period"
+            )
+            return self.ERROR_CANNOT_DETERMINE
+
+        logger.info(
+            f"Calculated regime_actual for [{start_date}, {end_date}]: "
+            f"{dominant_regime} ({dominance_ratio:.1%} dominance, {data_points} data points)"
+        )
+
+        return dominant_regime
 
     def _calculate_regime_accuracy(
         self,

@@ -1,8 +1,8 @@
 # AgomSAAF 文档索引
 
 > **AgomSAAF V3.4** - 宏观环境准入系统
-> **最后更新**: 2026-02-24
-> **项目状态**: 生产就绪（RC 阶段）
+> **最后更新**: 2026-02-26
+> **项目状态**: 生产就绪（RC2 阶段）
 
 ---
 
@@ -14,7 +14,7 @@
 | 新加入者 | [architecture/SYSTEM_OVERVIEW.md](architecture/SYSTEM_OVERVIEW.md) | 系统全景、模块说明、数据流 |
 | 外包团队 | [development/outsourcing-work-guidelines.md](development/outsourcing-work-guidelines.md) | **外包工作指南、代码规范、自查清单** |
 | 产品/业务 | [business/AgomSAAF_V3.4.md](business/AgomSAAF_V3.4.md) | 业务逻辑、金融规则、数据源 |
-| 最终用户 | [user/decision-platform-guide.md](user/decision-platform-guide.md) | 决策平台使用指南 |
+| 最终用户 | [user/topdown-bottomup-execution-playbook.md](user/topdown-bottomup-execution-playbook.md) | 环境-标的-执行-审计一体化操作手册 |
 | 产品/设计 | [frontend/ui-ux-full-page-audit-2026-02-18.md](frontend/ui-ux-full-page-audit-2026-02-18.md) | 全站页面 UI/UX 与功能清单 |
 | 产品/测试 | [frontend/ux-user-journey-checklist-2026-02-18.md](frontend/ux-user-journey-checklist-2026-02-18.md) | 用户旅程式 UX 检查清单 |
 | 运维人员 | [deployment/DOCKER_DEPLOYMENT.md](deployment/DOCKER_DEPLOYMENT.md) | 部署指南 |
@@ -67,6 +67,7 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [implementation-progress-summary.md](plans/implementation-progress-summary.md) | 总体进度总结（Phase 1-5 完成） | 最新 |
+| [post-v34-followup-roadmap-2026-02-26.md](plans/post-v34-followup-roadmap-2026-02-26.md) | V3.4 后续开发与完善路线图（12周） | ✅ 最新 |
 | [agomsaaf-qlib-integration-plan-v1.1.md](plans/agomsaaf-qlib-integration-plan-v1.1.md) | Qlib 集成方案 v1.1 | 完整 |
 | [factor-rotation-hedge-implementation-plan.md](plans/factor-rotation-hedge-implementation-plan.md) | 因子轮动对冲实施计划 | 完整 |
 | [sdk-mcp-implementation.md](plans/sdk-mcp-implementation.md) | SDK & MCP 实施方案 | 完整 |
@@ -85,7 +86,8 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [master-test-strategy-2026-02.md](testing/master-test-strategy-2026-02.md) | **全面测试策略（L0-L7 层级、门禁定义）** | ✅ 2026-02-24 更新 |
-| [requirements-traceability-matrix-2026-02.md](testing/requirements-traceability-matrix-2026-02.md) | **需求-测试追踪矩阵（RTM）** | ✅ 2026-02-24 更新 |
+| [outsourcing-acceptance-plan-post-v34-2026-02-26.md](testing/outsourcing-acceptance-plan-post-v34-2026-02-26.md) | 外包开发验收方案（V3.4 后续路线图） | ✅ 最新 |
+| [requirements-traceability-matrix-2026-02.md](testing/requirements-traceability-matrix-2026-02.md) | **需求-测试追踪矩阵（RTM）** | ✅ 2026-02-26 更新 |
 | [sdk-mcp-integration-test-plan.md](testing/sdk-mcp-integration-test-plan.md) | SDK & MCP 集成测试计划（1000行） | 完整 |
 | [full-integration-test-report.md](testing/full-integration-test-report.md) | 完整集成测试报告 | 完整 |
 | [system_algorithm_evaluation_report.md](testing/system_algorithm_evaluation_report.md) | 系统算法评估 | 完整 |
@@ -118,6 +120,7 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [decision-platform-guide.md](user/decision-platform-guide.md) | 决策平台用户指南（442行） | 完整 |
+| [topdown-bottomup-execution-playbook.md](user/topdown-bottomup-execution-playbook.md) | 环境-标的-执行-审计一体化操作手册 | ✅ 最新 |
 
 ### 8.1 前端体验 (`frontend/`)
 
@@ -257,7 +260,14 @@
 
 ---
 
-## 最近更新 (2026-02-20 ~ 2026-02-24)
+## 最近更新 (2026-02-20 ~ 2026-02-26)
+
+### 2026-02-26
+- ✅ Phase 3: 完善 RTM 和 CI 门禁
+- ✅ 新增"主链路禁止 501"守护测试（8项静态检查）
+- ✅ 更新 CI 配置添加新守护测试和 RTM 检查
+- ✅ RTM Pending 项全部完成（R-SIG-001, R-AUD-001）
+- ✅ **V3.4-RC2: RTM 关键项 100% 通过**
 
 ### 2026-02-24
 - ✅ 执行全面测试（L0-L6 层级）
@@ -294,4 +304,4 @@
 ---
 
 **文档维护**: AgomSAAF Team
-**最后更新**: 2026-02-24
+**最后更新**: 2026-02-26

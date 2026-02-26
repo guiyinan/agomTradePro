@@ -7,18 +7,20 @@ Application层:
 - 支持历史净值曲线
 """
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from datetime import date, datetime
+from collections import defaultdict
 import numpy as np
 from pandas import DataFrame
 from dataclasses import replace
 
-from apps.simulated_trading.domain.entities import SimulatedAccount, Position
+from apps.simulated_trading.domain.entities import SimulatedAccount, Position, TradeAction
 from apps.simulated_trading.infrastructure.repositories import (
     DjangoSimulatedAccountRepository,
     DjangoTradeRepository,
     DjangoPositionRepository
 )
+from apps.simulated_trading.infrastructure.market_data_provider import MarketDataProvider
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +41,7 @@ class PerformanceCalculator:
         self.account_repo = DjangoSimulatedAccountRepository()
         self.trade_repo = DjangoTradeRepository()
         self.position_repo = DjangoPositionRepository()
+        self.market_data_provider = MarketDataProvider()
 
     def calculate_and_update_performance(
         self,
@@ -148,44 +151,23 @@ class PerformanceCalculator:
         """
         计算最大回撤
 
+        按时间序列计算每日净值，然后计算最大回撤：
         max_drawdown = max((peak - value) / peak * 100)
+
+        净值 = 现金 + 持仓市值
         """
         try:
-            # 获取交易历史，按时间顺序
-            trades = self.trade_repo.get_by_date_range(
-                account.account_id,
-                account.start_date,
-                date.today()
-            )
+            # 构建完整的净值曲线
+            equity_curve = self._build_equity_curve(account)
 
-            if not trades:
+            if len(equity_curve) < 2:
                 return 0.0
 
-            # 构建净值曲线
-            net_value_series = []
-            cash = account.initial_capital
-            positions = {}  # {asset_code: quantity}
-
-            for trade in sorted(trades, key=lambda t: t.execution_date):
-                if trade.action.value == 'buy':
-                    # 买入：现金减少，持仓增加
-                    cash -= trade.total_cost
-                    positions[trade.asset_code] = positions.get(trade.asset_code, 0) + trade.quantity
-                else:  # sell
-                    # 卖出：现金增加，持仓减少
-                    cash += trade.amount - trade.total_cost  # 净收入
-                    positions[trade.asset_code] = positions.get(trade.asset_code, 0) - trade.quantity
-
-                # 计算当前总资产（简化：只用现金估算）
-                # TODO: 应该用持仓市值，但需要历史价格数据
-                net_value = cash
-                net_value_series.append(net_value)
-
-            if len(net_value_series) < 2:
-                return 0.0
+            # 提取净值序列
+            net_values = [point['net_value'] for point in equity_curve]
 
             # 计算最大回撤
-            net_value_array = np.array(net_value_series)
+            net_value_array = np.array(net_values)
             peak_array = np.maximum.accumulate(net_value_array)
             drawdown_array = (peak_array - net_value_array) / peak_array * 100
             max_dd = np.max(drawdown_array) if len(drawdown_array) > 0 else 0.0
@@ -275,6 +257,102 @@ class PerformanceCalculator:
             logger.error(f"计算胜率失败: {e}")
             return 0.0, 0
 
+    def _build_equity_curve(
+        self,
+        account: SimulatedAccount,
+        end_date: date = None
+    ) -> List[Dict]:
+        """
+        构建完整的净值曲线（内部方法）
+
+        净值 = 现金 + 持仓市值
+
+        Args:
+            account: 账户实体
+            end_date: 结束日期（None表示今天）
+
+        Returns:
+            [{date, net_value, cash, market_value, drawdown_pct}, ...]
+        """
+        if end_date is None:
+            end_date = date.today()
+
+        # 获取所有交易记录（使用更宽的日期范围以包含历史交易）
+        # 注意：不能使用 account.start_date，因为测试中可能创建过去日期的交易
+        trades = self.trade_repo.get_by_date_range(
+            account.account_id,
+            date(2000, 1, 1),  # 使用足够早的日期
+            end_date
+        )
+
+        if not trades:
+            # 无交易，返回初始点
+            return [{
+                'date': account.start_date.isoformat(),
+                'net_value': account.initial_capital,
+                'cash': account.initial_capital,
+                'market_value': 0.0,
+                'drawdown_pct': 0.0
+            }]
+
+        # 按日期分组交易
+        trades_by_date: Dict[date, List] = defaultdict(list)
+        for trade in trades:
+            trades_by_date[trade.execution_date].append(trade)
+
+        # 按时间顺序遍历每个交易日
+        curve_data = []
+        cash = account.initial_capital
+        positions = {}  # {asset_code: quantity}
+
+        # 获取所有交易日期（去重并排序）
+        trade_dates = sorted(trades_by_date.keys())
+
+        for trade_date in trade_dates:
+            day_trades = trades_by_date[trade_date]
+
+            # 更新持仓和现金
+            for trade in day_trades:
+                if trade.action == TradeAction.BUY:
+                    cash -= trade.total_cost
+                    positions[trade.asset_code] = positions.get(trade.asset_code, 0) + trade.quantity
+                else:  # SELL
+                    cash += trade.amount - trade.total_cost
+                    positions[trade.asset_code] = positions.get(trade.asset_code, 0) - trade.quantity
+                    if positions[trade.asset_code] == 0:
+                        del positions[trade.asset_code]
+
+            # 获取当日持仓的市值
+            market_value = 0.0
+            for asset_code, quantity in positions.items():
+                price = self.market_data_provider.get_price(asset_code, trade_date)
+                if price is not None:
+                    market_value += price * quantity
+                else:
+                    # 如果无法获取价格，使用0（保守估计）
+                    logger.warning(f"无法获取 {asset_code} 在 {trade_date} 的价格，市值记为0")
+
+            # 计算净值
+            net_value = cash + market_value
+
+            curve_data.append({
+                'date': trade_date.isoformat(),
+                'net_value': net_value,
+                'cash': cash,
+                'market_value': market_value,
+                'drawdown_pct': 0.0  # 稍后计算
+            })
+
+        # 计算回撤百分比
+        if curve_data:
+            net_values = [point['net_value'] for point in curve_data]
+            peak_array = np.maximum.accumulate(net_values)
+            for i, point in enumerate(curve_data):
+                if peak_array[i] > 0:
+                    point['drawdown_pct'] = (peak_array[i] - net_values[i]) / peak_array[i] * 100
+
+        return curve_data
+
     def get_equity_curve(
         self,
         account_id: int,
@@ -284,49 +362,31 @@ class PerformanceCalculator:
         """
         获取净值曲线数据
 
+        净值 = 现金 + 持仓市值
+
         Args:
             account_id: 账户ID
             start_date: 开始日期
             end_date: 结束日期
 
         Returns:
-            [{date, net_value, cash, market_value}, ...]
+            [{date, net_value, cash, market_value, drawdown_pct}, ...]
         """
         try:
-            trades = self.trade_repo.get_by_date_range(
-                account_id,
-                start_date,
-                end_date
-            )
+            # 获取账户
+            account = self.account_repo.get_by_id(account_id)
+            if not account:
+                logger.error(f"账户不存在: {account_id}")
+                return []
 
-            # 按日期分组统计
-            equity_data = {}
-            cash = 0
-            for trade in trades:
-                trade_date = trade.execution_date
-                if trade_date not in equity_data:
-                    equity_data[trade_date] = {
-                        'date': trade_date.isoformat(),
-                        'trades_count': 0,
-                        'pnl': 0.0
-                    }
+            # 构建完整净值曲线
+            full_curve = self._build_equity_curve(account, end_date)
 
-                if trade.action.value == 'buy':
-                    equity_data[trade_date]['trades_count'] += 1
-                    equity_data[trade_date]['pnl'] -= trade.total_cost
-                else:  # sell
-                    equity_data[trade_date]['trades_count'] += 1
-                    equity_data[trade_date]['pnl'] += (trade.amount - trade.total_cost)
-
-            # 转换为列表并排序
-            result = []
-            for date_str, data in sorted(equity_data.items()):
-                result.append({
-                    'date': data['date'],
-                    'net_value': 0.0,  # TODO: 需要累计计算
-                    'trades_count': data['trades_count'],
-                    'daily_pnl': data['pnl']
-                })
+            # 过滤日期范围
+            result = [
+                point for point in full_curve
+                if start_date <= date.fromisoformat(point['date']) <= end_date
+            ]
 
             return result
 

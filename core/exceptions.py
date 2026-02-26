@@ -196,3 +196,19 @@ class MissingConfigError(ConfigurationError):
 
     default_message = "缺少必要配置"
     default_code = "MISSING_CONFIG"
+
+
+# ========== Data Errors ==========
+
+class InsufficientDataError(BusinessLogicError):
+    """Raised when there is insufficient data to perform an operation."""
+
+    default_message = "数据不足，无法执行操作"
+    default_code = "INSUFFICIENT_DATA"
+
+
+class DataValidationError(BusinessLogicError):
+    """Raised when data validation fails."""
+
+    default_message = "数据验证失败"
+    default_code = "DATA_VALIDATION_ERROR"

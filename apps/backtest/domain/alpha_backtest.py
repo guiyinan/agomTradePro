@@ -289,6 +289,12 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
             for r in rebalance_records
         ) / len(rebalance_records) if rebalance_records else 0
 
+        # 计算换手率
+        turnover_rate = self._calculate_turnover_rate(rebalance_records)
+
+        # 计算 ICIR（IC 信息比率）
+        icir = self._calculate_icir(ics)
+
         # 构造结果
         return AlphaBacktestResult(
             config=self.config,
@@ -303,7 +309,7 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
             total_rebalances=len(rebalance_dates),
             total_trades=total_trades,
             avg_holding_period=30.0,  # 简化假设
-            turnover_rate=0.0,  # TODO: 计算
+            turnover_rate=turnover_rate,
             avg_positions=sum(len(r.selected_stocks) for r in rebalance_records) / len(rebalance_records) if rebalance_records else 0,
             win_rate=win_rate,
             avg_win=avg_win,
@@ -313,10 +319,78 @@ class AlphaBacktestEngine(StockSelectionBacktestEngine):
             stock_performances=stock_performances,
             avg_ic=sum(ics) / len(ics) if ics else 0.0,
             avg_rank_ic=sum(rank_ics) / len(rank_ics) if rank_ics else 0.0,
-            icir=0.0,  # TODO: 计算
+            icir=icir,
             coverage_ratio=avg_coverage,
             provider_usage=self.provider_usage,
         )
+
+    def _calculate_turnover_rate(
+        self,
+        rebalance_records: List[RebalanceRecord]
+    ) -> float:
+        """
+        计算换手率
+
+        换手率 = (买入金额 + 卖出金额) / (2 * 组合平均价值)
+
+        Args:
+            rebalance_records: 再平衡记录列表
+
+        Returns:
+            float: 平均换手率
+        """
+        if not rebalance_records:
+            return 0.0
+
+        turnover_rates = []
+
+        for record in rebalance_records:
+            # 换手率 = (卖出数量 + 买入数量) / (2 * 持仓数量)
+            sold_count = len(record.sold_stocks)
+            bought_count = len(record.bought_stocks)
+            total_positions = len(record.selected_stocks)
+
+            if total_positions > 0:
+                turnover = (sold_count + bought_count) / (2 * total_positions)
+                turnover_rates.append(turnover)
+
+        if not turnover_rates:
+            return 0.0
+
+        return sum(turnover_rates) / len(turnover_rates)
+
+    def _calculate_icir(self, ics: List[float]) -> float:
+        """
+        计算 ICIR（IC 信息比率）
+
+        ICIR = mean(IC) / std(IC)
+
+        ICIR 衡量 Alpha 因子的预测稳定性，
+        类似于 Sharpe Ratio，但衡量的是 IC 值的稳定性。
+
+        Args:
+            ics: IC 值列表
+
+        Returns:
+            float: ICIR 值
+        """
+        if len(ics) < 2:
+            return 0.0
+
+        import statistics
+
+        mean_ic = statistics.mean(ics)
+
+        try:
+            std_ic = statistics.stdev(ics)
+        except statistics.StatisticsError:
+            # 标准差为零（所有 IC 值相同）
+            return 0.0
+
+        if std_ic == 0:
+            return 0.0
+
+        return mean_ic / std_ic
 
 
 @dataclass

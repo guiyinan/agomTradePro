@@ -5,10 +5,13 @@ Account Application Use Cases
 遵循四层架构：协调Domain层服务和Infrastructure层仓储。
 """
 
+import logging
 from decimal import Decimal
 from typing import List, Optional, Dict
 from datetime import datetime, date
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 from apps.account.domain.entities import (
     AccountProfile,
@@ -30,6 +33,7 @@ from apps.account.infrastructure.repositories import (
     TransactionRepository,
     AssetMetadataRepository,
 )
+from apps.account.infrastructure.market_price_service import MarketPriceService
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 
 
@@ -69,10 +73,12 @@ class CreatePositionUseCase:
         position_repo: PositionRepository,
         account_repo: AccountRepository,
         asset_meta_repo: AssetMetadataRepository,
+        market_price_service: MarketPriceService = None,
     ):
         self.position_repo = position_repo
         self.account_repo = account_repo
         self.asset_meta_repo = asset_meta_repo
+        self.market_price_service = market_price_service or MarketPriceService()
 
     def execute(self, input: CreatePositionInput) -> CreatePositionOutput:
         """
@@ -82,8 +88,9 @@ class CreatePositionUseCase:
         1. 获取用户账户配置
         2. 如果未指定shares，根据风险偏好自动计算
         3. 获取或创建资产元数据
-        4. 创建持仓记录
-        5. 创建交易记录
+        4. 确定价格（优先使用输入价格，否则从行情接口获取）
+        5. 创建持仓记录
+        6. 创建交易记录
         """
         # 1. 获取用户配置
         profile = self.account_repo.get_by_user_id(input.user_id)
@@ -99,10 +106,15 @@ class CreatePositionUseCase:
             name=input.asset_code,  # 简化处理，实际应从接口获取名称
         )
 
-        # 4. 确定价格
+        # 4. 确定价格（从行情接口获取，而非硬编码）
         price = input.price
         if price is None:
-            price = Decimal("100.0")  # TODO: 从行情接口获取
+            price = self._get_market_price(input.asset_code)
+            if price is None:
+                raise ValueError(
+                    f"无法获取资产 {input.asset_code} 的价格，"
+                    f"请检查资产代码或手动指定价格"
+                )
 
         # 5. 计算仓位（如果未指定）
         if input.shares is None:
@@ -133,6 +145,27 @@ class CreatePositionUseCase:
             cash_required=Decimal(str(shares * float(price))),
         )
 
+    def _get_market_price(self, asset_code: str) -> Optional[Decimal]:
+        """
+        从行情接口获取资产价格
+
+        Args:
+            asset_code: 资产代码
+
+        Returns:
+            Decimal: 价格，获取失败返回 None
+        """
+        price_metadata = self.market_price_service.get_price_with_metadata(asset_code)
+        if price_metadata:
+            logger.info(
+                f"从行情接口获取价格: {asset_code} = {price_metadata['price']} "
+                f"(来源: {price_metadata['source']})"
+            )
+            return price_metadata["price"]
+
+        logger.warning(f"无法从行情接口获取价格: {asset_code}")
+        return None
+
 
 class CreatePositionFromSignalUseCase:
     """从投资信号创建持仓用例"""
@@ -141,9 +174,11 @@ class CreatePositionFromSignalUseCase:
         self,
         position_repo: PositionRepository,
         account_repo: AccountRepository,
+        market_price_service: MarketPriceService = None,
     ):
         self.position_repo = position_repo
         self.account_repo = account_repo
+        self.market_price_service = market_price_service or MarketPriceService()
 
     def execute(
         self,
@@ -156,18 +191,39 @@ class CreatePositionFromSignalUseCase:
 
         流程：
         1. 验证信号归属
-        2. 计算建议仓位
-        3. 创建持仓
-        4. 记录信号关联
+        2. 获取资产代码（从信号中）
+        3. 确定价格（从行情接口获取）
+        4. 创建持仓
+        5. 记录信号关联
         """
+        from apps.signal.infrastructure.models import InvestmentSignalModel
+
         # 获取用户配置
         profile = self.account_repo.get_by_user_id(user_id)
         if not profile:
             raise ValueError(f"用户 {user_id} 账户配置不存在")
 
-        # 确定价格
+        # 获取信号信息
+        try:
+            signal = InvestmentSignalModel._default_manager.get(id=signal_id, user_id=user_id)
+        except InvestmentSignalModel.DoesNotExist:
+            raise ValueError(f"信号 {signal_id} 不存在或无权限")
+
+        # 确定价格（从行情接口获取，而非硬编码）
         if price is None:
-            price = Decimal("100.0")  # TODO: 从行情接口获取
+            asset_code = signal.asset_code
+            price_metadata = self.market_price_service.get_price_with_metadata(asset_code)
+            if price_metadata:
+                price = price_metadata["price"]
+                logger.info(
+                    f"从行情接口获取价格: {asset_code} = {price} "
+                    f"(来源: {price_metadata['source']})"
+                )
+            else:
+                raise ValueError(
+                    f"无法获取资产 {asset_code} 的价格，"
+                    f"请检查资产代码或手动指定价格"
+                )
 
         # 创建持仓（会自动记录信号关联）
         position = self.position_repo.create_position_from_signal(
@@ -344,10 +400,12 @@ class CreatePositionFromBacktestUseCase:
         position_repo: PositionRepository,
         account_repo: AccountRepository,
         asset_meta_repo: AssetMetadataRepository,
+        market_price_service: MarketPriceService = None,
     ):
         self.position_repo = position_repo
         self.account_repo = account_repo
         self.asset_meta_repo = asset_meta_repo
+        self.market_price_service = market_price_service or MarketPriceService()
 
     def execute(self, input: CreatePositionFromBacktestInput) -> CreatePositionFromBacktestOutput:
         """
@@ -405,9 +463,20 @@ class CreatePositionFromBacktestUseCase:
                 region=self._infer_region(asset_class),
             )
 
-            # 获取当前价格（使用回测结束时的价格或最新价格）
-            from decimal import Decimal
-            price = Decimal(str(holding.get('price', 100.0)))
+            # 获取当前价格（优先使用行情接口，否则使用回测价格）
+            price_metadata = self.market_price_service.get_price_with_metadata(asset_code)
+            if price_metadata:
+                price = price_metadata["price"]
+                logger.info(
+                    f"从行情接口获取价格: {asset_code} = {price} "
+                    f"(来源: {price_metadata['source']})"
+                )
+            else:
+                # 如果行情接口失败，使用回测中的价格作为后备
+                price = Decimal(str(holding.get('price', 100.0)))
+                logger.warning(
+                    f"无法从行情接口获取价格，使用回测价格: {asset_code} = {price}"
+                )
 
             # 创建持仓
             position = self.position_repo.create_position(

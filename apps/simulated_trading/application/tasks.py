@@ -429,31 +429,55 @@ def daily_portfolio_inspection_task(
     account_id: int = 679,
     strategy_id: Optional[int] = 4,
     inspection_date: Optional[str] = None,
+    auto_create_proposal: bool = True,
 ) -> Dict[str, Any]:
     """
     日更巡检任务（ETF稳健组合）
 
     默认巡检账户 679，自动读取策略 4 及其仓位规则。
+    可选择是否自动创建再平衡建议草案。
+
+    Args:
+        account_id: 账户ID
+        strategy_id: 策略ID
+        inspection_date: 巡检日期
+        auto_create_proposal: 是否自动创建再平衡建议
     """
     target_date = date.fromisoformat(inspection_date) if inspection_date else date.today()
     logger.info(
-        "开始执行日更巡检: account_id=%s, strategy_id=%s, date=%s",
+        "开始执行日更巡检: account_id=%s, strategy_id=%s, date=%s, auto_proposal=%s",
         account_id,
         strategy_id,
         target_date,
+        auto_create_proposal,
     )
     try:
-        result = DailyInspectionService.run(
+        # 使用新方法运行巡检并可能创建再平衡建议
+        result = DailyInspectionService.run_and_create_proposal(
             account_id=account_id,
             inspection_date=target_date,
             strategy_id=strategy_id,
+            auto_create_proposal=auto_create_proposal,
         )
+
+        # 发送巡检邮件通知
         _send_daily_inspection_email(result=result)
+
+        # 如果创建了再平衡建议，发送额外通知
+        if result.get("proposal_created"):
+            _send_rebalance_proposal_notification(result=result)
+            logger.info(
+                "已创建再平衡建议: account_id=%s, proposal_id=%s",
+                account_id,
+                result["proposal_id"],
+            )
+
         logger.info(
-            "日更巡检完成: account_id=%s, report_id=%s, status=%s",
+            "日更巡检完成: account_id=%s, report_id=%s, status=%s, proposal_id=%s",
             account_id,
             result["report_id"],
             result["status"],
+            result.get("proposal_id"),
         )
         return {"success": True, **result}
     except SimulatedAccountModel.DoesNotExist:
@@ -543,6 +567,180 @@ def _send_daily_inspection_email(result: Dict[str, Any]) -> None:
         fail_silently=True,
     )
     logger.info("巡检邮件已发送: account_id=%s recipients=%s", result.get("account_id"), recipients)
+
+
+def _send_rebalance_proposal_notification(result: Dict[str, Any]) -> None:
+    """发送再平衡建议通知（邮件 + 站内）。"""
+    if not result.get("proposal_id"):
+        return
+
+    account_id = result.get("account_id")
+    proposal_id = result["proposal_id"]
+    summary = result.get("summary", {})
+
+    account = SimulatedAccountModel._default_manager.filter(id=account_id).select_related("user").first()
+    if not account:
+        logger.warning("无法发送再平衡建议通知：账户不存在 account_id=%s", account_id)
+        return
+
+    # 获取再平衡建议详情
+    from apps.simulated_trading.infrastructure.models import RebalanceProposalModel
+    proposal = RebalanceProposalModel._default_manager.filter(id=proposal_id).first()
+    if not proposal:
+        logger.warning("无法发送再平衡建议通知：建议不存在 proposal_id=%s", proposal_id)
+        return
+
+    # 获取通知配置
+    config, _ = DailyInspectionNotificationConfigModel._default_manager.get_or_create(
+        account=account
+    )
+
+    if not config.is_enabled:
+        return
+
+    # 收集收件人邮箱
+    recipients: list[str] = []
+    if config.include_owner_email and account.user and account.user.email:
+        recipients.append(account.user.email)
+
+    recipients.extend([str(x).strip() for x in (config.recipient_emails or []) if str(x).strip()])
+    recipients = sorted(set(recipients))
+
+    # 发送邮件通知
+    if recipients:
+        subject = (
+            f"[AgomSAAF] 再平衡建议待审核 "
+            f"account={account.account_name} proposal_id={proposal_id}"
+        )
+        lines = [
+            f"账户: {account.account_name} (ID: {account_id})",
+            f"建议ID: {proposal_id}",
+            f"巡检日期: {result.get('inspection_date')}",
+            f"优先级: {proposal.get_priority_display()}",
+            f"状态: {proposal.get_status_display()}",
+            "",
+            "再平衡摘要:",
+            f"- 需要调整的资产数: {summary.get('rebalance_required_count', 0)}",
+            f"- 买入操作: {len([p for p in proposal.proposals if p['action'] == 'buy'])}",
+            f"- 卖出操作: {len([p for p in proposal.proposals if p['action'] == 'sell'])}",
+            f"- 预计交易金额: {sum(p.get('estimated_amount', 0) for p in proposal.proposals):.2f} 元",
+            "",
+            "调整明细:",
+        ]
+
+        for item in proposal.proposals[:10]:
+            action_emoji = "🔴" if item["action"] == "sell" else "🟢"
+            lines.append(
+                f"{action_emoji} {item['asset_code']} ({item['asset_name']}): "
+                f"{item['action']} {item['suggested_quantity']} 股, "
+                f"金额约 {item['estimated_amount']:.2f} 元"
+            )
+
+        if len(proposal.proposals) > 10:
+            lines.append(f"... 还有 {len(proposal.proposals) - 10} 个资产")
+
+        lines.extend([
+            "",
+            f"原因: {proposal.source_description}",
+            "",
+            "请登录系统审核并执行此再平衡建议。",
+            "-" * 50,
+        ])
+
+        send_mail(
+            subject=subject,
+            message="\n".join(lines),
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@agomsaaf.com"),
+            recipient_list=recipients,
+            fail_silently=True,
+        )
+        logger.info("再平衡建议邮件已发送: proposal_id=%s recipients=%s", proposal_id, recipients)
+
+    # 创建站内通知（如果用户存在）
+    if account.user:
+        from shared.infrastructure.notification_service import (
+            InAppNotificationChannel,
+            NotificationMessage,
+            NotificationRecipient,
+            NotificationPriority,
+        )
+
+        try:
+            channel = InAppNotificationChannel()
+            message = NotificationMessage(
+                subject="再平衡建议待审核",
+                body=f"账户 {account.account_name} 的日更巡检发现了 {summary.get('rebalance_required_count', 0)} 个需要调整的资产，请审核再平衡建议 #{proposal_id}。",
+                priority=NotificationPriority.HIGH,
+                metadata={
+                    "proposal_id": proposal_id,
+                    "account_id": account_id,
+                    "inspection_date": result.get("inspection_date"),
+                },
+                tags=["rebalance", "daily_inspection"],
+            )
+
+            recipient = NotificationRecipient(user_id=account.user.id)
+            result_notify = channel.send(message, recipient, NotificationConfig())
+
+            if result_notify.success:
+                logger.info("站内通知已发送: user_id=%s proposal_id=%s", account.user.id, proposal_id)
+            else:
+                logger.warning("站内通知发送失败: %s", result_notify.error_message)
+
+        except Exception as e:
+            logger.warning("创建站内通知失败: %s", e)
+
+    # 记录通知历史
+    _record_notification_history(
+        account=account,
+        proposal=proposal,
+        notification_type="rebalance_proposal",
+        recipients=recipients,
+        status="sent" if recipients else "skipped",
+    )
+
+
+def _record_notification_history(
+    account: SimulatedAccountModel,
+    proposal: Any,
+    notification_type: str,
+    recipients: list[str],
+    status: str,
+) -> None:
+    """记录通知历史"""
+    from apps.simulated_trading.infrastructure.models import NotificationHistoryModel
+
+    try:
+        # 为每个收件人创建记录
+        for email in recipients:
+            NotificationHistoryModel._default_manager.create(
+                account=account,
+                rebalance_proposal=proposal,
+                notification_type=notification_type,
+                channel="email",
+                recipient_user_id=account.user.id if account.user else None,
+                recipient_email=email,
+                subject=f"再平衡建议待审核 #{proposal.id}",
+                body=f"账户 {account.account_name} 的再平衡建议需要审核。",
+                status=status,
+            )
+
+        logger.debug("通知历史已记录: account_id=%s type=%s", account.id, notification_type)
+
+    except Exception as e:
+        logger.warning("记录通知历史失败: %s", e)
+
+
+class NotificationConfig:
+    """通知配置（用于 notification_service）"""
+    max_retries = 3
+    initial_retry_delay = 1.0
+    retry_backoff_factor = 2.0
+    max_retry_delay = 60.0
+    timeout_seconds = 30
+    enable_retry = True
+    enable_alert_on_failure = True
+    alert_threshold = 3
 
 
 # ============================================================================

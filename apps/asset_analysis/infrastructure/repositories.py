@@ -5,11 +5,82 @@
 仓储实现了 Domain 层定义的 Protocol 接口。
 """
 
-from typing import Optional, List
+from typing import Optional, List, Union
+from datetime import date
 
 from apps.asset_analysis.domain.interfaces import WeightConfigRepositoryProtocol, AssetRepositoryProtocol
 from apps.asset_analysis.domain.value_objects import WeightConfig
+from apps.asset_analysis.domain.entities import AssetScore, AssetType, AssetStyle, AssetSize
 from apps.asset_analysis.infrastructure.models import WeightConfigModel
+
+
+class AssetRepositoryFactory:
+    """
+    资产仓储工厂
+
+    根据资产类型返回对应的仓储实例。
+    """
+
+    _repositories = {
+        "fund": None,  # 延迟加载，避免循环导入
+        "equity": None,
+        "bond": None,
+        "commodity": None,
+        "index": None,
+        "sector": None,
+    }
+
+    @classmethod
+    def get_repository(cls, asset_type: str) -> AssetRepositoryProtocol:
+        """
+        获取指定资产类型的仓储
+
+        Args:
+            asset_type: 资产类型（fund/equity/bond等）
+
+        Returns:
+            对应的资产仓储实例
+
+        Raises:
+            ValueError: 不支持的资产类型
+        """
+        if asset_type not in cls._repositories:
+            raise ValueError(f"不支持的资产类型: {asset_type}")
+
+        # 延迟加载仓储实例
+        if cls._repositories[asset_type] is None:
+            if asset_type == "fund":
+                from apps.fund.infrastructure.repositories import DjangoFundAssetRepository
+                cls._repositories[asset_type] = DjangoFundAssetRepository()
+            elif asset_type == "equity":
+                from apps.equity.infrastructure.repositories import DjangoEquityAssetRepository
+                cls._repositories[asset_type] = DjangoEquityAssetRepository()
+            elif asset_type in ("bond", "commodity", "index", "sector"):
+                # 对于尚未实现的资产类型，使用空仓储
+                cls._repositories[asset_type] = EmptyAssetRepository()
+            else:
+                raise ValueError(f"不支持的资产类型: {asset_type}")
+
+        return cls._repositories[asset_type]
+
+
+class EmptyAssetRepository(AssetRepositoryProtocol):
+    """
+    空资产仓储（用于未实现的资产类型）
+    """
+
+    def get_assets_by_filter(
+        self,
+        asset_type: str,
+        filters: dict,
+        max_count: int = 100
+    ) -> List:
+        """返回空列表"""
+        return []
+
+    def get_asset_by_code(self, asset_type: str, asset_code: str) -> Optional:
+        """返回 None"""
+        return None
 
 
 class DjangoWeightConfigRepository(WeightConfigRepositoryProtocol):
@@ -154,8 +225,7 @@ class DjangoAssetRepository(AssetRepositoryProtocol):
     """
     资产仓储实现（通用）
 
-    这是一个基础实现，具体的资产类型（Fund、Equity）应该
-    继承此类或实现自己的仓储。
+    这是一个适配器仓储，根据资产类型委托给具体的资产仓储。
     """
 
     def get_assets_by_filter(
@@ -167,23 +237,17 @@ class DjangoAssetRepository(AssetRepositoryProtocol):
         """
         根据过滤条件获取资产列表
 
-        这是一个通用实现，实际使用时需要根据具体的资产类型
-        （Fund、Equity 等）进行适配。
+        委托给具体资产类型的仓储实现。
         """
-        # 这里需要根据具体的资产类型进行查询
-        # 例如：对于基金，查询 FundModel
-        # 对于股票，查询 EquityModel
-
-        # 作为一个占位实现，返回空列表
-        # 实际的 Fund/Equity 模块应该实现自己的仓储
-        return []
+        repo = AssetRepositoryFactory.get_repository(asset_type)
+        return repo.get_assets_by_filter(asset_type, filters, max_count)
 
     def get_asset_by_code(self, asset_type: str, asset_code: str) -> Optional:
         """
         根据代码获取资产
 
-        这是一个通用实现，实际使用时需要根据具体的资产类型
-        （Fund、Equity 等）进行适配。
+        委托给具体资产类型的仓储实现。
         """
-        return None
+        repo = AssetRepositoryFactory.get_repository(asset_type)
+        return repo.get_asset_by_code(asset_type, asset_code)
 

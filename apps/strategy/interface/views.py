@@ -6,6 +6,7 @@ Interface层:
 - 使用DRF ViewSet组织API
 - 只做输入验证和输出格式化，禁止业务逻辑
 """
+import logging
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -751,21 +752,127 @@ def strategy_toggle_status(request, strategy_id):
 
 @login_required
 def strategy_execute(request, strategy_id):
-    """立即执行策略"""
+    """
+    立即执行策略
+
+    支持两种模式:
+    1. 单个投资组合执行 (portfolio_id 参数)
+    2. 所有绑定投资组合执行 (无参数)
+    """
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': '只支持 POST 请求'})
 
+    import json
+
     strategy = get_object_or_404(StrategyModel, id=strategy_id, created_by=request.user.account_profile)
 
-    # TODO: 调用策略执行引擎
-    # from apps.strategy.application.strategy_executor import StrategyExecutor
-    # executor = StrategyExecutor()
-    # results = []
-    # for portfolio in strategy.portfolios.filter(is_active=True):
-    #     result = executor.execute_strategy(strategy.id, portfolio.id)
-    #     results.append(result)
+    try:
+        # 解析请求参数
+        data = json.loads(request.body) if request.body else {}
+        portfolio_id = data.get('portfolio_id')
 
-    return JsonResponse({'success': True, 'signals_count': 0})
+        # 初始化策略执行引擎
+        from apps.strategy.application.strategy_executor import StrategyExecutor
+        from apps.strategy.infrastructure.repositories import (
+            DjangoStrategyRepository,
+            DjangoStrategyExecutionLogRepository
+        )
+        from apps.strategy.infrastructure.providers import (
+            DjangoMacroDataProvider,
+            DjangoRegimeProvider,
+            DjangoAssetPoolProvider,
+            DjangoSignalProvider,
+            DjangoPortfolioDataProvider
+        )
+
+        # 创建提供者实例
+        strategy_repository = DjangoStrategyRepository()
+        execution_log_repository = DjangoStrategyExecutionLogRepository()
+        macro_provider = DjangoMacroDataProvider()
+        regime_provider = DjangoRegimeProvider()
+        asset_pool_provider = DjangoAssetPoolProvider()
+        signal_provider = DjangoSignalProvider()
+        portfolio_provider = DjangoPortfolioDataProvider()
+
+        # 创建策略执行引擎
+        executor = StrategyExecutor(
+            strategy_repository=strategy_repository,
+            execution_log_repository=execution_log_repository,
+            macro_provider=macro_provider,
+            regime_provider=regime_provider,
+            asset_pool_provider=asset_pool_provider,
+            signal_provider=signal_provider,
+            portfolio_provider=portfolio_provider,
+            script_security_mode='relaxed'
+        )
+
+        # 执行策略
+        results = []
+        total_signals = 0
+        failed_rules = []
+        execution_ids = []
+
+        if portfolio_id:
+            # 单个投资组合执行
+            result = executor.execute_strategy(strategy_id, portfolio_id)
+            results.append(result)
+            total_signals += len(result.signals)
+            execution_ids.append(result.execution_time.isoformat())
+
+            # 收集失败的规则（从上下文中推断）
+            if not result.is_success:
+                failed_rules.append({
+                    'portfolio_id': portfolio_id,
+                    'error': result.error_message
+                })
+
+        else:
+            # 执行所有绑定的投资组合
+            from apps.strategy.infrastructure.models import PortfolioStrategyAssignmentModel
+            assignments = PortfolioStrategyAssignmentModel.objects.filter(
+                strategy=strategy,
+                is_active=True
+            ).select_related('portfolio').all()
+
+            for assignment in assignments:
+                portfolio = assignment.portfolio
+                result = executor.execute_strategy(strategy_id, portfolio.id)
+                results.append(result)
+                total_signals += len(result.signals)
+                execution_ids.append(result.execution_time.isoformat())
+
+                if not result.is_success:
+                    failed_rules.append({
+                        'portfolio_id': portfolio.id,
+                        'portfolio_name': portfolio.account_name,
+                        'error': result.error_message
+                    })
+
+        # 计算总执行时长
+        duration_ms = sum(r.execution_duration_ms for r in results) if results else 0
+
+        # 构建响应
+        return JsonResponse({
+            'success': all(r.is_success for r in results) if results else True,
+            'execution_id': execution_ids[0] if len(execution_ids) == 1 else execution_ids,
+            'generated_signals': total_signals,
+            'failed_rules': failed_rules,
+            'duration_ms': duration_ms,
+            'executed_portfolios': len(results),
+            'message': f'策略执行完成，生成 {total_signals} 个信号'
+        })
+
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Strategy execution failed: {e}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+            'execution_id': None,
+            'generated_signals': 0,
+            'failed_rules': [{'error': str(e)}],
+            'duration_ms': 0
+        })
 
 
 @login_required

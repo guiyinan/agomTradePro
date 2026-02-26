@@ -6,7 +6,7 @@ Events Application Use Cases
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
 
 from ..domain.entities import (
@@ -14,12 +14,12 @@ from ..domain.entities import (
     EventType,
     EventSubscription,
     EventHandler,
-    EventBus,
+    # InMemoryEventBus is in services, not entities
     EventMetrics,
     create_event,
     create_subscription,
 )
-from ..domain.services import get_event_bus
+from ..domain.services import get_event_bus, InMemoryEventBus
 from ..infrastructure.event_store import (
     DatabaseEventStore,
     SnapshotStore,
@@ -158,7 +158,7 @@ class PublishEventUseCase:
 
     def __init__(
         self,
-        event_bus: Optional[EventBus] = None,
+        event_bus: Optional[InMemoryEventBus] = None,
         event_store: Optional[DatabaseEventStore] = None,
     ):
         """
@@ -210,7 +210,7 @@ class PublishEventUseCase:
             return PublishEventResponse(
                 success=True,
                 event_id=event.event_id,
-                published_at=datetime.now(),
+                published_at=datetime.now(timezone.utc),
                 subscribers_notified=subscribers_notified,
             )
 
@@ -219,7 +219,7 @@ class PublishEventUseCase:
             return PublishEventResponse(
                 success=False,
                 event_id=request.event_id or "unknown",
-                published_at=datetime.now(),
+                published_at=datetime.now(timezone.utc),
                 error_message=str(e),
             )
 
@@ -239,7 +239,7 @@ class SubscribeToEventUseCase:
         >>> response = use_case.execute(request)
     """
 
-    def __init__(self, event_bus: Optional[EventBus] = None):
+    def __init__(self, event_bus: Optional[InMemoryEventBus] = None):
         """
         初始化用例
 
@@ -273,7 +273,7 @@ class SubscribeToEventUseCase:
             return SubscribeToEventResponse(
                 success=True,
                 subscription_id=subscription.subscription_id,
-                subscribed_at=datetime.now(),
+                subscribed_at=datetime.now(timezone.utc),
             )
 
         except Exception as e:
@@ -281,7 +281,7 @@ class SubscribeToEventUseCase:
             return SubscribeToEventResponse(
                 success=False,
                 subscription_id="",
-                subscribed_at=datetime.now(),
+                subscribed_at=datetime.now(timezone.utc),
                 error_message=str(e),
             )
 
@@ -350,7 +350,7 @@ class QueryEventsUseCase:
                 success=True,
                 events=event_dtos,
                 total_count=len(event_dtos),
-                queried_at=datetime.now(),
+                queried_at=datetime.now(timezone.utc),
             )
 
         except Exception as e:
@@ -359,7 +359,7 @@ class QueryEventsUseCase:
                 success=False,
                 events=[],
                 total_count=0,
-                queried_at=datetime.now(),
+                queried_at=datetime.now(timezone.utc),
                 error_message=str(e),
             )
 
@@ -416,7 +416,7 @@ class ReplayEventsUseCase:
             return ReplayEventsResponse(
                 success=True,
                 events_replayed=count,
-                replayed_at=datetime.now(),
+                replayed_at=datetime.now(timezone.utc),
             )
 
         except Exception as e:
@@ -424,7 +424,7 @@ class ReplayEventsUseCase:
             return ReplayEventsResponse(
                 success=False,
                 events_replayed=0,
-                replayed_at=datetime.now(),
+                replayed_at=datetime.now(timezone.utc),
                 error_message=str(e),
             )
 
@@ -442,7 +442,7 @@ class GetEventMetricsUseCase:
 
     def __init__(
         self,
-        event_bus: Optional[EventBus] = None,
+        event_bus: Optional[InMemoryEventBus] = None,
         event_store: Optional[DatabaseEventStore] = None,
     ):
         """

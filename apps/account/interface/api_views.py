@@ -12,6 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum, Q, Count
 from django.db import models
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from decimal import Decimal
 
 from apps.account.infrastructure.models import (
@@ -223,9 +224,8 @@ class PositionViewSet(viewsets.ModelViewSet):
                 'error': '该持仓已平仓'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        from datetime import datetime
         position.is_closed = True
-        position.closed_at = datetime.now()
+        position.closed_at = timezone.now()
         position.save()
 
         serializer = PositionSerializer(position)

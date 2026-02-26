@@ -85,66 +85,66 @@ class BaseResponseDTO:
 @dataclass
 class EventPublishResponseDTO(BaseResponseDTO):
     """发布事件响应 DTO"""
-    event_id: str
-    published_at: str  # ISO 格式时间字符串
+    event_id: str = ""
+    published_at: str = ""  # ISO 格式时间字符串
     subscribers_notified: int = 0
 
 
 @dataclass
 class EventSubscriptionResponseDTO(BaseResponseDTO):
     """事件订阅响应 DTO"""
-    subscription_id: str
-    subscribed_at: str  # ISO 格式时间字符串
-    event_type: str
-    handler_id: str
+    subscription_id: str = ""
+    subscribed_at: str = ""  # ISO 格式时间字符串
+    event_type: str = ""
+    handler_id: str = ""
 
 
 @dataclass
 class EventQueryResponseDTO(BaseResponseDTO):
     """事件查询响应 DTO"""
-    events: List[EventDTO]
-    total_count: int
-    queried_at: str  # ISO 格式时间字符串
+    events: List[EventDTO] = field(default_factory=list)
+    total_count: int = 0
+    queried_at: str = ""  # ISO 格式时间字符串
     has_more: bool = False
 
 
 @dataclass
 class EventReplayResponseDTO(BaseResponseDTO):
     """事件重放响应 DTO"""
-    events_replayed: int
-    replayed_at: str  # ISO 格式时间字符串
+    events_replayed: int = 0
+    replayed_at: str = ""  # ISO 格式时间字符串
     duration_ms: int = 0
 
 
 @dataclass
 class EventMetricsDTO:
     """事件指标 DTO"""
-    total_published: int
-    total_processed: int
-    total_failed: int
-    total_subscribers: int
-    avg_processing_time_ms: float
-    last_event_at: Optional[str]  # ISO 格式时间字符串
-    success_rate: float  # 成功率
+    total_published: int = 0
+    total_processed: int = 0
+    total_failed: int = 0
+    total_subscribers: int = 0
+    avg_processing_time_ms: float = 0.0
+    last_event_at: Optional[str] = None  # ISO 格式时间字符串
+    success_rate: float = 0.0  # 成功率
 
 
 @dataclass
 class EventStatisticsResponseDTO(BaseResponseDTO):
     """事件统计响应 DTO"""
-    metrics: EventMetricsDTO
-    events_by_type: Dict[str, int]  # 事件类型到数量的映射
-    active_subscriptions: int
-    queue_size: int
+    metrics: EventMetricsDTO = field(default_factory=EventMetricsDTO)
+    events_by_type: Dict[str, int] = field(default_factory=dict)  # 事件类型到数量的映射
+    active_subscriptions: int = 0
+    queue_size: int = 0
 
 
 @dataclass
 class EventBusStatusDTO:
     """事件总线状态 DTO"""
-    is_running: bool
-    total_subscribers: int
-    queue_size: int
-    last_event_at: Optional[str]  # ISO 格式时间字符串
-    uptime_seconds: float
+    is_running: bool = True
+    total_subscribers: int = 0
+    queue_size: int = 0
+    last_event_at: Optional[str] = None  # ISO 格式时间字符串
+    uptime_seconds: float = 0.0
 
 
 # ========== 便捷转换函数 ==========

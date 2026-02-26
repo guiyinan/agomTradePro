@@ -33,6 +33,17 @@ jobs:
         run: |
           pytest -q \
             tests/guardrails/test_logic_guardrails.py \
+            tests/guardrails/test_no_501_on_primary_paths.py \
             tests/integration/policy/test_policy_integration.py \
             tests/unit/policy/test_fetch_rss_use_case.py \
             tests/unit/regime/test_config_threshold_regression.py
+
+      - name: Check RTM key requirements
+        run: |
+          # 验证关键 RTM 项的测试存在
+          echo "Checking RTM requirements..."
+          test -f tests/guardrails/test_logic_guardrails.py || exit 1
+          test -f tests/guardrails/test_no_501_on_primary_paths.py || exit 1
+          test -f tests/integration/signal/test_signal_workflow.py || exit 1
+          test -f tests/integration/audit/test_api_endpoints.py || exit 1
+          echo "RTM key requirements: PASSED"

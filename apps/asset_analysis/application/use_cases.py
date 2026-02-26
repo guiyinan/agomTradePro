@@ -5,8 +5,9 @@
 用例是 Application 层的核心，协调 Domain 层和 Infrastructure 层。
 """
 
-from typing import List
+from typing import List, Union
 from datetime import datetime
+from dataclasses import replace
 
 from apps.asset_analysis.domain.entities import AssetScore, AssetType, AssetStyle, AssetSize
 from apps.asset_analysis.domain.value_objects import ScoreContext, WeightConfig
@@ -114,6 +115,11 @@ class MultiDimScreenUseCase:
         """
         将原始资产对象转换为 AssetScore 实体
 
+        支持以下类型：
+        - FundAssetScore (from apps.fund.domain.entities)
+        - EquityAssetScore (from apps.equity.domain.entities)
+        - AssetScore (from apps.asset_analysis.domain.entities)
+
         Args:
             raw_assets: 原始资产列表
             asset_type: 资产类型
@@ -124,31 +130,85 @@ class MultiDimScreenUseCase:
         assets = []
 
         for raw in raw_assets:
-            # 提取基本信息
-            code = getattr(raw, "code", getattr(raw, "asset_code", ""))
-            name = getattr(raw, "name", getattr(raw, "asset_name", ""))
+            # 判断资产类型并提取相应字段
+            if hasattr(raw, 'fund_code'):  # FundAssetScore
+                code = raw.fund_code
+                name = raw.fund_name
+                style_str = raw.style or raw.investment_style
+                size = raw.size
+                sector = raw.sector
+                # 获取已计算的分数（如果有）
+                regime_score = raw.regime_score
+                policy_score = raw.policy_score
+                sentiment_score = raw.sentiment_score
+                signal_score = raw.signal_score
+                custom_scores = raw.get_custom_scores() if hasattr(raw, 'get_custom_scores') else {}
+                total_score = raw.total_score
+                rank = raw.rank
+                allocation_percent = raw.allocation_percent
+                risk_level = raw.risk_level
 
-            # 提取风格信息
+            elif hasattr(raw, 'stock_code'):  # EquityAssetScore
+                code = raw.stock_code
+                name = raw.stock_name
+                style_str = raw.style
+                size = raw.size
+                sector = raw.sector
+                regime_score = raw.regime_score
+                policy_score = raw.policy_score
+                sentiment_score = raw.sentiment_score
+                signal_score = raw.signal_score
+                custom_scores = raw.get_custom_scores() if hasattr(raw, 'get_custom_scores') else {}
+                total_score = raw.total_score
+                rank = raw.rank
+                allocation_percent = raw.allocation_percent
+                risk_level = raw.risk_level
+
+            elif hasattr(raw, 'asset_code'):  # AssetScore
+                code = raw.asset_code
+                name = raw.asset_name
+                style_str = raw.style.value if raw.style else None
+                size = raw.size
+                sector = raw.sector
+                regime_score = raw.regime_score
+                policy_score = raw.policy_score
+                sentiment_score = raw.sentiment_score
+                signal_score = raw.signal_score
+                custom_scores = raw.custom_scores
+                total_score = raw.total_score
+                rank = raw.rank
+                allocation_percent = raw.allocation_percent
+                risk_level = raw.risk_level
+
+            else:
+                # 通用提取
+                code = getattr(raw, "code", getattr(raw, "asset_code", getattr(raw, "fund_code", getattr(raw, "stock_code", ""))))
+                name = getattr(raw, "name", getattr(raw, "asset_name", getattr(raw, "fund_name", getattr(raw, "stock_name", ""))))
+                style_str = getattr(raw, "style", getattr(raw, "investment_style", None))
+                size = None
+                sector = getattr(raw, "sector", getattr(raw, "industry", None))
+                regime_score = 0.0
+                policy_score = 0.0
+                sentiment_score = 0.0
+                signal_score = 0.0
+                custom_scores = {}
+                total_score = 0.0
+                rank = 0
+                allocation_percent = 0.0
+                risk_level = "未知"
+
+            # 转换风格
             style = None
-            style_str = getattr(raw, "style", getattr(raw, "investment_style", None))
             if style_str:
-                try:
-                    style = AssetStyle(style_str.lower())
-                except ValueError:
-                    pass
+                if isinstance(style_str, str):
+                    try:
+                        style = AssetStyle(style_str.lower())
+                    except ValueError:
+                        pass
+                elif isinstance(style_str, AssetStyle):
+                    style = style_str
 
-            # 提取规模信息
-            size = None
-            size_str = getattr(raw, "size", None)
-            if size_str:
-                try:
-                    size = AssetSize(size_str.lower())
-                except ValueError:
-                    pass
-
-            # 提取行业
-            sector = getattr(raw, "sector", getattr(raw, "industry", None))
-
+            # 创建 AssetScore 实体
             assets.append(AssetScore(
                 asset_type=AssetType(asset_type),
                 asset_code=code,
@@ -156,6 +216,15 @@ class MultiDimScreenUseCase:
                 style=style,
                 size=size,
                 sector=sector,
+                regime_score=regime_score,
+                policy_score=policy_score,
+                sentiment_score=sentiment_score,
+                signal_score=signal_score,
+                custom_scores=custom_scores,
+                total_score=total_score,
+                rank=rank,
+                allocation_percent=allocation_percent,
+                risk_level=risk_level,
             ))
 
         return assets

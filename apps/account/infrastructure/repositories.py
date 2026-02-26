@@ -7,11 +7,12 @@ Account Infrastructure Repositories
 
 from decimal import Decimal
 from typing import List, Optional, Dict
-from datetime import datetime, date
+from datetime import date
 
 from django.contrib.auth.models import User
 from django.db.models import Sum, Q, F, Count
 from django.db.models.functions import Coalesce
+from django.utils import timezone
 
 from apps.account.infrastructure.models import (
     AccountProfileModel,
@@ -135,14 +136,14 @@ class PortfolioRepository:
 
         # 回溯收益率计算
         # 1. 年收益率（对比1年前）
-        one_year_ago = datetime.now() - timedelta(days=365)
+        one_year_ago = timezone.now() - timedelta(days=365)
         yearly_snapshot = PortfolioDailySnapshotModel._default_manager.filter(
             portfolio=portfolio,
             snapshot_date__lte=one_year_ago.date()
             ).order_by('-snapshot_date').first()
 
         # 2. 月收益率（对比1个月前）
-        one_month_ago = datetime.now() - timedelta(days=30)
+        one_month_ago = timezone.now() - timedelta(days=30)
         monthly_snapshot = PortfolioDailySnapshotModel._default_manager.filter(
             portfolio=portfolio,
             snapshot_date__lte=one_month_ago.date()
@@ -184,7 +185,7 @@ class PortfolioRepository:
         total_return_pct = yearly_return_pct
 
         # 保存今日快照
-        today = datetime.now().date()
+        today = timezone.now().date()
         PortfolioDailySnapshotModel._default_manager.update_or_create(
             portfolio=portfolio,
             snapshot_date=today,
@@ -200,7 +201,7 @@ class PortfolioRepository:
             portfolio_id=portfolio.id,
             user_id=portfolio.user_id,
             name=portfolio.name,
-            snapshot_date=datetime.now(),
+            snapshot_date=timezone.now(),
             cash_balance=Decimal(str(cash_balance)),
             total_value=Decimal(str(total_value)),
             invested_value=Decimal(str(invested_value)),
@@ -347,7 +348,7 @@ class PositionRepository:
             shares=shares,
             price=price,
             notional=Decimal(str(shares * float(price))),
-            traded_at=datetime.now(),
+            traded_at=timezone.now(),
             notes=f"开仓 ({source})",
         )
 
@@ -376,14 +377,14 @@ class PositionRepository:
             shares=shares,
             price=model.current_price or model.avg_cost,
             notional=Decimal(str(shares * float(model.current_price or model.avg_cost))),
-            traded_at=datetime.now(),
+            traded_at=timezone.now(),
             notes="平仓",
         )
 
         # 更新持仓
         if shares >= model.shares:
             model.is_closed = True
-            model.closed_at = datetime.now()
+            model.closed_at = timezone.now()
         else:
             model.shares -= shares
 

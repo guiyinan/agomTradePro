@@ -539,10 +539,43 @@ class AutoTradingEngine:
         return None
 
     def _update_account_performance(self, account_id: int, trade_date: date):
-        """更新账户绩效"""
-        # TODO: 实现绩效计算逻辑
-        # 当前跳过,等待Phase 2实现
-        pass
+        """
+        更新账户绩效
+
+        在每次交易完成后：
+        1. 记录当日净值数据（用于绘制净值曲线）
+        2. 重新计算绩效指标（总收益、最大回撤、夏普比率等）
+        3. 更新账户实体
+
+        Args:
+            account_id: 账户ID
+            trade_date: 交易日期
+        """
+        try:
+            from apps.simulated_trading.application.daily_net_value_service import DailyNetValueService
+
+            # 使用净值服务记录和更新绩效
+            net_value_service = DailyNetValueService(
+                account_repo=self.account_repo,
+                position_repo=self.position_repo,
+                trade_repo=self.trade_repo
+            )
+
+            # 记录当日净值并计算绩效指标
+            metrics = net_value_service.record_and_update_performance(
+                account_id=account_id,
+                record_date=trade_date
+            )
+
+            if metrics:
+                logger.info(
+                    f"  账户绩效已更新: 总收益率={metrics.get('total_return', 0):.2f}%, "
+                    f"最大回撤={metrics.get('max_drawdown', 0):.2f}%, "
+                    f"夏普比率={metrics.get('sharpe_ratio', 0):.2f}"
+                )
+
+        except Exception as e:
+            logger.error(f"更新账户绩效失败: {e}", exc_info=True)
 
 
 class MockMarketDataProvider:

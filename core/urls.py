@@ -3,7 +3,6 @@ URL configuration for AgomSAAF project.
 """
 from django.contrib import admin
 from django.urls import path, include
-from django.http import JsonResponse
 from django.views.generic import RedirectView
 
 # Apply custom admin branding
@@ -39,12 +38,6 @@ from core.admin_log_views import (
     automation_server_logs_export,
 )
 
-
-def events_api_placeholder(request, *args, **kwargs):
-    return JsonResponse(
-        {"detail": "Events API endpoint is temporarily unavailable."},
-        status=501,
-    )
 
 core_patterns = [
     path('', index_view, name='index'),
@@ -104,16 +97,8 @@ module_patterns = [
     path('realtime/', include(('apps.realtime.interface.urls', 'realtime'), namespace='realtime')),
     # Policy management (包含页面和 API).
     path('policy/', include(('apps.policy.interface.urls', 'policy'), namespace='policy')),
-    path('events/publish/', RedirectView.as_view(url='/events/api/publish/', permanent=False)),
-    path('events/query/', RedirectView.as_view(url='/events/api/query/', permanent=False)),
-    path('events/metrics/', RedirectView.as_view(url='/events/api/metrics/', permanent=False)),
-    path('events/status/', RedirectView.as_view(url='/events/api/status/', permanent=False)),
-    path('events/replay/', RedirectView.as_view(url='/events/api/replay/', permanent=False)),
-    path('events/api/publish/', events_api_placeholder, name='events-api-publish'),
-    path('events/api/query/', events_api_placeholder, name='events-api-query'),
-    path('events/api/metrics/', events_api_placeholder, name='events-api-metrics'),
-    path('events/api/status/', events_api_placeholder, name='events-api-status'),
-    path('events/api/replay/', events_api_placeholder, name='events-api-replay'),
+    # Events module - 事件总线 API
+    path('events/', include(('apps.events.interface.urls', 'events'), namespace='events')),
     # Decision workflow modules.
     path('', include('apps.decision_rhythm.interface.urls')),
     path('', include('apps.beta_gate.interface.urls')),

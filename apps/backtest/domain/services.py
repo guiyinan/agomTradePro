@@ -323,13 +323,16 @@ class BacktestEngine:
         regime = regime_data.get("dominant_regime")
         confidence = regime_data.get("confidence", 0.0)
 
-        # 2. 计算目标权重（根据准入规则）
+        # 2. 计算旧权重（再平衡前的权重）
+        old_weights = self._calculate_current_weights(as_of_date)
+
+        # 3. 计算目标权重（根据准入规则）
         target_weights = self._calculate_target_weights(regime, confidence)
 
-        # 3. 获取当前组合价值
+        # 4. 获取当前组合价值
         current_portfolio_value = self._calculate_portfolio_value(as_of_date)
 
-        # 4. 计算目标持仓
+        # 5. 计算目标持仓
         trades = []
         new_positions = {}
 
@@ -400,11 +403,40 @@ class BacktestEngine:
             date=as_of_date,
             regime=regime,
             regime_confidence=confidence,
-            old_weights={},  # TODO: 计算旧权重
+            old_weights=old_weights,
             new_weights=target_weights,
             trades=trades,
             portfolio_value=current_portfolio_value
         )
+
+    def _calculate_current_weights(self, as_of_date: date) -> Dict[str, float]:
+        """
+        计算当前组合的权重
+
+        Args:
+            as_of_date: 计算权重的日期
+
+        Returns:
+            Dict[str, float]: 当前权重 {asset_class: weight}
+        """
+        portfolio_value = self._calculate_portfolio_value(as_of_date)
+
+        if portfolio_value <= 0:
+            return {}
+
+        weights = {}
+        # 计算持仓资产的权重
+        for asset_class, shares in self._positions.items():
+            price = self.get_price(asset_class, as_of_date)
+            if price and price > 0:
+                market_value = shares * price
+                weights[asset_class] = market_value / portfolio_value
+
+        # 计算现金权重
+        if self._cash > 0:
+            weights["CASH"] = self._cash / portfolio_value
+
+        return weights
 
     def _calculate_target_weights(
         self,

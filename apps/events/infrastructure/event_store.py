@@ -75,6 +75,7 @@ class StoredEventModel(models.Model):
     correlation_id = models.CharField(
         max_length=64,
         blank=True,
+        null=True,
         db_index=True,
         help_text="关联 ID（用于关联多个事件）"
     )
@@ -82,6 +83,7 @@ class StoredEventModel(models.Model):
     causation_id = models.CharField(
         max_length=64,
         blank=True,
+        null=True,
         help_text="因果 ID（用于追踪事件链）"
     )
 
@@ -272,8 +274,8 @@ class DatabaseEventStore:
                 event_type=event.event_type.value,
                 payload=event.payload,
                 metadata=event.metadata,
-                correlation_id=event.correlation_id,
-                causation_id=event.causation_id,
+                correlation_id=event.metadata.get("correlation_id"),
+                causation_id=event.metadata.get("causation_id"),
                 occurred_at=event.occurred_at,
                 version=event.version,
             )
@@ -411,6 +413,12 @@ class DatabaseEventStore:
             by_type[model.event_type] = by_type.get(model.event_type, 0) + 1
 
         return EventMetrics(
+            total_published=total,
+            total_processed=total,
+            total_failed=0,
+            total_subscribers=0,
+            avg_processing_time_ms=0.0,
+            last_event_at=None,
             total_events=total,
             events_by_type=by_type,
         )
@@ -420,17 +428,24 @@ class DatabaseEventStore:
         try:
             event_type = EventType(model.event_type)
         except ValueError:
-            # 未知类型，使用 ANY
-            event_type = EventType.ANY
+            # 未知类型，使用 UNKNOWN 而不是映射到业务事件类型
+            # 保留原始事件类型字符串到 metadata 中以便追溯
+            logger.warning(f"Unknown event type: {model.event_type}, using UNKNOWN")
+            event_type = EventType.UNKNOWN
+
+        # 确保 metadata 中包含 correlation_id 和 causation_id
+        metadata = dict(model.metadata) if model.metadata else {}
+        if model.correlation_id:
+            metadata["correlation_id"] = model.correlation_id
+        if model.causation_id:
+            metadata["causation_id"] = model.causation_id
 
         return DomainEvent(
             event_type=event_type,
             payload=model.payload,
             event_id=model.event_id,
             occurred_at=model.occurred_at,
-            metadata=model.metadata,
-            correlation_id=model.correlation_id,
-            causation_id=model.causation_id,
+            metadata=metadata,
             version=model.version,
         )
 
@@ -770,7 +785,16 @@ class InMemoryEventStore:
 
     def get_metrics(self, since: Optional[datetime] = None) -> EventMetrics:
         events = self.get_events(since=since, limit=len(self._events))
-        return EventMetrics(total_published=len(events))
+        return EventMetrics(
+            total_published=len(events),
+            total_processed=len(events),
+            total_failed=0,
+            total_subscribers=0,
+            avg_processing_time_ms=0.0,
+            last_event_at=None,
+            total_events=len(events),
+            events_by_type={},
+        )
 
 
 def get_snapshot_store() -> SnapshotStore:
