@@ -331,9 +331,9 @@ tests/integration/
 
 docs/plans/
 ├── agomsaaf-qlib-integration-plan-v1.1.md
-├── phase1-alpha-implementation-summary.md
-├── phase2-qlib-inference-summary.md
-├── phase3-training-summary.md
+├── ../archive/plans/phase1-alpha-implementation-summary.md
+├── ../archive/plans/phase2-qlib-inference-summary.md
+├── ../archive/plans/phase3-training-summary.md
 └── implementation-progress-summary.md  # 本文档
 ```
 
@@ -570,11 +570,11 @@ for stock in result['stocks']:
 ## 📝 相关文档
 
 - [实施方案 v1.1](agomsaaf-qlib-integration-plan-v1.1.md)
-- [Phase 1 总结](phase1-alpha-implementation-summary.md)
-- [Phase 2 总结](phase2-qlib-inference-summary.md)
-- [Phase 3 总结](phase3-training-summary.md)
-- [Phase 4 总结](phase4-monitoring-summary.md)
-- [Phase 5 总结](phase5-integration-summary.md)
+- [Phase 1 总结](../archive/plans/phase1-alpha-implementation-summary.md)
+- [Phase 2 总结](../archive/plans/phase2-qlib-inference-summary.md)
+- [Phase 3 总结](../archive/plans/phase3-training-summary.md)
+- [Phase 4 总结](../archive/plans/phase4-monitoring-summary.md)
+- [Phase 5 总结](../archive/plans/phase5-integration-summary.md)
 - [项目规则](../../CLAUDE.md)
 
 ---

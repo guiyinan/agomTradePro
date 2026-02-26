@@ -10,9 +10,9 @@
 
 | 项目 | 整理前 | 整理后 | 变化 |
 |------|--------|--------|------|
-| Markdown 文件 | 121 | 117 | -4 |
-| 子目录 | 25 | 24 | -1 |
-| 归档文件 | 3 | 23 | +20 |
+| docs 下 Markdown 文件总数 | 117 | 118 | +1 |
+| docs 子目录总数 | 23 | 28 | +5 |
+| 归档文件总数（archive + testing/archive） | 3 | 30 | +27 |
 
 ---
 
@@ -25,7 +25,7 @@
 | 空目录 | `docs/regime/` | 目录为空，无内容 |
 | 重复文件 | `docs/plans/phase-5-integration-summary.md` | 与 `phase5-integration-summary.md` 内容重复 |
 
-### 2.2 归档的文件（20个）
+### 2.2 归档的文件（25个）
 
 #### plans/ → archive/plans/ (12个)
 - `phase1-alpha-implementation-summary.md`
@@ -157,4 +157,4 @@ docs/
 ---
 
 **整理完成时间**: 2026-02-26
-**验证状态**: ✅ 所有 INDEX.md 链接有效
+**验证状态**: ✅ `docs/INDEX.md` 主索引链接有效

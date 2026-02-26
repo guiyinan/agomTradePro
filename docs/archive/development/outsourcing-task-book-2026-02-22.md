@@ -245,7 +245,7 @@ P0/P1 状态：
 
 ## 13. 关联规则文档
 
-1. [工程护栏与评审规矩](./engineering-guardrails.md)
-2. [外包团队工作指南](./outsourcing-work-guidelines.md)
-3. [系统逻辑问题审查报告](./logic-issues-review.md)
-4. [外包测试与修复批次审查报告（2026-02-20）](../testing/outsourcing-test-fix-review-2026-02-20.md)
+1. [工程护栏与评审规矩](../../development/engineering-guardrails.md)
+2. [外包团队工作指南](../../development/outsourcing-work-guidelines.md)
+3. [系统逻辑问题审查报告](../../development/logic-issues-review.md)
+4. [外包测试与修复批次审查报告（2026-02-20）](../../testing/archive/outsourcing-test-fix-review-2026-02-20.md)
