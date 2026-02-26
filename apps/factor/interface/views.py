@@ -6,6 +6,7 @@ DRF ViewSets for the factor module API.
 
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.factor.infrastructure.models import (
@@ -82,7 +83,7 @@ class FactorPortfolioConfigViewSet(viewsets.ModelViewSet):
 class FactorScoreViewSet(viewsets.ViewSet):
     """ViewSet for factor score calculations"""
 
-    permission_classes = []  # Allow unauthenticated access
+    permission_classes = [IsAuthenticated]
 
     @action(detail=False, methods=['post'])
     def calculate_scores(self, request):
@@ -133,7 +134,7 @@ class FactorScoreViewSet(viewsets.ViewSet):
 
 class FactorActionViewSet(viewsets.ViewSet):
     """ViewSet for factor actions (not tied to a specific model)"""
-    permission_classes = []  # Allow unauthenticated access
+    permission_classes = [IsAuthenticated]
 
     def list(self, request):
         """Get available factor actions"""

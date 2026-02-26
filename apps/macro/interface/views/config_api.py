@@ -5,7 +5,6 @@ Handles data deletion and configuration operations.
 """
 
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from apps.macro.application.data_management import DeleteDataUseCase, DeleteDataRequest
 from datetime import datetime
 import json
@@ -16,7 +15,6 @@ from .helpers import get_repository
 logger = logging.getLogger(__name__)
 
 
-@csrf_exempt
 def api_delete_data(request):
     """
     API: 删除数据

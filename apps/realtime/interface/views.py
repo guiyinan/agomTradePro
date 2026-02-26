@@ -60,6 +60,7 @@ class RealtimePriceView(View):
             prices = self.use_case.get_latest_prices(asset_codes)
 
             return JsonResponse({
+                "success_flag": True,
                 "timestamp": self.use_case.service.price_repository.get_latest_price(asset_codes[0]).timestamp.isoformat() if prices else None,
                 "prices": prices,
                 "total": len(asset_codes),
@@ -69,6 +70,7 @@ class RealtimePriceView(View):
         else:
             # 触发价格轮询
             snapshot = self.use_case.execute_price_polling()
+            snapshot.setdefault("success_flag", True)
             return JsonResponse(snapshot)
 
     def post(self, request, *args, **kwargs):
@@ -80,6 +82,7 @@ class RealtimePriceView(View):
             价格快照
         """
         snapshot = self.use_case.execute_price_polling()
+        snapshot.setdefault("success_flag", True)
         return JsonResponse(snapshot)
 
 
@@ -111,10 +114,13 @@ class SingleAssetPriceView(View):
 
         if not prices:
             return JsonResponse({
+                "success": False,
                 "error": f"Price not found for asset: {asset_code}"
             }, status=404)
 
-        return JsonResponse(prices[0])
+        payload = {"success": True}
+        payload.update(prices[0])
+        return JsonResponse(payload)
 
 
 class PricePollingTriggerView(View):
@@ -137,6 +143,7 @@ class PricePollingTriggerView(View):
         """
         logger.info("Manual price polling triggered")
         snapshot = self.use_case.execute_price_polling()
+        snapshot.setdefault("success_flag", True)
         return JsonResponse(snapshot)
 
 
@@ -176,6 +183,7 @@ class HealthCheckView(View):
             executor.shutdown(wait=False, cancel_futures=True)
 
         return JsonResponse({
+            "success": True,
             "status": "healthy" if is_available else "unhealthy",
             "data_provider_available": is_available,
             "timestamp": use_case.service.config.to_dict(),

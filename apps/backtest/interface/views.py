@@ -7,7 +7,6 @@ Views for Backtest Module.
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -255,7 +254,6 @@ def backtest_statistics_api_view(request):
 
 
 @require_http_methods(["POST"])
-@csrf_exempt
 def run_backtest_api_view(request):
     """运行回测（独立 API）"""
     import json

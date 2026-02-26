@@ -11,7 +11,6 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from django.core.paginator import Paginator
 
@@ -184,7 +183,6 @@ def doc_export_all(request):
 
 
 @staff_member_required
-@csrf_exempt
 @require_http_methods(['POST'])
 def doc_import(request):
     """批量导入文档"""

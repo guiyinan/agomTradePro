@@ -121,6 +121,16 @@ LOGIN_URL = '/account/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/'
 
+# Authentication backends
+# Add lockout-aware backend to mitigate brute-force login attempts.
+AUTHENTICATION_BACKENDS = [
+    'core.security.LockoutModelBackend',
+]
+
+# Login lockout settings
+LOGIN_LOCKOUT_MAX_ATTEMPTS = env.int('LOGIN_LOCKOUT_MAX_ATTEMPTS', default=5)
+LOGIN_LOCKOUT_WINDOW_SECONDS = env.int('LOGIN_LOCKOUT_WINDOW_SECONDS', default=900)
+
 # Internationalization
 LANGUAGE_CODE = 'zh-hans'
 TIME_ZONE = 'Asia/Shanghai'
@@ -204,6 +214,14 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',  # 默认需要登录
     ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': env('DRF_THROTTLE_ANON', default='100/hour'),
+        'user': env('DRF_THROTTLE_USER', default='1000/hour'),
+    },
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
@@ -218,8 +236,8 @@ REST_FRAMEWORK = {
 }
 
 # CORS Configuration (跨域资源共享)
-# 开发环境默认允许所有来源，生产环境必须通过环境变量配置
-CORS_ALLOW_ALL_ORIGINS = env.bool('CORS_ALLOW_ALL_ORIGINS', default=True)
+# 默认关闭全量放行，优先白名单策略
+CORS_ALLOW_ALL_ORIGINS = env.bool('CORS_ALLOW_ALL_ORIGINS', default=False)
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
     'http://127.0.0.1:8000',
     'http://localhost:8000',

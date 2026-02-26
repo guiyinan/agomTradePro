@@ -6,6 +6,7 @@ DRF ViewSets for the rotation module API.
 
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.utils import timezone
 
@@ -120,7 +121,7 @@ class RotationSignalViewSet(viewsets.ReadOnlyModelViewSet):
 
 class RotationActionViewSet(viewsets.ViewSet):
     """ViewSet for rotation actions (not tied to a specific model)"""
-    permission_classes = []  # Allow unauthenticated access for basic endpoints
+    permission_classes = [IsAuthenticated]
 
     def list(self, request):
         """Get available rotation actions"""

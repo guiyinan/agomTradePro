@@ -9,7 +9,6 @@
 
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt
 
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
@@ -97,7 +96,6 @@ class EquityViewSet(viewsets.ViewSet):
         responses={200: ScreenStocksResponseSerializer},
     )
     @action(detail=False, methods=['post'], url_path='screen')
-    @csrf_exempt
     def screen_stocks(self, request):
         """
         POST /api/equity/screen/
@@ -506,7 +504,6 @@ class EquityViewSet(viewsets.ViewSet):
         })
 
     @action(detail=False, methods=['post'], url_path='pool/refresh')
-    @csrf_exempt
     def refresh_pool(self, request):
         """
         POST /equity/api/pool/refresh/

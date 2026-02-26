@@ -10,7 +10,7 @@ from datetime import date
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 @api_view(["GET"])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def get_stock_scores(request: Request) -> Response:
     """
     获取股票评分
@@ -79,7 +79,7 @@ def get_stock_scores(request: Request) -> Response:
 
 
 @api_view(["GET"])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def get_provider_status(request: Request) -> Response:
     """
     获取 Alpha Provider 状态
@@ -125,7 +125,7 @@ def get_provider_status(request: Request) -> Response:
 
 
 @api_view(["GET"])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def get_available_universes(request: Request) -> Response:
     """
     获取支持的股票池列表
@@ -155,7 +155,7 @@ def get_available_universes(request: Request) -> Response:
 
 
 @api_view(["GET"])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def health_check(request: Request) -> Response:
     """
     Alpha 服务健康检查

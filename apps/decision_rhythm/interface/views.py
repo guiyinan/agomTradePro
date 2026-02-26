@@ -13,6 +13,7 @@ from django.shortcuts import render
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
@@ -57,6 +58,21 @@ from .serializers import (
 
 
 logger = logging.getLogger(__name__)
+
+
+def _bad_request_response(error: Any) -> Response:
+    return Response(
+        {"success": False, "error": str(error)},
+        status=status.HTTP_400_BAD_REQUEST,
+    )
+
+
+def _internal_error_response(message: str, error: Exception) -> Response:
+    logger.error(f"{message}: {error}", exc_info=True)
+    return Response(
+        {"success": False, "error": str(error)},
+        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )
 
 
 # ========== ViewSets ==========
@@ -307,12 +323,10 @@ class DecisionRequestViewSet(viewsets.ViewSet):
                 "results": serializer.data,
             })
 
+        except (TypeError, ValueError) as e:
+            return _bad_request_response(f"Invalid query params: {e}")
         except Exception as e:
-            logger.error(f"Failed to list requests: {e}", exc_info=True)
-            return Response(
-                {"success": False, "error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            return _internal_error_response("Failed to list requests", e)
 
     def retrieve(self, request, pk=None) -> Response:
         """
@@ -360,12 +374,10 @@ class DecisionRequestViewSet(viewsets.ViewSet):
                 "result": stats,
             })
 
+        except (TypeError, ValueError) as e:
+            return _bad_request_response(f"Invalid query params: {e}")
         except Exception as e:
-            logger.error(f"Failed to get statistics: {e}", exc_info=True)
-            return Response(
-                {"success": False, "error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            return _internal_error_response("Failed to get statistics", e)
 
 
 # ========== Action Views ==========
@@ -455,12 +467,12 @@ class SubmitDecisionRequestView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+        except DRFValidationError as e:
+            return _bad_request_response(e.detail)
+        except (TypeError, ValueError, KeyError) as e:
+            return _bad_request_response(e)
         except Exception as e:
-            logger.error(f"Failed to submit decision request: {e}", exc_info=True)
-            return Response(
-                {"success": False, "error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            return _internal_error_response("Failed to submit decision request", e)
 
 
 class SubmitBatchRequestView(APIView):
@@ -558,12 +570,12 @@ class SubmitBatchRequestView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+        except DRFValidationError as e:
+            return _bad_request_response(e.detail)
+        except (TypeError, ValueError, KeyError) as e:
+            return _bad_request_response(e)
         except Exception as e:
-            logger.error(f"Failed to submit batch decision requests: {e}", exc_info=True)
-            return Response(
-                {"success": False, "error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            return _internal_error_response("Failed to submit batch decision requests", e)
 
 
 class GetRhythmSummaryView(APIView):
@@ -673,12 +685,12 @@ class ResetQuotaView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+        except DRFValidationError as e:
+            return _bad_request_response(e.detail)
+        except (TypeError, ValueError, KeyError) as e:
+            return _bad_request_response(e)
         except Exception as e:
-            logger.error(f"Failed to reset quota: {e}", exc_info=True)
-            return Response(
-                {"success": False, "error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            return _internal_error_response("Failed to reset quota", e)
 
 
 class TrendDataView(APIView):
@@ -770,12 +782,10 @@ class TrendDataView(APIView):
                 }
             })
 
+        except (TypeError, ValueError) as e:
+            return _bad_request_response(f"Invalid query params: {e}")
         except Exception as e:
-            logger.error(f"Failed to get trend data: {e}", exc_info=True)
-            return Response(
-                {"success": False, "error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            return _internal_error_response("Failed to get trend data", e)
 
 
 # ========== Template Views ==========
@@ -911,12 +921,10 @@ class UpdateQuotaConfigView(APIView):
         }
         """
         try:
-            import json
             from ..infrastructure.models import DecisionQuotaModel
-            from ..domain.entities import QuotaPeriod, DecisionQuota
             import uuid
 
-            data = json.loads(request.body) if isinstance(request.body, bytes) else request.data
+            data = request.data
 
             period_str = data.get("period")
             max_decisions = int(data.get("max_decisions", 10))
@@ -951,10 +959,8 @@ class UpdateQuotaConfigView(APIView):
                 "max_executions": quota.max_execution_count,
             })
 
+        except (TypeError, ValueError, KeyError) as e:
+            return _bad_request_response(e)
         except Exception as e:
-            logger.error(f"Failed to update quota config: {e}", exc_info=True)
-            return Response(
-                {"success": False, "error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            return _internal_error_response("Failed to update quota config", e)
 

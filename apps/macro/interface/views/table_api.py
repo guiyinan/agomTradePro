@@ -5,7 +5,6 @@ Handles table data operations including CRUD operations.
 """
 
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from apps.macro.infrastructure.models import MacroIndicator
 from apps.macro.application.indicator_service import UnitDisplayService
 from datetime import datetime
@@ -162,7 +161,6 @@ def api_table_data(request):
         }, status=500)
 
 
-@csrf_exempt
 def api_delete_record(request, record_id):
     """
     API: 删除单条记录
@@ -193,7 +191,6 @@ def api_delete_record(request, record_id):
         }, status=500)
 
 
-@csrf_exempt
 def api_batch_delete(request):
     """
     API: 批量删除记录
@@ -227,7 +224,6 @@ def api_batch_delete(request):
         }, status=500)
 
 
-@csrf_exempt
 def api_create_record(request):
     """
     API: 新增记录
@@ -289,7 +285,6 @@ def api_create_record(request):
         }, status=500)
 
 
-@csrf_exempt
 def api_update_record(request, record_id):
     """
     API: 更新记录
