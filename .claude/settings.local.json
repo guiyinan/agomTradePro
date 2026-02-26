@@ -128,7 +128,8 @@
       "Bash(git stash:*)",
       "Bash(ruff check:*)",
       "Bash(black:*)",
-      "Bash(tail:*)"
+      "Bash(tail:*)",
+      "Bash(head:*)"
     ]
   }
 }
