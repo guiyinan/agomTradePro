@@ -5,6 +5,7 @@ ORM Models for Policy Events.
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 class PolicyLog(models.Model):
@@ -158,6 +159,109 @@ class PolicyLog(models.Model):
         """
     )
 
+    # ========== 工作台扩展字段 ==========
+    EVENT_TYPE_CHOICES = [
+        ('policy', '政策事件'),
+        ('hotspot', '热点事件'),
+        ('sentiment', '情绪事件'),
+        ('mixed', '混合事件'),
+    ]
+    event_type = models.CharField(
+        max_length=20,
+        choices=EVENT_TYPE_CHOICES,
+        default='policy',
+        db_index=True,
+        verbose_name="事件类型",
+        help_text="区分政策事件与热点情绪事件"
+    )
+
+    ASSET_CLASS_CHOICES = [
+        ('equity', '股票'),
+        ('bond', '债券'),
+        ('commodity', '商品'),
+        ('fx', '外汇'),
+        ('crypto', '加密货币'),
+        ('all', '全资产'),
+    ]
+    asset_class = models.CharField(
+        max_length=20,
+        choices=ASSET_CLASS_CHOICES,
+        blank=True,
+        null=True,
+        db_index=True,
+        verbose_name="资产分类",
+        help_text="按资产类约束"
+    )
+    asset_scope = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="受影响资产范围",
+        help_text="JSON数组，如 ['000001.SH', '000300.SH']"
+    )
+
+    # ========== 热点情绪评分 ==========
+    heat_score = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="热度评分",
+        help_text="0-100，数值越高热度越高",
+        validators=[
+            MinValueValidator(0),
+            MaxValueValidator(100)
+        ]
+    )
+    sentiment_score = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="情绪评分",
+        help_text="-1.0 ~ +1.0，负值悲观，正值乐观",
+        validators=[
+            MinValueValidator(-1.0),
+            MaxValueValidator(1.0)
+        ]
+    )
+
+    # ========== 闸门等级与生效状态 ==========
+    GATE_LEVEL_CHOICES = [
+        ('L0', 'L0 - 正常'),
+        ('L1', 'L1 - 关注'),
+        ('L2', 'L2 - 警戒'),
+        ('L3', 'L3 - 严控'),
+    ]
+    gate_level = models.CharField(
+        max_length=2,
+        choices=GATE_LEVEL_CHOICES,
+        blank=True,
+        null=True,
+        db_index=True,
+        verbose_name="闸门等级",
+        help_text="热点情绪闸门等级 L0-L3"
+    )
+    gate_effective = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="闸门已生效",
+        help_text="是否已审核通过并生效"
+    )
+    effective_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="生效时间"
+    )
+    effective_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='effected_policies',
+        verbose_name="生效操作人"
+    )
+    rollback_reason = models.TextField(
+        blank=True,
+        verbose_name="回滚原因",
+        help_text="回滚生效时填写的原因"
+    )
+
     class Meta:
         db_table = 'policy_log'
         ordering = ['-event_date']
@@ -167,6 +271,10 @@ class PolicyLog(models.Model):
             models.Index(fields=['info_category']),
             models.Index(fields=['audit_status']),
             models.Index(fields=['rss_item_guid']),
+            # 工作台新增索引
+            models.Index(fields=['event_type', '-event_date']),
+            models.Index(fields=['gate_effective', 'event_type']),
+            models.Index(fields=['asset_class', 'gate_level']),
         ]
 
     def __str__(self):
@@ -760,3 +868,261 @@ class HedgePositionModel(models.Model):
     def __str__(self):
         return f"{self.portfolio.name} - {self.instrument_code} ({self.get_status_display()})"
 
+
+# ============================================================
+# 工作台配置模型
+# ============================================================
+
+class PolicyIngestionConfig(models.Model):
+    """
+    政策摄入配置（单例模式）
+
+    控制自动审核、SLA 等工作台行为。
+    """
+
+    # 单例约束
+    singleton_id = models.AutoField(primary_key=True, verbose_name="单例ID")
+
+    # 自动生效配置
+    auto_approve_enabled = models.BooleanField(
+        default=False,
+        verbose_name="启用自动生效",
+        help_text="是否启用高置信度事件自动生效"
+    )
+    auto_approve_min_level = models.CharField(
+        max_length=2,
+        choices=[
+            ('P0', 'P0 - 常态'),
+            ('P1', 'P1 - 预警'),
+            ('P2', 'P2 - 干预'),
+            ('P3', 'P3 - 危机'),
+        ],
+        default='P2',
+        verbose_name="自动生效最低档位",
+        help_text="P2 表示 P2/P3 可自动生效，P0 表示所有档位"
+    )
+    auto_approve_threshold = models.FloatField(
+        default=0.85,
+        verbose_name="自动生效置信度阈值",
+        help_text="AI 置信度达到此阈值才可自动生效（0.0-1.0）"
+    )
+
+    # SLA 配置
+    p23_sla_hours = models.IntegerField(
+        default=2,
+        verbose_name="P2/P3 SLA（小时）",
+        help_text="P2/P3 事件审核超时时间"
+    )
+    normal_sla_hours = models.IntegerField(
+        default=24,
+        verbose_name="普通 SLA（小时）",
+        help_text="P0/P1 事件审核超时时间"
+    )
+
+    # 版本控制
+    version = models.IntegerField(default=1, verbose_name="配置版本")
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="更新人"
+    )
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    class Meta:
+        db_table = 'policy_ingestion_config'
+        verbose_name = "政策摄入配置"
+        verbose_name_plural = "政策摄入配置"
+
+    def __str__(self):
+        status = "启用" if self.auto_approve_enabled else "禁用"
+        return f"政策摄入配置 [{status}] v{self.version}"
+
+    @classmethod
+    def get_config(cls):
+        """
+        获取配置（单例模式）
+        """
+        config, created = cls.objects.get_or_create(
+            singleton_id=1,
+            defaults={
+                'auto_approve_enabled': False,
+                'auto_approve_threshold': 0.85,
+                'p23_sla_hours': 2,
+                'normal_sla_hours': 24,
+            }
+        )
+        return config
+
+
+class SentimentGateConfig(models.Model):
+    """
+    热点情绪闸门配置（按资产类）
+
+    定义各资产类的热点情绪阈值和约束。
+    """
+
+    ASSET_CLASS_CHOICES = [
+        ('equity', '股票'),
+        ('bond', '债券'),
+        ('commodity', '商品'),
+        ('fx', '外汇'),
+        ('crypto', '加密货币'),
+        ('all', '全资产'),
+    ]
+
+    asset_class = models.CharField(
+        max_length=20,
+        choices=ASSET_CLASS_CHOICES,
+        unique=True,
+        verbose_name="资产分类"
+    )
+
+    # 热度阈值
+    heat_l1_threshold = models.FloatField(
+        default=30.0,
+        verbose_name="热度 L1 阈值",
+        help_text="热度达到此值触发 L1 关注"
+    )
+    heat_l2_threshold = models.FloatField(
+        default=60.0,
+        verbose_name="热度 L2 阈值",
+        help_text="热度达到此值触发 L2 警戒"
+    )
+    heat_l3_threshold = models.FloatField(
+        default=85.0,
+        verbose_name="热度 L3 阈值",
+        help_text="热度达到此值触发 L3 严控"
+    )
+
+    # 情绪阈值（负值，绝对值越大越悲观）
+    sentiment_l1_threshold = models.FloatField(
+        default=-0.3,
+        verbose_name="情绪 L1 阈值",
+        help_text="情绪低于此值触发 L1 关注（如 -0.3）"
+    )
+    sentiment_l2_threshold = models.FloatField(
+        default=-0.6,
+        verbose_name="情绪 L2 阈值",
+        help_text="情绪低于此值触发 L2 警戒"
+    )
+    sentiment_l3_threshold = models.FloatField(
+        default=-0.8,
+        verbose_name="情绪 L3 阈值",
+        help_text="情绪低于此值触发 L3 严控"
+    )
+
+    # 仓位约束
+    max_position_cap_l2 = models.FloatField(
+        default=0.7,
+        verbose_name="L2 最大仓位上限",
+        help_text="L2 警戒时最大仓位比例（0.7 表示 70%）"
+    )
+    max_position_cap_l3 = models.FloatField(
+        default=0.3,
+        verbose_name="L3 最大仓位上限",
+        help_text="L3 严控时最大仓位比例（0.3 表示 30%）"
+    )
+
+    # 状态与版本
+    enabled = models.BooleanField(default=True, verbose_name="启用")
+    version = models.IntegerField(default=1, verbose_name="配置版本")
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="更新人"
+    )
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    class Meta:
+        db_table = 'sentiment_gate_config'
+        verbose_name = "热点情绪闸门配置"
+        verbose_name_plural = "热点情绪闸门配置"
+        ordering = ['asset_class']
+
+    def __str__(self):
+        status = "启用" if self.enabled else "禁用"
+        return f"{self.get_asset_class_display()} 闸门配置 [{status}] v{self.version}"
+
+
+class GateActionAuditLog(models.Model):
+    """
+    闸门操作审计日志
+
+    记录所有审核、拒绝、回滚、豁免操作的完整历史。
+    """
+
+    ACTION_CHOICES = [
+        ('approve', '审核通过'),
+        ('reject', '审核拒绝'),
+        ('rollback', '回滚生效'),
+        ('override', '临时豁免'),
+        ('auto_approve', '自动生效'),
+        ('level_change', '档位变更'),
+    ]
+
+    event = models.ForeignKey(
+        PolicyLog,
+        on_delete=models.CASCADE,
+        related_name='audit_logs',
+        verbose_name="关联事件"
+    )
+    action = models.CharField(
+        max_length=20,
+        choices=ACTION_CHOICES,
+        verbose_name="操作类型"
+    )
+    operator = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="操作人"
+    )
+
+    # 状态快照
+    before_state = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="操作前状态",
+        help_text="操作前的关键字段快照"
+    )
+    after_state = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="操作后状态",
+        help_text="操作后的关键字段快照"
+    )
+
+    # 原因与版本
+    reason = models.TextField(
+        blank=True,
+        verbose_name="操作原因",
+        help_text="拒绝/回滚/豁免时填写的原因"
+    )
+    rule_version = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="规则版本",
+        help_text="执行时的规则版本号"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    class Meta:
+        db_table = 'gate_action_audit_log'
+        verbose_name = "闸门操作审计日志"
+        verbose_name_plural = "闸门操作审计日志"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['event', '-created_at']),
+            models.Index(fields=['action']),
+            models.Index(fields=['operator']),
+        ]
+
+    def __str__(self):
+        return f"{self.event.title} - {self.get_action_display()} ({self.created_at.strftime('%Y-%m-%d %H:%M')})"

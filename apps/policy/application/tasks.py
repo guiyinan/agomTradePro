@@ -622,3 +622,176 @@ def trigger_signal_reevaluation(
                 'error': str(exc)
             }
 
+
+# ========== 工作台相关任务 ==========
+
+@shared_task
+def fetch_rss_sources():
+    """
+    定时抓取所有 RSS 源
+
+    该任务应由 Celery Beat 定时调用（如每 6 小时一次）
+    """
+    try:
+        from .use_cases import FetchRSSUseCase, FetchRSSInput
+        from ..infrastructure.repositories import RSSRepository
+
+        rss_repo = RSSRepository()
+        policy_repo = DjangoPolicyRepository()
+
+        use_case = FetchRSSUseCase(
+            rss_repository=rss_repo,
+            policy_repository=policy_repo,
+        )
+
+        input_dto = FetchRSSInput(source_id=None)
+        output = use_case.execute(input_dto)
+
+        logger.info(
+            f"RSS sources fetched: {output.sources_processed} sources, "
+            f"{output.new_policy_events} new events"
+        )
+
+        return {
+            "status": "success",
+            "sources_processed": output.sources_processed,
+            "new_events": output.new_policy_events,
+        }
+
+    except Exception as e:
+        logger.error(f"RSS sources fetch failed: {e}", exc_info=True)
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+
+
+@shared_task
+def auto_assign_pending_audits_task(max_per_user: int = 10):
+    """
+    自动分配待审核的政策
+
+    该任务应由 Celery Beat 定时调用（如每 15 分钟一次）
+
+    Args:
+        max_per_user: 每个用户最多分配数量
+    """
+    return auto_assign_pending_audits(max_per_user)
+
+
+@shared_task
+def monitor_sla_exceeded_task():
+    """
+    监控 SLA 超时事件
+
+    该任务应由 Celery Beat 定时调用（如每 10 分钟一次）
+    """
+    try:
+        from ..infrastructure.repositories import WorkbenchRepository
+        from ..infrastructure.models import PolicyLog, PolicyIngestionConfig
+        from django.utils import timezone
+
+        workbench_repo = WorkbenchRepository()
+        config = workbench_repo.get_ingestion_config()
+
+        now = timezone.now()
+
+        # P2/P3 超时
+        p23_cutoff = now - timedelta(hours=config.p23_sla_hours)
+        p23_exceeded = PolicyLog._default_manager.filter(
+            audit_status='pending_review',
+            level__in=['P2', 'P3'],
+            created_at__lt=p23_cutoff
+        )
+
+        # 普通（P0/P1）超时
+        normal_cutoff = now - timedelta(hours=config.normal_sla_hours)
+        normal_exceeded = PolicyLog._default_manager.filter(
+            audit_status='pending_review',
+            level__in=['P0', 'P1'],
+            created_at__lt=normal_cutoff
+        )
+
+        total_exceeded = p23_exceeded.count() + normal_exceeded.count()
+
+        if total_exceeded > 0:
+            logger.warning(
+                f"SLA exceeded: {p23_exceeded.count()} P2/P3, "
+                f"{normal_exceeded.count()} P0/P1"
+            )
+            # TODO: 发送告警通知
+
+        return {
+            "status": "success",
+            "p23_exceeded": p23_exceeded.count(),
+            "normal_exceeded": normal_exceeded.count(),
+            "total_exceeded": total_exceeded,
+        }
+
+    except Exception as e:
+        logger.error(f"SLA monitor failed: {e}", exc_info=True)
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+
+
+@shared_task
+def refresh_gate_constraints_task():
+    """
+    刷新闸门约束
+
+    该任务应由 Celery Beat 定时调用（如每 5 分钟一次）
+    """
+    try:
+        from ..infrastructure.repositories import WorkbenchRepository
+        from ..domain.rules import calculate_gate_level
+        from ..infrastructure.models import PolicyLog, SentimentGateConfig
+        from django.db.models import Avg
+
+        workbench_repo = WorkbenchRepository()
+
+        # 获取全局热度与情绪
+        global_heat, global_sentiment = workbench_repo.get_global_heat_sentiment()
+
+        # 获取闸门配置
+        gate_config = workbench_repo.get_gate_config('all')
+
+        if gate_config and global_heat is not None:
+            from ..domain.entities import SentimentGateThresholds
+
+            thresholds = SentimentGateThresholds(
+                heat_l1_threshold=gate_config.heat_l1_threshold,
+                heat_l2_threshold=gate_config.heat_l2_threshold,
+                heat_l3_threshold=gate_config.heat_l3_threshold,
+                sentiment_l1_threshold=gate_config.sentiment_l1_threshold,
+                sentiment_l2_threshold=gate_config.sentiment_l2_threshold,
+                sentiment_l3_threshold=gate_config.sentiment_l3_threshold,
+            )
+
+            gate_level = calculate_gate_level(global_heat, global_sentiment, thresholds)
+
+            logger.info(
+                f"Gate constraints refreshed: heat={global_heat:.1f}, "
+                f"sentiment={global_sentiment:.2f}, level={gate_level.value}"
+            )
+
+            return {
+                "status": "success",
+                "heat_score": global_heat,
+                "sentiment_score": global_sentiment,
+                "gate_level": gate_level.value,
+            }
+
+        return {
+            "status": "success",
+            "message": "No gate config or data available"
+        }
+
+    except Exception as e:
+        logger.error(f"Gate constraints refresh failed: {e}", exc_info=True)
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+

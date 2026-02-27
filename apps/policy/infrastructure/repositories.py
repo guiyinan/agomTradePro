@@ -227,16 +227,27 @@ class DjangoPolicyRepository:
         """
         获取当前政策档位
 
+        重要：仅查询 event_type='policy' AND gate_effective=True 的事件。
+        热点情绪事件（hotspot/sentiment）不影响政策档位。
+
         Args:
             as_of_date: 截止日期（None 表示最新）
 
         Returns:
             PolicyLevel: 当前政策档位
         """
-        latest = self.get_latest_event(as_of_date)
+        query = self._model.objects.filter(
+            event_type='policy',
+            gate_effective=True
+        )
 
-        if latest:
-            return latest.level
+        if as_of_date:
+            query = query.filter(event_date__lte=as_of_date)
+
+        orm_obj = query.order_by('-event_date', '-effective_at').first()
+
+        if orm_obj:
+            return PolicyLevel(orm_obj.level)
 
         # 默认返回 P0（常态）
         return PolicyLevel.P0
@@ -541,4 +552,384 @@ class RSSRepository:
 def get_policy_repository() -> DjangoPolicyRepository:
     """Backward-compatible repository factory."""
     return DjangoPolicyRepository()
+
+
+class WorkbenchRepository:
+    """
+    工作台数据仓储
+
+    提供工作台专用的数据访问操作。
+    """
+
+    def __init__(self):
+        self._model = PolicyLog
+        from .models import (
+            PolicyIngestionConfig,
+            SentimentGateConfig,
+            GateActionAuditLog
+        )
+        self._ingestion_config_model = PolicyIngestionConfig
+        self._gate_config_model = SentimentGateConfig
+        self._audit_log_model = GateActionAuditLog
+
+    # ========== 工作台事件查询 ==========
+
+    def get_pending_review_events(
+        self,
+        event_type: Optional[str] = None,
+        level: Optional[str] = None,
+        limit: int = 50
+    ) -> List[PolicyLog]:
+        """
+        获取待审核事件列表
+
+        Args:
+            event_type: 事件类型筛选（policy/hotspot/sentiment/mixed）
+            level: 档位筛选（P0/P1/P2/P3）
+            limit: 返回数量限制
+
+        Returns:
+            List[PolicyLog]: 待审核事件列表
+        """
+        query = self._model.objects.filter(
+            audit_status='pending_review'
+        )
+
+        if event_type:
+            query = query.filter(event_type=event_type)
+        if level:
+            query = query.filter(level=level)
+
+        return list(query.order_by('-created_at')[:limit])
+
+    def get_effective_events(
+        self,
+        event_type: Optional[str] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+        limit: int = 50
+    ) -> List[PolicyLog]:
+        """
+        获取已生效事件列表
+
+        Args:
+            event_type: 事件类型筛选
+            start_date: 起始日期
+            end_date: 结束日期
+            limit: 返回数量限制
+
+        Returns:
+            List[PolicyLog]: 已生效事件列表
+        """
+        query = self._model.objects.filter(gate_effective=True)
+
+        if event_type:
+            query = query.filter(event_type=event_type)
+        if start_date:
+            query = query.filter(event_date__gte=start_date)
+        if end_date:
+            query = query.filter(event_date__lte=end_date)
+
+        return list(query.order_by('-effective_at')[:limit])
+
+    def get_pending_review_count(self) -> int:
+        """获取待审核事件数量"""
+        return self._model.objects.filter(audit_status='pending_review').count()
+
+    def get_sla_exceeded_count(self, p23_sla_hours: int = 2, normal_sla_hours: int = 24) -> int:
+        """
+        获取 SLA 超时事件数量
+
+        Args:
+            p23_sla_hours: P2/P3 的 SLA 小时数
+            normal_sla_hours: P0/P1 的 SLA 小时数
+
+        Returns:
+            int: 超时事件数量
+        """
+        from django.utils import timezone
+        from datetime import timedelta
+
+        now = timezone.now()
+
+        # P2/P3 超时
+        p23_cutoff = now - timedelta(hours=p23_sla_hours)
+        p23_count = self._model.objects.filter(
+            audit_status='pending_review',
+            level__in=['P2', 'P3'],
+            created_at__lt=p23_cutoff
+        ).count()
+
+        # P0/P1 超时
+        normal_cutoff = now - timedelta(hours=normal_sla_hours)
+        normal_count = self._model.objects.filter(
+            audit_status='pending_review',
+            level__in=['P0', 'P1'],
+            created_at__lt=normal_cutoff
+        ).count()
+
+        return p23_count + normal_count
+
+    def get_global_heat_sentiment(self) -> tuple[Optional[float], Optional[float]]:
+        """
+        获取全局热度与情绪评分
+
+        计算所有已生效热点情绪事件的平均热度与情绪
+
+        Returns:
+            tuple: (热度评分, 情绪评分)
+        """
+        from django.db.models import Avg
+
+        effective_events = self._model.objects.filter(
+            gate_effective=True,
+            event_type__in=['hotspot', 'sentiment', 'mixed']
+        )
+
+        result = effective_events.aggregate(
+            avg_heat=Avg('heat_score'),
+            avg_sentiment=Avg('sentiment_score')
+        )
+
+        return result['avg_heat'], result['avg_sentiment']
+
+    def get_effective_today_count(self) -> int:
+        """获取今日生效事件数量"""
+        from django.utils import timezone
+
+        today = timezone.now().date()
+        return self._model.objects.filter(
+            gate_effective=True,
+            effective_at__date=today
+        ).count()
+
+    # ========== 事件操作 ==========
+
+    def approve_event(
+        self,
+        event_id: int,
+        user_id: int,
+        reason: str = ""
+    ) -> Optional[PolicyLog]:
+        """
+        审核通过事件
+
+        Args:
+            event_id: 事件 ID
+            user_id: 操作用户 ID
+            reason: 审核原因
+
+        Returns:
+            PolicyLog: 更新后的事件，失败返回 None
+        """
+        try:
+            event = self._model.objects.get(pk=event_id)
+            before_state = self._get_event_state(event)
+
+            event.gate_effective = True
+            event.effective_at = timezone.now()
+            event.effective_by_id = user_id
+            event.audit_status = 'manual_approved'
+            event.review_notes = reason
+            event.save()
+
+            after_state = self._get_event_state(event)
+            self._create_audit_log(
+                event=event,
+                action='approve',
+                operator_id=user_id,
+                before_state=before_state,
+                after_state=after_state,
+                reason=reason
+            )
+
+            return event
+        except self._model.DoesNotExist:
+            return None
+
+    def reject_event(
+        self,
+        event_id: int,
+        user_id: int,
+        reason: str
+    ) -> Optional[PolicyLog]:
+        """
+        审核拒绝事件
+
+        Args:
+            event_id: 事件 ID
+            user_id: 操作用户 ID
+            reason: 拒绝原因（必填）
+
+        Returns:
+            PolicyLog: 更新后的事件，失败返回 None
+        """
+        try:
+            event = self._model.objects.get(pk=event_id)
+            before_state = self._get_event_state(event)
+
+            event.audit_status = 'rejected'
+            event.review_notes = reason
+            event.reviewed_by_id = user_id
+            event.reviewed_at = timezone.now()
+            event.save()
+
+            after_state = self._get_event_state(event)
+            self._create_audit_log(
+                event=event,
+                action='reject',
+                operator_id=user_id,
+                before_state=before_state,
+                after_state=after_state,
+                reason=reason
+            )
+
+            return event
+        except self._model.DoesNotExist:
+            return None
+
+    def rollback_event(
+        self,
+        event_id: int,
+        user_id: int,
+        reason: str
+    ) -> Optional[PolicyLog]:
+        """
+        回滚事件生效状态
+
+        Args:
+            event_id: 事件 ID
+            user_id: 操作用户 ID
+            reason: 回滚原因（必填）
+
+        Returns:
+            PolicyLog: 更新后的事件，失败返回 None
+        """
+        try:
+            event = self._model.objects.get(pk=event_id)
+            before_state = self._get_event_state(event)
+
+            event.gate_effective = False
+            event.rollback_reason = reason
+            event.save()
+
+            after_state = self._get_event_state(event)
+            self._create_audit_log(
+                event=event,
+                action='rollback',
+                operator_id=user_id,
+                before_state=before_state,
+                after_state=after_state,
+                reason=reason
+            )
+
+            return event
+        except self._model.DoesNotExist:
+            return None
+
+    def override_event(
+        self,
+        event_id: int,
+        user_id: int,
+        reason: str,
+        new_level: Optional[str] = None
+    ) -> Optional[PolicyLog]:
+        """
+        临时豁免事件
+
+        Args:
+            event_id: 事件 ID
+            user_id: 操作用户 ID
+            reason: 豁免原因（必填）
+            new_level: 新档位（可选）
+
+        Returns:
+            PolicyLog: 更新后的事件，失败返回 None
+        """
+        try:
+            event = self._model.objects.get(pk=event_id)
+            before_state = self._get_event_state(event)
+
+            if new_level:
+                event.level = new_level
+            event.review_notes = f"[豁免] {reason}"
+            event.save()
+
+            after_state = self._get_event_state(event)
+            self._create_audit_log(
+                event=event,
+                action='override',
+                operator_id=user_id,
+                before_state=before_state,
+                after_state=after_state,
+                reason=reason
+            )
+
+            return event
+        except self._model.DoesNotExist:
+            return None
+
+    # ========== 配置管理 ==========
+
+    def get_ingestion_config(self) -> 'PolicyIngestionConfig':
+        """获取摄入配置（单例）"""
+        return self._ingestion_config_model.get_config()
+
+    def update_ingestion_config(self, **kwargs) -> 'PolicyIngestionConfig':
+        """更新摄入配置"""
+        config = self.get_ingestion_config()
+        for key, value in kwargs.items():
+            if hasattr(config, key):
+                setattr(config, key, value)
+        config.version = (config.version or 0) + 1
+        config.save()
+        return config
+
+    def get_gate_config(self, asset_class: str = 'all') -> Optional['SentimentGateConfig']:
+        """获取闸门配置"""
+        return self._gate_config_model.objects.filter(
+            asset_class=asset_class,
+            enabled=True
+        ).first()
+
+    def get_all_gate_configs(self) -> List['SentimentGateConfig']:
+        """获取所有闸门配置"""
+        return list(self._gate_config_model.objects.filter(enabled=True).all())
+
+    # ========== 辅助方法 ==========
+
+    def _get_event_state(self, event: PolicyLog) -> dict:
+        """获取事件状态快照"""
+        return {
+            'level': event.level,
+            'gate_level': event.gate_level,
+            'gate_effective': event.gate_effective,
+            'audit_status': event.audit_status,
+            'effective_at': str(event.effective_at) if event.effective_at else None,
+        }
+
+    def _create_audit_log(
+        self,
+        event: PolicyLog,
+        action: str,
+        operator_id: Optional[int],
+        before_state: dict,
+        after_state: dict,
+        reason: str
+    ) -> 'GateActionAuditLog':
+        """创建审计日志"""
+        return self._audit_log_model.objects.create(
+            event=event,
+            action=action,
+            operator_id=operator_id,
+            before_state=before_state,
+            after_state=after_state,
+            reason=reason,
+            rule_version='1.0'  # TODO: 从配置获取
+        )
+
+
+def get_workbench_repository() -> WorkbenchRepository:
+    """工作台仓储工厂函数"""
+    return WorkbenchRepository()
 

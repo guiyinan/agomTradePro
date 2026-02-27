@@ -8,6 +8,7 @@ import logging
 from datetime import date
 from typing import Optional
 
+from django.db import models
 from django.utils import timezone
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
@@ -1095,4 +1096,602 @@ class AutoAssignAuditsView(APIView):
                 {'success': False, 'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+# ============================================================
+# 工作台 API 视图
+# ============================================================
+
+from ..application.use_cases import (
+    GetWorkbenchSummaryUseCase,
+    GetWorkbenchItemsUseCase,
+    ApproveEventUseCase,
+    RejectEventUseCase,
+    RollbackEventUseCase,
+    OverrideEventUseCase,
+    GetSentimentGateStateUseCase,
+    WorkbenchSummaryInput,
+    WorkbenchItemsInput,
+    ApproveEventInput,
+    RejectEventInput,
+    RollbackEventInput,
+    OverrideEventInput,
+    SentimentGateStateInput,
+)
+from ..infrastructure.repositories import WorkbenchRepository
+from .serializers import (
+    WorkbenchSummarySerializer,
+    WorkbenchItemsQuerySerializer,
+    WorkbenchItemsResponseSerializer,
+    ApproveEventSerializer,
+    RejectEventSerializer,
+    RollbackEventSerializer,
+    OverrideEventSerializer,
+    ActionResponseSerializer,
+    SentimentGateStateSerializer,
+    IngestionConfigSerializer,
+    SentimentGateConfigSerializer,
+)
+
+
+class WorkbenchSummaryView(APIView):
+    """
+    工作台概览视图
+
+    GET /api/policy/workbench/summary/ - 获取工作台概览数据
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Policy Workbench"],
+        summary="获取工作台概览",
+        description="获取双闸状态、待审核数、SLA超时数等概览数据",
+        responses={200: WorkbenchSummarySerializer}
+    )
+    def get(self, request):
+        """获取工作台概览"""
+        try:
+            use_case = GetWorkbenchSummaryUseCase(
+                workbench_repo=WorkbenchRepository()
+            )
+            output = use_case.execute(WorkbenchSummaryInput())
+
+            if output.success:
+                serializer = WorkbenchSummarySerializer(output.summary)
+                return Response(serializer.data)
+            else:
+                return Response(
+                    {'success': False, 'error': output.error},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+        except Exception as e:
+            logger.error(f"Failed to get workbench summary: {e}", exc_info=True)
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class WorkbenchItemsView(APIView):
+    """
+    工作台事件列表视图
+
+    GET /api/policy/workbench/items/ - 获取工作台事件列表
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Policy Workbench"],
+        summary="获取工作台事件列表",
+        description="获取待审核/已生效/全部事件列表，支持多种筛选",
+        parameters=[
+            OpenApiParameter(name="tab", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
+                           description="Tab类型: pending/effective/all", required=False),
+            OpenApiParameter(name="event_type", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
+                           description="事件类型: policy/hotspot/sentiment/mixed", required=False),
+            OpenApiParameter(name="level", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
+                           description="政策档位: P0/P1/P2/P3/PX", required=False),
+            OpenApiParameter(name="gate_level", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
+                           description="闸门等级: L0/L1/L2/L3", required=False),
+            OpenApiParameter(name="asset_class", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
+                           description="资产分类: equity/bond/commodity/fx/crypto/all", required=False),
+            OpenApiParameter(name="start_date", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY,
+                           description="起始日期", required=False),
+            OpenApiParameter(name="end_date", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY,
+                           description="结束日期", required=False),
+            OpenApiParameter(name="search", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
+                           description="搜索关键词", required=False),
+            OpenApiParameter(name="limit", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY,
+                           description="返回数量限制", required=False),
+            OpenApiParameter(name="offset", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY,
+                           description="偏移量", required=False),
+        ],
+        responses={200: WorkbenchItemsResponseSerializer}
+    )
+    def get(self, request):
+        """获取工作台事件列表"""
+        try:
+            query_serializer = WorkbenchItemsQuerySerializer(data=request.query_params)
+            if not query_serializer.is_valid():
+                return Response(
+                    {'success': False, 'errors': query_serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            input_dto = WorkbenchItemsInput(**query_serializer.validated_data)
+            use_case = GetWorkbenchItemsUseCase(workbench_repo=WorkbenchRepository())
+            output = use_case.execute(input_dto)
+
+            if output.success:
+                return Response({
+                    'success': True,
+                    'items': output.items,
+                    'total': output.total
+                })
+            else:
+                return Response(
+                    {'success': False, 'error': output.error},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+        except Exception as e:
+            logger.error(f"Failed to get workbench items: {e}", exc_info=True)
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class ApproveEventView(APIView):
+    """
+    审核通过视图
+
+    POST /api/policy/workbench/items/{id}/approve/ - 审核通过事件
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Policy Workbench"],
+        summary="审核通过事件",
+        description="审核通过指定事件，使其生效",
+        request=ApproveEventSerializer,
+        responses={200: ActionResponseSerializer}
+    )
+    def post(self, request, event_id):
+        """审核通过事件"""
+        try:
+            serializer = ApproveEventSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(
+                    {'success': False, 'errors': serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            input_dto = ApproveEventInput(
+                event_id=event_id,
+                user_id=request.user.id,
+                reason=serializer.validated_data.get('reason', '')
+            )
+            use_case = ApproveEventUseCase(workbench_repo=WorkbenchRepository())
+            output = use_case.execute(input_dto)
+
+            if output.success:
+                return Response({
+                    'success': True,
+                    'event_id': output.event_id
+                })
+            else:
+                return Response(
+                    {'success': False, 'error': output.error},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        except Exception as e:
+            logger.error(f"Failed to approve event: {e}", exc_info=True)
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class RejectEventView(APIView):
+    """
+    审核拒绝视图
+
+    POST /api/policy/workbench/items/{id}/reject/ - 审核拒绝事件
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Policy Workbench"],
+        summary="审核拒绝事件",
+        description="审核拒绝指定事件（必须填写原因）",
+        request=RejectEventSerializer,
+        responses={200: ActionResponseSerializer}
+    )
+    def post(self, request, event_id):
+        """审核拒绝事件"""
+        try:
+            serializer = RejectEventSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(
+                    {'success': False, 'errors': serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            input_dto = RejectEventInput(
+                event_id=event_id,
+                user_id=request.user.id,
+                reason=serializer.validated_data['reason']
+            )
+            use_case = RejectEventUseCase(workbench_repo=WorkbenchRepository())
+            output = use_case.execute(input_dto)
+
+            if output.success:
+                return Response({
+                    'success': True,
+                    'event_id': output.event_id
+                })
+            else:
+                return Response(
+                    {'success': False, 'error': output.error},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        except Exception as e:
+            logger.error(f"Failed to reject event: {e}", exc_info=True)
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class RollbackEventView(APIView):
+    """
+    回滚生效视图
+
+    POST /api/policy/workbench/items/{id}/rollback/ - 回滚事件生效状态
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Policy Workbench"],
+        summary="回滚事件生效状态",
+        description="回滚已生效事件（必须填写原因）",
+        request=RollbackEventSerializer,
+        responses={200: ActionResponseSerializer}
+    )
+    def post(self, request, event_id):
+        """回滚事件生效状态"""
+        try:
+            serializer = RollbackEventSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(
+                    {'success': False, 'errors': serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            input_dto = RollbackEventInput(
+                event_id=event_id,
+                user_id=request.user.id,
+                reason=serializer.validated_data['reason']
+            )
+            use_case = RollbackEventUseCase(workbench_repo=WorkbenchRepository())
+            output = use_case.execute(input_dto)
+
+            if output.success:
+                return Response({
+                    'success': True,
+                    'event_id': output.event_id
+                })
+            else:
+                return Response(
+                    {'success': False, 'error': output.error},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        except Exception as e:
+            logger.error(f"Failed to rollback event: {e}", exc_info=True)
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class OverrideEventView(APIView):
+    """
+    临时豁免视图
+
+    POST /api/policy/workbench/items/{id}/override/ - 临时豁免事件
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Policy Workbench"],
+        summary="临时豁免事件",
+        description="临时豁免事件（必须填写原因，可选修改档位）",
+        request=OverrideEventSerializer,
+        responses={200: ActionResponseSerializer}
+    )
+    def post(self, request, event_id):
+        """临时豁免事件"""
+        try:
+            serializer = OverrideEventSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(
+                    {'success': False, 'errors': serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            input_dto = OverrideEventInput(
+                event_id=event_id,
+                user_id=request.user.id,
+                reason=serializer.validated_data['reason'],
+                new_level=serializer.validated_data.get('new_level')
+            )
+            use_case = OverrideEventUseCase(workbench_repo=WorkbenchRepository())
+            output = use_case.execute(input_dto)
+
+            if output.success:
+                return Response({
+                    'success': True,
+                    'event_id': output.event_id
+                })
+            else:
+                return Response(
+                    {'success': False, 'error': output.error},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        except Exception as e:
+            logger.error(f"Failed to override event: {e}", exc_info=True)
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class SentimentGateStateView(APIView):
+    """
+    热点情绪闸门状态视图
+
+    GET /api/policy/sentiment-gate/state/ - 获取热点情绪闸门状态
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Policy Workbench"],
+        summary="获取热点情绪闸门状态",
+        description="获取指定资产类的热点情绪闸门状态",
+        parameters=[
+            OpenApiParameter(name="asset_class", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY,
+                           description="资产分类: equity/bond/commodity/fx/crypto/all", required=False),
+        ],
+        responses={200: SentimentGateStateSerializer}
+    )
+    def get(self, request):
+        """获取热点情绪闸门状态"""
+        try:
+            asset_class = request.query_params.get('asset_class', 'all')
+            input_dto = SentimentGateStateInput(asset_class=asset_class)
+            use_case = GetSentimentGateStateUseCase(workbench_repo=WorkbenchRepository())
+            output = use_case.execute(input_dto)
+
+            if output.success:
+                return Response({
+                    'success': True,
+                    'asset_class': output.asset_class,
+                    'gate_level': output.gate_level,
+                    'heat_score': output.heat_score,
+                    'sentiment_score': output.sentiment_score,
+                    'max_position_cap': output.max_position_cap,
+                    'thresholds': output.thresholds
+                })
+            else:
+                return Response(
+                    {'success': False, 'error': output.error},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        except Exception as e:
+            logger.error(f"Failed to get sentiment gate state: {e}", exc_info=True)
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class IngestionConfigView(APIView):
+    """
+    摄入配置视图
+
+    GET /api/policy/ingestion-config/ - 获取摄入配置
+    PUT /api/policy/ingestion-config/ - 更新摄入配置
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Policy Workbench"],
+        summary="获取摄入配置",
+        description="获取政策摄入配置（自动生效、SLA 等）",
+        responses={200: IngestionConfigSerializer}
+    )
+    def get(self, request):
+        """获取摄入配置"""
+        try:
+            workbench_repo = WorkbenchRepository()
+            config = workbench_repo.get_ingestion_config()
+            serializer = IngestionConfigSerializer({
+                'auto_approve_enabled': config.auto_approve_enabled,
+                'auto_approve_min_level': config.auto_approve_min_level,
+                'auto_approve_threshold': config.auto_approve_threshold,
+                'p23_sla_hours': config.p23_sla_hours,
+                'normal_sla_hours': config.normal_sla_hours,
+                'version': config.version,
+            })
+            return Response(serializer.data)
+
+        except Exception as e:
+            logger.error(f"Failed to get ingestion config: {e}", exc_info=True)
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @extend_schema(
+        tags=["Policy Workbench"],
+        summary="更新摄入配置",
+        description="更新政策摄入配置",
+        request=IngestionConfigSerializer,
+        responses={200: IngestionConfigSerializer}
+    )
+    def put(self, request):
+        """更新摄入配置"""
+        try:
+            serializer = IngestionConfigSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(
+                    {'success': False, 'errors': serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            workbench_repo = WorkbenchRepository()
+            config = workbench_repo.update_ingestion_config(
+                **serializer.validated_data,
+                updated_by=request.user
+            )
+
+            return Response({
+                'success': True,
+                'version': config.version
+            })
+
+        except Exception as e:
+            logger.error(f"Failed to update ingestion config: {e}", exc_info=True)
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class SentimentGateConfigView(APIView):
+    """
+    闸门配置视图
+
+    GET /api/policy/sentiment-gate-config/ - 获取闸门配置列表
+    PUT /api/policy/sentiment-gate-config/ - 更新闸门配置
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Policy Workbench"],
+        summary="获取闸门配置列表",
+        description="获取所有资产类的闸门配置",
+        responses={200: SentimentGateConfigSerializer(many=True)}
+    )
+    def get(self, request):
+        """获取闸门配置列表"""
+        try:
+            workbench_repo = WorkbenchRepository()
+            configs = workbench_repo.get_all_gate_configs()
+            data = [
+                {
+                    'asset_class': c.asset_class,
+                    'heat_l1_threshold': c.heat_l1_threshold,
+                    'heat_l2_threshold': c.heat_l2_threshold,
+                    'heat_l3_threshold': c.heat_l3_threshold,
+                    'sentiment_l1_threshold': c.sentiment_l1_threshold,
+                    'sentiment_l2_threshold': c.sentiment_l2_threshold,
+                    'sentiment_l3_threshold': c.sentiment_l3_threshold,
+                    'max_position_cap_l2': c.max_position_cap_l2,
+                    'max_position_cap_l3': c.max_position_cap_l3,
+                    'enabled': c.enabled,
+                    'version': c.version,
+                }
+                for c in configs
+            ]
+            return Response(data)
+
+        except Exception as e:
+            logger.error(f"Failed to get gate configs: {e}", exc_info=True)
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @extend_schema(
+        tags=["Policy Workbench"],
+        summary="更新闸门配置",
+        description="更新指定资产类的闸门配置",
+        request=SentimentGateConfigSerializer,
+        responses={200: SentimentGateConfigSerializer}
+    )
+    def put(self, request):
+        """更新闸门配置"""
+        try:
+            serializer = SentimentGateConfigSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(
+                    {'success': False, 'errors': serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            from ..infrastructure.models import SentimentGateConfig
+
+            asset_class = serializer.validated_data['asset_class']
+            config, _ = SentimentGateConfig.objects.update_or_create(
+                asset_class=asset_class,
+                defaults={
+                    **serializer.validated_data,
+                    'updated_by': request.user,
+                    'version': models.F('version') + 1
+                }
+            )
+
+            return Response({
+                'success': True,
+                'asset_class': config.asset_class,
+                'version': config.version
+            })
+
+        except Exception as e:
+            logger.error(f"Failed to update gate config: {e}", exc_info=True)
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+# ============================================================
+# 工作台页面视图
+# ============================================================
+
+class WorkbenchView(LoginRequiredMixin, ListView):
+    """
+    工作台页面视图
+
+    GET /policy/workbench/ - 工作台页面
+    """
+    template_name = "policy/workbench.html"
+    model = PolicyLog
+    context_object_name = "events"
+    paginate_by = 50
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = "工作台"
+        context['event_types'] = PolicyLog.EVENT_TYPE_CHOICES
+        context['levels'] = PolicyLog.POLICY_LEVELS
+        context['gate_levels'] = PolicyLog.GATE_LEVEL_CHOICES
+        return context
 

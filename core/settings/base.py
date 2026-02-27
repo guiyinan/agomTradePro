@@ -543,6 +543,37 @@ CELERY_BEAT_SCHEDULE = {
         }
     },
     # ============================================
+
+    # ========== Policy Workbench 任务 ==========
+    'policy-fetch-rss-sources': {
+        'task': 'apps.policy.application.tasks.fetch_rss_sources',
+        'schedule': crontab(hour='*/6', minute=0),  # 每 6 小时
+        'options': {
+            'expires': 3600,  # 1 小时超时
+        }
+    },
+    'policy-review-auto-assign': {
+        'task': 'apps.policy.application.tasks.auto_assign_pending_audits_task',
+        'schedule': crontab(minute='*/15'),  # 每 15 分钟
+        'options': {
+            'expires': 600,  # 10 分钟超时
+        }
+    },
+    'policy-sla-monitor': {
+        'task': 'apps.policy.application.tasks.monitor_sla_exceeded_task',
+        'schedule': crontab(minute='*/10'),  # 每 10 分钟
+        'options': {
+            'expires': 300,  # 5 分钟超时
+        }
+    },
+    'policy-gate-refresh': {
+        'task': 'apps.policy.application.tasks.refresh_gate_constraints_task',
+        'schedule': crontab(minute='*/5'),  # 每 5 分钟
+        'options': {
+            'expires': 180,  # 3 分钟超时
+        }
+    },
+    # ============================================
 }
 
 # ========== Qlib 配置 ==========

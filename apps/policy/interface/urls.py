@@ -27,6 +27,8 @@ from .views import (
     RSSSourceUpdateView,
     PolicyKeywordCreateView,
     PolicyKeywordUpdateView,
+    # 工作台页面视图
+    WorkbenchView,
 )
 
 app_name = "policy"
@@ -38,6 +40,9 @@ router.register(r'rss/logs', RSSFetchLogViewSet, basename='rss-log')
 router.register(r'rss/keywords', PolicyLevelKeywordViewSet, basename='rss-keyword')
 
 urlpatterns = [
+    # 工作台页面 (HTML)
+    path("workbench/", WorkbenchView.as_view(), name="workbench"),
+
     # 政策状态
     path("status/", PolicyStatusView.as_view(), name="status"),
 

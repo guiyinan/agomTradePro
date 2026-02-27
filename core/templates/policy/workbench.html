@@ -1,0 +1,1022 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}工作台 - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+<style>
+.workbench-container {
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* 概览卡片区 */
+.overview-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.overview-card {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.overview-card.policy {
+    border-left: 4px solid #3b82f6;
+}
+
+.overview-card.heat {
+    border-left: 4px solid #f59e0b;
+}
+
+.overview-card.pending {
+    border-left: 4px solid #6366f1;
+}
+
+.overview-card.sla {
+    border-left: 4px solid #ef4444;
+}
+
+.overview-card-title {
+    font-size: 14px;
+    color: #6b7280;
+    margin-bottom: 8px;
+}
+
+.overview-card-value {
+    font-size: 28px;
+    font-weight: bold;
+    color: #1f2937;
+}
+
+.overview-card-value .level {
+    font-size: 14px;
+    color: #6b7280;
+    margin-left: 8px;
+}
+
+.overview-card-meta {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 8px;
+}
+
+/* Tab 导航 */
+.tab-nav {
+    display: flex;
+    border-bottom: 2px solid #e5e7eb;
+    margin-bottom: 20px;
+}
+
+.tab-btn {
+    padding: 12px 24px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 15px;
+    color: #6b7280;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+}
+
+.tab-btn:hover {
+    color: #1f2937;
+}
+
+.tab-btn.active {
+    color: #3b82f6;
+    border-bottom-color: #3b82f6;
+}
+
+/* 筛选器 */
+.filters {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-group label {
+    font-size: 14px;
+    color: #4b5563;
+}
+
+.filter-group select,
+.filter-group input {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.filter-group input[type="date"] {
+    width: 140px;
+}
+
+/* 事件表格 */
+.events-table {
+    width: 100%;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.events-table th,
+.events-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.events-table th {
+    background: #f9fafb;
+    font-weight: 600;
+    color: #374151;
+}
+
+.events-table tr:hover {
+    background: #f9fafb;
+}
+
+.events-table .checkbox {
+    width: 40px;
+}
+
+.events-table .date {
+    width: 100px;
+}
+
+.events-table .type {
+    width: 80px;
+}
+
+.events-table .level-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.level-badge.p0 { background: #dcfce7; color: #166534; }
+.level-badge.p1 { background: #fef3c7; color: #92400e; }
+.level-badge.p2 { background: #fed7aa; color: #9a3412; }
+.level-badge.p3 { background: #fecaca; color: #991b1b; }
+
+.level-badge.l0 { background: #dcfce7; color: #166534; }
+.level-badge.l1 { background: #fef3c7; color: #92400e; }
+.level-badge.l2 { background: #fed7aa; color: #9a3412; }
+.level-badge.l3 { background: #fecaca; color: #991b1b; }
+
+.type-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    background: #e5e7eb;
+    color: #4b5563;
+}
+
+.type-badge.policy { background: #dbeafe; color: #1d4ed8; }
+.type-badge.hotspot { background: #fce7f3; color: #be185d; }
+.type-badge.sentiment { background: #f3e8ff; color: #7c3aed; }
+
+.sla-warning {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    background: #fecaca;
+    color: #991b1b;
+}
+
+/* 操作按钮 */
+.actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.2s;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.btn-primary { background: #3b82f6; color: white; }
+.btn-primary:hover { background: #2563eb; }
+
+.btn-success { background: #10b981; color: white; }
+.btn-success:hover { background: #059669; }
+
+.btn-danger { background: #ef4444; color: white; }
+.btn-danger:hover { background: #dc2626; }
+
+.btn-warning { background: #f59e0b; color: white; }
+.btn-warning:hover { background: #d97706; }
+
+.btn-secondary { background: #6b7280; color: white; }
+.btn-secondary:hover { background: #4b5563; }
+
+.btn-outline {
+    background: white;
+    border: 1px solid #d1d5db;
+    color: #374151;
+}
+.btn-outline:hover { background: #f3f4f6; }
+
+/* 批量操作栏 */
+.batch-actions {
+    display: flex;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.batch-actions .selected-count {
+    line-height: 32px;
+    color: #6b7280;
+}
+
+/* 快捷操作栏 */
+.quick-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    padding: 16px;
+    background: #f9fafb;
+    border-radius: 8px;
+}
+
+/* 模态框 */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    display: none;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal {
+    background: white;
+    border-radius: 8px;
+    width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-title {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #6b7280;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-footer {
+    padding: 16px 20px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+/* 表单组 */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* 置信度条 */
+.confidence-bar {
+    width: 60px;
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 3px;
+    overflow: hidden;
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 4px;
+}
+
+.confidence-bar .fill {
+    height: 100%;
+    background: #10b981;
+}
+
+.confidence-bar .fill.low {
+    background: #f59e0b;
+}
+
+.confidence-bar .fill.very-low {
+    background: #ef4444;
+}
+
+/* 分页 */
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+.pagination .page-btn {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.pagination .page-btn.active {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+/* 加载状态 */
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #6b7280;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6b7280;
+}
+
+.empty-state h3 {
+    margin-bottom: 8px;
+    color: #374151;
+}
+
+/* 响应式 */
+@media (max-width: 1200px) {
+    .overview-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .overview-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .events-table {
+        font-size: 13px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="workbench-container">
+    <div class="page-header" style="margin-bottom: 24px;">
+        <h1>工作台</h1>
+        <p>政策 + 热点情绪一体化管理</p>
+    </div>
+
+    <!-- 概览卡片 -->
+    <div class="overview-cards">
+        <div class="overview-card policy">
+            <div class="overview-card-title">政策档位</div>
+            <div class="overview-card-value" id="policy-level">
+                <span id="policy-level-value">-</span>
+                <span class="level" id="policy-level-event"></span>
+            </div>
+            <div class="overview-card-meta">仅已生效政策事件</div>
+        </div>
+
+        <div class="overview-card heat">
+            <div class="overview-card-title">全局热度</div>
+            <div class="overview-card-value" id="global-heat">
+                <span id="heat-value">-</span>
+                <span class="level" id="gate-level">(L0)</span>
+            </div>
+            <div class="overview-card-meta" id="sentiment-value">情绪: -</div>
+        </div>
+
+        <div class="overview-card pending">
+            <div class="overview-card-title">待审核</div>
+            <div class="overview-card-value" id="pending-count">0</div>
+            <div class="overview-card-meta">等待人工处理</div>
+        </div>
+
+        <div class="overview-card sla">
+            <div class="overview-card-title">SLA 超时</div>
+            <div class="overview-card-value" id="sla-count">0</div>
+            <div class="overview-card-meta" id="sla-note">P2/P3 超 2h 标红</div>
+        </div>
+    </div>
+
+    <!-- Tab 导航 -->
+    <div class="tab-nav">
+        <button class="tab-btn active" data-tab="pending">待审核队列</button>
+        <button class="tab-btn" data-tab="effective">已生效事件流</button>
+        <button class="tab-btn" data-tab="all">全部事件</button>
+    </div>
+
+    <!-- 筛选器 -->
+    <div class="filters">
+        <div class="filter-group">
+            <label>事件类型</label>
+            <select id="filter-event-type">
+                <option value="">全部</option>
+                <option value="policy">政策事件</option>
+                <option value="hotspot">热点事件</option>
+                <option value="sentiment">情绪事件</option>
+                <option value="mixed">混合事件</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label>档位</label>
+            <select id="filter-level">
+                <option value="">全部</option>
+                <option value="P0">P0 - 常态</option>
+                <option value="P1">P1 - 预警</option>
+                <option value="P2">P2 - 干预</option>
+                <option value="P3">P3 - 危机</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label>闸门等级</label>
+            <select id="filter-gate-level">
+                <option value="">全部</option>
+                <option value="L0">L0 - 正常</option>
+                <option value="L1">L1 - 关注</option>
+                <option value="L2">L2 - 警戒</option>
+                <option value="L3">L3 - 严控</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label>起始日期</label>
+            <input type="date" id="filter-start-date">
+        </div>
+
+        <div class="filter-group">
+            <label>结束日期</label>
+            <input type="date" id="filter-end-date">
+        </div>
+
+        <div class="filter-group">
+            <label>搜索</label>
+            <input type="text" id="filter-search" placeholder="标题或描述...">
+        </div>
+
+        <button class="btn btn-primary" onclick="applyFilters()">筛选</button>
+        <button class="btn btn-outline" onclick="resetFilters()">重置</button>
+    </div>
+
+    <!-- 批量操作栏 -->
+    <div class="batch-actions">
+        <input type="checkbox" id="select-all" onchange="toggleSelectAll()">
+        <span class="selected-count">已选择 <span id="selected-count">0</span> 项</span>
+        <button class="btn btn-success btn-sm" onclick="batchApprove()">批量通过</button>
+        <button class="btn btn-danger btn-sm" onclick="batchReject()">批量拒绝</button>
+    </div>
+
+    <!-- 事件表格 -->
+    <table class="events-table">
+        <thead>
+            <tr>
+                <th class="checkbox"></th>
+                <th class="date">日期</th>
+                <th class="type">类型</th>
+                <th>档位</th>
+                <th>闸门</th>
+                <th>标题</th>
+                <th>AI 置信度</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="events-tbody">
+            <tr>
+                <td colspan="8" class="loading">
+                    <div>加载中...</div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- 分页 -->
+    <div class="pagination" id="pagination"></div>
+
+    <!-- 快捷操作栏 -->
+    <div class="quick-actions">
+        <button class="btn btn-primary" onclick="fetchAll()">
+            <svg style="width:16px;height:16px;vertical-align:middle;margin-right:4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path>
+                <path d="M21 3v5h-5"></path>
+            </svg>
+            立即抓取全部
+        </button>
+        <select id="fetch-source" style="padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px;">
+            <option value="">指定源抓取...</option>
+        </select>
+        <button class="btn btn-outline" onclick="refreshData()">
+            <svg style="width:16px;height:16px;vertical-align:middle;margin-right:4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 4v6h-6M1 20v-6h6"></path>
+                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"></path>
+            </svg>
+            刷新
+        </button>
+    </div>
+</div>
+
+<!-- 审核模态框 -->
+<div class="modal-overlay" id="review-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title" id="modal-title">审核事件</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="modal-body">
+            <!-- 动态内容 -->
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" id="modal-confirm">确认</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 状态
+let currentTab = 'pending';
+let currentOffset = 0;
+let selectedIds = new Set();
+
+// 初始化
+document.addEventListener('DOMContentLoaded', () => {
+    loadSummary();
+    loadEvents();
+    initTabHandlers();
+});
+
+// Tab 切换
+function initTabHandlers() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentTab = btn.dataset.tab;
+            currentOffset = 0;
+            loadEvents();
+        });
+    });
+}
+
+// 加载概览
+async function loadSummary() {
+    try {
+        const response = await fetch('/api/policy/workbench/summary/');
+        const data = await response.json();
+
+        if (data.success || data.policy_level) {
+            document.getElementById('policy-level-value').textContent = data.policy_level || 'P0';
+            document.getElementById('policy-level-event').textContent = data.policy_level_event || '';
+            document.getElementById('heat-value').textContent =
+                data.global_heat_score ? data.global_heat_score.toFixed(0) : '-';
+            document.getElementById('gate-level').textContent =
+                data.global_gate_level ? `(${data.global_gate_level})` : '(L0)';
+            document.getElementById('sentiment-value').textContent =
+                `情绪: ${data.global_sentiment_score ? data.global_sentiment_score.toFixed(2) : '-'}`;
+            document.getElementById('pending-count').textContent = data.pending_review_count || 0;
+            document.getElementById('sla-count').textContent = data.sla_exceeded_count || 0;
+        }
+    } catch (error) {
+        console.error('Failed to load summary:', error);
+    }
+}
+
+// 加载事件列表
+async function loadEvents() {
+    const tbody = document.getElementById('events-tbody');
+    tbody.innerHTML = '<tr><td colspan="8" class="loading">加载中...</td></tr>';
+
+    const params = new URLSearchParams({
+        tab: currentTab,
+        limit: 50,
+        offset: currentOffset,
+        event_type: document.getElementById('filter-event-type').value,
+        level: document.getElementById('filter-level').value,
+        gate_level: document.getElementById('filter-gate-level').value,
+        start_date: document.getElementById('filter-start-date').value,
+        end_date: document.getElementById('filter-end-date').value,
+        search: document.getElementById('filter-search').value,
+    });
+
+    try {
+        const response = await fetch(`/api/policy/workbench/items/?${params}`);
+        const data = await response.json();
+
+        if (data.success && data.items.length > 0) {
+            renderEvents(data.items);
+            renderPagination(data.total);
+        } else {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="empty-state">
+                        <h3>暂无数据</h3>
+                        <p>当前筛选条件下没有找到事件</p>
+                    </td>
+                </tr>
+            `;
+        }
+    } catch (error) {
+        console.error('Failed to load events:', error);
+        tbody.innerHTML = '<tr><td colspan="8" class="loading">加载失败</td></tr>';
+    }
+}
+
+// 渲染事件列表
+function renderEvents(items) {
+    const tbody = document.getElementById('events-tbody');
+    tbody.innerHTML = items.map(item => `
+        <tr data-id="${item.id}">
+            <td><input type="checkbox" class="event-checkbox" value="${item.id}" onchange="updateSelection()"></td>
+            <td>${item.event_date}</td>
+            <td><span class="type-badge ${item.event_type}">${getEventTypeName(item.event_type)}</span></td>
+            <td><span class="level-badge ${item.level.toLowerCase()}">${item.level}</span></td>
+            <td>${item.gate_level ? `<span class="level-badge ${item.gate_level.toLowerCase()}">${item.gate_level}</span>` : '-'}</td>
+            <td>
+                <div style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    ${item.title}
+                </div>
+            </td>
+            <td>
+                ${item.ai_confidence !== null ? `
+                    ${item.ai_confidence.toFixed(2)}
+                    <span class="confidence-bar">
+                        <span class="fill ${getConfidenceClass(item.ai_confidence)}" style="width: ${item.ai_confidence * 100}%"></span>
+                    </span>
+                ` : '-'}
+            </td>
+            <td>
+                <div class="actions">
+                    ${currentTab === 'pending' ? `
+                        <button class="btn btn-success btn-sm" onclick="approveEvent(${item.id})">通过</button>
+                        <button class="btn btn-danger btn-sm" onclick="showRejectModal(${item.id})">拒绝</button>
+                        <button class="btn btn-outline btn-sm" onclick="showDetail(${item.id})">详情</button>
+                    ` : `
+                        <button class="btn btn-warning btn-sm" onclick="showRollbackModal(${item.id})">回滚</button>
+                        <button class="btn btn-outline btn-sm" onclick="showDetail(${item.id})">详情</button>
+                    `}
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// 渲染分页
+function renderPagination(total) {
+    const pagination = document.getElementById('pagination');
+    const limit = 50;
+    const pages = Math.ceil(total / limit);
+    const currentPage = Math.floor(currentOffset / limit) + 1;
+
+    if (pages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+
+    let html = '';
+    for (let i = 1; i <= Math.min(pages, 10); i++) {
+        html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+    }
+
+    pagination.innerHTML = html;
+}
+
+function goToPage(page) {
+    currentOffset = (page - 1) * 50;
+    loadEvents();
+}
+
+// 选择功能
+function toggleSelectAll() {
+    const checked = document.getElementById('select-all').checked;
+    document.querySelectorAll('.event-checkbox').forEach(cb => {
+        cb.checked = checked;
+        if (checked) {
+            selectedIds.add(parseInt(cb.value));
+        } else {
+            selectedIds.delete(parseInt(cb.value));
+        }
+    });
+    updateSelection();
+}
+
+function updateSelection() {
+    document.querySelectorAll('.event-checkbox:checked').forEach(cb => {
+        selectedIds.add(parseInt(cb.value));
+    });
+    document.querySelectorAll('.event-checkbox:not(:checked)').forEach(cb => {
+        selectedIds.delete(parseInt(cb.value));
+    });
+    document.getElementById('selected-count').textContent = selectedIds.size;
+}
+
+// 审核操作
+async function approveEvent(eventId) {
+    try {
+        const response = await fetch(`/api/policy/workbench/items/${eventId}/approve/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: '' })
+        });
+        const data = await response.json();
+        if (data.success) {
+            loadEvents();
+            loadSummary();
+        } else {
+            alert('操作失败: ' + (data.error || '未知错误'));
+        }
+    } catch (error) {
+        alert('操作失败: ' + error.message);
+    }
+}
+
+function showRejectModal(eventId) {
+    document.getElementById('modal-title').textContent = '拒绝审核';
+    document.getElementById('modal-body').innerHTML = `
+        <div class="form-group">
+            <label>拒绝原因（必填）</label>
+            <textarea id="reject-reason" placeholder="请说明拒绝原因..."></textarea>
+        </div>
+    `;
+    document.getElementById('modal-confirm').onclick = () => rejectEvent(eventId);
+    document.getElementById('modal-confirm').textContent = '确认拒绝';
+    document.getElementById('modal-confirm').className = 'btn btn-danger';
+    document.getElementById('review-modal').classList.add('active');
+}
+
+async function rejectEvent(eventId) {
+    const reason = document.getElementById('reject-reason').value;
+    if (!reason.trim()) {
+        alert('请填写拒绝原因');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/policy/workbench/items/${eventId}/reject/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason })
+        });
+        const data = await response.json();
+        if (data.success) {
+            closeModal();
+            loadEvents();
+            loadSummary();
+        } else {
+            alert('操作失败: ' + (data.error || '未知错误'));
+        }
+    } catch (error) {
+        alert('操作失败: ' + error.message);
+    }
+}
+
+function showRollbackModal(eventId) {
+    document.getElementById('modal-title').textContent = '回滚生效';
+    document.getElementById('modal-body').innerHTML = `
+        <div class="form-group">
+            <label>回滚原因（必填）</label>
+            <textarea id="rollback-reason" placeholder="请说明回滚原因..."></textarea>
+        </div>
+    `;
+    document.getElementById('modal-confirm').onclick = () => rollbackEvent(eventId);
+    document.getElementById('modal-confirm').textContent = '确认回滚';
+    document.getElementById('modal-confirm').className = 'btn btn-warning';
+    document.getElementById('review-modal').classList.add('active');
+}
+
+async function rollbackEvent(eventId) {
+    const reason = document.getElementById('rollback-reason').value;
+    if (!reason.trim()) {
+        alert('请填写回滚原因');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/policy/workbench/items/${eventId}/rollback/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason })
+        });
+        const data = await response.json();
+        if (data.success) {
+            closeModal();
+            loadEvents();
+            loadSummary();
+        } else {
+            alert('操作失败: ' + (data.error || '未知错误'));
+        }
+    } catch (error) {
+        alert('操作失败: ' + error.message);
+    }
+}
+
+async function showDetail(eventId) {
+    // 简化版：跳转到详情页或显示基本信息
+    alert('事件详情功能开发中，ID: ' + eventId);
+}
+
+// 批量操作
+async function batchApprove() {
+    if (selectedIds.size === 0) {
+        alert('请先选择要操作的事件');
+        return;
+    }
+
+    if (!confirm(`确认批量通过 ${selectedIds.size} 个事件？`)) {
+        return;
+    }
+
+    for (const eventId of selectedIds) {
+        await approveEvent(eventId);
+    }
+    selectedIds.clear();
+    loadEvents();
+}
+
+function batchReject() {
+    if (selectedIds.size === 0) {
+        alert('请先选择要操作的事件');
+        return;
+    }
+
+    document.getElementById('modal-title').textContent = '批量拒绝';
+    document.getElementById('modal-body').innerHTML = `
+        <p>已选择 ${selectedIds.size} 个事件</p>
+        <div class="form-group">
+            <label>拒绝原因（必填）</label>
+            <textarea id="batch-reject-reason" placeholder="请说明拒绝原因..."></textarea>
+        </div>
+    `;
+    document.getElementById('modal-confirm').onclick = executeBatchReject;
+    document.getElementById('modal-confirm').textContent = '确认拒绝';
+    document.getElementById('modal-confirm').className = 'btn btn-danger';
+    document.getElementById('review-modal').classList.add('active');
+}
+
+async function executeBatchReject() {
+    const reason = document.getElementById('batch-reject-reason').value;
+    if (!reason.trim()) {
+        alert('请填写拒绝原因');
+        return;
+    }
+
+    for (const eventId of selectedIds) {
+        await fetch(`/api/policy/workbench/items/${eventId}/reject/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason })
+        });
+    }
+
+    closeModal();
+    selectedIds.clear();
+    loadEvents();
+    loadSummary();
+}
+
+// 工具函数
+function closeModal() {
+    document.getElementById('review-modal').classList.remove('active');
+}
+
+function getEventTypeName(type) {
+    const names = {
+        'policy': '政策',
+        'hotspot': '热点',
+        'sentiment': '情绪',
+        'mixed': '混合'
+    };
+    return names[type] || type;
+}
+
+function getConfidenceClass(confidence) {
+    if (confidence >= 0.85) return '';
+    if (confidence >= 0.7) return 'low';
+    return 'very-low';
+}
+
+function applyFilters() {
+    currentOffset = 0;
+    loadEvents();
+}
+
+function resetFilters() {
+    document.getElementById('filter-event-type').value = '';
+    document.getElementById('filter-level').value = '';
+    document.getElementById('filter-gate-level').value = '';
+    document.getElementById('filter-start-date').value = '';
+    document.getElementById('filter-end-date').value = '';
+    document.getElementById('filter-search').value = '';
+    currentOffset = 0;
+    loadEvents();
+}
+
+function refreshData() {
+    loadSummary();
+    loadEvents();
+}
+
+async function fetchAll() {
+    if (!confirm('确认立即抓取所有 RSS 源？')) return;
+
+    try {
+        const response = await fetch('/api/policy/rss/fetch/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        const data = await response.json();
+        alert(`抓取完成：${data.new_policy_events || 0} 条新事件`);
+        refreshData();
+    } catch (error) {
+        alert('抓取失败: ' + error.message);
+    }
+}
+</script>
+{% endblock %}

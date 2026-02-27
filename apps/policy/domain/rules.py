@@ -6,7 +6,8 @@ Policy Response Rules - Domain Layer
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Dict, List, Optional, Tuple
 from enum import Enum
 
 from .entities import PolicyLevel
@@ -328,3 +329,220 @@ DEFAULT_KEYWORD_RULES: List[PolicyLevelKeywordRule] = [
         weight=1
     ),
 ]
+
+
+# ============================================================
+# 工作台闸门规则
+# ============================================================
+
+from .entities import (
+    GateLevel,
+    SentimentGateThresholds,
+    IngestionConfig,
+    EventType,
+)
+
+
+def calculate_gate_level(
+    heat_score: Optional[float],
+    sentiment_score: Optional[float],
+    config: SentimentGateThresholds
+) -> GateLevel:
+    """
+    计算热点情绪闸门等级（纯函数）
+
+    规则：热度或情绪任一触发即升级
+    - L3: 热度>=L3阈值 OR 情绪<=L3阈值
+    - L2: 热度>=L2阈值 OR 情绪<=L2阈值
+    - L1: 热度>=L1阈值 OR 情绪<=L1阈值
+    - L0: 其他情况
+
+    Args:
+        heat_score: 热度评分 (0-100)，None 表示无数据
+        sentiment_score: 情绪评分 (-1.0 ~ +1.0)，None 表示无数据
+        config: 闸门阈值配置
+
+    Returns:
+        GateLevel: 计算出的闸门等级
+    """
+    # 如果都没有数据，返回正常状态
+    if heat_score is None and sentiment_score is None:
+        return GateLevel.L0
+
+    # L3 检查（最严格）
+    if heat_score is not None and heat_score >= config.heat_l3_threshold:
+        return GateLevel.L3
+    if sentiment_score is not None and sentiment_score <= config.sentiment_l3_threshold:
+        return GateLevel.L3
+
+    # L2 检查
+    if heat_score is not None and heat_score >= config.heat_l2_threshold:
+        return GateLevel.L2
+    if sentiment_score is not None and sentiment_score <= config.sentiment_l2_threshold:
+        return GateLevel.L2
+
+    # L1 检查
+    if heat_score is not None and heat_score >= config.heat_l1_threshold:
+        return GateLevel.L1
+    if sentiment_score is not None and sentiment_score <= config.sentiment_l1_threshold:
+        return GateLevel.L1
+
+    # 默认正常
+    return GateLevel.L0
+
+
+def should_auto_approve(
+    policy_level: PolicyLevel,
+    ai_confidence: Optional[float],
+    config: IngestionConfig
+) -> tuple[bool, str]:
+    """
+    判断是否应自动生效（纯函数）
+
+    规则：
+    1. 自动生效开关必须开启
+    2. 档位必须满足最低要求（如 P2/P3）
+    3. AI 置信度必须达到阈值
+
+    Args:
+        policy_level: 政策档位
+        ai_confidence: AI 置信度 (0.0-1.0)
+        config: 摄入配置
+
+    Returns:
+        tuple[bool, str]: (是否自动生效, 原因说明)
+    """
+    # 检查开关
+    if not config.auto_approve_enabled:
+        return False, "自动生效功能未启用"
+
+    # 检查置信度
+    if ai_confidence is None:
+        return False, "缺少 AI 置信度"
+    if ai_confidence < config.auto_approve_threshold:
+        return False, f"AI 置信度 {ai_confidence:.2f} 低于阈值 {config.auto_approve_threshold}"
+
+    # 检查档位
+    level_order = {
+        PolicyLevel.P0: 0,
+        PolicyLevel.P1: 1,
+        PolicyLevel.P2: 2,
+        PolicyLevel.P3: 3,
+        PolicyLevel.PENDING: -1,
+    }
+    policy_level_value = level_order.get(policy_level, -1)
+    min_level_value = level_order.get(config.auto_approve_min_level, 2)
+
+    if policy_level_value < min_level_value:
+        return False, f"档位 {policy_level.value} 低于自动生效最低档位 {config.auto_approve_min_level.value}"
+
+    return True, f"满足自动生效条件：档位 {policy_level.value}，置信度 {ai_confidence:.2f}"
+
+
+def normalize_sentiment_score(raw_score: float, score_range: tuple = (-3.0, 3.0)) -> float:
+    """
+    将原始情绪评分归一化为标准范围 (-1.0 ~ +1.0)
+
+    Args:
+        raw_score: 原始评分
+        score_range: 原始评分范围，默认 (-3.0, 3.0)
+
+    Returns:
+        float: 归一化后的评分 (-1.0 ~ +1.0)
+    """
+    min_val, max_val = score_range
+    # 线性归一化到 [-1, 1]
+    normalized = 2 * (raw_score - min_val) / (max_val - min_val) - 1
+    # 限制在 [-1, 1] 范围内
+    return max(-1.0, min(1.0, normalized))
+
+
+def is_sla_exceeded(
+    created_at: datetime,
+    policy_level: PolicyLevel,
+    config: IngestionConfig,
+    now: Optional[datetime] = None
+) -> tuple[bool, int]:
+    """
+    检查是否超出 SLA（纯函数）
+
+    Args:
+        created_at: 事件创建时间
+        policy_level: 政策档位
+        config: 摄入配置
+        now: 当前时间（用于测试），默认使用当前时间
+
+    Returns:
+        tuple[bool, int]: (是否超出 SLA, 超出小时数)
+    """
+    from datetime import datetime, timezone
+
+    if now is None:
+        now = datetime.now(timezone.utc)
+
+    # 计算经过的小时数
+    elapsed = now - created_at
+    elapsed_hours = elapsed.total_seconds() / 3600
+
+    # 根据档位确定 SLA
+    if policy_level in [PolicyLevel.P2, PolicyLevel.P3]:
+        sla_hours = config.p23_sla_hours
+    else:
+        sla_hours = config.normal_sla_hours
+
+    exceeded_hours = int(elapsed_hours - sla_hours)
+    is_exceeded = exceeded_hours > 0
+
+    return is_exceeded, max(0, exceeded_hours)
+
+
+def get_max_position_cap(gate_level: GateLevel, config: dict) -> float:
+    """
+    获取闸门等级对应的最大仓位上限
+
+    Args:
+        gate_level: 闸门等级
+        config: 仓位配置字典，包含 max_position_cap_l2, max_position_cap_l3
+
+    Returns:
+        float: 最大仓位比例 (0.0-1.0)，1.0 表示无限制
+    """
+    if gate_level == GateLevel.L3:
+        return config.get('max_position_cap_l3', 0.3)
+    elif gate_level == GateLevel.L2:
+        return config.get('max_position_cap_l2', 0.7)
+    else:
+        return 1.0  # L0/L1 无仓位限制
+
+
+def can_event_affect_policy_level(event_type: EventType) -> bool:
+    """
+    判断事件类型是否可以影响政策档位
+
+    关键约束：热点情绪闸门不直接修改 P0-P3
+
+    Args:
+        event_type: 事件类型
+
+    Returns:
+        bool: True 表示可以影响政策档位
+    """
+    return event_type == EventType.POLICY
+
+
+def should_event_count_in_gate(event_type: EventType, gate_effective: bool) -> bool:
+    """
+    判断事件是否应计入闸门状态计算
+
+    Args:
+        event_type: 事件类型
+        gate_effective: 是否已生效
+
+    Returns:
+        bool: True 表示应计入闸门状态
+    """
+    # 只有已生效的事件才计入
+    if not gate_effective:
+        return False
+    # 热点和情绪事件计入闸门
+    return event_type in [EventType.HOTSPOT, EventType.SENTIMENT, EventType.MIXED]

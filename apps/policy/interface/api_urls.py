@@ -18,6 +18,16 @@ from .views import (
     ReviewPolicyItemView,
     BulkReviewView,
     AutoAssignAuditsView,
+    # 工作台视图
+    WorkbenchSummaryView,
+    WorkbenchItemsView,
+    ApproveEventView,
+    RejectEventView,
+    RollbackEventView,
+    OverrideEventView,
+    SentimentGateStateView,
+    IngestionConfigView,
+    SentimentGateConfigView,
 )
 
 app_name = "policy"
@@ -35,6 +45,16 @@ urlpatterns = [
     path("audit/review/<int:policy_log_id>/", ReviewPolicyItemView.as_view(), name="review-policy"),
     path("audit/bulk_review/", BulkReviewView.as_view(), name="bulk-review"),
     path("audit/auto_assign/", AutoAssignAuditsView.as_view(), name="auto-assign"),
+    # 工作台 API
+    path("workbench/summary/", WorkbenchSummaryView.as_view(), name="workbench-summary"),
+    path("workbench/items/", WorkbenchItemsView.as_view(), name="workbench-items"),
+    path("workbench/items/<int:event_id>/approve/", ApproveEventView.as_view(), name="workbench-approve"),
+    path("workbench/items/<int:event_id>/reject/", RejectEventView.as_view(), name="workbench-reject"),
+    path("workbench/items/<int:event_id>/rollback/", RollbackEventView.as_view(), name="workbench-rollback"),
+    path("workbench/items/<int:event_id>/override/", OverrideEventView.as_view(), name="workbench-override"),
+    path("sentiment-gate/state/", SentimentGateStateView.as_view(), name="sentiment-gate-state"),
+    path("ingestion-config/", IngestionConfigView.as_view(), name="ingestion-config"),
+    path("sentiment-gate-config/", SentimentGateConfigView.as_view(), name="sentiment-gate-config"),
     path("", include(router.urls)),
     # Legacy under /api/policy/api/...
     path("api/", include(router.urls)),

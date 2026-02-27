@@ -3,7 +3,7 @@ Domain Entities for Policy Events.
 """
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Optional, List, Dict, Any
 
@@ -15,6 +15,33 @@ class PolicyLevel(Enum):
     P1 = "P1"  # 预警
     P2 = "P2"  # 干预
     P3 = "P3"  # 危机
+
+
+class EventType(Enum):
+    """事件类型（区分政策与热点情绪）"""
+    POLICY = "policy"      # 政策事件
+    HOTSPOT = "hotspot"    # 热点事件
+    SENTIMENT = "sentiment"  # 情绪事件
+    MIXED = "mixed"        # 混合事件
+    UNKNOWN = "unknown"    # 未知类型
+
+
+class GateLevel(Enum):
+    """热点情绪闸门等级"""
+    L0 = "L0"  # 正常
+    L1 = "L1"  # 关注
+    L2 = "L2"  # 警戒
+    L3 = "L3"  # 严控
+
+
+class AssetClass(Enum):
+    """资产分类"""
+    EQUITY = "equity"      # 股票
+    BOND = "bond"          # 债券
+    COMMODITY = "commodity"  # 商品
+    FX = "fx"              # 外汇
+    CRYPTO = "crypto"      # 加密货币
+    ALL = "all"            # 全资产
 
 
 class InfoCategory(Enum):
@@ -141,3 +168,94 @@ class AIClassificationResult:
     risk_impact: Optional[RiskImpact] = None
     error_message: Optional[str] = None
     processing_metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+# ============================================================
+# 工作台相关实体
+# ============================================================
+
+@dataclass(frozen=True)
+class HeatSentimentScore:
+    """热点情绪评分值对象"""
+    heat_score: float  # 0-100，热度评分
+    sentiment_score: float  # -1.0 ~ +1.0，情绪评分
+
+    def __post_init__(self):
+        """验证评分范围"""
+        if not 0 <= self.heat_score <= 100:
+            raise ValueError(f"heat_score must be in [0, 100], got {self.heat_score}")
+        if not -1.0 <= self.sentiment_score <= 1.0:
+            raise ValueError(f"sentiment_score must be in [-1.0, 1.0], got {self.sentiment_score}")
+
+
+@dataclass(frozen=True)
+class SentimentGateThresholds:
+    """热点情绪闸门阈值配置"""
+    heat_l1_threshold: float = 30.0
+    heat_l2_threshold: float = 60.0
+    heat_l3_threshold: float = 85.0
+    sentiment_l1_threshold: float = -0.3
+    sentiment_l2_threshold: float = -0.6
+    sentiment_l3_threshold: float = -0.8
+
+
+@dataclass(frozen=True)
+class IngestionConfig:
+    """政策摄入配置值对象"""
+    auto_approve_enabled: bool = False
+    auto_approve_min_level: PolicyLevel = PolicyLevel.P2
+    auto_approve_threshold: float = 0.85
+    p23_sla_hours: int = 2
+    normal_sla_hours: int = 24
+
+
+@dataclass(frozen=True)
+class WorkbenchEvent:
+    """工作台事件实体"""
+    id: int
+    event_date: date
+    event_type: EventType
+    level: PolicyLevel
+    gate_level: Optional[GateLevel]
+    title: str
+    description: str
+    evidence_url: str
+    ai_confidence: Optional[float]
+    heat_score: Optional[float]
+    sentiment_score: Optional[float]
+    gate_effective: bool
+    asset_class: Optional[AssetClass]
+    asset_scope: List[str]
+    created_at: datetime
+    audit_status: str
+    effective_at: Optional[datetime] = None
+    effective_by_id: Optional[int] = None
+    rollback_reason: str = ""
+    review_notes: str = ""
+
+
+@dataclass(frozen=True)
+class WorkbenchSummary:
+    """工作台概览"""
+    policy_level: PolicyLevel
+    policy_level_event: Optional[str]  # 触发政策档位的事件标题
+    global_heat_score: Optional[float]
+    global_sentiment_score: Optional[float]
+    global_gate_level: Optional[GateLevel]
+    pending_review_count: int
+    sla_exceeded_count: int
+    effective_today_count: int
+    last_fetch_at: Optional[datetime] = None
+
+
+@dataclass(frozen=True)
+class GateActionRecord:
+    """闸门操作记录"""
+    event_id: int
+    action: str  # approve, reject, rollback, override
+    operator_id: Optional[int]
+    before_state: Dict[str, Any]
+    after_state: Dict[str, Any]
+    reason: str
+    rule_version: str
+    created_at: datetime

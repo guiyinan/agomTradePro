@@ -230,3 +230,180 @@ class RSSTriggerSerializer(serializers.Serializer):
 
     source_id = serializers.IntegerField(required=False, allow_null=True)
     force_refetch = serializers.BooleanField(required=False, default=False)
+
+
+# ============================================================
+# 工作台序列化器
+# ============================================================
+
+class WorkbenchSummarySerializer(serializers.Serializer):
+    """工作台概览序列化器"""
+
+    policy_level = serializers.SerializerMethodField()
+    policy_level_event = serializers.CharField(allow_null=True)
+    global_heat_score = serializers.FloatField(allow_null=True)
+    global_sentiment_score = serializers.FloatField(allow_null=True)
+    global_gate_level = serializers.SerializerMethodField()
+    pending_review_count = serializers.IntegerField()
+    sla_exceeded_count = serializers.IntegerField()
+    effective_today_count = serializers.IntegerField()
+    last_fetch_at = serializers.DateTimeField(allow_null=True)
+
+    def get_policy_level(self, obj):
+        """获取政策档位字符串值"""
+        level = getattr(obj, 'policy_level', None)
+        if level is None:
+            return None
+        return level.value if hasattr(level, 'value') else str(level)
+
+    def get_global_gate_level(self, obj):
+        """获取闸门等级字符串值"""
+        level = getattr(obj, 'global_gate_level', None)
+        if level is None:
+            return None
+        return level.value if hasattr(level, 'value') else str(level)
+
+
+class WorkbenchItemSerializer(serializers.Serializer):
+    """工作台事件项序列化器"""
+
+    id = serializers.IntegerField()
+    event_date = serializers.DateField()
+    event_type = serializers.CharField()
+    level = serializers.CharField()
+    gate_level = serializers.CharField(allow_null=True)
+    title = serializers.CharField()
+    description = serializers.CharField()
+    evidence_url = serializers.URLField()
+    ai_confidence = serializers.FloatField(allow_null=True)
+    heat_score = serializers.FloatField(allow_null=True)
+    sentiment_score = serializers.FloatField(allow_null=True)
+    gate_effective = serializers.BooleanField()
+    asset_class = serializers.CharField(allow_null=True)
+    asset_scope = serializers.ListField(child=serializers.CharField())
+    audit_status = serializers.CharField()
+    created_at = serializers.DateTimeField()
+    effective_at = serializers.DateTimeField(allow_null=True)
+    effective_by_id = serializers.IntegerField(allow_null=True)
+    review_notes = serializers.CharField(allow_blank=True)
+    rollback_reason = serializers.CharField(allow_blank=True)
+
+
+class WorkbenchItemsQuerySerializer(serializers.Serializer):
+    """工作台事件列表查询序列化器"""
+
+    tab = serializers.ChoiceField(
+        choices=['pending', 'effective', 'all'],
+        default='pending'
+    )
+    event_type = serializers.ChoiceField(
+        choices=['policy', 'hotspot', 'sentiment', 'mixed'],
+        required=False,
+        allow_null=True
+    )
+    level = serializers.ChoiceField(
+        choices=['P0', 'P1', 'P2', 'P3', 'PX'],
+        required=False,
+        allow_null=True
+    )
+    gate_level = serializers.ChoiceField(
+        choices=['L0', 'L1', 'L2', 'L3'],
+        required=False,
+        allow_null=True
+    )
+    asset_class = serializers.ChoiceField(
+        choices=['equity', 'bond', 'commodity', 'fx', 'crypto', 'all'],
+        required=False,
+        allow_null=True
+    )
+    start_date = serializers.DateField(required=False, allow_null=True)
+    end_date = serializers.DateField(required=False, allow_null=True)
+    search = serializers.CharField(required=False, allow_blank=True)
+    limit = serializers.IntegerField(default=50, min_value=1, max_value=200)
+    offset = serializers.IntegerField(default=0, min_value=0)
+
+
+class WorkbenchItemsResponseSerializer(serializers.Serializer):
+    """工作台事件列表响应序列化器"""
+
+    success = serializers.BooleanField()
+    items = WorkbenchItemSerializer(many=True)
+    total = serializers.IntegerField()
+    error = serializers.CharField(allow_null=True, required=False)
+
+
+class ApproveEventSerializer(serializers.Serializer):
+    """审核通过序列化器"""
+
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class RejectEventSerializer(serializers.Serializer):
+    """审核拒绝序列化器"""
+
+    reason = serializers.CharField(required=True, allow_blank=False)
+
+
+class RollbackEventSerializer(serializers.Serializer):
+    """回滚生效序列化器"""
+
+    reason = serializers.CharField(required=True, allow_blank=False)
+
+
+class OverrideEventSerializer(serializers.Serializer):
+    """临时豁免序列化器"""
+
+    reason = serializers.CharField(required=True, allow_blank=False)
+    new_level = serializers.ChoiceField(
+        choices=['P0', 'P1', 'P2', 'P3'],
+        required=False,
+        allow_null=True
+    )
+
+
+class ActionResponseSerializer(serializers.Serializer):
+    """操作响应序列化器"""
+
+    success = serializers.BooleanField()
+    event_id = serializers.IntegerField(allow_null=True)
+    error = serializers.CharField(allow_null=True, required=False)
+
+
+class SentimentGateStateSerializer(serializers.Serializer):
+    """热点情绪闸门状态序列化器"""
+
+    success = serializers.BooleanField()
+    asset_class = serializers.CharField(allow_null=True)
+    gate_level = serializers.CharField(allow_null=True)
+    heat_score = serializers.FloatField(allow_null=True)
+    sentiment_score = serializers.FloatField(allow_null=True)
+    max_position_cap = serializers.FloatField(allow_null=True)
+    thresholds = serializers.DictField(allow_null=True)
+    error = serializers.CharField(allow_null=True, required=False)
+
+
+class IngestionConfigSerializer(serializers.Serializer):
+    """摄入配置序列化器"""
+
+    auto_approve_enabled = serializers.BooleanField()
+    auto_approve_min_level = serializers.CharField()
+    auto_approve_threshold = serializers.FloatField()
+    p23_sla_hours = serializers.IntegerField()
+    normal_sla_hours = serializers.IntegerField()
+    version = serializers.IntegerField()
+
+
+class SentimentGateConfigSerializer(serializers.Serializer):
+    """闸门配置序列化器"""
+
+    asset_class = serializers.CharField()
+    heat_l1_threshold = serializers.FloatField()
+    heat_l2_threshold = serializers.FloatField()
+    heat_l3_threshold = serializers.FloatField()
+    sentiment_l1_threshold = serializers.FloatField()
+    sentiment_l2_threshold = serializers.FloatField()
+    sentiment_l3_threshold = serializers.FloatField()
+    max_position_cap_l2 = serializers.FloatField()
+    max_position_cap_l3 = serializers.FloatField()
+    enabled = serializers.BooleanField()
+    version = serializers.IntegerField()
