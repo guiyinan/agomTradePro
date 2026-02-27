@@ -4,7 +4,7 @@ REM Version: 3.5
 REM Updated: 2026-02-01
 REM
 REM Usage:
-REM   docker-dev.bat [--no-celery] [--no-beat] [port]
+REM   docker-dev.bat [--sqlite] [--no-celery] [--no-beat] [port]
 
 setlocal enabledelayedexpansion
 
@@ -13,9 +13,15 @@ set PYTHON_EXEC=agomsaaf\Scripts\python.exe
 set DJANGO_PORT=8000
 set START_CELERY=1
 set START_BEAT=1
+set SQLITE_MODE=0
 
 REM Parse arguments
 :parse_args
+if "%~1"=="--sqlite" (
+    set SQLITE_MODE=1
+    shift
+    goto parse_args
+)
 if "%~1"=="--no-celery" (
     set START_CELERY=0
     shift
@@ -63,22 +69,35 @@ echo [OK] Docker found
 echo.
 
 REM ========== 3. Start Docker Services ==========
-echo [3/5] Starting Docker services (PostgreSQL + Redis)...
-docker-compose -f docker-compose-dev.yml up -d
-if errorlevel 1 (
-    echo [ERROR] Failed to start Docker services!
-    pause
-    exit /b 1
+if %SQLITE_MODE%==1 (
+    echo [3/5] Starting Docker services (Redis only, SQLite mode)...
+    docker-compose -f docker-compose-dev.yml up -d redis
+    if errorlevel 1 (
+        echo [ERROR] Failed to start Redis service!
+        pause
+        exit /b 1
+    )
+    echo [OK] Redis service started
+    set DATABASE_URL=sqlite:///db.sqlite3
+    set REDIS_URL=redis://127.0.0.1:6379/0
+    echo [INFO] SQLite mode enabled
+) else (
+    echo [3/5] Starting Docker services (PostgreSQL + Redis)...
+    docker-compose -f docker-compose-dev.yml up -d
+    if errorlevel 1 (
+        echo [ERROR] Failed to start Docker services!
+        pause
+        exit /b 1
+    )
+    echo [OK] Docker services started
 )
-echo [OK] Docker services started
 
-REM Wait for PostgreSQL
-echo [INFO] Waiting for PostgreSQL to be ready...
-:wait_postgres
-timeout /t 2 >nul
-docker exec agomsaaf_postgres_dev pg_isready -U agomsaaf -d agomsaaf >nul 2>&1
-if errorlevel 1 goto :wait_postgres
-echo [OK] PostgreSQL ready
+if %SQLITE_MODE%==0 (
+    REM Wait for PostgreSQL
+    echo [INFO] Waiting for PostgreSQL to be ready...
+    call :wait_postgres_ready
+    echo [OK] PostgreSQL ready
+)
 
 REM Wait for Redis
 echo [INFO] Waiting for Redis to be ready...
@@ -127,7 +146,12 @@ echo   - Admin:   http://127.0.0.1:%DJANGO_PORT%/admin/
 echo   - API:     http://127.0.0.1:%DJANGO_PORT%/api/
 echo.
 echo Service windows:
-echo   - PostgreSQL + Redis:  Docker containers
+if %SQLITE_MODE%==1 (
+    echo   - Redis:              Docker container
+    echo   - SQLite DB:          local file ^(db.sqlite3^)
+) else (
+    echo   - PostgreSQL + Redis: Docker containers
+)
 if %START_CELERY%==1 (
     echo   - Celery Worker:      separate window
 )
@@ -147,3 +171,11 @@ echo.
 echo.
 echo Django server stopped
 pause
+
+goto :eof
+
+:wait_postgres_ready
+timeout /t 2 >nul
+docker exec agomsaaf_postgres_dev pg_isready -U agomsaaf -d agomsaaf >nul 2>&1
+if errorlevel 1 goto :wait_postgres_ready
+exit /b 0

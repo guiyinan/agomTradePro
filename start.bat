@@ -15,29 +15,35 @@ echo.
 echo   Select startup mode:
 echo.
 echo   [1] Quick Start (SQLite only)
-echo   [2] Docker Mode (PostgreSQL + Redis + Celery)
-echo   [3] Docker Mode - No Celery
-echo   [4] Activate venv only
-echo   [5] Stop all services
-echo   [6] Quick Start + URL/API Scan
+echo   [2] SQLite + Redis + Celery
+echo   [3] Docker Mode (PostgreSQL + Redis + Celery)
+echo   [4] Docker Mode - No Celery
+echo   [5] Activate venv only
+echo   [6] Stop all services
+echo   [7] Quick Start + URL/API Scan
 echo   [0] Exit
 echo.
 echo ========================================
 echo.
 
-set /p choice="Enter choice [0-6]: "
+set /p choice="Enter choice [0-7]: "
 
 if "%choice%"=="1" goto quick
-if "%choice%"=="2" goto docker
-if "%choice%"=="3" goto docker_no_celery
-if "%choice%"=="4" goto venv
-if "%choice%"=="5" goto stop
-if "%choice%"=="6" goto quick_scan
+if "%choice%"=="2" goto sqlite_redis_celery
+if "%choice%"=="3" goto docker
+if "%choice%"=="4" goto docker_no_celery
+if "%choice%"=="5" goto venv
+if "%choice%"=="6" goto stop
+if "%choice%"=="7" goto quick_scan
 if "%choice%"=="0" goto end
 goto menu
 
 :quick
 call scripts\dev.bat
+goto menu
+
+:sqlite_redis_celery
+call scripts\docker-dev.bat --sqlite
 goto menu
 
 :docker
