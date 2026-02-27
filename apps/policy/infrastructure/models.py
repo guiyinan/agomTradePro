@@ -732,7 +732,7 @@ def on_policy_level_change(sender, instance, created, **kwargs):
 
         if old_level and old_level.level != instance.level:
             # 档位变化，触发信号重评
-            from .tasks import trigger_signal_reevaluation
+            from apps.policy.application.tasks import trigger_signal_reevaluation
 
             # 解析档位 (P1 -> 1)
             new_level = int(instance.level[1])

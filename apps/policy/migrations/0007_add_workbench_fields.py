@@ -447,4 +447,57 @@ class Migration(migrations.Migration):
             model_name="gateactionauditlog",
             index=models.Index(fields=["operator"], name="gate_action_operato_b491c5_idx"),
         ),
+        # 数据回填：确保存量数据与新口径一致
+        migrations.RunPython(
+            code=lambda apps, schema_editor: _backfill_policy_log_data(apps),
+            reverse_code=migrations.RunPython.noop,
+        ),
     ]
+
+
+def _backfill_policy_log_data(apps):
+    """
+    回填 PolicyLog 存量数据
+
+    1. 回填 event_type = 'policy'（所有政策事件）
+    2. 回填 gate_effective = True（已审核通过的事件）
+    3. 回填 effective_at（已审核通过的事件使用 reviewed_at）
+    """
+    from django.utils import timezone
+
+    PolicyLog = apps.get_model("policy", "PolicyLog")
+
+    # 统计更新数量
+    event_type_updated = 0
+    gate_effective_updated = 0
+
+    # 1. 回填 event_type（所有现有记录默认为政策事件）
+    policies_without_type = PolicyLog.objects.filter(event_type__isnull=True)
+    event_type_updated = policies_without_type.count()
+    if event_type_updated > 0:
+        policies_without_type.update(event_type="policy")
+
+    # 2. 回填 gate_effective 和 effective_at
+    # 已审核通过的状态包括：manual_approved, auto_approved
+    approved_statuses = ["manual_approved", "auto_approved"]
+    approved_policies = PolicyLog.objects.filter(
+        audit_status__in=approved_statuses,
+        gate_effective=False,
+    )
+
+    for policy in approved_policies:
+        policy.gate_effective = True
+        # 使用 reviewed_at 作为 effective_at，如果没有则使用 created_at
+        if policy.reviewed_at:
+            policy.effective_at = policy.reviewed_at
+        else:
+            policy.effective_at = policy.created_at or timezone.now()
+        policy.save(update_fields=["gate_effective", "effective_at"])
+        gate_effective_updated += 1
+
+    # 输出日志
+    print(
+        f"[Migration 0007] Data backfill completed: "
+        f"event_type={event_type_updated}, gate_effective={gate_effective_updated}"
+    )
+

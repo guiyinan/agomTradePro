@@ -1649,19 +1649,33 @@ class SentimentGateConfigView(APIView):
             from ..infrastructure.models import SentimentGateConfig
 
             asset_class = serializer.validated_data['asset_class']
-            config, _ = SentimentGateConfig.objects.update_or_create(
-                asset_class=asset_class,
-                defaults={
+
+            # 尝试获取已存在的配置
+            try:
+                config = SentimentGateConfig.objects.get(asset_class=asset_class)
+                # 更新已存在的配置
+                for key, value in serializer.validated_data.items():
+                    if key != 'asset_class':
+                        setattr(config, key, value)
+                config.updated_by = request.user
+                config.version = models.F('version') + 1
+                config.save()
+                config.refresh_from_db()  # 刷新以获取实际的 version 值
+                created = False
+            except SentimentGateConfig.DoesNotExist:
+                # 创建新配置
+                config = SentimentGateConfig.objects.create(
                     **serializer.validated_data,
-                    'updated_by': request.user,
-                    'version': models.F('version') + 1
-                }
-            )
+                    updated_by=request.user,
+                    version=1
+                )
+                created = True
 
             return Response({
                 'success': True,
                 'asset_class': config.asset_class,
-                'version': config.version
+                'version': config.version,
+                'created': created
             })
 
         except Exception as e:

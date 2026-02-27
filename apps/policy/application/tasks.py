@@ -152,51 +152,6 @@ def cleanup_old_policy_logs(days_to_keep: int = 365):
         }
 
 
-@shared_task
-def generate_daily_policy_summary():
-    """
-    生成每日政策摘要
-
-    汇总当天的政策状态，供日报使用
-    """
-    try:
-        repo = DjangoPolicyRepository()
-        use_case = GetPolicyStatusUseCase(event_store=repo)
-
-        status = use_case.execute(date.today())
-
-        summary = {
-            "date": date.today().isoformat(),
-            "current_level": status.current_level.value,
-            "level_name": status.level_name,
-            "is_intervention_active": status.is_intervention_active,
-            "is_crisis_mode": status.is_crisis_mode,
-            "latest_event": None,
-            "recommendations": status.recommendations
-        }
-
-        if status.latest_event:
-            summary["latest_event"] = {
-                "date": status.latest_event.event_date.isoformat(),
-                "level": status.latest_event.level.value,
-                "title": status.latest_event.title,
-                "description": status.latest_event.description,
-                "evidence_url": status.latest_event.evidence_url
-            }
-
-        # 存储摘要（可选：发送到缓存或数据库）
-        logger.info(f"Daily policy summary generated: {summary['current_level']}")
-
-        return summary
-
-    except Exception as e:
-        logger.error(f"Daily policy summary generation failed: {e}", exc_info=True)
-        return {
-            "status": "error",
-            "error": str(e)
-        }
-
-
 # 辅助函数
 
 def _send_policy_alert(
@@ -624,47 +579,6 @@ def trigger_signal_reevaluation(
 
 
 # ========== 工作台相关任务 ==========
-
-@shared_task
-def fetch_rss_sources():
-    """
-    定时抓取所有 RSS 源
-
-    该任务应由 Celery Beat 定时调用（如每 6 小时一次）
-    """
-    try:
-        from .use_cases import FetchRSSUseCase, FetchRSSInput
-        from ..infrastructure.repositories import RSSRepository
-
-        rss_repo = RSSRepository()
-        policy_repo = DjangoPolicyRepository()
-
-        use_case = FetchRSSUseCase(
-            rss_repository=rss_repo,
-            policy_repository=policy_repo,
-        )
-
-        input_dto = FetchRSSInput(source_id=None)
-        output = use_case.execute(input_dto)
-
-        logger.info(
-            f"RSS sources fetched: {output.sources_processed} sources, "
-            f"{output.new_policy_events} new events"
-        )
-
-        return {
-            "status": "success",
-            "sources_processed": output.sources_processed,
-            "new_events": output.new_policy_events,
-        }
-
-    except Exception as e:
-        logger.error(f"RSS sources fetch failed: {e}", exc_info=True)
-        return {
-            "status": "error",
-            "error": str(e)
-        }
-
 
 @shared_task
 def auto_assign_pending_audits_task(max_per_user: int = 10):
