@@ -109,6 +109,23 @@ class TestSignalModule:
 
             assert signal.status == "approved"
 
+    def test_parse_signal_with_sparse_payload(self, client):
+        """测试兼容后端精简字段返回（有意兼容策略）"""
+        mock_response = {
+            "id": 125,
+            "approved_at": "2024-01-15T12:00:00Z",
+        }
+
+        with patch.object(client, "_request", return_value=mock_response):
+            signal = client.signal.get(125)
+
+            assert signal.id == 125
+            assert signal.asset_code == ""
+            assert signal.logic_desc == ""
+            assert signal.status == "pending"
+            assert signal.created_at is None
+            assert signal.approved_at == datetime.fromisoformat("2024-01-15T12:00:00+00:00")
+
     def test_check_eligibility(self, client):
         """测试检查准入条件"""
         mock_response = {
