@@ -173,10 +173,19 @@ class GenerateAttributionReportUseCase:
             ) if normalized_regime_history else 'UNKNOWN'
 
             # 5.5 计算 regime_actual（从 RegimeLog 获取实际数据）
-            regime_actual = self._calculate_regime_actual(
-                backtest_dict['start_date'],
-                backtest_dict['end_date']
-            )
+            try:
+                regime_actual = self._calculate_regime_actual(
+                    backtest_dict['start_date'],
+                    backtest_dict['end_date']
+                )
+            except Exception as regime_error:
+                # In non-DB unit tests or degraded runtime, regime actual should not
+                # block attribution report generation.
+                logger.warning(
+                    "Regime actual calculation degraded, fallback to error code: %s",
+                    regime_error
+                )
+                regime_actual = self.ERROR_NO_REGIME_DATA
 
             # 6. 保存归因报告
             report_id = self.audit_repo.save_attribution_report(

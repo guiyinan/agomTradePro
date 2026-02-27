@@ -33,6 +33,31 @@ def base_url(base_url: str) -> str:
     return base_url or config.base_url
 
 
+@pytest.fixture(scope="session", autouse=True)
+def ensure_playwright_admin_user(django_db_setup, django_db_blocker) -> None:
+    """Ensure Playwright login credentials exist in the app database."""
+    with django_db_blocker.unblock():
+        from django.contrib.auth import get_user_model
+
+        user_model = get_user_model()
+        user = user_model.objects.filter(username=config.admin_username).first()
+
+        if user is None:
+            user = user_model.objects.create_user(
+                username=config.admin_username,
+                password=config.admin_password,
+                is_staff=True,
+                is_superuser=True,
+                is_active=True,
+            )
+        else:
+            user.is_staff = True
+            user.is_superuser = True
+            user.is_active = True
+            user.set_password(config.admin_password)
+            user.save(update_fields=["password", "is_staff", "is_superuser", "is_active"])
+
+
 @pytest.fixture(scope="session")
 def slowmo(browser_type_launch_args: dict) -> int:
     """Get slowmo delay in milliseconds."""
