@@ -5,7 +5,7 @@ AgomSAAF MCP Tools - Policy 政策事件工具
 """
 
 from datetime import date
-from typing import Any
+from typing import Any, Optional
 
 from mcp.server.fastmcp import FastMCP
 
@@ -14,6 +14,10 @@ from agomsaaf import AgomSAAFClient
 
 def register_policy_tools(server: FastMCP) -> None:
     """注册 Policy 相关的 MCP 工具"""
+
+    # =========================================================================
+    # 基础工具
+    # =========================================================================
 
     @server.tool()
     def get_policy_status() -> dict[str, Any]:
@@ -106,5 +110,210 @@ def register_policy_tools(server: FastMCP) -> None:
             "event_type": event.event_type,
             "description": event.description,
             "gear": event.gear,
+        }
+
+    # =========================================================================
+    # 工作台工具
+    # =========================================================================
+
+    @server.tool()
+    def get_workbench_summary() -> dict[str, Any]:
+        """
+        获取工作台概览
+
+        Returns:
+            工作台概览，包括双闸状态、待审核数、SLA 超时数等
+
+        Example:
+            >>> summary = get_workbench_summary()
+            >>> print(f"政策档位: {summary['policy_level']}")
+            >>> print(f"闸门等级: {summary['gate_level']}")
+            >>> print(f"待审核: {summary['pending_review_count']}")
+        """
+        client = AgomSAAFClient()
+        summary = client.policy.get_workbench_summary()
+        return {
+            "policy_level": summary.policy_level,
+            "policy_level_name": summary.policy_level_name,
+            "gate_level": summary.gate_level,
+            "gate_level_name": summary.gate_level_name,
+            "global_heat": summary.global_heat,
+            "global_sentiment": summary.global_sentiment,
+            "pending_review_count": summary.pending_review_count,
+            "sla_exceeded_count": summary.sla_exceeded_count,
+            "today_events_count": summary.today_events_count,
+        }
+
+    @server.tool()
+    def get_workbench_items(
+        tab: str = "pending",
+        event_type: str | None = None,
+        level: str | None = None,
+        gate_level: str | None = None,
+        search: str | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict[str, Any]:
+        """
+        获取工作台事件列表
+
+        Args:
+            tab: 标签页 (pending/effective/all)
+            event_type: 事件类型过滤 (policy/hotspot/sentiment/mixed)
+            level: 政策档位过滤 (P0/P1/P2/P3)
+            gate_level: 闸门等级过滤 (L0/L1/L2/L3)
+            search: 关键词搜索
+            page: 页码
+            page_size: 每页数量
+
+        Returns:
+            工作台事件列表结果
+
+        Example:
+            >>> result = get_workbench_items(tab="pending", level="P2")
+            >>> for item in result["items"]:
+            ...     print(f"{item['event_date']}: {item['title']}")
+        """
+        client = AgomSAAFClient()
+        result = client.policy.get_workbench_items(
+            tab=tab,
+            event_type=event_type,
+            level=level,
+            gate_level=gate_level,
+            search=search,
+            page=page,
+            page_size=page_size,
+        )
+
+        return {
+            "items": [
+                {
+                    "id": item.id,
+                    "event_date": item.event_date.isoformat(),
+                    "event_type": item.event_type,
+                    "level": item.level,
+                    "title": item.title,
+                    "description": item.description,
+                    "gate_level": item.gate_level,
+                    "gate_effective": item.gate_effective,
+                    "audit_status": item.audit_status,
+                    "ai_confidence": item.ai_confidence,
+                    "heat_score": item.heat_score,
+                    "sentiment_score": item.sentiment_score,
+                    "asset_class": item.asset_class,
+                }
+                for item in result.items
+            ],
+            "total_count": result.total_count,
+            "page": result.page,
+            "page_size": result.page_size,
+        }
+
+    @server.tool()
+    def approve_workbench_event(event_id: int) -> dict[str, Any]:
+        """
+        审核通过工作台事件
+
+        Args:
+            event_id: 事件 ID
+
+        Returns:
+            操作结果
+
+        Example:
+            >>> result = approve_workbench_event(123)
+            >>> print(f"审核结果: {result['success']}")
+        """
+        client = AgomSAAFClient()
+        return client.policy.approve_event(event_id)
+
+    @server.tool()
+    def reject_workbench_event(event_id: int, reason: str) -> dict[str, Any]:
+        """
+        审核拒绝工作台事件
+
+        Args:
+            event_id: 事件 ID
+            reason: 拒绝原因（必填）
+
+        Returns:
+            操作结果
+
+        Example:
+            >>> result = reject_workbench_event(123, reason="信息不完整")
+            >>> print(f"拒绝结果: {result['success']}")
+        """
+        client = AgomSAAFClient()
+        return client.policy.reject_event(event_id, reason)
+
+    @server.tool()
+    def rollback_workbench_event(event_id: int, reason: str) -> dict[str, Any]:
+        """
+        回滚已生效的工作台事件
+
+        Args:
+            event_id: 事件 ID
+            reason: 回滚原因（必填）
+
+        Returns:
+            操作结果
+
+        Example:
+            >>> result = rollback_workbench_event(123, reason="信息有误需重新审核")
+            >>> print(f"回滚结果: {result['success']}")
+        """
+        client = AgomSAAFClient()
+        return client.policy.rollback_event(event_id, reason)
+
+    @server.tool()
+    def override_workbench_event(
+        event_id: int,
+        reason: str,
+        expires_in_hours: int | None = None,
+    ) -> dict[str, Any]:
+        """
+        临时豁免工作台事件
+
+        Args:
+            event_id: 事件 ID
+            reason: 豁免原因（必填）
+            expires_in_hours: 豁免过期时间（小时）
+
+        Returns:
+            操作结果
+
+        Example:
+            >>> result = override_workbench_event(
+            ...     123,
+            ...     reason="特殊情况临时豁免",
+            ...     expires_in_hours=24
+            ... )
+            >>> print(f"豁免结果: {result['success']}")
+        """
+        client = AgomSAAFClient()
+        return client.policy.override_event(event_id, reason, expires_in_hours)
+
+    @server.tool()
+    def get_sentiment_gate_state() -> dict[str, Any]:
+        """
+        获取热点情绪闸门状态
+
+        Returns:
+            热点情绪闸门状态
+
+        Example:
+            >>> state = get_sentiment_gate_state()
+            >>> print(f"闸门等级: {state['gate_level']}")
+            >>> print(f"热度评分: {state['global_heat']}")
+            >>> print(f"情绪评分: {state['global_sentiment']}")
+        """
+        client = AgomSAAFClient()
+        state = client.policy.get_sentiment_gate_state()
+        return {
+            "gate_level": state.gate_level,
+            "global_heat": state.global_heat,
+            "global_sentiment": state.global_sentiment,
+            "max_position_cap": state.max_position_cap,
+            "signal_paused": state.signal_paused,
         }
 

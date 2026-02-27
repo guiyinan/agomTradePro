@@ -125,5 +125,5 @@ class TestSignalModule:
                 logic_desc="PMI rising",
             )
 
-            assert result["is_eligible"] is True
-            assert result["regime_match"] is True
+            assert result.is_eligible is True
+            assert result.regime_match is True

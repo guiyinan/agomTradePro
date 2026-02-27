@@ -146,7 +146,7 @@ Three methods (priority order):
 | `client.regime` | Regime determination - get current regime, calculate regime, history |
 | `client.signal` | Investment signals - create, approve, check eligibility |
 | `client.macro` | Macro data - indicators, data points, sync |
-| `client.policy` | Policy events - status, event management |
+| `client.policy` | Policy events - status, event management, **workbench operations** |
 | `client.backtest` | Backtesting - run, get results, equity curve |
 | `client.account` | Account management - portfolios, positions |
 | `client.simulated_trading` | Simulated trading - accounts, execution, performance |
@@ -156,13 +156,19 @@ Three methods (priority order):
 | `client.strategy` | Strategy management - create/execute strategy, DB-driven position rules, evaluate buy/sell/SL/TP |
 | `client.realtime` | Real-time prices - market data, alerts, top movers |
 
-## MCP Tools (50+)
+## MCP Tools (60+)
 
 ### Core Tools
 - **Regime**: `get_current_regime`, `calculate_regime`, `get_regime_history`, `explain_regime`
 - **Signal**: `list_signals`, `create_signal`, `check_signal_eligibility`, `approve_signal`
 - **Macro**: `list_macro_indicators`, `get_macro_data`, `sync_macro_indicator`
 - **Backtest**: `run_backtest`, `get_backtest_result`, `get_backtest_equity_curve`
+- **Policy**: `get_policy_status`, `get_policy_events`, `create_policy_event`
+
+### Workbench Tools (New)
+- **Workbench**: `get_workbench_summary`, `get_workbench_items`
+- **Review**: `approve_workbench_event`, `reject_workbench_event`, `rollback_workbench_event`, `override_workbench_event`
+- **Gate**: `get_sentiment_gate_state`
 
 ### Extended Tools
 - **Simulated Trading**: `list_simulated_accounts`, `execute_simulated_trade`, `get_simulated_performance`, `run_simulated_daily_inspection`, `list_simulated_daily_inspections`
@@ -212,11 +218,12 @@ agomsaaf-mcp
 
 ## Project Status
 
-- **Version**: 1.0.0
+- **Version**: 1.1.0
 - **Modules**: 13 business modules
-- **MCP Tools**: 50+ tools
+- **MCP Tools**: 60+ tools
 - **Test Coverage**: Core modules covered
 - **Documentation**: Complete
+- **Last Updated**: 2026-02-27
 
 ## License
 

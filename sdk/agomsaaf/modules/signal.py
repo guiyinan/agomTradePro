@@ -287,10 +287,10 @@ class SignalModule(BaseModule):
 
         return InvestmentSignal(
             id=data["id"],
-            asset_code=data["asset_code"],
-            logic_desc=data["logic_desc"],
-            status=data["status"],
-            created_at=parse_datetime(data["created_at"]),
+            asset_code=data.get("asset_code", ""),
+            logic_desc=data.get("logic_desc", ""),
+            status=data.get("status", "pending"),
+            created_at=parse_datetime(data.get("created_at")),
             invalidation_logic=data.get("invalidation_logic"),
             invalidation_threshold=data.get("invalidation_threshold"),
             approved_at=parse_datetime(data.get("approved_at")),
