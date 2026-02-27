@@ -99,6 +99,10 @@ class DashboardData:
 class GetDashboardDataUseCase:
     """获取首页数据用例"""
     MAX_MACRO_STALENESS_DAYS = 45
+    INDICATOR_STALENESS_DAYS = {
+        "PMI": 70,
+        "CPI": 70,
+    }
     MIN_MACRO_POINTS = 12
 
     def __init__(
@@ -310,17 +314,23 @@ class GetDashboardDataUseCase:
             warnings.append(f"通胀指标样本不足（{inflation_points} 条）")
 
         if growth_full:
-            growth_latest = growth_full[-1].reporting_period
-            growth_staleness = (as_of_date - growth_latest).days
-            if growth_staleness > self.MAX_MACRO_STALENESS_DAYS:
+            growth_staleness = self._get_staleness_days(growth_full[-1], as_of_date)
+            growth_threshold = self.INDICATOR_STALENESS_DAYS.get(
+                growth_indicator,
+                self.MAX_MACRO_STALENESS_DAYS,
+            )
+            if growth_staleness > growth_threshold:
                 warnings.append(f"PMI 数据陈旧（距今 {growth_staleness} 天）")
         else:
             warnings.append("PMI 无可用数据")
 
         if inflation_full:
-            inflation_latest = inflation_full[-1].reporting_period
-            inflation_staleness = (as_of_date - inflation_latest).days
-            if inflation_staleness > self.MAX_MACRO_STALENESS_DAYS:
+            inflation_staleness = self._get_staleness_days(inflation_full[-1], as_of_date)
+            inflation_threshold = self.INDICATOR_STALENESS_DAYS.get(
+                inflation_indicator,
+                self.MAX_MACRO_STALENESS_DAYS,
+            )
+            if inflation_staleness > inflation_threshold:
                 warnings.append(f"CPI 数据陈旧（距今 {inflation_staleness} 天）")
         else:
             warnings.append("CPI 无可用数据")
@@ -329,6 +339,12 @@ class GetDashboardDataUseCase:
             "is_healthy": not warnings,
             "warnings": warnings,
         }
+
+    @staticmethod
+    def _get_staleness_days(indicator, as_of_date: date) -> int:
+        """优先用 published_at 计算时效，缺失时回退 reporting_period。"""
+        anchor_date = indicator.published_at or indicator.reporting_period
+        return (as_of_date - anchor_date).days
 
     def _format_positions(self, positions: List[Position]) -> List[Dict]:
         """格式化持仓数据为字典"""
