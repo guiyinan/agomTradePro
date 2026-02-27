@@ -352,6 +352,27 @@ def qlib_refresh_cache(
         }
 
 
+@shared_task
+def qlib_daily_inference(
+    universe_id: str = "csi300",
+    top_n: int = 30
+) -> dict:
+    """
+    每日触发 Qlib 推理任务。
+
+    用于 Celery Beat 无参调度入口，自动使用当天日期。
+    """
+    trade_date = date.today().isoformat()
+    result = qlib_predict_scores.delay(universe_id, trade_date, top_n)
+    return {
+        "status": "queued",
+        "task_id": result.id,
+        "universe_id": universe_id,
+        "trade_date": trade_date,
+        "top_n": top_n,
+    }
+
+
 # ========================================================================
 # 辅助函数
 # ========================================================================

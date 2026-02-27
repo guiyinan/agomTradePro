@@ -70,7 +70,7 @@ echo.
 
 REM ========== 3. Start Docker Services ==========
 if %SQLITE_MODE%==1 (
-    echo [3/5] Starting Docker services (Redis only, SQLite mode)...
+    echo [3/5] Starting Docker services - Redis only, SQLite mode...
     docker-compose -f docker-compose-dev.yml up -d redis
     if errorlevel 1 (
         echo [ERROR] Failed to start Redis service!
@@ -82,7 +82,7 @@ if %SQLITE_MODE%==1 (
     set REDIS_URL=redis://127.0.0.1:6379/0
     echo [INFO] SQLite mode enabled
 ) else (
-    echo [3/5] Starting Docker services (PostgreSQL + Redis)...
+    echo [3/5] Starting Docker services - PostgreSQL + Redis...
     docker-compose -f docker-compose-dev.yml up -d
     if errorlevel 1 (
         echo [ERROR] Failed to start Docker services!
@@ -120,6 +120,7 @@ echo.
 
 REM ========== 5. Start Celery Worker ==========
 if %START_CELERY%==1 (
+    call :kill_existing_celery_worker
     echo [5/5] Starting Celery Worker...
     start "Celery Worker" cmd /k "%PYTHON_EXEC% -m celery -A core worker -l info --pool=solo"
     timeout /t 2 >nul
@@ -128,6 +129,7 @@ if %START_CELERY%==1 (
 
 REM ========== 6. Start Celery Beat ==========
 if %START_BEAT%==1 (
+    call :kill_existing_celery_beat
     echo [INFO] Starting Celery Beat...
     start "Celery Beat" cmd /k "%PYTHON_EXEC% -m celery -A core beat -l info"
     timeout /t 2 >nul
@@ -178,4 +180,16 @@ goto :eof
 timeout /t 2 >nul
 docker exec agomsaaf_postgres_dev pg_isready -U agomsaaf -d agomsaaf >nul 2>&1
 if errorlevel 1 goto :wait_postgres_ready
+exit /b 0
+
+:kill_existing_celery_worker
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='SilentlyContinue'; $all=Get-CimInstance Win32_Process; foreach($p in $all){ if($p.Name -eq 'python.exe' -and $p.CommandLine -like '*celery -A core worker*'){ Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue } }" >nul 2>&1
+taskkill /f /t /fi "IMAGENAME eq cmd.exe" /fi "WINDOWTITLE eq Celery Worker" >nul 2>&1
+echo [INFO] Cleared existing Celery Worker processes
+exit /b 0
+
+:kill_existing_celery_beat
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='SilentlyContinue'; $all=Get-CimInstance Win32_Process; foreach($p in $all){ if($p.Name -eq 'python.exe' -and $p.CommandLine -like '*celery -A core beat*'){ Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue } }" >nul 2>&1
+taskkill /f /t /fi "IMAGENAME eq cmd.exe" /fi "WINDOWTITLE eq Celery Beat" >nul 2>&1
+echo [INFO] Cleared existing Celery Beat processes
 exit /b 0
