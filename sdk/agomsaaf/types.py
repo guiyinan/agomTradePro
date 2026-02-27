@@ -189,6 +189,9 @@ class MacroDataPoint:
 # =============================================================================
 
 PolicyGear = Literal["stimulus", "neutral", "tightening"]
+PolicyLevel = Literal["P0", "P1", "P2", "P3"]
+GateLevel = Literal["L0", "L1", "L2", "L3"]
+EventType = Literal["policy", "hotspot", "sentiment", "mixed"]
 
 
 @dataclass(frozen=True)
@@ -225,6 +228,110 @@ class PolicyEvent:
     event_type: str
     description: str
     gear: PolicyGear
+
+
+@dataclass(frozen=True)
+class WorkbenchSummary:
+    """
+    工作台概览
+
+    Attributes:
+        policy_level: 当前政策档位 (P0-P3)
+        policy_level_name: 政策档位名称
+        gate_level: 热点情绪闸门等级 (L0-L3)
+        gate_level_name: 闸门等级名称
+        global_heat: 全局热度评分 (0-100)
+        global_sentiment: 全局情绪评分 (-1.0 ~ +1.0)
+        pending_review_count: 待审核数量
+        sla_exceeded_count: SLA 超时数量
+        today_events_count: 今日新增事件数量
+    """
+
+    policy_level: PolicyLevel
+    policy_level_name: str
+    gate_level: Optional[GateLevel] = None
+    gate_level_name: Optional[str] = None
+    global_heat: Optional[float] = None
+    global_sentiment: Optional[float] = None
+    pending_review_count: int = 0
+    sla_exceeded_count: int = 0
+    today_events_count: int = 0
+
+
+@dataclass(frozen=True)
+class WorkbenchEvent:
+    """
+    工作台事件
+
+    Attributes:
+        id: 事件 ID
+        event_date: 事件日期
+        event_type: 事件类型 (policy/hotspot/sentiment/mixed)
+        level: 政策档位 (P0-P3)
+        title: 标题
+        description: 描述
+        gate_level: 闸门等级 (L0-L3)
+        gate_effective: 是否已生效
+        audit_status: 审核状态
+        ai_confidence: AI 置信度
+        heat_score: 热度评分
+        sentiment_score: 情绪评分
+        asset_class: 资产分类
+        created_at: 创建时间
+    """
+
+    id: int
+    event_date: date
+    event_type: EventType
+    level: PolicyLevel
+    title: str
+    description: Optional[str] = None
+    gate_level: Optional[GateLevel] = None
+    gate_effective: bool = False
+    audit_status: str = "pending_review"
+    ai_confidence: Optional[float] = None
+    heat_score: Optional[float] = None
+    sentiment_score: Optional[float] = None
+    asset_class: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+
+@dataclass(frozen=True)
+class WorkbenchItemsResult:
+    """
+    工作台事件列表结果
+
+    Attributes:
+        items: 事件列表
+        total_count: 总数量
+        page: 当前页码
+        page_size: 每页数量
+    """
+
+    items: list[WorkbenchEvent] = field(default_factory=list)
+    total_count: int = 0
+    page: int = 1
+    page_size: int = 20
+
+
+@dataclass(frozen=True)
+class SentimentGateState:
+    """
+    热点情绪闸门状态
+
+    Attributes:
+        gate_level: 闸门等级 (L0-L3)
+        global_heat: 全局热度评分
+        global_sentiment: 全局情绪评分
+        max_position_cap: 最大仓位上限
+        signal_paused: 信号是否暂停
+    """
+
+    gate_level: GateLevel
+    global_heat: float
+    global_sentiment: float
+    max_position_cap: Optional[float] = None
+    signal_paused: bool = False
 
 
 # =============================================================================

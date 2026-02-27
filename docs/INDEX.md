@@ -1,7 +1,7 @@
 # AgomSAAF 文档索引
 
 > **AgomSAAF V3.4** - 宏观环境准入系统
-> **最后更新**: 2026-02-26
+> **最后更新**: 2026-02-27
 > **项目状态**: 生产就绪（RC2 阶段）
 
 ---
@@ -132,6 +132,7 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [alpha/alpha-guide.md](modules/alpha/alpha-guide.md) | Alpha 模块指南 | 完整 |
+| [policy/policy-workbench-guide.md](modules/policy/policy-workbench-guide.md) | Policy 工作台指南（双闸机制） | ✅ 2026-02-27 新增 |
 | [audit/audit-module-guide.md](modules/audit/audit-module-guide.md) | Audit 模块指南 | ✅ 新增 |
 | [audit/attribution-methodology.md](modules/audit/attribution-methodology.md) | Brinson 归因方法论 | ✅ 新增 |
 | [factor/factor-guide.md](modules/factor/factor-guide.md) | Factor 模块指南 | 完整 |
@@ -274,7 +275,16 @@
 
 ---
 
-## 最近更新 (2026-02-20 ~ 2026-02-26)
+## 最近更新 (2026-02-20 ~ 2026-02-27)
+
+### 2026-02-27
+- ✅ **Policy + RSS + Hotspot/Sentiment 一体化工作台**
+  - 实现双闸并行机制：Policy Gate (P0-P3) + Heat/Sentiment Gate (L0-L3)
+  - 新增工作台 API 端点 9 个
+  - 新增 Celery 定时任务 4 个
+  - 新增测试用例 75 个（Domain/Application/API 三层覆盖）
+  - 修复验收问题 6 个（P0-1 ~ P2-1）
+  - 数据迁移含存量数据回填
 
 ### 2026-02-26
 - ✅ **文档整理与归档**
@@ -308,4 +318,4 @@
 ---
 
 **文档维护**: AgomSAAF Team
-**最后更新**: 2026-02-26
+**最后更新**: 2026-02-27

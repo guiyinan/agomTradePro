@@ -390,7 +390,7 @@ class IngestionConfigSerializer(serializers.Serializer):
     auto_approve_threshold = serializers.FloatField()
     p23_sla_hours = serializers.IntegerField()
     normal_sla_hours = serializers.IntegerField()
-    version = serializers.IntegerField()
+    version = serializers.IntegerField(read_only=True)
 
 
 class SentimentGateConfigSerializer(serializers.Serializer):
@@ -406,4 +406,4 @@ class SentimentGateConfigSerializer(serializers.Serializer):
     max_position_cap_l2 = serializers.FloatField()
     max_position_cap_l3 = serializers.FloatField()
     enabled = serializers.BooleanField()
-    version = serializers.IntegerField()
+    version = serializers.IntegerField(read_only=True)

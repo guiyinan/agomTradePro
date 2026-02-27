@@ -1,7 +1,7 @@
 # AgomSAAF 开发快速参考
 
-> **文档版本**: V1.2
-> **更新日期**: 2026-02-20
+> **文档版本**: V1.3
+> **更新日期**: 2026-02-27
 > **目标读者**: 开发人员
 
 ---
@@ -14,7 +14,7 @@
 | 状态 | 生产就绪 |
 | 完成度 | 98% |
 | 业务模块 | 27个 |
-| 测试规模 | 1,529 项（2026-02-20 collect-only） |
+| 测试规模 | 1,604 项（2026-02-27 collect-only） |
 | Python版本 | 3.11+ |
 | Django版本 | 5.x |
 
@@ -146,6 +146,21 @@ mypy apps/ --strict
 | `/api/regime/distribution/` | GET | 获取分布统计 (需认证) |
 | `/regime/dashboard/` | GET | Regime 仪表盘页面 |
 
+### Policy Workbench API
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/policy/workbench/summary/` | GET | 工作台概览 (需认证) |
+| `/api/policy/workbench/items/` | GET | 事件列表 (需认证) |
+| `/api/policy/workbench/items/{id}/approve/` | POST | 审核通过 (需认证) |
+| `/api/policy/workbench/items/{id}/reject/` | POST | 审核拒绝 (需认证) |
+| `/api/policy/workbench/items/{id}/rollback/` | POST | 回滚生效 (需认证) |
+| `/api/policy/workbench/items/{id}/override/` | POST | 临时豁免 (需认证) |
+| `/api/policy/sentiment-gate/state/` | GET | 热点情绪闸门状态 (需认证) |
+| `/api/policy/ingestion-config/` | GET/PUT | 摄入配置 (需认证) |
+| `/api/policy/sentiment-gate-config/` | GET/PUT | 闸门配置 (需认证) |
+| `/policy/workbench/` | GET | 工作台页面 |
+
 ### Signal API
 
 | 端点 | 方法 | 说明 |
@@ -260,6 +275,16 @@ mypy apps/ --strict
 | `simulated-trading-summary` | 工作日 17:00 | 发送绩效摘要 |
 | `realtime-update-after-close` | 工作日 16:30 | 收盘后批量更新价格 |
 
+### Policy Workbench 定时任务
+
+| 任务名称 | 调度时间 | 说明 |
+|---------|---------|------|
+| `fetch_rss_sources` | 每 6 小时 | RSS 源抓取 |
+| `auto_assign_pending_audits` | 每 15 分钟 | 自动分配审核 |
+| `monitor_sla_exceeded` | 每 10 分钟 | SLA 超时监控 |
+| `refresh_gate_constraints` | 每 5 分钟 | 刷新闸门约束 |
+| `trigger_signal_reevaluation` | 按需 | 政策档位变化时信号重评 |
+
 ### Alpha 模块定时任务
 
 | 任务名称 | 调度时间 | 说明 |
@@ -281,7 +306,7 @@ mypy apps/ --strict
 |------|------|------|
 | `macro` | 宏观数据采集 | ✅ 完整 |
 | `regime` | Regime 判定 | ✅ 完整 |
-| `policy` | 政策事件管理 | ✅ 完整 |
+| `policy` | 政策事件管理 + 工作台 | ✅ 完整 |
 | `signal` | 投资信号管理 | ✅ 完整 |
 | `filter` | HP/Kalman 滤波 | ✅ 完整 |
 
