@@ -252,6 +252,16 @@
 要求：
 1. 宏观环境菜单只保留一个主入口文案：`政策/情绪/热点工作台`。  
 2. 删除或隐藏旧入口项，避免用户继续分散跳转。
+3. “投资管理”菜单中账户入口文案统一为：`我的投资账户`（替代“我的模拟仓”）。
+4. API 文档入口只保留在“系统”菜单内；右上角重复入口必须移除。
+5. 仪表盘左侧导航（`dashboard/index.html`）中与业务页面相关的链接必须使用 Django `{% url %}` 反解，禁止硬编码路径。
+6. 页面导航禁止直接跳转业务 API（`/api/*`）；唯一例外是文档入口 `/api/docs/`。
+
+验收（2026-02-28 导航口径）：
+1. 顶部导航仅在“系统”菜单出现一次“API 文档”。  
+2. 顶部导航文案显示“我的投资账户”。  
+3. 左侧“宏观环境”中的政策入口为“政策/情绪/热点工作台”，目标路由为 `{% url 'policy:workbench' %}`。  
+4. `dashboard/index.html` 不再出现以下硬编码业务路径：`/regime/dashboard/`、`/policy/events/`、`/macro/data/`、`/signal/manage/`、`/backtest/create/`、`/filter/dashboard/`、`/equity/screen/`、`/fund/dashboard/`、`/audit/review/`、`/account/profile/#...`。
 
 ---
 

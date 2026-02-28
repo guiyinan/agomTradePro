@@ -1,7 +1,7 @@
 # AgomSAAF 文档索引
 
 > **AgomSAAF V3.4** - 宏观环境准入系统
-> **最后更新**: 2026-02-27
+> **最后更新**: 2026-02-28
 > **项目状态**: 生产就绪（RC2 阶段）
 
 ---
@@ -132,7 +132,7 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [alpha/alpha-guide.md](modules/alpha/alpha-guide.md) | Alpha 模块指南 | 完整 |
-| [policy/policy-workbench-guide.md](modules/policy/policy-workbench-guide.md) | Policy 工作台指南（双闸机制） | ✅ 2026-02-27 新增 |
+| [policy/policy-workbench-guide.md](modules/policy/policy-workbench-guide.md) | Policy 工作台指南（双闸机制） | ✅ 2026-02-28 更新 |
 | [audit/audit-module-guide.md](modules/audit/audit-module-guide.md) | Audit 模块指南 | ✅ 新增 |
 | [audit/attribution-methodology.md](modules/audit/attribution-methodology.md) | Brinson 归因方法论 | ✅ 新增 |
 | [factor/factor-guide.md](modules/factor/factor-guide.md) | Factor 模块指南 | 完整 |
@@ -184,6 +184,14 @@
 - 对外接入层：`sdk/agomsaaf`（Python SDK）+ `sdk/agomsaaf_mcp`（MCP Server）
 - 本地 MCP 回归：`98 passed`（tool registration + tool execution + RBAC）
 - 说明：测试数字为当日快照，最终以最新 CI/本地执行结果为准
+
+### 导航口径快照（2026-02-28）
+
+- 宏观环境统一入口文案：`政策/情绪/热点工作台`（`/policy/workbench/`）
+- 投资管理账户入口文案：`我的投资账户`（替代“我的模拟仓”）
+- API 文档入口：仅保留“系统”菜单中的 `/api/docs/`
+- 页面导航规范：业务页面链接使用 Django `{% url %}`，禁止硬编码业务路径
+- 页面与 API 边界：页面导航不得直连业务 API（`/api/*`），仅 `/api/docs/` 例外
 
 ### 完整四层架构模块 (28个)
 
@@ -276,6 +284,13 @@
 ---
 
 ## 最近更新 (2026-02-20 ~ 2026-02-27)
+
+### 2026-02-28
+- ✅ **导航与文档口径同步**
+  - 顶部导航文案统一为“我的投资账户”
+  - API 文档入口收敛到“系统”菜单（去重）
+  - 投资指挥中心左侧业务链接改为 Django `{% url %}` 反解
+  - Policy 工作台入口统一为“政策/情绪/热点工作台”
 
 ### 2026-02-27
 - ✅ **Policy + RSS + Hotspot/Sentiment 一体化工作台**

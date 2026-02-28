@@ -28,15 +28,15 @@
             <!-- 宏观环境 -->
             <div class="nav-section">
                 <div class="nav-section-title">宏观环境</div>
-                <a href="/regime/dashboard/" class="nav-item">
+                <a href="{% url 'regime:dashboard' %}" class="nav-item">
                     <span class="nav-icon">📈</span>
                     <span class="nav-text">Regime 判定</span>
                 </a>
-                <a href="/policy/events/" class="nav-item">
+                <a href="{% url 'policy:workbench' %}" class="nav-item">
                     <span class="nav-icon">📰</span>
-                    <span class="nav-text">政策事件</span>
+                    <span class="nav-text">政策/情绪/热点工作台</span>
                 </a>
-                <a href="/macro/data/" class="nav-item">
+                <a href="{% url 'macro:data' %}" class="nav-item">
                     <span class="nav-icon">📊</span>
                     <span class="nav-text">宏观数据</span>
                 </a>
@@ -45,15 +45,15 @@
             <!-- 投资决策 -->
             <div class="nav-section">
                 <div class="nav-section-title">投资决策</div>
-                <a href="/signal/manage/" class="nav-item">
+                <a href="{% url 'signal:manage' %}" class="nav-item">
                     <span class="nav-icon">🎯</span>
                     <span class="nav-text">投资信号</span>
                 </a>
-                <a href="/backtest/create/" class="nav-item">
+                <a href="{% url 'backtest:create' %}" class="nav-item">
                     <span class="nav-icon">🧪</span>
                     <span class="nav-text">策略回测</span>
                 </a>
-                <a href="/filter/dashboard/" class="nav-item">
+                <a href="{% url 'filter:dashboard' %}" class="nav-item">
                     <span class="nav-icon">🔍</span>
                     <span class="nav-text">股票筛选</span>
                 </a>
@@ -79,19 +79,19 @@
             <!-- 资产管理 -->
             <div class="nav-section">
                 <div class="nav-section-title">资产管理</div>
-                <a href="/account/profile/#positions" class="nav-item">
+                <a href="{% url 'account:profile' %}#positions" class="nav-item">
                     <span class="nav-icon">💼</span>
                     <span class="nav-text">持仓管理</span>
                 </a>
-                <a href="/account/profile/#portfolio" class="nav-item">
+                <a href="{% url 'account:profile' %}#portfolio" class="nav-item">
                     <span class="nav-icon">📦</span>
                     <span class="nav-text">组合配置</span>
                 </a>
-                <a href="/equity/screen/" class="nav-item">
+                <a href="{% url 'equity:screen' %}" class="nav-item">
                     <span class="nav-icon">📈</span>
                     <span class="nav-text">股票分析</span>
                 </a>
-                <a href="/fund/dashboard/" class="nav-item">
+                <a href="{% url 'fund:dashboard' %}" class="nav-item">
                     <span class="nav-icon">💰</span>
                     <span class="nav-text">基金分析</span>
                 </a>
@@ -100,7 +100,7 @@
             <!-- 系统设置 -->
             <div class="nav-section">
                 <div class="nav-section-title">系统</div>
-                <a href="/audit/review/" class="nav-item">
+                <a href="{% url 'audit:review' %}" class="nav-item">
                     <span class="nav-icon">🔍</span>
                     <span class="nav-text">事后审计</span>
                 </a>
@@ -434,7 +434,7 @@
         <section class="regime-section">
             <div class="section-header">
                 <h2 class="section-title">Regime 象限</h2>
-                <a href="/regime/dashboard/" class="section-link">查看详情 →</a>
+                <a href="{% url 'regime:dashboard' %}" class="section-link">查看详情 →</a>
             </div>
             <div class="regime-matrix">
                 <div class="regime-axis-y">增长 ↑</div>
@@ -555,7 +555,7 @@
                             <option value="pnl_pct">按收益率</option>
                             <option value="code">按代码</option>
                         </select>
-                        <a href="/account/profile/#positions" class="section-link">管理 →</a>
+                        <a href="{% url 'account:profile' %}#positions" class="section-link">管理 →</a>
                     </div>
                 </div>
                 <div class="card-body" id="positionList">
@@ -602,7 +602,7 @@
             <section class="content-card half">
                 <div class="section-header">
                     <h2 class="section-title">活跃信号</h2>
-                    <a href="/signal/manage/" class="section-link">全部 →</a>
+                    <a href="{% url 'signal:manage' %}" class="section-link">全部 →</a>
                 </div>
                 <div class="card-body">
                     {% if active_signals %}
