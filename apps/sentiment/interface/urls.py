@@ -1,7 +1,8 @@
 """
-URL Configuration for Sentiment API.
+URL Configuration for Sentiment Module.
 
-舆情情感分析模块的路由配置。
+This file contains only page routes (HTML views).
+API routes are in api_urls.py and mounted under /api/sentiment/
 """
 
 from django.urls import path
@@ -24,20 +25,8 @@ urlpatterns = [
     path('dashboard/', views.SentimentDashboardView.as_view(), name='dashboard'),
     path('analyze/', views.SentimentAnalyzePageView.as_view(), name='analyze'),
 
-    # API routes - Analysis (new standard format - when mounted under /api/sentiment/)
-    path('analyze/', views.SentimentAnalyzeView.as_view(), name='analyze'),
-    path('batch-analyze/', views.SentimentBatchAnalyzeView.as_view(), name='batch_analyze'),
-
-    # API routes - Index (new standard format)
-    path('index/', views.SentimentIndexView.as_view(), name='index'),
-    path('index/range/', views.SentimentIndexRangeView.as_view(), name='index_range'),
-    path('index/recent/', views.SentimentIndexRecentView.as_view(), name='index_recent'),
-
-    # API routes - System (new standard format)
-    path('health/', views.SentimentHealthView.as_view(), name='health'),
-    path('cache/clear/', views.SentimentCacheClearView.as_view(), name='cache_clear'),
-
-    # API routes - legacy format (backward compatibility when mounted under /sentiment/)
+    # Legacy API routes (backward compatibility when mounted under /sentiment/)
+    # These are kept for backward compatibility but new code should use /api/sentiment/
     path('api/analyze/', views.SentimentAnalyzeView.as_view(), name='analyze_legacy'),
     path('api/batch-analyze/', views.SentimentBatchAnalyzeView.as_view(), name='batch_analyze_legacy'),
     path('api/index/', views.SentimentIndexView.as_view(), name='index_legacy'),

@@ -21,6 +21,9 @@ from .views import (
     # 工作台视图
     WorkbenchSummaryView,
     WorkbenchItemsView,
+    WorkbenchBootstrapView,
+    WorkbenchItemDetailView,
+    WorkbenchFetchView,
     ApproveEventView,
     RejectEventView,
     RollbackEventView,
@@ -46,8 +49,11 @@ urlpatterns = [
     path("audit/bulk_review/", BulkReviewView.as_view(), name="bulk-review"),
     path("audit/auto_assign/", AutoAssignAuditsView.as_view(), name="auto-assign"),
     # 工作台 API
+    path("workbench/bootstrap/", WorkbenchBootstrapView.as_view(), name="workbench-bootstrap"),
+    path("workbench/fetch/", WorkbenchFetchView.as_view(), name="workbench-fetch"),
     path("workbench/summary/", WorkbenchSummaryView.as_view(), name="workbench-summary"),
     path("workbench/items/", WorkbenchItemsView.as_view(), name="workbench-items"),
+    path("workbench/items/<int:event_id>/", WorkbenchItemDetailView.as_view(), name="workbench-item-detail"),
     path("workbench/items/<int:event_id>/approve/", ApproveEventView.as_view(), name="workbench-approve"),
     path("workbench/items/<int:event_id>/reject/", RejectEventView.as_view(), name="workbench-reject"),
     path("workbench/items/<int:event_id>/rollback/", RollbackEventView.as_view(), name="workbench-rollback"),

@@ -110,10 +110,10 @@ echo.
 
 REM ========== 4. Database Migration ==========
 echo [4/5] Running database migrations...
-"%PYTHON_EXEC%" manage.py migrate --skip-checks
+"%PYTHON_EXEC%" manage.py migrate
 if errorlevel 1 (
     echo [WARN] Migration issues, retrying...
-    "%PYTHON_EXEC%" manage.py migrate
+    "%PYTHON_EXEC%" manage.py migrate --skip-checks
 )
 echo [OK] Database ready
 echo.

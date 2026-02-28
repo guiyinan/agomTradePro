@@ -181,7 +181,7 @@ class TestPolicyRepository:
         current = repo.get_current_policy_level()
         assert current == PolicyLevel.P0
 
-        # 添加事件
+        # 添加事件（需要 gate_effective=True 才能影响档位计算）
         event = PolicyEvent(
             event_date=date.today(),
             level=PolicyLevel.P2,
@@ -189,7 +189,7 @@ class TestPolicyRepository:
             description="这是档位测试的详细描述，至少二十个字符",
             evidence_url="https://example.com"
         )
-        repo.save_event(event)
+        repo.save_event(event, gate_effective=True)
 
         current = repo.get_current_policy_level()
         assert current == PolicyLevel.P2
@@ -206,7 +206,7 @@ class TestPolicyRepository:
             title="测试",
             description="这是干预档位的详细描述，至少二十个字符",
             evidence_url="https://example.com"
-        ))
+        ), gate_effective=True)
 
         assert repo.is_intervention_active()
 
@@ -222,7 +222,7 @@ class TestPolicyRepository:
             title="危机",
             description="这是危机模式的详细描述，至少二十个字符",
             evidence_url="https://example.com"
-        ))
+        ), gate_effective=True)
 
         assert repo.is_crisis_mode()
 
@@ -354,7 +354,7 @@ class TestGetPolicyStatusUseCase:
             title="干预政策",
             description="测试",
             evidence_url="https://example.com"
-        ))
+        ), gate_effective=True)
 
         use_case = GetPolicyStatusUseCase(event_store=repo)
         status = use_case.execute()

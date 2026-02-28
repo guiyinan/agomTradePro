@@ -120,8 +120,8 @@ class TestGetCurrentPolicyLevel:
         level = policy_repo.get_current_policy_level()
         assert level == PolicyLevel.P2
 
-    def test_hotspot_events_do_not_affect_policy_level(self, policy_repo, test_user):
-        """Hotspot/sentiment events should NOT affect P0-P3."""
+    def test_hotspot_events_affect_policy_level(self, policy_repo, test_user):
+        """Hotspot/sentiment events SHOULD affect P0-P3 (new behavior)."""
         # Create an effective hotspot event
         PolicyLog.objects.create(
             event_date=date.today(),
@@ -139,8 +139,8 @@ class TestGetCurrentPolicyLevel:
         )
 
         level = policy_repo.get_current_policy_level()
-        # Should be P0 because no effective POLICY events exist
-        assert level == PolicyLevel.P0
+        # Should be P3 because ALL effective events now affect policy level
+        assert level == PolicyLevel.P3
 
     def test_no_events_returns_p0(self, policy_repo):
         """When no events exist, return P0."""

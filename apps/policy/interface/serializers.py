@@ -407,3 +407,111 @@ class SentimentGateConfigSerializer(serializers.Serializer):
     max_position_cap_l3 = serializers.FloatField()
     enabled = serializers.BooleanField()
     version = serializers.IntegerField(read_only=True)
+
+
+# ============================================================
+# 工作台 Bootstrap/Detail/Fetch 序列化器
+# ============================================================
+
+class WorkbenchFilterOptionsSerializer(serializers.Serializer):
+    """工作台筛选选项序列化器"""
+
+    event_types = serializers.ListField(child=serializers.DictField())
+    levels = serializers.ListField(child=serializers.DictField())
+    gate_levels = serializers.ListField(child=serializers.DictField())
+    asset_classes = serializers.ListField(child=serializers.CharField())
+    sources = serializers.ListField(child=serializers.DictField())
+
+
+class WorkbenchTrendSerializer(serializers.Serializer):
+    """工作台趋势数据序列化器"""
+
+    sentiment_recent_30d = serializers.ListField(child=serializers.DictField())
+    effective_events_recent_30d = serializers.ListField(child=serializers.DictField())
+
+
+class WorkbenchFetchStatusSerializer(serializers.Serializer):
+    """工作台抓取状态序列化器"""
+
+    last_fetch_at = serializers.DateTimeField(allow_null=True)
+    last_fetch_status = serializers.CharField(allow_null=True)
+    recent_fetch_errors = serializers.ListField(child=serializers.DictField())
+
+
+class WorkbenchBootstrapSerializer(serializers.Serializer):
+    """工作台启动数据序列化器"""
+
+    summary = WorkbenchSummarySerializer()
+    default_list = WorkbenchItemSerializer(many=True)
+    filter_options = WorkbenchFilterOptionsSerializer()
+    trend = WorkbenchTrendSerializer()
+    fetch_status = WorkbenchFetchStatusSerializer()
+
+
+class WorkbenchItemDetailSerializer(serializers.Serializer):
+    """工作台事件详情序列化器"""
+
+    # 基础字段
+    id = serializers.IntegerField()
+    event_date = serializers.DateField()
+    event_type = serializers.CharField()
+    level = serializers.CharField()
+    gate_level = serializers.CharField(allow_null=True)
+    title = serializers.CharField()
+    description = serializers.CharField()
+    evidence_url = serializers.URLField()
+
+    # AI 分析字段
+    ai_confidence = serializers.FloatField(allow_null=True)
+    heat_score = serializers.FloatField(allow_null=True)
+    sentiment_score = serializers.FloatField(allow_null=True)
+    structured_data = serializers.DictField(allow_null=True)
+
+    # 闸门与生效
+    gate_effective = serializers.BooleanField()
+    effective_at = serializers.DateTimeField(allow_null=True)
+    effective_by_id = serializers.IntegerField(allow_null=True)
+    effective_by_name = serializers.CharField(allow_null=True)
+
+    # 审核字段
+    audit_status = serializers.CharField()
+    reviewed_by_id = serializers.IntegerField(allow_null=True)
+    reviewed_by_name = serializers.CharField(allow_null=True)
+    reviewed_at = serializers.DateTimeField(allow_null=True)
+    review_notes = serializers.CharField(allow_blank=True)
+
+    # 资产范围
+    asset_class = serializers.CharField(allow_null=True)
+    asset_scope = serializers.ListField(child=serializers.CharField())
+
+    # 回滚信息
+    rollback_reason = serializers.CharField(allow_blank=True)
+
+    # 来源信息
+    rss_source_id = serializers.IntegerField(allow_null=True)
+    rss_source_name = serializers.CharField(allow_null=True)
+    rss_item_guid = serializers.CharField(allow_null=True)
+
+    # 时间戳
+    created_at = serializers.DateTimeField()
+    updated_at = serializers.DateTimeField(allow_null=True)
+
+
+class WorkbenchFetchInputSerializer(serializers.Serializer):
+    """工作台抓取输入序列化器"""
+
+    source_id = serializers.IntegerField(required=False, allow_null=True)
+    force_refetch = serializers.BooleanField(required=False, default=False)
+
+
+class WorkbenchFetchOutputSerializer(serializers.Serializer):
+    """工作台抓取输出序列化器"""
+
+    success = serializers.BooleanField()
+    mode = serializers.CharField()  # 'all' or 'single'
+    task_id = serializers.CharField(allow_null=True)
+    sources_processed = serializers.IntegerField()
+    total_items = serializers.IntegerField()
+    new_policy_events = serializers.IntegerField()
+    errors = serializers.ListField(child=serializers.CharField())
+    details = serializers.ListField(child=serializers.DictField())

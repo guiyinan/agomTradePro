@@ -43,13 +43,17 @@ core_patterns = [
     path('', index_view, name='index'),
     path('api/health/', health_view, name='health'),
     path('chat-example/', chat_example_view, name='chat-example'),
-    path('policy/dashboard/', policy_dashboard_view, name='policy-dashboard'),
+    # 301 重定向旧页面到统一工作台
+    path('policy/dashboard/', RedirectView.as_view(url='/policy/workbench/', permanent=True), name='policy-dashboard'),
     path('asset-analysis/screen/', asset_screen_view, name='asset-screen'),
     path('decision/workspace/', decision_workspace_view, name='decision-workspace'),
     path('ops/', ops_center_view, name='ops-center'),
     # More specific pattern must come first.
     path('docs/<str:doc_slug>/', docs_view, name='docs-detail'),
     path('docs/', docs_view, name='docs'),
+    # 301 重定向 sentiment 旧页面
+    path('sentiment/dashboard/', RedirectView.as_view(url='/policy/workbench/', permanent=True), name='sentiment-dashboard-redirect'),
+    path('sentiment/analyze/', RedirectView.as_view(url='/policy/workbench/', permanent=True), name='sentiment-analyze-redirect'),
 ]
 
 admin_docs_patterns = [
@@ -145,7 +149,8 @@ module_patterns = [
     path('api/factor/', include(('apps.factor.interface.urls', 'api_factor'), namespace='api_factor')),
     path('api/rotation/', include(('apps.rotation.interface.urls', 'api_rotation'), namespace='api_rotation')),
     path('api/hedge/', include(('apps.hedge.interface.urls', 'api_hedge'), namespace='api_hedge')),
-    path('api/sentiment/', include(('apps.sentiment.interface.urls', 'api_sentiment'), namespace='api_sentiment')),
+    # Sentiment API routes (separate from page routes to avoid conflicts)
+    path('api/sentiment/', include(('apps.sentiment.interface.api_urls', 'api_sentiment'), namespace='api_sentiment')),
     # Task Monitor
     path('api/system/', include(('apps.task_monitor.interface.urls', 'task_monitor'), namespace='task_monitor')),
 ]

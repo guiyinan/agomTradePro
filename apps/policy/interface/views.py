@@ -1131,6 +1131,15 @@ from .serializers import (
     SentimentGateStateSerializer,
     IngestionConfigSerializer,
     SentimentGateConfigSerializer,
+    # 新增序列化器
+    WorkbenchBootstrapSerializer,
+    WorkbenchFilterOptionsSerializer,
+    WorkbenchTrendSerializer,
+    WorkbenchFetchStatusSerializer,
+    WorkbenchItemDetailSerializer,
+    WorkbenchFetchInputSerializer,
+    WorkbenchFetchOutputSerializer,
+    WorkbenchItemSerializer,
 )
 
 
@@ -1689,6 +1698,299 @@ class SentimentGateConfigView(APIView):
 # ============================================================
 # 工作台页面视图
 # ============================================================
+
+class WorkbenchBootstrapView(APIView):
+    """
+    工作台启动数据视图
+
+    GET /api/policy/workbench/bootstrap/ - 获取工作台初始化所需的所有数据
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Policy Workbench"],
+        summary="获取工作台启动数据",
+        description="一次性获取工作台初始化所需的所有数据：summary, default_list, filter_options, trend, fetch_status",
+        responses={200: WorkbenchBootstrapSerializer}
+    )
+    def get(self, request):
+        """获取工作台启动数据"""
+        try:
+            from .serializers import (
+                WorkbenchBootstrapSerializer,
+                WorkbenchFilterOptionsSerializer,
+                WorkbenchTrendSerializer,
+                WorkbenchFetchStatusSerializer,
+            )
+            from ..infrastructure.models import RSSSourceConfigModel, RSSFetchLog
+
+            # 1. 获取 summary
+            summary_use_case = GetWorkbenchSummaryUseCase(workbench_repo=WorkbenchRepository())
+            summary_output = summary_use_case.execute(WorkbenchSummaryInput())
+            summary_data = WorkbenchSummarySerializer(summary_output.summary).data if summary_output.success else {}
+
+            # 2. 获取 default list (tab=all, limit=50)
+            items_input = WorkbenchItemsInput(tab='all', limit=50, offset=0)
+            items_use_case = GetWorkbenchItemsUseCase(workbench_repo=WorkbenchRepository())
+            items_output = items_use_case.execute(items_input)
+            default_list = items_output.items if items_output.success else []
+
+            # 3. 获取 filter options
+            event_types = [
+                {'value': choice[0], 'label': choice[1]}
+                for choice in PolicyLog.EVENT_TYPE_CHOICES
+            ]
+            levels = [
+                {'value': choice[0], 'label': choice[1]}
+                for choice in PolicyLog.POLICY_LEVELS
+            ]
+            gate_levels = [
+                {'value': choice[0], 'label': choice[1]}
+                for choice in PolicyLog.GATE_LEVEL_CHOICES
+            ]
+            asset_classes = ['equity', 'bond', 'commodity', 'fx', 'crypto', 'all']
+            sources = list(RSSSourceConfigModel.objects.filter(is_active=True).values('id', 'name', 'category'))
+
+            filter_options = {
+                'event_types': event_types,
+                'levels': levels,
+                'gate_levels': gate_levels,
+                'asset_classes': asset_classes,
+                'sources': sources,
+            }
+
+            # 4. 获取 trend data (近30天)
+            from datetime import timedelta
+            from django.db.models import Count, Avg
+            from django.utils import timezone
+
+            end_date = timezone.now().date()
+            start_date = end_date - timedelta(days=30)
+
+            # 情绪趋势
+            sentiment_trend = list(
+                PolicyLog.objects.filter(
+                    gate_effective=True,
+                    event_type__in=['hotspot', 'sentiment', 'mixed'],
+                    event_date__gte=start_date,
+                    event_date__lte=end_date,
+                )
+                .extra(select={'day': 'date(event_date)'})
+                .values('day')
+                .annotate(
+                    avg_heat=Avg('heat_score'),
+                    avg_sentiment=Avg('sentiment_score'),
+                    count=Count('id')
+                )
+                .order_by('day')
+            )
+
+            # 生效事件趋势
+            events_trend = list(
+                PolicyLog.objects.filter(
+                    gate_effective=True,
+                    event_date__gte=start_date,
+                    event_date__lte=end_date,
+                )
+                .extra(select={'day': 'date(event_date)'})
+                .values('day', 'event_type')
+                .annotate(count=Count('id'))
+                .order_by('day', 'event_type')
+            )
+
+            trend = {
+                'sentiment_recent_30d': sentiment_trend,
+                'effective_events_recent_30d': events_trend,
+            }
+
+            # 5. 获取 fetch status
+            last_fetch_log = RSSFetchLog.objects.order_by('-fetched_at').first()
+            recent_errors = list(
+                RSSFetchLog.objects.filter(status='error')
+                .order_by('-fetched_at')[:5]
+                .values('fetched_at', 'source__name', 'error_message')
+            )
+
+            fetch_status = {
+                'last_fetch_at': last_fetch_log.fetched_at if last_fetch_log else None,
+                'last_fetch_status': last_fetch_log.status if last_fetch_log else None,
+                'recent_fetch_errors': recent_errors,
+            }
+
+            return Response({
+                'success': True,
+                'summary': summary_data,
+                'default_list': default_list,
+                'filter_options': filter_options,
+                'trend': trend,
+                'fetch_status': fetch_status,
+            })
+
+        except Exception as e:
+            logger.error(f"Failed to get workbench bootstrap: {e}", exc_info=True)
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class WorkbenchItemDetailView(APIView):
+    """
+    工作台事件详情视图
+
+    GET /api/policy/workbench/items/{id}/ - 获取单个事件的详细信息
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Policy Workbench"],
+        summary="获取事件详情",
+        description="获取单个事件的完整详情，包括来源信息",
+        parameters=[
+            OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.PATH,
+                           description="事件ID", required=True),
+        ],
+        responses={200: WorkbenchItemDetailSerializer}
+    )
+    def get(self, request, event_id):
+        """获取事件详情"""
+        try:
+            from .serializers import WorkbenchItemDetailSerializer
+
+            event = PolicyLog.objects.filter(pk=event_id).first()
+            if not event:
+                return Response(
+                    {'success': False, 'error': 'Event not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # 获取来源名称
+            rss_source_name = None
+            if event.rss_source_id:
+                source = RSSSourceConfigModel.objects.filter(pk=event.rss_source_id).first()
+                if source:
+                    rss_source_name = source.name
+
+            # 获取生效人名称
+            effective_by_name = None
+            if event.effective_by_id:
+                from django.contrib.auth.models import User
+                user = User.objects.filter(pk=event.effective_by_id).first()
+                if user:
+                    effective_by_name = user.username
+
+            # 获取审核人名称
+            reviewed_by_name = None
+            if event.reviewed_by_id:
+                reviewed_by_name = event.reviewed_by.username if event.reviewed_by else None
+
+            data = {
+                'id': event.id,
+                'event_date': event.event_date,
+                'event_type': event.event_type,
+                'level': event.level,
+                'gate_level': event.gate_level,
+                'title': event.title,
+                'description': event.description,
+                'evidence_url': event.evidence_url,
+                'ai_confidence': event.ai_confidence,
+                'heat_score': event.heat_score,
+                'sentiment_score': event.sentiment_score,
+                'structured_data': event.structured_data or {},
+                'gate_effective': event.gate_effective,
+                'effective_at': event.effective_at,
+                'effective_by_id': event.effective_by_id,
+                'effective_by_name': effective_by_name,
+                'audit_status': event.audit_status,
+                'reviewed_by_id': event.reviewed_by_id,
+                'reviewed_by_name': reviewed_by_name,
+                'reviewed_at': event.reviewed_at,
+                'review_notes': event.review_notes or '',
+                'asset_class': event.asset_class,
+                'asset_scope': event.asset_scope or [],
+                'rollback_reason': event.rollback_reason or '',
+                'rss_source_id': event.rss_source_id,
+                'rss_source_name': rss_source_name,
+                'rss_item_guid': event.rss_item_guid,
+                'created_at': event.created_at,
+                'updated_at': event.updated_at if hasattr(event, 'updated_at') else None,
+            }
+
+            return Response({
+                'success': True,
+                'item': data,
+            })
+
+        except Exception as e:
+            logger.error(f"Failed to get event detail: {e}", exc_info=True)
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class WorkbenchFetchView(APIView):
+    """
+    工作台抓取触发视图
+
+    POST /api/policy/workbench/fetch/ - 触发 RSS 抓取
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=["Policy Workbench"],
+        summary="触发RSS抓取",
+        description="触发RSS源抓取，可选择抓取全部或指定源",
+        request=WorkbenchFetchInputSerializer,
+        responses={200: WorkbenchFetchOutputSerializer}
+    )
+    def post(self, request):
+        """触发RSS抓取"""
+        try:
+            from .serializers import WorkbenchFetchInputSerializer, WorkbenchFetchOutputSerializer
+
+            serializer = WorkbenchFetchInputSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(
+                    {'success': False, 'errors': serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            source_id = serializer.validated_data.get('source_id')
+            force_refetch = serializer.validated_data.get('force_refetch', False)
+
+            # 调用抓取用例
+            fetch_input = FetchRSSInput(
+                source_id=source_id,
+                force_refetch=force_refetch
+            )
+            fetch_use_case = FetchRSSUseCase(
+                rss_repo=RSSRepository(),
+                policy_repo=DjangoPolicyRepository()
+            )
+            output = fetch_use_case.execute(fetch_input)
+
+            return Response({
+                'success': output.success,
+                'mode': 'single' if source_id else 'all',
+                'task_id': None,  # 同步执行，无 task_id
+                'sources_processed': output.sources_processed,
+                'total_items': output.total_items,
+                'new_policy_events': output.new_policy_events,
+                'errors': output.errors,
+                'details': output.details,
+            })
+
+        except Exception as e:
+            logger.error(f"Failed to trigger fetch: {e}", exc_info=True)
+            return Response(
+                {'success': False, 'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 class WorkbenchView(LoginRequiredMixin, ListView):
     """

@@ -227,8 +227,8 @@ class DjangoPolicyRepository:
         """
         获取当前政策档位
 
-        重要：仅查询 event_type='policy' AND gate_effective=True 的事件。
-        热点情绪事件（hotspot/sentiment）不影响政策档位。
+        重要：查询所有已生效事件（gate_effective=True），包括 policy/hotspot/sentiment/mixed。
+        任何类型的已生效事件都会影响政策档位。
 
         Args:
             as_of_date: 截止日期（None 表示最新）
@@ -237,7 +237,6 @@ class DjangoPolicyRepository:
             PolicyLevel: 当前政策档位
         """
         query = self._model.objects.filter(
-            event_type='policy',
             gate_effective=True
         )
 

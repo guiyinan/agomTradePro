@@ -57,17 +57,11 @@
                     <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">宏观环境</button>
                     <div class="dropdown-menu">
                         <a href="{% url 'regime:dashboard' %}" class="dropdown-item">Regime判定</a>
-                        <a href="{% url 'policy-dashboard' %}" class="dropdown-item">政策跟踪</a>
+                        <a href="{% url 'policy:workbench' %}" class="dropdown-item">政策/情绪/热点工作台</a>
                         {% if user.is_staff %}
+                        <div class="dropdown-divider"></div>
                         <a href="{% url 'macro:data' %}" class="dropdown-item">宏观数据</a>
                         <a href="{% url 'filter:dashboard' %}" class="dropdown-item">趋势滤波</a>
-                        <a href="{% url 'policy:events-page' %}" class="dropdown-item">政策事件</a>
-                        <div class="dropdown-divider"></div>
-                        <a href="{% url 'policy:rss-reader' %}" class="dropdown-item">RSS阅读器</a>
-                        <a href="{% url 'policy:rss-manage' %}" class="dropdown-item">RSS源管理</a>
-                        <a href="{% url 'policy:rss-keywords' %}" class="dropdown-item">关键词规则</a>
-                        <a href="{% url 'policy:rss-logs' %}" class="dropdown-item">抓取日志</a>
-                        <a href="{% url 'policy:audit-queue' %}" class="dropdown-item">政策审核队列</a>
                         {% endif %}
                     </div>
                 </div>

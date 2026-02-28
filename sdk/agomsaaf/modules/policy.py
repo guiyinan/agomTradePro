@@ -428,6 +428,83 @@ class PolicyModule(BaseModule):
         return self._parse_sentiment_gate_state(response)
 
     # =========================================================================
+    # 新增 API (2026-02-28)
+    # =========================================================================
+
+    def get_workbench_bootstrap(self) -> dict[str, Any]:
+        """
+        获取工作台启动数据
+
+        一次性获取工作台初始化所需的所有数据：
+        - summary: 工作台概览
+        - default_list: 默认事件列表
+        - filter_options: 筛选选项
+        - trend: 趋势数据
+        - fetch_status: 抓取状态
+
+        Returns:
+            工作台启动数据
+
+        Example:
+            >>> client = AgomSAAFClient()
+            >>> bootstrap = client.policy.get_workbench_bootstrap()
+            >>> print(f"政策档位: {bootstrap['summary']['policy_level']}")
+            >>> print(f"事件数量: {len(bootstrap['default_list'])}")
+        """
+        return self._get("workbench/bootstrap/")
+
+    def get_workbench_event_detail(self, event_id: int) -> dict[str, Any]:
+        """
+        获取工作台事件详情
+
+        Args:
+            event_id: 事件 ID
+
+        Returns:
+            事件详情，包括来源信息
+
+        Raises:
+            NotFoundError: 当事件不存在时
+
+        Example:
+            >>> client = AgomSAAFClient()
+            >>> detail = client.policy.get_workbench_event_detail(123)
+            >>> print(f"标题: {detail['title']}")
+            >>> print(f"来源: {detail['rss_source_name']}")
+        """
+        return self._get(f"workbench/items/{event_id}/")
+
+    def trigger_fetch(
+        self,
+        source_id: Optional[int] = None,
+        force_refetch: bool = False,
+    ) -> dict[str, Any]:
+        """
+        触发 RSS 抓取
+
+        Args:
+            source_id: 指定 RSS 源 ID（None 表示全部）
+            force_refetch: 是否强制重新抓取
+
+        Returns:
+            抓取结果，包括处理数量、新事件数量等
+
+        Example:
+            >>> client = AgomSAAFClient()
+            >>> # 抓取全部
+            >>> result = client.policy.trigger_fetch()
+            >>> print(f"新事件: {result['new_policy_events']}")
+            >>>
+            >>> # 抓取指定源
+            >>> result = client.policy.trigger_fetch(source_id=1, force_refetch=True)
+        """
+        data: dict[str, Any] = {"force_refetch": force_refetch}
+        if source_id is not None:
+            data["source_id"] = source_id
+
+        return self._post("workbench/fetch/", json=data)
+
+    # =========================================================================
     # 解析方法
     # =========================================================================
 
