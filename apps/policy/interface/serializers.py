@@ -294,7 +294,7 @@ class WorkbenchItemsQuerySerializer(serializers.Serializer):
 
     tab = serializers.ChoiceField(
         choices=['pending', 'effective', 'all'],
-        default='pending'
+        default='all'
     )
     event_type = serializers.ChoiceField(
         choices=['policy', 'hotspot', 'sentiment', 'mixed'],

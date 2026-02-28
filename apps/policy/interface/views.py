@@ -22,7 +22,7 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 
 from ..domain.entities import PolicyLevel, PolicyEvent
 from ..infrastructure.models import PolicyLog, RSSSourceConfigModel, PolicyLevelKeywordModel, RSSFetchLog
-from ..infrastructure.repositories import DjangoPolicyRepository
+from ..infrastructure.repositories import DjangoPolicyRepository, RSSRepository
 from ..application.use_cases import (
     CreatePolicyEventUseCase,
     GetPolicyStatusUseCase,
@@ -1968,8 +1968,8 @@ class WorkbenchFetchView(APIView):
                 force_refetch=force_refetch
             )
             fetch_use_case = FetchRSSUseCase(
-                rss_repo=RSSRepository(),
-                policy_repo=DjangoPolicyRepository()
+                rss_repository=RSSRepository(),
+                policy_repository=DjangoPolicyRepository()
             )
             output = fetch_use_case.execute(fetch_input)
 
