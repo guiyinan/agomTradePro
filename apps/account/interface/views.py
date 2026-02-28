@@ -10,6 +10,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.http import JsonResponse
 from django.db import models, transaction
 from django.utils import timezone
@@ -36,6 +37,7 @@ def is_admin_user(user):
 
 
 @require_http_methods(["GET", "POST"])
+@ensure_csrf_cookie
 def register_view(request):
     """
     用户注册视图
@@ -186,6 +188,7 @@ def get_client_ip(request):
 
 
 @require_http_methods(["GET", "POST"])
+@ensure_csrf_cookie
 def login_view(request):
     """
     用户登录视图

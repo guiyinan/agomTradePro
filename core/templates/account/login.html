@@ -19,7 +19,7 @@
             {% endfor %}
         {% endif %}
 
-        <form method="post" class="login-form">
+        <form method="post" class="login-form" id="loginForm">
             {% csrf_token %}
             <div class="form-group">
                 <label for="username">用户名</label>
@@ -154,4 +154,31 @@
     text-decoration: underline;
 }
 </style>
+
+<script>
+(function () {
+    function getCookie(name) {
+        const cookieStr = document.cookie || '';
+        const cookies = cookieStr.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.startsWith(name + '=')) {
+                return decodeURIComponent(cookie.substring(name.length + 1));
+            }
+        }
+        return '';
+    }
+
+    const form = document.getElementById('loginForm');
+    if (!form) return;
+
+    form.addEventListener('submit', function () {
+        const tokenInput = form.querySelector('input[name="csrfmiddlewaretoken"]');
+        const cookieToken = getCookie('csrftoken');
+        if (tokenInput && cookieToken) {
+            tokenInput.value = cookieToken;
+        }
+    });
+})();
+</script>
 {% endblock %}

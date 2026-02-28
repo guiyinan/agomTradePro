@@ -23,7 +23,7 @@
             <p>此页面显示模拟盘账户的详细信息。</p>
             <p class="mt-3">
                 <strong>账户ID:</strong> {{ account_id }}<br>
-                请访问 <a href="{% url 'simulated_trading:my-accounts' %}">我的模拟仓</a> 查看您的账户。
+                请访问 <a href="{% url 'simulated_trading:my-accounts' %}">我的投资账户</a> 查看您的账户。
             </p>
         </div>
     </section>
@@ -32,7 +32,7 @@
     <section class="account-section">
         <h2 class="section-title">快捷操作</h2>
         <div class="action-buttons">
-            <a href="{% url 'simulated_trading:my-accounts' %}" class="btn btn-primary">我的模拟仓</a>
+            <a href="{% url 'simulated_trading:my-accounts' %}" class="btn btn-primary">我的投资账户</a>
             <a href="{% url 'simulated_trading:dashboard' %}" class="btn btn-secondary">模拟盘首页</a>
             <a href="{% url 'dashboard:index' %}" class="btn btn-secondary">返回仪表盘</a>
         </div>

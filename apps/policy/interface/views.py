@@ -11,6 +11,8 @@ from typing import Optional
 from django.db import models
 from django.utils import timezone
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
@@ -2003,6 +2005,10 @@ class WorkbenchView(LoginRequiredMixin, ListView):
     context_object_name = "events"
     paginate_by = 50
 
+    @method_decorator(ensure_csrf_cookie)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = "工作台"
@@ -2010,4 +2016,3 @@ class WorkbenchView(LoginRequiredMixin, ListView):
         context['levels'] = PolicyLog.POLICY_LEVELS
         context['gate_levels'] = PolicyLog.GATE_LEVEL_CHOICES
         return context
-
