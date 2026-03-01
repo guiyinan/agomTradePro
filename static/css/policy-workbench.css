@@ -283,7 +283,7 @@
     display: flex;
 }
 
-.modal {
+.wb-modal {
     background: white;
     border-radius: 8px;
     width: 600px;
@@ -291,7 +291,7 @@
     overflow-y: auto;
 }
 
-.modal-header {
+.wb-modal-header {
     padding: 16px 20px;
     border-bottom: 1px solid #e5e7eb;
     display: flex;
@@ -299,12 +299,12 @@
     align-items: center;
 }
 
-.modal-title {
+.wb-modal-title {
     font-size: 18px;
     font-weight: 600;
 }
 
-.modal-close {
+.wb-modal-close {
     background: none;
     border: none;
     font-size: 24px;
@@ -312,11 +312,11 @@
     color: #6b7280;
 }
 
-.modal-body {
+.wb-modal-body {
     padding: 20px;
 }
 
-.modal-footer {
+.wb-modal-footer {
     padding: 16px 20px;
     border-top: 1px solid #e5e7eb;
     display: flex;

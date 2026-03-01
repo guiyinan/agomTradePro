@@ -4,7 +4,7 @@
 {% block title %}政策/情绪/热点工作台 - AgomSAAF{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/policy-workbench.css' %}">
+<link rel="stylesheet" href="{% static 'css/policy-workbench.css' %}?v=20260301-modalfix1">
 {% endblock %}
 
 {% block content %}
@@ -174,15 +174,15 @@
 
 <!-- 审核模态框 -->
 <div class="modal-overlay" id="review-modal">
-    <div class="modal">
-        <div class="modal-header">
-            <h3 class="modal-title" id="modal-title">审核事件</h3>
-            <button class="modal-close" onclick="closeModal()">&times;</button>
+    <div class="wb-modal">
+        <div class="wb-modal-header">
+            <h3 class="wb-modal-title" id="modal-title">审核事件</h3>
+            <button class="wb-modal-close" onclick="closeModal()">&times;</button>
         </div>
-        <div class="modal-body" id="modal-body">
+        <div class="wb-modal-body" id="modal-body">
             <!-- 动态内容 -->
         </div>
-        <div class="modal-footer">
+        <div class="wb-modal-footer">
             <button class="btn btn-outline" onclick="closeModal()">取消</button>
             <button class="btn btn-primary" id="modal-confirm">确认</button>
         </div>
@@ -192,6 +192,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/policy-workbench.js' %}"></script>
+<script src="{% static 'js/policy-workbench.js' %}?v=20260301-modalfix1"></script>
 {% endblock %}
 

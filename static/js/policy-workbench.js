@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadEvents();
     loadFetchSources();
     initTabHandlers();
+    initEventActionHandlers();
 });
 
 async function loadFetchSources() {
@@ -171,17 +172,47 @@ function renderEvents(items) {
             <td>
                 <div class="actions">
                     ${currentTab === 'pending' ? `
-                        <button class="btn btn-success btn-sm" onclick="approveEvent(${item.id})">通过</button>
-                        <button class="btn btn-danger btn-sm" onclick="showRejectModal(${item.id})">拒绝</button>
-                        <button class="btn btn-outline btn-sm" onclick="showDetail(${item.id})">详情</button>
+                        <button class="btn btn-success btn-sm" data-action="approve" data-id="${item.id}">通过</button>
+                        <button class="btn btn-danger btn-sm" data-action="reject" data-id="${item.id}">拒绝</button>
+                        <button class="btn btn-outline btn-sm" data-action="detail" data-id="${item.id}">详情</button>
                     ` : `
-                        <button class="btn btn-warning btn-sm" onclick="showRollbackModal(${item.id})">回滚</button>
-                        <button class="btn btn-outline btn-sm" onclick="showDetail(${item.id})">详情</button>
+                        <button class="btn btn-warning btn-sm" data-action="rollback" data-id="${item.id}">回滚</button>
+                        <button class="btn btn-outline btn-sm" data-action="detail" data-id="${item.id}">详情</button>
                     `}
                 </div>
             </td>
         </tr>
     `).join('');
+}
+
+function initEventActionHandlers() {
+    const tbody = document.getElementById('events-tbody');
+    if (!tbody) return;
+
+    tbody.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+
+        const action = button.dataset.action;
+        const eventId = parseInt(button.dataset.id || '', 10);
+        if (!eventId) return;
+
+        if (action === 'approve') {
+            approveEvent(eventId);
+            return;
+        }
+        if (action === 'reject') {
+            showRejectModal(eventId);
+            return;
+        }
+        if (action === 'rollback') {
+            showRollbackModal(eventId);
+            return;
+        }
+        if (action === 'detail') {
+            showDetail(eventId);
+        }
+    });
 }
 
 // 渲染分页
@@ -352,7 +383,7 @@ async function showDetail(eventId) {
             return;
         }
 
-        const item = data.item;
+        const item = data.item || {};
 
         // 构建详情内容
         let detailHtml = `
@@ -370,9 +401,9 @@ async function showDetail(eventId) {
             </div>
             <div class="detail-section">
                 <h4>AI 分析</h4>
-                <div class="detail-row"><span class="label">置信度:</span> ${item.ai_confidence !== null ? item.ai_confidence.toFixed(2) : '-'}</div>
-                <div class="detail-row"><span class="label">热度:</span> ${item.heat_score !== null ? item.heat_score.toFixed(1) : '-'}</div>
-                <div class="detail-row"><span class="label">情绪:</span> ${item.sentiment_score !== null ? item.sentiment_score.toFixed(2) : '-'}</div>
+                <div class="detail-row"><span class="label">置信度:</span> ${formatNumber(item.ai_confidence, 2)}</div>
+                <div class="detail-row"><span class="label">热度:</span> ${formatNumber(item.heat_score, 1)}</div>
+                <div class="detail-row"><span class="label">情绪:</span> ${formatNumber(item.sentiment_score, 2)}</div>
             </div>
             <div class="detail-section">
                 <h4>来源信息</h4>
@@ -482,6 +513,17 @@ function getConfidenceClass(confidence) {
     if (confidence >= 0.85) return '';
     if (confidence >= 0.7) return 'low';
     return 'very-low';
+}
+
+function formatNumber(value, fractionDigits) {
+    if (value === null || value === undefined || value === '') {
+        return '-';
+    }
+    const num = Number(value);
+    if (!Number.isFinite(num)) {
+        return '-';
+    }
+    return num.toFixed(fractionDigits);
 }
 
 function applyFilters() {
