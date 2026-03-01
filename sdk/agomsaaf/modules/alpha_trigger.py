@@ -39,3 +39,20 @@ class AlphaTriggerModule(BaseModule):
 
     def get_candidate(self, candidate_id: str) -> dict[str, Any]:
         return self._get(f"candidates/{candidate_id}/")
+
+    def update_candidate_status(
+        self,
+        candidate_id: str,
+        status: str,
+    ) -> dict[str, Any]:
+        """
+        更新候选状态。
+
+        Args:
+            candidate_id: 候选ID
+            status: 新状态（WATCH/CANDIDATE/ACTIONABLE/EXECUTED/CANCELLED）
+        """
+        return self._post(
+            f"candidates/{candidate_id}/update-status/",
+            json={"status": status},
+        )

@@ -153,7 +153,7 @@ Three methods (priority order):
 | `client.equity` | Stock analysis - scoring, recommendations, financials |
 | `client.fund` | Fund analysis - scoring, performance, holdings |
 | `client.sector` | Sector analysis - scoring, hot sectors, comparison |
-| `client.strategy` | Strategy management - create/execute strategy, DB-driven position rules, evaluate buy/sell/SL/TP |
+| `client.strategy` | Strategy management - create/execute strategy, bind/unbind portfolio strategy, DB-driven position rules |
 | `client.realtime` | Real-time prices - market data, alerts, top movers |
 
 ## MCP Tools (60+)
@@ -164,6 +164,7 @@ Three methods (priority order):
 - **Macro**: `list_macro_indicators`, `get_macro_data`, `sync_macro_indicator`
 - **Backtest**: `run_backtest`, `get_backtest_result`, `get_backtest_equity_curve`
 - **Policy**: `get_policy_status`, `get_policy_events`, `create_policy_event`
+- **Alpha Trigger**: `list_alpha_candidates`, `get_alpha_candidate`, `update_alpha_candidate_status`
 
 ### Workbench Tools (New)
 - **Workbench**: `get_workbench_summary`, `get_workbench_items`
@@ -176,6 +177,8 @@ Three methods (priority order):
 - **Fund**: `get_fund_score`, `list_funds`, `get_fund_performance`
 - **Sector**: `list_sectors`, `get_hot_sectors`, `compare_sectors`
 - **Strategy**: `list_strategies`, `create_strategy`, `execute_strategy`
+- **Strategy Assignment**: `bind_portfolio_strategy`, `unbind_portfolio_strategy`
+- **Decision Rhythm**: `submit_decision_request`, `list_decision_requests`
 - **Realtime**: `get_realtime_price`, `get_market_summary`, `create_price_alert`
 
 ## Documentation

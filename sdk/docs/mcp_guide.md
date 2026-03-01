@@ -177,6 +177,8 @@ get_sector_realtime_performance()
 ### Strategy Position Management Tools
 
 ```
+bind_portfolio_strategy(portfolio_id, strategy_id)
+unbind_portfolio_strategy(portfolio_id)
 list_position_rules(strategy_id, is_active, limit)
 create_position_rule(strategy_id, name, buy_price_expr, sell_price_expr, stop_loss_expr, take_profit_expr, position_size_expr, ...)
 get_strategy_position_rule(strategy_id)
@@ -185,6 +187,16 @@ evaluate_strategy_position_management(strategy_id, context)
 ```
 
 `context` is a JSON object with runtime variables (for example `current_price`, `atr`, `account_equity`, `risk_per_trade_pct`).
+
+### Alpha Candidate Tools
+
+```
+list_alpha_candidates()
+get_alpha_candidate(candidate_id)
+update_alpha_candidate_status(candidate_id, status)
+```
+
+`status` supports: `WATCH`, `CANDIDATE`, `ACTIONABLE`, `EXECUTED`, `CANCELLED`.
 
 ### Simulated Trading Inspection Tools
 

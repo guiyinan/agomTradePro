@@ -103,6 +103,36 @@ print(f"Annual Return: {result.annual_return:.2%}")
 print(f"Max Drawdown: {result.max_drawdown:.2%}")
 ```
 
+### 6. Bind Portfolio Strategy and Submit Decision
+
+```python
+# 1) Bind strategy to a portfolio
+bind_result = client.strategy.bind_portfolio_strategy(
+    portfolio_id=1,
+    strategy_id=12,
+)
+print(bind_result["message"])
+
+# 2) Update Alpha candidate status to ACTIONABLE
+client.alpha_trigger.update_candidate_status(
+    candidate_id="cand_xxx",
+    status="ACTIONABLE",
+)
+
+# 3) Submit candidate into Decision Rhythm queue
+decision = client.decision_rhythm.submit({
+    "asset_code": "000001.SH",
+    "asset_class": "a_share",
+    "direction": "BUY",
+    "priority": "high",
+    "trigger_id": "cand_xxx",
+    "reason": "from actionable candidate",
+    "expected_confidence": 0.78,
+    "quota_period": "weekly"
+})
+print(decision.get("success", False))
+```
+
 ## Module Overview
 
 | Module | Description |

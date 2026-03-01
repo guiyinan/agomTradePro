@@ -106,6 +106,33 @@ def register_strategy_tools(server: FastMCP) -> None:
         return client.strategy.execute_strategy(strategy_id, parsed_date)
 
     @server.tool()
+    def bind_portfolio_strategy(
+        portfolio_id: int,
+        strategy_id: int,
+    ) -> dict[str, Any]:
+        """
+        绑定策略到投资组合。
+
+        Notes:
+            同一账户只保留一个激活策略分配，绑定新策略会自动停用旧分配。
+        """
+        client = AgomSAAFClient()
+        return client.strategy.bind_portfolio_strategy(
+            portfolio_id=portfolio_id,
+            strategy_id=strategy_id,
+        )
+
+    @server.tool()
+    def unbind_portfolio_strategy(
+        portfolio_id: int,
+    ) -> dict[str, Any]:
+        """
+        解绑投资组合策略（停用该账户所有激活分配）。
+        """
+        client = AgomSAAFClient()
+        return client.strategy.unbind_portfolio_strategy(portfolio_id=portfolio_id)
+
+    @server.tool()
     def get_strategy_performance(
         strategy_id: int,
         start_date: str | None = None,

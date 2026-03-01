@@ -688,7 +688,7 @@ apps/strategy/
 **任务清单**:
 - [ ] 修改 `AutoTradingEngine`:
   - 注入StrategyExecutor
-  - 实现get_active_strategy()
+  - 实现通过 `PortfolioStrategyAssignment` 获取账户激活策略
   - 实现execute_strategy()
 - [ ] 向后兼容处理:
   - 无策略时使用原有逻辑

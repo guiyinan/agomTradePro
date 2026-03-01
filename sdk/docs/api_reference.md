@@ -195,6 +195,8 @@ client.strategy.list_strategies(status, limit) -> list
 client.strategy.get_strategy(strategy_id) -> dict
 client.strategy.create_strategy(name, strategy_type, description, params) -> dict
 client.strategy.execute_strategy(strategy_id, as_of_date) -> dict
+client.strategy.bind_portfolio_strategy(portfolio_id, strategy_id) -> dict
+client.strategy.unbind_portfolio_strategy(portfolio_id) -> dict
 client.strategy.get_strategy_performance(strategy_id, start_date, end_date) -> dict
 client.strategy.get_strategy_signals(strategy_id, status, limit) -> list
 client.strategy.get_strategy_positions(strategy_id) -> list
@@ -205,6 +207,30 @@ client.strategy.update_position_rule(rule_id, **updates) -> dict
 client.strategy.evaluate_position_rule(rule_id, context) -> dict
 client.strategy.get_strategy_position_rule(strategy_id) -> dict
 client.strategy.evaluate_strategy_position_management(strategy_id, context) -> dict
+```
+
+### Alpha Trigger Module
+
+```python
+client.alpha_trigger.list_triggers() -> list[dict]
+client.alpha_trigger.get_trigger(trigger_id) -> dict
+client.alpha_trigger.create_trigger(payload) -> dict
+client.alpha_trigger.list_candidates() -> list[dict]
+client.alpha_trigger.get_candidate(candidate_id) -> dict
+client.alpha_trigger.update_candidate_status(candidate_id, status) -> dict
+```
+
+`status` 支持：`WATCH` / `CANDIDATE` / `ACTIONABLE` / `EXECUTED` / `CANCELLED`
+
+### Decision Rhythm Module
+
+```python
+client.decision_rhythm.list_quotas() -> list[dict]
+client.decision_rhythm.list_requests() -> list[dict]
+client.decision_rhythm.submit(payload) -> dict
+client.decision_rhythm.submit_batch(payload) -> dict
+client.decision_rhythm.summary(payload=None) -> dict
+client.decision_rhythm.reset_quota(payload) -> dict
 ```
 
 ## Realtime Module
@@ -240,7 +266,7 @@ client.realtime.delete_alert(alert_id) -> None
 
 ```python
 # Regime types
-RegimeType = Literal["Recovery", "Overheat", "Stagflation", "Repression"]
+RegimeType = Literal["Recovery", "Overheat", "Stagflation", "Deflation"]
 GrowthLevel = Literal["up", "down", "neutral"]
 InflationLevel = Literal["up", "down", "neutral"]
 

@@ -37,3 +37,23 @@ def register_alpha_trigger_tools(server: FastMCP) -> None:
     def alpha_trigger_performance(payload: dict[str, Any] | None = None) -> dict[str, Any]:
         client = AgomSAAFClient()
         return client.alpha_trigger.performance(payload)
+
+    @server.tool()
+    def list_alpha_candidates() -> list[dict[str, Any]]:
+        client = AgomSAAFClient()
+        return client.alpha_trigger.list_candidates()
+
+    @server.tool()
+    def get_alpha_candidate(candidate_id: str) -> dict[str, Any]:
+        client = AgomSAAFClient()
+        return client.alpha_trigger.get_candidate(candidate_id)
+
+    @server.tool()
+    def update_alpha_candidate_status(candidate_id: str, status: str) -> dict[str, Any]:
+        """
+        更新 Alpha 候选状态。
+
+        status 支持：WATCH/CANDIDATE/ACTIONABLE/EXECUTED/CANCELLED
+        """
+        client = AgomSAAFClient()
+        return client.alpha_trigger.update_candidate_status(candidate_id, status)

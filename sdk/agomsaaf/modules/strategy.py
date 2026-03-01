@@ -141,6 +141,35 @@ class StrategyModule(BaseModule):
 
         return self._post(f"strategies/{strategy_id}/execute/", json=data)
 
+    def bind_portfolio_strategy(
+        self,
+        portfolio_id: int,
+        strategy_id: int,
+    ) -> dict[str, Any]:
+        """
+        绑定策略到投资组合（激活分配关系）。
+
+        Notes:
+            后端语义为“一个账户只保留一个激活策略分配”，
+            绑定新策略时会自动停用该账户其他激活分配。
+        """
+        return self._post(
+            "bind-strategy/",
+            json={"portfolio_id": portfolio_id, "strategy_id": strategy_id},
+        )
+
+    def unbind_portfolio_strategy(
+        self,
+        portfolio_id: int,
+    ) -> dict[str, Any]:
+        """
+        解绑投资组合策略（停用该账户全部激活分配）。
+        """
+        return self._post(
+            "unbind-strategy/",
+            json={"portfolio_id": portfolio_id},
+        )
+
     def get_strategy_performance(
         self,
         strategy_id: int,
