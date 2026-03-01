@@ -25,7 +25,6 @@ from core.views import (
     health_view,
     chat_example_view,
     docs_view,
-    policy_dashboard_view,
     asset_screen_view,
     decision_workspace_view,
     ops_center_view,

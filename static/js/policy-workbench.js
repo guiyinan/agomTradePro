@@ -2,9 +2,19 @@
 let currentTab = 'all';
 let currentOffset = 0;
 let selectedIds = new Set();
+let allFetchSources = [];
+let showMediaSources = false;
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
+    const mediaToggle = document.getElementById('toggle-media-sources');
+    if (mediaToggle) {
+        mediaToggle.checked = false;
+        mediaToggle.addEventListener('change', () => {
+            showMediaSources = !!mediaToggle.checked;
+            renderFetchSources();
+        });
+    }
     loadSummary();
     loadEvents();
     loadFetchSources();
@@ -18,16 +28,35 @@ async function loadFetchSources() {
     try {
         const response = await fetch('/api/policy/workbench/bootstrap/');
         const data = await response.json();
-        const sources = data?.filter_options?.sources || [];
-
-        sources.forEach(source => {
-            const option = document.createElement('option');
-            option.value = source.id;
-            option.textContent = source.name;
-            select.appendChild(option);
-        });
+        allFetchSources = data?.filter_options?.sources || [];
+        renderFetchSources();
     } catch (error) {
         console.error('Failed to load source options:', error);
+    }
+}
+
+function renderFetchSources() {
+    const select = document.getElementById('fetch-source');
+    if (!select) return;
+
+    const previousValue = select.value;
+    select.innerHTML = '<option value="">指定源抓取...</option>';
+
+    const filtered = allFetchSources.filter((source) => {
+        const category = (source.category || '').toLowerCase();
+        const isMedia = category === 'media';
+        return showMediaSources || !isMedia;
+    });
+
+    filtered.forEach((source) => {
+        const option = document.createElement('option');
+        option.value = source.id;
+        option.textContent = source.name;
+        select.appendChild(option);
+    });
+
+    if (previousValue && filtered.some((source) => String(source.id) === previousValue)) {
+        select.value = previousValue;
     }
 }
 
@@ -70,7 +99,16 @@ async function loadSummary() {
 // 加载事件列表
 async function loadEvents() {
     const tbody = document.getElementById('events-tbody');
-    tbody.innerHTML = '<tr><td colspan="8" class="loading">加载中...</td></tr>';
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="8" class="wb-loading-cell">
+                <div class="wb-loading">
+                    <span class="wb-loading-spinner" aria-hidden="true"></span>
+                    <span>加载中...</span>
+                </div>
+            </td>
+        </tr>
+    `;
 
     const params = new URLSearchParams({
         tab: currentTab,
@@ -103,7 +141,7 @@ async function loadEvents() {
         }
     } catch (error) {
         console.error('Failed to load events:', error);
-        tbody.innerHTML = '<tr><td colspan="8" class="loading">加载失败</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="wb-loading-cell">加载失败</td></tr>';
     }
 }
 

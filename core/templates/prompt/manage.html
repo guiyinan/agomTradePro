@@ -1082,7 +1082,7 @@ async function saveTemplate(event) {
 }
 
 async function deleteTemplate(id) {
-    if (!confirm('确定删除此模板吗？')) return;
+    if (!await window.uiConfirm('确定删除此模板吗？', { title: '删除模板', icon: 'warning' })) return;
 
     try {
         const response = await fetch(`/prompt/api/templates/${id}/`, {
@@ -1224,7 +1224,7 @@ async function loadTemplatePlaceholders() {
 async function executeTest() {
     const templateId = document.getElementById('testTemplate').value;
     if (!templateId) {
-        alert('请选择模板');
+        showToast('请选择模板', 'warning');
         return;
     }
 
@@ -1331,11 +1331,11 @@ function escapeHtml(text) {
 
 // ==================== 初始化 ====================
 document.addEventListener('DOMContentLoaded', function() {
-    window.jsonAssistantBuilders['templatePlaceholders'] = () => {
-        const name = window.prompt('占位符名称 (name)', 'period') || 'period';
-        const type = window.prompt('占位符类型 (string|number|boolean)', 'string') || 'string';
-        const description = window.prompt('占位符说明 (description)', '分析周期') || '';
-        const defaultValue = window.prompt('默认值 (default)', '本周') || '';
+    window.jsonAssistantBuilders['templatePlaceholders'] = async () => {
+        const name = (await window.uiPrompt('占位符名称 (name)', 'period', { title: '占位符配置', required: true })) || 'period';
+        const type = (await window.uiPrompt('占位符类型 (string|number|boolean)', 'string', { title: '占位符配置', required: true })) || 'string';
+        const description = (await window.uiPrompt('占位符说明 (description)', '分析周期', { title: '占位符配置' })) || '';
+        const defaultValue = (await window.uiPrompt('默认值 (default)', '本周', { title: '占位符配置' })) || '';
         jsonAssistantWriteObject('templatePlaceholders', [
             {
                 name,
@@ -1346,12 +1346,13 @@ document.addEventListener('DOMContentLoaded', function() {
         ]);
     };
 
-    window.jsonAssistantBuilders['chainSteps'] = () => {
-        const stepId = window.prompt('步骤ID (step_id)', 'step1') || 'step1';
-        const templateName = window.prompt('模板名 (template_name)', 'data_analysis') || 'data_analysis';
-        const order = Number(window.prompt('执行顺序 (order)', '1') || '1');
-        const placeholderKey = window.prompt('参数名 (placeholder key)', 'period') || 'period';
-        const placeholderValue = window.prompt('参数值 (placeholder value)', '本周') || '本周';
+    window.jsonAssistantBuilders['chainSteps'] = async () => {
+        const stepId = (await window.uiPrompt('步骤ID (step_id)', 'step1', { title: '链步骤配置', required: true })) || 'step1';
+        const templateName = (await window.uiPrompt('模板名 (template_name)', 'data_analysis', { title: '链步骤配置', required: true })) || 'data_analysis';
+        const orderRaw = (await window.uiPrompt('执行顺序 (order)', '1', { title: '链步骤配置', required: true })) || '1';
+        const order = Number(orderRaw);
+        const placeholderKey = (await window.uiPrompt('参数名 (placeholder key)', 'period', { title: '链步骤配置', required: true })) || 'period';
+        const placeholderValue = (await window.uiPrompt('参数值 (placeholder value)', '本周', { title: '链步骤配置' })) || '本周';
         jsonAssistantWriteObject('chainSteps', [
             {
                 step_id: stepId,
@@ -1364,10 +1365,10 @@ document.addEventListener('DOMContentLoaded', function() {
         ]);
     };
 
-    window.jsonAssistantBuilders['chainAggregateStep'] = () => {
-        const templateName = window.prompt('汇总模板名 (template_name)', 'summary') || 'summary';
-        const aggregateFromRaw = window.prompt('汇总来源步骤 (逗号分隔)', 'step1,step2') || 'step1,step2';
-        const outputKey = window.prompt('输出字段名 (output_key)', 'final_summary') || 'final_summary';
+    window.jsonAssistantBuilders['chainAggregateStep'] = async () => {
+        const templateName = (await window.uiPrompt('汇总模板名 (template_name)', 'summary', { title: '汇总步骤配置', required: true })) || 'summary';
+        const aggregateFromRaw = (await window.uiPrompt('汇总来源步骤 (逗号分隔)', 'step1,step2', { title: '汇总步骤配置', required: true })) || 'step1,step2';
+        const outputKey = (await window.uiPrompt('输出字段名 (output_key)', 'final_summary', { title: '汇总步骤配置', required: true })) || 'final_summary';
         const aggregateFrom = aggregateFromRaw.split(',').map(item => item.trim()).filter(Boolean);
         jsonAssistantWriteObject('chainAggregateStep', {
             template_name: templateName,

@@ -26,50 +26,6 @@ def chat_example_view(request):
 
 
 @login_required
-def policy_dashboard_view(request):
-    """
-    政策跟踪仪表盘
-
-    显示当前政策档位、响应配置和最近事件
-    """
-    from apps.policy.infrastructure.models import PolicyLog
-    from apps.policy.domain.entities import PolicyLevel
-    from apps.policy.domain.rules import get_policy_response, get_recommendations_for_level
-
-    # 获取最新事件
-    latest_event = PolicyLog._default_manager.order_by('-event_date').first()
-
-    # 获取最近 10 个事件
-    recent_events = PolicyLog._default_manager.order_by('-event_date')[:10]
-
-    # 获取当前档位
-    current_level = PolicyLevel.P0
-    status_name = "P0 - 常态"
-    status_class = "p0"
-    recommendations = []
-
-    if latest_event:
-        try:
-            current_level = PolicyLevel(latest_event.level)
-            response = get_policy_response(current_level)
-            status_name = f"{current_level.value} - {response.name}"
-            status_class = current_level.value.lower()
-            recommendations = get_recommendations_for_level(current_level)
-        except ValueError:
-            pass
-
-    context = {
-        'latest_event': latest_event,
-        'recent_events': recent_events,
-        'status_level': status_class,
-        'status_name': status_name,
-        'recommendations': recommendations,
-    }
-
-    return render(request, 'policy/dashboard.html', context)
-
-
-@login_required
 def asset_screen_view(request):
     """
     资产筛选页面

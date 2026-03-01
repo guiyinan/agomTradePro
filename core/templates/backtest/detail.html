@@ -250,8 +250,8 @@ document.getElementById('apply-btn').addEventListener('click', async function() 
                 总市值：¥${data.data.total_value.toFixed(2)}
             `;
             // 可以选择跳转到持仓页面
-            setTimeout(() => {
-                if (confirm('持仓已创建，是否前往持仓页面查看？')) {
+            setTimeout(async () => {
+                if (await window.uiConfirm('持仓已创建，是否前往持仓页面查看？', { title: '操作完成' })) {
                     window.location.href = '/dashboard/';
                 }
             }, 1500);

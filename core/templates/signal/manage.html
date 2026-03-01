@@ -372,7 +372,12 @@ async function approveSignal(id) {
 }
 
 async function rejectSignal(id) {
-    const reason = prompt('拒绝原因:');
+    const reason = await window.uiPrompt('拒绝原因', '', {
+        title: '拒绝信号',
+        required: true,
+        requiredMessage: '请填写拒绝原因',
+        placeholder: '请输入拒绝原因'
+    });
     if (!reason) return;
     const formData = new FormData();
     formData.append('signal_id', id);
@@ -391,16 +396,16 @@ async function checkSignal(id) {
 
     if (data.success) {
         if (data.is_invalidated) {
-            alert(`⚠️ 信号已证伪!\n原因: ${data.reason}`);
+            showToast(`⚠️ 信号已证伪：${data.reason}`, 'warning');
             location.reload();
         } else {
-            alert(`✓ 检查完成\n${data.reason}`);
+            showToast(`✓ 检查完成：${data.reason}`, 'success');
         }
     }
 }
 
 async function deleteSignal(id) {
-    if (!confirm('确认删除?')) return;
+    if (!await window.uiConfirm('确认删除该信号？', { title: '删除信号', icon: 'warning' })) return;
     const res = await fetch(API_URLS.signalDelete(id), { method: 'DELETE' });
     const data = await res.json();
     if (data.success) {

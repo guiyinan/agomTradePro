@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}工作台 - AgomSAAF{% endblock %}
+{% block title %}政策/情绪/热点工作台 - AgomSAAF{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/policy-workbench.css' %}">
@@ -10,8 +10,8 @@
 {% block content %}
 <div class="workbench-container">
     <div class="page-header" style="margin-bottom: 24px;">
-        <h1>工作台</h1>
-        <p>政策 + 热点情绪一体化管理</p>
+        <h1>政策/情绪/热点工作台</h1>
+        <p>政策/情绪/热点一体化</p>
     </div>
 
     <!-- 概览卡片 -->
@@ -132,8 +132,11 @@
         </thead>
         <tbody id="events-tbody">
             <tr>
-                <td colspan="8" class="loading">
-                    <div>加载中...</div>
+                <td colspan="8" class="wb-loading-cell">
+                    <div class="wb-loading">
+                        <span class="wb-loading-spinner" aria-hidden="true"></span>
+                        <span>加载中...</span>
+                    </div>
                 </td>
             </tr>
         </tbody>
@@ -154,6 +157,10 @@
         <select id="fetch-source" style="padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px;">
             <option value="">指定源抓取...</option>
         </select>
+        <label style="display: inline-flex; align-items: center; gap: 6px; color: #4b5563; font-size: 13px;">
+            <input type="checkbox" id="toggle-media-sources">
+            显示媒体源
+        </label>
         <button class="btn btn-secondary" onclick="fetchSelectedSource()">抓取指定源</button>
         <button class="btn btn-outline" onclick="refreshData()">
             <svg style="width:16px;height:16px;vertical-align:middle;margin-right:4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

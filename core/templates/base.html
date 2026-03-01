@@ -305,6 +305,48 @@
             }
             showToast(message, type);
         };
+
+        // Async confirm/prompt helpers for consistent UX across pages.
+        window.uiConfirm = async function(message, options = {}) {
+            if (typeof Swal === 'undefined') {
+                return window.confirm(message);
+            }
+            const result = await Swal.fire({
+                title: options.title || '请确认',
+                text: message || '',
+                icon: options.icon || 'question',
+                showCancelButton: true,
+                confirmButtonText: options.confirmText || '确认',
+                cancelButtonText: options.cancelText || '取消',
+                reverseButtons: true,
+            });
+            return !!result.isConfirmed;
+        };
+
+        window.uiPrompt = async function(label, defaultValue = '', options = {}) {
+            if (typeof Swal === 'undefined') {
+                const value = window.prompt(label || '', defaultValue || '');
+                return value === null ? null : String(value);
+            }
+            const result = await Swal.fire({
+                title: options.title || '请输入',
+                input: 'text',
+                inputLabel: label || '',
+                inputValue: defaultValue || '',
+                inputPlaceholder: options.placeholder || '',
+                showCancelButton: true,
+                confirmButtonText: options.confirmText || '确认',
+                cancelButtonText: options.cancelText || '取消',
+                reverseButtons: true,
+                inputValidator: (value) => {
+                    if (options.required && !String(value || '').trim()) {
+                        return options.requiredMessage || '该项不能为空';
+                    }
+                    return undefined;
+                }
+            });
+            return result.isConfirmed ? String(result.value ?? '') : null;
+        };
     })();
 
     // CSRF Token 获取

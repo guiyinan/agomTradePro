@@ -393,11 +393,32 @@
     border-color: #3b82f6;
 }
 
-/* 加载状态 */
-.loading {
+/* 加载状态（避免与全局 .loading 冲突） */
+.wb-loading-cell {
     text-align: center;
     padding: 40px;
     color: #6b7280;
+}
+
+.wb-loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.wb-loading-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid #d1d5db;
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: wb-spin 0.8s linear infinite;
+}
+
+@keyframes wb-spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .empty-state {
