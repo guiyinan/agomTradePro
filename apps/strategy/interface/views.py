@@ -388,7 +388,7 @@ class PortfolioStrategyAssignmentViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """创建时自动设置分配者"""
-        serializer.save(assigned_by=request.user.account_profile)
+        serializer.save(assigned_by=self.request.user.account_profile)
 
     @extend_schema(
         summary="获取投资组合的策略列表",
@@ -604,7 +604,7 @@ def strategy_create(request):
                             rule_name=rule_data['rule_name'],
                             rule_type=rule_data.get('rule_type', 'macro'),
                             condition_json=rule_data.get('condition_json', {}),
-                            action=rule_data.get('action', 'BUY'),
+                            action=str(rule_data.get('action', 'buy')).lower(),
                             weight=rule_data.get('weight', 0.1),
                             target_assets=rule_data.get('target_assets', []),
                             priority=rule_data.get('priority', 10),
@@ -695,7 +695,7 @@ def strategy_edit(request, strategy_id):
                             rule_name=rule_data['rule_name'],
                             rule_type=rule_data.get('rule_type', 'macro'),
                             condition_json=rule_data.get('condition_json', {}),
-                            action=rule_data.get('action', 'BUY'),
+                            action=str(rule_data.get('action', 'buy')).lower(),
                             weight=rule_data.get('weight', 0.1),
                             target_assets=rule_data.get('target_assets', []),
                             priority=rule_data.get('priority', 10),
@@ -896,7 +896,7 @@ def bind_strategy(request):
         account = get_object_or_404(
             SimulatedAccountModel,
             id=portfolio_id,
-            account_profile=request.user.account_profile
+            user=request.user
         )
         strategy = get_object_or_404(
             StrategyModel,
@@ -904,9 +904,25 @@ def bind_strategy(request):
             created_by=request.user.account_profile
         )
 
-        # 绑定策略
-        account.active_strategy = strategy
-        account.save()
+        # 一个账户只保留一个激活策略分配：先停用旧分配
+        PortfolioStrategyAssignmentModel._default_manager.filter(
+            portfolio=account,
+            is_active=True
+        ).update(is_active=False)
+
+        # 创建或激活新分配
+        assignment, created = PortfolioStrategyAssignmentModel._default_manager.get_or_create(
+            portfolio=account,
+            strategy=strategy,
+            defaults={
+                'assigned_by': request.user.account_profile,
+                'is_active': True,
+            }
+        )
+        if not created:
+            assignment.is_active = True
+            assignment.assigned_by = request.user.account_profile
+            assignment.save(update_fields=['is_active', 'assigned_by', 'updated_at'])
 
         return JsonResponse({'success': True, 'message': '策略绑定成功'})
 
@@ -934,12 +950,14 @@ def unbind_strategy(request):
         account = get_object_or_404(
             SimulatedAccountModel,
             id=portfolio_id,
-            account_profile=request.user.account_profile
+            user=request.user
         )
 
-        # 解绑策略
-        account.active_strategy = None
-        account.save()
+        # 停用该账户的全部激活策略分配
+        PortfolioStrategyAssignmentModel._default_manager.filter(
+            portfolio=account,
+            is_active=True
+        ).update(is_active=False)
 
         return JsonResponse({'success': True, 'message': '策略已解绑'})
 

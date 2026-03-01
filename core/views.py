@@ -6,6 +6,7 @@ Core Views for AgomSAAF
 
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
 
 
 def index_view(request):
@@ -216,10 +217,12 @@ def decision_workspace_view(request):
     try:
         from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
 
-        # 待处理的决策请求（按优先级和创建时间排序）
-        pending_requests = list(DecisionRequestModel._default_manager.filter(
-            status='PENDING'
-        ).order_by('-priority', '-created_at')[:10])
+        # 待处理定义：尚未产生响应记录
+        pending_requests = list(
+            DecisionRequestModel._default_manager
+            .filter(response__isnull=True)
+            .order_by('-requested_at')[:10]
+        )
         context['pending_requests'] = pending_requests
         context['pending_count'] = len(pending_requests)
     except Exception as e:
@@ -265,6 +268,16 @@ def decision_workspace_view(request):
         logger.warning(f"Failed to check expiring candidates: {e}")
 
     context['alerts'] = alerts
+
+    # 轻量刷新接口（前端每 30 秒调用）
+    if request.GET.get('refresh') == '1':
+        return JsonResponse({
+            'success': True,
+            'quota_usage_percent': context.get('quota_usage_percent', 0),
+            'quota_remaining': context.get('quota_remaining', 0),
+            'pending_count': context.get('pending_count', 0),
+            'alpha_actionable_count': context.get('alpha_actionable_count', 0),
+        })
 
     return render(request, 'decision/workspace.html', context)
 

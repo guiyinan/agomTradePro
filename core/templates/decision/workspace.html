@@ -208,8 +208,7 @@
                     <p class="todo-reason">{{ request.reason|truncatewords:20 }}</p>
                 </div>
                 <div class="todo-actions">
-                    <button class="btn btn-sm btn-success" onclick="approveRequest('{{ request.request_id }}')">批准</button>
-                    <button class="btn btn-sm btn-danger" onclick="rejectRequest('{{ request.request_id }}')">拒绝</button>
+                    <span class="btn btn-sm btn-outline" style="cursor: default;">待系统处理</span>
                 </div>
             </div>
             {% endfor %}
@@ -261,6 +260,10 @@
                 <div class="candidate-footer">
                     <a href="{% url 'alpha_trigger:candidate_detail' candidate.candidate_id %}" class="btn btn-sm btn-primary">查看详情</a>
                     <a href="{% url 'alpha_trigger:detail' candidate.source_trigger_id %}" class="btn btn-sm btn-outline">来源触发器</a>
+                    <button class="btn btn-sm btn-secondary"
+                            onclick="submitDecisionRequest('{{ candidate.candidate_id|escapejs }}', '{{ candidate.asset_code|escapejs }}', '{{ candidate.asset_class|escapejs }}', '{{ candidate.direction|escapejs }}', {{ candidate.confidence|default:0 }}, '{{ candidate.thesis|default:''|escapejs }}')">
+                        提交决策请求
+                    </button>
                 </div>
             </div>
             {% endfor %}
@@ -350,47 +353,33 @@ function resetQuota() {
     });
 }
 
-function approveRequest(requestId) {
-    fetch(`/api/decision-rhythm/requests/${requestId}/approve/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': window.csrfToken
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            window.showToast('已批准决策请求', 'success');
-            setTimeout(() => window.location.reload(), 1000);
-        } else {
-            alert('批准失败: ' + (data.error || '未知错误'));
-        }
-    })
-    .catch(error => {
-        alert('请求失败: ' + error.message);
-    });
-}
+function submitDecisionRequest(candidateId, assetCode, assetClass, direction, confidence, thesis) {
+    const payload = {
+        asset_code: assetCode,
+        asset_class: assetClass || 'unknown',
+        direction: (direction || '').toUpperCase() === 'SHORT' ? 'SELL' : 'BUY',
+        priority: 'high',
+        trigger_id: candidateId,
+        reason: thesis || `来源候选 ${candidateId}`,
+        expected_confidence: Number(confidence || 0),
+        quota_period: 'weekly'
+    };
 
-function rejectRequest(requestId) {
-    const reason = prompt('请输入拒绝原因:');
-    if (reason === null) return;
-
-    fetch(`/api/decision-rhythm/requests/${requestId}/reject/`, {
+    fetch('/api/decision-rhythm/submit/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': window.csrfToken
         },
-        body: JSON.stringify({ reason: reason })
+        body: JSON.stringify(payload)
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            window.showToast('已拒绝决策请求', 'info');
-            setTimeout(() => window.location.reload(), 1000);
+            window.showToast('决策请求已提交', 'success');
+            setTimeout(() => window.location.reload(), 800);
         } else {
-            alert('拒绝失败: ' + (data.error || '未知错误'));
+            alert('提交失败: ' + (data.error || '未知错误'));
         }
     })
     .catch(error => {
@@ -405,6 +394,7 @@ setInterval(() => {
     })
     .then(response => response.json())
     .then(data => {
+        if (!data.success) return;
         // 更新配额显示
         if (data.quota_usage_percent !== undefined) {
             document.querySelector('.quota-percent').textContent = data.quota_usage_percent + '%';

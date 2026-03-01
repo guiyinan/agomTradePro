@@ -110,7 +110,7 @@ class MacroIndicatorEvaluator(BaseEvaluator):
         Returns:
             是否满足条件
         """
-        operator = condition.get('operator')
+        operator = self._normalize_operator(condition.get('operator'))
         indicator_code = condition.get('indicator')
 
         if not operator or not indicator_code:
@@ -152,8 +152,9 @@ class MacroIndicatorEvaluator(BaseEvaluator):
                 return abs(float(indicator_value) - float(threshold)) >= 1e-6
 
             elif operator == 'between':
-                min_val = condition.get('min', 0)
-                max_val = condition.get('max', 0)
+                # 兼容历史字段：min_value/max_value
+                min_val = condition.get('min', condition.get('min_value', 0))
+                max_val = condition.get('max', condition.get('max_value', 0))
                 return float(min_val) <= float(indicator_value) <= float(max_val)
 
             elif operator == 'trend':
@@ -166,6 +167,19 @@ class MacroIndicatorEvaluator(BaseEvaluator):
         except (ValueError, TypeError) as e:
             logger.error(f"Error evaluating macro condition: {e}, condition: {condition}")
             return False
+
+    @staticmethod
+    def _normalize_operator(operator: Optional[str]) -> Optional[str]:
+        """兼容前端历史写法（gt/gte/eq...）"""
+        mapping = {
+            'gt': '>',
+            'gte': '>=',
+            'lt': '<',
+            'lte': '<=',
+            'eq': '==',
+            'ne': '!=',
+        }
+        return mapping.get(operator, operator)
 
     def _evaluate_trend(self, condition: Dict[str, Any], macro_data: Dict[str, Any]) -> bool:
         """
@@ -262,7 +276,8 @@ class RegimeEvaluator(BaseEvaluator):
 
         # 从上下文获取 Regime 数据
         regime_data = context.get('regime', {})
-        current_regime = regime_data.get('dominant_regime')
+        current_regime_raw = regime_data.get('dominant_regime')
+        current_regime = self._normalize_regime(current_regime_raw)
 
         if current_regime is None:
             logger.warning("Current regime not found in context")
@@ -270,11 +285,11 @@ class RegimeEvaluator(BaseEvaluator):
 
         try:
             if operator == '==':
-                target_value = condition.get('value')
+                target_value = self._normalize_regime(condition.get('value'))
                 return current_regime == target_value
 
             elif operator == 'in':
-                allowed_values = condition.get('values', [])
+                allowed_values = [self._normalize_regime(v) for v in condition.get('values', [])]
                 return current_regime in allowed_values
 
             elif operator == 'transitions':
@@ -299,17 +314,34 @@ class RegimeEvaluator(BaseEvaluator):
         Returns:
             是否满足变换条件
         """
-        from_regime = condition.get('from')
-        to_regime = condition.get('to')
+        from_regime = self._normalize_regime(condition.get('from'))
+        to_regime = self._normalize_regime(condition.get('to'))
 
-        previous_regime = regime_data.get('previous_regime')
-        current_regime = regime_data.get('dominant_regime')
+        previous_regime = self._normalize_regime(regime_data.get('previous_regime'))
+        current_regime = self._normalize_regime(regime_data.get('dominant_regime'))
 
         if previous_regime is None:
             # 没有历史数据，无法判断变换
             return False
 
         return previous_regime == from_regime and current_regime == to_regime
+
+    @staticmethod
+    def _normalize_regime(regime: Optional[str]) -> Optional[str]:
+        """统一 Regime 表示：兼容 HG/HD/LG/LD 与英文全称。"""
+        if regime is None:
+            return None
+        mapping = {
+            'HG': 'Overheat',
+            'HD': 'Recovery',
+            'LG': 'Stagflation',
+            'LD': 'Deflation',
+            'Overheat': 'Overheat',
+            'Recovery': 'Recovery',
+            'Stagflation': 'Stagflation',
+            'Deflation': 'Deflation',
+        }
+        return mapping.get(regime, regime)
 
 
 # ========================================================================

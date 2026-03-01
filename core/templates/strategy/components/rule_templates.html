@@ -288,14 +288,14 @@ const ruleTemplates = [
     },
     {
         id: 'regime_hg_buy',
-        name: 'HG环境买入',
+        name: 'Overheat环境买入',
         category: 'regime',
         icon: '🚀',
         type: 'regime',
-        desc: '高增长高通胀(HG)环境，配置周期股和商品',
+        desc: '过热(Overheat)环境，配置周期股和商品',
         condition: {
             "operator": "==",
-            "value": "HG"
+            "value": "Overheat"
         },
         action: 'BUY',
         weight: 0.2,
@@ -303,14 +303,14 @@ const ruleTemplates = [
     },
     {
         id: 'regime_ld_defensive',
-        name: 'LD环境防御',
+        name: 'Deflation环境防御',
         category: 'regime',
         icon: '🛡️',
         type: 'regime',
-        desc: '低增长低通胀(LD)环境，配置债券和防御性股票',
+        desc: '通缩(Deflation)环境，配置债券和防御性股票',
         condition: {
             "operator": "==",
-            "value": "LD"
+            "value": "Deflation"
         },
         action: 'BUY',
         weight: 0.15,

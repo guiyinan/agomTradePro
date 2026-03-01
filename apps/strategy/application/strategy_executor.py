@@ -218,12 +218,13 @@ class StrategyExecutor:
             positions = self.portfolio_provider.get_positions(portfolio_id)
             cash = self.portfolio_provider.get_cash(portfolio_id)
             context['portfolio'] = {
+                'portfolio_id': portfolio_id,
                 'positions': positions,
                 'cash': cash
             }
         except Exception as e:
             logger.warning(f"Failed to get portfolio data: {e}")
-            context['portfolio'] = {'positions': [], 'cash': 0.0}
+            context['portfolio'] = {'portfolio_id': portfolio_id, 'positions': [], 'cash': 0.0}
 
         # 5. 获取有效信号
         try:

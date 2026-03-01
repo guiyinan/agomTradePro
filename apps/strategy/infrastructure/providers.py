@@ -15,6 +15,17 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 
+def _to_legacy_regime_code(regime_name: str) -> str:
+    """Regime 英文全称 -> 历史四象限简码。"""
+    mapping = {
+        'Overheat': 'HG',
+        'Recovery': 'HD',
+        'Stagflation': 'LG',
+        'Deflation': 'LD',
+    }
+    return mapping.get(regime_name, regime_name)
+
+
 # ========================================================================
 # Macro Data Provider
 # ========================================================================
@@ -108,8 +119,12 @@ class DjangoRegimeProvider:
             latest_state = RegimeLog.objects.order_by('-observed_at').first()
 
             if latest_state:
+                dominant_regime = latest_state.dominant_regime
                 return {
-                    'dominant_regime': latest_state.dominant_regime,
+                    # 统一使用 regime 模块的标准命名
+                    'dominant_regime': dominant_regime,
+                    # 保留历史简码字段，避免旧脚本/规则立即失效
+                    'dominant_regime_code': _to_legacy_regime_code(dominant_regime),
                     'confidence': float(latest_state.confidence) if latest_state.confidence else 0.0,
                     'growth_momentum_z': float(latest_state.growth_momentum_z) if latest_state.growth_momentum_z else 0.0,
                     'inflation_momentum_z': float(latest_state.inflation_momentum_z) if latest_state.inflation_momentum_z else 0.0,
@@ -118,7 +133,8 @@ class DjangoRegimeProvider:
 
             # 返回默认值
             return {
-                'dominant_regime': 'HG',
+                'dominant_regime': 'Recovery',
+                'dominant_regime_code': 'HD',
                 'confidence': 0.5,
                 'growth_momentum_z': 0.0,
                 'inflation_momentum_z': 0.0,
@@ -128,7 +144,8 @@ class DjangoRegimeProvider:
         except Exception as e:
             logger.error(f"Error getting current regime: {e}")
             return {
-                'dominant_regime': 'HG',
+                'dominant_regime': 'Recovery',
+                'dominant_regime_code': 'HD',
                 'confidence': 0.5,
                 'growth_momentum_z': 0.0,
                 'inflation_momentum_z': 0.0,

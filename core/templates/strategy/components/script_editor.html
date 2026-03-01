@@ -468,7 +468,8 @@ assets = get_asset_pool(min_score=65, limit=20)
 signals = []
 
 # 根据 Regime 配置资产
-if dominant_regime == 'HG':  # 高增长高通胀
+# 兼容历史值(HG/LG/HD/LD)和新值(Overheat/Recovery/Stagflation/Deflation)
+if dominant_regime in ('Overheat', 'HG'):
     # 配置股票和商品
     for asset in assets:
         if confidence > 0.7:
@@ -477,22 +478,22 @@ if dominant_regime == 'HG':  # 高增长高通胀
                 asset_name=asset['asset_name'],
                 action='buy',
                 weight=0.12,
-                reason=f"HG 环境，权益资产占优",
+                reason=f"Overheat 环境，权益资产占优",
                 confidence=confidence
             )
             signals.append(signal)
 
-elif dominant_regime == 'LG':  # 低增长高通胀
+elif dominant_regime in ('Stagflation', 'LG'):
     # 配置债券和黄金
-    print("LG 环境，防御性配置")
+    print("Stagflation 环境，防御性配置")
 
-elif dominant_regime == 'HD':  # 高增长低通胀
+elif dominant_regime in ('Recovery', 'HD'):
     # 配置成长股
-    print("HD 环境，成长股占优")
+    print("Recovery 环境，成长股占优")
 
-elif dominant_regime == 'LD':  # 低增长低通胀
+elif dominant_regime in ('Deflation', 'LD'):
     # 配置债券
-    print("LD 环境，债券占优")
+    print("Deflation 环境，债券占优")
 
 return signals
 `,
@@ -553,9 +554,9 @@ def calculate_asset_score(asset):
     score = asset['total_score']
 
     # Regime 加分
-    if dominant_regime == 'HG' and score > 70:
+    if dominant_regime in ('Overheat', 'HG') and score > 70:
         score *= 1.2
-    elif dominant_regime == 'LG' and score < 70:
+    elif dominant_regime in ('Stagflation', 'LG') and score < 70:
         score *= 0.8
 
     # 宏观指标调整

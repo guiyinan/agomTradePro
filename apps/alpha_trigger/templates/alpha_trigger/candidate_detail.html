@@ -20,6 +20,7 @@
 .status-card.CANDIDATE .status-card-value { color: #10b981; }
 .status-card.ACTIONABLE .status-card-value { color: #ef4444; }
 .status-card.EXECUTED .status-card-value { color: #64748b; }
+.status-card.CANCELLED .status-card-value { color: #64748b; }
 .status-card.EXPIRED .status-card-value { color: #94a3b8; }
 .status-card.INVALIDATED .status-card-value { color: #dc2626; }
 
@@ -200,16 +201,16 @@
         <!-- 操作按钮 -->
         <div class="action-buttons">
             {% if candidate.status == 'CANDIDATE' or candidate.status == 'ACTIONABLE' %}
-            <button class="btn-action btn-approve" onclick="updateCandidateStatus('APPROVED')">
+            <button class="btn-action btn-approve" onclick="updateCandidateStatus('ACTIONABLE')">
                 <i class="bi bi-check-circle"></i> 批准
             </button>
             <button class="btn-action btn-execute" onclick="updateCandidateStatus('EXECUTED')">
                 <i class="bi bi-play-circle"></i> 标记已执行
             </button>
             {% endif %}
-            {% if candidate.status != 'EXECUTED' and candidate.status != 'INVALIDATED' %}
-            <button class="btn-action btn-reject" onclick="updateCandidateStatus('INVALIDATED')">
-                <i class="bi bi-x-circle"></i> 拒绝/证伪
+            {% if candidate.status != 'EXECUTED' and candidate.status != 'INVALIDATED' and candidate.status != 'CANCELLED' %}
+            <button class="btn-action btn-reject" onclick="updateCandidateStatus('CANCELLED')">
+                <i class="bi bi-x-circle"></i> 取消
             </button>
             {% endif %}
             <button class="btn-action btn-archive" onclick="archiveCandidate()">
@@ -315,9 +316,9 @@
 // 更新候选状态
 async function updateCandidateStatus(newStatus) {
     const statusLabels = {
-        'APPROVED': '批准',
+        'ACTIONABLE': '批准',
         'EXECUTED': '已执行',
-        'INVALIDATED': '拒绝/证伪'
+        'CANCELLED': '取消'
     };
 
     if (!confirm(`确认要将状态更新为 "${statusLabels[newStatus]}"?`)) {
@@ -325,8 +326,8 @@ async function updateCandidateStatus(newStatus) {
     }
 
     try {
-        const res = await fetch(`/api/alpha-triggers/candidates/{{ candidate.candidate_id }}/`, {
-            method: 'PATCH',
+        const res = await fetch(`/api/alpha-triggers/candidates/{{ candidate.candidate_id }}/update-status/`, {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus })
         });
@@ -349,24 +350,7 @@ async function archiveCandidate() {
     if (!confirm('确认要归档此候选？归档后将不再出现在活跃列表中。')) {
         return;
     }
-
-    try {
-        const res = await fetch(`/api/alpha-triggers/candidates/{{ candidate.candidate_id }}/archive/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-            showToast('✓ 候选已归档', 'success');
-            setTimeout(() => location.href = "{% url 'alpha_trigger:list' %}", 1000);
-        } else {
-            showToast('❌ 归档失败: ' + (data.error || '未知错误'), 'error');
-        }
-    } catch (e) {
-        showToast('网络错误: ' + e.message, 'error');
-    }
+    await updateCandidateStatus('CANCELLED');
 }
 
 // Toast 提示

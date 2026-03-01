@@ -303,13 +303,13 @@ const ruleTemplates = [
     },
     {
         id: 'regime_hg_buy',
-        name: 'HG环境买入',
+        name: 'Overheat环境买入',
         icon: '🚀',
         type: 'regime',
-        desc: '高增长高通胀(HG)环境，配置周期股和商品',
+        desc: '过热(Overheat)环境，配置周期股和商品',
         condition: {
             "operator": "==",
-            "value": "HG"
+            "value": "Overheat"
         },
         action: 'BUY',
         weight: 0.2,
@@ -317,13 +317,13 @@ const ruleTemplates = [
     },
     {
         id: 'regime_ld_defensive',
-        name: 'LD环境防御',
+        name: 'Deflation环境防御',
         icon: '🛡️',
         type: 'regime',
-        desc: '低增长低通胀(LD)环境，配置债券和防御性股票',
+        desc: '通缩(Deflation)环境，配置债券和防御性股票',
         condition: {
             "operator": "==",
-            "value": "LD"
+            "value": "Deflation"
         },
         action: 'BUY',
         weight: 0.15,
@@ -499,12 +499,12 @@ const regimes = ['Recovery', 'Overheat', 'Stagflation', 'Deflation'];
 
 // 运算符列表
 const operators = [
-    { value: 'gt', label: '>' },
-    { value: 'gte', label: '>=' },
-    { value: 'lt', label: '<' },
-    { value: 'lte', label: '<=' },
-    { value: 'eq', label: '=' },
-    { value: 'ne', label: '!=' },
+    { value: '>', label: '>' },
+    { value: '>=', label: '>=' },
+    { value: '<', label: '<' },
+    { value: '<=', label: '<=' },
+    { value: '==', label: '=' },
+    { value: '!=', label: '!=' },
     { value: 'between', label: '区间' },
     { value: 'trend', label: '趋势' },
     { value: 'in', label: '包含' },
@@ -516,7 +516,7 @@ function addNewRule() {
         id: Date.now(),
         rule_name: '',
         rule_type: 'macro',
-        condition_json: { operator: 'gt', indicator: '', threshold: 0 },
+        condition_json: { operator: '>', indicator: '', threshold: 0 },
         action: 'BUY',
         weight: 0.1,
         target_assets: [],
@@ -634,13 +634,13 @@ function renderMacroRuleBody(rule) {
             <div class="form-grid">
                 <div class="form-group">
                     <label class="form-label">最小值</label>
-                    <input type="number" class="form-input" value="${condition.min_value || ''}"
-                           onchange="updateCondition(${rule.id}, 'min_value', parseFloat(this.value))">
+                    <input type="number" class="form-input" value="${condition.min || ''}"
+                           onchange="updateCondition(${rule.id}, 'min', parseFloat(this.value))">
                 </div>
                 <div class="form-group">
                     <label class="form-label">最大值</label>
-                    <input type="number" class="form-input" value="${condition.max_value || ''}"
-                           onchange="updateCondition(${rule.id}, 'max_value', parseFloat(this.value))">
+                    <input type="number" class="form-input" value="${condition.max || ''}"
+                           onchange="updateCondition(${rule.id}, 'max', parseFloat(this.value))">
                 </div>
             </div>
         ` : `

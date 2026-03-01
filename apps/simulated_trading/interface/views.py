@@ -146,8 +146,19 @@ def my_accounts_page(request):
         return redirect("/simulated-trading/my-accounts/")
 
     # GET 请求：显示用户的投资组合列表
+    from django.db.models import Prefetch
+    from apps.strategy.infrastructure.models import PortfolioStrategyAssignmentModel
+
     accounts = SimulatedAccountModel._default_manager.filter(
         user=request.user
+    ).prefetch_related(
+        Prefetch(
+            'strategy_assignments',
+            queryset=PortfolioStrategyAssignmentModel._default_manager.filter(
+                is_active=True
+            ).select_related('strategy').order_by('-assigned_at'),
+            to_attr='prefetched_active_strategy_assignments'
+        )
     ).order_by('-created_at')
 
     # 分类显示
@@ -156,6 +167,11 @@ def my_accounts_page(request):
     total_assets = 0
 
     for account in accounts:
+        # 兼容现有模板：给 account 注入 active_strategy 属性
+        active_assignments = getattr(account, 'prefetched_active_strategy_assignments', [])
+        active_strategy = active_assignments[0].strategy if active_assignments else None
+        account.active_strategy = active_strategy
+
         account_data = {
             'id': account.id,
             'name': account.account_name,
