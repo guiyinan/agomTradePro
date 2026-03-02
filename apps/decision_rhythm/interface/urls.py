@@ -8,6 +8,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from . import views as decision_rhythm_views
+from . import api_views as decision_rhythm_api_views
 
 
 # 创建路由器
@@ -40,4 +41,13 @@ urlpatterns = [
 
     # API 端点
     path("api/decision-rhythm/quota/update/", decision_rhythm_views.UpdateQuotaConfigView.as_view(), name="api_update_quota"),
+
+    # 估值与执行审批 API（外包闭环）
+    path("api/valuation/snapshot/<str:snapshot_id>/", decision_rhythm_api_views.ValuationSnapshotDetailView.as_view(), name="valuation-snapshot-detail"),
+    path("api/valuation/recalculate/", decision_rhythm_api_views.ValuationRecalculateView.as_view(), name="valuation-recalculate"),
+    path("api/decision/workspace/aggregated/", decision_rhythm_api_views.AggregatedWorkspaceView.as_view(), name="decision-workspace-aggregated"),
+    path("api/decision/execute/preview/", decision_rhythm_api_views.ExecutionPreviewView.as_view(), name="decision-execute-preview"),
+    path("api/decision/execute/approve/", decision_rhythm_api_views.ExecutionApproveView.as_view(), name="decision-execute-approve"),
+    path("api/decision/execute/reject/", decision_rhythm_api_views.ExecutionRejectView.as_view(), name="decision-execute-reject"),
+    path("api/decision/execute/<str:request_id>/", decision_rhythm_api_views.ExecutionRequestDetailView.as_view(), name="decision-execute-detail"),
 ]

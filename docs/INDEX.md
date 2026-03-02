@@ -42,6 +42,7 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [AgomSAAF_V3.4.md](business/AgomSAAF_V3.4.md) | 核心业务需求文档（2650行） | 最新 |
+| [valuation-pricing-engine.md](business/valuation-pricing-engine.md) | **估值定价引擎业务文档** | ✅ 2026-03-02 新增 |
 | [alpha-quickstart.md](business/alpha-quickstart.md) | Alpha 模块快速开始指南 | 完整 |
 | [equity-valuation-logic.md](business/equity-valuation-logic.md) | 个股估值逻辑 | 完整 |
 | [regime_calculation_logic.md](business/regime_calculation_logic.md) | Regime 计算逻辑 | 完整 |
@@ -76,6 +77,7 @@
 | [sdk-mcp-implementation.md](plans/sdk-mcp-implementation.md) | SDK & MCP 实施方案 | 完整 |
 | [sdk_mcp_coverage_matrix_20260226.md](plans/sdk_mcp_coverage_matrix_20260226.md) | SDK/MCP 覆盖矩阵（按模块） | ✅ 2026-02-26 更新 |
 | [decision-making-improvement.md](plans/decision-making-improvement.md) | 决策流程改进方案 | 完整 |
+| [outsourcing-valuation-pricing-execution-plan-2026-03-02.md](plans/outsourcing-valuation-pricing-execution-plan-2026-03-02.md) | 外包落实计划：估值定价引擎与执行审批闭环 | ✅ 2026-03-02 新增 |
 | [streamlit-dashboard-upgrade-plan.md](plans/streamlit-dashboard-upgrade-plan.md) | Streamlit 仪表盘交互升级实施方案 | 最新 |
 | [admin-to-modern-interaction-migration-plan.md](plans/admin-to-modern-interaction-migration-plan.md) | Admin 依赖迁移实施方案 | 最新 |
 | [system-code-doc-alignment-implementation-plan-2026-02-06.md](plans/system-code-doc-alignment-implementation-plan-2026-02-06.md) | 代码巡检与文档对齐实施方案 | 最新 |
@@ -95,6 +97,7 @@
 | [bug-report-template.md](testing/bug-report-template.md) | Bug 报告模板 | 完整 |
 | [test-results-template.md](testing/test-results-template.md) | 测试结果模板 | 完整 |
 | [api/API_REFERENCE.md](testing/api/API_REFERENCE.md) | API 参考文档 | 完整 |
+| [api/decision-rhythm-api.md](api/decision-rhythm-api.md) | **决策工作流 API 文档（估值+审批）** | ✅ 2026-03-02 新增 |
 
 ### 6. AI 相关 (`ai/`)
 
@@ -285,7 +288,17 @@
 
 ---
 
-## 最近更新 (2026-02-20 ~ 2026-03-01)
+## 最近更新 (2026-02-20 ~ 2026-03-02)
+
+### 2026-03-02
+- ✅ **估值定价引擎与执行审批闭环 - Phase 1 完成**
+  - 新增 Domain 层实体: `ValuationSnapshot`, `InvestmentRecommendation`, `ExecutionApprovalRequest`
+  - 新增 Domain 层服务: `ValuationSnapshotService`, `RecommendationConsolidationService`, `ExecutionApprovalService`, `ApprovalStatusStateMachine`
+  - 新增 ORM 模型: `ValuationSnapshotModel`, `InvestmentRecommendationModel`, `ExecutionApprovalRequestModel`
+  - 新增数据库迁移 0003
+  - 新增 API 端点 7 个（估值重算、快照获取、聚合工作台、执行预览/审批/拒绝）
+  - 添加单元测试 (14 个测试用例)
+  - 更新文档索引
 
 ### 2026-03-01
 - ✅ **首页主流程闭环改造 - SDK/MCP 同步**

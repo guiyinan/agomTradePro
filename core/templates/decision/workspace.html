@@ -385,7 +385,75 @@
                 <div><strong>方向:</strong> <span id="reviewDirection"></span></div>
                 <div><strong>优先级:</strong> <span id="reviewPriority"></span></div>
                 <div><strong>置信度:</strong> <span id="reviewConfidence"></span></div>
-            </div>
+
+                <!-- 估值价格信息 -->
+                <div class="price-info-section" style="background: #f0f7f5; padding: 10px; border-radius: 4px; margin-top: 10px;">
+                    <h4 style="color: #666; margin-bottom: 8px;">价格区间</h4>
+                    <div class="price-grid">
+                        <div class="price-item">
+                            <span class="price-label">公允价值</span>
+                            <span id="reviewFairValue" class="price-value">-</span>
+                        </div>
+                        <div class="price-item">
+                            <span class="price-label">入场区间</span>
+                            <span id="reviewEntryRange" class="price-value">-</span>
+                        </div>
+                        <div class="price-item">
+                            <span class="price-label">目标区间</span>
+                            <span id="reviewTargetRange" class="price-value">-</span>
+                        </div>
+                        <div class="price-item">
+                            <span class="price-label">止损价</span>
+                            <span id="reviewStopLoss" class="price-value stop-loss">-</span>
+                        </div>
+                    </div>
+                    <div class="risk-reward" style="margin-top: 8px;">
+                        <span>上行空间: <strong id="reviewUpside">-</strong></span>
+                        <span>下行风险: <strong id="reviewDownside">-</strong></span>
+                        <span>风险收益比: <strong id="reviewRiskReward">-</strong></span>
+                    </div>
+                </div>
+
+                <!-- 仓位建议 -->
+                <div class="position-suggestion" style="background: #e8f4f5; padding: 10px; border-radius: 4px; margin-top: 10px;">
+                    <h4 style="color: #666; margin-bottom: 8px;">仓位建议</h4>
+                    <div class="position-grid">
+                        <div class="position-item">
+                            <span class="position-label">建议比例</span>
+                            <span id="reviewPositionPct" class="position-value">-</span>
+                        </div>
+                        <div class="position-item">
+                            <span class="position-label">建议数量</span>
+                            <span id="reviewSuggestedQty" class="position-value">-</span>
+                        </div>
+                        <div class="position-item">
+                            <span class="position-label">最大资金</span>
+                            <span id="reviewMaxCapital" class="position-value">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 风控检查结果 -->
+                <div class="risk-checks-section" style="background: #fff3e0; padding: 10px; border-radius: 4px; margin-top: 10px;">
+                    <h4 style="color: #666; margin-bottom: 8px;">风控检查</h4>
+                    <div id="reviewRiskChecks" class="risk-checks-list">
+                        <!-- 风控检查项将由 JavaScript 添加 -->
+                    </div>
+                </div>
+
+                <!-- Regime 来源 -->
+                <div class="regime-source-section" style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 10px;">
+                    <div><strong>Regime 来源:</strong> <span id="reviewRegimeSource">V2_CALCULATION</span></div>
+                </div>
+
+                <!-- 原因代码 -->
+                <div class="reason-codes-section" style="background: #fffbe6; padding: 10px; border-radius: 4px; margin-top: 10px;">
+                    <h4 style="color: #666; margin-bottom: 8px;">决策原因</h4>
+                    <div id="reviewReasonCodes" class="reason-codes-list">
+                        <!-- 原因代码由 JavaScript 添加 -->
+                    </div>
+                    <p id="reviewRationale" class="human-rationale"></p>
+                </div>
 
             <div class="form-group">
                 <label class="form-label">执行目标</label>
@@ -537,6 +605,32 @@ function openExecutionReviewModal(button, asReject = false) {
     document.getElementById('reviewDirection').textContent = currentReviewRequest.direction;
     document.getElementById('reviewPriority').textContent = currentReviewRequest.priority;
     document.getElementById('reviewConfidence').textContent = Number(currentReviewRequest.confidence || 0).toFixed(2);
+
+    // 补充审批详情，避免新增区域长期为空
+    document.getElementById('reviewFairValue').textContent = button.dataset.fairValue || '-';
+    document.getElementById('reviewEntryRange').textContent = button.dataset.entryRange || '-';
+    document.getElementById('reviewTargetRange').textContent = button.dataset.targetRange || '-';
+    document.getElementById('reviewStopLoss').textContent = button.dataset.stopLoss || '-';
+    document.getElementById('reviewUpside').textContent = button.dataset.upside || '-';
+    document.getElementById('reviewDownside').textContent = button.dataset.downside || '-';
+    document.getElementById('reviewRiskReward').textContent = button.dataset.riskReward || '-';
+    document.getElementById('reviewPositionPct').textContent = button.dataset.positionPct || '-';
+    document.getElementById('reviewSuggestedQty').textContent = button.dataset.suggestedQty || '-';
+    document.getElementById('reviewMaxCapital').textContent = button.dataset.maxCapital || '-';
+    document.getElementById('reviewRegimeSource').textContent = button.dataset.regimeSource || 'V2_CALCULATION';
+
+    const riskChecksNode = document.getElementById('reviewRiskChecks');
+    if (riskChecksNode) {
+        riskChecksNode.innerHTML = '<div class=\"risk-check-item\">价格校验/配额/冷却期：执行前校验</div>';
+    }
+
+    const reasonCodesNode = document.getElementById('reviewReasonCodes');
+    if (reasonCodesNode) {
+        const reasonCode = currentReviewRequest.reason ? 'REQUEST_REASON' : 'N/A';
+        reasonCodesNode.innerHTML = `<span class=\"reason-code\">${reasonCode}</span>`;
+    }
+    document.getElementById('reviewRationale').textContent = currentReviewRequest.reason || '无补充说明';
+
     document.getElementById('reviewComments').value = asReject ? '不批准执行：' : '';
     document.getElementById('approveExecBtn').style.display = asReject ? 'none' : '';
     toggleReviewTargetFields();

@@ -26,6 +26,8 @@ from ..domain.entities import (
     ExecutionStatus,
     ExecutionTarget,
     DecisionPriority,
+    ApprovalStatus,
+    RecommendationSide,
 )
 from .models import (
     DecisionQuotaModel,
@@ -627,3 +629,592 @@ def get_cooldown_repository() -> CooldownRepository:
 def get_request_repository() -> DecisionRequestRepository:
     """获取请求仓储实例"""
     return DecisionRequestRepository()
+
+
+# ========== 估值定价引擎仓储 ==========
+
+
+class ValuationSnapshotRepository:
+    """
+    估值快照仓储
+
+    提供估值快照的数据持久化操作。
+
+    Example:
+        >>> repo = ValuationSnapshotRepository()
+        >>> snapshot = repo.get_by_id("vs_001")
+        >>> snapshots = repo.get_latest_for_security("000001.SH", limit=5)
+    """
+
+    def save(self, snapshot) -> Any:
+        """
+        保存估值快照
+
+        Args:
+            snapshot: 估值快照实体
+
+        Returns:
+            保存后的实体
+        """
+        from .models import ValuationSnapshotModel
+
+        model = ValuationSnapshotModel.from_domain(snapshot)
+        model.save()
+        return model.to_domain()
+
+    def get_by_id(self, snapshot_id: str) -> Optional[Any]:
+        """
+        根据 ID 获取估值快照
+
+        Args:
+            snapshot_id: 快照 ID
+
+        Returns:
+            估值快照实体，不存在则返回 None
+        """
+        from .models import ValuationSnapshotModel
+
+        try:
+            model = ValuationSnapshotModel.objects.get(snapshot_id=snapshot_id)
+            return model.to_domain()
+        except ValuationSnapshotModel.DoesNotExist:
+            return None
+
+    def get_latest_for_security(
+        self,
+        security_code: str,
+        limit: int = 5,
+    ) -> List[Any]:
+        """
+        获取指定证券的最新估值快照
+
+        Args:
+            security_code: 证券代码
+            limit: 返回数量
+
+        Returns:
+            估值快照列表（按计算时间倒序）
+        """
+        from .models import ValuationSnapshotModel
+
+        models = ValuationSnapshotModel.objects.filter(
+            security_code=security_code
+        ).order_by("-calculated_at")[:limit]
+
+        return [model.to_domain() for model in models]
+
+    def get_latest_by_method(
+        self,
+        security_code: str,
+        valuation_method: str,
+    ) -> Optional[Any]:
+        """
+        获取指定证券和方法的最新估值快照
+
+        Args:
+            security_code: 证券代码
+            valuation_method: 估值方法
+
+        Returns:
+            估值快照实体，不存在则返回 None
+        """
+        from .models import ValuationSnapshotModel
+
+        try:
+            model = ValuationSnapshotModel.objects.filter(
+                security_code=security_code,
+                valuation_method=valuation_method,
+            ).order_by("-calculated_at").first()
+            return model.to_domain() if model else None
+        except Exception:
+            return None
+
+    def delete_by_id(self, snapshot_id: str) -> bool:
+        """
+        删除估值快照
+
+        Args:
+            snapshot_id: 快照 ID
+
+        Returns:
+            是否删除成功
+        """
+        from .models import ValuationSnapshotModel
+
+        try:
+            model = ValuationSnapshotModel.objects.get(snapshot_id=snapshot_id)
+            model.delete()
+            return True
+        except ValuationSnapshotModel.DoesNotExist:
+            return False
+
+
+class InvestmentRecommendationRepository:
+    """
+    投资建议仓储
+
+    提供投资建议的数据持久化操作。
+
+    Example:
+        >>> repo = InvestmentRecommendationRepository()
+        >>> rec = repo.get_by_id("rec_001")
+        >>> active_recs = repo.get_active_recommendations()
+    """
+
+    def save(self, recommendation) -> Any:
+        """
+        保存投资建议
+
+        Args:
+            recommendation: 投资建议实体
+
+        Returns:
+            保存后的实体
+        """
+        from .models import InvestmentRecommendationModel, ValuationSnapshotModel
+
+        model = InvestmentRecommendationModel.from_domain(recommendation)
+
+        # 处理估值快照关联
+        if recommendation.valuation_snapshot_id:
+            try:
+                snapshot_model = ValuationSnapshotModel.objects.get(
+                    snapshot_id=recommendation.valuation_snapshot_id
+                )
+                model.valuation_snapshot = snapshot_model
+            except ValuationSnapshotModel.DoesNotExist:
+                pass
+
+        model.save()
+        return model.to_domain()
+
+    def get_by_id(self, recommendation_id: str) -> Optional[Any]:
+        """
+        根据 ID 获取投资建议
+
+        Args:
+            recommendation_id: 建议 ID
+
+        Returns:
+            投资建议实体，不存在则返回 None
+        """
+        from .models import InvestmentRecommendationModel
+
+        try:
+            model = InvestmentRecommendationModel.objects.get(
+                recommendation_id=recommendation_id
+            )
+            return model.to_domain()
+        except InvestmentRecommendationModel.DoesNotExist:
+            return None
+
+    def get_active_recommendations(
+        self,
+        include_executed: bool = False,
+    ) -> List[Any]:
+        """
+        获取活跃的投资建议
+
+        Args:
+            include_executed: 是否包含已执行的建议
+
+        Returns:
+            投资建议列表
+        """
+        from .models import InvestmentRecommendationModel
+
+        query = InvestmentRecommendationModel.objects.all()
+
+        if not include_executed:
+            query = query.filter(status="ACTIVE")
+
+        query = query.order_by("-created_at")
+        return [model.to_domain() for model in query]
+
+    def get_active_by_account(
+        self,
+        account_id: str,
+        include_executed: bool = False,
+    ) -> List[Any]:
+        """
+        获取指定账户的活跃建议
+
+        Args:
+            account_id: 账户 ID
+            include_executed: 是否包含已执行的建议
+
+        Returns:
+            投资建议列表
+        """
+        from .models import InvestmentRecommendationModel
+
+        query = InvestmentRecommendationModel.objects.filter(account_id=account_id)
+        if not include_executed:
+            query = query.filter(status="ACTIVE")
+
+        query = query.order_by("-created_at")
+        return [model.to_domain() for model in query]
+
+    def get_all_active(
+        self,
+        include_executed: bool = False,
+    ) -> List[Any]:
+        """
+        获取所有活跃建议
+
+        Args:
+            include_executed: 是否包含已执行的建议
+
+        Returns:
+            投资建议列表
+        """
+        return self.get_active_recommendations(include_executed)
+
+    def get_by_security(
+        self,
+        security_code: str,
+        status: Optional[str] = None,
+    ) -> List[Any]:
+        """
+        获取指定证券的建议
+
+        Args:
+            security_code: 证券代码
+            status: 状态过滤（可选）
+
+        Returns:
+            投资建议列表
+        """
+        from .models import InvestmentRecommendationModel
+
+        query = InvestmentRecommendationModel.objects.filter(
+            security_code=security_code
+        )
+
+        if status:
+            query = query.filter(status=status)
+
+        query = query.order_by("-created_at")
+        return [model.to_domain() for model in query]
+
+    def update_status(
+        self,
+        recommendation_id: str,
+        status: str,
+    ) -> Optional[Any]:
+        """
+        更新建议状态
+
+        Args:
+            recommendation_id: 建议 ID
+            status: 新状态
+
+        Returns:
+            更新后的实体，不存在则返回 None
+        """
+        from .models import InvestmentRecommendationModel
+
+        try:
+            model = InvestmentRecommendationModel.objects.get(
+                recommendation_id=recommendation_id
+            )
+            model.status = status
+            model.save()
+            return model.to_domain()
+        except InvestmentRecommendationModel.DoesNotExist:
+            return None
+
+    def delete_by_id(self, recommendation_id: str) -> bool:
+        """
+        删除投资建议
+
+        Args:
+            recommendation_id: 建议 ID
+
+        Returns:
+            是否删除成功
+        """
+        from .models import InvestmentRecommendationModel
+
+        try:
+            model = InvestmentRecommendationModel.objects.get(
+                recommendation_id=recommendation_id
+            )
+            model.delete()
+            return True
+        except InvestmentRecommendationModel.DoesNotExist:
+            return False
+
+
+class ExecutionApprovalRequestRepository:
+    """
+    执行审批请求仓储
+
+    提供执行审批请求的数据持久化操作。
+
+    Example:
+        >>> repo = ExecutionApprovalRequestRepository()
+        >>> request = repo.get_by_id("apr_001")
+        >>> pending_requests = repo.get_pending_requests("account_1")
+    """
+
+    def save(self, approval_request) -> Any:
+        """
+        保存执行审批请求
+
+        Args:
+            approval_request: 执行审批请求实体
+
+        Returns:
+            保存后的实体
+        """
+        from .models import ExecutionApprovalRequestModel, InvestmentRecommendationModel
+
+        # 获取关联的投资建议模型
+        try:
+            recommendation_model = InvestmentRecommendationModel.objects.get(
+                recommendation_id=approval_request.recommendation_id
+            )
+        except InvestmentRecommendationModel.DoesNotExist:
+            raise ValueError(f"Investment recommendation not found: {approval_request.recommendation_id}")
+
+        model = ExecutionApprovalRequestModel.from_domain(approval_request, recommendation_model)
+        model.save()
+        return model.to_domain()
+
+    def get_by_id(self, request_id: str) -> Optional[Any]:
+        """
+        根据 ID 获取执行审批请求
+
+        Args:
+            request_id: 请求 ID
+
+        Returns:
+            执行审批请求实体，不存在则返回 None
+        """
+        from .models import ExecutionApprovalRequestModel
+
+        try:
+            model = ExecutionApprovalRequestModel.objects.get(request_id=request_id)
+            return model.to_domain()
+        except ExecutionApprovalRequestModel.DoesNotExist:
+            return None
+
+    def get_pending_requests(
+        self,
+        account_id: Optional[str] = None,
+    ) -> List[Any]:
+        """
+        获取待审批的请求
+
+        Args:
+            account_id: 账户 ID（可选，不传则获取全部）
+
+        Returns:
+            执行审批请求列表
+        """
+        from .models import ExecutionApprovalRequestModel
+
+        query = ExecutionApprovalRequestModel.objects.filter(
+            approval_status=ApprovalStatus.PENDING.value
+        )
+
+        if account_id:
+            query = query.filter(account_id=account_id)
+
+        query = query.order_by("-created_at")
+        return [model.to_domain() for model in query]
+
+    def get_by_account_and_security(
+        self,
+        account_id: str,
+        security_code: str,
+        side: Optional[str] = None,
+    ) -> List[Any]:
+        """
+        获取指定账户和证券的审批请求
+
+        Args:
+            account_id: 账户 ID
+            security_code: 证券代码
+            side: 方向过滤（可选）
+
+        Returns:
+            执行审批请求列表
+        """
+        from .models import ExecutionApprovalRequestModel
+
+        query = ExecutionApprovalRequestModel.objects.filter(
+            account_id=account_id,
+            security_code=security_code,
+        )
+
+        if side:
+            query = query.filter(side=side)
+
+        query = query.order_by("-created_at")
+        return [model.to_domain() for model in query]
+
+    def get_pending_by_aggregation_key(
+        self,
+        account_id: str,
+        security_code: str,
+        side: str,
+    ) -> Optional[Any]:
+        """
+        获取指定聚合键的待审批请求
+
+        用于检查唯一性约束。
+
+        Args:
+            account_id: 账户 ID
+            security_code: 证券代码
+            side: 方向
+
+        Returns:
+            执行审批请求实体，不存在则返回 None
+        """
+        from .models import ExecutionApprovalRequestModel
+
+        try:
+            model = ExecutionApprovalRequestModel.objects.filter(
+                account_id=account_id,
+                security_code=security_code,
+                side=side,
+                approval_status=ApprovalStatus.PENDING.value,
+            ).first()
+            return model.to_domain() if model else None
+        except Exception:
+            return None
+
+    def update_status(
+        self,
+        request_id: str,
+        approval_status: ApprovalStatus,
+        reviewer_comments: Optional[str] = None,
+    ) -> Optional[Any]:
+        """
+        更新审批状态
+
+        Args:
+            request_id: 请求 ID
+            approval_status: 新状态
+            reviewer_comments: 审批评论（可选）
+
+        Returns:
+            更新后的实体，不存在则返回 None
+        """
+        from .models import ExecutionApprovalRequestModel
+
+        try:
+            model = ExecutionApprovalRequestModel.objects.get(request_id=request_id)
+            model.approval_status = approval_status.value
+
+            if reviewer_comments is not None:
+                model.reviewer_comments = reviewer_comments
+
+            if approval_status in [ApprovalStatus.APPROVED, ApprovalStatus.REJECTED]:
+                model.reviewed_at = datetime.now()
+
+            if approval_status == ApprovalStatus.EXECUTED:
+                model.executed_at = datetime.now()
+
+            model.save()
+            return model.to_domain()
+        except ExecutionApprovalRequestModel.DoesNotExist:
+            return None
+
+    def has_pending_request(
+        self,
+        account_id: str,
+        security_code: str,
+        side: str,
+    ) -> bool:
+        """
+        检查是否存在待审批请求
+
+        用于唯一性约束验证。
+
+        Args:
+            account_id: 账户 ID
+            security_code: 证券代码
+            side: 方向
+
+        Returns:
+            是否存在待审批请求
+        """
+        from .models import ExecutionApprovalRequestModel
+
+        return ExecutionApprovalRequestModel.objects.filter(
+            account_id=account_id,
+            security_code=security_code,
+            side=side,
+            approval_status=ApprovalStatus.PENDING.value,
+        ).exists()
+
+    def get_by_regime_source(
+        self,
+        regime_source: str,
+    ) -> List[Any]:
+        """
+        根据 Regime 来源获取审批请求
+
+        用于 Regime 追踪。
+
+        Args:
+            regime_source: Regime 来源标识
+
+        Returns:
+            执行审批请求列表
+        """
+        from .models import ExecutionApprovalRequestModel
+
+        models = ExecutionApprovalRequestModel.objects.filter(
+            regime_source=regime_source
+        ).order_by("-created_at")
+
+        return [model.to_domain() for model in models]
+
+    def get_executed_in_period(
+        self,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> List[Any]:
+        """
+        获取指定时间段内已执行的请求
+
+        用于审计和统计。
+
+        Args:
+            start_date: 开始日期
+            end_date: 结束日期
+
+        Returns:
+            执行审批请求列表
+        """
+        from .models import ExecutionApprovalRequestModel
+
+        models = ExecutionApprovalRequestModel.objects.filter(
+            approval_status=ApprovalStatus.EXECUTED.value,
+            executed_at__gte=start_date,
+            executed_at__lte=end_date,
+        ).order_by("-executed_at")
+
+        return [model.to_domain() for model in models]
+
+
+# 便捷函数
+
+def get_valuation_snapshot_repository() -> ValuationSnapshotRepository:
+    """获取估值快照仓储实例"""
+    return ValuationSnapshotRepository()
+
+
+def get_investment_recommendation_repository() -> InvestmentRecommendationRepository:
+    """获取投资建议仓储实例"""
+    return InvestmentRecommendationRepository()
+
+
+def get_execution_approval_request_repository() -> ExecutionApprovalRequestRepository:
+    """获取执行审批请求仓储实例"""
+    return ExecutionApprovalRequestRepository()
