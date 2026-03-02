@@ -358,6 +358,8 @@ class AlphaCandidateModel(models.Model):
         status_changed_at: 状态变更时间
         promoted_to_signal_at: 提升为信号的时间
         custom_data: JSON - 自定义数据
+        last_decision_request_id: 最后决策请求 ID
+        last_execution_status: 最后执行状态
     """
 
     # Status Choices
@@ -408,6 +410,20 @@ class AlphaCandidateModel(models.Model):
         (LONG, "做多"),
         (SHORT, "做空"),
         (NEUTRAL, "中性"),
+    ]
+
+    # Execution Status Choices (for last_execution_status)
+    EXECUTION_PENDING = "PENDING"
+    EXECUTION_EXECUTED = "EXECUTED"
+    EXECUTION_FAILED = "FAILED"
+    EXECUTION_CANCELLED = "CANCELLED"
+    EXECUTION_UNKNOWN_LEGACY = "UNKNOWN_LEGACY"
+    EXECUTION_STATUS_CHOICES = [
+        (EXECUTION_PENDING, "待执行"),
+        (EXECUTION_EXECUTED, "已执行"),
+        (EXECUTION_FAILED, "执行失败"),
+        (EXECUTION_CANCELLED, "已取消"),
+        (EXECUTION_UNKNOWN_LEGACY, "历史数据（未知状态）"),
     ]
 
     # 字段定义
@@ -526,6 +542,21 @@ class AlphaCandidateModel(models.Model):
         help_text="自定义数据"
     )
 
+    # 新增字段：首页主流程闭环改造
+    last_decision_request_id = models.CharField(
+        max_length=64,
+        blank=True,
+        db_index=True,
+        help_text="最后决策请求 ID"
+    )
+
+    last_execution_status = models.CharField(
+        max_length=16,
+        blank=True,
+        choices=EXECUTION_STATUS_CHOICES,
+        help_text="最后执行状态"
+    )
+
     class Meta:
         app_label = "alpha_trigger"
         db_table = "alpha_candidate"
@@ -536,6 +567,7 @@ class AlphaCandidateModel(models.Model):
             models.Index(fields=["asset_code", "status"]),
             models.Index(fields=["status", "-created_at"]),
             models.Index(fields=["trigger_id"]),
+            models.Index(fields=["last_decision_request_id"]),
         ]
 
     def __str__(self):
@@ -560,13 +592,17 @@ class AlphaCandidateModel(models.Model):
         Returns:
             AlphaCandidate 实体
         """
+        strength_value = self.strength
+        if isinstance(strength_value, str):
+            strength_value = strength_value.lower()
+
         return AlphaCandidate(
             candidate_id=self.candidate_id,
             trigger_id=self.trigger_id,
             asset_code=self.asset_code,
             asset_class=self.asset_class,
             direction=self.direction,
-            strength=SignalStrength(self.strength),
+            strength=SignalStrength(strength_value),
             confidence=self.confidence,
             status=CandidateStatus(self.status),
             thesis=self.thesis,
@@ -579,7 +615,10 @@ class AlphaCandidateModel(models.Model):
             updated_at=self.updated_at,
             status_changed_at=self.status_changed_at,
             promoted_to_signal_at=self.promoted_to_signal_at,
-            custom_data=self.custom_data,
+            # Domain entity no longer has custom_data/metadata field.
+            # 新增字段
+            last_decision_request_id=self.last_decision_request_id or None,
+            last_execution_status=self.last_execution_status or None,
         )
 
     @classmethod
@@ -612,7 +651,10 @@ class AlphaCandidateModel(models.Model):
             updated_at=candidate.updated_at,
             status_changed_at=candidate.status_changed_at,
             promoted_to_signal_at=candidate.promoted_to_signal_at,
-            custom_data=candidate.custom_data,
+            custom_data=getattr(candidate, "metadata", {}) or {},
+            # 新增字段
+            last_decision_request_id=candidate.last_decision_request_id or "",
+            last_execution_status=candidate.last_execution_status or "",
         )
 
 
@@ -692,6 +734,6 @@ AlphaTriggerManager = models.Manager.from_queryset(AlphaTriggerQuerySet)
 AlphaCandidateManager = models.Manager.from_queryset(AlphaCandidateQuerySet)
 
 
-# 为模型添加自定义 Manager
-AlphaTriggerModel.objects = AlphaTriggerManager()
-AlphaCandidateModel.objects = AlphaCandidateManager()
+# 为模型添加自定义 Manager (使用 contribute_to_class 正确初始化)
+AlphaTriggerManager().contribute_to_class(AlphaTriggerModel, 'objects')
+AlphaCandidateManager().contribute_to_class(AlphaCandidateModel, 'objects')

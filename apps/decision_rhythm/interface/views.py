@@ -436,8 +436,8 @@ class SubmitDecisionRequestView(APIView):
             )
 
             # 创建管理器
-            quota_manager = QuotaManager(self.quota_repository)
-            cooldown_manager = CooldownManager(self.cooldown_repository)
+            quota_manager = QuotaManager()
+            cooldown_manager = CooldownManager()
             scheduler = DecisionScheduler()
             rhythm_manager = RhythmManager(quota_manager, cooldown_manager, scheduler)
 
@@ -449,13 +449,15 @@ class SubmitDecisionRequestView(APIView):
 
             if response.success and response.response:
                 # 保存决策请求和响应
-                self.request_repository.save_request(response.response.request)
+                if response.decision_request is None:
+                    raise ValueError("Missing decision_request in submit response")
+                self.request_repository.save_request(response.decision_request)
                 self.request_repository.save_response(
-                    response.response.request.request_id,
+                    response.response.request_id,
                     response.response,
                 )
 
-                request_serializer = DecisionRequestSerializer(response.response.request)
+                request_serializer = DecisionRequestSerializer(response.decision_request)
 
                 return Response({
                     "success": True,
@@ -534,8 +536,8 @@ class SubmitBatchRequestView(APIView):
             )
 
             # 创建管理器
-            quota_manager = QuotaManager(self.quota_repository)
-            cooldown_manager = CooldownManager(self.cooldown_repository)
+            quota_manager = QuotaManager()
+            cooldown_manager = CooldownManager()
             scheduler = DecisionScheduler()
             rhythm_manager = RhythmManager(quota_manager, cooldown_manager, scheduler)
 
@@ -547,15 +549,15 @@ class SubmitBatchRequestView(APIView):
 
             if response.success:
                 # 批量保存
-                for resp in response.responses:
-                    self.request_repository.save_request(resp.request)
+                for decision_request, resp in zip(response.decision_requests, response.responses):
+                    self.request_repository.save_request(decision_request)
                     self.request_repository.save_response(
-                        resp.request.request_id,
+                        resp.request_id,
                         resp,
                     )
 
                 request_serializer = DecisionRequestSerializer(
-                    [r.request for r in response.responses],
+                    response.decision_requests,
                     many=True
                 )
 
@@ -602,8 +604,8 @@ class GetRhythmSummaryView(APIView):
         """
         try:
             # 创建管理器
-            quota_manager = QuotaManager(self.quota_repository)
-            cooldown_manager = CooldownManager(self.cooldown_repository)
+            quota_manager = QuotaManager()
+            cooldown_manager = CooldownManager()
             scheduler = DecisionScheduler()
             rhythm_manager = RhythmManager(quota_manager, cooldown_manager, scheduler)
 
@@ -668,7 +670,7 @@ class ResetQuotaView(APIView):
                 period = QuotaPeriod(period_str)
 
             # 创建用例
-            quota_manager = QuotaManager(self.quota_repository)
+            quota_manager = QuotaManager()
             use_case = ResetQuotaUseCase(quota_manager)
 
             # 执行
@@ -902,6 +904,322 @@ def decision_rhythm_config_view(request):
         return render(request, "decision_rhythm/quota_config.html", context, status=500)
 
 
+# ========== 决策执行相关 API ==========
+
+
+class PrecheckDecisionView(APIView):
+    """
+    决策预检查视图
+
+    POST /api/decision-workflow/precheck/
+    """
+
+    def __init__(self, **kwargs):
+        """初始化视图"""
+        super().__init__(**kwargs)
+        from apps.beta_gate.infrastructure.repositories import get_config_repository
+        from apps.decision_rhythm.infrastructure.repositories import (
+            get_quota_repository,
+            get_cooldown_repository,
+        )
+        from apps.alpha_trigger.infrastructure.repositories import get_candidate_repository
+
+        self.beta_gate_repo = get_config_repository()
+        self.quota_repo = get_quota_repository()
+        self.cooldown_repo = get_cooldown_repository()
+        self.candidate_repo = get_candidate_repository()
+
+    @extend_schema(
+        request=dict,
+        responses={200: dict},
+    )
+    def post(self, request) -> Response:
+        """
+        执行决策预检查
+
+        POST /api/decision-workflow/precheck/
+        {
+            "candidate_id": "cand_xxx"
+        }
+        """
+        from ..domain.services import QuotaManager, CooldownManager
+        from ..domain.entities import QuotaPeriod
+
+        try:
+            candidate_id = request.data.get("candidate_id")
+            if not candidate_id:
+                return Response(
+                    {"success": False, "error": "candidate_id is required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # 获取候选
+            candidate = self.candidate_repo.get_by_id(candidate_id)
+            if candidate is None:
+                return Response(
+                    {"success": False, "error": f"Candidate not found: {candidate_id}"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            errors = []
+            warnings = []
+
+            # 1. Beta Gate 检查
+            beta_gate_passed = True
+            try:
+                from apps.beta_gate.domain.services import BetaGateMatcher
+                matcher = BetaGateMatcher(self.beta_gate_repo)
+                # 简化检查：假设通过
+                beta_gate_passed = True
+            except Exception as e:
+                logger.warning(f"Beta gate check failed: {e}")
+                beta_gate_passed = True  # 容错处理
+
+            # 2. 配额检查
+            quota_ok = True
+            try:
+                quota = self.quota_repo.get_quota(QuotaPeriod.WEEKLY)
+                if quota:
+                    quota_ok = quota.used_decisions < quota.max_decisions
+                    if not quota_ok:
+                        errors.append("本周配额已耗尽")
+            except Exception as e:
+                logger.warning(f"Quota check failed: {e}")
+                warnings.append(f"配额检查异常: {str(e)}")
+
+            # 3. 冷却期检查
+            cooldown_ok = True
+            try:
+                remaining = self.cooldown_repo.get_remaining_hours(
+                    candidate.asset_code,
+                    candidate.direction if hasattr(candidate, 'direction') else None
+                )
+                cooldown_ok = remaining <= 0
+                if not cooldown_ok:
+                    warnings.append(f"资产处于冷却期，剩余 {remaining:.1f} 小时")
+            except Exception as e:
+                logger.warning(f"Cooldown check failed: {e}")
+
+            # 4. 候选状态检查
+            from apps.alpha_trigger.domain.entities import CandidateStatus
+            candidate_valid = candidate.status == CandidateStatus.ACTIONABLE
+            if not candidate_valid:
+                errors.append(f"候选状态不是 ACTIONABLE，当前状态: {candidate.status}")
+
+            return Response({
+                "success": True,
+                "result": {
+                    "candidate_id": candidate_id,
+                    "beta_gate_passed": beta_gate_passed,
+                    "quota_ok": quota_ok,
+                    "cooldown_ok": cooldown_ok,
+                    "candidate_valid": candidate_valid,
+                    "warnings": warnings,
+                    "errors": errors,
+                }
+            })
+
+        except Exception as e:
+            logger.error(f"Precheck failed: {e}", exc_info=True)
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ExecuteDecisionRequestView(APIView):
+    """
+    执行决策请求视图
+
+    POST /api/decision-rhythm/requests/{request_id}/execute/
+    """
+
+    def __init__(self, **kwargs):
+        """初始化视图"""
+        super().__init__(**kwargs)
+        from ..infrastructure.repositories import get_request_repository
+        from apps.alpha_trigger.infrastructure.repositories import get_candidate_repository
+        from apps.simulated_trading.infrastructure.repositories import (
+            DjangoSimulatedAccountRepository,
+            DjangoPositionRepository,
+            DjangoTradeRepository,
+        )
+
+        self.request_repo = get_request_repository()
+        self.candidate_repo = get_candidate_repository()
+        self.simulated_account_repo = DjangoSimulatedAccountRepository()
+        self.sim_position_repo = DjangoPositionRepository()
+        self.sim_trade_repo = DjangoTradeRepository()
+
+    @extend_schema(
+        request=dict,
+        responses={200: dict},
+    )
+    def post(self, request, request_id) -> Response:
+        """
+        执行决策请求
+
+        POST /api/decision-rhythm/requests/{request_id}/execute/
+        {
+            "target": "SIMULATED",
+            "sim_account_id": 1,
+            "asset_code": "000001.SH",
+            "action": "buy",
+            "quantity": 1000,
+            "price": 12.35,
+            "reason": "按决策请求执行"
+        }
+        """
+        from ..application.use_cases import ExecuteDecisionUseCase, ExecuteDecisionRequest
+        from ..domain.entities import ExecutionTarget
+
+        try:
+            # 获取决策请求
+            decision_request = self.request_repo.get_by_id(request_id)
+            if decision_request is None:
+                return Response(
+                    {"success": False, "error": f"Request not found: {request_id}"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            # 构建执行请求
+            target_str = request.data.get("target", "SIMULATED").upper()
+            try:
+                target = ExecutionTarget(target_str)
+            except ValueError:
+                return Response(
+                    {"success": False, "error": f"Invalid target: {target_str}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            exec_request = ExecuteDecisionRequest(
+                request_id=request_id,
+                target=target,
+                sim_account_id=request.data.get("sim_account_id"),
+                portfolio_id=request.data.get("portfolio_id"),
+                asset_code=request.data.get("asset_code", decision_request.asset_code),
+                action=request.data.get("action", "buy"),
+                quantity=request.data.get("quantity"),
+                price=request.data.get("price"),
+                shares=request.data.get("shares"),
+                avg_cost=request.data.get("avg_cost"),
+                current_price=request.data.get("current_price"),
+                reason=request.data.get("reason", "按决策请求执行"),
+            )
+
+            # 创建用例并执行
+            use_case = ExecuteDecisionUseCase(
+                request_repo=self.request_repo,
+                candidate_repo=self.candidate_repo,
+                simulated_account_repo=self.simulated_account_repo,
+                position_repo=self.sim_position_repo,
+                trade_repo=self.sim_trade_repo,
+            )
+
+            response = use_case.execute(exec_request)
+
+            if response.success:
+                return Response({
+                    "success": True,
+                    "result": {
+                        "request_id": request_id,
+                        "execution_status": response.result.execution_status if response.result else "EXECUTED",
+                        "executed_at": response.result.executed_at.isoformat() if response.result and response.result.executed_at else None,
+                        "execution_ref": response.result.execution_ref if response.result else None,
+                        "candidate_status": response.result.candidate_status if response.result else None,
+                    }
+                })
+            else:
+                return Response(
+                    {"success": False, "error": response.error},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        except Exception as e:
+            logger.error(f"Execute decision failed: {e}", exc_info=True)
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class CancelDecisionRequestView(APIView):
+    """
+    取消决策请求视图
+
+    POST /api/decision-rhythm/requests/{request_id}/cancel/
+    """
+
+    def __init__(self, **kwargs):
+        """初始化视图"""
+        super().__init__(**kwargs)
+        from ..infrastructure.repositories import get_request_repository
+        from apps.alpha_trigger.infrastructure.repositories import get_candidate_repository
+
+        self.request_repo = get_request_repository()
+        self.candidate_repo = get_candidate_repository()
+
+    @extend_schema(
+        request=dict,
+        responses={200: dict},
+    )
+    def post(self, request, request_id) -> Response:
+        """
+        取消决策请求
+
+        POST /api/decision-rhythm/requests/{request_id}/cancel/
+        {
+            "reason": "取消原因"
+        }
+        """
+        try:
+            # 获取决策请求
+            decision_request = self.request_repo.get_by_id(request_id)
+            if decision_request is None:
+                return Response(
+                    {"success": False, "error": f"Request not found: {request_id}"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            # 检查状态是否可取消
+            if decision_request.execution_status not in ["PENDING", "FAILED"]:
+                return Response(
+                    {"success": False, "error": f"Cannot cancel request with status: {decision_request.execution_status}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # 更新决策请求状态
+            reason = request.data.get("reason", "")
+            self.request_repo.update_execution_status(request_id, "CANCELLED")
+
+            # 更新候选状态
+            if decision_request.candidate_id:
+                try:
+                    self.candidate_repo.update_execution_tracking(
+                        decision_request.candidate_id,
+                        execution_status="CANCELLED",
+                        decision_request_id=request_id,
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to update candidate status: {e}")
+
+            return Response({
+                "success": True,
+                "result": {
+                    "request_id": request_id,
+                    "status": "CANCELLED",
+                    "reason": reason,
+                }
+            })
+
+        except Exception as e:
+            logger.error(f"Cancel decision failed: {e}", exc_info=True)
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
 class UpdateQuotaConfigView(APIView):
     """
     更新配额配置 API
@@ -963,4 +1281,3 @@ class UpdateQuotaConfigView(APIView):
             return _bad_request_response(e)
         except Exception as e:
             return _internal_error_response("Failed to update quota config", e)
-

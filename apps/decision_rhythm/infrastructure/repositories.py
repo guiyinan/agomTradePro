@@ -23,6 +23,9 @@ from ..domain.entities import (
     DecisionResponse,
     DecisionPriority,
     QuotaPeriod,
+    ExecutionStatus,
+    ExecutionTarget,
+    DecisionPriority,
 )
 from .models import (
     DecisionQuotaModel,
@@ -409,13 +412,13 @@ class DecisionRequestRepository:
             if existing_response:
                 # 更新
                 existing_response.approved = response.approved
-                existing_response.approval_reason = response.approval_reason
+                existing_response.approval_reason = response.approval_reason or ""
                 existing_response.scheduled_at = response.scheduled_at
                 existing_response.estimated_execution_at = response.estimated_execution_at
-                existing_response.rejection_reason = response.rejection_reason
+                existing_response.rejection_reason = response.rejection_reason or ""
                 existing_response.wait_until = response.wait_until
                 existing_response.quota_status = response.quota_status
-                existing_response.cooldown_status = response.cooldown_status
+                existing_response.cooldown_status = response.cooldown_status or ""
                 existing_response.alternative_suggestions = response.alternative_suggestions
 
                 existing_response.save()
@@ -430,13 +433,13 @@ class DecisionRequestRepository:
                     response_id=response_id,
                     request=request_model,
                     approved=response.approved,
-                    approval_reason=response.approval_reason,
+                    approval_reason=response.approval_reason or "",
                     scheduled_at=response.scheduled_at,
                     estimated_execution_at=response.estimated_execution_at,
-                    rejection_reason=response.rejection_reason,
+                    rejection_reason=response.rejection_reason or "",
                     wait_until=response.wait_until,
                     quota_status=response.quota_status,
-                    cooldown_status=response.cooldown_status,
+                    cooldown_status=response.cooldown_status or "",
                     alternative_suggestions=response.alternative_suggestions,
                 )
 
@@ -485,6 +488,86 @@ class DecisionRequestRepository:
             "by_priority": by_priority,
             "by_direction": by_direction,
         }
+
+    def update_execution_status(
+        self,
+        request_id: str,
+        execution_status,
+        executed_at=None,
+        execution_ref=None,
+    ) -> bool:
+        """
+        更新决策请求的执行状态
+
+        Args:
+            request_id: 请求 ID
+            execution_status: 执行状态（ExecutionStatus 枚举或字符串）
+            executed_at: 执行时间（可选）
+            execution_ref: 执行引用（可选）
+
+        Returns:
+            是否更新成功
+        """
+        try:
+            model = self.model.objects.get(request_id=request_id)
+
+            # 处理执行状态
+            status_value = execution_status.value if hasattr(execution_status, 'value') else str(execution_status)
+            model.execution_status = status_value
+
+            if executed_at:
+                model.executed_at = executed_at
+
+            if execution_ref:
+                model.execution_ref = execution_ref
+
+            model.save(update_fields=["execution_status", "executed_at", "execution_ref"])
+
+            logger.info(
+                f"Decision request execution status updated: {request_id} -> {status_value}"
+            )
+
+            return True
+
+        except ObjectDoesNotExist:
+            logger.warning(f"Request not found for execution update: {request_id}")
+            return False
+
+    def get_pending_for_execution(self) -> List[DecisionRequest]:
+        """
+        获取待执行的决策请求
+
+        Returns:
+            待执行的 DecisionRequest 实体列表
+        """
+        models = self.model.objects.filter(
+            execution_status="PENDING"
+        ).order_by("-requested_at")
+
+        return [m.to_domain() for m in models]
+
+    def get_by_candidate_id(self, candidate_id: str) -> Optional[DecisionRequest]:
+        """
+        按候选 ID 获取最近的决策请求
+
+        Args:
+            candidate_id: 候选 ID
+
+        Returns:
+            DecisionRequest 实体或 None
+        """
+        try:
+            model = self.model.objects.filter(
+                candidate_id=candidate_id
+            ).order_by("-requested_at").first()
+
+            if model:
+                return model.to_domain()
+            return None
+
+        except Exception as e:
+            logger.error(f"Failed to get request by candidate_id: {e}", exc_info=True)
+            return None
 
 
 # 便捷函数

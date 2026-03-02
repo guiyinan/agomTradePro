@@ -7,6 +7,7 @@ Domain 层实体映射到数据库表结构。
 """
 
 import logging
+import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
@@ -21,6 +22,8 @@ from ..domain.entities import (
     DecisionResponse,
     DecisionPriority,
     QuotaPeriod,
+    ExecutionTarget,
+    ExecutionStatus,
 )
 
 
@@ -317,6 +320,11 @@ class DecisionRequestModel(models.Model):
         notional: 名义金额
         requested_at: 请求时间
         expires_at: 过期时间
+        candidate_id: 关联的候选 ID
+        execution_target: 执行目标
+        execution_status: 执行状态
+        executed_at: 执行时间
+        execution_ref: 执行引用
     """
 
     # Priority Choices
@@ -326,6 +334,21 @@ class DecisionRequestModel(models.Model):
         (DecisionPriority.MEDIUM.value, "中"),
         (DecisionPriority.LOW.value, "低"),
         (DecisionPriority.INFO.value, "信息"),
+    ]
+
+    # Execution Target Choices
+    EXECUTION_TARGET_CHOICES = [
+        (ExecutionTarget.NONE.value, "无执行"),
+        (ExecutionTarget.SIMULATED.value, "模拟盘执行"),
+        (ExecutionTarget.ACCOUNT.value, "实盘执行"),
+    ]
+
+    # Execution Status Choices
+    EXECUTION_STATUS_CHOICES = [
+        (ExecutionStatus.PENDING.value, "待执行"),
+        (ExecutionStatus.EXECUTED.value, "已执行"),
+        (ExecutionStatus.FAILED.value, "执行失败"),
+        (ExecutionStatus.CANCELLED.value, "已取消"),
     ]
 
     # 字段定义
@@ -400,6 +423,41 @@ class DecisionRequestModel(models.Model):
         help_text="过期时间"
     )
 
+    # 新增字段：首页主流程闭环改造
+    candidate_id = models.CharField(
+        max_length=64,
+        blank=True,
+        db_index=True,
+        help_text="关联的候选 ID"
+    )
+
+    execution_target = models.CharField(
+        max_length=16,
+        choices=EXECUTION_TARGET_CHOICES,
+        default=ExecutionTarget.NONE.value,
+        help_text="执行目标"
+    )
+
+    execution_status = models.CharField(
+        max_length=16,
+        choices=EXECUTION_STATUS_CHOICES,
+        default=ExecutionStatus.PENDING.value,
+        db_index=True,
+        help_text="执行状态"
+    )
+
+    executed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="执行时间"
+    )
+
+    execution_ref = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="执行引用（如 trade_id, position_id 等）"
+    )
+
     class Meta:
         app_label = "decision_rhythm"
         db_table = "decision_request"
@@ -410,6 +468,8 @@ class DecisionRequestModel(models.Model):
             models.Index(fields=["asset_code", "-requested_at"]),
             models.Index(fields=["priority", "-requested_at"]),
             models.Index(fields=["trigger_id"]),
+            models.Index(fields=["candidate_id"]),
+            models.Index(fields=["execution_status"]),
         ]
 
     def __str__(self):
@@ -431,6 +491,19 @@ class DecisionRequestModel(models.Model):
         if self.notional is not None and self.notional <= 0:
             raise ValidationError({"notional": "名义金额必须大于 0"})
 
+        # 验证执行状态一致性
+        # EXECUTED 状态必须有 executed_at
+        if self.execution_status == ExecutionStatus.EXECUTED.value and self.executed_at is None:
+            raise ValidationError({
+                "executed_at": "执行状态为 EXECUTED 时，执行时间不能为空"
+            })
+
+        # NONE 目标不应该有 execution_ref
+        if self.execution_target == ExecutionTarget.NONE.value and self.execution_ref is not None:
+            raise ValidationError({
+                "execution_ref": "执行目标为 NONE 时，执行引用应为空"
+            })
+
     def to_domain(self) -> DecisionRequest:
         """
         转换为 Domain 层实体
@@ -451,6 +524,12 @@ class DecisionRequestModel(models.Model):
             notional=self.notional,
             requested_at=self.requested_at,
             expires_at=self.expires_at,
+            # 新增字段
+            candidate_id=self.candidate_id or None,
+            execution_target=ExecutionTarget(self.execution_target),
+            execution_status=ExecutionStatus(self.execution_status),
+            executed_at=self.executed_at,
+            execution_ref=self.execution_ref,
         )
 
     @classmethod
@@ -476,6 +555,12 @@ class DecisionRequestModel(models.Model):
             quantity=request.quantity,
             notional=request.notional,
             expires_at=request.expires_at,
+            # 新增字段
+            candidate_id=request.candidate_id or "",
+            execution_target=request.execution_target.value,
+            execution_status=request.execution_status.value,
+            executed_at=request.executed_at,
+            execution_ref=request.execution_ref,
         )
 
 
@@ -583,6 +668,11 @@ class DecisionResponseModel(models.Model):
     def __str__(self):
         status = "APPROVED" if self.approved else "REJECTED"
         return f"DecisionResponse({self.request_id}, {status})"
+
+    def save(self, *args, **kwargs):
+        if not self.response_id:
+            self.response_id = f"response_{uuid.uuid4().hex[:12]}"
+        super().save(*args, **kwargs)
 
     def to_domain(self, request: DecisionRequest) -> DecisionResponse:
         """

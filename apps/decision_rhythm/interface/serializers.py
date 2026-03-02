@@ -16,6 +16,8 @@ from ..domain.entities import (
     DecisionResponse,
     DecisionPriority,
     QuotaPeriod,
+    ExecutionTarget,
+    ExecutionStatus,
 )
 
 
@@ -46,6 +48,32 @@ class QuotaPeriodSerializer(serializers.Field):
             return QuotaPeriod(data)
         except ValueError:
             raise serializers.ValidationError(f"Invalid quota period: {data}")
+
+
+class ExecutionTargetSerializer(serializers.Field):
+    """执行目标序列化器"""
+
+    def to_representation(self, obj: ExecutionTarget) -> str:
+        return obj.value
+
+    def to_internal_value(self, data: str) -> ExecutionTarget:
+        try:
+            return ExecutionTarget(data)
+        except ValueError:
+            raise serializers.ValidationError(f"Invalid execution target: {data}")
+
+
+class ExecutionStatusSerializer(serializers.Field):
+    """执行状态序列化器"""
+
+    def to_representation(self, obj: ExecutionStatus) -> str:
+        return obj.value
+
+    def to_internal_value(self, data: str) -> ExecutionStatus:
+        try:
+            return ExecutionStatus(data)
+        except ValueError:
+            raise serializers.ValidationError(f"Invalid execution status: {data}")
 
 
 # ========== Main Serializers ==========
@@ -324,6 +352,50 @@ class DecisionRequestSerializer(serializers.Serializer):
         help_text="过期时间"
     )
 
+    # 新增字段：首页主流程闭环改造
+    candidate_id = serializers.CharField(
+        read_only=True,
+        allow_null=True,
+        help_text="关联的候选 ID"
+    )
+
+    execution_target = ExecutionTargetSerializer(
+        read_only=True,
+        help_text="执行目标"
+    )
+
+    execution_status = ExecutionStatusSerializer(
+        read_only=True,
+        help_text="执行状态"
+    )
+
+    executed_at = serializers.DateTimeField(
+        read_only=True,
+        allow_null=True,
+        help_text="执行时间"
+    )
+
+    execution_ref = serializers.JSONField(
+        read_only=True,
+        allow_null=True,
+        help_text="执行引用"
+    )
+
+    is_executed = serializers.BooleanField(
+        read_only=True,
+        help_text="是否已执行"
+    )
+
+    is_execution_pending = serializers.BooleanField(
+        read_only=True,
+        help_text="是否待执行"
+    )
+
+    has_execution_target = serializers.BooleanField(
+        read_only=True,
+        help_text="是否有执行目标"
+    )
+
     def to_representation(self, instance: DecisionRequest) -> dict:
         """转换为表示"""
         return {
@@ -343,6 +415,15 @@ class DecisionRequestSerializer(serializers.Serializer):
             "is_expired": instance.is_expired,
             "requested_at": instance.requested_at.isoformat(),
             "expires_at": instance.expires_at.isoformat() if instance.expires_at else None,
+            # 新增字段
+            "candidate_id": instance.candidate_id,
+            "execution_target": instance.execution_target.value,
+            "execution_status": instance.execution_status.value,
+            "executed_at": instance.executed_at.isoformat() if instance.executed_at else None,
+            "execution_ref": instance.execution_ref,
+            "is_executed": instance.is_executed,
+            "is_execution_pending": instance.is_execution_pending,
+            "has_execution_target": instance.has_execution_target,
         }
 
 
@@ -365,8 +446,7 @@ class SubmitDecisionRequestRequestSerializer(serializers.Serializer):
         help_text="方向"
     )
 
-    priority = serializers.ChoiceField(
-        choices=[dp.value for dp in DecisionPriority],
+    priority = serializers.CharField(
         default=DecisionPriority.MEDIUM.value,
         help_text="优先级"
     )
@@ -405,12 +485,25 @@ class SubmitDecisionRequestRequestSerializer(serializers.Serializer):
         help_text="名义金额"
     )
 
-    quota_period = serializers.ChoiceField(
-        choices=[qp.value for qp in QuotaPeriod],
+    quota_period = serializers.CharField(
         default=QuotaPeriod.WEEKLY.value,
         required=False,
         help_text="使用的配额周期"
     )
+
+    def validate_priority(self, value):
+        normalized = str(value).strip().lower()
+        valid = {dp.value for dp in DecisionPriority}
+        if normalized not in valid:
+            raise serializers.ValidationError(f"Invalid priority: {value}")
+        return normalized
+
+    def validate_quota_period(self, value):
+        normalized = str(value).strip().lower()
+        valid = {qp.value for qp in QuotaPeriod}
+        if normalized not in valid:
+            raise serializers.ValidationError(f"Invalid quota_period: {value}")
+        return normalized
 
 
 class SubmitBatchRequestRequestSerializer(serializers.Serializer):
@@ -421,12 +514,18 @@ class SubmitBatchRequestRequestSerializer(serializers.Serializer):
         help_text="决策请求列表"
     )
 
-    quota_period = serializers.ChoiceField(
-        choices=[qp.value for qp in QuotaPeriod],
+    quota_period = serializers.CharField(
         default=QuotaPeriod.WEEKLY.value,
         required=False,
         help_text="使用的配额周期"
     )
+
+    def validate_quota_period(self, value):
+        normalized = str(value).strip().lower()
+        valid = {qp.value for qp in QuotaPeriod}
+        if normalized not in valid:
+            raise serializers.ValidationError(f"Invalid quota_period: {value}")
+        return normalized
 
 
 class ResetQuotaRequestSerializer(serializers.Serializer):

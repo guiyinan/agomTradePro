@@ -447,7 +447,7 @@ class AlphaCandidateRepository:
             model.time_horizon = candidate.time_horizon
             model.expected_return = candidate.expected_return
             model.risk_level = candidate.risk_level
-            model.custom_data = candidate.custom_data
+            model.custom_data = getattr(candidate, "metadata", {}) or {}
 
             # 如果状态变更，更新状态变更时间
             if model.status != candidate.status.value:
@@ -565,6 +565,42 @@ class AlphaCandidateRepository:
             return True
         except ObjectDoesNotExist:
             return False
+
+    def update_execution_tracking(
+        self,
+        candidate_id: str,
+        decision_request_id: str,
+        execution_status: str,
+    ) -> AlphaCandidate:
+        """
+        更新候选的执行跟踪信息
+
+        Args:
+            candidate_id: 候选 ID
+            decision_request_id: 决策请求 ID
+            execution_status: 执行状态
+
+        Returns:
+            更新后的 AlphaCandidate 实体
+
+        Raises:
+            ValueError: 候选不存在
+        """
+        try:
+            model = self.model.objects.get(candidate_id=candidate_id)
+            model.last_decision_request_id = decision_request_id
+            model.last_execution_status = execution_status
+            model.save(update_fields=["last_decision_request_id", "last_execution_status"])
+
+            logger.info(
+                f"Alpha candidate execution tracking updated: {candidate_id} "
+                f"-> request={decision_request_id}, status={execution_status}"
+            )
+
+            return model.to_domain()
+
+        except ObjectDoesNotExist:
+            raise ValueError(f"Candidate not found: {candidate_id}")
 
 
 # 便捷函数

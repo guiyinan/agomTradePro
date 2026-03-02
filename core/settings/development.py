@@ -7,7 +7,8 @@ import os
 
 # DEBUG
 DEBUG = True
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
+# Development only: relax host checks for local debugging/tools.
+ALLOWED_HOSTS = ['*']
 
 # Database - 使用 PostgreSQL (从 .env 读取 DATABASE_URL)
 DATABASES = {

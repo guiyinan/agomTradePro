@@ -2,7 +2,8 @@
 from .base import *
 import os
 DEBUG = True
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
+# Development only: relax host checks for local debugging/tools.
+ALLOWED_HOSTS = ['*']
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
