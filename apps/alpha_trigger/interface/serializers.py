@@ -400,6 +400,29 @@ class AlphaCandidateSerializer(serializers.Serializer):
         help_text="自定义数据"
     )
 
+    # 新增字段：首页主流程闭环改造
+    last_decision_request_id = serializers.CharField(
+        read_only=True,
+        allow_null=True,
+        help_text="最后决策请求 ID"
+    )
+
+    last_execution_status = serializers.CharField(
+        read_only=True,
+        allow_null=True,
+        help_text="最后执行状态"
+    )
+
+    is_executed = serializers.BooleanField(
+        read_only=True,
+        help_text="是否已执行"
+    )
+
+    has_decision_request = serializers.BooleanField(
+        read_only=True,
+        help_text="是否有关联的决策请求"
+    )
+
     def to_representation(self, instance: AlphaCandidate) -> dict:
         """转换为表示"""
         return {
@@ -422,6 +445,11 @@ class AlphaCandidateSerializer(serializers.Serializer):
             "status_changed_at": instance.status_changed_at.isoformat() if instance.status_changed_at else None,
             "promoted_to_signal_at": instance.promoted_to_signal_at.isoformat() if instance.promoted_to_signal_at else None,
             "custom_data": instance.custom_data,
+            # 新增字段
+            "last_decision_request_id": instance.last_decision_request_id,
+            "last_execution_status": instance.last_execution_status,
+            "is_executed": instance.is_executed,
+            "has_decision_request": instance.has_decision_request,
         }
 
 

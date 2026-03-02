@@ -29,6 +29,11 @@ urlpatterns = [
     path("api/decision-rhythm/reset-quota/", decision_rhythm_views.ResetQuotaView.as_view(), name="reset-quota"),
     path("api/decision-rhythm/trend-data/", decision_rhythm_views.TrendDataView.as_view(), name="api_trend_data"),
 
+    # 决策执行相关 API（WP-2 新增）
+    path("api/decision-workflow/precheck/", decision_rhythm_views.PrecheckDecisionView.as_view(), name="precheck"),
+    path("api/decision-rhythm/requests/<str:request_id>/execute/", decision_rhythm_views.ExecuteDecisionRequestView.as_view(), name="execute-request"),
+    path("api/decision-rhythm/requests/<str:request_id>/cancel/", decision_rhythm_views.CancelDecisionRequestView.as_view(), name="cancel-request"),
+
     # Template 视图路由
     path("decision-rhythm/quota/", decision_rhythm_views.decision_rhythm_quota_view, name="quota"),
     path("decision-rhythm/config/", decision_rhythm_views.decision_rhythm_config_view, name="config"),

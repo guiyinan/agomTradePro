@@ -204,9 +204,15 @@
             <button class="btn-action btn-approve" onclick="updateCandidateStatus('ACTIONABLE')">
                 <i class="bi bi-check-circle"></i> 批准
             </button>
-            <button class="btn-action btn-execute" onclick="updateCandidateStatus('EXECUTED')">
-                <i class="bi bi-play-circle"></i> 标记已执行
+            {% if candidate.last_decision_request_id %}
+            <button class="btn-action btn-execute" onclick="goToExecute('{{ candidate.last_decision_request_id|escapejs }}', '{{ candidate.asset_code|escapejs }}', '{% if candidate.direction == 'LONG' %}BUY{% else %}SELL{% endif %}')">
+                <i class="bi bi-play-circle"></i> 去执行
             </button>
+            {% else %}
+            <button class="btn-action btn-execute" disabled title="请先提交决策请求">
+                <i class="bi bi-play-circle"></i> 去执行
+            </button>
+            {% endif %}
             {% endif %}
             {% if candidate.status != 'EXECUTED' and candidate.status != 'INVALIDATED' and candidate.status != 'CANCELLED' %}
             <button class="btn-action btn-reject" onclick="updateCandidateStatus('CANCELLED')">
@@ -217,6 +223,33 @@
                 <i class="bi bi-archive"></i> 归档
             </button>
         </div>
+
+        <!-- 执行引用显示（只读） -->
+        {% if candidate.status == 'EXECUTED' and candidate.last_execution_status %}
+        <div class="execution-ref-display">
+            <div class="panel-header" style="margin-bottom: 12px;">
+                <span class="panel-title">执行记录</span>
+            </div>
+            {% if execution_ref %}
+            <div class="execution-ref-item">
+                <span class="execution-ref-label">交易 ID:</span>
+                <span class="execution-ref-value">{{ execution_ref.trade_id|default:"-" }}</span>
+            </div>
+            <div class="execution-ref-item">
+                <span class="execution-ref-label">持仓 ID:</span>
+                <span class="execution-ref-value">{{ execution_ref.position_id|default:"-" }}</span>
+            </div>
+            <div class="execution-ref-item">
+                <span class="execution-ref-label">账户 ID:</span>
+                <span class="execution-ref-value">{{ execution_ref.account_id|default:"-" }}</span>
+            </div>
+            {% endif %}
+            <div class="execution-ref-item">
+                <span class="execution-ref-label">执行状态:</span>
+                <span class="execution-ref-value">{{ candidate.last_execution_status }}</span>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <!-- 投资论点 -->
@@ -343,6 +376,12 @@ async function updateCandidateStatus(newStatus) {
     } catch (e) {
         showToast('网络错误: ' + e.message, 'error');
     }
+}
+
+// 去执行
+function goToExecute(requestId, assetCode, direction) {
+    // 跳转到工作台并打开执行模态框
+    window.location.href = `/decision/workspace/?execute_request=${requestId}&asset_code=${assetCode}&direction=${direction}`;
 }
 
 // 归档候选

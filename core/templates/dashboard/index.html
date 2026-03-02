@@ -10,6 +10,8 @@
 <link rel="stylesheet" href="{% static 'css/home.css' %}">
 <!-- Teaching Module -->
 <link rel="stylesheet" href="{% static 'css/teaching.css' %}">
+<!-- Main Workflow Panel (WP-3) -->
+<link rel="stylesheet" href="{% static 'css/main-workflow.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -541,6 +543,9 @@
             </div>
         </section>
         {% endif %}
+
+        <!-- 主流程面板 (WP-3 新增) -->
+        {% include "dashboard/main_workflow_panel.html" %}
 
         <!-- 持仓和信号 -->
         <div class="content-row">
@@ -2163,6 +2168,9 @@ chatSendBtn.onclick = async function() {
 
 <!-- Teaching Modal Template -->
 {% include "dashboard/teaching_modal.html" %}
+
+<!-- Main Workflow Panel JS (WP-3) -->
+<script src="{% static 'js/main-workflow.js' %}"></script>
 
 <!-- Floating Widget Config -->
 <script>

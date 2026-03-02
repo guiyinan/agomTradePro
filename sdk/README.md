@@ -155,6 +155,8 @@ Three methods (priority order):
 | `client.sector` | Sector analysis - scoring, hot sectors, comparison |
 | `client.strategy` | Strategy management - create/execute strategy, bind/unbind portfolio strategy, DB-driven position rules |
 | `client.realtime` | Real-time prices - market data, alerts, top movers |
+| `client.decision_workflow` | **Decision workflow (V3.4+)** - precheck, beta gate check, quota check, cooldown check |
+| `client.decision_rhythm` | **Decision rhythm (V3.4+)** - submit, execute, cancel, get decision requests |
 
 ## MCP Tools (60+)
 
@@ -178,7 +180,8 @@ Three methods (priority order):
 - **Sector**: `list_sectors`, `get_hot_sectors`, `compare_sectors`
 - **Strategy**: `list_strategies`, `create_strategy`, `execute_strategy`
 - **Strategy Assignment**: `bind_portfolio_strategy`, `unbind_portfolio_strategy`
-- **Decision Rhythm**: `submit_decision_request`, `list_decision_requests`
+- **Decision Rhythm**: `submit_decision_request`, `list_decision_requests`, `decision_execute_request`, `decision_cancel_request`, `get_decision_request`
+- **Decision Workflow (V3.4+)**: `decision_workflow_precheck`, `decision_workflow_check_beta_gate`, `decision_workflow_check_quota`, `decision_workflow_check_cooldown`
 - **Realtime**: `get_realtime_price`, `get_market_summary`, `create_price_alert`
 
 ## Documentation
@@ -221,12 +224,12 @@ agomsaaf-mcp
 
 ## Project Status
 
-- **Version**: 1.1.0
-- **Modules**: 13 business modules
-- **MCP Tools**: 60+ tools
+- **Version**: 1.2.0
+- **Modules**: 15 business modules
+- **MCP Tools**: 65+ tools
 - **Test Coverage**: Core modules covered
 - **Documentation**: Complete
-- **Last Updated**: 2026-02-27
+- **Last Updated**: 2026-03-01
 
 ## License
 

@@ -45,6 +45,43 @@ class DecisionStatus(Enum):
     EXPIRED = "expired"
 
 
+class ExecutionTarget(Enum):
+    """
+    执行目标枚举
+
+    定义决策请求的执行目标类型。
+    """
+
+    NONE = "NONE"
+    """无执行：仅决策，不执行"""
+
+    SIMULATED = "SIMULATED"
+    """模拟盘执行：在模拟账户中执行"""
+
+    ACCOUNT = "ACCOUNT"
+    """实盘执行：在真实账户中执行"""
+
+
+class ExecutionStatus(Enum):
+    """
+    执行状态枚举
+
+    定义决策请求的执行状态。
+    """
+
+    PENDING = "PENDING"
+    """待执行：等待执行"""
+
+    EXECUTED = "EXECUTED"
+    """已执行：执行完成"""
+
+    FAILED = "FAILED"
+    """执行失败：执行过程中出错"""
+
+    CANCELLED = "CANCELLED"
+    """已取消：执行被取消"""
+
+
 class QuotaPeriod(Enum):
     """
     配额周期枚举
@@ -410,6 +447,11 @@ class DecisionRequest:
         notional: 名义金额（可选）
         requested_at: 请求时间
         expires_at: 过期时间（可选）
+        candidate_id: 关联的候选 ID（可选）
+        execution_target: 执行目标
+        execution_status: 执行状态
+        executed_at: 执行时间（可选）
+        execution_ref: 执行引用（可选）
 
     Example:
         >>> request = DecisionRequest(
@@ -436,6 +478,12 @@ class DecisionRequest:
     created_at: Optional[datetime] = None
     requested_at: datetime = field(default_factory=datetime.now)
     expires_at: Optional[datetime] = None
+    # 新增字段：首页主流程闭环改造
+    candidate_id: Optional[str] = None
+    execution_target: ExecutionTarget = ExecutionTarget.NONE
+    execution_status: ExecutionStatus = ExecutionStatus.PENDING
+    executed_at: Optional[datetime] = None
+    execution_ref: Optional[Dict[str, Any]] = None
 
     @property
     def is_buy(self) -> bool:
@@ -454,6 +502,21 @@ class DecisionRequest:
             return False
         return datetime.now() > self.expires_at
 
+    @property
+    def is_executed(self) -> bool:
+        """是否已执行"""
+        return self.execution_status == ExecutionStatus.EXECUTED
+
+    @property
+    def is_execution_pending(self) -> bool:
+        """是否待执行"""
+        return self.execution_status == ExecutionStatus.PENDING
+
+    @property
+    def has_execution_target(self) -> bool:
+        """是否有执行目标"""
+        return self.execution_target != ExecutionTarget.NONE
+
     def __post_init__(self):
         if self.created_at is not None:
             object.__setattr__(self, "requested_at", self.created_at)
@@ -469,6 +532,25 @@ class DecisionRequest:
             DecisionPriority.CRITICAL: 4,
         }
         return priority_map.get(self.priority, 0)
+
+    def validate_execution_consistency(self) -> bool:
+        """
+        验证执行状态一致性
+
+        Returns:
+            True 如果状态一致，False 否则
+
+        规则：
+        - execution_status='EXECUTED' 时 executed_at 必填
+        - execution_target='NONE' 时 execution_ref 应为空
+        """
+        # EXECUTED 状态必须有 executed_at
+        if self.execution_status == ExecutionStatus.EXECUTED and self.executed_at is None:
+            return False
+        # NONE 目标不应该有 execution_ref
+        if self.execution_target == ExecutionTarget.NONE and self.execution_ref is not None:
+            return False
+        return True
 
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
@@ -489,6 +571,15 @@ class DecisionRequest:
             "requested_at": self.requested_at.isoformat(),
             "expires_at": self.expires_at.isoformat() if self.expires_at else None,
             "is_expired": self.is_expired,
+            # 新增字段
+            "candidate_id": self.candidate_id,
+            "execution_target": self.execution_target.value,
+            "execution_status": self.execution_status.value,
+            "executed_at": self.executed_at.isoformat() if self.executed_at else None,
+            "execution_ref": self.execution_ref,
+            "is_executed": self.is_executed,
+            "is_execution_pending": self.is_execution_pending,
+            "has_execution_target": self.has_execution_target,
         }
 
 

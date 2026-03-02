@@ -208,7 +208,19 @@
                     <p class="todo-reason">{{ request.reason|truncatewords:20 }}</p>
                 </div>
                 <div class="todo-actions">
-                    <span class="btn btn-sm btn-outline" style="cursor: default;">待系统处理</span>
+                    <span class="btn btn-sm btn-outline" style="cursor: default;">待执行落地</span>
+                    {% if request.execution_status == 'PENDING' %}
+                    <button class="btn btn-sm btn-primary" onclick="executeRequest('{{ request.request_id|escapejs }}')">
+                        去执行
+                    </button>
+                    <button class="btn btn-sm btn-secondary" onclick="cancelRequest('{{ request.request_id|escapejs }}')">
+                        取消
+                    </button>
+                    {% elif request.execution_status == 'FAILED' %}
+                    <button class="btn btn-sm btn-warning" onclick="retryRequest('{{ request.request_id|escapejs }}')">
+                        重试
+                    </button>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -259,7 +271,7 @@
                 </div>
                 <div class="candidate-footer">
                     <a href="{% url 'alpha_trigger:candidate_detail' candidate.candidate_id %}" class="btn btn-sm btn-primary">查看详情</a>
-                    <a href="{% url 'alpha_trigger:detail' candidate.source_trigger_id %}" class="btn btn-sm btn-outline">来源触发器</a>
+                    <a href="{% url 'alpha_trigger:detail' candidate.trigger_id %}" class="btn btn-sm btn-outline">来源触发器</a>
                     <button class="btn btn-sm btn-secondary"
                             onclick="submitDecisionRequest('{{ candidate.candidate_id|escapejs }}', '{{ candidate.asset_code|escapejs }}', '{{ candidate.asset_class|escapejs }}', '{{ candidate.direction|escapejs }}', {{ candidate.confidence|default:0 }}, '{{ candidate.thesis|default:''|escapejs }}')">
                         提交决策请求
@@ -385,6 +397,53 @@ function submitDecisionRequest(candidateId, assetCode, assetClass, direction, co
     .catch(error => {
         alert('请求失败: ' + error.message);
     });
+}
+
+// P0-4: 新增执行、取消、重试函数
+function executeRequest(requestId) {
+    // 打开执行弹窗或跳转到执行页面
+    if (confirm('确定要执行此决策请求吗？')) {
+        // 简化处理：跳转到候选详情页
+        window.location.href = `/decision/workspace/?execute=${requestId}`;
+    }
+}
+
+function cancelRequest(requestId) {
+    if (!confirm('确定要取消此决策请求吗？')) {
+        return;
+    }
+
+    fetch(`/api/decision-rhythm/requests/${requestId}/cancel/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': window.csrfToken
+        },
+        body: JSON.stringify({
+            reason: '用户手动取消'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.showToast('决策请求已取消', 'success');
+            setTimeout(() => window.location.reload(), 800);
+        } else {
+            alert('取消失败: ' + (data.error || '未知错误'));
+        }
+    })
+    .catch(error => {
+        alert('请求失败: ' + error.message);
+    });
+}
+
+function retryRequest(requestId) {
+    if (!confirm('确定要重试执行此决策请求吗？')) {
+        return;
+    }
+
+    // 重试执行：跳转到执行页面
+    window.location.href = `/decision/workspace/?execute=${requestId}&retry=1`;
 }
 
 // 自动刷新（每 30 秒）

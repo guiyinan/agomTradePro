@@ -62,7 +62,9 @@ class EventBusInitializer:
             初始化完成的事件总线
         """
         # 创建事件总线
-        self.event_bus = InMemoryEventBus(self.event_store)
+        from ..domain.entities import EventBusConfig
+        config = EventBusConfig()
+        self.event_bus = InMemoryEventBus(config)
 
         # 注册所有处理器
         self._register_all_handlers()
@@ -98,8 +100,8 @@ class EventBusInitializer:
             from apps.beta_gate.domain.services import (
                 VisibilityUniverseBuilder,
                 GateConfigSelector,
-                get_default_configs,
             )
+            from apps.beta_gate.domain.entities import get_default_configs
 
             # 创建处理器
             beta_gate_handler = BetaGateEventHandler(
@@ -111,9 +113,24 @@ class EventBusInitializer:
                 config_selector=GateConfigSelector(get_default_configs()),
             )
 
+            # 修复：使用 EventSubscription 包装 handler
+            from ..domain.entities import EventSubscription, EventType
+            import uuid
+
+            beta_subscription = EventSubscription(
+                subscription_id=f"beta_gate_{uuid.uuid4().hex[:8]}",
+                event_type=EventType.REGIME_CHANGED,
+                handler=beta_gate_handler,
+            )
+            gate_subscription = EventSubscription(
+                subscription_id=f"gate_invalid_{uuid.uuid4().hex[:8]}",
+                event_type=EventType.POLICY_LEVEL_CHANGED,
+                handler=gate_invalidation_handler,
+            )
+
             # 注册
-            self.event_bus.subscribe(beta_gate_handler)
-            self.event_bus.subscribe(gate_invalidation_handler)
+            self.event_bus.subscribe(beta_subscription)
+            self.event_bus.subscribe(gate_subscription)
 
             self.handlers.extend([beta_gate_handler, gate_invalidation_handler])
 
@@ -138,8 +155,18 @@ class EventBusInitializer:
                 event_bus=self.event_bus,
             )
 
+            # 修复：使用 EventSubscription 包装 handler
+            from ..domain.entities import EventSubscription, EventType
+            import uuid
+
+            subscription = EventSubscription(
+                subscription_id=f"alpha_trigger_{uuid.uuid4().hex[:8]}",
+                event_type=EventType.ALPHA_TRIGGER_ACTIVATED,
+                handler=alpha_trigger_handler,
+            )
+
             # 注册
-            self.event_bus.subscribe(alpha_trigger_handler)
+            self.event_bus.subscribe(subscription)
 
             self.handlers.append(alpha_trigger_handler)
 
@@ -168,8 +195,18 @@ class EventBusInitializer:
                 event_bus=self.event_bus,
             )
 
+            # 修复：使用 EventSubscription 包装 handler
+            from ..domain.entities import EventSubscription, EventType
+            import uuid
+
+            subscription = EventSubscription(
+                subscription_id=f"decision_rhythm_{uuid.uuid4().hex[:8]}",
+                event_type=EventType.DECISION_APPROVED,
+                handler=rhythm_handler,
+            )
+
             # 注册
-            self.event_bus.subscribe(rhythm_handler)
+            self.event_bus.subscribe(subscription)
 
             self.handlers.append(rhythm_handler)
 
@@ -180,13 +217,76 @@ class EventBusInitializer:
 
     def _register_other_handlers(self):
         """注册其他处理器"""
-        # 可以在这里注册其他通用处理器
-        # 如日志处理器、监控处理器等
+        # 注册决策执行相关处理器
+        self._register_decision_execution_handlers()
 
-        # 添加日志处理器（默认）
+        # 添加日志处理器（默认）- 使用 EventSubscription 包装
+        from ..domain.entities import EventSubscription, EventType
+        import uuid
+
         log_handler = LoggingEventHandler()
-        self.event_bus.subscribe(log_handler)
+        log_subscription = EventSubscription(
+            subscription_id=f"log_handler_{uuid.uuid4().hex[:8]}",
+            event_type=EventType.REGIME_CHANGED,  # 使用通用事件类型
+            handler=log_handler,
+        )
+        self.event_bus.subscribe(log_subscription)
         self.handlers.append(log_handler)
+
+    def _register_decision_execution_handlers(self):
+        """注册决策执行相关处理器"""
+        try:
+            from .decision_execution_handlers import (
+                DecisionApprovedHandler,
+                DecisionExecutedHandler,
+                DecisionExecutionFailedHandler,
+            )
+            from ..domain.entities import EventSubscription, EventType
+            import uuid
+
+            # 创建处理器
+            decision_approved_handler = DecisionApprovedHandler(
+                event_bus=self.event_bus
+            )
+            decision_executed_handler = DecisionExecutedHandler(
+                event_bus=self.event_bus
+            )
+            decision_execution_failed_handler = DecisionExecutionFailedHandler(
+                event_bus=self.event_bus
+            )
+
+            # 修复：使用 EventSubscription 包装 handler
+            approved_subscription = EventSubscription(
+                subscription_id=f"decision_approved_{uuid.uuid4().hex[:8]}",
+                event_type=EventType.DECISION_APPROVED,
+                handler=decision_approved_handler,
+            )
+            executed_subscription = EventSubscription(
+                subscription_id=f"decision_executed_{uuid.uuid4().hex[:8]}",
+                event_type=EventType.DECISION_EXECUTED,
+                handler=decision_executed_handler,
+            )
+            failed_subscription = EventSubscription(
+                subscription_id=f"decision_failed_{uuid.uuid4().hex[:8]}",
+                event_type=EventType.DECISION_EXECUTION_FAILED,
+                handler=decision_execution_failed_handler,
+            )
+
+            # 注册
+            self.event_bus.subscribe(approved_subscription)
+            self.event_bus.subscribe(executed_subscription)
+            self.event_bus.subscribe(failed_subscription)
+
+            self.handlers.extend([
+                decision_approved_handler,
+                decision_executed_handler,
+                decision_execution_failed_handler,
+            ])
+
+            logger.info("Decision execution handlers registered")
+
+        except ImportError as e:
+            logger.warning(f"Failed to import decision execution handlers: {e}")
 
     def get_event_bus(self) -> Optional[EventBus]:
         """

@@ -96,6 +96,11 @@ def _classify_tool_level(tool_name: str) -> str:
     if name.startswith(admin_prefixes):
         return "admin"
 
+    # 决策执行工具需要特殊权限（仅 admin/owner/investment_manager）
+    execute_only_tools = {"decision_execute_request"}
+    if name in execute_only_tools:
+        return "execute_only"
+
     write_prefixes = (
         "create_",
         "update_",
@@ -181,8 +186,8 @@ def _role_allows_by_matrix(role: str, level: str, domain: str) -> bool:
     Role matrix:
     - admin: all
     - owner: all except system/admin
-    - analyst: read-only
-    - investment_manager: read + write on trading/strategy/risk/general, no system/admin
+    - analyst: read-only (cannot execute decision requests)
+    - investment_manager: read + write on trading/strategy/risk/general, can execute decisions
     - trader: read + write on trading, read others, no system/admin
     - risk: read all + write only on risk domain, no system/admin
     - read_only: read-only
@@ -193,8 +198,12 @@ def _role_allows_by_matrix(role: str, level: str, domain: str) -> bool:
     if level == "admin" or domain == "system":
         return False
 
+    # 决策执行权限：仅 admin、owner、investment_manager 可执行
+    if level == "execute_only":
+        return role in {"owner", "investment_manager"}
+
     if role == "owner":
-        return level in {"read", "write"}
+        return level in {"read", "write", "execute_only"}
 
     if role == "analyst":
         return level == "read"

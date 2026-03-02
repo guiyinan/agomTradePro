@@ -15,6 +15,7 @@ from .event_store import (
     get_snapshot_store,
     get_replay_handler,
 )
+from .models import FailedEventModel
 
 __all__ = [
     "StoredEventModel",
@@ -26,4 +27,5 @@ __all__ = [
     "get_event_store",
     "get_snapshot_store",
     "get_replay_handler",
+    "FailedEventModel",
 ]

@@ -99,6 +99,9 @@ class EventType(Enum):
     DECISION_EXECUTED = "decision_executed"
     """决策被执行时触发"""
 
+    DECISION_EXECUTION_FAILED = "decision_execution_failed"
+    """决策执行失败时触发"""
+
     QUOTA_EXCEEDED = "quota_exceeded"
     """决策配额被用尽时触发"""
 

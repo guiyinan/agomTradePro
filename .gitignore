@@ -85,3 +85,5 @@ celerybeat-schedule*
 # /reports
 # /tests/playwright/reports
 /tests/playwright/reports/screenshots
+/.claude
+/.claude

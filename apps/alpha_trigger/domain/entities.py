@@ -472,6 +472,8 @@ class AlphaCandidate:
         created_at: 创建时间
         updated_at: 更新时间
         audit_trail: 审计轨迹
+        last_decision_request_id: 最后决策请求 ID（可选）
+        last_execution_status: 最后执行状态（可选）
 
     Example:
         >>> candidate = AlphaCandidate(
@@ -512,6 +514,9 @@ class AlphaCandidate:
     risk_level: Optional[str] = None
     status_changed_at: Optional[datetime] = None
     promoted_to_signal_at: Optional[datetime] = None
+    # 新增字段：首页主流程闭环改造
+    last_decision_request_id: Optional[str] = None
+    last_execution_status: Optional[str] = None
 
     def __post_init__(self) -> None:
         if isinstance(self.status, str):
@@ -536,6 +541,16 @@ class AlphaCandidate:
     def is_dropped(self) -> bool:
         """是否已放弃"""
         return self.status == "DROPPED"
+
+    @property
+    def is_executed(self) -> bool:
+        """是否已执行"""
+        return self.status == CandidateStatus.EXECUTED or self.status == "EXECUTED"
+
+    @property
+    def has_decision_request(self) -> bool:
+        """是否有关联的决策请求"""
+        return self.last_decision_request_id is not None and self.last_decision_request_id != ""
 
     @property
     def days_remaining(self) -> int:
@@ -573,6 +588,11 @@ class AlphaCandidate:
             "risk_level": self.risk_level,
             "status_changed_at": self.status_changed_at.isoformat() if self.status_changed_at else None,
             "promoted_to_signal_at": self.promoted_to_signal_at.isoformat() if self.promoted_to_signal_at else None,
+            # 新增字段
+            "last_decision_request_id": self.last_decision_request_id,
+            "last_execution_status": self.last_execution_status,
+            "is_executed": self.is_executed,
+            "has_decision_request": self.has_decision_request,
         }
 
 

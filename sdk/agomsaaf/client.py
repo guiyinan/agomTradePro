@@ -50,6 +50,7 @@ from .modules.signal import SignalModule
 from .modules.simulated_trading import SimulatedTradingModule
 from .modules.strategy import StrategyModule
 from .modules.task_monitor import TaskMonitorModule
+from .modules.decision_workflow import DecisionWorkflowModule
 
 
 class AgomSAAFClient:
@@ -96,6 +97,7 @@ class AgomSAAFClient:
     _sentiment: Optional[SentimentModule] = None
     _task_monitor: Optional[TaskMonitorModule] = None
     _filter: Optional[FilterModule] = None
+    _decision_workflow: Optional[DecisionWorkflowModule] = None
 
     def __init__(
         self,
@@ -555,6 +557,13 @@ class AgomSAAFClient:
         if self._filter is None:
             self._filter = FilterModule(self)
         return self._filter
+
+    @property
+    def decision_workflow(self) -> DecisionWorkflowModule:
+        """决策工作流模块"""
+        if self._decision_workflow is None:
+            self._decision_workflow = DecisionWorkflowModule(self)
+        return self._decision_workflow
 
     # ========================================================================
     # 会话管理

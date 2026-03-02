@@ -450,6 +450,54 @@ class PositionRepository:
 
         return position
 
+    def update_or_create_position(
+        self,
+        portfolio_id: int,
+        asset_code: str,
+        shares: float,
+        avg_cost: Decimal,
+        current_price: Decimal,
+        source: str = "signal",
+    ) -> Position:
+        """
+        更新或创建持仓（P2-11: 添加此方法以支持架构合规）
+
+        Args:
+            portfolio_id: 投资组合 ID
+            asset_code: 资产代码
+            shares: 持仓数量
+            avg_cost: 平均成本
+            current_price: 当前价格
+            source: 来源
+
+        Returns:
+            Position 实体
+        """
+        # 获取资产元数据
+        try:
+            asset_meta = AssetMetadataModel._default_manager.get(asset_code=asset_code)
+        except AssetMetadataModel.DoesNotExist:
+            asset_meta = None
+
+        # 创建或更新持仓
+        model, created = PositionModel._default_manager.update_or_create(
+            portfolio_id=portfolio_id,
+            asset_code=asset_code,
+            defaults={
+                "shares": shares,
+                "avg_cost": avg_cost,
+                "current_price": current_price,
+                "market_value": Decimal(str(shares * float(current_price))),
+                "asset_class": asset_meta.asset_class if asset_meta else "equity",
+                "region": asset_meta.region if asset_meta else "CN",
+                "cross_border": asset_meta.cross_border if asset_meta else "domestic",
+                "source": source,
+                "is_closed": False,
+            },
+        )
+
+        return PortfolioRepository()._convert_to_position_entities([model])[0]
+
 
 class TransactionRepository:
     """交易记录仓储"""

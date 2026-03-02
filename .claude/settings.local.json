@@ -131,7 +131,8 @@
       "Bash(tail:*)",
       "Bash(head:*)",
       "Bash(PYTHONPATH=D:/githv/agomSAAF/sdk:$PYTHONPATH python:*)",
-      "Bash(export:*)"
+      "Bash(export:*)",
+      "Bash(npx skills:*)"
     ]
   }
 }

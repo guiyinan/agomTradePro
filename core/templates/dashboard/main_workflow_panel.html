@@ -1,0 +1,186 @@
+{% load static %}
+
+<!-- 主流程面板 -->
+<section class="main-workflow-panel">
+    <div class="section-header">
+        <h2 class="section-title">🚀 主流程</h2>
+        <p class="section-subtitle">环境 → 候选 → 决策 → 执行 → 回写</p>
+    </div>
+
+    <!-- 步骤导航 -->
+    <div class="workflow-steps">
+        <div class="workflow-step {% if current_regime and policy_level %}completed{% else %}active{% endif %}">
+            <div class="step-number">1</div>
+            <div class="step-label">环境</div>
+        </div>
+        <div class="workflow-step {% if alpha_actionable_count > 0 %}active{% else %}{% endif %}">
+            <div class="step-number">2</div>
+            <div class="step-label">候选</div>
+        </div>
+        <div class="workflow-step">
+            <div class="step-number">3</div>
+            <div class="step-label">决策</div>
+        </div>
+        <div class="workflow-step">
+            <div class="step-number">4</div>
+            <div class="step-label">执行</div>
+        </div>
+        <div class="workflow-step">
+            <div class="step-number">5</div>
+            <div class="step-label">回写</div>
+        </div>
+    </div>
+
+    <!-- 可操作候选列表 -->
+    {% if actionable_candidates %}
+    <div class="candidate-actions-section">
+        <h3 class="subsection-title">可行动候选 ({{ actionable_candidates|length }})</h3>
+
+        {% for candidate in actionable_candidates %}
+        <div class="candidate-action-row" data-candidate-id="{{ candidate.candidate_id }}">
+            <!-- 候选信息 -->
+            <div class="candidate-info-cell">
+                <div class="candidate-main-info">
+                    <span class="candidate-asset-code">{{ candidate.asset_code }}</span>
+                    <span class="candidate-direction-badge {{ candidate.direction|lower }}">
+                        {% if candidate.direction == 'LONG' %}做多{% elif candidate.direction == 'SHORT' %}做空{% else %}中性{% endif %}
+                    </span>
+                </div>
+                <div class="candidate-meta">
+                    <span class="candidate-confidence">置信度: {{ candidate.confidence|floatformat:2 }}</span>
+                    <span class="candidate-asset-class">{{ candidate.asset_class }}</span>
+                </div>
+            </div>
+
+            <!-- 预检查按钮 -->
+            <button class="btn-precheck"
+                    onclick="performPrecheck('{{ candidate.candidate_id|escapejs }}', '{{ candidate.asset_code|escapejs }}')">
+                🔍 预检查
+            </button>
+
+            <!-- 提交决策按钮 -->
+            <button class="btn-submit-decision"
+                    onclick="submitDecision('{{ candidate.candidate_id|escapejs }}', '{{ candidate.asset_code|escapejs }}', '{{ candidate.asset_class|escapejs }}', '{{ candidate.direction|escapejs }}', {{ candidate.confidence|default:0 }}, '{{ candidate.thesis|default:''|escapejs }}')">
+                📝 提交决策
+            </button>
+
+            <!-- 执行按钮 -->
+            <button class="btn-execute" disabled
+                    onclick="openExecuteModal('{{ candidate.candidate_id|escapejs }}', this.dataset.requestId, '{{ candidate.asset_code|escapejs }}', '{% if candidate.direction == 'LONG' %}BUY{% else %}SELL{% endif %}')">
+                ⚡ 执行
+            </button>
+
+            <!-- 预检查结果容器 -->
+            <div class="precheck-result-container"></div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">⏳</div>
+        <p>暂无可操作的候选</p>
+        <a href="{% url 'alpha_trigger:create' %}" class="btn btn-primary">创建触发器</a>
+    </div>
+    {% endif %}
+</section>
+
+<!-- 执行模态框 -->
+<div id="executeModal" class="execute-modal-overlay">
+    <div class="execute-modal">
+        <div class="execute-modal-header">
+            <h3 class="execute-modal-title">执行决策</h3>
+            <button class="execute-modal-close" onclick="closeExecuteModal()">×</button>
+        </div>
+
+        <div class="execute-modal-body">
+            <!-- 决策信息 -->
+            <div class="execution-info">
+                <p><strong>资产代码:</strong> <span id="modalAssetCode"></span></p>
+                <p><strong>方向:</strong> <span id="modalDirection"></span></p>
+            </div>
+
+            <!-- 执行目标选择 -->
+            <div class="execution-target-selector">
+                <label class="form-label">选择执行目标</label>
+                <div class="target-option-group">
+                    <div class="target-option selected" data-target="SIMULATED" onclick="selectExecutionTarget('SIMULATED')">
+                        <div class="target-option-icon">🎮</div>
+                        <div class="target-option-label">模拟盘</div>
+                        <div class="target-option-desc">在模拟账户中执行交易</div>
+                    </div>
+                    <div class="target-option" data-target="ACCOUNT" onclick="selectExecutionTarget('ACCOUNT')">
+                        <div class="target-option-icon">💼</div>
+                        <div class="target-option-label">账户记录</div>
+                        <div class="target-option-desc">记录到实际持仓</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 执行表单 -->
+            <form id="executeForm" class="execute-form">
+                <input type="hidden" id="executionTarget" value="SIMULATED" />
+                <input type="hidden" id="executeAssetCode" />
+
+                <!-- 模拟盘字段 -->
+                <div id="simulatedFields">
+                    <div class="form-group">
+                        <label class="form-label">模拟账户</label>
+                        <select id="simAccountId" class="form-select" required>
+                            <option value="">请选择账户</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">交易动作</label>
+                        <select id="executeAction" class="form-select" required>
+                            <option value="buy">买入</option>
+                            <option value="sell">卖出</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">数量（股）</label>
+                            <input type="number" id="executeQuantity" class="form-input" min="1" required />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">价格（元）</label>
+                            <input type="number" id="executePrice" class="form-input" step="0.01" min="0" required />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 账户记录字段 -->
+                <div id="accountFields" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label">投资组合 ID</label>
+                        <input type="number" id="portfolioId" class="form-input" min="1" />
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">持仓数量（股）</label>
+                            <input type="number" id="executeShares" class="form-input" min="1" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">平均成本（元）</label>
+                            <input type="number" id="executeAvgCost" class="form-input" step="0.01" min="0" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">当前价格（元）</label>
+                        <input type="number" id="executeCurrentPrice" class="form-input" step="0.01" min="0" />
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="execute-modal-footer">
+            <button class="btn-cancel" onclick="closeExecuteModal()">取消</button>
+            <button id="confirmExecuteButton" class="btn-confirm-execute" onclick="confirmExecute()">
+                确认执行
+            </button>
+        </div>
+    </div>
+</div>

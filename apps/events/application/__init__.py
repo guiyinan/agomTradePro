@@ -26,13 +26,13 @@ from .use_cases import (
 )
 
 from .dtos import (
-    EventPublishRequest,
-    EventPublishResponse,
-    EventSubscriptionRequest,
-    EventQueryRequest,
-    EventQueryResponse,
-    EventReplayRequest,
-    EventReplayResponse,
+    EventPublishRequestDTO,
+    EventPublishResponseDTO,
+    EventSubscriptionRequestDTO,
+    EventQueryRequestDTO,
+    EventQueryResponseDTO,
+    EventReplayRequestDTO,
+    EventReplayResponseDTO,
 )
 
 __all__ = [
@@ -45,11 +45,11 @@ __all__ = [
     "SubscribeToEventUseCase",
     "QueryEventsUseCase",
     "ReplayEventsUseCase",
-    "EventPublishRequest",
-    "EventPublishResponse",
-    "EventSubscriptionRequest",
-    "EventQueryRequest",
-    "EventQueryResponse",
-    "EventReplayRequest",
-    "EventReplayResponse",
+    "EventPublishRequestDTO",
+    "EventPublishResponseDTO",
+    "EventSubscriptionRequestDTO",
+    "EventQueryRequestDTO",
+    "EventQueryResponseDTO",
+    "EventReplayRequestDTO",
+    "EventReplayResponseDTO",
 ]

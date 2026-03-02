@@ -133,6 +133,7 @@
 |------|------|------|
 | [alpha/alpha-guide.md](modules/alpha/alpha-guide.md) | Alpha 模块指南 | 完整 |
 | [policy/policy-workbench-guide.md](modules/policy/policy-workbench-guide.md) | Policy 工作台指南（双闸机制） | ✅ 2026-02-28 更新 |
+| [decision/decision-workflow-guide.md](modules/decision/decision-workflow-guide.md) | **决策工作流使用指南（V3.4+）** | ✅ 2026-03-01 新增 |
 | [audit/audit-module-guide.md](modules/audit/audit-module-guide.md) | Audit 模块指南 | ✅ 新增 |
 | [audit/attribution-methodology.md](modules/audit/attribution-methodology.md) | Brinson 归因方法论 | ✅ 新增 |
 | [factor/factor-guide.md](modules/factor/factor-guide.md) | Factor 模块指南 | 完整 |
@@ -283,7 +284,16 @@
 
 ---
 
-## 最近更新 (2026-02-20 ~ 2026-02-27)
+## 最近更新 (2026-02-20 ~ 2026-03-01)
+
+### 2026-03-01
+- ✅ **首页主流程闭环改造 - SDK/MCP 同步**
+  - 新增 `DecisionWorkflowModule` SDK 模块（precheck、beta gate、quota、cooldown 检查）
+  - 扩展 `DecisionRhythmModule` SDK 模块（execute_request、cancel_request、get_request）
+  - 新增 MCP 工具：`decision_workflow_precheck`、`decision_execute_request` 等
+  - 更新 RBAC 权限：`decision_execute_request` 仅 admin/owner/investment_manager 可执行
+  - 新增决策工作流使用指南文档
+  - 更新 API 参考文档（决策工作流 API、决策执行 API）
 
 ### 2026-02-28
 - ✅ **导航与文档口径同步**
@@ -333,4 +343,4 @@
 ---
 
 **文档维护**: AgomSAAF Team
-**最后更新**: 2026-02-27
+**最后更新**: 2026-03-01

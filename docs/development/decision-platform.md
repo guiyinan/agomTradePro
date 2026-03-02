@@ -258,9 +258,25 @@ class CooldownPeriod:
 | 方法 | 路径 | 描述 |
 |------|------|------|
 | GET | `/api/decision-rhythm/quotas/` | 获取配额列表 |
+| GET | `/api/decision-rhythm/cooldowns/` | 获取冷却期列表 |
+| GET | `/api/decision-rhythm/requests/` | 获取决策请求列表 |
+| GET | `/api/decision-rhythm/requests/{id}/` | 获取决策请求详情 |
 | POST | `/api/decision-rhythm/submit/` | 提交决策请求 |
+| POST | `/api/decision-rhythm/submit-batch/` | 批量提交决策请求 |
+| POST | `/api/decision-rhythm/requests/{id}/execute/` | 执行决策请求 |
+| POST | `/api/decision-rhythm/requests/{id}/cancel/` | 取消决策请求 |
 | POST | `/api/decision-rhythm/reset-quota/` | 重置配额 |
-| GET | `/api/decision-rhythm/trend-data/` | 趋势数据 |
+| GET/POST | `/api/decision-rhythm/summary/` | 获取决策摘要 |
+| GET/POST | `/api/decision-rhythm/trend-data/` | 趋势数据 |
+
+### 5.4 Decision Workflow API（V3.4+ 新增）
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| POST | `/api/decision-workflow/precheck/` | 决策预检查 |
+| POST | `/api/decision-workflow/check-beta-gate/` | 检查 Beta Gate |
+| POST | `/api/decision-workflow/check-quota/` | 检查配额状态 |
+| POST | `/api/decision-workflow/check-cooldown/` | 检查冷却期 |
 
 ---
 

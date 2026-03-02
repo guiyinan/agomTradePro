@@ -448,6 +448,196 @@ POST /api/prompt/report-generation/
 
 ---
 
+## 13. 决策工作流 (Decision Workflow)
+
+### 13.1 决策工作流 API
+
+> **注意**: 所有端点需要认证
+
+| 端点 | 方法 | 描述 |
+|------|------|------|
+| `/api/decision-workflow/precheck/` | POST | 决策预检查 |
+| `/api/decision-workflow/check-beta-gate/` | POST | 检查 Beta Gate |
+| `/api/decision-workflow/check-quota/` | POST | 检查配额状态 |
+| `/api/decision-workflow/check-cooldown/` | POST | 检查冷却期 |
+
+### 13.2 决策预检查 API
+
+`POST /api/decision-workflow/precheck/`
+
+执行决策前的综合检查，包括 Beta Gate、配额、冷却期和候选状态。
+
+#### 请求示例
+
+```bash
+POST /api/decision-workflow/precheck/
+Authorization: Token your_api_token_here
+{
+  "candidate_id": "cand_xxx"
+}
+```
+
+#### 响应示例
+
+```json
+{
+  "success": true,
+  "result": {
+    "candidate_id": "cand_xxx",
+    "beta_gate_passed": true,
+    "quota_ok": true,
+    "cooldown_ok": true,
+    "candidate_valid": true,
+    "warnings": [],
+    "errors": []
+  }
+}
+```
+
+#### 检查项说明
+
+| 检查项 | 说明 |
+|--------|------|
+| `beta_gate_passed` | 资产是否通过 Beta Gate（宏观环境准入） |
+| `quota_ok` | 配额是否充足（决策次数限制） |
+| `cooldown_ok` | 是否在冷却期外 |
+| `candidate_valid` | 候选状态是否仍有效（ACTIONABLE） |
+
+---
+
+## 14. 决策频率 (Decision Rhythm)
+
+### 14.1 决策频率 API
+
+> **注意**: 大部分端点需要认证
+
+| 端点 | 方法 | 描述 |
+|------|------|------|
+| `/api/decision-rhythm/quotas/` | GET | 获取配额列表 |
+| `/api/decision-rhythm/cooldowns/` | GET | 获取冷却期列表 |
+| `/api/decision-rhythm/requests/` | GET | 获取决策请求列表 |
+| `/api/decision-rhythm/requests/{request_id}/` | GET | 获取决策请求详情 |
+| `/api/decision-rhythm/submit/` | POST | 提交决策请求 |
+| `/api/decision-rhythm/submit-batch/` | POST | 批量提交决策请求 |
+| `/api/decision-rhythm/requests/{request_id}/execute/` | POST | 执行决策请求 |
+| `/api/decision-rhythm/requests/{request_id}/cancel/` | POST | 取消决策请求 |
+| `/api/decision-rhythm/reset-quota/` | POST | 重置配额 |
+| `/api/decision-rhythm/summary/` | GET/POST | 获取决策摘要 |
+| `/api/decision-rhythm/trend-data/` | GET/POST | 获取趋势数据 |
+
+### 14.2 提交决策请求 API
+
+`POST /api/decision-rhythm/submit/`
+
+#### 请求示例
+
+```bash
+POST /api/decision-rhythm/submit/
+Authorization: Token your_api_token_here
+{
+  "asset_code": "000001.SH",
+  "asset_class": "a_share",
+  "direction": "BUY",
+  "priority": "HIGH",
+  "trigger_id": "cand_xxx",
+  "candidate_id": "cand_xxx",
+  "execution_target": "SIMULATED",
+  "reason": "来源候选 cand_xxx",
+  "expected_confidence": 0.78,
+  "quota_period": "WEEKLY"
+}
+```
+
+#### 新增字段说明（V3.4+）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `candidate_id` | string | 关联的 Alpha 候选 ID（可选） |
+| `execution_target` | string | 执行目标：NONE/SIMULATED/ACCOUNT（可选，默认 NONE） |
+
+### 14.3 执行决策请求 API
+
+`POST /api/decision-rhythm/requests/{request_id}/execute/`
+
+将已批准的决策请求执行到指定目标（模拟盘或账户持仓）。
+
+> **权限要求**: 仅 admin、owner、investment_manager 可执行
+
+#### 模拟盘执行请求
+
+```bash
+POST /api/decision-rhythm/requests/req_xxx/execute/
+Authorization: Token your_api_token_here
+{
+  "target": "SIMULATED",
+  "sim_account_id": 1,
+  "asset_code": "000001.SH",
+  "action": "buy",
+  "quantity": 1000,
+  "price": 12.35,
+  "reason": "按决策请求执行"
+}
+```
+
+#### 账户记录请求
+
+```bash
+POST /api/decision-rhythm/requests/req_xxx/execute/
+Authorization: Token your_api_token_here
+{
+  "target": "ACCOUNT",
+  "portfolio_id": 9,
+  "asset_code": "000001.SH",
+  "shares": 1000,
+  "avg_cost": 12.35,
+  "current_price": 12.35,
+  "reason": "按决策请求落地持仓"
+}
+```
+
+#### 执行成功响应
+
+```json
+{
+  "success": true,
+  "result": {
+    "request_id": "req_xxx",
+    "execution_status": "EXECUTED",
+    "executed_at": "2026-03-01T10:00:00+08:00",
+    "execution_ref": {
+      "trade_id": "trd_xxx",
+      "account_id": 1
+    },
+    "candidate_status": "EXECUTED"
+  }
+}
+```
+
+### 14.4 取消决策请求 API
+
+`POST /api/decision-rhythm/requests/{request_id}/cancel/`
+
+#### 请求示例
+
+```bash
+POST /api/decision-rhythm/requests/req_xxx/cancel/
+Authorization: Token your_api_token_here
+{
+  "reason": "市场条件变化"
+}
+```
+
+### 14.5 决策请求状态机
+
+| 状态 | 说明 |
+|------|------|
+| `PENDING` | 待执行 |
+| `EXECUTED` | 已执行 |
+| `FAILED` | 执行失败 |
+| `CANCELLED` | 已取消 |
+
+---
+
 ## 错误码
 
 | 状态码 | 描述 |

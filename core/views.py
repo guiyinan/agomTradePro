@@ -215,12 +215,16 @@ def decision_workspace_view(request):
 
     # ========== 决策待办列表（优先级排序） ==========
     try:
-        from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
+        from apps.decision_rhythm.infrastructure.models import DecisionRequestModel, DecisionResponseModel
 
-        # 待处理定义：尚未产生响应记录
+        # 待处理定义：已批准但未执行的请求
+        # P1-8: 查询条件改为 PENDING + FAILED，以支持重试分支
         pending_requests = list(
             DecisionRequestModel._default_manager
-            .filter(response__isnull=True)
+            .filter(
+                response__approved=True,
+                execution_status__in=['PENDING', 'FAILED']
+            )
             .order_by('-requested_at')[:10]
         )
         context['pending_requests'] = pending_requests

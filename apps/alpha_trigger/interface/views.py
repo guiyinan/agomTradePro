@@ -1039,6 +1039,19 @@ def alpha_candidate_detail_view(request, candidate_id):
         except AlphaTriggerModel.DoesNotExist:
             pass
 
+        # P1-9: 获取关联的决策请求的 execution_ref
+        execution_ref = None
+        if candidate.last_decision_request_id:
+            try:
+                from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
+                decision_request = DecisionRequestModel._default_manager.filter(
+                    request_id=candidate.last_decision_request_id
+                ).first()
+                if decision_request and decision_request.execution_ref:
+                    execution_ref = decision_request.execution_ref
+            except Exception as e:
+                logger.warning(f"Failed to get execution_ref: {e}")
+
         # 解析证伪条件
         invalidation_conditions = []
         if candidate.invalidation_conditions:
@@ -1080,6 +1093,7 @@ def alpha_candidate_detail_view(request, candidate_id):
             "invalidation_conditions": invalidation_conditions,
             "status_history": status_history,
             "days_active": days_active,
+            "execution_ref": execution_ref,  # P1-9: 添加执行引用
             "page_title": f"候选详情: {candidate.asset_code}",
         }
 

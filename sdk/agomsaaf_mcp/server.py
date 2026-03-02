@@ -33,6 +33,7 @@ from agomsaaf_mcp.tools.signal_tools import register_signal_tools
 from agomsaaf_mcp.tools.simulated_trading_tools import register_simulated_trading_tools
 from agomsaaf_mcp.tools.strategy_tools import register_strategy_tools
 from agomsaaf_mcp.tools.task_monitor_tools import register_task_monitor_tools
+from agomsaaf_mcp.tools.decision_workflow_tools import register_decision_workflow_tools
 from agomsaaf_mcp.rbac import (
     enforce_prompt_access,
     enforce_resource_access,
@@ -82,6 +83,9 @@ def register_all_tools() -> None:
     register_sentiment_tools(server)
     register_task_monitor_tools(server)
     register_filter_tools(server)
+
+    # Decision Workflow module
+    register_decision_workflow_tools(server)
 
 
 def apply_tool_rbac_guards() -> None:
