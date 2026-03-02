@@ -7,6 +7,7 @@ Core Views for AgomSAAF
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from datetime import date
 
 
 def index_view(request):
@@ -121,8 +122,10 @@ def decision_workspace_view(request):
     集成 Beta Gate、Alpha Trigger、Decision Rhythm 三个模块的概览和快速操作。
     """
     import logging
-    from apps.regime.application.use_cases import GetCurrentRegimeUseCase
+    from apps.regime.application.use_cases import CalculateRegimeV2UseCase, CalculateRegimeV2Request
     from apps.regime.infrastructure.repositories import get_regime_repository
+    from apps.macro.infrastructure.repositories import DjangoMacroRepository
+    from apps.macro.infrastructure.models import DataSourceConfig
     from apps.policy.application.use_cases import GetCurrentPolicyUseCase
     from apps.policy.infrastructure.repositories import get_policy_repository
 
@@ -133,13 +136,34 @@ def decision_workspace_view(request):
         'page_description': '统一管理投资决策流程',
     }
 
-    # ========== 获取当前 Regime ==========
+    # ========== 获取当前 Regime（与 Regime 页面保持同口径） ==========
     try:
-        regime_use_case = GetCurrentRegimeUseCase(get_regime_repository())
-        regime_response = regime_use_case.execute()
-        if regime_response.success and regime_response.regime_state:
-            context['current_regime'] = regime_response.regime_state.dominant_regime
-            context['regime_confidence'] = regime_response.regime_state.confidence
+        first_source = DataSourceConfig._default_manager.filter(is_active=True).order_by('priority').first()
+        default_source = first_source.source_type if first_source else 'akshare'
+
+        regime_use_case = CalculateRegimeV2UseCase(DjangoMacroRepository())
+        regime_response = regime_use_case.execute(
+            CalculateRegimeV2Request(
+                as_of_date=date.today(),
+                use_pit=True,
+                growth_indicator="PMI",
+                inflation_indicator="CPI",
+                data_source=default_source,
+                skip_cache=False,
+            )
+        )
+        if regime_response.success and regime_response.result:
+            context['current_regime'] = regime_response.result.regime.value
+            context['regime_confidence'] = regime_response.result.confidence
+        else:
+            # 与首页一致：实时失败时回退快照，避免页面空白
+            latest_snapshot = get_regime_repository().get_latest_snapshot()
+            if latest_snapshot:
+                context['current_regime'] = latest_snapshot.dominant_regime
+                context['regime_confidence'] = latest_snapshot.confidence
+            else:
+                context['current_regime'] = 'Unknown'
+                context['regime_confidence'] = 0.0
     except Exception as e:
         logger.warning(f"Failed to get current regime: {e}")
         context['current_regime'] = 'Unknown'
@@ -195,7 +219,13 @@ def decision_workspace_view(request):
     # ========== Decision Rhythm 数据 ==========
     try:
         from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
-        current_quota = DecisionQuotaModel._default_manager.filter(is_active=True).order_by('-period_start').first()
+        from apps.decision_rhythm.domain.entities import QuotaPeriod
+        current_quota = (
+            DecisionQuotaModel._default_manager
+            .filter(period=QuotaPeriod.WEEKLY.value)
+            .order_by('-period_start')
+            .first()
+        )
         if current_quota:
             context['quota_total'] = current_quota.max_decisions
             context['quota_used'] = current_quota.used_decisions
@@ -257,10 +287,18 @@ def decision_workspace_view(request):
     try:
         from django.utils import timezone
         from datetime import timedelta
-        expiring_soon = AlphaCandidateModel._default_manager.filter(
-            status__in=['WATCH', 'CANDIDATE', 'ACTIONABLE'],
-            expires_at__lte=timezone.now() + timedelta(days=2)
-        ).count()
+        expiring_soon = 0
+        now = timezone.now()
+        threshold = now + timedelta(days=2)
+        candidates = AlphaCandidateModel._default_manager.filter(
+            status__in=['WATCH', 'CANDIDATE', 'ACTIONABLE']
+        ).only('created_at', 'time_horizon')
+        for c in candidates:
+            if not c.created_at or not c.time_horizon:
+                continue
+            expires_at = c.created_at + timedelta(days=int(c.time_horizon))
+            if now < expires_at <= threshold:
+                expiring_soon += 1
         if expiring_soon > 0:
             alerts.append({
                 'type': 'info',
@@ -333,5 +371,3 @@ def ops_center_view(request):
         ]
     }
     return render(request, "ops/center.html", context)
-
-

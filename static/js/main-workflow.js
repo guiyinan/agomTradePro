@@ -12,6 +12,34 @@ let currentCandidateId = null;
 let currentRequestId = null;
 let precheckResults = {};
 
+async function refreshWorkflowCandidates() {
+    try {
+        const response = await fetch('/dashboard/api/workflow/refresh-candidates/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken
+            },
+            body: JSON.stringify({})
+        });
+        const data = await response.json();
+
+        if (!data.success) {
+            showToast('候选刷新失败: ' + (data.error || '未知错误'), 'error');
+            return;
+        }
+
+        const result = data.result || {};
+        showToast(
+            `刷新完成：新增${result.generated || 0}，提升可行动${result.promoted_to_actionable || 0}`,
+            'success'
+        );
+        setTimeout(() => window.location.reload(), 600);
+    } catch (error) {
+        showToast('候选刷新失败: ' + error.message, 'error');
+    }
+}
+
 // ========== 预检查功能 ==========
 
 /**

@@ -33,9 +33,13 @@ def get_alerts(request) -> Dict[str, List[Dict[str, str]]]:
         # ========== 配额告警 ==========
         try:
             from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
-            current_quota = DecisionQuotaModel._default_manager.filter(
-                is_active=True
-            ).order_by('-period_start').first()
+            from apps.decision_rhythm.domain.entities import QuotaPeriod
+            current_quota = (
+                DecisionQuotaModel._default_manager
+                .filter(period=QuotaPeriod.WEEKLY.value)
+                .order_by('-period_start')
+                .first()
+            )
 
             if current_quota:
                 quota_total = getattr(current_quota, 'max_decisions', 10)
@@ -69,12 +73,19 @@ def get_alerts(request) -> Dict[str, List[Dict[str, str]]]:
         # ========== 候选即将过期告警 ==========
         try:
             from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
-            expiring_threshold = timezone.now() + timedelta(days=2)
-            expiring_candidates = AlphaCandidateModel._default_manager.filter(
-                status__in=['WATCH', 'CANDIDATE', 'ACTIONABLE'],
-                expires_at__lte=expiring_threshold,
-                expires_at__gt=timezone.now()
-            ).count()
+            # AlphaCandidateModel 无 expires_at 字段，基于 created_at + time_horizon 近似计算
+            expiring_candidates = 0
+            now = timezone.now()
+            threshold = now + timedelta(days=2)
+            candidates = AlphaCandidateModel._default_manager.filter(
+                status__in=['WATCH', 'CANDIDATE', 'ACTIONABLE']
+            ).only('created_at', 'time_horizon')
+            for c in candidates:
+                if not c.created_at or not c.time_horizon:
+                    continue
+                expires_at = c.created_at + timedelta(days=int(c.time_horizon))
+                if now < expires_at <= threshold:
+                    expiring_candidates += 1
 
             if expiring_candidates > 0:
                 alerts.append({
@@ -115,8 +126,9 @@ def get_alerts(request) -> Dict[str, List[Dict[str, str]]]:
         # ========== 冷却期活跃提示 ==========
         try:
             from apps.decision_rhythm.infrastructure.models import CooldownPeriodModel
+            # 当前模型无 status 字段：以近 72 小时内有决策行为的冷却记录作为活跃近似
             active_cooldowns = CooldownPeriodModel._default_manager.filter(
-                status='ACTIVE'
+                last_decision_at__gte=timezone.now() - timedelta(hours=72)
             ).count()
 
             if active_cooldowns > 5:
@@ -136,8 +148,8 @@ def get_alerts(request) -> Dict[str, List[Dict[str, str]]]:
         try:
             from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
             high_priority_count = DecisionRequestModel._default_manager.filter(
-                status='PENDING',
-                priority='HIGH'
+                execution_status='PENDING',
+                priority='high'
             ).count()
 
             if high_priority_count > 0:

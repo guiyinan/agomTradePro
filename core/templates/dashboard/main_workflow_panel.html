@@ -3,8 +3,18 @@
 <!-- 主流程面板 -->
 <section class="main-workflow-panel">
     <div class="section-header">
-        <h2 class="section-title">🚀 主流程</h2>
-        <p class="section-subtitle">环境 → 候选 → 决策 → 执行 → 回写</p>
+        <div>
+            <h2 class="section-title">🚀 主流程</h2>
+            <p class="section-subtitle">环境 → 候选 → 决策 → 执行 → 回写</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn-precheck" onclick="refreshWorkflowCandidates()">
+                🔄 刷新候选
+            </button>
+            <a href="{% url 'decision-workspace' %}" class="btn-submit-decision" style="text-decoration: none;">
+                进入工作台
+            </a>
+        </div>
     </div>
 
     <!-- 步骤导航 -->
@@ -82,6 +92,36 @@
         <a href="{% url 'alpha_trigger:create' %}" class="btn btn-primary">创建触发器</a>
     </div>
     {% endif %}
+
+    <!-- 待执行队列 -->
+    <div class="candidate-actions-section" style="margin-top: 12px;">
+        <h3 class="subsection-title">待执行队列 ({{ pending_count|default:0 }})</h3>
+        {% if pending_requests %}
+            {% for req in pending_requests|slice:":5" %}
+            <div class="candidate-action-row">
+                <div class="candidate-info-cell">
+                    <div class="candidate-main-info">
+                        <span class="candidate-asset-code">{{ req.asset_code }}</span>
+                        <span class="candidate-direction-badge {% if req.direction == 'BUY' %}long{% else %}short{% endif %}">
+                            {{ req.direction }}
+                        </span>
+                    </div>
+                    <div class="candidate-meta">
+                        <span>请求ID: {{ req.request_id|truncatechars:16 }}</span>
+                        <span>状态: {{ req.execution_status }}</span>
+                    </div>
+                </div>
+                <a class="btn-submit-decision" href="{% url 'decision-workspace' %}?execute={{ req.request_id|urlencode }}" style="text-decoration:none;">
+                    去执行
+                </a>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state" style="padding: 16px;">
+                <p>当前无待执行请求</p>
+            </div>
+        {% endif %}
+    </div>
 </section>
 
 <!-- 执行模态框 -->

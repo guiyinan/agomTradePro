@@ -155,6 +155,9 @@
             </div>
         </header>
 
+        <!-- 主流程面板：上移到首屏顶部 -->
+        {% include "dashboard/main_workflow_panel.html" %}
+
         <!-- 核心指标卡片 -->
         <section class="metrics-grid">
             <div class="metric-card">
@@ -543,9 +546,6 @@
             </div>
         </section>
         {% endif %}
-
-        <!-- 主流程面板 (WP-3 新增) -->
-        {% include "dashboard/main_workflow_panel.html" %}
 
         <!-- 持仓和信号 -->
         <div class="content-row">

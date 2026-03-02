@@ -9,7 +9,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from django.shortcuts import redirect, render
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseNotAllowed
 from django.conf import settings
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
@@ -281,6 +281,9 @@ def dashboard_view(request):
     # 补充用户名
     data.username = request.user.username
 
+    actionable_candidates = _get_actionable_candidates()
+    pending_requests = _get_pending_requests()
+
     context = {
         "user": request.user,
         "display_name": data.display_name,
@@ -332,6 +335,9 @@ def dashboard_view(request):
         "quota_used": _get_quota_used(),
         "quota_remaining": _get_quota_remaining(),
         "quota_usage_percent": _get_quota_usage_percent(),
+        "actionable_candidates": actionable_candidates,
+        "pending_requests": pending_requests,
+        "pending_count": len(pending_requests),
         # Alpha 可视化数据（新增）
         "alpha_stock_scores": _get_alpha_stock_scores(top_n=10),
         "alpha_provider_status": _get_alpha_provider_status(),
@@ -591,7 +597,13 @@ def _get_quota_total() -> int:
     """获取决策配额总数"""
     try:
         from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
-        quota = DecisionQuotaModel._default_manager.filter(is_active=True).order_by('-period_start').first()
+        from apps.decision_rhythm.domain.entities import QuotaPeriod
+        quota = (
+            DecisionQuotaModel._default_manager
+            .filter(period=QuotaPeriod.WEEKLY.value)
+            .order_by('-period_start')
+            .first()
+        )
         return getattr(quota, "max_decisions", 10) if quota else 10
     except Exception as e:
         logger.warning(f"Failed to get quota total: {e}")
@@ -602,7 +614,13 @@ def _get_quota_used() -> int:
     """获取已使用的决策配额"""
     try:
         from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
-        quota = DecisionQuotaModel._default_manager.filter(is_active=True).order_by('-period_start').first()
+        from apps.decision_rhythm.domain.entities import QuotaPeriod
+        quota = (
+            DecisionQuotaModel._default_manager
+            .filter(period=QuotaPeriod.WEEKLY.value)
+            .order_by('-period_start')
+            .first()
+        )
         return getattr(quota, "used_decisions", 0) if quota else 0
     except Exception as e:
         logger.warning(f"Failed to get quota used: {e}")
@@ -613,7 +631,13 @@ def _get_quota_remaining() -> int:
     """获取剩余决策配额"""
     try:
         from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
-        quota = DecisionQuotaModel._default_manager.filter(is_active=True).order_by('-period_start').first()
+        from apps.decision_rhythm.domain.entities import QuotaPeriod
+        quota = (
+            DecisionQuotaModel._default_manager
+            .filter(period=QuotaPeriod.WEEKLY.value)
+            .order_by('-period_start')
+            .first()
+        )
         if quota:
             max_decisions = getattr(quota, "max_decisions", 10)
             used_decisions = getattr(quota, "used_decisions", 0)
@@ -635,6 +659,130 @@ def _get_quota_usage_percent() -> float:
     except Exception as e:
         logger.warning(f"Failed to get quota usage percent: {e}")
         return 0.0
+
+
+def _get_actionable_candidates():
+    """首页主流程展示：可操作候选列表"""
+    try:
+        from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
+        return list(
+            AlphaCandidateModel._default_manager
+            .filter(status='ACTIONABLE')
+            .order_by('-confidence', '-created_at')[:5]
+        )
+    except Exception as e:
+        logger.warning(f"Failed to get actionable candidates: {e}")
+        return []
+
+
+def _get_pending_requests():
+    """首页主流程展示：已批准但未执行/失败待重试请求"""
+    try:
+        from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
+        return list(
+            DecisionRequestModel._default_manager
+            .filter(
+                response__approved=True,
+                execution_status__in=['PENDING', 'FAILED']
+            )
+            .order_by('-requested_at')[:10]
+        )
+    except Exception as e:
+        logger.warning(f"Failed to get pending requests: {e}")
+        return []
+
+
+def _get_pending_count() -> int:
+    try:
+        return len(_get_pending_requests())
+    except Exception:
+        return 0
+
+
+@login_required(login_url="/account/login/")
+def workflow_refresh_candidates(request):
+    """
+    主流程候选刷新：从活跃触发器补齐候选，并尝试提升高置信候选为 ACTIONABLE。
+    """
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    try:
+        from apps.alpha_trigger.application.use_cases import (
+            GenerateCandidateUseCase,
+            GenerateCandidateRequest,
+        )
+        from apps.alpha_trigger.domain.entities import CandidateStatus
+        from apps.alpha_trigger.infrastructure.models import AlphaTriggerModel, AlphaCandidateModel
+        from apps.alpha_trigger.infrastructure.repositories import (
+            get_trigger_repository,
+            get_candidate_repository,
+        )
+
+        trigger_repo = get_trigger_repository()
+        candidate_repo = get_candidate_repository()
+        use_case = GenerateCandidateUseCase(trigger_repo, candidate_repo)
+
+        active_triggers = list(
+            AlphaTriggerModel._default_manager
+            .filter(status__in=[AlphaTriggerModel.ACTIVE, AlphaTriggerModel.TRIGGERED])
+            .order_by('-created_at')[:50]
+        )
+        trigger_ids = [t.trigger_id for t in active_triggers]
+
+        existing_trigger_ids = set(
+            AlphaCandidateModel._default_manager
+            .filter(trigger_id__in=trigger_ids, status__in=['WATCH', 'CANDIDATE', 'ACTIONABLE'])
+            .values_list('trigger_id', flat=True)
+        )
+
+        generated = 0
+        promoted = 0
+        failed = 0
+        skipped = 0
+
+        for trigger in active_triggers:
+            if trigger.trigger_id in existing_trigger_ids:
+                skipped += 1
+                continue
+
+            resp = use_case.execute(
+                GenerateCandidateRequest(
+                    trigger_id=trigger.trigger_id,
+                    time_window_days=90,
+                )
+            )
+            if not resp.success or not resp.candidate:
+                failed += 1
+                continue
+
+            generated += 1
+
+            # 让用户一键后尽快进入“可执行”视图
+            if float(resp.candidate.confidence or 0) >= 0.70:
+                try:
+                    candidate_repo.update_status(resp.candidate.candidate_id, CandidateStatus.ACTIONABLE)
+                    promoted += 1
+                except Exception:
+                    pass
+
+        actionable_count = AlphaCandidateModel._default_manager.filter(status='ACTIONABLE').count()
+
+        return JsonResponse({
+            "success": True,
+            "result": {
+                "generated": generated,
+                "promoted_to_actionable": promoted,
+                "skipped_existing": skipped,
+                "failed": failed,
+                "active_trigger_count": len(active_triggers),
+                "actionable_count": actionable_count,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to refresh workflow candidates: {e}", exc_info=True)
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 
 # ========================================

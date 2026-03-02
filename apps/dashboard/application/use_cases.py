@@ -145,15 +145,19 @@ class GetDashboardDataUseCase:
         #          Stagflation (PMI<50, CPI>2%), Deflation (PMI<50, CPI<=2%)
         from apps.regime.application.use_cases import CalculateRegimeV2UseCase, CalculateRegimeV2Request
         from apps.macro.infrastructure.repositories import DjangoMacroRepository
+        from apps.macro.infrastructure.models import DataSourceConfig
 
         macro_repo = DjangoMacroRepository()
         regime_use_case = CalculateRegimeV2UseCase(macro_repo)
+        first_source = DataSourceConfig._default_manager.filter(is_active=True).order_by('priority').first()
+        default_source = first_source.source_type if first_source else "akshare"
 
         regime_request = CalculateRegimeV2Request(
             as_of_date=date.today(),
-            use_pit=False,
+            use_pit=True,
             growth_indicator="PMI",
-            inflation_indicator="CPI"
+            inflation_indicator="CPI",
+            data_source=default_source,
         )
 
         regime_response = regime_use_case.execute(regime_request)

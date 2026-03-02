@@ -38,4 +38,5 @@ urlpatterns = [
     path('api/alpha/provider-status/', views.alpha_provider_status_htmx, name='api_alpha_provider_status'),
     path('api/alpha/coverage/', views.alpha_coverage_htmx, name='api_alpha_coverage'),
     path('api/alpha/ic-trends/', views.alpha_ic_trends_htmx, name='api_alpha_ic_trends'),
+    path('api/workflow/refresh-candidates/', views.workflow_refresh_candidates, name='api_workflow_refresh_candidates'),
 ]
