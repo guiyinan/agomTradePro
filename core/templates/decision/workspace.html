@@ -214,14 +214,38 @@
                 <div class="todo-actions">
                     <span class="btn btn-sm btn-outline" style="cursor: default;">待执行落地</span>
                     {% if request.execution_status == 'PENDING' %}
-                    <button class="btn btn-sm btn-primary" onclick="executeRequest('{{ request.request_id|escapejs }}')">
+                    <button
+                        class="btn btn-sm btn-primary"
+                        onclick="openExecutionReviewModal(this)"
+                        data-request-id="{{ request.request_id|escapejs }}"
+                        data-asset-code="{{ request.asset_code|escapejs }}"
+                        data-direction="{{ request.direction|escapejs }}"
+                        data-priority="{{ request.priority|escapejs }}"
+                        data-confidence="{{ request.expected_confidence|default:0 }}"
+                        data-reason="{{ request.reason|default:''|escapejs }}"
+                    >
                         去执行
                     </button>
-                    <button class="btn btn-sm btn-secondary" onclick="cancelRequest('{{ request.request_id|escapejs }}')">
+                    <button class="btn btn-sm btn-secondary" onclick="openExecutionReviewModal(this, true)"
+                        data-request-id="{{ request.request_id|escapejs }}"
+                        data-asset-code="{{ request.asset_code|escapejs }}"
+                        data-direction="{{ request.direction|escapejs }}"
+                        data-priority="{{ request.priority|escapejs }}"
+                        data-confidence="{{ request.expected_confidence|default:0 }}"
+                        data-reason="{{ request.reason|default:''|escapejs }}">
                         取消
                     </button>
                     {% elif request.execution_status == 'FAILED' %}
-                    <button class="btn btn-sm btn-warning" onclick="retryRequest('{{ request.request_id|escapejs }}')">
+                    <button
+                        class="btn btn-sm btn-warning"
+                        onclick="openExecutionReviewModal(this)"
+                        data-request-id="{{ request.request_id|escapejs }}"
+                        data-asset-code="{{ request.asset_code|escapejs }}"
+                        data-direction="{{ request.direction|escapejs }}"
+                        data-priority="{{ request.priority|escapejs }}"
+                        data-confidence="{{ request.expected_confidence|default:0 }}"
+                        data-reason="{{ request.reason|default:''|escapejs }}"
+                    >
                         重试
                     </button>
                     {% endif %}
@@ -348,6 +372,92 @@
     </section>
 </div>
 
+<div id="executionReviewModal" class="review-modal-overlay">
+    <div class="review-modal">
+        <div class="review-modal-header">
+            <h3>执行审批</h3>
+            <button class="review-modal-close" onclick="closeExecutionReviewModal()">×</button>
+        </div>
+        <div class="review-modal-body">
+            <div class="review-summary">
+                <div><strong>请求ID:</strong> <span id="reviewRequestId"></span></div>
+                <div><strong>证券代码:</strong> <span id="reviewAssetCode"></span></div>
+                <div><strong>方向:</strong> <span id="reviewDirection"></span></div>
+                <div><strong>优先级:</strong> <span id="reviewPriority"></span></div>
+                <div><strong>置信度:</strong> <span id="reviewConfidence"></span></div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">执行目标</label>
+                <select id="reviewTarget" class="form-select" onchange="toggleReviewTargetFields()">
+                    <option value="SIMULATED">模拟盘执行</option>
+                    <option value="ACCOUNT">账户落地</option>
+                </select>
+            </div>
+
+            <div id="reviewSimFields">
+                <div class="form-group">
+                    <label class="form-label">模拟账户</label>
+                    <select id="reviewSimAccountId" class="form-select">
+                        <option value="">请选择账户</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">数量</label>
+                        <input id="reviewQuantity" type="number" class="form-input" min="1" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">成交价</label>
+                        <input id="reviewPrice" type="number" class="form-input" min="0" step="0.01" />
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">价格下限</label>
+                        <input id="reviewPriceMin" type="number" class="form-input" min="0" step="0.01" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">价格上限</label>
+                        <input id="reviewPriceMax" type="number" class="form-input" min="0" step="0.01" />
+                    </div>
+                </div>
+            </div>
+
+            <div id="reviewAccountFields" style="display:none;">
+                <div class="form-group">
+                    <label class="form-label">组合 ID</label>
+                    <input id="reviewPortfolioId" type="number" class="form-input" min="1" />
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">持仓数量</label>
+                        <input id="reviewShares" type="number" class="form-input" min="1" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">平均成本</label>
+                        <input id="reviewAvgCost" type="number" class="form-input" min="0" step="0.01" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">当前价格</label>
+                    <input id="reviewCurrentPrice" type="number" class="form-input" min="0" step="0.01" />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">审批评论</label>
+                <textarea id="reviewComments" class="form-input" rows="3" placeholder="填写审批意见、风险说明、执行约束等"></textarea>
+            </div>
+        </div>
+        <div class="review-modal-footer">
+            <button class="btn btn-sm btn-outline" onclick="closeExecutionReviewModal()">关闭</button>
+            <button id="rejectExecBtn" class="btn btn-sm btn-secondary" onclick="rejectExecution()">不批准</button>
+            <button id="approveExecBtn" class="btn btn-sm btn-primary" onclick="approveExecution()">批准并执行</button>
+        </div>
+    </div>
+</div>
+
 <script>
 function resetQuota() {
     if (!confirm('确定要重置当前配额吗？这将清空已使用计数。')) {
@@ -410,37 +520,87 @@ function submitDecisionRequest(candidateId, assetCode, assetClass, direction, co
     });
 }
 
-// P0-4: 新增执行、取消、重试函数
-function executeRequest(requestId) {
-    // 打开执行弹窗或跳转到执行页面
-    if (confirm('确定要执行此决策请求吗？')) {
-        // 简化处理：跳转到候选详情页
-        window.location.href = `/decision/workspace/?execute=${requestId}`;
+let currentReviewRequest = null;
+
+function openExecutionReviewModal(button, asReject = false) {
+    currentReviewRequest = {
+        requestId: button.dataset.requestId,
+        assetCode: button.dataset.assetCode || '',
+        direction: button.dataset.direction || 'BUY',
+        priority: button.dataset.priority || '-',
+        confidence: button.dataset.confidence || '0',
+        reason: button.dataset.reason || ''
+    };
+
+    document.getElementById('reviewRequestId').textContent = currentReviewRequest.requestId;
+    document.getElementById('reviewAssetCode').textContent = currentReviewRequest.assetCode;
+    document.getElementById('reviewDirection').textContent = currentReviewRequest.direction;
+    document.getElementById('reviewPriority').textContent = currentReviewRequest.priority;
+    document.getElementById('reviewConfidence').textContent = Number(currentReviewRequest.confidence || 0).toFixed(2);
+    document.getElementById('reviewComments').value = asReject ? '不批准执行：' : '';
+    document.getElementById('approveExecBtn').style.display = asReject ? 'none' : '';
+    toggleReviewTargetFields();
+    loadReviewSimulatedAccounts();
+    document.getElementById('executionReviewModal').classList.add('active');
+}
+
+function closeExecutionReviewModal() {
+    document.getElementById('executionReviewModal').classList.remove('active');
+    currentReviewRequest = null;
+    const approveBtn = document.getElementById('approveExecBtn');
+    if (approveBtn) {
+        approveBtn.disabled = false;
+        approveBtn.textContent = '批准并执行';
+        approveBtn.style.display = '';
     }
 }
 
-function cancelRequest(requestId) {
-    if (!confirm('确定要取消此决策请求吗？')) {
-        return;
-    }
+function toggleReviewTargetFields() {
+    const target = document.getElementById('reviewTarget').value;
+    document.getElementById('reviewSimFields').style.display = target === 'SIMULATED' ? 'block' : 'none';
+    document.getElementById('reviewAccountFields').style.display = target === 'ACCOUNT' ? 'block' : 'none';
+}
 
-    fetch(`/api/decision-rhythm/requests/${requestId}/cancel/`, {
+function loadReviewSimulatedAccounts() {
+    fetch('/api/simulated-trading/accounts/', {
+        headers: { 'X-CSRFToken': window.csrfToken }
+    })
+    .then(r => r.json())
+    .then(data => {
+        const select = document.getElementById('reviewSimAccountId');
+        if (!select) return;
+        select.innerHTML = '<option value="">请选择账户</option>';
+        if (data.success && Array.isArray(data.results)) {
+            data.results.forEach(account => {
+                const option = document.createElement('option');
+                option.value = account.account_id;
+                option.textContent = `${account.name} (${account.initial_capital}元)`;
+                select.appendChild(option);
+            });
+        }
+    })
+    .catch(() => {});
+}
+
+function rejectExecution() {
+    if (!currentReviewRequest) return;
+    const reason = (document.getElementById('reviewComments').value || '').trim() || '不批准执行';
+
+    fetch(`/api/decision-rhythm/requests/${currentReviewRequest.requestId}/cancel/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': window.csrfToken
         },
-        body: JSON.stringify({
-            reason: '用户手动取消'
-        })
+        body: JSON.stringify({ reason })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            window.showToast('决策请求已取消', 'success');
+            window.showToast('已不批准并取消请求', 'success');
             setTimeout(() => window.location.reload(), 800);
         } else {
-            alert('取消失败: ' + (data.error || '未知错误'));
+            alert('操作失败: ' + (data.error || '未知错误'));
         }
     })
     .catch(error => {
@@ -448,14 +608,93 @@ function cancelRequest(requestId) {
     });
 }
 
-function retryRequest(requestId) {
-    if (!confirm('确定要重试执行此决策请求吗？')) {
-        return;
+function approveExecution() {
+    if (!currentReviewRequest) return;
+    const target = document.getElementById('reviewTarget').value;
+    const comments = (document.getElementById('reviewComments').value || '').trim();
+    const payload = {
+        target,
+        asset_code: currentReviewRequest.assetCode,
+        reason: comments || '审批通过执行'
+    };
+
+    if (target === 'SIMULATED') {
+        const simAccountId = Number(document.getElementById('reviewSimAccountId').value || 0);
+        const quantity = Number(document.getElementById('reviewQuantity').value || 0);
+        const price = Number(document.getElementById('reviewPrice').value || 0);
+        const priceMin = Number(document.getElementById('reviewPriceMin').value || 0);
+        const priceMax = Number(document.getElementById('reviewPriceMax').value || 0);
+
+        if (!simAccountId || !quantity || !price) {
+            alert('请填写模拟账户、数量和成交价');
+            return;
+        }
+        if (priceMin && priceMax && priceMin > priceMax) {
+            alert('价格区间不合法：下限不能大于上限');
+            return;
+        }
+        if ((priceMin && price < priceMin) || (priceMax && price > priceMax)) {
+            alert('成交价不在价格区间内');
+            return;
+        }
+        payload.sim_account_id = simAccountId;
+        payload.action = currentReviewRequest.direction === 'SELL' ? 'sell' : 'buy';
+        payload.quantity = quantity;
+        payload.price = price;
+        payload.price_min = priceMin || null;
+        payload.price_max = priceMax || null;
+    } else {
+        const portfolioId = Number(document.getElementById('reviewPortfolioId').value || 0);
+        const shares = Number(document.getElementById('reviewShares').value || 0);
+        const avgCost = Number(document.getElementById('reviewAvgCost').value || 0);
+        const currentPrice = Number(document.getElementById('reviewCurrentPrice').value || 0);
+        if (!portfolioId || !shares || !avgCost || !currentPrice) {
+            alert('请填写账户落地参数（组合、数量、成本、当前价）');
+            return;
+        }
+        payload.portfolio_id = portfolioId;
+        payload.shares = shares;
+        payload.avg_cost = avgCost;
+        payload.current_price = currentPrice;
     }
 
-    // 重试执行：跳转到执行页面
-    window.location.href = `/decision/workspace/?execute=${requestId}&retry=1`;
+    const approveBtn = document.getElementById('approveExecBtn');
+    approveBtn.disabled = true;
+    approveBtn.textContent = '执行中...';
+
+    fetch(`/api/decision-rhythm/requests/${currentReviewRequest.requestId}/execute/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': window.csrfToken
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            window.showToast('审批通过并执行成功', 'success');
+            setTimeout(() => window.location.reload(), 800);
+        } else {
+            alert('执行失败: ' + (data.error || '未知错误'));
+            approveBtn.disabled = false;
+            approveBtn.textContent = '批准并执行';
+        }
+    })
+    .catch(error => {
+        alert('请求失败: ' + error.message);
+        approveBtn.disabled = false;
+        approveBtn.textContent = '批准并执行';
+    });
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+    document.getElementById('executionReviewModal')?.addEventListener('click', function (e) {
+        if (e.target === this) {
+            closeExecutionReviewModal();
+        }
+    });
+});
 
 // 自动刷新（每 30 秒）
 setInterval(() => {
