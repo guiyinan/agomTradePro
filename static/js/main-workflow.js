@@ -11,6 +11,7 @@
 let currentCandidateId = null;
 let currentRequestId = null;
 let precheckResults = {};
+let pendingSubmitPayload = null;
 
 async function refreshWorkflowCandidates() {
     try {
@@ -162,6 +163,11 @@ function displayPrecheckResult(container, result, assetCode) {
  */
 async function submitDecision(candidateId, assetCode, assetClass, direction, confidence, thesis) {
     const submitButton = document.querySelector(`[data-candidate-id="${candidateId}"] .btn-submit-decision`);
+    if (!submitButton) {
+        showToast('候选项不存在或已处理，请刷新页面', 'warning');
+        closeSubmitDecisionModal();
+        return;
+    }
 
     try {
         // 禁用按钮
@@ -208,20 +214,73 @@ async function submitDecision(candidateId, assetCode, assetClass, direction, con
             updateWorkflowStep(2, 'completed'); // 决策步骤完成
             updateWorkflowStep(3, 'active');    // 执行步骤激活
 
-            // 滚动到执行按钮
-            executeButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            submitButton.innerHTML = '已提交';
+            closeSubmitDecisionModal();
+
+            // 从候选区移除已提交项，避免同一候选反复提交
+            const row = document.querySelector(`[data-candidate-id="${candidateId}"]`);
+            if (row) {
+                row.style.opacity = '0.4';
+                setTimeout(() => row.remove(), 180);
+            }
+
+            // 同步服务端状态，避免本地与服务端漂移
+            setTimeout(() => window.location.reload(), 500);
         } else {
             showToast('提交失败: ' + (data.error || '未知错误'), 'error');
             submitButton.disabled = false;
-            submitButton.innerHTML = '提交决策';
+            submitButton.innerHTML = '📝 提交决策';
+            const confirmBtn = document.getElementById('confirmSubmitDecisionButton');
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '确认提交';
+            }
         }
 
     } catch (error) {
         console.error('Submit decision failed:', error);
         showToast('提交失败: ' + error.message, 'error');
         submitButton.disabled = false;
-        submitButton.innerHTML = '提交决策';
+        submitButton.innerHTML = '📝 提交决策';
+        const confirmBtn = document.getElementById('confirmSubmitDecisionButton');
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '确认提交';
+        }
     }
+}
+
+function openSubmitDecisionModal(candidateId, assetCode, assetClass, direction, confidence, thesis) {
+    pendingSubmitPayload = { candidateId, assetCode, assetClass, direction, confidence, thesis };
+    document.getElementById('submitModalAssetCode').textContent = assetCode || '-';
+    document.getElementById('submitModalDirection').textContent = direction === 'SHORT' ? '做空' : '做多';
+    document.getElementById('submitModalAssetClass').textContent = assetClass || 'unknown';
+    document.getElementById('submitModalConfidence').textContent = Number(confidence || 0).toFixed(2);
+    document.getElementById('submitDecisionModal')?.classList.add('active');
+}
+
+function closeSubmitDecisionModal() {
+    document.getElementById('submitDecisionModal')?.classList.remove('active');
+    const btn = document.getElementById('confirmSubmitDecisionButton');
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '确认提交';
+    }
+    pendingSubmitPayload = null;
+}
+
+async function confirmSubmitDecision() {
+    if (!pendingSubmitPayload) {
+        showToast('提交参数缺失，请重试', 'error');
+        return;
+    }
+    const btn = document.getElementById('confirmSubmitDecisionButton');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> 提交中...';
+    }
+    const p = pendingSubmitPayload;
+    await submitDecision(p.candidateId, p.assetCode, p.assetClass, p.direction, p.confidence, p.thesis);
 }
 
 // ========== 执行功能 ==========
@@ -502,11 +561,17 @@ document.addEventListener('DOMContentLoaded', function() {
             closeExecuteModal();
         }
     });
+    document.getElementById('submitDecisionModal')?.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeSubmitDecisionModal();
+        }
+    });
 
     // ESC 键关闭模态框
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             closeExecuteModal();
+            closeSubmitDecisionModal();
         }
     });
 });

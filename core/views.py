@@ -113,6 +113,38 @@ def docs_view(request, doc_slug=''):
         return render(request, 'docs/list.html', context)
 
 
+def _group_by_asset_code(items, direction_attr="direction"):
+    """
+    按证券代码归并请求/候选，默认保留每组最新一条作为操作入口。
+    """
+    grouped = {}
+    for item in items:
+        code = (getattr(item, "asset_code", "") or "").upper()
+        if not code:
+            continue
+        bucket = grouped.setdefault(code, {"items": [], "directions": set()})
+        bucket["items"].append(item)
+        direction = (getattr(item, direction_attr, "") or "").upper()
+        if direction:
+            bucket["directions"].add(direction)
+
+    merged = []
+    for code, bucket in grouped.items():
+        # query 本身按时间倒序，取第一条作为最新记录
+        representative = bucket["items"][0]
+        representative.merged_count = len(bucket["items"])
+        representative.merged_asset_code = code
+        representative.merged_directions = sorted(bucket["directions"])
+        if len(bucket["directions"]) == 1:
+            representative.merged_direction = next(iter(bucket["directions"]))
+        elif bucket["directions"]:
+            representative.merged_direction = "MIXED"
+        else:
+            representative.merged_direction = getattr(representative, direction_attr, "")
+        merged.append(representative)
+    return merged
+
+
 @login_required
 def decision_workspace_view(request):
     """
@@ -176,10 +208,12 @@ def decision_workspace_view(request):
         context['alpha_actionable_count'] = AlphaCandidateModel._default_manager.filter(status='ACTIONABLE').count()
 
         # 可操作候选（按优先级排序）
-        actionable_candidates = list(AlphaCandidateModel._default_manager.filter(
+        raw_actionable_candidates = list(AlphaCandidateModel._default_manager.filter(
             status='ACTIONABLE'
-        ).order_by('-confidence', '-created_at')[:5])
+        ).order_by('-confidence', '-created_at')[:50])
+        actionable_candidates = _group_by_asset_code(raw_actionable_candidates, direction_attr="direction")[:5]
         context['actionable_candidates'] = actionable_candidates
+        context['alpha_actionable_count'] = len(actionable_candidates)
     except Exception as e:
         logger.warning(f"Failed to get alpha trigger data: {e}")
         context['alpha_trigger_count'] = 0
@@ -221,14 +255,15 @@ def decision_workspace_view(request):
 
         # 待处理定义：已批准但未执行的请求
         # P1-8: 查询条件改为 PENDING + FAILED，以支持重试分支
-        pending_requests = list(
+        raw_pending_requests = list(
             DecisionRequestModel._default_manager
             .filter(
                 response__approved=True,
                 execution_status__in=['PENDING', 'FAILED']
             )
-            .order_by('-requested_at')[:10]
+            .order_by('-requested_at')[:100]
         )
+        pending_requests = _group_by_asset_code(raw_pending_requests, direction_attr="direction")[:10]
         context['pending_requests'] = pending_requests
         context['pending_count'] = len(pending_requests)
     except Exception as e:

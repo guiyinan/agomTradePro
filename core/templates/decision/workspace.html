@@ -202,10 +202,14 @@
                 <div class="todo-content">
                     <div class="todo-header">
                         <span class="todo-asset">{{ request.asset_code }}</span>
-                        <span class="todo-direction">{{ request.direction }}</span>
+                        <span class="todo-direction">{{ request.merged_direction|default:request.direction }}</span>
                         <span class="todo-time">{{ request.requested_at|timesince }}前</span>
                     </div>
+                    {% if request.merged_count|default:1 > 1 %}
+                    <p class="todo-reason">已按证券代码归并 {{ request.merged_count }} 条请求（{{ request.merged_directions|join:"/" }}）</p>
+                    {% else %}
                     <p class="todo-reason">{{ request.reason|truncatewords:20 }}</p>
+                    {% endif %}
                 </div>
                 <div class="todo-actions">
                     <span class="btn btn-sm btn-outline" style="cursor: default;">待执行落地</span>
@@ -259,12 +263,18 @@
                 <div class="candidate-body">
                     <div class="candidate-info">
                         <span class="info-label">方向:</span>
-                        <span class="info-value direction-{{ candidate.direction|lower }}">{{ candidate.direction }}</span>
+                        <span class="info-value direction-{{ candidate.direction|lower }}">{{ candidate.merged_direction|default:candidate.direction }}</span>
                     </div>
                     <div class="candidate-info">
                         <span class="info-label">类型:</span>
                         <span class="info-value">{{ candidate.asset_class }}</span>
                     </div>
+                    {% if candidate.merged_count|default:1 > 1 %}
+                    <div class="candidate-info">
+                        <span class="info-label">归并:</span>
+                        <span class="info-value">{{ candidate.merged_count }} 条候选（{{ candidate.merged_directions|join:"/" }}）</span>
+                    </div>
+                    {% endif %}
                     <div class="candidate-thesis">
                         {{ candidate.thesis|truncatewords:15 }}
                     </div>
@@ -372,6 +382,7 @@ function submitDecisionRequest(candidateId, assetCode, assetClass, direction, co
         direction: (direction || '').toUpperCase() === 'SHORT' ? 'SELL' : 'BUY',
         priority: 'high',
         trigger_id: candidateId,
+        candidate_id: candidateId,
         reason: thesis || `来源候选 ${candidateId}`,
         expected_confidence: Number(confidence || 0),
         quota_period: 'weekly'

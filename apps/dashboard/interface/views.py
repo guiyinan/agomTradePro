@@ -665,11 +665,32 @@ def _get_actionable_candidates():
     """首页主流程展示：可操作候选列表"""
     try:
         from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
-        return list(
+        from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
+        pending_codes = set(
+            (code or "").upper()
+            for code in DecisionRequestModel._default_manager
+            .filter(
+                response__approved=True,
+                execution_status__in=['PENDING', 'FAILED']
+            )
+            .values_list('asset_code', flat=True)
+        )
+        candidates = list(
             AlphaCandidateModel._default_manager
             .filter(status='ACTIONABLE')
-            .order_by('-confidence', '-created_at')[:5]
+            .order_by('-confidence', '-created_at')[:50]
         )
+        deduped = []
+        seen_codes = set()
+        for item in candidates:
+            code = (getattr(item, "asset_code", "") or "").upper()
+            if not code or code in seen_codes or code in pending_codes:
+                continue
+            seen_codes.add(code)
+            deduped.append(item)
+            if len(deduped) >= 5:
+                break
+        return deduped
     except Exception as e:
         logger.warning(f"Failed to get actionable candidates: {e}")
         return []
@@ -679,14 +700,25 @@ def _get_pending_requests():
     """首页主流程展示：已批准但未执行/失败待重试请求"""
     try:
         from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
-        return list(
+        requests = list(
             DecisionRequestModel._default_manager
             .filter(
                 response__approved=True,
                 execution_status__in=['PENDING', 'FAILED']
             )
-            .order_by('-requested_at')[:10]
+            .order_by('-requested_at')[:50]
         )
+        deduped = []
+        seen_codes = set()
+        for item in requests:
+            code = (getattr(item, "asset_code", "") or "").upper()
+            if not code or code in seen_codes:
+                continue
+            seen_codes.add(code)
+            deduped.append(item)
+            if len(deduped) >= 10:
+                break
+        return deduped
     except Exception as e:
         logger.warning(f"Failed to get pending requests: {e}")
         return []

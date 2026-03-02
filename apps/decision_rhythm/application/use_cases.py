@@ -56,6 +56,7 @@ class SubmitDecisionRequestRequest:
         direction: 方向 ("BUY", "SELL")
         priority: 优先级
         trigger_id: 触发器 ID（可选）
+        candidate_id: 候选 ID（可选）
         reason: 原因
         expected_confidence: 预期置信度
         quantity: 数量（可选）
@@ -68,6 +69,7 @@ class SubmitDecisionRequestRequest:
     direction: str
     priority: DecisionPriority
     trigger_id: Optional[str] = None
+    candidate_id: Optional[str] = None
     reason: str = ""
     expected_confidence: float = 0.0
     quantity: Optional[int] = None
@@ -272,6 +274,7 @@ class SubmitDecisionRequestUseCase:
                 priority=request.priority,
                 reason=request.reason,
                 trigger_id=request.trigger_id,
+                candidate_id=request.candidate_id,
                 expected_confidence=request.expected_confidence,
                 quantity=request.quantity,
                 notional=request.notional,

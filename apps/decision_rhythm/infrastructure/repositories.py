@@ -569,6 +569,48 @@ class DecisionRequestRepository:
             logger.error(f"Failed to get request by candidate_id: {e}", exc_info=True)
             return None
 
+    def get_open_by_asset_code(self, asset_code: str) -> Optional[DecisionRequest]:
+        """
+        按证券代码获取最近的待执行请求（已批准且未完成）。
+
+        用于提交幂等控制，避免同一证券重复堆积待办请求。
+        """
+        try:
+            model = (
+                self.model.objects.filter(
+                    asset_code=asset_code,
+                    response__approved=True,
+                    execution_status__in=["PENDING", "FAILED"],
+                )
+                .order_by("-requested_at")
+                .first()
+            )
+            return model.to_domain() if model else None
+        except Exception as e:
+            logger.error(f"Failed to get open request by asset_code: {e}", exc_info=True)
+            return None
+
+    def get_open_by_candidate_id(self, candidate_id: str) -> Optional[DecisionRequest]:
+        """
+        按候选 ID 获取最近的待执行请求（已批准且未完成）。
+        """
+        if not candidate_id:
+            return None
+        try:
+            model = (
+                self.model.objects.filter(
+                    candidate_id=candidate_id,
+                    response__approved=True,
+                    execution_status__in=["PENDING", "FAILED"],
+                )
+                .order_by("-requested_at")
+                .first()
+            )
+            return model.to_domain() if model else None
+        except Exception as e:
+            logger.error(f"Failed to get open request by candidate_id: {e}", exc_info=True)
+            return None
+
 
 # 便捷函数
 

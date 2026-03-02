@@ -421,6 +421,31 @@ class SubmitDecisionRequestView(APIView):
 
             data = serializer.validated_data
 
+            # 幂等控制1：同 candidate 已存在待执行请求则直接返回
+            open_by_candidate = None
+            candidate_id = data.get("candidate_id", "") or ""
+            if candidate_id:
+                open_by_candidate = self.request_repository.get_open_by_candidate_id(candidate_id)
+            if open_by_candidate:
+                request_serializer = DecisionRequestSerializer(open_by_candidate)
+                return Response({
+                    "success": True,
+                    "result": request_serializer.data,
+                    "deduplicated": True,
+                    "message": "该候选已有待执行请求，已复用",
+                })
+
+            # 幂等控制2：同证券已有待执行请求则直接返回
+            open_by_asset = self.request_repository.get_open_by_asset_code(data["asset_code"])
+            if open_by_asset:
+                request_serializer = DecisionRequestSerializer(open_by_asset)
+                return Response({
+                    "success": True,
+                    "result": request_serializer.data,
+                    "deduplicated": True,
+                    "message": "该证券已有待执行请求，已复用",
+                })
+
             # 构建请求
             req = SubmitDecisionRequestRequest(
                 asset_code=data["asset_code"],
@@ -428,6 +453,7 @@ class SubmitDecisionRequestView(APIView):
                 direction=data["direction"],
                 priority=DecisionPriority(data["priority"]),
                 trigger_id=data.get("trigger_id"),
+                candidate_id=candidate_id or None,
                 reason=data.get("reason", ""),
                 expected_confidence=data.get("expected_confidence", 0.0),
                 quantity=data.get("quantity"),
@@ -456,6 +482,24 @@ class SubmitDecisionRequestView(APIView):
                     response.response.request_id,
                     response.response,
                 )
+
+                # 提交成功后收口候选状态，避免继续停留在 ACTIONABLE
+                if response.response.approved and response.decision_request.candidate_id:
+                    try:
+                        from apps.alpha_trigger.infrastructure.repositories import get_candidate_repository
+                        from apps.alpha_trigger.domain.entities import CandidateStatus
+                        candidate_repo = get_candidate_repository()
+                        candidate_repo.update_status(
+                            candidate_id=response.decision_request.candidate_id,
+                            status=CandidateStatus.CANDIDATE,
+                        )
+                        candidate_repo.update_execution_tracking(
+                            candidate_id=response.decision_request.candidate_id,
+                            decision_request_id=response.decision_request.request_id,
+                            execution_status="PENDING",
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to compact candidate status after submit: {e}")
 
                 request_serializer = DecisionRequestSerializer(response.decision_request)
 

@@ -70,7 +70,7 @@
 
             <!-- 提交决策按钮 -->
             <button class="btn-submit-decision"
-                    onclick="submitDecision('{{ candidate.candidate_id|escapejs }}', '{{ candidate.asset_code|escapejs }}', '{{ candidate.asset_class|escapejs }}', '{{ candidate.direction|escapejs }}', {{ candidate.confidence|default:0 }}, '{{ candidate.thesis|default:''|escapejs }}')">
+                    onclick="openSubmitDecisionModal('{{ candidate.candidate_id|escapejs }}', '{{ candidate.asset_code|escapejs }}', '{{ candidate.asset_class|escapejs }}', '{{ candidate.direction|escapejs }}', {{ candidate.confidence|default:0 }}, '{{ candidate.thesis|default:''|escapejs }}')">
                 📝 提交决策
             </button>
 
@@ -123,6 +123,33 @@
         {% endif %}
     </div>
 </section>
+
+<!-- 提交决策确认模态框 -->
+<div id="submitDecisionModal" class="execute-modal-overlay">
+    <div class="execute-modal">
+        <div class="execute-modal-header">
+            <h3 class="execute-modal-title">确认提交决策</h3>
+            <button class="execute-modal-close" onclick="closeSubmitDecisionModal()">×</button>
+        </div>
+        <div class="execute-modal-body">
+            <div class="execution-info">
+                <p><strong>资产代码:</strong> <span id="submitModalAssetCode"></span></p>
+                <p><strong>方向:</strong> <span id="submitModalDirection"></span></p>
+                <p><strong>资产类别:</strong> <span id="submitModalAssetClass"></span></p>
+                <p><strong>置信度:</strong> <span id="submitModalConfidence"></span></p>
+            </div>
+            <div class="precheck-result passed" style="margin-top: 10px;">
+                提交后将进入「待执行队列」，当前候选会从此列表移除。
+            </div>
+        </div>
+        <div class="execute-modal-footer">
+            <button class="btn-cancel" onclick="closeSubmitDecisionModal()">取消</button>
+            <button id="confirmSubmitDecisionButton" class="btn-submit-decision" onclick="confirmSubmitDecision()">
+                确认提交
+            </button>
+        </div>
+    </div>
+</div>
 
 <!-- 执行模态框 -->
 <div id="executeModal" class="execute-modal-overlay">

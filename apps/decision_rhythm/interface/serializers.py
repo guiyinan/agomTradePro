@@ -458,6 +458,13 @@ class SubmitDecisionRequestRequestSerializer(serializers.Serializer):
         help_text="触发器 ID"
     )
 
+    candidate_id = serializers.CharField(
+        default="",
+        required=False,
+        allow_blank=True,
+        help_text="候选 ID"
+    )
+
     reason = serializers.CharField(
         default="",
         required=False,
