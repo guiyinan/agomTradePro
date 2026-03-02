@@ -87,3 +87,5 @@ celerybeat-schedule*
 /tests/playwright/reports/screenshots
 /.claude
 /.claude
+.claude/settings.local.json
+/.claude

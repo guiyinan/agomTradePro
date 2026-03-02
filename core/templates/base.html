@@ -47,7 +47,8 @@
 
             <nav class="top-nav">
                 {% if user.is_authenticated %}
-                <a href="{% url 'dashboard:index' %}" class="top-nav-item">投资指挥中心</a>
+                <a href="{% url 'dashboard:index' %}" class="top-nav-item">系统首页</a>
+                <a href="{% url 'decision-workspace' %}" class="top-nav-item">决策工作台</a>
                 {% else %}
                 <a href="{% url 'index' %}" class="top-nav-item">首页</a>
                 {% endif %}
@@ -66,34 +67,63 @@
                     </div>
                 </div>
 
-                <!-- 投资管理：下拉菜单 -->
+                <!-- 账户与执行：下拉菜单 -->
                 {% if user.is_authenticated %}
                 <div class="dropdown">
-                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">投资管理</button>
+                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">账户与执行</button>
                     <div class="dropdown-menu">
-                        <a href="{% url 'strategy:list' %}" class="dropdown-item">
-                            <i class="bi bi-diagram-3"></i> 策略管理
+                        <div class="dropdown-section-title">执行链路</div>
+                        <a href="{% url 'decision-workspace' %}" class="dropdown-item">
+                            <i class="bi bi-kanban"></i> 决策工作台
                         </a>
-                        <a href="{% url 'signal:manage' %}" class="dropdown-item">投资信号</a>
-                        <a href="{% url 'backtest:list' %}" class="dropdown-item">回测引擎</a>
                         <div class="dropdown-divider"></div>
                         <a href="{% url 'simulated_trading:my-accounts' %}" class="dropdown-item">
                             <i class="bi bi-wallet2"></i> 我的投资账户
                         </a>
-                        <a href="{% url 'account:profile' %}#positions" class="dropdown-item">我的持仓</a>
+                        <a href="{% url 'account:profile' %}#positions" class="dropdown-item">
+                            <i class="bi bi-briefcase"></i> 我的持仓
+                        </a>
+                        {% if user.is_staff %}
+                        <a href="{% url 'audit:reports' %}" class="dropdown-item">
+                            <i class="bi bi-clipboard-data"></i> 审计归因报告
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
 
-                <!-- 决策平面：下拉菜单 -->
+                <!-- 策略研究：下拉菜单 -->
+                <div class="dropdown">
+                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">策略研究</button>
+                    <div class="dropdown-menu">
+                        <a href="{% url 'signal:manage' %}" class="dropdown-item">
+                            <i class="bi bi-broadcast"></i> 投资信号
+                        </a>
+                        <a href="{% url 'strategy:list' %}" class="dropdown-item">
+                            <i class="bi bi-diagram-3"></i> 策略管理
+                        </a>
+                        <a href="{% url 'backtest:list' %}" class="dropdown-item">
+                            <i class="bi bi-flask"></i> 回测引擎
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="{% url 'equity:screen' %}" class="dropdown-item">
+                            <i class="bi bi-graph-up-arrow"></i> 个股筛选
+                        </a>
+                        <a href="{% url 'fund:dashboard' %}" class="dropdown-item">
+                            <i class="bi bi-pie-chart"></i> 基金总览
+                        </a>
+                        <a href="{% url 'asset-screen' %}" class="dropdown-item">
+                            <i class="bi bi-funnel"></i> 资产筛选
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 决策引擎：下拉菜单 -->
                 {% if user.is_staff %}
                 <div class="dropdown">
-                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">决策平面</button>
+                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">决策引擎</button>
                     <div class="dropdown-menu">
                         <a href="{% url 'beta_gate:config' %}" class="dropdown-item">
                             <i class="bi bi-door-closed"></i> Beta 闸门
-                        </a>
-                        <a href="{% url 'decision_rhythm:config' %}" class="dropdown-item">
-                            <i class="bi bi-sliders"></i> 决策节奏配置
                         </a>
                         <a href="{% url 'alpha_trigger:list' %}" class="dropdown-item">
                             <i class="bi bi-lightning"></i> Alpha 触发器
@@ -101,29 +131,17 @@
                         <a href="{% url 'alpha_trigger:performance' %}" class="dropdown-item">
                             <i class="bi bi-graph-up"></i> Alpha 表现
                         </a>
+                        <div class="dropdown-divider"></div>
                         <a href="{% url 'decision_rhythm:quota' %}" class="dropdown-item">
                             <i class="bi bi-clock-history"></i> 决策配额
+                        </a>
+                        <a href="{% url 'decision_rhythm:config' %}" class="dropdown-item">
+                            <i class="bi bi-sliders"></i> 决策节奏配置
                         </a>
                     </div>
                 </div>
                 {% endif %}
 
-                <!-- 证券分析：下拉菜单 -->
-                <div class="dropdown">
-                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">证券分析</button>
-                    <div class="dropdown-menu">
-                        <a href="{% url 'asset-screen' %}" class="dropdown-item">资产筛选</a>
-                        <div class="dropdown-divider"></div>
-                        <a href="{% url 'fund:dashboard' %}" class="dropdown-item">基金总览</a>
-                        <a href="{% url 'equity:screen' %}" class="dropdown-item">个股筛选</a>
-                        <a href="{% url 'equity:pool' %}" class="dropdown-item">股票池管理</a>
-                        {% if user.is_staff %}
-                        <div class="dropdown-divider"></div>
-                        <a href="{% url 'fund:screen' %}" class="dropdown-item">基金筛选</a>
-                        <a href="{% url 'fund:rank' %}" class="dropdown-item">基金排名</a>
-                        {% endif %}
-                    </div>
-                </div>
                 {% endif %}
 
                 <!-- 系统：下拉菜单 -->

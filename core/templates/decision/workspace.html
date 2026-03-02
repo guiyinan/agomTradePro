@@ -217,34 +217,34 @@
                     <button
                         class="btn btn-sm btn-primary"
                         onclick="openExecutionReviewModal(this)"
-                        data-request-id="{{ request.request_id|escapejs }}"
-                        data-asset-code="{{ request.asset_code|escapejs }}"
-                        data-direction="{{ request.direction|escapejs }}"
-                        data-priority="{{ request.priority|escapejs }}"
+                        data-request-id="{{ request.request_id|escape }}"
+                        data-asset-code="{{ request.asset_code|escape }}"
+                        data-direction="{{ request.direction|escape }}"
+                        data-priority="{{ request.priority|escape }}"
                         data-confidence="{{ request.expected_confidence|default:0 }}"
-                        data-reason="{{ request.reason|default:''|escapejs }}"
+                        data-reason="{{ request.reason|default:''|escape }}"
                     >
                         去执行
                     </button>
                     <button class="btn btn-sm btn-secondary" onclick="openExecutionReviewModal(this, true)"
-                        data-request-id="{{ request.request_id|escapejs }}"
-                        data-asset-code="{{ request.asset_code|escapejs }}"
-                        data-direction="{{ request.direction|escapejs }}"
-                        data-priority="{{ request.priority|escapejs }}"
+                        data-request-id="{{ request.request_id|escape }}"
+                        data-asset-code="{{ request.asset_code|escape }}"
+                        data-direction="{{ request.direction|escape }}"
+                        data-priority="{{ request.priority|escape }}"
                         data-confidence="{{ request.expected_confidence|default:0 }}"
-                        data-reason="{{ request.reason|default:''|escapejs }}">
+                        data-reason="{{ request.reason|default:''|escape }}">
                         取消
                     </button>
                     {% elif request.execution_status == 'FAILED' %}
                     <button
                         class="btn btn-sm btn-warning"
                         onclick="openExecutionReviewModal(this)"
-                        data-request-id="{{ request.request_id|escapejs }}"
-                        data-asset-code="{{ request.asset_code|escapejs }}"
-                        data-direction="{{ request.direction|escapejs }}"
-                        data-priority="{{ request.priority|escapejs }}"
+                        data-request-id="{{ request.request_id|escape }}"
+                        data-asset-code="{{ request.asset_code|escape }}"
+                        data-direction="{{ request.direction|escape }}"
+                        data-priority="{{ request.priority|escape }}"
                         data-confidence="{{ request.expected_confidence|default:0 }}"
-                        data-reason="{{ request.reason|default:''|escapejs }}"
+                        data-reason="{{ request.reason|default:''|escape }}"
                     >
                         重试
                     </button>

@@ -78,6 +78,7 @@
 | [sdk_mcp_coverage_matrix_20260226.md](plans/sdk_mcp_coverage_matrix_20260226.md) | SDK/MCP 覆盖矩阵（按模块） | ✅ 2026-02-26 更新 |
 | [decision-making-improvement.md](plans/decision-making-improvement.md) | 决策流程改进方案 | 完整 |
 | [outsourcing-valuation-pricing-execution-plan-2026-03-02.md](plans/outsourcing-valuation-pricing-execution-plan-2026-03-02.md) | 外包落实计划：估值定价引擎与执行审批闭环 | ✅ 2026-03-02 新增 |
+| [decision-workspace-topdown-bottomup-outsourcing-spec-2026-03-02.md](plans/decision-workspace-topdown-bottomup-outsourcing-spec-2026-03-02.md) | 外包实施规格：Top-down + Bottom-up 决策融合一体化需求/计划/验收 | ✅ 2026-03-02 新增 |
 | [streamlit-dashboard-upgrade-plan.md](plans/streamlit-dashboard-upgrade-plan.md) | Streamlit 仪表盘交互升级实施方案 | 最新 |
 | [admin-to-modern-interaction-migration-plan.md](plans/admin-to-modern-interaction-migration-plan.md) | Admin 依赖迁移实施方案 | 最新 |
 | [system-code-doc-alignment-implementation-plan-2026-02-06.md](plans/system-code-doc-alignment-implementation-plan-2026-02-06.md) | 代码巡检与文档对齐实施方案 | 最新 |
@@ -190,9 +191,10 @@
 - 本地 MCP 回归：`98 passed`（tool registration + tool execution + RBAC）
 - 说明：测试数字为当日快照，最终以最新 CI/本地执行结果为准
 
-### 导航口径快照（2026-02-28）
+### 导航口径快照（2026-03-02）
 
 - 宏观环境统一入口文案：`政策/情绪/热点工作台`（`/policy/workbench/`）
+- 顶部导航按主流程重构：`系统首页 -> 决策工作台 -> 账户与执行 -> 策略研究 -> 决策引擎`
 - 投资管理账户入口文案：`我的投资账户`（替代“我的模拟仓”）
 - API 文档入口：仅保留“系统”菜单中的 `/api/docs/`
 - 页面导航规范：业务页面链接使用 Django `{% url %}`，禁止硬编码业务路径
