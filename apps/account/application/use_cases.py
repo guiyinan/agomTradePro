@@ -35,6 +35,7 @@ from apps.account.infrastructure.repositories import (
 )
 from apps.account.infrastructure.market_price_service import MarketPriceService
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+from apps.regime.application.current_regime import resolve_current_regime
 
 
 @dataclass
@@ -306,13 +307,9 @@ class AnalyzePortfolioUseCase:
             raise ValueError(f"投资组合 {portfolio_id} 不存在")
 
         # 2. 获取当前Regime
-        latest_regime = self.regime_repo.get_latest_snapshot()
-        if latest_regime:
-            current_regime = latest_regime.dominant_regime
-            regime_date = latest_regime.observed_at
-        else:
-            current_regime = "Unknown"
-            regime_date = date.today()
+        latest_regime = resolve_current_regime(as_of_date=date.today())
+        current_regime = latest_regime.dominant_regime
+        regime_date = latest_regime.observed_at
 
         # 3. 计算Regime匹配度
         match_analysis = PositionService.calculate_regime_match_score(
@@ -605,4 +602,3 @@ class CreatePositionFromBacktestUseCase:
             return Region.GLOBAL
         else:
             return Region.CN  # 默认中国
-

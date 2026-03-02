@@ -525,7 +525,7 @@ def trigger_signal_reevaluation(
     try:
         from apps.signal.infrastructure.repositories import DjangoSignalRepository
         from apps.signal.application.use_cases import ReevaluateSignalsUseCase, ReevaluateSignalsRequest
-        from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+        from apps.regime.application.current_regime import resolve_current_regime
 
         logger.info(
             f"Starting signal reevaluation for policy level P{new_level}, "
@@ -533,11 +533,9 @@ def trigger_signal_reevaluation(
         )
 
         # 获取当前 Regime（如果可用）
-        regime_repo = DjangoRegimeRepository()
-        latest_regime = regime_repo.get_latest_snapshot()
-
-        current_regime = latest_regime.dominant_regime if latest_regime else None
-        regime_confidence = latest_regime.confidence if latest_regime else 0.0
+        latest_regime = resolve_current_regime()
+        current_regime = latest_regime.dominant_regime
+        regime_confidence = latest_regime.confidence
 
         # 创建仓储和用例
         signal_repo = DjangoSignalRepository()
@@ -708,4 +706,3 @@ def refresh_gate_constraints_task():
             "status": "error",
             "error": str(e)
         }
-

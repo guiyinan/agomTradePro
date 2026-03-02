@@ -10,17 +10,11 @@ from typing import List, Dict, Any, Optional
 import logging
 
 from apps.signal.infrastructure.repositories import UnifiedSignalRepository
+from apps.regime.application.current_regime import resolve_current_regime
 
 logger = logging.getLogger(__name__)
 
 # Optional imports for rotation, factor, hedge modules
-try:
-    from apps.regime.application.use_cases import GetCurrentRegimeUseCase
-    REGIME_USE_CASE_AVAILABLE = True
-except ImportError:
-    REGIME_USE_CASE_AVAILABLE = False
-    GetCurrentRegimeUseCase = None
-
 try:
     from apps.rotation.infrastructure.services import RotationIntegrationService
     ROTATION_AVAILABLE = True
@@ -73,10 +67,7 @@ class UnifiedSignalService:
     def _get_current_regime(self, calc_date: date) -> Optional[str]:
         """获取当前 Regime（可选功能）"""
         try:
-            from apps.regime.infrastructure.repositories import DjangoRegimeRepository
-            regime_repo = DjangoRegimeRepository()
-            regime_state = regime_repo.get_current_regime()
-            return regime_state.quadrant if regime_state else None
+            return resolve_current_regime(as_of_date=calc_date).dominant_regime
         except Exception as e:
             logger.warning(f"无法获取当前 Regime: {e}")
             return None
@@ -162,14 +153,9 @@ class UnifiedSignalService:
         signals = []
 
         try:
-            if not REGIME_USE_CASE_AVAILABLE or GetCurrentRegimeUseCase is None:
-                logger.warning("GetCurrentRegimeUseCase not available, skipping regime signals")
-                return signals
+            regime = resolve_current_regime(as_of_date=calc_date)
 
-            regime_use_case = GetCurrentRegimeUseCase()
-            regime = regime_use_case.execute()
-
-            if regime and regime.dominant_regime:
+            if regime and regime.dominant_regime and regime.dominant_regime != "Unknown":
                 # 根据象限生成信号
                 regime_type = regime.dominant_regime
 
@@ -183,14 +169,12 @@ class UnifiedSignalService:
                     reason=f"当前宏观象限: {regime_type}",
                     priority=6,
                     action_required='根据象限调整资产配置',
-                    extra_data={
-                        'regime_type': regime_type,
-                        'growth_level': regime.growth_level,
-                        'inflation_level': regime.inflation_level,
-                        'growth_value': regime.growth_value,
-                        'inflation_value': regime.inflation_value,
-                    }
-                )
+                        extra_data={
+                            'regime_type': regime_type,
+                            'confidence': regime.confidence,
+                            'source': regime.data_source,
+                        }
+                    )
                 signals.append(signal)
 
                 # 根据象限生成资产配置建议

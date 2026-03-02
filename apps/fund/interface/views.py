@@ -46,13 +46,12 @@ def dashboard_view(request):
     GET /fund/dashboard/
     """
     # 获取当前 Regime 信息
-    from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+    from apps.regime.application.current_regime import resolve_current_regime
     from apps.policy.infrastructure.repositories import DjangoPolicyRepository
     from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
     from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
-    regime_repo = DjangoRegimeRepository()
-    latest_regime = regime_repo.get_latest_snapshot()
+    latest_regime = resolve_current_regime()
 
     # 获取当前政策档位
     policy_repo = DjangoPolicyRepository()

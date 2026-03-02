@@ -8,6 +8,7 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from datetime import date
+from apps.regime.application.current_regime import resolve_current_regime
 
 
 def index_view(request):
@@ -34,13 +35,11 @@ def asset_screen_view(request):
 
     统一的多资产筛选和资产池管理界面
     """
-    from apps.regime.infrastructure.repositories import DjangoRegimeRepository
     from apps.policy.infrastructure.repositories import DjangoPolicyRepository
     from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
 
     # 获取当前上下文信息
-    regime_repo = DjangoRegimeRepository()
-    latest_regime = regime_repo.get_latest_snapshot()
+    current_regime = resolve_current_regime()
 
     policy_repo = DjangoPolicyRepository()
     latest_policy = policy_repo.get_current_policy_level()
@@ -63,8 +62,8 @@ def asset_screen_view(request):
     }
 
     context = {
-        'current_regime': latest_regime.dominant_regime if latest_regime else 'Unknown',
-        'regime_display': regime_display.get(latest_regime.dominant_regime) if latest_regime else '未知',
+        'current_regime': current_regime.dominant_regime,
+        'regime_display': regime_display.get(current_regime.dominant_regime, '未知'),
         'current_policy': latest_policy.value if latest_policy else 'P1',
         'policy_display': policy_display.get(latest_policy.value) if latest_policy else 'P1（宽松）',
         'sentiment_index': f"{latest_sentiment.composite_index:.2f}" if latest_sentiment else "0.00",
@@ -122,10 +121,6 @@ def decision_workspace_view(request):
     集成 Beta Gate、Alpha Trigger、Decision Rhythm 三个模块的概览和快速操作。
     """
     import logging
-    from apps.regime.application.use_cases import CalculateRegimeV2UseCase, CalculateRegimeV2Request
-    from apps.regime.infrastructure.repositories import get_regime_repository
-    from apps.macro.infrastructure.repositories import DjangoMacroRepository
-    from apps.macro.infrastructure.models import DataSourceConfig
     from apps.policy.application.use_cases import GetCurrentPolicyUseCase
     from apps.policy.infrastructure.repositories import get_policy_repository
 
@@ -138,32 +133,9 @@ def decision_workspace_view(request):
 
     # ========== 获取当前 Regime（与 Regime 页面保持同口径） ==========
     try:
-        first_source = DataSourceConfig._default_manager.filter(is_active=True).order_by('priority').first()
-        default_source = first_source.source_type if first_source else 'akshare'
-
-        regime_use_case = CalculateRegimeV2UseCase(DjangoMacroRepository())
-        regime_response = regime_use_case.execute(
-            CalculateRegimeV2Request(
-                as_of_date=date.today(),
-                use_pit=True,
-                growth_indicator="PMI",
-                inflation_indicator="CPI",
-                data_source=default_source,
-                skip_cache=False,
-            )
-        )
-        if regime_response.success and regime_response.result:
-            context['current_regime'] = regime_response.result.regime.value
-            context['regime_confidence'] = regime_response.result.confidence
-        else:
-            # 与首页一致：实时失败时回退快照，避免页面空白
-            latest_snapshot = get_regime_repository().get_latest_snapshot()
-            if latest_snapshot:
-                context['current_regime'] = latest_snapshot.dominant_regime
-                context['regime_confidence'] = latest_snapshot.confidence
-            else:
-                context['current_regime'] = 'Unknown'
-                context['regime_confidence'] = 0.0
+        current_regime = resolve_current_regime(as_of_date=date.today())
+        context['current_regime'] = current_regime.dominant_regime
+        context['regime_confidence'] = current_regime.confidence
     except Exception as e:
         logger.warning(f"Failed to get current regime: {e}")
         context['current_regime'] = 'Unknown'

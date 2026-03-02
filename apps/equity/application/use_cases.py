@@ -64,8 +64,8 @@ class ScreenStocksUseCase:
             if request.regime:
                 regime = request.regime
             else:
-                latest_regime = self.regime_repo.get_latest_regime()
-                regime = latest_regime['dominant_regime']
+                from apps.regime.application.current_regime import resolve_current_regime
+                regime = resolve_current_regime(as_of_date=date.today()).dominant_regime
 
             # 2. 获取筛选规则（从数据库配置加载）
             from apps.equity.infrastructure.config_loader import get_stock_screening_rule

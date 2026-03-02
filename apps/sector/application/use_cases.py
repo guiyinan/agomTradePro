@@ -108,9 +108,9 @@ class AnalyzeSectorRotationUseCase:
                         top_sectors=[],
                         error="未指定 Regime 且未提供 regime_repo"
                     )
-                # 自动获取最新 Regime
-                latest_regime = self.regime_repo.get_latest_regime()
-                regime = latest_regime['dominant_regime']
+                # 自动获取最新 Regime（统一 V2 链路）
+                from apps.regime.application.current_regime import resolve_current_regime
+                regime = resolve_current_regime(as_of_date=date.today()).dominant_regime
 
             # 2. 加载板块权重配置
             regime_weights = get_sector_weights(regime)

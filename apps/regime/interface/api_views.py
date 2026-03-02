@@ -11,8 +11,11 @@ from rest_framework.views import APIView
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from datetime import date
+from django.utils import timezone
 
-from apps.regime.application.use_cases import CalculateRegimeUseCase, CalculateRegimeRequest
+from apps.regime.application.current_regime import resolve_current_regime
+from apps.regime.application.use_cases import CalculateRegimeV2UseCase, CalculateRegimeV2Request
+from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from apps.regime.infrastructure.models import RegimeLog
 from .serializers import (
@@ -37,7 +40,7 @@ class RegimeViewSet(viewsets.ViewSet):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.repository = DjangoRegimeRepository()
-        self.use_case = CalculateRegimeUseCase(self.repository)
+        self.use_case = CalculateRegimeV2UseCase(DjangoMacroRepository())
 
     @action(detail=False, methods=['get'])
     def current(self, request):
@@ -47,20 +50,21 @@ class RegimeViewSet(viewsets.ViewSet):
         GET /api/regime/current/
         """
         try:
-            # 获取最新的 Regime 记录
-            latest = RegimeLog._default_manager.order_by('-observed_at').first()
-
-            if latest:
-                serializer = RegimeLogSerializer(latest)
-                return Response({
-                    'success': True,
-                    'data': serializer.data
-                })
-            else:
-                return Response({
-                    'success': False,
-                    'error': 'No regime data available. Please calculate regime first.'
-                }, status=status.HTTP_404_NOT_FOUND)
+            latest = resolve_current_regime(as_of_date=date.today())
+            return Response({
+                'success': True,
+                'data': {
+                    'observed_at': latest.observed_at,
+                    'dominant_regime': latest.dominant_regime,
+                    'confidence': latest.confidence,
+                    'growth_momentum_z': 0.0,
+                    'inflation_momentum_z': 0.0,
+                    'distribution': {},
+                    'source': latest.data_source,
+                    'is_fallback': latest.is_fallback,
+                    'warnings': latest.warnings,
+                }
+            })
 
         except Exception as e:
             return Response({
@@ -89,7 +93,7 @@ class RegimeViewSet(viewsets.ViewSet):
             data = request_serializer.validated_data
 
             # 构建 Use Case 请求
-            uc_request = CalculateRegimeRequest(
+            uc_request = CalculateRegimeV2Request(
                 as_of_date=data.get('as_of_date', date.today()),
                 use_pit=data.get('use_pit', True),
                 growth_indicator=data.get('growth_indicator', 'PMI'),
@@ -100,9 +104,28 @@ class RegimeViewSet(viewsets.ViewSet):
             # 执行计算
             response = self.use_case.execute(uc_request)
 
-            # 序列化结果
-            response_serializer = RegimeCalculateResponseSerializer(response)
+            snapshot_data = None
+            if response.success and response.result:
+                snapshot_data = {
+                    "observed_at": uc_request.as_of_date,
+                    "dominant_regime": response.result.regime.value,
+                    "confidence": float(response.result.confidence),
+                    "growth_momentum_z": 0.0,
+                    "inflation_momentum_z": 0.0,
+                    "regime_distribution": response.result.distribution,
+                    "data_source": uc_request.data_source or "akshare",
+                    "created_at": timezone.now(),
+                }
 
+            payload = {
+                "success": response.success,
+                "snapshot": snapshot_data,
+                "warnings": response.warnings or [],
+                "error": response.error,
+                "raw_data": response.raw_data,
+                "intermediate_data": None,
+            }
+            response_serializer = RegimeCalculateResponseSerializer(payload)
             return Response(response_serializer.data)
 
         except Exception as e:

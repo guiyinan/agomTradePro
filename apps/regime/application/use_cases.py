@@ -6,6 +6,7 @@ Application layer orchestrating the workflow of calculating Regime.
 
 import logging
 import os
+import warnings
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Optional, List, Dict, Set, Tuple
@@ -33,14 +34,34 @@ class GetCurrentRegimeResponse:
 
 
 class GetCurrentRegimeUseCase:
-    """Backward-compatible use case: fetch latest regime snapshot."""
+    """
+    Deprecated use case.
 
-    def __init__(self, repository):
+    Keep for backward compatibility only. New code must use
+    `apps.regime.application.current_regime.resolve_current_regime`.
+    """
+
+    def __init__(self, repository=None):
         self.repository = repository
 
     def execute(self) -> GetCurrentRegimeResponse:
         try:
-            latest = self.repository.get_latest_snapshot()
+            warnings.warn(
+                "GetCurrentRegimeUseCase is deprecated; use resolve_current_regime()",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            from .current_regime import resolve_current_regime
+            current = resolve_current_regime()
+            # Build a minimal backward-compatible RegimeSnapshot-like payload.
+            latest = RegimeSnapshot(
+                observed_at=current.observed_at,
+                dominant_regime=current.dominant_regime,
+                confidence=current.confidence,
+                growth_momentum_z=0.0,
+                inflation_momentum_z=0.0,
+                distribution={},
+            )
             return GetCurrentRegimeResponse(success=True, regime_state=latest)
         except Exception as e:
             logger.error("GetCurrentRegimeUseCase failed: %s", e, exc_info=True)
@@ -616,13 +637,17 @@ class CalculateRegimeResponse:
 
 class CalculateRegimeUseCase:
     """
-    计算 Regime 的用例
+    [LEGACY] 计算 Regime 的 V1 用例（动量/Z-score 路径）
 
     职责：
     1. 协调 Repository 获取数据
     2. 调用 Domain 层服务计算
     3. 返回格式化结果
     4. 提供容错机制
+
+    说明：
+    - 主业务流程已统一迁移到 V2 + resolve_current_regime()。
+    - 本类仅保留历史兼容与离线回算，不应再作为线上主链路入口。
     """
 
     # 定义关键指标的最小数据量要求

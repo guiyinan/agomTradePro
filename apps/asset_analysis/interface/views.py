@@ -85,27 +85,16 @@ class MultiDimScreenAPIView(APIView):
         # 获取当前 Regime
         current_regime = "Recovery"  # 默认值
         try:
-            from apps.regime.application.use_cases import GetCurrentRegimeUseCase
-            from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+            from apps.regime.application.current_regime import resolve_current_regime
 
-            regime_repo = DjangoRegimeRepository()
-            regime_use_case = GetCurrentRegimeUseCase(regime_repo)
-            regime_response = regime_use_case.execute()
-
-            if regime_response.success and regime_response.regime_state:
-                # 将 dominant_regime 转换为 ScoreContext 需要的格式
-                regime_mapping = {
-                    "Recovery": "Recovery",
-                    "Overheat": "Overheat",
-                    "Stagflation": "Stagflation",
-                    "Deflation": "Deflation",
-                }
-                current_regime = regime_mapping.get(
-                    regime_response.regime_state.dominant_regime.value
-                    if hasattr(regime_response.regime_state.dominant_regime, 'value')
-                    else regime_response.regime_state.dominant_regime,
-                    "Recovery"
-                )
+            regime_value = resolve_current_regime().dominant_regime
+            regime_mapping = {
+                "Recovery": "Recovery",
+                "Overheat": "Overheat",
+                "Stagflation": "Stagflation",
+                "Deflation": "Deflation",
+            }
+            current_regime = regime_mapping.get(regime_value, "Recovery")
         except Exception:
             # 使用默认值
             pass

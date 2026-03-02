@@ -9,8 +9,7 @@ from celery.utils.log import get_task_logger
 from typing import Optional, Dict, Any
 from datetime import date
 
-from apps.regime.application.use_cases import CalculateRegimeUseCase, CalculateRegimeRequest
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.regime.application.current_regime import resolve_current_regime
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 
 logger = get_task_logger(__name__)
@@ -55,53 +54,26 @@ def calculate_regime_task(
 
         logger.info(f"Starting regime calculation for date={as_of_date}, use_pit={use_pit}")
 
-        # 初始化 repository 和 use case（添加 regime_repository 用于降级）
-        macro_repository = DjangoMacroRepository()
-        regime_repository = DjangoRegimeRepository()
-        use_case = CalculateRegimeUseCase(
-            repository=macro_repository,
-            regime_repository=regime_repository
-        )
-
         # 解析日期
         target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
-
-        # 执行计算
-        request = CalculateRegimeRequest(
-            as_of_date=target_date,
-            use_pit=use_pit,
-            growth_indicator="PMI",
-            inflation_indicator="CPI",
-            data_source="akshare"
+        current = resolve_current_regime(as_of_date=target_date, use_pit=use_pit)
+        logger.info(
+            "Regime calculation completed: %s, confidence=%.2f",
+            current.dominant_regime,
+            current.confidence,
         )
-
-        response = use_case.execute(request)
-
-        if response.success:
-            snapshot = response.snapshot
-
-            # 保存到数据库
-            regime_repository.save_snapshot(snapshot)
-
-            logger.info(f"Regime calculation completed: {snapshot.dominant_regime}, confidence={snapshot.confidence:.2f}")
-
-            return {
-                'status': 'success',
-                'as_of_date': str(target_date),
-                'dominant_regime': snapshot.dominant_regime,
-                'confidence': snapshot.confidence,
-                'distribution': snapshot.distribution,
-                'growth_z': snapshot.growth_momentum_z,
-                'inflation_z': snapshot.inflation_momentum_z,
-                'warnings': response.warnings
-            }
-        else:
-            logger.error(f"Regime calculation failed: {response.error}")
-            return {
-                'status': 'error',
-                'error': response.error,
-                'warnings': response.warnings
-            }
+        return {
+            'status': 'success',
+            'as_of_date': str(target_date),
+            'dominant_regime': current.dominant_regime,
+            'confidence': current.confidence,
+            'distribution': {},
+            'growth_z': 0.0,
+            'inflation_z': 0.0,
+            'warnings': current.warnings,
+            'source': current.data_source,
+            'is_fallback': current.is_fallback,
+        }
 
     except Exception as exc:
         logger.error(f"Regime calculation failed: {exc}")

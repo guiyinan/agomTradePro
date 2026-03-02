@@ -102,10 +102,8 @@ class ScreenFundsUseCase:
             if request.regime:
                 regime = request.regime
             else:
-                from apps.regime.infrastructure.repositories import DjangoRegimeRepository
-                regime_repo = DjangoRegimeRepository()
-                latest_regime = regime_repo.get_latest_regime()
-                regime = latest_regime['dominant_regime'] if latest_regime else 'Recovery'
+                from apps.regime.application.current_regime import resolve_current_regime
+                regime = resolve_current_regime(as_of_date=date.today()).dominant_regime
 
             # 2. 获取筛选偏好（从数据库配置加载）
             from shared.infrastructure.config_loader import get_fund_type_preferences

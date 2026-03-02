@@ -9,7 +9,7 @@ from rest_framework import status
 
 from apps.asset_analysis.application.pool_service import AssetPoolManager
 from apps.asset_analysis.domain.value_objects import ScoreContext
-from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+from apps.regime.application.current_regime import resolve_current_regime
 from apps.policy.infrastructure.repositories import DjangoPolicyRepository
 from apps.sentiment.infrastructure.repositories import SentimentIndexRepository
 from apps.signal.infrastructure.repositories import DjangoSignalRepository
@@ -43,9 +43,8 @@ class AssetPoolScreenAPIView(APIView):
         # 2. 获取评分上下文
         try:
             # Regime
-            regime_repo = DjangoRegimeRepository()
-            latest_regime = regime_repo.get_latest_snapshot()
-            current_regime = regime or (latest_regime.dominant_regime if latest_regime else "Recovery")
+            resolved_regime = resolve_current_regime()
+            current_regime = regime or (resolved_regime.dominant_regime if resolved_regime else "Recovery")
 
             # Policy
             policy_repo = DjangoPolicyRepository()

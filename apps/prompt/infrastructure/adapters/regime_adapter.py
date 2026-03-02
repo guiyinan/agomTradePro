@@ -7,6 +7,7 @@ related to regime analysis.
 
 from typing import Dict, Any, Optional
 from datetime import date
+from apps.regime.application.current_regime import resolve_current_regime
 
 
 class RegimeDataAdapter:
@@ -22,16 +23,11 @@ class RegimeDataAdapter:
 
     # Regime显示名称映射
     REGIME_NAMES = {
-        "GG": "高增长高通胀",
-        "GD": "高增长低通胀",
-        "GR": "高增长通缩",
-        "MG": "中增长高通胀",
-        "MD": "中增长低通胀",
-        "MR": "中增长通缩",
-        "LG": "低增长高通胀",
-        "LD": "低增长低通胀",
-        "LR": "低增长通缩",
-        "SG": "滞胀",
+        "Recovery": "复苏",
+        "Overheat": "过热",
+        "Stagflation": "滞胀",
+        "Deflation": "通缩",
+        "Unknown": "未知",
     }
 
     def __init__(self, regime_repository=None):
@@ -70,26 +66,22 @@ class RegimeDataAdapter:
                 }
             }
         """
-        if not self.regime_repository:
+        try:
+            current = resolve_current_regime(as_of_date=as_of_date or date.today())
+            return {
+                "as_of_date": current.observed_at.isoformat(),
+                "dominant_regime": current.dominant_regime,
+                "dominant_regime_name": self.REGIME_NAMES.get(
+                    current.dominant_regime,
+                    current.dominant_regime
+                ),
+                "confidence": current.confidence,
+                "growth_z": 0.0,
+                "inflation_z": 0.0,
+                "distribution": {},
+            }
+        except Exception:
             return self._get_mock_regime()
-
-        # 获取最新快照
-        snapshot = self.regime_repository.get_latest_snapshot(as_of_date)
-        if not snapshot:
-            return None
-
-        return {
-            "as_of_date": snapshot.as_of_date.isoformat(),
-            "dominant_regime": snapshot.dominant_regime,
-            "dominant_regime_name": self.REGIME_NAMES.get(
-                snapshot.dominant_regime,
-                snapshot.dominant_regime
-            ),
-            "confidence": snapshot.confidence,
-            "growth_z": snapshot.growth_momentum_z,
-            "inflation_z": snapshot.inflation_momentum_z,
-            "distribution": snapshot.distribution,
-        }
 
     def get_regime_distribution(
         self,
@@ -161,14 +153,10 @@ class RegimeDataAdapter:
         """
         return {
             "as_of_date": date.today().isoformat(),
-            "dominant_regime": "MD",
-            "dominant_regime_name": "中增长低通胀",
+            "dominant_regime": "Recovery",
+            "dominant_regime_name": "复苏",
             "confidence": 0.65,
-            "growth_z": 0.8,
-            "inflation_z": -0.3,
-            "distribution": {
-                "GG": 0.05, "GD": 0.15, "GR": 0.02,
-                "MG": 0.08, "MD": 0.45, "MR": 0.03,
-                "LG": 0.03, "LD": 0.18, "LR": 0.01,
-            }
+            "growth_z": 0.0,
+            "inflation_z": 0.0,
+            "distribution": {}
         }

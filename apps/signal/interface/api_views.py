@@ -108,13 +108,12 @@ class SignalViewSet(viewsets.ModelViewSet):
             data = request_serializer.validated_data
 
             from apps.signal.domain.rules import check_eligibility
-            from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+            from apps.regime.application.current_regime import resolve_current_regime
 
             # 获取当前 Regime
-            regime_repo = DjangoRegimeRepository()
-            current_regime = regime_repo.get_latest_snapshot()
+            current_regime = resolve_current_regime()
 
-            if not current_regime:
+            if not current_regime or current_regime.dominant_regime == "Unknown":
                 return Response({
                     'success': False,
                     'error': 'No regime data available'

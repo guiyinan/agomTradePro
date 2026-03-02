@@ -452,9 +452,8 @@ class EquityViewSet(viewsets.ViewSet):
         # TODO: 实现股票池逻辑
         # 临时返回模拟数据
         from datetime import datetime
-        from apps.regime.infrastructure.repositories import DjangoRegimeRepository
-        regime_repo = DjangoRegimeRepository()
-        latest_regime = regime_repo.get_latest_snapshot()
+        from apps.regime.application.current_regime import resolve_current_regime
+        latest_regime = resolve_current_regime()
 
         # 模拟股票数据
         mock_stocks = [
@@ -495,7 +494,7 @@ class EquityViewSet(viewsets.ViewSet):
 
         return Response({
             'success': True,
-            'regime': latest_regime.regime if latest_regime else 'Unknown',
+            'regime': latest_regime.dominant_regime if latest_regime else 'Unknown',
             'count': len(mock_stocks),
             'update_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'avg_roe': sum(s['roe'] for s in mock_stocks) / len(mock_stocks),
@@ -512,9 +511,8 @@ class EquityViewSet(viewsets.ViewSet):
         """
         # TODO: 实现刷新逻辑
         from datetime import datetime
-        from apps.regime.infrastructure.repositories import DjangoRegimeRepository
-        regime_repo = DjangoRegimeRepository()
-        latest_regime = regime_repo.get_latest_snapshot()
+        from apps.regime.application.current_regime import resolve_current_regime
+        latest_regime = resolve_current_regime()
 
         return Response({
             'success': True,

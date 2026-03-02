@@ -113,22 +113,17 @@ class DjangoRegimeProvider:
             Regime 状态字典
         """
         try:
-            from apps.regime.infrastructure.models import RegimeLog
-
-            # 获取最新的 Regime 状态
-            latest_state = RegimeLog.objects.order_by('-observed_at').first()
-
+            from apps.regime.application.current_regime import resolve_current_regime
+            latest_state = resolve_current_regime()
             if latest_state:
                 dominant_regime = latest_state.dominant_regime
                 return {
-                    # 统一使用 regime 模块的标准命名
                     'dominant_regime': dominant_regime,
-                    # 保留历史简码字段，避免旧脚本/规则立即失效
                     'dominant_regime_code': _to_legacy_regime_code(dominant_regime),
                     'confidence': float(latest_state.confidence) if latest_state.confidence else 0.0,
-                    'growth_momentum_z': float(latest_state.growth_momentum_z) if latest_state.growth_momentum_z else 0.0,
-                    'inflation_momentum_z': float(latest_state.inflation_momentum_z) if latest_state.inflation_momentum_z else 0.0,
-                    'date': latest_state.observed_at.isoformat() if latest_state.observed_at else None
+                    'growth_momentum_z': 0.0,
+                    'inflation_momentum_z': 0.0,
+                    'date': latest_state.observed_at.isoformat() if latest_state.observed_at else None,
                 }
 
             # 返回默认值

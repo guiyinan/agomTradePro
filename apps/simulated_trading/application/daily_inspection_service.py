@@ -10,7 +10,7 @@ from typing import Any
 from django.utils import timezone
 
 from apps.policy.infrastructure.models import PolicyLog
-from apps.regime.infrastructure.models import RegimeLog
+from apps.regime.application.current_regime import resolve_current_regime
 from apps.simulated_trading.infrastructure.models import (
     DailyInspectionReportModel,
     PositionModel,
@@ -203,8 +203,7 @@ class DailyInspectionService:
 
     @staticmethod
     def _latest_regime() -> str:
-        latest = RegimeLog._default_manager.order_by("-observed_at").first()
-        return latest.dominant_regime if latest else ""
+        return resolve_current_regime().dominant_regime
 
     @staticmethod
     def _latest_policy_gear() -> str:

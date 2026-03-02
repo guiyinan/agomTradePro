@@ -10,7 +10,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from apps.signal.infrastructure.models import InvestmentSignalModel
-from apps.regime.infrastructure.models import RegimeLog
+from apps.regime.application.current_regime import resolve_current_regime
 from apps.signal.application.use_cases import (
     ValidateSignalUseCase,
     GetRecommendedAssetsUseCase,
@@ -92,19 +92,12 @@ def signal_manage_view(request):
 
 def get_current_regime():
     """获取当前 Regime 信息"""
-    latest = RegimeLog._default_manager.order_by('-observed_at').first()
-    if not latest:
-        return {
-            'dominant_regime': 'Unknown',
-            'confidence': 0.0,
-            'observed_at': None,
-            'distribution': {},
-        }
+    latest = resolve_current_regime(as_of_date=date.today())
     return {
         'dominant_regime': latest.dominant_regime,
         'confidence': latest.confidence,
         'observed_at': latest.observed_at,
-        'distribution': latest.distribution,
+        'distribution': {},
     }
 
 

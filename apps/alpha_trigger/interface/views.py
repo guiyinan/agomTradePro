@@ -813,12 +813,8 @@ def alpha_trigger_create_view(request):
         # 获取当前 Regime
         current_regime = None
         try:
-            from apps.regime.application.use_cases import GetCurrentRegimeUseCase
-            from apps.regime.infrastructure.repositories import get_regime_repository
-            regime_use_case = GetCurrentRegimeUseCase(get_regime_repository())
-            regime_response = regime_use_case.execute()
-            if regime_response.success and regime_response.regime_state:
-                current_regime = regime_response.regime_state
+            from apps.regime.application.current_regime import resolve_current_regime
+            current_regime = resolve_current_regime()
         except Exception as e:
             logger.warning(f"Failed to get current regime: {e}")
 
@@ -1381,4 +1377,3 @@ class TriggerPerformanceAPIView(APIView):
                 {"success": False, "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-

@@ -16,6 +16,7 @@ from django.utils import timezone
 from datetime import date, timedelta
 from typing import Optional
 
+# Legacy offline recalculation path; main runtime chain uses resolve_current_regime(V2).
 from apps.regime.application.use_cases import CalculateRegimeUseCase, CalculateRegimeRequest
 from apps.regime.infrastructure.models import RegimeLog
 from apps.macro.infrastructure.repositories import DjangoMacroRepository

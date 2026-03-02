@@ -143,38 +143,22 @@ class GetDashboardDataUseCase:
         # - CPI > 2% → 高通胀
         # 判定矩阵：Recovery (PMI>50, CPI<=2%), Overheat (PMI>50, CPI>2%),
         #          Stagflation (PMI<50, CPI>2%), Deflation (PMI<50, CPI<=2%)
-        from apps.regime.application.use_cases import CalculateRegimeV2UseCase, CalculateRegimeV2Request
-        from apps.macro.infrastructure.repositories import DjangoMacroRepository
-        from apps.macro.infrastructure.models import DataSourceConfig
-
-        macro_repo = DjangoMacroRepository()
-        regime_use_case = CalculateRegimeV2UseCase(macro_repo)
-        first_source = DataSourceConfig._default_manager.filter(is_active=True).order_by('priority').first()
-        default_source = first_source.source_type if first_source else "akshare"
-
-        regime_request = CalculateRegimeV2Request(
-            as_of_date=date.today(),
-            use_pit=True,
-            growth_indicator="PMI",
-            inflation_indicator="CPI",
-            data_source=default_source,
-        )
-
-        regime_response = regime_use_case.execute(regime_request)
+        from apps.regime.application.current_regime import resolve_current_regime
         health = self._assess_macro_data_health(
             growth_indicator="PMI",
             inflation_indicator="CPI",
             as_of_date=date.today(),
         )
 
-        if regime_response.success and regime_response.result:
-            current_regime = regime_response.result.regime.value
+        current = resolve_current_regime(as_of_date=date.today())
+        if current.dominant_regime != "Unknown":
+            current_regime = current.dominant_regime
             regime_date = date.today()  # V2 返回结果中没有 observed_at
-            regime_confidence = regime_response.result.confidence
+            regime_confidence = current.confidence
             # V2 返回趋势指标而非动量 Z-score
             growth_momentum_z = 0.0
             inflation_momentum_z = 0.0
-            regime_distribution = regime_response.result.distribution
+            regime_distribution = {}
             regime_data_health = "healthy" if health["is_healthy"] else "degraded"
             regime_warnings = list(health["warnings"])
         else:

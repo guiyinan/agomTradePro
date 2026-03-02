@@ -11,7 +11,7 @@ from datetime import date, timedelta
 
 from apps.macro.application.use_cases import SyncMacroDataUseCase
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
-from apps.regime.application.use_cases import CalculateRegimeUseCase, CalculateRegimeRequest
+from apps.regime.application.current_regime import resolve_current_regime
 from apps.regime.application.tasks import calculate_regime_task, notify_regime_change
 from shared.config.secrets import get_secrets
 
@@ -110,41 +110,22 @@ def calculate_regime(
     try:
         logger.info(f"Starting regime calculation for date={as_of_date}, use_pit={use_pit}")
 
-        repository = DjangoMacroRepository()
-        use_case = CalculateRegimeUseCase(repository)
-
         # 解析日期
         target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
 
-        # 执行计算
-        request = CalculateRegimeRequest(
-            as_of_date=target_date,
-            use_pit=use_pit,
-            growth_indicator="PMI",
-            inflation_indicator="CPI",
-            data_source="akshare"
-        )
+        result = resolve_current_regime(as_of_date=target_date, use_pit=use_pit)
+        logger.info(f"Regime calculation completed: {result.dominant_regime}")
 
-        response = use_case.execute(request)
-
-        if response.success:
-            snapshot = response.snapshot
-            logger.info(f"Regime calculation completed: {snapshot.dominant_regime}")
-
-            return {
-                'status': 'success',
-                'as_of_date': str(target_date),
-                'dominant_regime': snapshot.dominant_regime,
-                'confidence': snapshot.confidence,
-                'distribution': snapshot.regime_distribution,
-                'warnings': response.warnings
-            }
-        else:
-            logger.error(f"Regime calculation failed: {response.error}")
-            return {
-                'status': 'error',
-                'error': response.error
-            }
+        return {
+            'status': 'success',
+            'as_of_date': str(target_date),
+            'dominant_regime': result.dominant_regime,
+            'confidence': result.confidence,
+            'distribution': {},
+            'warnings': result.warnings,
+            'source': result.data_source,
+            'is_fallback': result.is_fallback,
+        }
 
     except Exception as exc:
         logger.error(f"Regime calculation failed: {exc}")
@@ -502,7 +483,6 @@ def recalculate_regime_with_daily_signal(
     """
     try:
         from apps.regime.application.use_cases import (
-            CalculateRegimeUseCase, CalculateRegimeRequest,
             HighFrequencySignalUseCase, HighFrequencySignalRequest,
             ResolveSignalConflictUseCase, ResolveSignalConflictRequest
         )
@@ -512,17 +492,7 @@ def recalculate_regime_with_daily_signal(
         logger.info(f"Recalculating regime with daily signal for {target_date}")
 
         repository = DjangoMacroRepository()
-
-        # 1. 计算传统月度 Regime
-        monthly_use_case = CalculateRegimeUseCase(repository)
-        monthly_request = CalculateRegimeRequest(
-            as_of_date=target_date,
-            use_pit=use_pit,
-            growth_indicator="PMI",
-            inflation_indicator="CPI",
-            data_source="akshare"
-        )
-        monthly_response = monthly_use_case.execute(monthly_request)
+        monthly_result = resolve_current_regime(as_of_date=target_date, use_pit=use_pit)
 
         # 2. 生成日度信号
         daily_use_case = HighFrequencySignalUseCase(repository)
@@ -532,22 +502,16 @@ def recalculate_regime_with_daily_signal(
         )
         daily_response = daily_use_case.execute(daily_request)
 
-        if not monthly_response.success:
-            return {
-                'status': 'error',
-                'error': f"Monthly regime calculation failed: {monthly_response.error}"
-            }
-
         if not daily_response.success:
             # 日度信号失败，直接返回月度结果
-            logger.warning(f"Daily signal generation failed, using monthly only: {daily_response.error}")
+            logger.warning("Daily signal generation failed, using monthly only: %s", daily_response.error)
             return {
                 'status': 'success',
                 'as_of_date': str(target_date),
-                'final_regime': monthly_response.snapshot.dominant_regime,
-                'final_confidence': monthly_response.snapshot.confidence,
+                'final_regime': monthly_result.dominant_regime,
+                'final_confidence': monthly_result.confidence,
                 'source': 'MONTHLY_ONLY',
-                'monthly_signal': monthly_response.snapshot.dominant_regime,
+                'monthly_signal': monthly_result.dominant_regime,
                 'daily_signal': None
             }
 
@@ -557,8 +521,8 @@ def recalculate_regime_with_daily_signal(
             daily_signal=daily_response.signal_direction,
             daily_confidence=daily_response.confidence,
             daily_duration_days=1,  # TODO: 追踪实际持续天数
-            monthly_signal=monthly_response.snapshot.dominant_regime,
-            monthly_confidence=monthly_response.snapshot.confidence
+            monthly_signal=monthly_result.dominant_regime,
+            monthly_confidence=monthly_result.confidence
         )
         resolution = resolver.execute(conflict_request)
 
@@ -574,8 +538,8 @@ def recalculate_regime_with_daily_signal(
             'final_confidence': resolution.final_confidence,
             'source': resolution.source,
             'resolution_reason': resolution.resolution_reason,
-            'monthly_signal': monthly_response.snapshot.dominant_regime,
-            'monthly_confidence': monthly_response.snapshot.confidence,
+            'monthly_signal': monthly_result.dominant_regime,
+            'monthly_confidence': monthly_result.confidence,
             'daily_signal': daily_response.signal_direction,
             'daily_confidence': daily_response.confidence,
             'daily_contributors': daily_response.contributing_indicators,

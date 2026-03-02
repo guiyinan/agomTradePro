@@ -1,5 +1,19 @@
 # Regime（经济周期）计算逻辑
 
+## 统一口径说明（2026-03-02）
+
+当前系统中“获取当前 Regime”的业务链路已统一为同一入口：
+
+- 统一入口：`apps/regime/application/current_regime.py::resolve_current_regime`
+- 统一算法：`CalculateRegimeV2UseCase`（水平判定）
+- 统一参数：`PMI + CPI + use_pit=True + DataSourceConfig 默认数据源`
+- 统一降级：实时计算失败时，回退到最新快照；若快照也无数据返回 `Unknown`
+
+已标注弃用（兼容保留，不再用于业务主流程）：
+
+- `apps/regime/application/use_cases.py::GetCurrentRegimeUseCase`
+- `apps/regime/application/use_cases.py::CalculateRegimeUseCase`（旧版 V1，保留给历史回算/兼容命令）
+
 ## 概述
 
 Regime 模块通过增长动量和通胀动量判定当前经济周期所处的象限：
