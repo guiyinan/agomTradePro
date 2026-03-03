@@ -99,6 +99,7 @@
 | [test-results-template.md](testing/test-results-template.md) | 测试结果模板 | 完整 |
 | [api/API_REFERENCE.md](testing/api/API_REFERENCE.md) | API 参考文档 | 完整 |
 | [api/decision-rhythm-api.md](api/decision-rhythm-api.md) | **决策工作流 API 文档（估值+审批）** | ✅ 2026-03-02 新增 |
+| [api/decision-workspace-v2.md](api/decision-workspace-v2.md) | **决策工作台 V2 API 草稿（统一推荐/参数）** | ✅ 2026-03-02 新增 |
 
 ### 6. AI 相关 (`ai/`)
 

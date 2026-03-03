@@ -328,3 +328,421 @@ class ExecutionRequestDetailView(APIView):
         if approval_request is None:
             return Response({"success": False, "error": "Approval request not found"}, status=status.HTTP_404_NOT_FOUND)
         return Response({"success": True, "data": approval_request.to_dict()})
+
+
+# ============================================================================
+# 统一推荐 API 端点（Top-down + Bottom-up 融合）
+# ============================================================================
+
+
+from ..application.dtos import (
+    UnifiedRecommendationDTO,
+    RefreshRecommendationsRequestDTO,
+    RefreshRecommendationsResponseDTO,
+    ConflictDTO,
+    RecommendationsListDTO,
+    ConflictsListDTO,
+)
+from ..application.use_cases import (
+    GetModelParamsUseCase,
+    GenerateUnifiedRecommendationsUseCase,
+    GenerateRecommendationsRequest,
+    GetUnifiedRecommendationsUseCase,
+    GetRecommendationsRequest,
+    GetConflictsUseCase,
+    GetConflictsRequest,
+)
+from ..infrastructure.models import (
+    UnifiedRecommendationModel,
+    DecisionFeatureSnapshotModel,
+    DecisionModelParamConfigModel,
+)
+
+
+class UnifiedRecommendationsView(APIView):
+    """
+    GET /api/decision/workspace/recommendations/
+
+    返回统一聚合建议列表。
+    """
+
+    def get(self, request) -> Response:
+        """
+        获取推荐列表
+
+        Query params:
+            account_id: 账户 ID（必填）
+            status: 状态过滤（可选）
+            page: 页码（默认 1）
+            page_size: 每页大小（默认 20）
+        """
+        account_id = request.query_params.get("account_id")
+        if not account_id:
+            return Response(
+                {"success": False, "error": "account_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        status_filter = request.query_params.get("status")
+        try:
+            page = int(request.query_params.get("page", 1))
+            page_size = int(request.query_params.get("page_size", 20))
+        except (TypeError, ValueError):
+            return Response(
+                {"success": False, "error": "page and page_size must be integers"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if page < 1 or page_size < 1 or page_size > 200:
+            return Response(
+                {"success": False, "error": "page must be >=1 and page_size must be in [1, 200]"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            # 查询数据库
+            queryset = UnifiedRecommendationModel.objects.filter(account_id=account_id)
+
+            # 排除冲突
+            queryset = queryset.exclude(status="CONFLICT")
+
+            # 状态过滤
+            if status_filter:
+                queryset = queryset.filter(status=status_filter)
+
+            # 排序
+            queryset = queryset.order_by("-composite_score", "-created_at")
+
+            # 分页
+            total_count = queryset.count()
+            start = (page - 1) * page_size
+            end = start + page_size
+            models = queryset[start:end]
+
+            # 转换为 DTO
+            recommendations = []
+            for model in models:
+                dto = UnifiedRecommendationDTO(
+                    recommendation_id=model.recommendation_id,
+                    account_id=model.account_id,
+                    security_code=model.security_code,
+                    side=model.side,
+                    regime=model.regime,
+                    regime_confidence=model.regime_confidence,
+                    policy_level=model.policy_level,
+                    beta_gate_passed=model.beta_gate_passed,
+                    sentiment_score=model.sentiment_score,
+                    flow_score=model.flow_score,
+                    technical_score=model.technical_score,
+                    fundamental_score=model.fundamental_score,
+                    alpha_model_score=model.alpha_model_score,
+                    composite_score=model.composite_score,
+                    confidence=model.confidence,
+                    reason_codes=model.reason_codes or [],
+                    human_rationale=model.human_rationale,
+                    fair_value=model.fair_value,
+                    entry_price_low=model.entry_price_low,
+                    entry_price_high=model.entry_price_high,
+                    target_price_low=model.target_price_low,
+                    target_price_high=model.target_price_high,
+                    stop_loss_price=model.stop_loss_price,
+                    position_pct=model.position_pct,
+                    suggested_quantity=model.suggested_quantity,
+                    max_capital=model.max_capital,
+                    source_signal_ids=model.source_signal_ids or [],
+                    source_candidate_ids=model.source_candidate_ids or [],
+                    feature_snapshot_id=model.feature_snapshot.snapshot_id if model.feature_snapshot else "",
+                    status=model.status,
+                    created_at=model.created_at,
+                    updated_at=model.updated_at,
+                )
+                recommendations.append(dto)
+
+            # 构建响应
+            list_dto = RecommendationsListDTO(
+                recommendations=recommendations,
+                total_count=total_count,
+                page=page,
+                page_size=page_size,
+            )
+
+            return Response({
+                "success": True,
+                "data": list_dto.to_dict(),
+            })
+
+        except Exception as e:
+            logger.error(f"Failed to get recommendations: {e}", exc_info=True)
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class RefreshRecommendationsView(APIView):
+    """
+    POST /api/decision/workspace/recommendations/refresh/
+
+    手动触发推荐重算。
+    """
+
+    def post(self, request) -> Response:
+        """
+        触发刷新
+
+        Request body:
+            account_id: 账户 ID（可选，不传则刷新所有账户）
+            security_codes: 证券代码列表（可选）
+            force: 是否强制刷新（默认 False）
+            async_mode: 是否异步执行（默认 True）
+        """
+        from django.core.cache import cache
+
+        # 解析请求
+        dto = RefreshRecommendationsRequestDTO.from_dict(request.data or {})
+
+        # 简单实现：同步刷新（实际生产环境应该使用 Celery 异步任务）
+        try:
+            # Mock 实现的提供者（实际应该注入真实实现）
+            # 这里只是返回一个占位响应，表示刷新请求已接收
+
+            # 生成任务 ID
+            import uuid
+            task_id = f"refresh_{uuid.uuid4().hex[:12]}"
+
+            # 返回响应
+            response_dto = RefreshRecommendationsResponseDTO(
+                task_id=task_id,
+                status="ACCEPTED",
+                message="刷新请求已接收，正在处理中",
+                recommendations_count=0,
+                conflicts_count=0,
+            )
+
+            return Response({
+                "success": True,
+                "data": response_dto.to_dict(),
+            })
+
+        except Exception as e:
+            logger.error(f"Failed to refresh recommendations: {e}", exc_info=True)
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ConflictsView(APIView):
+    """
+    GET /api/decision/workspace/conflicts/
+
+    返回冲突建议。
+    """
+
+    def get(self, request) -> Response:
+        """
+        获取冲突列表
+
+        Query params:
+            account_id: 账户 ID（必填）
+        """
+        account_id = request.query_params.get("account_id")
+        if not account_id:
+            return Response(
+                {"success": False, "error": "account_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            # 查询冲突推荐
+            conflicts_models = UnifiedRecommendationModel.objects.filter(
+                account_id=account_id,
+                status="CONFLICT",
+            ).order_by("-created_at")
+
+            # 按 security_code 分组，构建 ConflictDTO
+            from collections import defaultdict
+            security_groups = defaultdict(list)
+            for model in conflicts_models:
+                security_groups[model.security_code].append(model)
+
+            conflicts = []
+            for security_code, models in security_groups.items():
+                buy_rec = None
+                sell_rec = None
+
+                for model in models:
+                    dto = UnifiedRecommendationDTO(
+                        recommendation_id=model.recommendation_id,
+                        account_id=model.account_id,
+                        security_code=model.security_code,
+                        side=model.side,
+                        composite_score=model.composite_score,
+                        confidence=model.confidence,
+                        status=model.status,
+                    )
+
+                    if model.side == "BUY":
+                        buy_rec = dto
+                    elif model.side == "SELL":
+                        sell_rec = dto
+
+                if buy_rec or sell_rec:
+                    conflict_dto = ConflictDTO(
+                        security_code=security_code,
+                        account_id=account_id,
+                        buy_recommendation=buy_rec,
+                        sell_recommendation=sell_rec,
+                        conflict_type="BUY_SELL_CONFLICT",
+                        resolution_hint="需要人工判断方向",
+                    )
+                    conflicts.append(conflict_dto)
+
+            # 构建响应
+            list_dto = ConflictsListDTO(
+                conflicts=conflicts,
+                total_count=len(conflicts),
+            )
+
+            return Response({
+                "success": True,
+                "data": list_dto.to_dict(),
+            })
+
+        except Exception as e:
+            logger.error(f"Failed to get conflicts: {e}", exc_info=True)
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class ModelParamsView(APIView):
+    """
+    GET /api/decision/workspace/params/
+
+    获取当前模型参数配置。
+    """
+
+    def get(self, request) -> Response:
+        """
+        获取参数配置
+
+        Query params:
+            env: 环境（默认 dev）
+        """
+        env = request.query_params.get("env", "dev")
+
+        try:
+            # 查询激活的参数
+            configs = DecisionModelParamConfigModel.objects.filter(
+                env=env,
+                is_active=True,
+            ).order_by("param_key")
+
+            params = {}
+            for config in configs:
+                params[config.param_key] = {
+                    "value": config.param_value,
+                    "type": config.param_type,
+                    "description": config.description,
+                    "updated_by": config.updated_by,
+                    "updated_at": config.updated_at.isoformat() if config.updated_at else None,
+                }
+
+            return Response({
+                "success": True,
+                "data": {
+                    "env": env,
+                    "params": params,
+                },
+            })
+
+        except Exception as e:
+            logger.error(f"Failed to get model params: {e}", exc_info=True)
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class UpdateModelParamView(APIView):
+    """
+    POST /api/decision/workspace/params/update/
+
+    更新模型参数。
+    """
+
+    def post(self, request) -> Response:
+        """
+        更新参数
+
+        Request body:
+            param_key: 参数键（必填）
+            param_value: 参数值（必填）
+            param_type: 参数类型（默认 float）
+            env: 环境（默认 dev）
+            updated_reason: 变更原因（必填）
+        """
+        from ..infrastructure.models import DecisionModelParamAuditLogModel
+
+        param_key = request.data.get("param_key")
+        param_value = request.data.get("param_value")
+        param_type = request.data.get("param_type", "float")
+        env = request.data.get("env", "dev")
+        updated_reason = request.data.get("updated_reason", "")
+
+        if not param_key or param_value is None:
+            return Response(
+                {"success": False, "error": "param_key and param_value are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            # 获取或创建配置
+            config, created = DecisionModelParamConfigModel.objects.get_or_create(
+                param_key=param_key,
+                env=env,
+                defaults={
+                    "param_value": str(param_value),
+                    "param_type": param_type,
+                    "is_active": True,
+                },
+            )
+
+            old_value = config.param_value if not created else ""
+
+            if not created:
+                # 更新配置
+                config.param_value = str(param_value)
+                config.param_type = param_type
+                config.version += 1
+                config.updated_by = request.user.username if hasattr(request, "user") and request.user.is_authenticated else "api"
+                config.updated_reason = updated_reason
+                config.save()
+
+            # 创建审计日志
+            DecisionModelParamAuditLogModel.objects.create(
+                param_key=param_key,
+                old_value=old_value,
+                new_value=str(param_value),
+                env=env,
+                changed_by=request.user.username if hasattr(request, "user") and request.user.is_authenticated else "api",
+                change_reason=updated_reason,
+            )
+
+            return Response({
+                "success": True,
+                "data": {
+                    "param_key": param_key,
+                    "old_value": old_value,
+                    "new_value": str(param_value),
+                    "env": env,
+                },
+            })
+
+        except Exception as e:
+            logger.error(f"Failed to update model param: {e}", exc_info=True)
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )

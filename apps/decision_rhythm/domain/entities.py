@@ -1473,3 +1473,536 @@ def create_execution_approval_request(
         regime_source=regime_source,
         created_at=datetime.now(),
     )
+
+
+# ============================================================================
+# 统一推荐对象（Top-down + Bottom-up 融合）
+# ============================================================================
+
+
+class RecommendationStatus(Enum):
+    """
+    统一推荐状态枚举
+
+    定义推荐对象的生命周期状态。
+    """
+
+    NEW = "NEW"
+    """新建：推荐刚生成"""
+
+    REVIEWING = "REVIEWING"
+    """审核中：正在审核"""
+
+    APPROVED = "APPROVED"
+    """已批准：审批通过，等待执行"""
+
+    REJECTED = "REJECTED"
+    """已拒绝：审批拒绝"""
+
+    EXECUTED = "EXECUTED"
+    """已执行：执行完成"""
+
+    FAILED = "FAILED"
+    """执行失败：执行出错"""
+
+    CONFLICT = "CONFLICT"
+    """冲突：同证券 BUY/SELL 冲突"""
+
+
+class DecisionFeatureSnapshot:
+    """
+    决策特征快照
+
+    保存打分输入快照，支持回放与审计。
+
+    Attributes:
+        snapshot_id: 快照唯一标识
+        security_code: 证券代码
+        snapshot_time: 快照时间
+        regime: 当前 Regime 状态
+        regime_confidence: Regime 置信度
+        policy_level: 政策档位
+        beta_gate_passed: Beta Gate 是否通过
+        sentiment_score: 舆情分数
+        flow_score: 资金流向分数
+        technical_score: 技术面分数
+        fundamental_score: 基本面分数
+        alpha_model_score: Alpha 模型分数
+        extra_features: 额外特征
+        created_at: 创建时间
+    """
+
+    snapshot_id: str
+    security_code: str
+    snapshot_time: datetime
+    # Top-down 特征
+    regime: str
+    regime_confidence: float
+    policy_level: str
+    beta_gate_passed: bool
+    # Bottom-up 特征
+    sentiment_score: float
+    flow_score: float
+    technical_score: float
+    fundamental_score: float
+    alpha_model_score: float
+    # 额外特征
+    extra_features: Dict[str, Any]
+    created_at: datetime
+
+    def __init__(
+        self,
+        snapshot_id: str,
+        security_code: str,
+        snapshot_time: datetime,
+        regime: str = "",
+        regime_confidence: float = 0.0,
+        policy_level: str = "",
+        beta_gate_passed: bool = False,
+        sentiment_score: float = 0.0,
+        flow_score: float = 0.0,
+        technical_score: float = 0.0,
+        fundamental_score: float = 0.0,
+        alpha_model_score: float = 0.0,
+        extra_features: Optional[Dict[str, Any]] = None,
+        created_at: Optional[datetime] = None,
+    ):
+        self.snapshot_id = snapshot_id
+        self.security_code = security_code
+        self.snapshot_time = snapshot_time
+        self.regime = regime
+        self.regime_confidence = regime_confidence
+        self.policy_level = policy_level
+        self.beta_gate_passed = beta_gate_passed
+        self.sentiment_score = sentiment_score
+        self.flow_score = flow_score
+        self.technical_score = technical_score
+        self.fundamental_score = fundamental_score
+        self.alpha_model_score = alpha_model_score
+        self.extra_features = extra_features or {}
+        self.created_at = created_at or datetime.now()
+
+    def __repr__(self) -> str:
+        return (
+            f"DecisionFeatureSnapshot({self.snapshot_id}, {self.security_code}, "
+            f"alpha={self.alpha_model_score:.2f})"
+        )
+
+
+class UnifiedRecommendation:
+    """
+    统一推荐对象
+
+    融合 Top-down（宏观/Regime/Policy/Beta Gate）和
+    Bottom-up（Alpha、舆情、价格等）的统一推荐对象。
+
+    Attributes:
+        recommendation_id: 推荐唯一标识
+        account_id: 账户 ID
+        security_code: 证券代码
+        side: 方向 (BUY/SELL/HOLD)
+        # Top-down 特征
+        regime: 当前 Regime 状态
+        regime_confidence: Regime 置信度
+        policy_level: 政策档位
+        beta_gate_passed: Beta Gate 是否通过
+        # Bottom-up 特征
+        sentiment_score: 舆情分数
+        flow_score: 资金流向分数
+        technical_score: 技术面分数
+        fundamental_score: 基本面分数
+        alpha_model_score: Alpha 模型分数
+        # 综合分数
+        composite_score: 综合分数
+        confidence: 置信度
+        reason_codes: 原因代码列表
+        human_rationale: 人类可读理由
+        # 交易参数
+        fair_value: 公允价值
+        entry_price_low: 入场价格下限
+        entry_price_high: 入场价格上限
+        target_price_low: 目标价格下限
+        target_price_high: 目标价格上限
+        stop_loss_price: 止损价格
+        position_pct: 建议仓位比例
+        suggested_quantity: 建议数量
+        max_capital: 最大资金量
+        # 溯源
+        source_signal_ids: 来源信号 ID 列表
+        source_candidate_ids: 来源候选 ID 列表
+        feature_snapshot_id: 特征快照 ID
+        # 状态
+        status: 推荐状态
+        created_at: 创建时间
+        updated_at: 更新时间
+    """
+
+    recommendation_id: str
+    account_id: str
+    security_code: str
+    side: str
+    # Top-down
+    regime: str
+    regime_confidence: float
+    policy_level: str
+    beta_gate_passed: bool
+    # Bottom-up
+    sentiment_score: float
+    flow_score: float
+    technical_score: float
+    fundamental_score: float
+    alpha_model_score: float
+    # 综合
+    composite_score: float
+    confidence: float
+    reason_codes: List[str]
+    human_rationale: str
+    # 交易参数
+    fair_value: Decimal
+    entry_price_low: Decimal
+    entry_price_high: Decimal
+    target_price_low: Decimal
+    target_price_high: Decimal
+    stop_loss_price: Decimal
+    position_pct: float
+    suggested_quantity: int
+    max_capital: Decimal
+    # 溯源
+    source_signal_ids: List[str]
+    source_candidate_ids: List[str]
+    feature_snapshot_id: str
+    # 状态
+    status: RecommendationStatus
+    created_at: datetime
+    updated_at: datetime
+
+    def __init__(
+        self,
+        recommendation_id: str,
+        account_id: str,
+        security_code: str,
+        side: str,
+        regime: str = "",
+        regime_confidence: float = 0.0,
+        policy_level: str = "",
+        beta_gate_passed: bool = False,
+        sentiment_score: float = 0.0,
+        flow_score: float = 0.0,
+        technical_score: float = 0.0,
+        fundamental_score: float = 0.0,
+        alpha_model_score: float = 0.0,
+        composite_score: float = 0.0,
+        confidence: float = 0.0,
+        reason_codes: Optional[List[str]] = None,
+        human_rationale: str = "",
+        fair_value: Decimal = Decimal("0"),
+        entry_price_low: Decimal = Decimal("0"),
+        entry_price_high: Decimal = Decimal("0"),
+        target_price_low: Decimal = Decimal("0"),
+        target_price_high: Decimal = Decimal("0"),
+        stop_loss_price: Decimal = Decimal("0"),
+        position_pct: float = 5.0,
+        suggested_quantity: int = 0,
+        max_capital: Decimal = Decimal("50000"),
+        source_signal_ids: Optional[List[str]] = None,
+        source_candidate_ids: Optional[List[str]] = None,
+        feature_snapshot_id: str = "",
+        status: RecommendationStatus = RecommendationStatus.NEW,
+        created_at: Optional[datetime] = None,
+        updated_at: Optional[datetime] = None,
+    ):
+        self.recommendation_id = recommendation_id
+        self.account_id = account_id
+        self.security_code = security_code
+        self.side = side
+        # Top-down
+        self.regime = regime
+        self.regime_confidence = regime_confidence
+        self.policy_level = policy_level
+        self.beta_gate_passed = beta_gate_passed
+        # Bottom-up
+        self.sentiment_score = sentiment_score
+        self.flow_score = flow_score
+        self.technical_score = technical_score
+        self.fundamental_score = fundamental_score
+        self.alpha_model_score = alpha_model_score
+        # 综合
+        self.composite_score = composite_score
+        self.confidence = confidence
+        self.reason_codes = reason_codes or []
+        self.human_rationale = human_rationale
+        # 交易参数
+        self.fair_value = fair_value
+        self.entry_price_low = entry_price_low
+        self.entry_price_high = entry_price_high
+        self.target_price_low = target_price_low
+        self.target_price_high = target_price_high
+        self.stop_loss_price = stop_loss_price
+        self.position_pct = position_pct
+        self.suggested_quantity = suggested_quantity
+        self.max_capital = max_capital
+        # 溯源
+        self.source_signal_ids = source_signal_ids or []
+        self.source_candidate_ids = source_candidate_ids or []
+        self.feature_snapshot_id = feature_snapshot_id
+        # 状态
+        self.status = status
+        self.created_at = created_at or datetime.now()
+        self.updated_at = updated_at or datetime.now()
+
+    def __repr__(self) -> str:
+        return (
+            f"UnifiedRecommendation({self.recommendation_id}, "
+            f"{self.account_id}/{self.security_code}/{self.side}, "
+            f"composite={self.composite_score:.2f}, status={self.status.value})"
+        )
+
+    def get_aggregation_key(self) -> str:
+        """
+        获取聚合键
+
+        用于按 account_id + security_code + side 去重。
+
+        Returns:
+            聚合键字符串
+        """
+        return f"{self.account_id}|{self.security_code}|{self.side}"
+
+    def is_executable(self) -> bool:
+        """
+        判断是否可执行
+
+        Returns:
+            是否可执行（状态为 APPROVED 且通过 Beta Gate）
+        """
+        return (
+            self.status == RecommendationStatus.APPROVED
+            and self.beta_gate_passed
+        )
+
+
+class ModelParamConfig:
+    """
+    模型参数配置
+
+    保存推荐模型参数（按环境/版本）。
+
+    Attributes:
+        config_id: 配置唯一标识
+        param_key: 参数键
+        param_value: 参数值
+        param_type: 参数类型 (float/int/str/bool)
+        env: 环境 (dev/test/prod)
+        version: 版本号
+        is_active: 是否激活
+        description: 参数描述
+        updated_by: 最后修改人
+        updated_reason: 变更说明
+        created_at: 创建时间
+        updated_at: 更新时间
+    """
+
+    config_id: str
+    param_key: str
+    param_value: str
+    param_type: str
+    env: str
+    version: int
+    is_active: bool
+    description: str
+    updated_by: str
+    updated_reason: str
+    created_at: datetime
+    updated_at: datetime
+
+    def __init__(
+        self,
+        config_id: str,
+        param_key: str,
+        param_value: str,
+        param_type: str = "float",
+        env: str = "dev",
+        version: int = 1,
+        is_active: bool = True,
+        description: str = "",
+        updated_by: str = "",
+        updated_reason: str = "",
+        created_at: Optional[datetime] = None,
+        updated_at: Optional[datetime] = None,
+    ):
+        self.config_id = config_id
+        self.param_key = param_key
+        self.param_value = param_value
+        self.param_type = param_type
+        self.env = env
+        self.version = version
+        self.is_active = is_active
+        self.description = description
+        self.updated_by = updated_by
+        self.updated_reason = updated_reason
+        self.created_at = created_at or datetime.now()
+        self.updated_at = updated_at or datetime.now()
+
+    def __repr__(self) -> str:
+        return f"ModelParamConfig({self.param_key}={self.param_value}, env={self.env})"
+
+    def get_typed_value(self) -> Any:
+        """
+        获取类型化的参数值
+
+        Returns:
+            根据参数类型转换后的值
+        """
+        if self.param_type == "float":
+            return float(self.param_value)
+        elif self.param_type == "int":
+            return int(self.param_value)
+        elif self.param_type == "bool":
+            return self.param_value.lower() in ("true", "1", "yes")
+        else:
+            return self.param_value
+
+
+class ModelParamAuditLog:
+    """
+    模型参数审计日志
+
+    保存参数变更审计日志（前后值、操作者、时间、备注）。
+
+    Attributes:
+        log_id: 日志唯一标识
+        param_key: 参数键
+        old_value: 旧值
+        new_value: 新值
+        env: 环境
+        changed_by: 变更人
+        change_reason: 变更原因
+        changed_at: 变更时间
+    """
+
+    log_id: str
+    param_key: str
+    old_value: str
+    new_value: str
+    env: str
+    changed_by: str
+    change_reason: str
+    changed_at: datetime
+
+    def __init__(
+        self,
+        log_id: str,
+        param_key: str,
+        old_value: str,
+        new_value: str,
+        env: str = "dev",
+        changed_by: str = "",
+        change_reason: str = "",
+        changed_at: Optional[datetime] = None,
+    ):
+        self.log_id = log_id
+        self.param_key = param_key
+        self.old_value = old_value
+        self.new_value = new_value
+        self.env = env
+        self.changed_by = changed_by
+        self.change_reason = change_reason
+        self.changed_at = changed_at or datetime.now()
+
+    def __repr__(self) -> str:
+        return (
+            f"ModelParamAuditLog({self.param_key}, "
+            f"{self.old_value} -> {self.new_value}, by={self.changed_by})"
+        )
+
+
+# ============================================================================
+# 便捷工厂函数
+# ============================================================================
+
+
+def create_unified_recommendation(
+    account_id: str,
+    security_code: str,
+    side: str,
+    feature_snapshot: DecisionFeatureSnapshot,
+    composite_score: float = 0.0,
+    confidence: float = 0.0,
+    reason_codes: Optional[List[str]] = None,
+    human_rationale: str = "",
+    fair_value: Decimal = Decimal("0"),
+    entry_price_low: Decimal = Decimal("0"),
+    entry_price_high: Decimal = Decimal("0"),
+    target_price_low: Decimal = Decimal("0"),
+    target_price_high: Decimal = Decimal("0"),
+    stop_loss_price: Decimal = Decimal("0"),
+    position_pct: float = 5.0,
+    suggested_quantity: int = 0,
+    max_capital: Decimal = Decimal("50000"),
+    source_signal_ids: Optional[List[str]] = None,
+    source_candidate_ids: Optional[List[str]] = None,
+) -> UnifiedRecommendation:
+    """
+    创建统一推荐对象的便捷函数
+
+    Args:
+        account_id: 账户 ID
+        security_code: 证券代码
+        side: 方向
+        feature_snapshot: 特征快照
+        composite_score: 综合分数
+        confidence: 置信度
+        reason_codes: 原因代码列表
+        human_rationale: 人类可读理由
+        fair_value: 公允价值
+        entry_price_low: 入场价格下限
+        entry_price_high: 入场价格上限
+        target_price_low: 目标价格下限
+        target_price_high: 目标价格上限
+        stop_loss_price: 止损价格
+        position_pct: 建议仓位比例
+        suggested_quantity: 建议数量
+        max_capital: 最大资金量
+        source_signal_ids: 来源信号 ID 列表
+        source_candidate_ids: 来源候选 ID 列表
+
+    Returns:
+        UnifiedRecommendation 实例
+    """
+    return UnifiedRecommendation(
+        recommendation_id=f"urec_{uuid4().hex[:12]}",
+        account_id=account_id,
+        security_code=security_code,
+        side=side,
+        # Top-down
+        regime=feature_snapshot.regime,
+        regime_confidence=feature_snapshot.regime_confidence,
+        policy_level=feature_snapshot.policy_level,
+        beta_gate_passed=feature_snapshot.beta_gate_passed,
+        # Bottom-up
+        sentiment_score=feature_snapshot.sentiment_score,
+        flow_score=feature_snapshot.flow_score,
+        technical_score=feature_snapshot.technical_score,
+        fundamental_score=feature_snapshot.fundamental_score,
+        alpha_model_score=feature_snapshot.alpha_model_score,
+        # 综合
+        composite_score=composite_score,
+        confidence=confidence,
+        reason_codes=reason_codes or [],
+        human_rationale=human_rationale,
+        # 交易参数
+        fair_value=fair_value,
+        entry_price_low=entry_price_low,
+        entry_price_high=entry_price_high,
+        target_price_low=target_price_low,
+        target_price_high=target_price_high,
+        stop_loss_price=stop_loss_price,
+        position_pct=position_pct,
+        suggested_quantity=suggested_quantity,
+        max_capital=max_capital,
+        # 溯源
+        source_signal_ids=source_signal_ids or [],
+        source_candidate_ids=source_candidate_ids or [],
+        feature_snapshot_id=feature_snapshot.snapshot_id,
+        status=RecommendationStatus.NEW,
+    )

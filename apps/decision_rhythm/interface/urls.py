@@ -50,4 +50,11 @@ urlpatterns = [
     path("api/decision/execute/approve/", decision_rhythm_api_views.ExecutionApproveView.as_view(), name="decision-execute-approve"),
     path("api/decision/execute/reject/", decision_rhythm_api_views.ExecutionRejectView.as_view(), name="decision-execute-reject"),
     path("api/decision/execute/<str:request_id>/", decision_rhythm_api_views.ExecutionRequestDetailView.as_view(), name="decision-execute-detail"),
+
+    # 统一推荐 API（Top-down + Bottom-up 融合）
+    path("api/decision/workspace/recommendations/", decision_rhythm_api_views.UnifiedRecommendationsView.as_view(), name="unified-recommendations"),
+    path("api/decision/workspace/recommendations/refresh/", decision_rhythm_api_views.RefreshRecommendationsView.as_view(), name="refresh-recommendations"),
+    path("api/decision/workspace/conflicts/", decision_rhythm_api_views.ConflictsView.as_view(), name="recommendation-conflicts"),
+    path("api/decision/workspace/params/", decision_rhythm_api_views.ModelParamsView.as_view(), name="model-params"),
+    path("api/decision/workspace/params/update/", decision_rhythm_api_views.UpdateModelParamView.as_view(), name="update-model-param"),
 ]
