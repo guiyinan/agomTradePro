@@ -6,8 +6,8 @@ Account Infrastructure Repositories
 """
 
 from decimal import Decimal
-from typing import List, Optional, Dict
-from datetime import date
+from typing import List, Optional, Dict, Any
+from datetime import date, datetime, timedelta
 
 from django.contrib.auth.models import User
 from django.db.models import Sum, Q, F, Count
@@ -21,6 +21,10 @@ from apps.account.infrastructure.models import (
     TransactionModel,
     AssetMetadataModel,
     PositionSignalLogModel,
+    PortfolioDailySnapshotModel,
+    StopLossConfigModel,
+    TakeProfitConfigModel,
+    StopLossTriggerModel,
 )
 from apps.account.domain.entities import (
     AccountProfile,
@@ -602,4 +606,361 @@ class AssetMetadataRepository:
             current_price=F("avg_cost")  # 暂时使用成本价
         )
         return count
+
+    def get_asset_by_code(self, asset_code: str) -> Optional[Dict[str, Any]]:
+        """
+        Get asset metadata by code.
+
+        Returns:
+            Dict with asset_class, region, etc., or None
+        """
+        try:
+            asset = AssetMetadataModel._default_manager.get(asset_code=asset_code)
+            return {
+                "asset_code": asset.asset_code,
+                "name": asset.name,
+                "asset_class": asset.asset_class,
+                "region": asset.region,
+                "cross_border": asset.cross_border,
+                "style": asset.style,
+            }
+        except AssetMetadataModel.DoesNotExist:
+            return None
+
+
+# ============================================================
+# Stop Loss Repository
+# ============================================================
+
+class StopLossRepository:
+    """止损配置仓储"""
+
+    def get_active_stop_loss_configs(
+        self, user_id: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get all active stop loss configurations.
+
+        Args:
+            user_id: Optional user ID to filter by
+
+        Returns:
+            List of stop loss config dicts with position relationship
+        """
+        queryset = StopLossConfigModel._default_manager.filter(status='active')
+
+        if user_id:
+            queryset = queryset.filter(position__portfolio__user_id=user_id)
+
+        configs = queryset.select_related('position', 'position__portfolio').all()
+
+        return [
+            {
+                "id": config.id,
+                "position_id": config.position_id,
+                "stop_loss_type": config.stop_loss_type,
+                "stop_loss_pct": config.stop_loss_pct,
+                "trailing_stop_pct": config.trailing_stop_pct,
+                "max_holding_days": config.max_holding_days,
+                "highest_price": config.highest_price,
+                "highest_price_updated_at": config.highest_price_updated_at,
+                "status": config.status,
+                "position": {
+                    "id": config.position.id,
+                    "asset_code": config.position.asset_code,
+                    "shares": config.position.shares,
+                    "avg_cost": config.position.avg_cost,
+                    "current_price": config.position.current_price,
+                    "opened_at": config.position.opened_at,
+                    "portfolio_id": config.position.portfolio_id,
+                    "user_id": config.position.portfolio.user_id,
+                },
+            }
+            for config in configs
+        ]
+
+    def get_stop_loss_config_by_position(
+        self, position_id: int
+    ) -> Optional[Dict[str, Any]]:
+        """Get stop loss config for a position."""
+        try:
+            config = StopLossConfigModel._default_manager.get(position_id=position_id)
+            return {
+                "id": config.id,
+                "position_id": config.position_id,
+                "stop_loss_type": config.stop_loss_type,
+                "stop_loss_pct": config.stop_loss_pct,
+                "trailing_stop_pct": config.trailing_stop_pct,
+                "max_holding_days": config.max_holding_days,
+                "highest_price": config.highest_price,
+                "status": config.status,
+            }
+        except StopLossConfigModel.DoesNotExist:
+            return None
+
+    def create_stop_loss_config(
+        self,
+        position_id: int,
+        stop_loss_type: str,
+        stop_loss_pct: float,
+        trailing_stop_pct: Optional[float] = None,
+        max_holding_days: Optional[int] = None,
+        highest_price: Optional[Decimal] = None,
+    ) -> Dict[str, Any]:
+        """Create stop loss configuration."""
+        config = StopLossConfigModel._default_manager.create(
+            position_id=position_id,
+            stop_loss_type=stop_loss_type,
+            stop_loss_pct=stop_loss_pct,
+            trailing_stop_pct=trailing_stop_pct,
+            max_holding_days=max_holding_days,
+            highest_price=highest_price,
+            status='active',
+        )
+        return {
+            "id": config.id,
+            "position_id": config.position_id,
+            "stop_loss_type": config.stop_loss_type,
+            "stop_loss_pct": config.stop_loss_pct,
+            "status": config.status,
+        }
+
+    def update_stop_loss_config(
+        self,
+        config_id: int,
+        status: Optional[str] = None,
+        highest_price: Optional[Decimal] = None,
+        highest_price_updated_at: Optional[Any] = None,
+        triggered_at: Optional[Any] = None,
+    ) -> bool:
+        """Update stop loss configuration."""
+        try:
+            config = StopLossConfigModel._default_manager.get(id=config_id)
+            if status is not None:
+                config.status = status
+            if highest_price is not None:
+                config.highest_price = highest_price
+            if highest_price_updated_at is not None:
+                config.highest_price_updated_at = highest_price_updated_at
+            if triggered_at is not None:
+                config.triggered_at = triggered_at
+            config.save()
+            return True
+        except StopLossConfigModel.DoesNotExist:
+            return False
+
+    def create_stop_loss_trigger(
+        self,
+        position_id: int,
+        trigger_type: str,
+        trigger_price: Decimal,
+        trigger_reason: str,
+        pnl: Decimal,
+        pnl_pct: float,
+        notes: str = "",
+    ) -> Dict[str, Any]:
+        """Create stop loss trigger record."""
+        trigger = StopLossTriggerModel._default_manager.create(
+            position_id=position_id,
+            trigger_type=trigger_type,
+            trigger_price=trigger_price,
+            trigger_time=datetime.now(),
+            trigger_reason=trigger_reason,
+            pnl=pnl,
+            pnl_pct=pnl_pct,
+            notes=notes,
+        )
+        return {
+            "id": trigger.id,
+            "position_id": trigger.position_id,
+            "trigger_type": trigger.trigger_type,
+            "trigger_price": trigger.trigger_price,
+            "trigger_time": trigger.trigger_time,
+        }
+
+
+# ============================================================
+# Take Profit Repository
+# ============================================================
+
+class TakeProfitRepository:
+    """止盈配置仓储"""
+
+    def get_active_take_profit_configs(
+        self, user_id: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get all active take profit configurations.
+
+        Args:
+            user_id: Optional user ID to filter by
+
+        Returns:
+            List of take profit config dicts with position relationship
+        """
+        queryset = TakeProfitConfigModel._default_manager.filter(is_active=True)
+
+        if user_id:
+            queryset = queryset.filter(position__portfolio__user_id=user_id)
+
+        configs = queryset.select_related('position', 'position__portfolio').all()
+
+        return [
+            {
+                "id": config.id,
+                "position_id": config.position_id,
+                "take_profit_pct": config.take_profit_pct,
+                "partial_profit_levels": config.partial_profit_levels,
+                "is_active": config.is_active,
+                "position": {
+                    "id": config.position.id,
+                    "asset_code": config.position.asset_code,
+                    "shares": config.position.shares,
+                    "avg_cost": config.position.avg_cost,
+                    "current_price": config.position.current_price,
+                    "portfolio_id": config.position.portfolio_id,
+                    "user_id": config.position.portfolio.user_id,
+                },
+            }
+            for config in configs
+        ]
+
+    def get_take_profit_config_by_position(
+        self, position_id: int
+    ) -> Optional[Dict[str, Any]]:
+        """Get take profit config for a position."""
+        try:
+            config = TakeProfitConfigModel._default_manager.get(position_id=position_id)
+            return {
+                "id": config.id,
+                "position_id": config.position_id,
+                "take_profit_pct": config.take_profit_pct,
+                "partial_profit_levels": config.partial_profit_levels,
+                "is_active": config.is_active,
+            }
+        except TakeProfitConfigModel.DoesNotExist:
+            return None
+
+    def create_take_profit_config(
+        self,
+        position_id: int,
+        take_profit_pct: float,
+        partial_profit_levels: Optional[List[float]] = None,
+    ) -> Dict[str, Any]:
+        """Create take profit configuration."""
+        config = TakeProfitConfigModel._default_manager.create(
+            position_id=position_id,
+            take_profit_pct=take_profit_pct,
+            partial_profit_levels=partial_profit_levels,
+            is_active=True,
+        )
+        return {
+            "id": config.id,
+            "position_id": config.position_id,
+            "take_profit_pct": config.take_profit_pct,
+            "is_active": config.is_active,
+        }
+
+    def update_take_profit_config(
+        self,
+        config_id: int,
+        is_active: Optional[bool] = None,
+    ) -> bool:
+        """Update take profit configuration."""
+        try:
+            config = TakeProfitConfigModel._default_manager.get(id=config_id)
+            if is_active is not None:
+                config.is_active = is_active
+            config.save()
+            return True
+        except TakeProfitConfigModel.DoesNotExist:
+            return False
+
+
+# ============================================================
+# Portfolio Snapshot Repository
+# ============================================================
+
+class PortfolioSnapshotRepository:
+    """投资组合快照仓储"""
+
+    def get_snapshots_for_volatility(
+        self,
+        portfolio_id: int,
+        days: int = 90,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get portfolio daily snapshots for volatility calculation.
+
+        Returns:
+            List of dicts with snapshot_date, total_value
+        """
+        snapshots = PortfolioDailySnapshotModel._default_manager.filter(
+            portfolio_id=portfolio_id
+        ).order_by('-snapshot_date')[:days]
+
+        return [
+            {
+                "snapshot_date": snap.snapshot_date,
+                "total_value": float(snap.total_value),
+            }
+            for snap in reversed(list(snapshots))
+        ]
+
+
+# ============================================================
+# Transaction Cost Config Repository
+# ============================================================
+
+class TransactionCostConfigRepository:
+    """交易成本配置仓储"""
+
+    def get_cost_config(
+        self, market: str, asset_class: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get transaction cost configuration for market and asset class.
+
+        Returns:
+            Dict with commission_rate, slippage_rate, etc., or None
+        """
+        from shared.infrastructure.models import TransactionCostConfigModel
+
+        try:
+            config = TransactionCostConfigModel._default_manager.get(
+                market=market,
+                asset_class=asset_class,
+                is_active=True,
+            )
+            return {
+                "id": config.id,
+                "market": config.market,
+                "asset_class": config.asset_class,
+                "commission_rate": config.commission_rate,
+                "slippage_rate": config.slippage_rate,
+                "stamp_duty_rate": config.stamp_duty_rate,
+                "transfer_fee_rate": config.transfer_fee_rate,
+                "min_commission": config.min_commission,
+                "cost_warning_threshold": config.cost_warning_threshold,
+            }
+        except TransactionCostConfigModel.DoesNotExist:
+            return None
+
+    def get_default_cost_config(self, market: str, asset_class: str) -> Dict[str, Any]:
+        """
+        Get default cost configuration.
+
+        Returns:
+            Dict with default values
+        """
+        return {
+            "market": market,
+            "asset_class": asset_class,
+            "commission_rate": Decimal('0.0003'),
+            "slippage_rate": Decimal('0.0002'),
+            "stamp_duty_rate": Decimal('0.001'),
+            "transfer_fee_rate": Decimal('0.00001'),
+            "min_commission": Decimal('5.00'),
+            "cost_warning_threshold": 0.005,
+        }
 

@@ -5,9 +5,10 @@ Infrastructure layer implementation using Django ORM.
 """
 
 from datetime import date
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from django.db import transaction
+from django.utils import timezone
 
 from ..domain.entities import InvestmentSignal, SignalStatus, Eligibility
 from .models import InvestmentSignalModel
@@ -27,6 +28,27 @@ class DjangoSignalRepository:
 
     def __init__(self):
         self._model = InvestmentSignalModel
+
+    # Protocol compatibility methods
+    def get_by_id(self, id: str) -> Optional[InvestmentSignal]:
+        return self.get_signal_by_id(id)
+
+    def get_all(self) -> List[InvestmentSignal]:
+        query = self._model.objects.all().order_by("-created_at")
+        return [self._orm_to_entity(obj) for obj in query]
+
+    def save(self, entity: InvestmentSignal) -> InvestmentSignal:
+        return self.save_signal(entity)
+
+    def delete(self, id: str) -> bool:
+        return self.delete_signal(id)
+
+    def find_by_criteria(self, **criteria: Any) -> List[InvestmentSignal]:
+        query = self._model.objects.filter(**criteria).order_by("-created_at")
+        return [self._orm_to_entity(obj) for obj in query]
+
+    def count(self, **criteria: Any) -> int:
+        return self._model.objects.filter(**criteria).count()
 
     def save_signal(
         self,
@@ -169,6 +191,171 @@ class DjangoSignalRepository:
         """
         query = self._model.objects.filter(status='approved').order_by('-created_at')
         return [self._orm_to_entity(obj) for obj in query]
+
+    def find_signals_with_invalidation_rules(
+        self,
+        status: SignalStatus
+    ) -> List[InvestmentSignal]:
+        """
+        查找具有证伪规则的信号
+
+        Args:
+            status: 信号状态
+
+        Returns:
+            List[InvestmentSignal]: 具有证伪规则的信号列表
+        """
+        status_value = status.value if isinstance(status, SignalStatus) else status
+        query = self._model.objects.filter(
+            status=status_value,
+            invalidation_rule_json__isnull=False
+        ).exclude(invalidation_rule_json={}).order_by('-created_at')
+
+        return [self._orm_to_entity(obj) for obj in query]
+
+    def find_signals_to_invalidate(self, as_of_date: date) -> List[InvestmentSignal]:
+        """
+        查找需要证伪检查的信号
+
+        Args:
+            as_of_date: 检查日期
+
+        Returns:
+            List[InvestmentSignal]: 需要检查的信号列表
+        """
+        # 获取所有有证伪规则的已批准和待处理信号
+        query = self._model.objects.filter(
+            status__in=['approved', 'pending'],
+            invalidation_rule_json__isnull=False
+        ).exclude(invalidation_rule_json={}).order_by('-created_at')
+
+        return [self._orm_to_entity(obj) for obj in query]
+
+    def mark_invalidated(
+        self,
+        signal_id: str,
+        reason: str,
+        details: dict
+    ) -> bool:
+        """
+        标记信号为已证伪
+
+        Args:
+            signal_id: 信号 ID
+            reason: 证伪原因
+            details: 证伪详情
+
+        Returns:
+            bool: 是否成功更新
+        """
+        try:
+            orm_obj = self._model.objects.get(id=signal_id)
+            orm_obj.status = 'invalidated'
+            orm_obj.invalidated_at = timezone.now()
+            orm_obj.invalidation_details = details
+            orm_obj.rejection_reason = reason
+            orm_obj.save()
+            return True
+        except self._model.DoesNotExist:
+            return False
+
+    def mark_rejected(
+        self,
+        signal_id: str,
+        reason: str
+    ) -> bool:
+        """
+        标记信号为已拒绝
+
+        Args:
+            signal_id: 信号 ID
+            reason: 拒绝原因
+
+        Returns:
+            bool: 是否成功更新
+        """
+        try:
+            orm_obj = self._model.objects.get(id=signal_id)
+            orm_obj.status = 'rejected'
+            orm_obj.rejection_reason = reason
+            orm_obj.save()
+            return True
+        except self._model.DoesNotExist:
+            return False
+
+    def count_by_status(self, status: str) -> int:
+        """
+        按状态统计信号数量
+
+        Args:
+            status: 信号状态
+
+        Returns:
+            int: 信号数量
+        """
+        return self._model.objects.filter(status=status).count()
+
+    def get_signals_created_between(
+        self,
+        start_datetime,
+        end_datetime
+    ) -> List[dict]:
+        """
+        获取指定时间范围内创建的信号（返回字典格式，用于摘要报告）
+
+        Args:
+            start_datetime: 开始时间
+            end_datetime: 结束时间
+
+        Returns:
+            List[dict]: 信号字典列表
+        """
+        return list(
+            self._model.objects.filter(
+                created_at__range=[start_datetime, end_datetime]
+            ).values('asset_code', 'logic_desc', 'created_by')[:10]
+        )
+
+    def get_signals_invalidated_between(
+        self,
+        start_datetime,
+        end_datetime
+    ) -> List[dict]:
+        """
+        获取指定时间范围内证伪的信号（返回字典格式，用于摘要报告）
+
+        Args:
+            start_datetime: 开始时间
+            end_datetime: 结束时间
+
+        Returns:
+            List[dict]: 信号字典列表
+        """
+        return list(
+            self._model.objects.filter(
+                invalidated_at__range=[start_datetime, end_datetime]
+            ).values('asset_code', 'logic_desc', 'invalidation_details', 'id')[:10]
+        )
+
+    def get_old_invalidated_signals(self, days: int) -> List[dict]:
+        """
+        获取旧的已证伪信号
+
+        Args:
+            days: 天数阈值
+
+        Returns:
+            List[dict]: 信号字典列表
+        """
+        from datetime import timedelta
+        cutoff_date = timezone.now() - timedelta(days=days)
+
+        return list(
+            self._model.objects.filter(
+                status='invalidated',
+                invalidated_at__lt=cutoff_date
+            ).values_list('id', flat=True)
+        )
 
     def get_signals_by_regime(
         self,
@@ -325,18 +512,33 @@ class DjangoSignalRepository:
     @staticmethod
     def _orm_to_entity(orm_obj: InvestmentSignalModel) -> InvestmentSignal:
         """将 ORM 对象转换为 Domain 实体"""
+        from apps.signal.domain.invalidation import InvalidationRule
+
+        # 尝试解析证伪规则
+        invalidation_rule = None
+        if orm_obj.invalidation_rule_json:
+            try:
+                invalidation_rule = InvalidationRule.from_dict(orm_obj.invalidation_rule_json)
+            except (KeyError, ValueError, TypeError):
+                # 解析失败时保持为 None
+                pass
+
         return InvestmentSignal(
             id=str(orm_obj.id),
             asset_code=orm_obj.asset_code,
             asset_class=orm_obj.asset_class,
             direction=orm_obj.direction,
             logic_desc=orm_obj.logic_desc,
+            invalidation_rule=invalidation_rule,
+            invalidation_description=orm_obj.invalidation_description or orm_obj.invalidation_logic,
             invalidation_logic=orm_obj.invalidation_logic,
             invalidation_threshold=orm_obj.invalidation_threshold,
             target_regime=orm_obj.target_regime,
-            created_at=orm_obj.created_at.date(),
+            created_at=orm_obj.created_at.date() if orm_obj.created_at else None,
             status=SignalStatus(orm_obj.status),
-            rejection_reason=orm_obj.rejection_reason
+            rejection_reason=orm_obj.rejection_reason,
+            backtest_performance_score=orm_obj.backtest_performance_score,
+            avg_backtest_return=orm_obj.avg_backtest_return,
         )
 
 
@@ -597,3 +799,62 @@ class UnifiedSignalRepository:
             'related_signal_id': orm_obj.related_signal_id,
             'created_at': orm_obj.created_at.isoformat(),
         }
+
+
+class DjangoUserRepository:
+    """
+    Django ORM 实现的用户仓储
+
+    提供用户相关的数据访问操作。
+    """
+
+    def __init__(self):
+        from django.contrib.auth import get_user_model
+        self._model = get_user_model()
+
+    def get_staff_emails(self) -> List[str]:
+        """
+        获取所有活跃 staff 用户的邮箱
+
+        Returns:
+            List[str]: 邮箱列表
+        """
+        return list(
+            self._model.objects.filter(
+                is_staff=True,
+                is_active=True
+            ).exclude(
+                email=''
+            ).values_list('email', flat=True)
+        )
+
+    def get_user_by_id(self, user_id: int) -> Optional[Any]:
+        """
+        通过 ID 获取用户
+
+        Args:
+            user_id: 用户 ID
+
+        Returns:
+            用户对象或 None
+        """
+        try:
+            return self._model.objects.get(id=user_id)
+        except self._model.DoesNotExist:
+            return None
+
+    def get_user_email(self, user_id: int) -> Optional[str]:
+        """
+        获取用户邮箱
+
+        Args:
+            user_id: 用户 ID
+
+        Returns:
+            邮箱地址或 None
+        """
+        try:
+            user = self._model.objects.get(id=user_id)
+            return user.email if user.email else None
+        except self._model.DoesNotExist:
+            return None

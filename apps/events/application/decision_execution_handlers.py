@@ -10,7 +10,7 @@ Decision Execution Event Handlers
 
 架构约束：
 - 处理器位于 Application 层
-- 通过依赖注入使用 Infrastructure 层
+- 通过依赖注入使用 Infrastructure 层（Repository 模式）
 - 主事务成功优先，事件发布失败不回滚主事务
 """
 
@@ -19,9 +19,12 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from django.db import transaction
-from django.core.exceptions import ObjectDoesNotExist
 
 from ..domain.entities import DomainEvent, EventHandler, EventType
+from ..domain.interfaces import (
+    AlphaCandidateRepositoryProtocol,
+    DecisionRequestRepositoryProtocol,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -35,20 +38,32 @@ class DecisionApprovedHandler(EventHandler):
 
     Attributes:
         event_bus: 事件总线（可选，用于发布后续事件）
+        alpha_candidate_repo: Alpha 候选仓储
 
     Example:
         >>> handler = DecisionApprovedHandler()
         >>> handler.can_handle(EventType.DECISION_APPROVED)  # True
     """
 
-    def __init__(self, event_bus=None):
+    def __init__(
+        self,
+        event_bus=None,
+        alpha_candidate_repo: Optional[AlphaCandidateRepositoryProtocol] = None,
+    ):
         """
         初始化处理器
 
         Args:
             event_bus: 事件总线（可选）
+            alpha_candidate_repo: Alpha 候选仓储（可选，默认自动创建）
         """
         self.event_bus = event_bus
+
+        if alpha_candidate_repo is None:
+            from ..infrastructure.repositories import get_alpha_candidate_repository
+            alpha_candidate_repo = get_alpha_candidate_repository()
+
+        self._alpha_candidate_repo = alpha_candidate_repo
 
     def can_handle(self, event_type: EventType) -> bool:
         """判断是否能处理该类型的事件"""
@@ -112,15 +127,12 @@ class DecisionApprovedHandler(EventHandler):
             candidate_id: 候选 ID
             request_id: 决策请求 ID
         """
-        from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
+        success = self._alpha_candidate_repo.update_last_decision_request_id(
+            candidate_id, request_id
+        )
 
-        try:
-            candidate = AlphaCandidateModel.objects.get(candidate_id=candidate_id)
-            candidate.last_decision_request_id = request_id
-            candidate.save(update_fields=["last_decision_request_id", "updated_at"])
-
-        except ObjectDoesNotExist:
-            logger.warning(f"AlphaCandidate not found: {candidate_id}")
+        if not success:
+            logger.warning(f"Failed to update AlphaCandidate: {candidate_id}")
 
     def get_handler_id(self) -> str:
         """获取处理器标识符"""
@@ -135,20 +147,32 @@ class DecisionRejectedHandler(EventHandler):
 
     Attributes:
         event_bus: 事件总线（可选）
+        alpha_candidate_repo: Alpha 候选仓储
 
     Example:
         >>> handler = DecisionRejectedHandler()
         >>> handler.can_handle(EventType.DECISION_REJECTED)  # True
     """
 
-    def __init__(self, event_bus=None):
+    def __init__(
+        self,
+        event_bus=None,
+        alpha_candidate_repo: Optional[AlphaCandidateRepositoryProtocol] = None,
+    ):
         """
         初始化处理器
 
         Args:
             event_bus: 事件总线（可选）
+            alpha_candidate_repo: Alpha 候选仓储（可选，默认自动创建）
         """
         self.event_bus = event_bus
+
+        if alpha_candidate_repo is None:
+            from ..infrastructure.repositories import get_alpha_candidate_repository
+            alpha_candidate_repo = get_alpha_candidate_repository()
+
+        self._alpha_candidate_repo = alpha_candidate_repo
 
     def can_handle(self, event_type: EventType) -> bool:
         """判断是否能处理该类型的事件"""
@@ -204,18 +228,10 @@ class DecisionRejectedHandler(EventHandler):
         Args:
             candidate_id: 候选 ID
         """
-        from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
+        success = self._alpha_candidate_repo.update_status_to_rejected(candidate_id)
 
-        try:
-            candidate = AlphaCandidateModel.objects.get(candidate_id=candidate_id)
-            candidate.status = AlphaCandidateModel.REJECTED
-            candidate.status_changed_at = datetime.now(timezone.utc)
-            candidate.save(
-                update_fields=["status", "status_changed_at", "updated_at"]
-            )
-
-        except ObjectDoesNotExist:
-            logger.warning(f"AlphaCandidate not found: {candidate_id}")
+        if not success:
+            logger.warning(f"Failed to update AlphaCandidate: {candidate_id}")
 
     def get_handler_id(self) -> str:
         """获取处理器标识符"""
@@ -235,20 +251,40 @@ class DecisionExecutedHandler(EventHandler):
 
     Attributes:
         event_bus: 事件总线（可选）
+        decision_request_repo: 决策请求仓储
+        alpha_candidate_repo: Alpha 候选仓储
 
     Example:
         >>> handler = DecisionExecutedHandler()
         >>> handler.can_handle(EventType.DECISION_EXECUTED)  # True
     """
 
-    def __init__(self, event_bus=None):
+    def __init__(
+        self,
+        event_bus=None,
+        decision_request_repo: Optional[DecisionRequestRepositoryProtocol] = None,
+        alpha_candidate_repo: Optional[AlphaCandidateRepositoryProtocol] = None,
+    ):
         """
         初始化处理器
 
         Args:
             event_bus: 事件总线（可选）
+            decision_request_repo: 决策请求仓储（可选，默认自动创建）
+            alpha_candidate_repo: Alpha 候选仓储（可选，默认自动创建）
         """
         self.event_bus = event_bus
+
+        if decision_request_repo is None:
+            from ..infrastructure.repositories import get_decision_request_repository
+            decision_request_repo = get_decision_request_repository()
+
+        if alpha_candidate_repo is None:
+            from ..infrastructure.repositories import get_alpha_candidate_repository
+            alpha_candidate_repo = get_alpha_candidate_repository()
+
+        self._decision_request_repo = decision_request_repo
+        self._alpha_candidate_repo = alpha_candidate_repo
 
     def can_handle(self, event_type: EventType) -> bool:
         """判断是否能处理该类型的事件"""
@@ -304,21 +340,12 @@ class DecisionExecutedHandler(EventHandler):
             request_id: 决策请求 ID
             execution_ref: 执行引用（如 trade_id, position_id 等）
         """
-        from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
-        from apps.decision_rhythm.domain.entities import ExecutionStatus
+        success = self._decision_request_repo.update_execution_status_to_executed(
+            request_id, execution_ref
+        )
 
-        try:
-            request = DecisionRequestModel.objects.get(request_id=request_id)
-            request.execution_status = ExecutionStatus.EXECUTED.value
-            request.executed_at = datetime.now(timezone.utc)
-            if execution_ref:
-                request.execution_ref = execution_ref
-            request.save(
-                update_fields=["execution_status", "executed_at", "execution_ref"]
-            )
-
-        except ObjectDoesNotExist:
-            logger.warning(f"DecisionRequest not found: {request_id}")
+        if not success:
+            logger.warning(f"Failed to update DecisionRequest: {request_id}")
 
     def _update_alpha_candidate_executed(self, candidate_id: str) -> None:
         """
@@ -327,24 +354,10 @@ class DecisionExecutedHandler(EventHandler):
         Args:
             candidate_id: 候选 ID
         """
-        from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
+        success = self._alpha_candidate_repo.update_status_to_executed(candidate_id)
 
-        try:
-            candidate = AlphaCandidateModel.objects.get(candidate_id=candidate_id)
-            candidate.status = AlphaCandidateModel.EXECUTED
-            candidate.last_execution_status = AlphaCandidateModel.EXECUTION_EXECUTED
-            candidate.status_changed_at = datetime.now(timezone.utc)
-            candidate.save(
-                update_fields=[
-                    "status",
-                    "last_execution_status",
-                    "status_changed_at",
-                    "updated_at",
-                ]
-            )
-
-        except ObjectDoesNotExist:
-            logger.warning(f"AlphaCandidate not found: {candidate_id}")
+        if not success:
+            logger.warning(f"Failed to update AlphaCandidate: {candidate_id}")
 
     def get_handler_id(self) -> str:
         """获取处理器标识符"""
@@ -364,20 +377,40 @@ class DecisionExecutionFailedHandler(EventHandler):
 
     Attributes:
         event_bus: 事件总线（可选）
+        decision_request_repo: 决策请求仓储
+        alpha_candidate_repo: Alpha 候选仓储
 
     Example:
         >>> handler = DecisionExecutionFailedHandler()
         >>> handler.can_handle(EventType.DECISION_EXECUTION_FAILED)  # True
     """
 
-    def __init__(self, event_bus=None):
+    def __init__(
+        self,
+        event_bus=None,
+        decision_request_repo: Optional[DecisionRequestRepositoryProtocol] = None,
+        alpha_candidate_repo: Optional[AlphaCandidateRepositoryProtocol] = None,
+    ):
         """
         初始化处理器
 
         Args:
             event_bus: 事件总线（可选）
+            decision_request_repo: 决策请求仓储（可选，默认自动创建）
+            alpha_candidate_repo: Alpha 候选仓储（可选，默认自动创建）
         """
         self.event_bus = event_bus
+
+        if decision_request_repo is None:
+            from ..infrastructure.repositories import get_decision_request_repository
+            decision_request_repo = get_decision_request_repository()
+
+        if alpha_candidate_repo is None:
+            from ..infrastructure.repositories import get_alpha_candidate_repository
+            alpha_candidate_repo = get_alpha_candidate_repository()
+
+        self._decision_request_repo = decision_request_repo
+        self._alpha_candidate_repo = alpha_candidate_repo
 
     def can_handle(self, event_type: EventType) -> bool:
         """判断是否能处理该类型的事件"""
@@ -435,22 +468,18 @@ class DecisionExecutionFailedHandler(EventHandler):
             request_id: 决策请求 ID
             error_message: 错误信息
         """
-        from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
-        from apps.decision_rhythm.domain.entities import ExecutionStatus
+        success = self._decision_request_repo.update_execution_status_to_failed(
+            request_id
+        )
 
-        try:
-            request = DecisionRequestModel.objects.get(request_id=request_id)
-            request.execution_status = ExecutionStatus.FAILED.value
-            request.save(update_fields=["execution_status"])
-
+        if not success:
+            logger.warning(f"Failed to update DecisionRequest: {request_id}")
+        else:
             # 错误信息记录到日志
             if error_message:
                 logger.warning(
                     f"DecisionRequest {request_id} execution failed: {error_message}"
                 )
-
-        except ObjectDoesNotExist:
-            logger.warning(f"DecisionRequest not found: {request_id}")
 
     def _update_alpha_candidate_failed(self, candidate_id: str) -> None:
         """
@@ -461,23 +490,12 @@ class DecisionExecutionFailedHandler(EventHandler):
         Args:
             candidate_id: 候选 ID
         """
-        from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
+        success = self._alpha_candidate_repo.update_execution_status_to_failed(
+            candidate_id
+        )
 
-        try:
-            candidate = AlphaCandidateModel.objects.get(candidate_id=candidate_id)
-            # 保留 ACTIONABLE 状态，允许重试
-            candidate.last_execution_status = AlphaCandidateModel.EXECUTION_FAILED
-            candidate.status_changed_at = datetime.now(timezone.utc)
-            candidate.save(
-                update_fields=[
-                    "last_execution_status",
-                    "status_changed_at",
-                    "updated_at",
-                ]
-            )
-
-        except ObjectDoesNotExist:
-            logger.warning(f"AlphaCandidate not found: {candidate_id}")
+        if not success:
+            logger.warning(f"Failed to update AlphaCandidate: {candidate_id}")
 
     def get_handler_id(self) -> str:
         """获取处理器标识符"""

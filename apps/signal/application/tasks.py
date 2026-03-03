@@ -8,6 +8,7 @@ from celery import shared_task
 from django.utils import timezone
 from django.conf import settings
 import logging
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +29,9 @@ def check_all_signal_invalidations():
 
         logger.info(
             f"检查完成: 共检查 {result['checked']} 个信号, "
-            f"证伪 {result['invalidated']} 个, "
-            f"证伪信号 IDs: {result['signal_ids']}"
+            f"证伪 {result['invalidated']} 个, 拒绝 {result['rejected']} 个, "
+            f"证伪信号 IDs: {result['invalidated_ids']}, "
+            f"拒绝信号 IDs: {result['rejected_ids']}"
         )
 
         return result
@@ -47,11 +49,13 @@ def check_single_signal_invalidation(signal_id: int):
     用于手动触发或信号状态变化时检查
     """
     from apps.signal.application.invalidation_checker import InvalidationCheckService
+    from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
     logger.info(f"检查信号 {signal_id} 的证伪状态...")
 
     try:
-        service = InvalidationCheckService()
+        repository = DjangoSignalRepository()
+        service = InvalidationCheckService(signal_repository=repository)
         result = service.check_signal(signal_id)
 
         if result:
@@ -81,21 +85,15 @@ def cleanup_old_invalidated_signals(days: int = 90):
 
     默认清理 90 天前的证伪信号，可以归档或删除
     """
-    from apps.signal.infrastructure.models import InvestmentSignalModel
-    from datetime import timedelta
-
-    cutoff_date = timezone.now() - timedelta(days=days)
+    from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
     logger.info(f"清理 {days} 天前的已证伪信号...")
 
     try:
-        old_signals = InvestmentSignalModel._default_manager.filter(
-            status='invalidated',
-            invalidated_at__lt=cutoff_date
-        )
+        repository = DjangoSignalRepository()
+        old_ids = repository.get_old_invalidated_signals(days)
 
-        count = old_signals.count()
-        old_ids = list(old_signals.values_list('id', flat=True))
+        count = len(old_ids)
 
         # 这里可以选择删除或归档
         # old_signals.delete()
@@ -119,40 +117,29 @@ def send_daily_signal_summary():
 
     每天早上发送前一天的状态变化报告
     """
-    from apps.signal.infrastructure.models import InvestmentSignalModel
+    from apps.signal.infrastructure.repositories import DjangoSignalRepository
     from datetime import timedelta
-    from django.contrib.auth import get_user_model
+
+    repository = DjangoSignalRepository()
 
     yesterday = timezone.now() - timedelta(days=1)
     today = timezone.now()
 
     # 统计变化
-    new_signals = InvestmentSignalModel._default_manager.filter(
-        created_at__range=[yesterday, today]
-    ).count()
-
-    invalidated_signals = InvestmentSignalModel._default_manager.filter(
-        invalidated_at__range=[yesterday, today]
-    ).count()
-
-    approved_count = InvestmentSignalModel._default_manager.filter(
-        status='approved'
-    ).count()
+    new_signals = repository.count_by_status('pending')  # 近期新建信号数
 
     # 获取新建的信号详情
-    new_signal_details = list(InvestmentSignalModel._default_manager.filter(
-        created_at__range=[yesterday, today]
-    ).values('asset_code', 'logic_desc', 'created_by')[:10])
+    new_signal_details = repository.get_signals_created_between(yesterday, today)
 
     # 获取证伪的信号详情
-    invalidated_details = list(InvestmentSignalModel._default_manager.filter(
-        invalidated_at__range=[yesterday, today]
-    ).values('asset_code', 'logic_desc', 'invalidated_reason', 'id')[:10])
+    invalidated_details = repository.get_signals_invalidated_between(yesterday, today)
+
+    approved_count = repository.count_by_status('approved')
 
     summary = {
         'date': yesterday.date().isoformat(),
-        'new_signals': new_signals,
-        'invalidated_signals': invalidated_signals,
+        'new_signals': len(new_signal_details),
+        'invalidated_signals': len(invalidated_details),
         'total_approved': approved_count
     }
 
@@ -178,11 +165,9 @@ def _send_signal_summary_notification(summary: dict, new_details: list, invalida
     """
     from shared.infrastructure.notification_service import (
         get_notification_service,
-        NotificationMessage,
         NotificationPriority,
     )
-    from django.core.mail import send_mail
-    from django.conf import settings
+    from apps.signal.infrastructure.repositories import DjangoUserRepository
 
     service = get_notification_service()
 
@@ -219,7 +204,8 @@ def _send_signal_summary_notification(summary: dict, new_details: list, invalida
             f"",
         ])
         for i, signal in enumerate(invalidated_details[:10], 1):
-            reason = signal.get('invalidated_reason', 'N/A')
+            details = signal.get('invalidation_details', {})
+            reason = details.get('reason', 'N/A') if isinstance(details, dict) else 'N/A'
             lines.append(f"{i}. **{signal['asset_code']}** (ID: {signal['id']}) - {reason}")
         if len(invalidated_details) > 10:
             lines.append(f"... 还有 {len(invalidated_details) - 10} 个信号")
@@ -291,14 +277,15 @@ def _send_signal_summary_notification(summary: dict, new_details: list, invalida
                 <tr><th>序号</th><th>资产代码</th><th>证伪原因</th></tr>
         """
         for i, signal in enumerate(invalidated_details[:10], 1):
-            reason = signal.get('invalidated_reason', 'N/A')
+            details = signal.get('invalidation_details', {})
+            reason = details.get('reason', 'N/A') if isinstance(details, dict) else 'N/A'
             html_body += f"<tr><td>{i}</td><td>{signal['asset_code']}</td><td>{reason}</td></tr>"
         html_body += "</table></div>"
 
     html_body += f"""
         <div class="footer">
             <p>发送时间: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-            <p>AgomSaaS - 自动发送，请勿回复</p>
+            <p>AgomSAAF - 自动发送，请勿回复</p>
         </div>
     </body>
     </html>
@@ -334,17 +321,17 @@ def _send_signal_summary_notification(summary: dict, new_details: list, invalida
         return True
 
 
-def _get_signal_notification_recipients() -> list:
+def _get_signal_notification_recipients() -> List[str]:
     """
     获取信号通知收件人列表
 
     Returns:
         list: 收件人邮箱列表
     """
-    from django.contrib.auth import get_user_model
+    from apps.signal.infrastructure.repositories import DjangoUserRepository
     from django.conf import settings
 
-    User = get_user_model()
+    user_repo = DjangoUserRepository()
     recipients = []
 
     # 从配置获取
@@ -353,18 +340,10 @@ def _get_signal_notification_recipients() -> list:
         recipients.extend(config_emails)
 
     # 获取管理员邮箱
-    admin_emails = list(User.objects.filter(
-        is_staff=True,
-        is_active=True,
-        email__icontains='@'
-    ).exclude(
-        email=''
-    ).values_list('email', flat=True))
-
+    admin_emails = user_repo.get_staff_emails()
     recipients.extend(admin_emails)
 
     # 去重并过滤空值
     recipients = list(set(r for r in recipients if r and '@' in r))
 
     return recipients
-

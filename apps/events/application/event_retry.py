@@ -7,15 +7,16 @@ Event Retry Mechanism
 - 失败事件写错误日志
 - 支持后续重放
 - 主事务成功优先，事件发布失败不回滚主事务
+- 使用 Repository 模式访问数据库
 """
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Callable, Dict, List, Optional
 
 from ..domain.entities import DomainEvent, EventType
-from ..infrastructure.models import FailedEventModel
+from ..domain.interfaces import FailedEventRepositoryProtocol
 
 
 logger = logging.getLogger(__name__)
@@ -70,16 +71,28 @@ class EventRetryManager:
         >>> manager.retry_pending_events()
     """
 
-    def __init__(self, max_retries: int = 3, base_delay_minutes: int = 5):
+    def __init__(
+        self,
+        max_retries: int = 3,
+        base_delay_minutes: int = 5,
+        failed_event_repo: Optional[FailedEventRepositoryProtocol] = None,
+    ):
         """
         初始化管理器
 
         Args:
             max_retries: 最大重试次数
             base_delay_minutes: 基础延迟时间（分钟）
+            failed_event_repo: 失败事件仓储（可选，默认自动创建）
         """
         self.max_retries = max_retries
         self.base_delay_minutes = base_delay_minutes
+
+        if failed_event_repo is None:
+            from ..infrastructure.repositories import get_failed_event_repository
+            failed_event_repo = get_failed_event_repository()
+
+        self._repo = failed_event_repo
 
     def record_failure(
         self,
@@ -102,31 +115,26 @@ class EventRetryManager:
         """
         import traceback
 
-        # 计算下次重试时间（指数退避）
-        next_retry_at = datetime.now(timezone.utc)
-
         try:
-            failed_event = FailedEventModel(
-                event_id=event.event_id,
-                event_type=event.event_type.value,
-                payload=event.payload,
-                metadata=event.metadata,
+            event_db_id = self._repo.save(
+                event=event,
                 handler_id=handler_id,
                 error_message=str(error),
                 error_traceback=traceback_str or traceback.format_exc(),
-                retry_count=0,
                 max_retries=self.max_retries,
-                next_retry_at=next_retry_at,
-                status=FailedEventModel.PENDING,
             )
-            failed_event.save()
 
             logger.info(
                 f"Recorded failed event: {event.event_id} "
                 f"(handler={handler_id}, error={error})"
             )
 
-            return self._to_dto(failed_event)
+            # 获取保存的事件并转换为 DTO
+            event_dict = self._repo.get_by_id(event_db_id)
+            if event_dict:
+                return self._dict_to_dto(event_dict)
+            else:
+                raise RuntimeError(f"Failed to retrieve saved event: {event_db_id}")
 
         except Exception as e:
             logger.error(f"Failed to record failed event: {e}", exc_info=True)
@@ -147,17 +155,12 @@ class EventRetryManager:
         Returns:
             失败事件 DTO 列表
         """
-        queryset = FailedEventModel.objects.filter(
-            status=FailedEventModel.PENDING,
-            next_retry_at__lte=datetime.now(timezone.utc),
+        event_dicts = self._repo.find_pending_events(
+            limit=limit,
+            handler_id=handler_id,
         )
 
-        if handler_id:
-            queryset = queryset.filter(handler_id=handler_id)
-
-        failed_events = queryset.order_by("created_at")[:limit]
-
-        return [self._to_dto(fe) for fe in failed_events]
+        return [self._dict_to_dto(d) for d in event_dicts]
 
     def retry_event(
         self,
@@ -176,71 +179,73 @@ class EventRetryManager:
         """
         try:
             # 更新状态为重试中
-            failed_event = FailedEventModel.objects.get(id=failed_event_dto.id)
-            failed_event.status = FailedEventModel.RETRYING
-            failed_event.last_retry_at = datetime.now(timezone.utc)
-            failed_event.save(update_fields=["status", "last_retry_at", "updated_at"])
+            self._repo.update_status(
+                event_db_id=failed_event_dto.id,
+                status="RETRYING",
+                last_retry_at=datetime.now(timezone.utc),
+            )
 
             # 重建事件对象
             try:
-                event_type = EventType(failed_event.event_type)
+                event_type = EventType(failed_event_dto.event_type)
             except ValueError:
-                logger.warning(f"Unknown event type: {failed_event.event_type}")
+                logger.warning(f"Unknown event type: {failed_event_dto.event_type}")
                 event_type = EventType.UNKNOWN
 
             event = DomainEvent(
-                event_id=failed_event.event_id,
+                event_id=failed_event_dto.event_id,
                 event_type=event_type,
                 occurred_at=datetime.now(timezone.utc),  # 使用当前时间
-                payload=failed_event.payload,
-                metadata=failed_event.metadata,
+                payload=failed_event_dto.payload,
+                metadata=failed_event_dto.metadata,
             )
 
             # 执行处理器
             handler_callable(event)
 
             # 重试成功
-            failed_event.status = FailedEventModel.SUCCESS
-            failed_event.save(update_fields=["status", "updated_at"])
+            self._repo.mark_success(failed_event_dto.id)
 
             logger.info(
-                f"Event retry succeeded: {failed_event.event_id} "
-                f"(handler={failed_event.handler_id}, "
-                f"attempts={failed_event.retry_count + 1})"
+                f"Event retry succeeded: {failed_event_dto.event_id} "
+                f"(handler={failed_event_dto.handler_id}, "
+                f"attempts={failed_event_dto.retry_count + 1})"
             )
 
             return True
 
         except Exception as e:
             # 重试失败
-            failed_event = FailedEventModel.objects.get(id=failed_event_dto.id)
-            failed_event.retry_count += 1
-            failed_event.error_message = str(e)
-
             # 检查是否耗尽重试次数
-            if failed_event.retry_count >= failed_event.max_retries:
-                failed_event.status = FailedEventModel.EXHAUSTED
+            is_exhausted = (failed_event_dto.retry_count + 1) >= failed_event_dto.max_retries
+
+            # 计算下次重试时间（指数退避）
+            if is_exhausted:
+                next_retry_at = None
+            else:
+                delay_minutes = self.base_delay_minutes * (2 ** (failed_event_dto.retry_count + 1))
+                next_retry_at = datetime.now(timezone.utc) + timedelta(minutes=delay_minutes)
+
+            self._repo.increment_retry_count(
+                event_db_id=failed_event_dto.id,
+                error_message=str(e),
+                next_retry_at=next_retry_at,
+                is_exhausted=is_exhausted,
+            )
+
+            if is_exhausted:
                 logger.error(
-                    f"Event retry exhausted: {failed_event.event_id} "
-                    f"(handler={failed_event.handler_id}, "
-                    f"attempts={failed_event.retry_count})"
+                    f"Event retry exhausted: {failed_event_dto.event_id} "
+                    f"(handler={failed_event_dto.handler_id}, "
+                    f"attempts={failed_event_dto.retry_count + 1})"
                 )
             else:
-                # 计算下次重试时间（指数退避）
-                delay_minutes = self.base_delay_minutes * (2 ** failed_event.retry_count)
-                failed_event.next_retry_at = (
-                    datetime.now(timezone.utc) +
-                    __import__('datetime').timedelta(minutes=delay_minutes)
-                )
-                failed_event.status = FailedEventModel.PENDING
                 logger.warning(
-                    f"Event retry failed: {failed_event.event_id} "
-                    f"(handler={failed_event.handler_id}, "
-                    f"attempts={failed_event.retry_count}, "
-                    f"next_retry_at={failed_event.next_retry_at})"
+                    f"Event retry failed: {failed_event_dto.event_id} "
+                    f"(handler={failed_event_dto.handler_id}, "
+                    f"attempts={failed_event_dto.retry_count + 1}, "
+                    f"next_retry_at={next_retry_at})"
                 )
-
-            failed_event.save()
 
             return False
 
@@ -281,8 +286,8 @@ class EventRetryManager:
                 stats["success"] += 1
             else:
                 # 检查是否耗尽
-                failed_event = FailedEventModel.objects.get(id=failed_event_dto.id)
-                if failed_event.status == FailedEventModel.EXHAUSTED:
+                event_dict = self._repo.get_by_id(failed_event_dto.id)
+                if event_dict and event_dict["status"] == "EXHAUSTED":
                     stats["exhausted"] += 1
                 else:
                     stats["failed"] += 1
@@ -306,32 +311,22 @@ class EventRetryManager:
         Returns:
             删除的记录数
         """
-        cutoff_date = datetime.now(timezone.utc) - __import__('datetime').timedelta(days=days)
+        return self._repo.cleanup_old_events(days)
 
-        deleted, _ = FailedEventModel.objects.filter(
-            status__in=[FailedEventModel.SUCCESS, FailedEventModel.EXHAUSTED],
-            updated_at__lt=cutoff_date,
-        ).delete()
-
-        if deleted > 0:
-            logger.info(f"Cleaned up {deleted} old failed event records")
-
-        return deleted
-
-    def _to_dto(self, model: FailedEventModel) -> FailedEventDTO:
-        """转换 ORM 模型为 DTO"""
+    def _dict_to_dto(self, event_dict: Dict[str, Any]) -> FailedEventDTO:
+        """转换字典为 DTO"""
         return FailedEventDTO(
-            id=model.id,
-            event_id=model.event_id,
-            event_type=model.event_type,
-            payload=model.payload,
-            metadata=model.metadata,
-            handler_id=model.handler_id,
-            error_message=model.error_message,
-            retry_count=model.retry_count,
-            max_retries=model.max_retries,
-            next_retry_at=model.next_retry_at,
-            status=model.status,
+            id=event_dict["id"],
+            event_id=event_dict["event_id"],
+            event_type=event_dict["event_type"],
+            payload=event_dict["payload"],
+            metadata=event_dict["metadata"],
+            handler_id=event_dict["handler_id"],
+            error_message=event_dict["error_message"],
+            retry_count=event_dict["retry_count"],
+            max_retries=event_dict["max_retries"],
+            next_retry_at=event_dict["next_retry_at"],
+            status=event_dict["status"],
         )
 
 

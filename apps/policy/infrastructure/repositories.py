@@ -375,6 +375,35 @@ class DjangoPolicyRepository:
             'by_level': stats
         }
 
+    def get_existing_for_update(
+        self,
+        event_id: Optional[int] = None,
+        event_date: Optional[date] = None
+    ) -> Optional[dict]:
+        """
+        获取现有事件用于更新检查
+
+        Args:
+            event_id: 事件 ID（优先使用）
+            event_date: 事件日期（当 event_id 为 None 时使用）
+
+        Returns:
+            Optional[dict]: 包含 id, event_date 的字典，不存在则返回 None
+        """
+        if event_id is not None:
+            obj = self._model.objects.filter(id=event_id).first()
+        elif event_date is not None:
+            obj = self._model.objects.filter(event_date=event_date).first()
+        else:
+            return None
+
+        if obj:
+            return {
+                'id': obj.id,
+                'event_date': obj.event_date,
+            }
+        return None
+
     @staticmethod
     def _orm_to_entity(orm_obj: PolicyLog) -> PolicyEvent:
         """将 ORM 对象转换为 Domain 实体"""

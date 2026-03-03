@@ -831,6 +831,27 @@ agomsaaf/Scripts/pip install -r requirements.txt
 | Infrastructure | Django ORM, pandas | 业务逻辑 |
 | Interface | 输入验证/输出格式化 | 业务逻辑 |
 
+#### 12.1.1 严格依赖方向（强制）
+
+1. `Interface -> Application -> Domain`
+2. `Infrastructure -> Domain`
+3. 禁止：`Domain -> 其他三层`
+4. 禁止：`Application -> Interface`
+5. 禁止：`Interface -> Infrastructure`（接口层必须通过 UseCase）
+
+#### 12.1.2 快速自检命令
+
+```bash
+# Domain 层禁止外部依赖
+rg -n "from django|import django|import pandas|import numpy|import requests" apps/*/domain -S
+
+# Application 层禁止直接使用 ORM
+rg -n "from .*infrastructure\\.models|\\.objects\\." apps/*/application -S
+
+# Interface 层禁止越层调用 Infrastructure
+rg -n "from .*infrastructure\\." apps/*/interface -S
+```
+
 ### 12.2 关键规则
 
 1. **HP 滤波必须使用扩张窗口**（避免后视偏差）

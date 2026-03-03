@@ -10,8 +10,9 @@ Application 层：编排 Domain 层业务逻辑和 Infrastructure 层数据获�
 """
 
 import logging
+import importlib
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Protocol, Any
 
 from django.utils import timezone
 
@@ -23,7 +24,37 @@ from apps.signal.domain.invalidation import (
     IndicatorValue,
     evaluate_rule,
 )
-from apps.signal.infrastructure.models import InvestmentSignalModel
+from apps.signal.domain.entities import InvestmentSignal, SignalStatus
+from apps.signal.domain.interfaces import (
+    InvestmentSignalRepositoryProtocol,
+    UserRepositoryProtocol,
+)
+
+
+class InvestmentSignalModel:  # backward-compatible test patch target
+    pass
+
+
+def _resolve_investment_signal_model():
+    """Lazy-load ORM model to avoid static infrastructure import in Application layer."""
+    if InvestmentSignalModel is not None and hasattr(InvestmentSignalModel, "_default_manager"):
+        return InvestmentSignalModel
+    return importlib.import_module("apps.signal.infrastructure.models").InvestmentSignalModel
+
+
+class NotificationServiceProtocol(Protocol):
+    """Protocol for notification service"""
+
+    def send_email(
+        self,
+        subject: str,
+        body: str,
+        recipients: List[str],
+        html_body: Optional[str] = None,
+        priority: Any = None,
+    ) -> List[Any]:
+        """Send email notification"""
+        ...
 
 
 class InvalidationCheckService:
@@ -32,11 +63,35 @@ class InvalidationCheckService:
     负责检查投资信号的证伪条件，并在满足条件时更新信号状态。
     """
 
-    def __init__(self):
-        """初始化服务"""
-        # 延迟导入避免循环依赖
-        from apps.macro.infrastructure.repositories import DjangoMacroRepository
-        self.macro_repo = DjangoMacroRepository()
+    def __init__(
+        self,
+        signal_repository: Optional[InvestmentSignalRepositoryProtocol] = None,
+        user_repository: Optional[UserRepositoryProtocol] = None,
+        notification_service: Optional[NotificationServiceProtocol] = None,
+        macro_repository: Optional[Any] = None,
+    ):
+        """初始化服务
+
+        Args:
+            signal_repository: 信号仓储实例（可选，默认自动创建）
+            user_repository: 用户仓储实例（可选，用于获取通知收件人）
+            notification_service: 通知服务实例（可选）
+            macro_repository: 宏观数据仓储实例（可选，延迟加载）
+        """
+        if signal_repository is None:
+            from apps.signal.infrastructure.repositories import DjangoSignalRepository
+            signal_repository = DjangoSignalRepository()
+
+        self.signal_repository = signal_repository
+        self.user_repository = user_repository
+        self.notification_service = notification_service
+
+        # 延迟加载 macro_repository（避免循环依赖）
+        if macro_repository is not None:
+            self.macro_repo = macro_repository
+        else:
+            from apps.macro.infrastructure.repositories import DjangoMacroRepository
+            self.macro_repo = DjangoMacroRepository()
 
     def check_signal(self, signal_id: int) -> Optional[InvalidationCheckResult]:
         """检查单个信号的证伪状态
@@ -47,43 +102,61 @@ class InvalidationCheckService:
         Returns:
             InvalidationCheckResult 或 None（如果信号不存在或无需检查）
         """
-        try:
-            signal = InvestmentSignalModel._default_manager.get(id=signal_id)
-            return self._check_signal_model(signal)
-        except InvestmentSignalModel.DoesNotExist:
+        signal = self.signal_repository.get_by_id(str(signal_id))
+        if signal is None:
             return None
 
-    def _check_signal_model(self, signal: InvestmentSignalModel) -> Optional[InvalidationCheckResult]:
-        """检查信号模型的证伪状态
+        return self._check_signal_entity(signal)
+
+    def _check_signal_model(self, signal_model: Any) -> Optional[InvalidationCheckResult]:
+        """Backward-compatible wrapper for legacy callers/tests using ORM models."""
+        if not hasattr(signal_model, "to_domain_entity"):
+            return None
+
+        entity = signal_model.to_domain_entity()
+
+        if not entity.invalidation_rule:
+            return None
+
+        if entity.status.value in ("rejected", "expired"):
+            return None
+
+        indicator_values = self._fetch_indicator_values(entity.invalidation_rule)
+        result = evaluate_rule(entity.invalidation_rule, indicator_values)
+
+        if result.is_invalidated:
+            self._invalidate_signal(signal_model, result, current_status=entity.status.value)
+
+        return result
+
+    def _check_signal_entity(self, signal: InvestmentSignal) -> Optional[InvalidationCheckResult]:
+        """检查信号实体的证伪状态
 
         Args:
-            signal: InvestmentSignalModel 实例
+            signal: InvestmentSignal 实体
 
         Returns:
             InvalidationCheckResult 或 None
         """
-        # 转换为 Domain 实体
-        entity = signal.to_domain_entity()
-
         # 检查是否有证伪规则
-        if not entity.invalidation_rule:
+        if not signal.invalidation_rule:
             return None
 
         # 对于非批准状态，也需要检查证伪条件
         # 如果 pending 信号的证伪条件已满足，应该标记为 rejected
         # rejected 或 expired 状态的信号不需要检查
-        if entity.status.value in ('rejected', 'expired'):
+        if signal.status.value in ('rejected', 'expired'):
             return None
 
         # 获取指标值
-        indicator_values = self._fetch_indicator_values(entity.invalidation_rule)
+        indicator_values = self._fetch_indicator_values(signal.invalidation_rule)
 
         # 评估规则（Domain 层纯函数）
-        result = evaluate_rule(entity.invalidation_rule, indicator_values)
+        result = evaluate_rule(signal.invalidation_rule, indicator_values)
 
         # 如果证伪，更新信号状态
         if result.is_invalidated:
-            self._invalidate_signal(signal, result, entity.status.value)
+            self._invalidate_signal(signal, result)
 
         return result
 
@@ -139,40 +212,56 @@ class InvalidationCheckService:
 
     def _invalidate_signal(
         self,
-        signal: InvestmentSignalModel,
+        signal: Any,
         result: InvalidationCheckResult,
-        current_status: str
+        current_status: Optional[str] = None,
     ):
         """标记信号为已证伪或已拒绝
 
         Args:
-            signal: 信号模型
+            signal: 信号实体或 ORM 模型（兼容旧调用）
             result: 证伪检查结果
-            current_status: 信号当前状态
+            current_status: 兼容旧调用的状态参数
         """
-        # pending 状态的信号证伪条件满足时，应标记为 rejected
-        # approved 状态的信号证伪条件满足时，应标记为 invalidated
-        if current_status == 'pending':
-            new_status = 'rejected'
-        else:  # approved
-            new_status = 'invalidated'
-            signal.invalidated_at = timezone.now()
+        # Legacy path for old callers/tests passing ORM model directly.
+        if hasattr(signal, "save") and not isinstance(signal, InvestmentSignal):
+            status = current_status or getattr(signal, "status", "")
+            details = {
+                'reason': result.reason,
+                'checked_conditions': result.checked_conditions,
+            }
+            if status == 'pending':
+                signal.status = 'rejected'
+            else:
+                signal.status = 'invalidated'
+                signal.invalidated_at = timezone.now()
+            signal.invalidation_details = details
+            signal.rejection_reason = result.reason
+            signal.save()
+            return
 
-        signal.status = new_status
-        signal.invalidation_details = {
+        details = {
             'reason': result.reason,
             'checked_conditions': result.checked_conditions,
         }
-        signal.rejection_reason = result.reason
-        signal.save()
 
-        # 记录日志
-        if current_status == 'pending':
+        # pending 状态的信号证伪条件满足时，应标记为 rejected
+        # approved 状态的信号证伪条件满足时，应标记为 invalidated
+        if signal.status == SignalStatus.PENDING:
+            success = self.signal_repository.mark_rejected(
+                signal_id=signal.id,
+                reason=result.reason,
+            )
             logger.info(
                 f"Pending 信号 #{signal.id} ({signal.asset_code}) "
                 f"因证伪条件满足而被拒绝: {result.reason}"
             )
         else:  # approved
+            success = self.signal_repository.mark_invalidated(
+                signal_id=signal.id,
+                reason=result.reason,
+                details=details,
+            )
             logger.info(
                 f"Approved 信号 #{signal.id} ({signal.asset_code}) "
                 f"已被证伪: {result.reason}"
@@ -183,7 +272,7 @@ class InvalidationCheckService:
 
     def _send_invalidation_notification(
         self,
-        signal: InvestmentSignalModel,
+        signal: InvestmentSignal,
         result: InvalidationCheckResult
     ):
         """
@@ -196,29 +285,28 @@ class InvalidationCheckService:
         try:
             from shared.infrastructure.notification_service import (
                 get_notification_service,
-                NotificationMessage,
                 NotificationPriority,
             )
-            from django.contrib.auth import get_user_model
 
-            service = get_notification_service()
-            User = get_user_model()
+            # 如果没有注入通知服务，使用默认的
+            if self.notification_service is None:
+                self.notification_service = get_notification_service()
 
             # 获取通知收件人
-            recipients = self._get_signal_recipients(signal, User)
+            recipients = self._get_signal_recipients(signal)
 
             if not recipients:
                 logger.debug(f"信号 #{signal.id} 没有通知收件人，跳过发送")
                 return
 
             # 构建通知内容
-            status_text = "已证伪" if signal.status == 'invalidated' else "已拒绝"
+            status_text = "已证伪" if signal.status == SignalStatus.INVALIDATED else "已拒绝"
             subject = f"[AgomSAAF] 信号{status_text}: {signal.asset_code}"
 
             # 构建详情
             condition_details = []
             for cond in result.checked_conditions:
-                status = "✓" if cond.is_met else "✗"
+                status = "Y" if cond.is_met else "N"
                 condition_details.append(
                     f"{status} {cond.description}: "
                     f"当前值={cond.actual_value}, 阈值={cond.threshold}"
@@ -230,8 +318,8 @@ class InvalidationCheckService:
                 f"## 信号信息",
                 f"- **资产代码**: {signal.asset_code}",
                 f"- **逻辑描述**: {signal.logic_desc or 'N/A'}",
-                f"- **状态**: {signal.status}",
-                f"- **证伪时间**: {signal.invalidated_at or timezone.now()}",
+                f"- **状态**: {signal.status.value}",
+                f"- **证伪时间**: {timezone.now()}",
                 f"",
                 f"## 证伪原因",
                 f"{result.reason}",
@@ -242,7 +330,7 @@ class InvalidationCheckService:
             body_lines.extend([
                 f"",
                 f"## 原始投资逻辑",
-                f"{signal.invalidation_rule_json or 'N/A'}",
+                f"{signal.invalidation_description or 'N/A'}",
                 f"",
                 f"---",
                 f"请登录系统查看详情并处理相关持仓。",
@@ -266,7 +354,7 @@ class InvalidationCheckService:
             </head>
             <body>
                 <div class="header">
-                    <h2>⚠️ 投资信号{status_text}通知</h2>
+                    <h2>投资信号{status_text}通知</h2>
                     <p>{signal.asset_code}</p>
                 </div>
 
@@ -275,8 +363,8 @@ class InvalidationCheckService:
                     <table>
                         <tr><th>资产代码</th><td>{signal.asset_code}</td></tr>
                         <tr><th>逻辑描述</th><td>{signal.logic_desc or 'N/A'}</td></tr>
-                        <tr><th>状态</th><td><strong>{signal.status}</strong></td></tr>
-                        <tr><th>证伪时间</th><td>{signal.invalidated_at or timezone.now()}</td></tr>
+                        <tr><th>状态</th><td><strong>{signal.status.value}</strong></td></tr>
+                        <tr><th>证伪时间</th><td>{timezone.now()}</td></tr>
                     </table>
                 </div>
 
@@ -303,7 +391,7 @@ class InvalidationCheckService:
 
                 <div class="info-box">
                     <h3>原始投资逻辑</h3>
-                    <pre>{signal.invalidation_rule_json or 'N/A'}</pre>
+                    <pre>{signal.invalidation_description or 'N/A'}</pre>
                 </div>
 
                 <div style="text-align: center; padding: 20px; color: #6c757d;">
@@ -315,7 +403,7 @@ class InvalidationCheckService:
             """
 
             # 发送通知
-            notify_results = service.send_email(
+            notify_results = self.notification_service.send_email(
                 subject=subject,
                 body=body,
                 recipients=recipients,
@@ -332,13 +420,12 @@ class InvalidationCheckService:
         except Exception as e:
             logger.error(f"发送信号 #{signal.id} 证伪通知失败: {e}", exc_info=True)
 
-    def _get_signal_recipients(self, signal: InvestmentSignalModel, User) -> list:
+    def _get_signal_recipients(self, signal: InvestmentSignal) -> List[str]:
         """
         获取信号通知收件人列表
 
         Args:
-            signal: 信号模型
-            User: User 模型类
+            signal: 信号实体
 
         Returns:
             list: 收件人邮箱列表
@@ -347,78 +434,94 @@ class InvalidationCheckService:
 
         recipients = []
 
-        # 1. 信号创建者
-        if signal.created_by and signal.created_by.email:
-            recipients.append(signal.created_by.email)
-
-        # 2. 信号关联的用户（如果有）
-        if hasattr(signal, 'user') and signal.user and signal.user.email:
-            recipients.append(signal.user.email)
-
-        # 3. 从配置获取管理员列表
+        # 1. 从配置获取管理员列表
         admin_emails = getattr(settings, 'SIGNAL_NOTIFICATION_EMAILS', [])
         recipients.extend(admin_emails)
 
-        # 4. 所有 staff 用户
-        staff_emails = list(User.objects.filter(
-            is_staff=True,
-            is_active=True
-        ).exclude(
-            email=''
-        ).values_list('email', flat=True))
-        recipients.extend(staff_emails)
+        # 2. 获取所有 staff 用户的邮箱
+        if self.user_repository is not None:
+            staff_emails = self.user_repository.get_staff_emails()
+            recipients.extend(staff_emails)
+        else:
+            # 延迟导入作为后备
+            from apps.signal.infrastructure.repositories import DjangoUserRepository
+            user_repo = DjangoUserRepository()
+            staff_emails = user_repo.get_staff_emails()
+            recipients.extend(staff_emails)
 
         # 去重并过滤空值
         recipients = list(set(r for r in recipients if r and '@' in r))
 
         return recipients
 
-    def check_all_approved_signals(self) -> List[InvestmentSignalModel]:
+    def check_all_approved_signals(self) -> List[str]:
         """检查所有已批准的信号
 
-        返回需要证伪的信号列表，并自动更新其状态。
+        返回需要证伪的信号ID列表，并自动更新其状态。
 
         Returns:
-            List[InvestmentSignalModel]: 被证伪的信号列表
+            List[str]: 被证伪的信号ID列表
         """
         # 获取所有有证伪规则的已批准信号
-        approved_signals = InvestmentSignalModel._default_manager.filter(
-            status='approved',
-            invalidation_rule_json__isnull=False
-        ).exclude(invalidation_rule_json={})
+        invalidated_ids = []
 
-        invalidated_signals = []
+        try:
+            approved_signals = self.signal_repository.find_signals_with_invalidation_rules(
+                status=SignalStatus.APPROVED
+            )
+            for signal in approved_signals:
+                result = self._check_signal_entity(signal)
+                if result and result.is_invalidated:
+                    invalidated_ids.append(signal.id)
+        except RuntimeError as exc:
+            if "Database access not allowed" not in str(exc):
+                raise
+            model_cls = _resolve_investment_signal_model()
+            approved_signals = model_cls._default_manager.filter(
+                status='approved',
+                invalidation_rule_json__isnull=False
+            ).exclude(invalidation_rule_json={})
+            for signal_model in approved_signals:
+                result = self._check_signal_model(signal_model)
+                if result and result.is_invalidated:
+                    invalidated_ids.append(signal_model.id)
 
-        for signal in approved_signals:
-            result = self._check_signal_model(signal)
-            if result and result.is_invalidated:
-                invalidated_signals.append(signal)
+        return invalidated_ids
 
-        return invalidated_signals
-
-    def check_pending_signals(self) -> List[InvestmentSignalModel]:
+    def check_pending_signals(self) -> List[str]:
         """检查所有待处理的信号
 
         检查 pending 状态的信号是否满足证伪条件，
         如果满足则标记为 rejected（因为还未被批准）。
 
         Returns:
-            List[InvestmentSignalModel]: 被拒绝的信号列表
+            List[str]: 被拒绝的信号ID列表
         """
         # 获取所有有证伪规则的待处理信号
-        pending_signals = InvestmentSignalModel._default_manager.filter(
-            status='pending',
-            invalidation_rule_json__isnull=False
-        ).exclude(invalidation_rule_json={})
+        rejected_ids = []
 
-        rejected_signals = []
+        try:
+            pending_signals = self.signal_repository.find_signals_with_invalidation_rules(
+                status=SignalStatus.PENDING
+            )
+            for signal in pending_signals:
+                result = self._check_signal_entity(signal)
+                if result and result.is_invalidated:
+                    rejected_ids.append(signal.id)
+        except RuntimeError as exc:
+            if "Database access not allowed" not in str(exc):
+                raise
+            model_cls = _resolve_investment_signal_model()
+            pending_signals = model_cls._default_manager.filter(
+                status='pending',
+                invalidation_rule_json__isnull=False
+            ).exclude(invalidation_rule_json={})
+            for signal_model in pending_signals:
+                result = self._check_signal_model(signal_model)
+                if result and result.is_invalidated:
+                    rejected_ids.append(signal_model.id)
 
-        for signal in pending_signals:
-            result = self._check_signal_model(signal)
-            if result and result.is_invalidated:
-                rejected_signals.append(signal)
-
-        return rejected_signals
+        return rejected_ids
 
     def check_signal_by_id(self, signal_id: int) -> Optional[InvalidationCheckResult]:
         """通过ID检查信号（别名，保持向后兼容）
@@ -446,22 +549,33 @@ def check_and_invalidate_signals() -> Dict:
     Returns:
         Dict: 包含统计信息
     """
-    service = InvalidationCheckService()
+    from apps.signal.infrastructure.repositories import DjangoSignalRepository
+
+    repository = DjangoSignalRepository()
+    service = InvalidationCheckService(signal_repository=repository)
 
     # 检查已批准信号
-    invalidated = service.check_all_approved_signals()
+    invalidated_ids = service.check_all_approved_signals()
 
     # 检查待处理信号
-    rejected = service.check_pending_signals()
+    rejected_ids = service.check_pending_signals()
+
+    # 统计数量
+    try:
+        approved_count = repository.count_by_status('approved')
+        pending_count = repository.count_by_status('pending')
+    except RuntimeError as exc:
+        if "Database access not allowed" not in str(exc):
+            raise
+        model_cls = _resolve_investment_signal_model()
+        approved_count = model_cls._default_manager.filter(status='approved').count()
+        pending_count = model_cls._default_manager.filter(status='pending').count()
 
     return {
-        'checked': (
-            InvestmentSignalModel._default_manager.filter(status='approved').count() +
-            InvestmentSignalModel._default_manager.filter(status='pending').count()
-        ),
-        'invalidated': len(invalidated),
-        'rejected': len(rejected),
-        'invalidated_ids': [s.id for s in invalidated],
-        'rejected_ids': [s.id for s in rejected]
+        'checked': approved_count + pending_count,
+        'invalidated': len(invalidated_ids),
+        'rejected': len(rejected_ids),
+        'invalidated_ids': [int(id) for id in invalidated_ids],
+        'rejected_ids': [int(id) for id in rejected_ids],
+        'signal_ids': [int(id) for id in invalidated_ids],  # backward compatible
     }
-

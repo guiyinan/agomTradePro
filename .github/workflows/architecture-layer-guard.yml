@@ -1,0 +1,152 @@
+name: Architecture Layer Guard
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  layer-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Collect diff range
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            git fetch --no-tags --prune --depth=1 origin "${{ github.base_ref }}"
+            echo "BASE_REF=origin/${{ github.base_ref }}" >> "$GITHUB_ENV"
+            echo "HEAD_REF=${{ github.sha }}" >> "$GITHUB_ENV"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            BASE_REF="${{ github.event.before }}"
+            HEAD_REF="${{ github.sha }}"
+            if [[ "${BASE_REF}" == "0000000000000000000000000000000000000000" ]]; then
+              BASE_REF="$(git rev-parse "${HEAD_REF}^")"
+            fi
+            echo "BASE_REF=${BASE_REF}" >> "$GITHUB_ENV"
+            echo "HEAD_REF=${HEAD_REF}" >> "$GITHUB_ENV"
+          else
+            echo "BASE_REF=" >> "$GITHUB_ENV"
+            echo "HEAD_REF=" >> "$GITHUB_ENV"
+          fi
+
+      - name: Enforce four-layer architecture guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          import re
+          import subprocess
+          import sys
+
+          domain_rules = [
+              (re.compile(r"^\s*(from|import)\s+django\b"), "Domain layer must not import django"),
+              (re.compile(r"^\s*(from|import)\s+pandas\b"), "Domain layer must not import pandas"),
+              (re.compile(r"^\s*(from|import)\s+numpy\b"), "Domain layer must not import numpy"),
+              (re.compile(r"^\s*(from|import)\s+requests\b"), "Domain layer must not import requests"),
+          ]
+          application_rules = [
+              (re.compile(r"^\s*(from|import)\s+.*infrastructure\.models\b"), "Application layer must not import infrastructure models directly"),
+              (re.compile(r"\.objects\."), "Application layer must not access ORM manager directly"),
+          ]
+          interface_rules = [
+              (re.compile(r"^\s*(from|import)\s+.*infrastructure\."), "Interface layer must call Application use cases, not Infrastructure directly"),
+          ]
+
+          violations = []
+          base_ref = os.environ.get("BASE_REF", "").strip()
+          head_ref = os.environ.get("HEAD_REF", "").strip()
+
+          # Collect added lines only (strict for new changes, tolerant for legacy stock issues).
+          if base_ref and head_ref:
+              try:
+                  diff_text = subprocess.check_output(
+                      ["git", "diff", "-U0", f"{base_ref}...{head_ref}", "--", ":(glob)apps/**/*.py"],
+                      text=True,
+                      stderr=subprocess.STDOUT,
+                  )
+              except subprocess.CalledProcessError:
+                  diff_text = subprocess.check_output(
+                      ["git", "diff", "-U0", base_ref, head_ref, "--", ":(glob)apps/**/*.py"],
+                      text=True,
+                      stderr=subprocess.STDOUT,
+                  )
+          else:
+              # workflow_dispatch: scan all tracked python files under apps.
+              paths = subprocess.check_output(
+                  ["git", "ls-files", ":(glob)apps/**/*.py"],
+                  text=True,
+              ).splitlines()
+              chunks = []
+              for p in paths:
+                  chunks.append(f"diff --git a/{p} b/{p}\n+++ b/{p}\n@@ -0,0 +1,999999 @@\n")
+                  with open(p, "r", encoding="utf-8", errors="ignore") as fh:
+                      for ln in fh.read().splitlines():
+                          chunks.append(f"+{ln}\n")
+              diff_text = "".join(chunks)
+
+          current_file = None
+          current_line = 0
+          hunk_re = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
+
+          for raw_line in diff_text.splitlines():
+              if raw_line.startswith("+++ b/"):
+                  current_file = raw_line[6:]
+                  current_line = 0
+                  continue
+
+              if current_file is None:
+                  continue
+
+              match = hunk_re.match(raw_line)
+              if match:
+                  current_line = int(match.group(1))
+                  continue
+
+              if raw_line.startswith("+") and not raw_line.startswith("+++"):
+                  line = raw_line[1:]
+                  norm = current_file.replace("\\", "/")
+
+                  if "/domain/" in norm:
+                      rules = domain_rules
+                  elif "/application/" in norm:
+                      rules = application_rules
+                  elif "/interface/" in norm:
+                      rules = interface_rules
+                  else:
+                      rules = []
+
+                  for pattern, message in rules:
+                      if pattern.search(line):
+                          violations.append((current_file, current_line, message, line.strip()))
+                  current_line += 1
+              elif raw_line.startswith("-") and not raw_line.startswith("---"):
+                  continue
+              else:
+                  if raw_line and not raw_line.startswith("\\"):
+                      current_line += 1
+
+          if violations:
+              print("Layer guard violations found:")
+              for fp, lineno, message, line in violations:
+                  print(f"- {fp}:{lineno}: {message}")
+                  print(f"    code: {line}")
+              sys.exit(1)
+
+          print("Layer guard passed: no violations in changed files.")
+          PY

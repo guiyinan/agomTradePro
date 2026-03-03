@@ -308,3 +308,269 @@ class DjangoAuditRepository:
             for s in summaries
         ]
 
+    # ============ 用于 Application 层解耦的方法 ============
+
+    def get_threshold_config_by_indicator(
+        self,
+        indicator_code: str
+    ) -> Optional[dict]:
+        """
+        获取指标的阈值配置
+
+        Args:
+            indicator_code: 指标代码
+
+        Returns:
+            Optional[dict]: 阈值配置字典，不存在则返回 None
+        """
+        try:
+            config = IndicatorThresholdConfigModel._default_manager.get(
+                indicator_code=indicator_code,
+                is_active=True
+            )
+            return {
+                'indicator_code': config.indicator_code,
+                'indicator_name': config.indicator_name,
+                'category': config.category,
+                'level_low': float(config.level_low) if config.level_low is not None else None,
+                'level_high': float(config.level_high) if config.level_high is not None else None,
+                'base_weight': float(config.base_weight),
+                'min_weight': float(config.min_weight),
+                'max_weight': float(config.max_weight),
+                'decay_threshold': float(config.decay_threshold),
+                'decay_penalty': float(config.decay_penalty),
+                'improvement_threshold': float(config.improvement_threshold),
+                'improvement_bonus': float(config.improvement_bonus),
+                'action_thresholds': config.action_thresholds or {},
+                'validation_periods': config.validation_periods or {},
+                'description': config.description,
+            }
+        except IndicatorThresholdConfigModel.DoesNotExist:
+            return None
+
+    def save_indicator_performance_record(
+        self,
+        indicator_code: str,
+        evaluation_period_start: date,
+        evaluation_period_end: date,
+        f1_score: Optional[float] = None,
+        precision_score: Optional[float] = None,
+        recall_score: Optional[float] = None,
+        stability_score: float = 0.0,
+        recommended_action: str = 'keep',
+        recommended_weight: float = 1.0,
+        confidence_level: float = 0.5,
+        analysis_details: Optional[dict] = None,
+    ) -> int:
+        """
+        保存指标性能评估记录
+
+        Returns:
+            int: 记录 ID
+        """
+        record = IndicatorPerformanceModel._default_manager.create(
+            indicator_code=indicator_code,
+            evaluation_period_start=evaluation_period_start,
+            evaluation_period_end=evaluation_period_end,
+            true_positive_count=(analysis_details or {}).get('true_positive_count', 0),
+            false_positive_count=(analysis_details or {}).get('false_positive_count', 0),
+            true_negative_count=(analysis_details or {}).get('true_negative_count', 0),
+            false_negative_count=(analysis_details or {}).get('false_negative_count', 0),
+            f1_score=f1_score,
+            precision=precision_score,
+            recall=recall_score,
+            accuracy=(analysis_details or {}).get('accuracy'),
+            lead_time_mean=(analysis_details or {}).get('lead_time_mean', 0.0),
+            lead_time_std=(analysis_details or {}).get('lead_time_std', 0.0),
+            pre_2015_correlation=(analysis_details or {}).get('pre_2015_correlation'),
+            post_2015_correlation=(analysis_details or {}).get('post_2015_correlation'),
+            stability_score=stability_score,
+            decay_rate=(analysis_details or {}).get('decay_rate', 0.0),
+            signal_strength=(analysis_details or {}).get('signal_strength', 0.0),
+            recommended_action=recommended_action,
+            recommended_weight=recommended_weight,
+            confidence_level=confidence_level,
+        )
+        return record.id
+
+    def save_validation_summary_record(
+        self,
+        validation_run_id: str,
+        run_date: date,
+        evaluation_period_start: date,
+        evaluation_period_end: date,
+        total_indicators: int = 0,
+        approved_indicators: int = 0,
+        rejected_indicators: int = 0,
+        pending_indicators: int = 0,
+        avg_f1_score: Optional[float] = None,
+        avg_stability_score: Optional[float] = None,
+        overall_recommendation: str = '',
+        status: str = 'pending',
+        is_shadow_mode: bool = True,
+        error_message: str = '',
+    ) -> str:
+        """
+        保存验证摘要记录
+
+        Returns:
+            str: validation_run_id
+        """
+        ValidationSummaryModel._default_manager.create(
+            validation_run_id=validation_run_id,
+            run_date=run_date,
+            evaluation_period_start=evaluation_period_start,
+            evaluation_period_end=evaluation_period_end,
+            total_indicators=total_indicators,
+            approved_indicators=approved_indicators,
+            rejected_indicators=rejected_indicators,
+            pending_indicators=pending_indicators,
+            avg_f1_score=avg_f1_score,
+            avg_stability_score=avg_stability_score,
+            overall_recommendation=overall_recommendation,
+            status=status,
+            is_shadow_mode=is_shadow_mode,
+            error_message=error_message,
+        )
+        return validation_run_id
+
+    def get_validation_summary_by_id(self, summary_id: int) -> Optional[dict]:
+        """根据 ID 获取验证摘要"""
+        try:
+            summary = ValidationSummaryModel._default_manager.get(id=summary_id)
+            return {
+                'id': summary.id,
+                'validation_run_id': summary.validation_run_id,
+                'run_date': summary.run_date.isoformat(),
+                'evaluation_period_start': summary.evaluation_period_start.isoformat(),
+                'evaluation_period_end': summary.evaluation_period_end.isoformat(),
+                'total_indicators': summary.total_indicators,
+                'approved_indicators': summary.approved_indicators,
+                'rejected_indicators': summary.rejected_indicators,
+                'pending_indicators': summary.pending_indicators,
+                'avg_f1_score': float(summary.avg_f1_score) if summary.avg_f1_score else None,
+                'avg_stability_score': float(summary.avg_stability_score) if summary.avg_stability_score else None,
+                'overall_recommendation': summary.overall_recommendation,
+                'status': summary.status,
+                'is_shadow_mode': summary.is_shadow_mode,
+                'error_message': summary.error_message,
+            }
+        except ValidationSummaryModel.DoesNotExist:
+            return None
+
+    def get_latest_validation_summary_record(self) -> Optional[dict]:
+        """获取最新的验证摘要记录"""
+        try:
+            summary = ValidationSummaryModel._default_manager.all().latest('run_date')
+            return {
+                'id': summary.id,
+                'validation_run_id': summary.validation_run_id,
+                'run_date': summary.run_date.isoformat(),
+                'status': summary.status,
+                'is_shadow_mode': summary.is_shadow_mode,
+            }
+        except ValidationSummaryModel.DoesNotExist:
+            return None
+
+    def get_indicator_performance_reports(
+        self,
+        validation_run_id: Optional[str] = None,
+        indicator_code: Optional[str] = None,
+        limit: int = 100,
+    ) -> List[dict]:
+        """
+        获取指标性能报告列表
+
+        Args:
+            validation_run_id: 验证运行 ID（可选）
+            indicator_code: 指标代码（可选）
+            limit: 返回数量限制
+
+        Returns:
+            List[dict]: 性能报告列表
+        """
+        queryset = IndicatorPerformanceModel._default_manager.all()
+
+        if indicator_code:
+            queryset = queryset.filter(indicator_code=indicator_code)
+
+        queryset = queryset.order_by('-created_at')[:limit]
+
+        return [
+            {
+                'id': p.id,
+                'indicator_code': p.indicator_code,
+                'evaluation_period_start': p.evaluation_period_start.isoformat(),
+                'evaluation_period_end': p.evaluation_period_end.isoformat(),
+                'f1_score': float(p.f1_score) if p.f1_score else None,
+                'stability_score': float(p.stability_score),
+                'recommended_action': p.recommended_action,
+                'recommended_weight': float(p.recommended_weight),
+                'confidence_level': float(p.confidence_level),
+            }
+            for p in queryset
+        ]
+
+    # ============ 跨模块查询包装方法 ============
+
+    def get_macro_indicator_values(
+        self,
+        indicator_code: str,
+        start_date: date,
+        end_date: date,
+    ) -> List[tuple]:
+        """
+        获取宏观指标历史值（跨模块查询包装）
+
+        Args:
+            indicator_code: 指标代码
+            start_date: 开始日期
+            end_date: 结束日期
+
+        Returns:
+            List[tuple]: (reporting_period, value) 元组列表
+        """
+        from apps.macro.infrastructure.models import MacroIndicator
+
+        queryset = MacroIndicator._default_manager.filter(
+            code=indicator_code,
+            reporting_period__gte=start_date,
+            reporting_period__lte=end_date,
+        ).order_by('reporting_period')
+
+        return list(queryset.values_list('reporting_period', 'value'))
+
+    def get_regime_log_values(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> List[dict]:
+        """
+        获取 Regime 日志历史（跨模块查询包装)
+
+        Args:
+            start_date: 开始日期
+            end_date: 结束日期
+
+        Returns:
+            List[dict]: Regime 日志字典列表
+        """
+        from apps.regime.infrastructure.models import RegimeLog
+
+        queryset = RegimeLog._default_manager.filter(
+            observed_at__gte=start_date,
+            observed_at__lte=end_date,
+        ).order_by('observed_at')
+
+        return [
+            {
+                'observed_at': log.observed_at,
+                'dominant_regime': log.dominant_regime,
+                'confidence': float(log.confidence) if log.confidence else None,
+                'growth_momentum_z': float(log.growth_momentum_z) if log.growth_momentum_z else None,
+                'inflation_momentum_z': float(log.inflation_momentum_z) if log.inflation_momentum_z else None,
+                'distribution': log.distribution or {},
+            }
+            for log in queryset
+        ]
+

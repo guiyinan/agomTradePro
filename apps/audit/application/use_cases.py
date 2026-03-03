@@ -684,13 +684,12 @@ class EvaluateIndicatorPerformanceUseCase:
         5. 保存报告（除非影子模式）
         """
         try:
-            # 1. 获取阈值配置
-            threshold_model = IndicatorThresholdConfigModel.objects.filter(
-                indicator_code=request.indicator_code,
-                is_active=True
-            ).first()
+            # 1. 获取阈值配置 (通过 Repository)
+            threshold_dict = self.audit_repo.get_threshold_config_by_indicator(
+                indicator_code=request.indicator_code
+            )
 
-            if not threshold_model:
+            if not threshold_dict:
                 return EvaluateIndicatorPerformanceResponse(
                     success=False,
                     error=f"指标 {request.indicator_code} 的阈值配置不存在"
@@ -698,42 +697,28 @@ class EvaluateIndicatorPerformanceUseCase:
 
             # 转换为 Domain 层实体
             threshold_config = IndicatorThresholdConfig(
-                indicator_code=threshold_model.indicator_code,
-                indicator_name=threshold_model.indicator_name,
-                level_low=threshold_model.level_low,
-                level_high=threshold_model.level_high,
-                base_weight=threshold_model.base_weight,
-                min_weight=threshold_model.min_weight,
-                max_weight=threshold_model.max_weight,
-                decay_threshold=threshold_model.decay_threshold,
-                decay_penalty=threshold_model.decay_penalty,
-                improvement_threshold=threshold_model.improvement_threshold,
-                improvement_bonus=threshold_model.improvement_bonus,
-                keep_min_f1=threshold_model.action_thresholds.get('keep_min_f1', 0.6),
-                reduce_min_f1=threshold_model.action_thresholds.get('reduce_min_f1', 0.4),
-                remove_max_f1=threshold_model.action_thresholds.get('remove_max_f1', 0.3),
+                indicator_code=threshold_dict['indicator_code'],
+                indicator_name=threshold_dict['indicator_name'],
+                level_low=threshold_dict['level_low'],
+                level_high=threshold_dict['level_high'],
+                base_weight=threshold_dict['base_weight'],
+                min_weight=threshold_dict['min_weight'],
+                max_weight=threshold_dict['max_weight'],
+                decay_threshold=threshold_dict['decay_threshold'],
+                decay_penalty=threshold_dict['decay_penalty'],
+                improvement_threshold=threshold_dict['improvement_threshold'],
+                improvement_bonus=threshold_dict['improvement_bonus'],
+                keep_min_f1=threshold_dict['action_thresholds'].get('keep_min_f1', 0.6),
+                reduce_min_f1=threshold_dict['action_thresholds'].get('reduce_min_f1', 0.4),
+                remove_max_f1=threshold_dict['action_thresholds'].get('remove_max_f1', 0.3),
             )
 
-            # 2. 获取指标历史值
-            indicator_qs = MacroIndicator.objects.filter(
-                code=request.indicator_code,
-                reporting_period__gte=request.start_date,
-                reporting_period__lte=request.end_date,
+            # 2. 获取指标历史值 (通过 Repository)
+            indicator_values = self.audit_repo.get_macro_indicator_values(
+                indicator_code=request.indicator_code,
+                start_date=request.start_date,
+                end_date=request.end_date,
             )
-            indicator_values = list(
-                indicator_qs.order_by('reporting_period').values_list('reporting_period', 'value')
-            )
-            # Compatibility fallback for legacy unit-test mocks using
-            # `objects.filter.order_by...` instead of `objects.filter(...).order_by...`.
-            if not indicator_values:
-                try:
-                    indicator_values = list(
-                        MacroIndicator.objects.filter
-                        .order_by('reporting_period')
-                        .values_list('reporting_period', 'value')
-                    )
-                except Exception:
-                    pass
 
             if not indicator_values:
                 return EvaluateIndicatorPerformanceResponse(
@@ -741,33 +726,23 @@ class EvaluateIndicatorPerformanceUseCase:
                     error=f"指标 {request.indicator_code} 在 {request.start_date} 到 {request.end_date} 期间无数据"
                 )
 
-            # 3. 获取 Regime 判定历史
-            regime_logs = list(
-                RegimeLog.objects.filter(
-                    observed_at__gte=request.start_date,
-                    observed_at__lte=request.end_date,
-                ).order_by('observed_at')
+            # 3. 获取 Regime 判定历史 (通过 Repository)
+            regime_log_dicts = self.audit_repo.get_regime_log_values(
+                start_date=request.start_date,
+                end_date=request.end_date
             )
-            if not regime_logs:
-                try:
-                    regime_logs = list(
-                        RegimeLog.objects.filter
-                        .order_by('observed_at')
-                    )
-                except Exception:
-                    pass
 
-            # 转换为 RegimeSnapshot
+            # 转换为 RegimeSnapshot (从字典列表)
             regime_snapshots = [
                 RegimeSnapshot(
-                    observed_at=log.observed_at,
-                    dominant_regime=log.dominant_regime,
-                    confidence=log.confidence,
-                    growth_momentum_z=log.growth_momentum_z,
-                    inflation_momentum_z=log.inflation_momentum_z,
-                    distribution=log.distribution,
+                    observed_at=log_dict['observed_at'],
+                    dominant_regime=log_dict['dominant_regime'],
+                    confidence=log_dict['confidence'],
+                    growth_momentum_z=log_dict['growth_momentum_z'],
+                    inflation_momentum_z=log_dict['inflation_momentum_z'],
+                    distribution=log_dict['distribution'],
                 )
-                for log in regime_logs
+                for log_dict in regime_log_dicts
             ]
 
             # 4. 调用 Domain 层分析器
@@ -784,30 +759,31 @@ class EvaluateIndicatorPerformanceUseCase:
             report_id = None
             if not request.use_shadow_mode:
                 try:
-                    performance_model = IndicatorPerformanceModel.objects.create(
+                    report_id = self.audit_repo.save_indicator_performance_record(
                         indicator_code=report.indicator_code,
                         evaluation_period_start=report.evaluation_period_start,
                         evaluation_period_end=report.evaluation_period_end,
-                        true_positive_count=report.true_positive_count,
-                        false_positive_count=report.false_positive_count,
-                        true_negative_count=report.true_negative_count,
-                        false_negative_count=report.false_negative_count,
-                        precision=report.precision,
-                        recall=report.recall,
                         f1_score=report.f1_score,
-                        accuracy=report.accuracy,
-                        lead_time_mean=report.lead_time_mean,
-                        lead_time_std=report.lead_time_std,
-                        pre_2015_correlation=report.pre_2015_correlation,
-                        post_2015_correlation=report.post_2015_correlation,
+                        precision_score=report.precision,
+                        recall_score=report.recall,
                         stability_score=report.stability_score,
-                        decay_rate=report.decay_rate,
-                        signal_strength=report.signal_strength,
                         recommended_action=report.recommended_action,
                         recommended_weight=report.recommended_weight,
                         confidence_level=report.confidence_level,
+                        analysis_details={
+                            'true_positive_count': report.true_positive_count,
+                            'false_positive_count': report.false_positive_count,
+                            'true_negative_count': report.true_negative_count,
+                            'false_negative_count': report.false_negative_count,
+                            'accuracy': report.accuracy,
+                            'lead_time_mean': report.lead_time_mean,
+                            'lead_time_std': report.lead_time_std,
+                            'pre_2015_correlation': report.pre_2015_correlation,
+                            'post_2015_correlation': report.post_2015_correlation,
+                            'decay_rate': report.decay_rate,
+                            'signal_strength': report.signal_strength,
+                        },
                     )
-                    report_id = performance_model.id
                 except Exception as save_error:
                     message = str(save_error)
                     if (

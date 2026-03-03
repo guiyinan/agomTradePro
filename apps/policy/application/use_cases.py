@@ -470,21 +470,23 @@ class UpdatePolicyEventUseCase:
         Returns:
             CreatePolicyEventOutput: 输出结果
         """
-        # 对 Django 仓储走明确更新路径，避免与“同日多事件”安全策略冲突
+        # 对 Django 仓储走明确更新路径，避免与”同日多事件”安全策略冲突
         if isinstance(self.event_store, DjangoPolicyRepository):
             output = CreatePolicyEventOutput(success=False, errors=[], warnings=[])
             try:
-                if event_id is not None:
-                    existing = self.event_store._model.objects.filter(id=event_id).first()
-                    if existing and existing.event_date != event_date:
+                # 使用 Repository 方法而非直接 ORM 访问
+                existing = self.event_store.get_existing_for_update(
+                    event_id=event_id,
+                    event_date=event_date
+                )
+
+                if existing:
+                    if event_id is not None and existing['event_date'] != event_date:
                         output.errors.append(
                             f"event_id={event_id} 与路径日期 {event_date} 不匹配"
                         )
                         return output
                 else:
-                    existing = self.event_store._model.objects.filter(event_date=event_date).first()
-
-                if not existing:
                     if event_id is not None:
                         output.errors.append(f"未找到 ID={event_id} 的事件")
                     else:
@@ -500,7 +502,7 @@ class UpdatePolicyEventUseCase:
                 )
                 saved = self.event_store.save_event(
                     updated_event,
-                    _update_id=existing.id
+                    _update_id=existing['id']
                 )
                 output.success = True
                 output.event = saved

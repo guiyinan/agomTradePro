@@ -14,6 +14,24 @@
 
 ## 强制规则
 
+### 0) 四层架构红线（必须满足）
+
+1. 唯一允许依赖方向：`Interface -> Application -> Domain`，`Infrastructure -> Domain`。
+2. 禁止反向依赖：`Domain -> Application/Infrastructure/Interface`、`Application -> Interface`。
+3. Domain 层禁止导入任何 `django.*`、ORM Model、`pandas/numpy/requests` 等外部库。
+4. Application 层禁止直接导入 ORM Model；必须通过 Domain Protocol + Repository 访问数据。
+5. Interface 层禁止写业务规则；只允许参数校验、调用 UseCase、返回 DTO/Response。
+6. Infrastructure 层禁止承载业务决策；仅实现 Repository/Adapter/网关细节。
+
+### 0.1) 四层架构门禁命令（PR 必跑）
+
+1. Domain 禁用依赖扫描：  
+   `rg -n "from django|import django|import pandas|import numpy|import requests" apps/*/domain -S`
+2. Application 直连 ORM 扫描：  
+   `rg -n "from .*infrastructure\\.models|\\.objects\\." apps/*/application -S`
+3. Interface 越层调用扫描：  
+   `rg -n "from .*infrastructure\\.|from .*domain\\.(services|rules)" apps/*/interface -S`
+
 ### 1) 配置唯一来源（Single Source of Truth）
 
 1. 所有业务阈值必须通过 `ConfigHelper + ConfigKeys` 读取。
@@ -47,7 +65,9 @@
 2. 用例应通过 fixture 主动清理或构建自己的测试数据基线。
 3. 对“配置生效”与“失败兜底”必须有回归测试。
 4. 诊断类测试（guardrails）默认纳入 CI，不允许长期 `xfail` 漂移。
-5. 当前 CI 工作流：`.github/workflows/logic-guardrails.yml`。
+5. 当前 CI 工作流：
+   - `.github/workflows/logic-guardrails.yml`
+   - `.github/workflows/architecture-layer-guard.yml`
 6. Guardrail 必跑命令：
    `pytest -q tests/guardrails/test_logic_guardrails.py tests/integration/policy/test_policy_integration.py tests/unit/policy/test_fetch_rss_use_case.py tests/unit/regime/test_config_threshold_regression.py`
 

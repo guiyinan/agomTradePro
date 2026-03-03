@@ -398,8 +398,10 @@ fix: Harden regime dashboard numeric parsing for invalid raw data
 - [ ] 没有在 `shared/` 中放置 Django Model
 
 ### 7.3 依赖方向检查
-- [ ] 依赖方向正确: `apps/` → `apps/` → `shared/`
+- [ ] 依赖方向正确: `Interface -> Application -> Domain`，`Infrastructure -> Domain`
 - [ ] 没有循环依赖
+- [ ] Application 层未直接导入 `infrastructure/models.py`
+- [ ] Interface 层未直接调用 Repository/ORM（只能调用 UseCase）
 
 ---
 
