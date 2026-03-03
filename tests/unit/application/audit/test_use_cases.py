@@ -551,6 +551,24 @@ class TestEvaluateIndicatorPerformanceUseCase:
         }
         return model
 
+    @pytest.fixture
+    def mock_threshold_dict(self, mock_threshold_model):
+        """Create repository-style threshold config dict."""
+        return {
+            "indicator_code": mock_threshold_model.indicator_code,
+            "indicator_name": mock_threshold_model.indicator_name,
+            "level_low": mock_threshold_model.level_low,
+            "level_high": mock_threshold_model.level_high,
+            "base_weight": mock_threshold_model.base_weight,
+            "min_weight": mock_threshold_model.min_weight,
+            "max_weight": mock_threshold_model.max_weight,
+            "decay_threshold": mock_threshold_model.decay_threshold,
+            "decay_penalty": mock_threshold_model.decay_penalty,
+            "improvement_threshold": mock_threshold_model.improvement_threshold,
+            "improvement_bonus": mock_threshold_model.improvement_bonus,
+            "action_thresholds": mock_threshold_model.action_thresholds,
+        }
+
     def test_initialization(self, mock_audit_repository):
         """Test use case initialization."""
         use_case = EvaluateIndicatorPerformanceUseCase(audit_repository=mock_audit_repository)
@@ -565,23 +583,26 @@ class TestEvaluateIndicatorPerformanceUseCase:
         mock_macro_indicator,
         mock_threshold_config_model,
         use_case,
-        mock_threshold_model
+        mock_threshold_dict
     ):
         """Test successful execution."""
-        # Setup mocks
-        mock_threshold_config_model.objects.filter.return_value.first.return_value = mock_threshold_model
-        mock_macro_indicator.objects.filter.order_by.return_value.values_list.return_value = [
+        # Setup repository contract mocks
+        use_case.audit_repo.get_threshold_config_by_indicator.return_value = mock_threshold_dict
+        use_case.audit_repo.get_macro_indicator_values.return_value = [
             (date(2024, 1, 1), 50.0),
             (date(2024, 2, 1), 51.0),
         ]
-        mock_regime_log_obj = Mock()
-        mock_regime_log_obj.observed_at = date(2024, 1, 1)
-        mock_regime_log_obj.dominant_regime = "RECOVERY"
-        mock_regime_log_obj.confidence = 0.85
-        mock_regime_log_obj.growth_momentum_z = 1.0
-        mock_regime_log_obj.inflation_momentum_z = 0.5
-        mock_regime_log_obj.distribution = {"RECOVERY": 0.7}
-        mock_regime_log.objects.filter.order_by.return_value = [mock_regime_log_obj]
+        use_case.audit_repo.get_regime_log_values.return_value = [
+            {
+                "observed_at": date(2024, 1, 1),
+                "dominant_regime": "RECOVERY",
+                "confidence": 0.85,
+                "growth_momentum_z": 1.0,
+                "inflation_momentum_z": 0.5,
+                "distribution": {"RECOVERY": 0.7},
+            }
+        ]
+        use_case.audit_repo.save_indicator_performance_record.return_value = 1
 
         request = EvaluateIndicatorPerformanceRequest(
             indicator_code="CN_PMI",
@@ -596,7 +617,7 @@ class TestEvaluateIndicatorPerformanceUseCase:
     @patch('apps.audit.application.use_cases.IndicatorThresholdConfigModel')
     def test_execute_threshold_not_found(self, mock_threshold_config_model, use_case):
         """Test with non-existent threshold config."""
-        mock_threshold_config_model.objects.filter.return_value.first.return_value = None
+        use_case.audit_repo.get_threshold_config_by_indicator.return_value = None
 
         request = EvaluateIndicatorPerformanceRequest(
             indicator_code="NONEXISTENT",
@@ -615,11 +636,11 @@ class TestEvaluateIndicatorPerformanceUseCase:
         mock_macro_indicator,
         mock_threshold_config_model,
         use_case,
-        mock_threshold_model
+        mock_threshold_dict
     ):
         """Test with no indicator data."""
-        mock_threshold_config_model.objects.filter.return_value.first.return_value = mock_threshold_model
-        mock_macro_indicator.objects.filter.order_by.return_value.values_list.return_value = []
+        use_case.audit_repo.get_threshold_config_by_indicator.return_value = mock_threshold_dict
+        use_case.audit_repo.get_macro_indicator_values.return_value = []
 
         request = EvaluateIndicatorPerformanceRequest(
             indicator_code="CN_PMI",
@@ -640,21 +661,23 @@ class TestEvaluateIndicatorPerformanceUseCase:
         mock_macro_indicator,
         mock_threshold_config_model,
         use_case,
-        mock_threshold_model
+        mock_threshold_dict
     ):
         """Test shadow mode doesn't save results."""
-        mock_threshold_config_model.objects.filter.return_value.first.return_value = mock_threshold_model
-        mock_macro_indicator.objects.filter.order_by.return_value.values_list.return_value = [
+        use_case.audit_repo.get_threshold_config_by_indicator.return_value = mock_threshold_dict
+        use_case.audit_repo.get_macro_indicator_values.return_value = [
             (date(2024, 1, 1), 50.0),
         ]
-        mock_regime_log_obj = Mock()
-        mock_regime_log_obj.observed_at = date(2024, 1, 1)
-        mock_regime_log_obj.dominant_regime = "RECOVERY"
-        mock_regime_log_obj.confidence = 0.85
-        mock_regime_log_obj.growth_momentum_z = 1.0
-        mock_regime_log_obj.inflation_momentum_z = 0.5
-        mock_regime_log_obj.distribution = {"RECOVERY": 0.7}
-        mock_regime_log.objects.filter.order_by.return_value = [mock_regime_log_obj]
+        use_case.audit_repo.get_regime_log_values.return_value = [
+            {
+                "observed_at": date(2024, 1, 1),
+                "dominant_regime": "RECOVERY",
+                "confidence": 0.85,
+                "growth_momentum_z": 1.0,
+                "inflation_momentum_z": 0.5,
+                "distribution": {"RECOVERY": 0.7},
+            }
+        ]
 
         request = EvaluateIndicatorPerformanceRequest(
             indicator_code="CN_PMI",

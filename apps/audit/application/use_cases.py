@@ -689,30 +689,6 @@ class EvaluateIndicatorPerformanceUseCase:
                 indicator_code=request.indicator_code
             )
 
-            # Compatibility fallback for legacy unit-test mocks that still patch ORM models.
-            if not isinstance(threshold_dict, dict):
-                threshold_model = IndicatorThresholdConfigModel.objects.filter(
-                    indicator_code=request.indicator_code,
-                    is_active=True
-                ).first()
-                if threshold_model:
-                    threshold_dict = {
-                        'indicator_code': threshold_model.indicator_code,
-                        'indicator_name': threshold_model.indicator_name,
-                        'level_low': threshold_model.level_low,
-                        'level_high': threshold_model.level_high,
-                        'base_weight': threshold_model.base_weight,
-                        'min_weight': threshold_model.min_weight,
-                        'max_weight': threshold_model.max_weight,
-                        'decay_threshold': threshold_model.decay_threshold,
-                        'decay_penalty': threshold_model.decay_penalty,
-                        'improvement_threshold': threshold_model.improvement_threshold,
-                        'improvement_bonus': threshold_model.improvement_bonus,
-                        'action_thresholds': threshold_model.action_thresholds or {},
-                    }
-                else:
-                    threshold_dict = None
-
             if not threshold_dict:
                 return EvaluateIndicatorPerformanceResponse(
                     success=False,
@@ -743,24 +719,6 @@ class EvaluateIndicatorPerformanceUseCase:
                 start_date=request.start_date,
                 end_date=request.end_date,
             )
-            if not isinstance(indicator_values, list):
-                indicator_qs = MacroIndicator.objects.filter(
-                    code=request.indicator_code,
-                    reporting_period__gte=request.start_date,
-                    reporting_period__lte=request.end_date,
-                )
-                indicator_values = list(
-                    indicator_qs.order_by('reporting_period').values_list('reporting_period', 'value')
-                )
-                if not indicator_values:
-                    try:
-                        indicator_values = list(
-                            MacroIndicator.objects.filter
-                            .order_by('reporting_period')
-                            .values_list('reporting_period', 'value')
-                        )
-                    except Exception:
-                        pass
 
             if not indicator_values:
                 return EvaluateIndicatorPerformanceResponse(
@@ -773,32 +731,6 @@ class EvaluateIndicatorPerformanceUseCase:
                 start_date=request.start_date,
                 end_date=request.end_date
             )
-            if not isinstance(regime_log_dicts, list):
-                regime_logs = list(
-                    RegimeLog.objects.filter(
-                        observed_at__gte=request.start_date,
-                        observed_at__lte=request.end_date,
-                    ).order_by('observed_at')
-                )
-                if not regime_logs:
-                    try:
-                        regime_logs = list(
-                            RegimeLog.objects.filter
-                            .order_by('observed_at')
-                        )
-                    except Exception:
-                        pass
-                regime_log_dicts = [
-                    {
-                        'observed_at': log.observed_at,
-                        'dominant_regime': log.dominant_regime,
-                        'confidence': log.confidence,
-                        'growth_momentum_z': log.growth_momentum_z,
-                        'inflation_momentum_z': log.inflation_momentum_z,
-                        'distribution': log.distribution,
-                    }
-                    for log in regime_logs
-                ]
 
             # 转换为 RegimeSnapshot (从字典列表)
             regime_snapshots = [
