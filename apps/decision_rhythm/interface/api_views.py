@@ -496,30 +496,67 @@ class RefreshRecommendationsView(APIView):
             async_mode: 是否异步执行（默认 True）
         """
         from django.core.cache import cache
+        from ..application.use_cases import (
+            GenerateUnifiedRecommendationsUseCase,
+            GetModelParamsUseCase,
+        )
+        from ..infrastructure.feature_providers import (
+            create_feature_provider,
+            create_valuation_provider,
+            create_signal_provider,
+            create_candidate_provider,
+        )
+        from ..infrastructure.repositories import UnifiedRecommendationRepository
+        import uuid
 
         # 解析请求
         dto = RefreshRecommendationsRequestDTO.from_dict(request.data or {})
 
-        # 简单实现：同步刷新（实际生产环境应该使用 Celery 异步任务）
         try:
-            # Mock 实现的提供者（实际应该注入真实实现）
-            # 这里只是返回一个占位响应，表示刷新请求已接收
-
             # 生成任务 ID
-            import uuid
             task_id = f"refresh_{uuid.uuid4().hex[:12]}"
 
-            # 返回响应
+            # 创建提供者和仓储
+            feature_provider = create_feature_provider()
+            valuation_provider = create_valuation_provider()
+            signal_provider = create_signal_provider()
+            candidate_provider = create_candidate_provider()
+            recommendation_repo = UnifiedRecommendationRepository()
+
+            # 创建参数用例
+            param_use_case = GetModelParamsUseCase()
+
+            # 创建生成用例
+            generate_use_case = GenerateUnifiedRecommendationsUseCase(
+                feature_provider=feature_provider,
+                valuation_provider=valuation_provider,
+                signal_provider=signal_provider,
+                candidate_provider=candidate_provider,
+                recommendation_repo=recommendation_repo,
+                param_use_case=param_use_case,
+            )
+
+            # 执行生成
+            from ..application.use_cases import GenerateRecommendationsRequest
+            generate_request = GenerateRecommendationsRequest(
+                account_id=dto.account_id or "default",
+                security_codes=dto.security_codes,
+                force_refresh=dto.force,
+            )
+
+            result = generate_use_case.execute(generate_request)
+
+            # 构建响应
             response_dto = RefreshRecommendationsResponseDTO(
                 task_id=task_id,
-                status="ACCEPTED",
-                message="刷新请求已接收，正在处理中",
-                recommendations_count=0,
-                conflicts_count=0,
+                status="COMPLETED" if result.success else "FAILED",
+                message="刷新完成" if result.success else f"刷新失败: {result.error}",
+                recommendations_count=len(result.recommendations),
+                conflicts_count=len(result.conflicts),
             )
 
             return Response({
-                "success": True,
+                "success": result.success,
                 "data": response_dto.to_dict(),
             })
 

@@ -1203,6 +1203,221 @@ class ExecutionApprovalRequestRepository:
         return [model.to_domain() for model in models]
 
 
+# ============================================================================
+# 统一推荐仓储
+# ============================================================================
+
+
+class UnifiedRecommendationRepository:
+    """
+    统一推荐仓储
+
+    管理统一推荐对象的持久化。
+    """
+
+    def save(self, recommendation) -> Any:
+        """
+        保存推荐
+
+        Args:
+            recommendation: UnifiedRecommendation 实体
+
+        Returns:
+            保存后的实体
+        """
+        from .models import UnifiedRecommendationModel
+        from ..domain.entities import RecommendationStatus
+
+        # 转换 reason_codes 和其他列表字段
+        reason_codes = recommendation.reason_codes if hasattr(recommendation, "reason_codes") else []
+        source_signal_ids = recommendation.source_signal_ids if hasattr(recommendation, "source_signal_ids") else []
+        source_candidate_ids = recommendation.source_candidate_ids if hasattr(recommendation, "source_candidate_ids") else []
+
+        model, created = UnifiedRecommendationModel.objects.update_or_create(
+            recommendation_id=recommendation.recommendation_id,
+            defaults={
+                "account_id": recommendation.account_id,
+                "security_code": recommendation.security_code,
+                "side": recommendation.side,
+                "regime": recommendation.regime,
+                "regime_confidence": recommendation.regime_confidence,
+                "policy_level": recommendation.policy_level,
+                "beta_gate_passed": recommendation.beta_gate_passed,
+                "sentiment_score": recommendation.sentiment_score,
+                "flow_score": recommendation.flow_score,
+                "technical_score": recommendation.technical_score,
+                "fundamental_score": recommendation.fundamental_score,
+                "alpha_model_score": recommendation.alpha_model_score,
+                "composite_score": recommendation.composite_score,
+                "confidence": recommendation.confidence,
+                "reason_codes": reason_codes,
+                "human_rationale": recommendation.human_rationale,
+                "fair_value": recommendation.fair_value,
+                "entry_price_low": recommendation.entry_price_low,
+                "entry_price_high": recommendation.entry_price_high,
+                "target_price_low": recommendation.target_price_low,
+                "target_price_high": recommendation.target_price_high,
+                "stop_loss_price": recommendation.stop_loss_price,
+                "position_pct": recommendation.position_pct,
+                "suggested_quantity": recommendation.suggested_quantity,
+                "max_capital": recommendation.max_capital,
+                "source_signal_ids": source_signal_ids,
+                "source_candidate_ids": source_candidate_ids,
+                "status": recommendation.status.value if hasattr(recommendation.status, "value") else str(recommendation.status),
+            },
+        )
+
+        return recommendation
+
+    def save_feature_snapshot(self, snapshot) -> Any:
+        """
+        保存特征快照
+
+        Args:
+            snapshot: DecisionFeatureSnapshot 实体
+
+        Returns:
+            保存后的实体
+        """
+        from .models import DecisionFeatureSnapshotModel
+
+        extra_features = snapshot.extra_features if hasattr(snapshot, "extra_features") else {}
+
+        model, created = DecisionFeatureSnapshotModel.objects.update_or_create(
+            snapshot_id=snapshot.snapshot_id,
+            defaults={
+                "security_code": snapshot.security_code,
+                "snapshot_time": snapshot.snapshot_time,
+                "regime": snapshot.regime,
+                "regime_confidence": snapshot.regime_confidence,
+                "policy_level": snapshot.policy_level,
+                "beta_gate_passed": snapshot.beta_gate_passed,
+                "sentiment_score": snapshot.sentiment_score,
+                "flow_score": snapshot.flow_score,
+                "technical_score": snapshot.technical_score,
+                "fundamental_score": snapshot.fundamental_score,
+                "alpha_model_score": snapshot.alpha_model_score,
+                "extra_features": extra_features,
+            },
+        )
+
+        return snapshot
+
+    def get_by_account(
+        self,
+        account_id: str,
+        status: Optional[str] = None,
+    ) -> List[Any]:
+        """
+        按账户获取推荐
+
+        Args:
+            account_id: 账户 ID
+            status: 状态过滤（可选）
+
+        Returns:
+            推荐列表
+        """
+        from .models import UnifiedRecommendationModel
+
+        query = UnifiedRecommendationModel.objects.filter(account_id=account_id)
+
+        if status:
+            query = query.filter(status=status)
+
+        query = query.order_by("-created_at")
+        return [self._model_to_entity(model) for model in query]
+
+    def get_conflicts(self, account_id: str) -> List[Any]:
+        """
+        获取冲突推荐
+
+        Args:
+            account_id: 账户 ID
+
+        Returns:
+            冲突推荐列表
+        """
+        from .models import UnifiedRecommendationModel
+        from ..domain.entities import RecommendationStatus
+
+        models = UnifiedRecommendationModel.objects.filter(
+            account_id=account_id,
+            status=RecommendationStatus.CONFLICT.value,
+        ).order_by("-created_at")
+
+        return [self._model_to_entity(model) for model in models]
+
+    def mark_as_conflict(self, recommendation_id: str) -> None:
+        """
+        标记为冲突
+
+        Args:
+            recommendation_id: 推荐 ID
+        """
+        from .models import UnifiedRecommendationModel
+        from ..domain.entities import RecommendationStatus
+
+        UnifiedRecommendationModel.objects.filter(
+            recommendation_id=recommendation_id
+        ).update(status=RecommendationStatus.CONFLICT.value)
+
+    def _model_to_entity(self, model) -> Any:
+        """
+        将 ORM 模型转换为实体
+
+        Args:
+            model: ORM 模型实例
+
+        Returns:
+            实体实例
+        """
+        from ..domain.entities import (
+            UnifiedRecommendation,
+            RecommendationStatus,
+        )
+        from decimal import Decimal
+
+        # 解析状态
+        try:
+            status = RecommendationStatus(model.status)
+        except ValueError:
+            status = RecommendationStatus.NEW
+
+        return UnifiedRecommendation(
+            recommendation_id=model.recommendation_id,
+            account_id=model.account_id,
+            security_code=model.security_code,
+            side=model.side,
+            regime=model.regime,
+            regime_confidence=model.regime_confidence,
+            policy_level=model.policy_level,
+            beta_gate_passed=model.beta_gate_passed,
+            sentiment_score=model.sentiment_score,
+            flow_score=model.flow_score,
+            technical_score=model.technical_score,
+            fundamental_score=model.fundamental_score,
+            alpha_model_score=model.alpha_model_score,
+            composite_score=model.composite_score,
+            confidence=model.confidence,
+            reason_codes=model.reason_codes or [],
+            human_rationale=model.human_rationale,
+            fair_value=Decimal(str(model.fair_value)),
+            entry_price_low=Decimal(str(model.entry_price_low)),
+            entry_price_high=Decimal(str(model.entry_price_high)),
+            target_price_low=Decimal(str(model.target_price_low)),
+            target_price_high=Decimal(str(model.target_price_high)),
+            stop_loss_price=Decimal(str(model.stop_loss_price)),
+            position_pct=float(model.position_pct),
+            suggested_quantity=model.suggested_quantity,
+            max_capital=Decimal(str(model.max_capital)),
+            source_signal_ids=model.source_signal_ids or [],
+            source_candidate_ids=model.source_candidate_ids or [],
+            feature_snapshot_id=getattr(model, "feature_snapshot_id", ""),
+            status=status,
+        )
+
+
 # 便捷函数
 
 def get_valuation_snapshot_repository() -> ValuationSnapshotRepository:
