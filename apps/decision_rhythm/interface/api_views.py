@@ -490,7 +490,7 @@ class RefreshRecommendationsView(APIView):
         触发刷新
 
         Request body:
-            account_id: 账户 ID（可选，不传则刷新所有账户）
+            account_id: 账户 ID（可选，不传则使用 default 账户口径）
             security_codes: 证券代码列表（可选）
             force: 是否强制刷新（默认 False）
             async_mode: 是否异步执行（默认 True）
@@ -506,7 +506,10 @@ class RefreshRecommendationsView(APIView):
             create_signal_provider,
             create_candidate_provider,
         )
-        from ..infrastructure.repositories import UnifiedRecommendationRepository
+        from ..infrastructure.repositories import (
+            UnifiedRecommendationRepository,
+            DecisionModelParamConfigRepository,
+        )
         import uuid
 
         # 解析请求
@@ -524,7 +527,8 @@ class RefreshRecommendationsView(APIView):
             recommendation_repo = UnifiedRecommendationRepository()
 
             # 创建参数用例
-            param_use_case = GetModelParamsUseCase()
+            param_repo = DecisionModelParamConfigRepository()
+            param_use_case = GetModelParamsUseCase(param_repo=param_repo)
 
             # 创建生成用例
             generate_use_case = GenerateUnifiedRecommendationsUseCase(

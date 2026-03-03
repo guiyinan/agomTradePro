@@ -1418,6 +1418,70 @@ class UnifiedRecommendationRepository:
         )
 
 
+class DecisionModelParamConfigRepository:
+    """
+    决策模型参数仓储
+
+    为参数 use case 提供统一的参数读写与审计能力。
+    """
+
+    def get_param(self, param_key: str, env: str):
+        from .models import DecisionModelParamConfigModel
+
+        model = (
+            DecisionModelParamConfigModel.objects
+            .filter(param_key=param_key, env=env)
+            .order_by("-version", "-updated_at")
+            .first()
+        )
+        return model.to_domain() if model else None
+
+    def get_all_params(self, env: str):
+        from .models import DecisionModelParamConfigModel
+
+        models = (
+            DecisionModelParamConfigModel.objects
+            .filter(env=env, is_active=True)
+            .order_by("param_key")
+        )
+        return [model.to_domain() for model in models]
+
+    def save_param(self, config):
+        from .models import DecisionModelParamConfigModel
+
+        with transaction.atomic():
+            # 同一参数键在同一环境下只允许一个激活版本
+            DecisionModelParamConfigModel.objects.filter(
+                param_key=config.param_key,
+                env=config.env,
+                is_active=True,
+            ).exclude(config_id=config.config_id).update(is_active=False)
+
+            model, _ = DecisionModelParamConfigModel.objects.update_or_create(
+                config_id=config.config_id,
+                defaults={
+                    "param_key": config.param_key,
+                    "param_value": config.param_value,
+                    "param_type": config.param_type,
+                    "env": config.env,
+                    "version": config.version,
+                    "is_active": config.is_active,
+                    "description": config.description,
+                    "updated_by": config.updated_by,
+                    "updated_reason": config.updated_reason,
+                },
+            )
+
+        return model.to_domain()
+
+    def create_audit_log(self, log):
+        from .models import DecisionModelParamAuditLogModel
+
+        model = DecisionModelParamAuditLogModel.from_domain(log)
+        model.save()
+        return model.to_domain()
+
+
 # 便捷函数
 
 def get_valuation_snapshot_repository() -> ValuationSnapshotRepository:

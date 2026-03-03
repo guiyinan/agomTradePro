@@ -343,10 +343,10 @@ class TestAlphaModelFeatureProvider:
             mock_service_class.side_effect = ImportError()
 
             with patch(
-                "apps.alpha_trigger.infrastructure.repositories.AlphaTriggerRepository"
+                "apps.alpha_trigger.infrastructure.repositories.AlphaCandidateRepository"
             ) as mock_repo_class:
                 mock_repo = MagicMock()
-                mock_repo.get_top_candidate.return_value = None
+                mock_repo.get_by_asset.return_value = []
                 mock_repo_class.return_value = mock_repo
 
                 provider = AlphaModelFeatureProvider()
