@@ -1217,7 +1217,9 @@ class ExecutionApprovalRequestModel(models.Model):
         InvestmentRecommendationModel,
         on_delete=models.CASCADE,
         related_name="approval_requests",
-        help_text="关联的投资建议"
+        null=True,
+        blank=True,
+        help_text="关联的投资建议（legacy，unified 路径可为空）"
     )
 
     account_id = models.CharField(

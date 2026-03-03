@@ -1094,7 +1094,7 @@ class ExecutionApprovalRequestRepository:
         reviewer_comments: Optional[str] = None,
     ) -> Optional[Any]:
         """
-        更新审批状态
+        更新审批状态并同步到关联的 UnifiedRecommendation
 
         Args:
             request_id: 请求 ID
@@ -1104,23 +1104,60 @@ class ExecutionApprovalRequestRepository:
         Returns:
             更新后的实体，不存在则返回 None
         """
-        from .models import ExecutionApprovalRequestModel
+        from .models import ExecutionApprovalRequestModel, UnifiedRecommendationModel
+        from ..domain.entities import RecommendationStatus
 
         try:
-            model = ExecutionApprovalRequestModel.objects.get(request_id=request_id)
-            model.approval_status = approval_status.value
+            with transaction.atomic():
+                model = ExecutionApprovalRequestModel.objects.select_for_update().get(request_id=request_id)
+                old_status = model.approval_status
+                model.approval_status = approval_status.value
 
-            if reviewer_comments is not None:
-                model.reviewer_comments = reviewer_comments
+                if reviewer_comments is not None:
+                    model.reviewer_comments = reviewer_comments
 
-            if approval_status in [ApprovalStatus.APPROVED, ApprovalStatus.REJECTED]:
-                model.reviewed_at = datetime.now()
+                if approval_status in [ApprovalStatus.APPROVED, ApprovalStatus.REJECTED]:
+                    model.reviewed_at = datetime.now()
 
-            if approval_status == ApprovalStatus.EXECUTED:
-                model.executed_at = datetime.now()
+                if approval_status == ApprovalStatus.EXECUTED:
+                    model.executed_at = datetime.now()
 
-            model.save()
-            return model.to_domain()
+                model.save()
+
+                # 同步状态到 UnifiedRecommendation（规格 10.1.5：状态一致性）
+                # ApprovalStatus -> RecommendationStatus 映射
+                status_mapping = {
+                    ApprovalStatus.PENDING: RecommendationStatus.REVIEWING,
+                    ApprovalStatus.APPROVED: RecommendationStatus.APPROVED,
+                    ApprovalStatus.REJECTED: RecommendationStatus.REJECTED,
+                    ApprovalStatus.EXECUTED: RecommendationStatus.EXECUTED,
+                    ApprovalStatus.FAILED: RecommendationStatus.FAILED,
+                }
+
+                if approval_status in status_mapping:
+                    rec_status = status_mapping[approval_status]
+
+                    # 更新关联的 UnifiedRecommendation 状态
+                    if model.unified_recommendation:
+                        uni_rec = model.unified_recommendation
+                        uni_rec.status = rec_status.value
+                        uni_rec.save(update_fields=["status", "updated_at"])
+                        logger.info(
+                            f"Synced UnifiedRecommendation {uni_rec.recommendation_id} "
+                            f"status: {old_status} -> {rec_status.value}"
+                        )
+
+                    # 更新旧的 InvestmentRecommendation 状态（兼容）
+                    if model.recommendation:
+                        old_rec = model.recommendation
+                        old_rec.status = rec_status.value
+                        old_rec.save(update_fields=["status"])
+                        logger.info(
+                            f"Synced InvestmentRecommendation {old_rec.recommendation_id} "
+                            f"status: {old_status} -> {rec_status.value}"
+                        )
+
+                return model.to_domain()
         except ExecutionApprovalRequestModel.DoesNotExist:
             return None
 

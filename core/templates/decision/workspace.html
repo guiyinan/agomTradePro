@@ -16,7 +16,7 @@
                 <span class="title-icon">🎯</span>
                 决策工作台
             </h1>
-            <p class="workspace-subtitle">统一管理 Beta Gate、Alpha Trigger、Decision Rhythm</p>
+            <p class="workspace-subtitle">Top-down + Bottom-up 融合统一决策</p>
         </div>
         <div class="header-right">
             <div class="environment-badge">
@@ -27,6 +27,9 @@
                 <span class="badge-label">政策档位</span>
                 <span class="badge-value policy-{{ current_policy|default:"P0"|lower }}">{{ current_policy|default:"P0" }}</span>
             </div>
+            <button class="btn btn-outline btn-sm" onclick="refreshRecommendations()">
+                <i class="bi bi-arrow-clockwise"></i> 刷新推荐
+            </button>
         </div>
     </header>
 
@@ -46,766 +49,2110 @@
     </section>
     {% endif %}
 
-    <!-- 模块概览卡片 -->
-    <section class="modules-overview">
-        <!-- Beta Gate 卡片 -->
-        <div class="module-card beta-gate">
-            <div class="module-card-header">
-                <div class="module-icon">🚪</div>
-                <div class="module-title">
-                    <h3>Beta 闸门</h3>
-                    <span class="module-subtitle">资产可见性过滤</span>
-                </div>
-                <a href="{% url 'beta_gate:config' %}" class="module-link">详情 →</a>
-            </div>
-            <div class="module-card-body">
-                <div class="module-stat">
-                    <span class="stat-label">配置状态</span>
-                    <span class="stat-value status-active">Active</span>
-                </div>
-                <div class="module-stat">
-                    <span class="stat-label">当前 Regime</span>
-                    <span class="stat-value">{{ current_regime|default:"-" }}</span>
-                </div>
-                <div class="module-stat">
-                    <span class="stat-label">可见资产类别</span>
-                    <span class="stat-value">
-                        {% if beta_gate_allowed_classes %}
-                            {{ beta_gate_allowed_classes|slice:":3"|join:", " }}
-                            {% if beta_gate_allowed_classes|length > 3 %}...{% endif %}
-                        {% else %}
-                            全部
-                        {% endif %}
-                    </span>
-                </div>
-            </div>
-            <div class="module-card-footer">
-                <a href="{% url 'beta_gate:test' %}" class="btn btn-sm btn-secondary">测试资产</a>
-                <a href="{% url 'beta_gate:version' %}" class="btn btn-sm btn-outline">版本对比</a>
-            </div>
-        </div>
+    <!-- Tab 导航 -->
+    <div class="workspace-tabs">
+        <button class="tab-button active" data-tab="recommendations" onclick="switchTab('recommendations')">
+            <i class="bi bi-lightning"></i> 待决策建议
+            <span class="tab-count" id="recommendations-count">-</span>
+        </button>
+        <button class="tab-button" data-tab="approvals" onclick="switchTab('approvals')">
+            <i class="bi bi-check-circle"></i> 待执行审批
+            <span class="tab-count" id="approvals-count">-</span>
+        </button>
+        <button class="tab-button" data-tab="conflicts" onclick="switchTab('conflicts')">
+            <i class="bi bi-exclamation-triangle"></i> 冲突待处理
+            <span class="tab-count" id="conflicts-count">-</span>
+        </button>
+    </div>
 
-        <!-- Alpha Trigger 卡片 -->
-        <div class="module-card alpha-trigger">
-            <div class="module-card-header">
-                <div class="module-icon">⚡</div>
-                <div class="module-title">
-                    <h3>Alpha 触发器</h3>
-                    <span class="module-subtitle">离散信号触发</span>
-                </div>
-                <a href="{% url 'alpha_trigger:list' %}" class="module-link">详情 →</a>
-            </div>
-            <div class="module-card-body">
-                <div class="module-stats-grid">
-                    <div class="mini-stat">
-                        <span class="mini-stat-value">{{ alpha_trigger_count|default:0 }}</span>
-                        <span class="mini-stat-label">活跃触发器</span>
-                    </div>
-                    <div class="mini-stat">
-                        <span class="mini-stat-value">{{ alpha_watch_count|default:0 }}</span>
-                        <span class="mini-stat-label">观察</span>
-                    </div>
-                    <div class="mini-stat">
-                        <span class="mini-stat-value">{{ alpha_candidate_count|default:0 }}</span>
-                        <span class="mini-stat-label">候选</span>
-                    </div>
-                    <div class="mini-stat">
-                        <span class="mini-stat-value">{{ alpha_actionable_count|default:0 }}</span>
-                        <span class="mini-stat-label">可行动</span>
+    <!-- Tab 内容区域 -->
+    <div class="workspace-content">
+        <!-- 待决策建议（统一推荐列表） -->
+        <div id="tab-recommendations" class="tab-content active">
+            <section class="recommendations-section">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <span class="title-icon">⚡</span>
+                        统一推荐列表
+                        <span class="badge badge-primary" id="rec-count-badge">-</span>
+                    </h2>
+                    <div class="section-actions">
+                        <select id="account-selector" class="form-select form-select-sm" onchange="loadRecommendations()">
+                            <option value="">选择账户...</option>
+                        </select>
+                        <select id="status-filter" class="form-select form-select-sm" onchange="loadRecommendations()">
+                            <option value="">全部状态</option>
+                            <option value="NEW">新建</option>
+                            <option value="REVIEWING">审核中</option>
+                            <option value="APPROVED">已批准</option>
+                        </select>
                     </div>
                 </div>
-            </div>
-            <div class="module-card-footer">
-                <a href="{% url 'alpha_trigger:create' %}" class="btn btn-sm btn-primary">创建触发器</a>
-                <a href="{% url 'alpha_trigger:invalidation_builder' %}" class="btn btn-sm btn-outline">证伪规则</a>
-            </div>
-        </div>
 
-        <!-- Decision Rhythm 卡片 -->
-        <div class="module-card decision-rhythm">
-            <div class="module-card-header">
-                <div class="module-icon">⏱️</div>
-                <div class="module-title">
-                    <h3>决策配额</h3>
-                    <span class="module-subtitle">频率约束管理</span>
-                </div>
-                <a href="{% url 'decision_rhythm:quota' %}" class="module-link">详情 →</a>
-            </div>
-            <div class="module-card-body">
-                <div class="quota-display">
-                    <div class="quota-circle">
-                        <svg viewBox="0 0 36 36" class="quota-chart">
-                            <path class="quota-bg"
-                                d="M18 2.0845
-                                a 15.9155 15.9155 0 0 1 0 31.831
-                                a 15.9155 15.9155 0 0 1 0 -31.831"
-                            />
-                            <path class="quota-fill {% if quota_usage_percent >= 80 %}quota-warning{% endif %}"
-                                stroke-dasharray="{{ quota_usage_percent|default:0 }}, 100"
-                                d="M18 2.0845
-                                a 15.9155 15.9155 0 0 1 0 31.831
-                                a 15.9155 15.9155 0 0 1 0 -31.831"
-                            />
-                        </svg>
-                        <div class="quota-text">
-                            <span class="quota-percent">{{ quota_usage_percent|default:0 }}%</span>
-                            <span class="quota-label">已使用</span>
-                        </div>
-                    </div>
-                    <div class="quota-details">
-                        <div class="quota-detail-item">
-                            <span class="detail-label">本期配额</span>
-                            <span class="detail-value">{{ quota_total|default:10 }}</span>
-                        </div>
-                        <div class="quota-detail-item">
-                            <span class="detail-label">已占用</span>
-                            <span class="detail-value">{{ quota_used|default:0 }}</span>
-                        </div>
-                        <div class="quota-detail-item">
-                            <span class="detail-label">剩余</span>
-                            <span class="detail-value {% if quota_remaining <= 2 %}text-danger{% endif %}">
-                                {{ quota_remaining|default:10 }}
-                            </span>
-                        </div>
+                <div id="recommendations-list" class="recommendations-list">
+                    <div class="loading-state">
+                        <div class="spinner"></div>
+                        <p>加载中...</p>
                     </div>
                 </div>
-            </div>
-            <div class="module-card-footer">
-                <a href="{% url 'decision_rhythm:config' %}" class="btn btn-sm btn-secondary">配置</a>
-                <button class="btn btn-sm btn-outline" onclick="resetQuota()">重置配额</button>
-            </div>
-        </div>
-    </section>
-
-    <!-- 决策待办列表 -->
-    <section class="todo-section">
-        <div class="section-header">
-            <h2 class="section-title">
-                <span class="title-icon">📋</span>
-                决策待办
-                <span class="badge badge-primary">{{ pending_count|default:0 }}</span>
-            </h2>
-            <div class="section-actions">
-                <a href="{% url 'decision_rhythm:quota' %}" class="btn btn-sm btn-outline">查看全部</a>
-            </div>
+            </section>
         </div>
 
-        {% if pending_requests %}
-        <div class="todo-list">
-            {% for request in pending_requests %}
-            <div class="todo-item priority-{{ request.priority|lower }}">
-                <div class="todo-priority">
-                    <span class="priority-badge priority-{{ request.priority|lower }}">
-                        {{ request.priority }}
-                    </span>
-                </div>
-                <div class="todo-content">
-                    <div class="todo-header">
-                        <span class="todo-asset">{{ request.asset_code }}</span>
-                        <span class="todo-direction">{{ request.merged_direction|default:request.direction }}</span>
-                        <span class="todo-time">{{ request.requested_at|timesince }}前</span>
-                    </div>
-                    {% if request.merged_count|default:1 > 1 %}
-                    <p class="todo-reason">已按证券代码归并 {{ request.merged_count }} 条请求（{{ request.merged_directions|join:"/" }}）</p>
-                    {% else %}
-                    <p class="todo-reason">{{ request.reason|truncatewords:20 }}</p>
-                    {% endif %}
-                </div>
-                <div class="todo-actions">
-                    <span class="btn btn-sm btn-outline" style="cursor: default;">待执行落地</span>
-                    {% if request.execution_status == 'PENDING' %}
-                    <button
-                        class="btn btn-sm btn-primary"
-                        onclick="openExecutionReviewModal(this)"
-                        data-request-id="{{ request.request_id|escape }}"
-                        data-asset-code="{{ request.asset_code|escape }}"
-                        data-direction="{{ request.direction|escape }}"
-                        data-priority="{{ request.priority|escape }}"
-                        data-confidence="{{ request.expected_confidence|default:0 }}"
-                        data-reason="{{ request.reason|default:''|escape }}"
-                    >
-                        去执行
-                    </button>
-                    <button class="btn btn-sm btn-secondary" onclick="openExecutionReviewModal(this, true)"
-                        data-request-id="{{ request.request_id|escape }}"
-                        data-asset-code="{{ request.asset_code|escape }}"
-                        data-direction="{{ request.direction|escape }}"
-                        data-priority="{{ request.priority|escape }}"
-                        data-confidence="{{ request.expected_confidence|default:0 }}"
-                        data-reason="{{ request.reason|default:''|escape }}">
-                        取消
-                    </button>
-                    {% elif request.execution_status == 'FAILED' %}
-                    <button
-                        class="btn btn-sm btn-warning"
-                        onclick="openExecutionReviewModal(this)"
-                        data-request-id="{{ request.request_id|escape }}"
-                        data-asset-code="{{ request.asset_code|escape }}"
-                        data-direction="{{ request.direction|escape }}"
-                        data-priority="{{ request.priority|escape }}"
-                        data-confidence="{{ request.expected_confidence|default:0 }}"
-                        data-reason="{{ request.reason|default:''|escape }}"
-                    >
-                        重试
-                    </button>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="empty-state">
-            <div class="empty-icon">📭</div>
-            <p>暂无待处理的决策请求</p>
-        </div>
-        {% endif %}
-    </section>
-
-    <!-- 可操作候选列表 -->
-    <section class="candidates-section">
-        <div class="section-header">
-            <h2 class="section-title">
-                <span class="title-icon">⚡</span>
-                可操作候选
-                <span class="badge badge-success">{{ alpha_actionable_count|default:0 }}</span>
-            </h2>
-            <div class="section-actions">
-                <a href="{% url 'alpha_trigger:list' %}" class="btn btn-sm btn-outline">查看全部</a>
-            </div>
-        </div>
-
-        {% if actionable_candidates %}
-        <div class="candidates-grid">
-            {% for candidate in actionable_candidates %}
-            <div class="candidate-card">
-                <div class="candidate-header">
-                    <span class="candidate-asset">{{ candidate.asset_code }}</span>
-                    <span class="candidate-confidence">
-                        置信度: {{ candidate.confidence|floatformat:2 }}
-                    </span>
-                </div>
-                <div class="candidate-body">
-                    <div class="candidate-info">
-                        <span class="info-label">方向:</span>
-                        <span class="info-value direction-{{ candidate.direction|lower }}">{{ candidate.merged_direction|default:candidate.direction }}</span>
-                    </div>
-                    <div class="candidate-info">
-                        <span class="info-label">类型:</span>
-                        <span class="info-value">{{ candidate.asset_class }}</span>
-                    </div>
-                    {% if candidate.merged_count|default:1 > 1 %}
-                    <div class="candidate-info">
-                        <span class="info-label">归并:</span>
-                        <span class="info-value">{{ candidate.merged_count }} 条候选（{{ candidate.merged_directions|join:"/" }}）</span>
-                    </div>
-                    {% endif %}
-                    <div class="candidate-thesis">
-                        {{ candidate.thesis|truncatewords:15 }}
+        <!-- 待执行审批（已批准未执行） -->
+        <div id="tab-approvals" class="tab-content">
+            <section class="approvals-section">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <span class="title-icon">📋</span>
+                        待执行审批
+                        <span class="badge badge-success" id="approval-count-badge">-</span>
+                    </h2>
+                    <div class="section-actions">
+                        <select id="approval-account-selector" class="form-select form-select-sm" onchange="loadApprovals()">
+                            <option value="">选择账户...</option>
+                        </select>
                     </div>
                 </div>
-                <div class="candidate-footer">
-                    <a href="{% url 'alpha_trigger:candidate_detail' candidate.candidate_id %}" class="btn btn-sm btn-primary">查看详情</a>
-                    <a href="{% url 'alpha_trigger:detail' candidate.trigger_id %}" class="btn btn-sm btn-outline">来源触发器</a>
-                    <button class="btn btn-sm btn-secondary"
-                            onclick="submitDecisionRequest('{{ candidate.candidate_id|escapejs }}', '{{ candidate.asset_code|escapejs }}', '{{ candidate.asset_class|escapejs }}', '{{ candidate.direction|escapejs }}', {{ candidate.confidence|default:0 }}, '{{ candidate.thesis|default:''|escapejs }}')">
-                        提交决策请求
-                    </button>
+
+                <div id="approvals-list" class="approvals-list">
+                    <div class="loading-state">
+                        <div class="spinner"></div>
+                        <p>加载中...</p>
+                    </div>
                 </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="empty-state">
-            <div class="empty-icon">⏳</div>
-            <p>暂无可操作的 Alpha 候选</p>
-            <a href="{% url 'alpha_trigger:create' %}" class="btn btn-primary">创建触发器</a>
-        </div>
-        {% endif %}
-    </section>
-
-    <!-- 快速操作面板 -->
-    <section class="quick-actions-section">
-        <div class="section-header">
-            <h2 class="section-title">
-                <span class="title-icon">🚀</span>
-                快速操作
-            </h2>
+            </section>
         </div>
 
-        <div class="quick-actions-grid">
-            <a href="{% url 'beta_gate:test' %}" class="quick-action-card">
-                <div class="action-icon">🧪</div>
-                <h4>测试资产</h4>
-                <p>检查资产在当前配置下是否可通过 Beta Gate</p>
-            </a>
+        <!-- 冲突待处理（BUY/SELL冲突） -->
+        <div id="tab-conflicts" class="tab-content">
+            <section class="conflicts-section">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <span class="title-icon">⚠️</span>
+                        冲突待处理
+                        <span class="badge badge-warning" id="conflict-count-badge">-</span>
+                    </h2>
+                    <div class="section-actions">
+                        <select id="conflict-account-selector" class="form-select form-select-sm" onchange="loadConflicts()">
+                            <option value="">选择账户...</option>
+                        </select>
+                    </div>
+                </div>
 
-            <a href="{% url 'alpha_trigger:create' %}" class="quick-action-card">
-                <div class="action-icon">⚡</div>
-                <h4>创建触发器</h4>
-                <p>配置新的 Alpha 触发器</p>
-            </a>
-
-            <a href="{% url 'decision_rhythm:config' %}" class="quick-action-card">
-                <div class="action-icon">⚙️</div>
-                <h4>配额配置</h4>
-                <p>调整决策配额参数</p>
-            </a>
-
-            <a href="{% url 'beta_gate:version' %}" class="quick-action-card">
-                <div class="action-icon">🔄</div>
-                <h4>版本对比</h4>
-                <p>对比 Beta Gate 配置历史版本</p>
-            </a>
-
-            <a href="{% url 'alpha_trigger:invalidation_builder' %}" class="quick-action-card">
-                <div class="action-icon">🔧</div>
-                <h4>证伪规则</h4>
-                <p>可视化配置证伪条件</p>
-            </a>
-
-            <a href="{% url 'dashboard:index' %}" class="quick-action-card">
-                <div class="action-icon">📊</div>
-                <h4>返回仪表盘</h4>
-                <p>查看整体投资情况</p>
-            </a>
+                <div id="conflicts-list" class="conflicts-list">
+                    <div class="loading-state">
+                        <div class="spinner"></div>
+                        <p>加载中...</p>
+                    </div>
+                </div>
+            </section>
         </div>
-    </section>
+    </div>
 </div>
 
-<div id="executionReviewModal" class="review-modal-overlay">
-    <div class="review-modal">
-        <div class="review-modal-header">
+<!-- 审批模态框 -->
+<div id="approvalModal" class="modal-overlay">
+    <div class="modal-container approval-modal">
+        <div class="modal-header">
             <h3>执行审批</h3>
-            <button class="review-modal-close" onclick="closeExecutionReviewModal()">×</button>
+            <button class="modal-close" onclick="closeApprovalModal()">×</button>
         </div>
-        <div class="review-modal-body">
-            <div class="review-summary">
-                <div><strong>请求ID:</strong> <span id="reviewRequestId"></span></div>
-                <div><strong>证券代码:</strong> <span id="reviewAssetCode"></span></div>
-                <div><strong>方向:</strong> <span id="reviewDirection"></span></div>
-                <div><strong>优先级:</strong> <span id="reviewPriority"></span></div>
-                <div><strong>置信度:</strong> <span id="reviewConfidence"></span></div>
-
-                <!-- 估值价格信息 -->
-                <div class="price-info-section" style="background: #f0f7f5; padding: 10px; border-radius: 4px; margin-top: 10px;">
-                    <h4 style="color: #666; margin-bottom: 8px;">价格区间</h4>
-                    <div class="price-grid">
-                        <div class="price-item">
-                            <span class="price-label">公允价值</span>
-                            <span id="reviewFairValue" class="price-value">-</span>
-                        </div>
-                        <div class="price-item">
-                            <span class="price-label">入场区间</span>
-                            <span id="reviewEntryRange" class="price-value">-</span>
-                        </div>
-                        <div class="price-item">
-                            <span class="price-label">目标区间</span>
-                            <span id="reviewTargetRange" class="price-value">-</span>
-                        </div>
-                        <div class="price-item">
-                            <span class="price-label">止损价</span>
-                            <span id="reviewStopLoss" class="price-value stop-loss">-</span>
-                        </div>
+        <div class="modal-body">
+            <!-- 推荐标识 -->
+            <div class="approval-section">
+                <h4 class="section-label">推荐信息</h4>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">推荐ID:</span>
+                        <span class="info-value" id="modal-recommendation-id">-</span>
                     </div>
-                    <div class="risk-reward" style="margin-top: 8px;">
-                        <span>上行空间: <strong id="reviewUpside">-</strong></span>
-                        <span>下行风险: <strong id="reviewDownside">-</strong></span>
-                        <span>风险收益比: <strong id="reviewRiskReward">-</strong></span>
+                    <div class="info-item">
+                        <span class="info-label">证券代码:</span>
+                        <span class="info-value" id="modal-security-code">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">方向:</span>
+                        <span class="info-value direction" id="modal-side">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">置信度:</span>
+                        <span class="info-value" id="modal-confidence">-</span>
                     </div>
                 </div>
-
-                <!-- 仓位建议 -->
-                <div class="position-suggestion" style="background: #e8f4f5; padding: 10px; border-radius: 4px; margin-top: 10px;">
-                    <h4 style="color: #666; margin-bottom: 8px;">仓位建议</h4>
-                    <div class="position-grid">
-                        <div class="position-item">
-                            <span class="position-label">建议比例</span>
-                            <span id="reviewPositionPct" class="position-value">-</span>
-                        </div>
-                        <div class="position-item">
-                            <span class="position-label">建议数量</span>
-                            <span id="reviewSuggestedQty" class="position-value">-</span>
-                        </div>
-                        <div class="position-item">
-                            <span class="position-label">最大资金</span>
-                            <span id="reviewMaxCapital" class="position-value">-</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 风控检查结果 -->
-                <div class="risk-checks-section" style="background: #fff3e0; padding: 10px; border-radius: 4px; margin-top: 10px;">
-                    <h4 style="color: #666; margin-bottom: 8px;">风控检查</h4>
-                    <div id="reviewRiskChecks" class="risk-checks-list">
-                        <!-- 风控检查项将由 JavaScript 添加 -->
-                    </div>
-                </div>
-
-                <!-- Regime 来源 -->
-                <div class="regime-source-section" style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin-top: 10px;">
-                    <div><strong>Regime 来源:</strong> <span id="reviewRegimeSource">V2_CALCULATION</span></div>
-                </div>
-
-                <!-- 原因代码 -->
-                <div class="reason-codes-section" style="background: #fffbe6; padding: 10px; border-radius: 4px; margin-top: 10px;">
-                    <h4 style="color: #666; margin-bottom: 8px;">决策原因</h4>
-                    <div id="reviewReasonCodes" class="reason-codes-list">
-                        <!-- 原因代码由 JavaScript 添加 -->
-                    </div>
-                    <p id="reviewRationale" class="human-rationale"></p>
-                </div>
-
-            <div class="form-group">
-                <label class="form-label">执行目标</label>
-                <select id="reviewTarget" class="form-select" onchange="toggleReviewTargetFields()">
-                    <option value="SIMULATED">模拟盘执行</option>
-                    <option value="ACCOUNT">账户落地</option>
-                </select>
             </div>
 
-            <div id="reviewSimFields">
+            <!-- 估值与价格区间 -->
+            <div class="approval-section">
+                <h4 class="section-label">估值与价格区间</h4>
+                <div class="price-grid">
+                    <div class="price-item">
+                        <span class="price-label">公允价值</span>
+                        <span class="price-value" id="modal-fair-value">-</span>
+                    </div>
+                    <div class="price-item">
+                        <span class="price-label">入场区间</span>
+                        <span class="price-value" id="modal-entry-range">-</span>
+                    </div>
+                    <div class="price-item">
+                        <span class="price-label">目标区间</span>
+                        <span class="price-value" id="modal-target-range">-</span>
+                    </div>
+                    <div class="price-item">
+                        <span class="price-label">止损价格</span>
+                        <span class="price-value stop-loss" id="modal-stop-loss">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 仓位建议 -->
+            <div class="approval-section">
+                <h4 class="section-label">仓位建议</h4>
+                <div class="position-grid">
+                    <div class="position-item">
+                        <span class="position-label">建议仓位比例</span>
+                        <span class="position-value" id="modal-position-pct">-</span>
+                    </div>
+                    <div class="position-item">
+                        <span class="position-label">建议数量</span>
+                        <span class="position-value" id="modal-suggested-qty">-</span>
+                    </div>
+                    <div class="position-item">
+                        <span class="position-label">最大资金</span>
+                        <span class="position-value" id="modal-max-capital">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 风险检查结果 -->
+            <div class="approval-section">
+                <h4 class="section-label">风险检查</h4>
+                <div id="modal-risk-checks" class="risk-checks-list">
+                    <div class="risk-check-loading">加载中...</div>
+                </div>
+            </div>
+
+            <!-- Top-down 信息 -->
+            <div class="approval-section">
+                <h4 class="section-label">Top-down 分析</h4>
+                <div class="topdown-grid">
+                    <div class="topdown-item">
+                        <span class="topdown-label">当前 Regime:</span>
+                        <span class="topdown-value" id="modal-regime">-</span>
+                    </div>
+                    <div class="topdown-item">
+                        <span class="topdown-label">Regime 置信度:</span>
+                        <span class="topdown-value" id="modal-regime-confidence">-</span>
+                    </div>
+                    <div class="topdown-item">
+                        <span class="topdown-label">政策档位:</span>
+                        <span class="topdown-value" id="modal-policy-level">-</span>
+                    </div>
+                    <div class="topdown-item">
+                        <span class="topdown-label">Beta Gate:</span>
+                        <span class="topdown-value" id="modal-beta-gate">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom-up 分数 -->
+            <div class="approval-section">
+                <h4 class="section-label">Bottom-up 评分</h4>
+                <div class="scores-grid">
+                    <div class="score-item">
+                        <span class="score-label">Alpha 模型</span>
+                        <div class="score-bar">
+                            <div class="score-fill" id="modal-alpha-score" style="width: 0%"></div>
+                        </div>
+                        <span class="score-value" id="modal-alpha-score-value">-</span>
+                    </div>
+                    <div class="score-item">
+                        <span class="score-label">舆情</span>
+                        <div class="score-bar">
+                            <div class="score-fill" id="modal-sentiment-score" style="width: 0%"></div>
+                        </div>
+                        <span class="score-value" id="modal-sentiment-score-value">-</span>
+                    </div>
+                    <div class="score-item">
+                        <span class="score-label">资金流向</span>
+                        <div class="score-bar">
+                            <div class="score-fill" id="modal-flow-score" style="width: 0%"></div>
+                        </div>
+                        <span class="score-value" id="modal-flow-score-value">-</span>
+                    </div>
+                    <div class="score-item">
+                        <span class="score-label">技术面</span>
+                        <div class="score-bar">
+                            <div class="score-fill" id="modal-technical-score" style="width: 0%"></div>
+                        </div>
+                        <span class="score-value" id="modal-technical-score-value">-</span>
+                    </div>
+                    <div class="score-item">
+                        <span class="score-label">基本面</span>
+                        <div class="score-bar">
+                            <div class="score-fill" id="modal-fundamental-score" style="width: 0%"></div>
+                        </div>
+                        <span class="score-value" id="modal-fundamental-score-value">-</span>
+                    </div>
+                    <div class="score-item">
+                        <span class="score-label">综合分数</span>
+                        <div class="score-bar composite">
+                            <div class="score-fill" id="modal-composite-score" style="width: 0%"></div>
+                        </div>
+                        <span class="score-value" id="modal-composite-score-value">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 决策理由 -->
+            <div class="approval-section">
+                <h4 class="section-label">决策理由</h4>
+                <div class="reason-codes" id="modal-reason-codes">
+                    <!-- 原因代码标签 -->
+                </div>
+                <p class="human-rationale" id="modal-human-rationale">-</p>
+            </div>
+
+            <!-- 审批表单 -->
+            <div class="approval-section">
+                <h4 class="section-label">审批操作</h4>
                 <div class="form-group">
-                    <label class="form-label">模拟账户</label>
-                    <select id="reviewSimAccountId" class="form-select">
-                        <option value="">请选择账户</option>
+                    <label class="form-label">执行目标 <span class="required">*</span></label>
+                    <select id="modal-execution-target" class="form-select" onchange="toggleExecutionFields()">
+                        <option value="SIMULATED">模拟盘执行</option>
+                        <option value="ACCOUNT">账户落地</option>
                     </select>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">数量</label>
-                        <input id="reviewQuantity" type="number" class="form-input" min="1" />
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">成交价</label>
-                        <input id="reviewPrice" type="number" class="form-input" min="0" step="0.01" />
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label">价格下限</label>
-                        <input id="reviewPriceMin" type="number" class="form-input" min="0" step="0.01" />
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">价格上限</label>
-                        <input id="reviewPriceMax" type="number" class="form-input" min="0" step="0.01" />
-                    </div>
-                </div>
-            </div>
 
-            <div id="reviewAccountFields" style="display:none;">
-                <div class="form-group">
-                    <label class="form-label">组合 ID</label>
-                    <input id="reviewPortfolioId" type="number" class="form-input" min="1" />
-                </div>
-                <div class="form-row">
+                <div id="simulated-fields">
                     <div class="form-group">
-                        <label class="form-label">持仓数量</label>
-                        <input id="reviewShares" type="number" class="form-input" min="1" />
+                        <label class="form-label">模拟账户 <span class="required">*</span></label>
+                        <select id="modal-sim-account" class="form-select">
+                            <option value="">请选择账户</option>
+                        </select>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">平均成本</label>
-                        <input id="reviewAvgCost" type="number" class="form-input" min="0" step="0.01" />
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">数量 <span class="required">*</span></label>
+                            <input id="modal-quantity" type="number" class="form-input" min="1" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">成交价 <span class="required">*</span></label>
+                            <input id="modal-price" type="number" class="form-input" min="0" step="0.01" />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">价格下限</label>
+                            <input id="modal-price-min" type="number" class="form-input" min="0" step="0.01" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">价格上限</label>
+                            <input id="modal-price-max" type="number" class="form-input" min="0" step="0.01" />
+                        </div>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">当前价格</label>
-                    <input id="reviewCurrentPrice" type="number" class="form-input" min="0" step="0.01" />
-                </div>
-            </div>
 
-            <div class="form-group">
-                <label class="form-label">审批评论</label>
-                <textarea id="reviewComments" class="form-input" rows="3" placeholder="填写审批意见、风险说明、执行约束等"></textarea>
+                <div id="account-fields" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label">组合 ID <span class="required">*</span></label>
+                        <input id="modal-portfolio-id" type="number" class="form-input" min="1" />
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">持仓数量 <span class="required">*</span></label>
+                            <input id="modal-shares" type="number" class="form-input" min="1" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">平均成本 <span class="required">*</span></label>
+                            <input id="modal-avg-cost" type="number" class="form-input" min="0" step="0.01" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">当前价格 <span class="required">*</span></label>
+                        <input id="modal-current-price" type="number" class="form-input" min="0" step="0.01" />
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">审批评论 <span class="required">*</span></label>
+                    <textarea id="modal-comments" class="form-input" rows="3" placeholder="请填写审批意见、风险说明、执行约束等（必填）"></textarea>
+                </div>
             </div>
         </div>
-        <div class="review-modal-footer">
-            <button class="btn btn-sm btn-outline" onclick="closeExecutionReviewModal()">关闭</button>
-            <button id="rejectExecBtn" class="btn btn-sm btn-secondary" onclick="rejectExecution()">不批准</button>
-            <button id="approveExecBtn" class="btn btn-sm btn-primary" onclick="approveExecution()">批准并执行</button>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeApprovalModal()">关闭</button>
+            <button id="reject-btn" class="btn btn-secondary" onclick="rejectRecommendation()">拒绝</button>
+            <button id="approve-btn" class="btn btn-primary" onclick="approveRecommendation()">批准并执行</button>
         </div>
     </div>
 </div>
 
 <script>
-function resetQuota() {
-    if (!confirm('确定要重置当前配额吗？这将清空已使用计数。')) {
-        return;
-    }
+// ===== 全局状态 =====
+let currentTab = 'recommendations';
+let currentRecommendation = null;
+let approvalRequestId = null;
+let userAccounts = [];
 
-    fetch('/api/decision-rhythm/reset-quota/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': window.csrfToken
-        },
-        body: JSON.stringify({})
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            window.location.reload();
-        } else {
-            alert('重置失败: ' + (data.error || '未知错误'));
-        }
-    })
-    .catch(error => {
-        alert('请求失败: ' + error.message);
-    });
-}
+// ===== 初始化 =====
+document.addEventListener('DOMContentLoaded', function() {
+    // 加载账户列表
+    loadUserAccounts();
+    // 加载推荐数据
+    loadRecommendations();
+    // 加载审批数据
+    loadApprovals();
+    // 加载冲突数据
+    loadConflicts();
+    // 加载模拟账户
+    loadSimulatedAccounts();
 
-function submitDecisionRequest(candidateId, assetCode, assetClass, direction, confidence, thesis) {
-    const payload = {
-        asset_code: assetCode,
-        asset_class: assetClass || 'unknown',
-        direction: (direction || '').toUpperCase() === 'SHORT' ? 'SELL' : 'BUY',
-        priority: 'high',
-        trigger_id: candidateId,
-        candidate_id: candidateId,
-        reason: thesis || `来源候选 ${candidateId}`,
-        expected_confidence: Number(confidence || 0),
-        quota_period: 'weekly'
-    };
-
-    fetch('/api/decision-rhythm/submit/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': window.csrfToken
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            window.showToast('决策请求已提交', 'success');
-            setTimeout(() => window.location.reload(), 800);
-        } else {
-            alert('提交失败: ' + (data.error || '未知错误'));
-        }
-    })
-    .catch(error => {
-        alert('请求失败: ' + error.message);
-    });
-}
-
-let currentReviewRequest = null;
-
-function openExecutionReviewModal(button, asReject = false) {
-    currentReviewRequest = {
-        requestId: button.dataset.requestId,
-        assetCode: button.dataset.assetCode || '',
-        direction: button.dataset.direction || 'BUY',
-        priority: button.dataset.priority || '-',
-        confidence: button.dataset.confidence || '0',
-        reason: button.dataset.reason || ''
-    };
-
-    document.getElementById('reviewRequestId').textContent = currentReviewRequest.requestId;
-    document.getElementById('reviewAssetCode').textContent = currentReviewRequest.assetCode;
-    document.getElementById('reviewDirection').textContent = currentReviewRequest.direction;
-    document.getElementById('reviewPriority').textContent = currentReviewRequest.priority;
-    document.getElementById('reviewConfidence').textContent = Number(currentReviewRequest.confidence || 0).toFixed(2);
-
-    // 补充审批详情，避免新增区域长期为空
-    document.getElementById('reviewFairValue').textContent = button.dataset.fairValue || '-';
-    document.getElementById('reviewEntryRange').textContent = button.dataset.entryRange || '-';
-    document.getElementById('reviewTargetRange').textContent = button.dataset.targetRange || '-';
-    document.getElementById('reviewStopLoss').textContent = button.dataset.stopLoss || '-';
-    document.getElementById('reviewUpside').textContent = button.dataset.upside || '-';
-    document.getElementById('reviewDownside').textContent = button.dataset.downside || '-';
-    document.getElementById('reviewRiskReward').textContent = button.dataset.riskReward || '-';
-    document.getElementById('reviewPositionPct').textContent = button.dataset.positionPct || '-';
-    document.getElementById('reviewSuggestedQty').textContent = button.dataset.suggestedQty || '-';
-    document.getElementById('reviewMaxCapital').textContent = button.dataset.maxCapital || '-';
-    document.getElementById('reviewRegimeSource').textContent = button.dataset.regimeSource || 'V2_CALCULATION';
-
-    const riskChecksNode = document.getElementById('reviewRiskChecks');
-    if (riskChecksNode) {
-        riskChecksNode.innerHTML = '<div class=\"risk-check-item\">价格校验/配额/冷却期：执行前校验</div>';
-    }
-
-    const reasonCodesNode = document.getElementById('reviewReasonCodes');
-    if (reasonCodesNode) {
-        const reasonCode = currentReviewRequest.reason ? 'REQUEST_REASON' : 'N/A';
-        reasonCodesNode.innerHTML = `<span class=\"reason-code\">${reasonCode}</span>`;
-    }
-    document.getElementById('reviewRationale').textContent = currentReviewRequest.reason || '无补充说明';
-
-    document.getElementById('reviewComments').value = asReject ? '不批准执行：' : '';
-    document.getElementById('approveExecBtn').style.display = asReject ? 'none' : '';
-    toggleReviewTargetFields();
-    loadReviewSimulatedAccounts();
-    document.getElementById('executionReviewModal').classList.add('active');
-}
-
-function closeExecutionReviewModal() {
-    document.getElementById('executionReviewModal').classList.remove('active');
-    currentReviewRequest = null;
-    const approveBtn = document.getElementById('approveExecBtn');
-    if (approveBtn) {
-        approveBtn.disabled = false;
-        approveBtn.textContent = '批准并执行';
-        approveBtn.style.display = '';
-    }
-}
-
-function toggleReviewTargetFields() {
-    const target = document.getElementById('reviewTarget').value;
-    document.getElementById('reviewSimFields').style.display = target === 'SIMULATED' ? 'block' : 'none';
-    document.getElementById('reviewAccountFields').style.display = target === 'ACCOUNT' ? 'block' : 'none';
-}
-
-function loadReviewSimulatedAccounts() {
-    fetch('/api/simulated-trading/accounts/', {
-        headers: { 'X-CSRFToken': window.csrfToken }
-    })
-    .then(r => r.json())
-    .then(data => {
-        const select = document.getElementById('reviewSimAccountId');
-        if (!select) return;
-        select.innerHTML = '<option value="">请选择账户</option>';
-        if (data.success && Array.isArray(data.results)) {
-            data.results.forEach(account => {
-                const option = document.createElement('option');
-                option.value = account.account_id;
-                option.textContent = `${account.name} (${account.initial_capital}元)`;
-                select.appendChild(option);
-            });
-        }
-    })
-    .catch(() => {});
-}
-
-function rejectExecution() {
-    if (!currentReviewRequest) return;
-    const reason = (document.getElementById('reviewComments').value || '').trim() || '不批准执行';
-
-    fetch(`/api/decision-rhythm/requests/${currentReviewRequest.requestId}/cancel/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': window.csrfToken
-        },
-        body: JSON.stringify({ reason })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            window.showToast('已不批准并取消请求', 'success');
-            setTimeout(() => window.location.reload(), 800);
-        } else {
-            alert('操作失败: ' + (data.error || '未知错误'));
-        }
-    })
-    .catch(error => {
-        alert('请求失败: ' + error.message);
-    });
-}
-
-function approveExecution() {
-    if (!currentReviewRequest) return;
-    const target = document.getElementById('reviewTarget').value;
-    const comments = (document.getElementById('reviewComments').value || '').trim();
-    const payload = {
-        target,
-        asset_code: currentReviewRequest.assetCode,
-        reason: comments || '审批通过执行'
-    };
-
-    if (target === 'SIMULATED') {
-        const simAccountId = Number(document.getElementById('reviewSimAccountId').value || 0);
-        const quantity = Number(document.getElementById('reviewQuantity').value || 0);
-        const price = Number(document.getElementById('reviewPrice').value || 0);
-        const priceMin = Number(document.getElementById('reviewPriceMin').value || 0);
-        const priceMax = Number(document.getElementById('reviewPriceMax').value || 0);
-
-        if (!simAccountId || !quantity || !price) {
-            alert('请填写模拟账户、数量和成交价');
-            return;
-        }
-        if (priceMin && priceMax && priceMin > priceMax) {
-            alert('价格区间不合法：下限不能大于上限');
-            return;
-        }
-        if ((priceMin && price < priceMin) || (priceMax && price > priceMax)) {
-            alert('成交价不在价格区间内');
-            return;
-        }
-        payload.sim_account_id = simAccountId;
-        payload.action = currentReviewRequest.direction === 'SELL' ? 'sell' : 'buy';
-        payload.quantity = quantity;
-        payload.price = price;
-        payload.price_min = priceMin || null;
-        payload.price_max = priceMax || null;
-    } else {
-        const portfolioId = Number(document.getElementById('reviewPortfolioId').value || 0);
-        const shares = Number(document.getElementById('reviewShares').value || 0);
-        const avgCost = Number(document.getElementById('reviewAvgCost').value || 0);
-        const currentPrice = Number(document.getElementById('reviewCurrentPrice').value || 0);
-        if (!portfolioId || !shares || !avgCost || !currentPrice) {
-            alert('请填写账户落地参数（组合、数量、成本、当前价）');
-            return;
-        }
-        payload.portfolio_id = portfolioId;
-        payload.shares = shares;
-        payload.avg_cost = avgCost;
-        payload.current_price = currentPrice;
-    }
-
-    const approveBtn = document.getElementById('approveExecBtn');
-    approveBtn.disabled = true;
-    approveBtn.textContent = '执行中...';
-
-    fetch(`/api/decision-rhythm/requests/${currentReviewRequest.requestId}/execute/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': window.csrfToken
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            window.showToast('审批通过并执行成功', 'success');
-            setTimeout(() => window.location.reload(), 800);
-        } else {
-            alert('执行失败: ' + (data.error || '未知错误'));
-            approveBtn.disabled = false;
-            approveBtn.textContent = '批准并执行';
-        }
-    })
-    .catch(error => {
-        alert('请求失败: ' + error.message);
-        approveBtn.disabled = false;
-        approveBtn.textContent = '批准并执行';
-    });
-}
-
-document.addEventListener('DOMContentLoaded', function () {
-    document.getElementById('executionReviewModal')?.addEventListener('click', function (e) {
+    // 模态框点击外部关闭
+    document.getElementById('approvalModal').addEventListener('click', function(e) {
         if (e.target === this) {
-            closeExecutionReviewModal();
+            closeApprovalModal();
         }
     });
 });
 
-// 自动刷新（每 30 秒）
-setInterval(() => {
-    fetch('/decision/workspace/?refresh=1', {
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (!data.success) return;
-        // 更新配额显示
-        if (data.quota_usage_percent !== undefined) {
-            document.querySelector('.quota-percent').textContent = data.quota_usage_percent + '%';
-            document.querySelector('.quota-fill').setAttribute('stroke-dasharray', `${data.quota_usage_percent}, 100`);
+// ===== Tab 切换 =====
+function switchTab(tabName) {
+    currentTab = tabName;
+
+    // 更新 Tab 按钮状态
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabName);
+    });
+
+    // 更新内容显示
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.toggle('active', content.id === `tab-${tabName}`);
+    });
+
+    // 根据当前 Tab 加载数据
+    if (tabName === 'recommendations') {
+        loadRecommendations();
+    } else if (tabName === 'approvals') {
+        loadApprovals();
+    } else if (tabName === 'conflicts') {
+        loadConflicts();
+    }
+}
+
+// ===== 加载用户账户 =====
+async function loadUserAccounts() {
+    try {
+        const res = await fetch('/api/simulated-trading/accounts/', {
+            headers: { 'X-CSRFToken': window.csrfToken }
+        });
+        const data = await res.json();
+
+        if (data.success && Array.isArray(data.results)) {
+            userAccounts = data.results;
+            const options = '<option value="">选择账户...</option>' +
+                userAccounts.map(acc =>
+                    `<option value="${acc.account_id}">${acc.name} (${acc.initial_capital}元)</option>`
+                ).join('');
+
+            // 填充所有账户选择器
+            ['account-selector', 'approval-account-selector', 'conflict-account-selector'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = options;
+            });
         }
-    })
-    .catch(() => {});
-}, 30000);
+    } catch (error) {
+        console.error('加载账户失败:', error);
+    }
+}
+
+// ===== 加载推荐列表 =====
+async function loadRecommendations() {
+    const container = document.getElementById('recommendations-list');
+    const accountId = document.getElementById('account-selector')?.value || '';
+    const statusFilter = document.getElementById('status-filter')?.value || '';
+
+    container.innerHTML = `
+        <div class="loading-state">
+            <div class="spinner"></div>
+            <p>加载中...</p>
+        </div>
+    `;
+
+    try {
+        let url = '/api/decision/workspace/recommendations/';
+        const params = new URLSearchParams();
+        if (accountId) params.append('account_id', accountId);
+        if (statusFilter) params.append('status', statusFilter);
+        if (params.toString()) url += '?' + params.toString();
+
+        const res = await fetch(url, {
+            headers: { 'X-CSRFToken': window.csrfToken }
+        });
+        const data = await res.json();
+
+        if (data.success && data.data) {
+            renderRecommendations(data.data.recommendations || [], data.data.total_count || 0);
+        } else {
+            container.innerHTML = `
+                <div class="error-state">
+                    <p>加载失败: ${data.error || '未知错误'}</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        container.innerHTML = `
+            <div class="error-state">
+                <p>网络错误: ${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+// ===== 渲染推荐列表 =====
+function renderRecommendations(recommendations, totalCount) {
+    const container = document.getElementById('recommendations-list');
+    document.getElementById('recommendations-count').textContent = totalCount;
+    document.getElementById('rec-count-badge').textContent = totalCount;
+
+    if (!recommendations || recommendations.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📭</div>
+                <p>暂无推荐建议</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = recommendations.map(rec => `
+        <div class="recommendation-card" data-recommendation-id="${rec.recommendation_id}">
+            <div class="rec-header">
+                <div class="rec-asset">
+                    <strong>${rec.security_code}</strong>
+                    <span class="rec-side rec-side-${rec.side.toLowerCase()}">${rec.side}</span>
+                </div>
+                <div class="rec-confidence">
+                    置信度: <strong>${(rec.confidence * 100).toFixed(1)}%</strong>
+                </div>
+            </div>
+            <div class="rec-body">
+                <div class="rec-scores">
+                    <div class="score-summary">
+                        <span class="score-label">综合分:</span>
+                        <span class="score-value-composite">${rec.composite_score.toFixed(2)}</span>
+                    </div>
+                    <div class="score-breakdown">
+                        <span title="Alpha模型">α:${rec.alpha_model_score.toFixed(2)}</span>
+                        <span title="舆情">S:${rec.sentiment_score.toFixed(2)}</span>
+                        <span title="资金流">F:${rec.flow_score.toFixed(2)}</span>
+                        <span title="技术面">T:${rec.technical_score.toFixed(2)}</span>
+                        <span title="基本面">F:${rec.fundamental_score.toFixed(2)}</span>
+                    </div>
+                </div>
+                <div class="rec-prices">
+                    <div class="price-info">
+                        <span class="price-label">公允:</span>
+                        <span class="price-value">${rec.fair_value}</span>
+                    </div>
+                    <div class="price-info">
+                        <span class="price-label">入场:</span>
+                        <span class="price-value">${rec.entry_price_low} - ${rec.entry_price_high}</span>
+                    </div>
+                    <div class="price-info">
+                        <span class="price-label">目标:</span>
+                        <span class="price-value">${rec.target_price_low} - ${rec.target_price_high}</span>
+                    </div>
+                </div>
+                <div class="rec-position">
+                    <span class="position-label">仓位:</span>
+                    <span class="position-value">${rec.position_pct}% (${rec.suggested_quantity}股)</span>
+                    <span class="capital-label">上限:</span>
+                    <span class="capital-value">${rec.max_capital}元</span>
+                </div>
+                <div class="rec-rationale">
+                    ${rec.human_rationale || rec.reason_codes.join(', ')}
+                </div>
+            </div>
+            <div class="rec-footer">
+                <div class="rec-status status-${rec.status.toLowerCase()}">${getStatusText(rec.status)}</div>
+                <button class="btn btn-sm btn-primary"
+                        onclick="openApprovalModal('${rec.recommendation_id}')"
+                        data-recommendation-id="${rec.recommendation_id}"
+                        data-security-code="${rec.security_code}"
+                        data-side="${rec.side}"
+                        data-confidence="${rec.confidence}"
+                        data-composite-score="${rec.composite_score}"
+                        data-fair-value="${rec.fair_value}"
+                        data-entry-low="${rec.entry_price_low}"
+                        data-entry-high="${rec.entry_price_high}"
+                        data-target-low="${rec.target_price_low}"
+                        data-target-high="${rec.target_price_high}"
+                        data-stop-loss="${rec.stop_loss_price}"
+                        data-position-pct="${rec.position_pct}"
+                        data-suggested-qty="${rec.suggested_quantity}"
+                        data-max-capital="${rec.max_capital}"
+                        data-regime="${rec.regime}"
+                        data-regime-confidence="${rec.regime_confidence}"
+                        data-policy-level="${rec.policy_level}"
+                        data-beta-gate="${rec.beta_gate_passed}"
+                        data-alpha-score="${rec.alpha_model_score}"
+                        data-sentiment-score="${rec.sentiment_score}"
+                        data-flow-score="${rec.flow_score}"
+                        data-technical-score="${rec.technical_score}"
+                        data-fundamental-score="${rec.fundamental_score}"
+                        data-reason-codes='${JSON.stringify(rec.reason_codes)}'
+                        data-rationale="${rec.human_rationale}">
+                    去执行
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ===== 加载审批列表 =====
+async function loadApprovals() {
+    const container = document.getElementById('approvals-list');
+    const accountId = document.getElementById('approval-account-selector')?.value || '';
+
+    container.innerHTML = `
+        <div class="loading-state">
+            <div class="spinner"></div>
+            <p>加载中...</p>
+        </div>
+    `;
+
+    try {
+        let url = '/api/decision/workspace/recommendations/';
+        const params = new URLSearchParams();
+        if (accountId) params.append('account_id', accountId);
+        params.append('status', 'APPROVED');
+        if (params.toString()) url += '?' + params.toString();
+
+        const res = await fetch(url, {
+            headers: { 'X-CSRFToken': window.csrfToken }
+        });
+        const data = await res.json();
+
+        if (data.success && data.data) {
+            renderApprovals(data.data.recommendations || [], data.data.total_count || 0);
+        } else {
+            container.innerHTML = `
+                <div class="error-state">
+                    <p>加载失败: ${data.error || '未知错误'}</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        container.innerHTML = `
+            <div class="error-state">
+                <p>网络错误: ${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+// ===== 渲染审批列表 =====
+function renderApprovals(approvals, totalCount) {
+    const container = document.getElementById('approvals-list');
+    document.getElementById('approvals-count').textContent = totalCount;
+    document.getElementById('approval-count-badge').textContent = totalCount;
+
+    if (!approvals || approvals.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📋</div>
+                <p>暂无待执行审批</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = approvals.map(rec => `
+        <div class="approval-card">
+            <div class="approval-header">
+                <strong>${rec.security_code}</strong>
+                <span class="approval-side approval-side-${rec.side.toLowerCase()}">${rec.side}</span>
+            </div>
+            <div class="approval-body">
+                <div class="approval-info">
+                    <span>置信度: ${(rec.confidence * 100).toFixed(1)}%</span>
+                    <span>仓位: ${rec.position_pct}% (${rec.suggested_quantity}股)</span>
+                    <span>入场: ${rec.entry_price_low} - ${rec.entry_price_high}</span>
+                </div>
+            </div>
+            <div class="approval-footer">
+                <button class="btn btn-sm btn-primary" onclick="openApprovalModal('${rec.recommendation_id}')">
+                    查看详情
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ===== 加载冲突列表 =====
+async function loadConflicts() {
+    const container = document.getElementById('conflicts-list');
+    const accountId = document.getElementById('conflict-account-selector')?.value || '';
+
+    container.innerHTML = `
+        <div class="loading-state">
+            <div class="spinner"></div>
+            <p>加载中...</p>
+        </div>
+    `;
+
+    try {
+        let url = '/api/decision/workspace/conflicts/';
+        const params = new URLSearchParams();
+        if (accountId) params.append('account_id', accountId);
+        if (params.toString()) url += '?' + params.toString();
+
+        const res = await fetch(url, {
+            headers: { 'X-CSRFToken': window.csrfToken }
+        });
+        const data = await res.json();
+
+        if (data.success && data.data) {
+            renderConflicts(data.data.conflicts || [], data.data.total_count || 0);
+        } else {
+            container.innerHTML = `
+                <div class="error-state">
+                    <p>加载失败: ${data.error || '未知错误'}</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        container.innerHTML = `
+            <div class="error-state">
+                <p>网络错误: ${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+// ===== 渲染冲突列表 =====
+function renderConflicts(conflicts, totalCount) {
+    const container = document.getElementById('conflicts-list');
+    document.getElementById('conflicts-count').textContent = totalCount;
+    document.getElementById('conflict-count-badge').textContent = totalCount;
+
+    if (!conflicts || conflicts.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">✅</div>
+                <p>暂无冲突</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = conflicts.map(conflict => `
+        <div class="conflict-card">
+            <div class="conflict-header">
+                <strong>${conflict.security_code}</strong>
+                <span class="conflict-badge">BUY/SELL 冲突</span>
+            </div>
+            <div class="conflict-body">
+                ${conflict.buy_recommendation ? `
+                    <div class="conflict-side conflict-buy">
+                        <span class="side-label">BUY:</span>
+                        <span class="side-score">综合分 ${conflict.buy_recommendation.composite_score.toFixed(2)}</span>
+                        <span class="side-confidence">置信度 ${(conflict.buy_recommendation.confidence * 100).toFixed(1)}%</span>
+                    </div>
+                ` : ''}
+                ${conflict.sell_recommendation ? `
+                    <div class="conflict-side conflict-sell">
+                        <span class="side-label">SELL:</span>
+                        <span class="side-score">综合分 ${conflict.sell_recommendation.composite_score.toFixed(2)}</span>
+                        <span class="side-confidence">置信度 ${(conflict.sell_recommendation.confidence * 100).toFixed(1)}%</span>
+                    </div>
+                ` : ''}
+            </div>
+            <div class="conflict-footer">
+                <p class="conflict-hint">${conflict.resolution_hint || '需要人工判断方向'}</p>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ===== 刷新推荐 =====
+async function refreshRecommendations() {
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i> 刷新中...';
+
+    try {
+        const res = await fetch('/api/decision/workspace/recommendations/refresh/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken
+            },
+            body: JSON.stringify({})
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            window.showToast('推荐已刷新', 'success');
+            // 重新加载当前 Tab 数据
+            if (currentTab === 'recommendations') loadRecommendations();
+            else if (currentTab === 'approvals') loadApprovals();
+            else if (currentTab === 'conflicts') loadConflicts();
+        } else {
+            window.showToast('刷新失败: ' + (data.error || '未知错误'), 'error');
+        }
+    } catch (error) {
+        window.showToast('网络错误: ' + error.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+// ===== 打开审批模态框 =====
+async function openApprovalModal(recommendationId) {
+    currentRecommendation = null;
+    approvalRequestId = null;
+
+    // 如果传入的是 ID，需要先获取推荐详情
+    if (typeof recommendationId === 'string') {
+        try {
+            const res = await fetch(`/api/decision/workspace/recommendations/?recommendation_id=${recommendationId}`, {
+                headers: { 'X-CSRFToken': window.csrfToken }
+            });
+            const data = await res.json();
+
+            if (data.success && data.data && data.data.recommendations && data.data.recommendations.length > 0) {
+                currentRecommendation = data.data.recommendations[0];
+            } else {
+                window.showToast('获取推荐详情失败', 'error');
+                return;
+            }
+        } catch (error) {
+            window.showToast('网络错误', 'error');
+            return;
+        }
+    } else {
+        // 从按钮的 data 属性获取（用于快速打开）
+        const button = event.target.closest('button');
+        currentRecommendation = {
+            recommendation_id: button.dataset.recommendationId,
+            security_code: button.dataset.securityCode,
+            side: button.dataset.side,
+            confidence: parseFloat(button.dataset.confidence) || 0,
+            composite_score: parseFloat(button.dataset.compositeScore) || 0,
+            fair_value: button.dataset.fairValue,
+            entry_price_low: button.dataset.entryLow,
+            entry_price_high: button.dataset.entryHigh,
+            target_price_low: button.dataset.targetLow,
+            target_price_high: button.dataset.targetHigh,
+            stop_loss_price: button.dataset.stopLoss,
+            position_pct: parseFloat(button.dataset.positionPct) || 0,
+            suggested_quantity: parseInt(button.dataset.suggestedQty) || 0,
+            max_capital: button.dataset.maxCapital,
+            regime: button.dataset.regime,
+            regime_confidence: parseFloat(button.dataset.regimeConfidence) || 0,
+            policy_level: button.dataset.policyLevel,
+            beta_gate_passed: button.dataset.betaGate === 'true',
+            alpha_model_score: parseFloat(button.dataset.alphaScore) || 0,
+            sentiment_score: parseFloat(button.dataset.sentimentScore) || 0,
+            flow_score: parseFloat(button.dataset.flowScore) || 0,
+            technical_score: parseFloat(button.dataset.technicalScore) || 0,
+            fundamental_score: parseFloat(button.dataset.fundamentalScore) || 0,
+            reason_codes: JSON.parse(button.dataset.reasonCodes || '[]'),
+            human_rationale: button.dataset.rationale
+        };
+    }
+
+    if (!currentRecommendation) {
+        window.showToast('无法获取推荐信息', 'error');
+        return;
+    }
+
+    // 填充模态框基本信息
+    document.getElementById('modal-recommendation-id').textContent = currentRecommendation.recommendation_id;
+    document.getElementById('modal-security-code').textContent = currentRecommendation.security_code;
+    const sideEl = document.getElementById('modal-side');
+    sideEl.textContent = currentRecommendation.side;
+    sideEl.className = `info-value direction direction-${currentRecommendation.side.toLowerCase()}`;
+    document.getElementById('modal-confidence').textContent = (currentRecommendation.confidence * 100).toFixed(1) + '%';
+
+    // 填充价格信息
+    document.getElementById('modal-fair-value').textContent = currentRecommendation.fair_value || '-';
+    document.getElementById('modal-entry-range').textContent =
+        (currentRecommendation.entry_price_low || '-') + ' - ' + (currentRecommendation.entry_price_high || '-');
+    document.getElementById('modal-target-range').textContent =
+        (currentRecommendation.target_price_low || '-') + ' - ' + (currentRecommendation.target_price_high || '-');
+    document.getElementById('modal-stop-loss').textContent = currentRecommendation.stop_loss_price || '-';
+
+    // 填充仓位信息
+    document.getElementById('modal-position-pct').textContent = (currentRecommendation.position_pct || 0) + '%';
+    document.getElementById('modal-suggested-qty').textContent = currentRecommendation.suggested_quantity || '-';
+    document.getElementById('modal-max-capital').textContent = (currentRecommendation.max_capital || '-') + '元';
+
+    // 填充 Top-down 信息
+    document.getElementById('modal-regime').textContent = currentRecommendation.regime || '-';
+    document.getElementById('modal-regime-confidence').textContent =
+        (currentRecommendation.regime_confidence * 100).toFixed(1) + '%';
+    document.getElementById('modal-policy-level').textContent = currentRecommendation.policy_level || '-';
+    const betaGateEl = document.getElementById('modal-beta-gate');
+    betaGateEl.textContent = currentRecommendation.beta_gate_passed ? '已通过' : '未通过';
+    betaGateEl.className = 'topdown-value ' + (currentRecommendation.beta_gate_passed ? 'pass' : 'fail');
+
+    // 填充 Bottom-up 分数
+    const scores = ['alpha', 'sentiment', 'flow', 'technical', 'fundamental', 'composite'];
+    const scoreKeys = ['alpha_model_score', 'sentiment_score', 'flow_score', 'technical_score', 'fundamental_score', 'composite_score'];
+    scores.forEach((score, idx) => {
+        const value = currentRecommendation[scoreKeys[idx]] || 0;
+        const pct = Math.min(Math.max(value * 100, 0), 100);
+        document.getElementById(`modal-${score}-score`).style.width = pct + '%';
+        document.getElementById(`modal-${score}-score-value`).textContent = value.toFixed(2);
+    });
+
+    // 填充决策理由
+    const reasonCodesEl = document.getElementById('modal-reason-codes');
+    if (currentRecommendation.reason_codes && currentRecommendation.reason_codes.length > 0) {
+        reasonCodesEl.innerHTML = currentRecommendation.reason_codes.map(code =>
+            `<span class="reason-tag">${code}</span>`
+        ).join('');
+    } else {
+        reasonCodesEl.innerHTML = '<span class="no-reasons">无原因代码</span>';
+    }
+    document.getElementById('modal-human-rationale').textContent = currentRecommendation.human_rationale || '-';
+
+    // 预填数量和价格
+    document.getElementById('modal-quantity').value = currentRecommendation.suggested_quantity || '';
+    document.getElementById('modal-price').value = currentRecommendation.entry_price_low || '';
+
+    // 获取风险检查和预览
+    await loadExecutionPreview();
+
+    // 显示模态框
+    document.getElementById('approvalModal').classList.add('active');
+}
+
+// ===== 加载执行预览 =====
+async function loadExecutionPreview() {
+    const riskChecksContainer = document.getElementById('modal-risk-checks');
+    riskChecksContainer.innerHTML = '<div class="risk-check-loading">检查中...</div>';
+
+    try {
+        const res = await fetch('/api/decision/execute/preview/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken
+            },
+            body: JSON.stringify({
+                recommendation_id: currentRecommendation.recommendation_id,
+                account_id: document.getElementById('account-selector')?.value || 'default'
+            })
+        });
+        const data = await res.json();
+
+        if (data.success && data.data) {
+            approvalRequestId = data.data.request_id || approvalRequestId;
+            renderRiskChecks(data.data.risk_checks || {});
+        } else {
+            riskChecksContainer.innerHTML = `<div class="risk-check-error">加载失败: ${data.error || '未知错误'}</div>`;
+        }
+    } catch (error) {
+        riskChecksContainer.innerHTML = `<div class="risk-check-error">网络错误: ${error.message}</div>`;
+    }
+}
+
+// ===== 渲染风险检查 =====
+function renderRiskChecks(riskChecks) {
+    const container = document.getElementById('modal-risk-checks');
+
+    const items = [];
+
+    // 价格验证
+    if (riskChecks.price_validation) {
+        const pv = riskChecks.price_validation;
+        items.push({
+            name: '价格验证',
+            passed: pv.passed,
+            reason: pv.reason || (pv.passed ? '通过' : '未通过')
+        });
+    }
+
+    // 配额检查
+    if (riskChecks.quota) {
+        const q = riskChecks.quota;
+        items.push({
+            name: '配额检查',
+            passed: q.passed,
+            reason: q.reason || (q.passed ? `剩余 ${q.remaining}` : '配额不足')
+        });
+    }
+
+    // 冷却期检查
+    if (riskChecks.cooldown) {
+        const c = riskChecks.cooldown;
+        items.push({
+            name: '冷却期检查',
+            passed: c.passed,
+            reason: c.reason || (c.passed ? '可执行' : `剩余 ${c.hours_remaining?.toFixed(1)} 小时`)
+        });
+    }
+
+    if (items.length === 0) {
+        items.push({ name: '风险检查', passed: true, reason: '未进行' });
+    }
+
+    container.innerHTML = items.map(item => `
+        <div class="risk-check-item ${item.passed ? 'passed' : 'failed'}">
+            <span class="check-icon">${item.passed ? '✓' : '✗'}</span>
+            <span class="check-name">${item.name}</span>
+            <span class="check-reason">${item.reason}</span>
+        </div>
+    `).join('');
+}
+
+// ===== 关闭审批模态框 =====
+function closeApprovalModal() {
+    document.getElementById('approvalModal').classList.remove('active');
+    currentRecommendation = null;
+    approvalRequestId = null;
+
+    // 重置按钮状态
+    const approveBtn = document.getElementById('approve-btn');
+    const rejectBtn = document.getElementById('reject-btn');
+    approveBtn.disabled = false;
+    approveBtn.textContent = '批准并执行';
+    rejectBtn.disabled = false;
+    rejectBtn.textContent = '拒绝';
+
+    // 清空表单
+    document.getElementById('modal-comments').value = '';
+}
+
+// ===== 切换执行目标字段 =====
+function toggleExecutionFields() {
+    const target = document.getElementById('modal-execution-target').value;
+    document.getElementById('simulated-fields').style.display = target === 'SIMULATED' ? 'block' : 'none';
+    document.getElementById('account-fields').style.display = target === 'ACCOUNT' ? 'block' : 'none';
+}
+
+// ===== 加载模拟账户 =====
+async function loadSimulatedAccounts() {
+    try {
+        const res = await fetch('/api/simulated-trading/accounts/', {
+            headers: { 'X-CSRFToken': window.csrfToken }
+        });
+        const data = await res.json();
+
+        if (data.success && Array.isArray(data.results)) {
+            const select = document.getElementById('modal-sim-account');
+            select.innerHTML = '<option value="">请选择账户</option>' +
+                data.results.map(acc =>
+                    `<option value="${acc.account_id}">${acc.name} (${acc.initial_capital}元)</option>`
+                ).join('');
+        }
+    } catch (error) {
+        console.error('加载模拟账户失败:', error);
+    }
+}
+
+// ===== 批准并执行 =====
+async function approveRecommendation() {
+    if (!currentRecommendation) return;
+
+    const target = document.getElementById('modal-execution-target').value;
+    const comments = (document.getElementById('modal-comments').value || '').trim();
+
+    if (!comments) {
+        window.showToast('请填写审批评论（必填）', 'warning');
+        document.getElementById('modal-comments').focus();
+        return;
+    }
+
+    const payload = {
+        approval_request_id: approvalRequestId,
+        reviewer_comments: comments,
+        execution_params: {
+            target: target
+        }
+    };
+
+    if (target === 'SIMULATED') {
+        const simAccountId = document.getElementById('modal-sim-account').value;
+        const quantity = parseInt(document.getElementById('modal-quantity').value) || 0;
+        const price = parseFloat(document.getElementById('modal-price').value) || 0;
+        const priceMin = parseFloat(document.getElementById('modal-price-min').value) || 0;
+        const priceMax = parseFloat(document.getElementById('modal-price-max').value) || 0;
+
+        if (!simAccountId || !quantity || !price) {
+            window.showToast('请填写模拟账户、数量和成交价', 'warning');
+            return;
+        }
+
+        payload.execution_params.sim_account_id = simAccountId;
+        payload.execution_params.action = currentRecommendation.side === 'SELL' ? 'sell' : 'buy';
+        payload.execution_params.quantity = quantity;
+        payload.execution_params.price = price;
+        if (priceMin) payload.execution_params.price_min = priceMin;
+        if (priceMax) payload.execution_params.price_max = priceMax;
+    } else {
+        const portfolioId = parseInt(document.getElementById('modal-portfolio-id').value) || 0;
+        const shares = parseInt(document.getElementById('modal-shares').value) || 0;
+        const avgCost = parseFloat(document.getElementById('modal-avg-cost').value) || 0;
+        const currentPrice = parseFloat(document.getElementById('modal-current-price').value) || 0;
+
+        if (!portfolioId || !shares || !avgCost || !currentPrice) {
+            window.showToast('请填写账户落地参数', 'warning');
+            return;
+        }
+
+        payload.execution_params.portfolio_id = portfolioId;
+        payload.execution_params.shares = shares;
+        payload.execution_params.avg_cost = avgCost;
+        payload.execution_params.current_price = currentPrice;
+    }
+
+    const approveBtn = document.getElementById('approve-btn');
+    approveBtn.disabled = true;
+    approveBtn.textContent = '提交中...';
+
+    try {
+        const res = await fetch('/api/decision/execute/approve/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            window.showToast('审批通过并执行成功', 'success');
+            closeApprovalModal();
+            // 刷新列表
+            if (currentTab === 'recommendations') loadRecommendations();
+            else if (currentTab === 'approvals') loadApprovals();
+        } else {
+            window.showToast('执行失败: ' + (data.error || '未知错误'), 'error');
+            approveBtn.disabled = false;
+            approveBtn.textContent = '批准并执行';
+        }
+    } catch (error) {
+        window.showToast('网络错误: ' + error.message, 'error');
+        approveBtn.disabled = false;
+        approveBtn.textContent = '批准并执行';
+    }
+}
+
+// ===== 拒绝推荐 =====
+async function rejectRecommendation() {
+    if (!currentRecommendation) return;
+
+    const comments = (document.getElementById('modal-comments').value || '').trim();
+    if (!comments) {
+        window.showToast('请填写拒绝理由（必填）', 'warning');
+        document.getElementById('modal-comments').focus();
+        return;
+    }
+
+    const rejectBtn = document.getElementById('reject-btn');
+    rejectBtn.disabled = true;
+    rejectBtn.textContent = '提交中...';
+
+    try {
+        const res = await fetch('/api/decision/execute/reject/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken
+            },
+            body: JSON.stringify({
+                approval_request_id: approvalRequestId,
+                reviewer_comments: comments
+            })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            window.showToast('已拒绝该推荐', 'success');
+            closeApprovalModal();
+            // 刷新列表
+            if (currentTab === 'recommendations') loadRecommendations();
+            else if (currentTab === 'approvals') loadApprovals();
+        } else {
+            window.showToast('拒绝失败: ' + (data.error || '未知错误'), 'error');
+            rejectBtn.disabled = false;
+            rejectBtn.textContent = '拒绝';
+        }
+    } catch (error) {
+        window.showToast('网络错误: ' + error.message, 'error');
+        rejectBtn.disabled = false;
+        rejectBtn.textContent = '拒绝';
+    }
+}
+
+// ===== 工具函数 =====
+function getStatusText(status) {
+    const statusMap = {
+        'NEW': '新建',
+        'REVIEWING': '审核中',
+        'APPROVED': '已批准',
+        'REJECTED': '已拒绝',
+        'EXECUTED': '已执行',
+        'FAILED': '执行失败',
+        'CONFLICT': '冲突'
+    };
+    return statusMap[status] || status;
+}
 </script>
 
+<style>
+/* ===== 工作台样式 ===== */
+.workspace-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.workspace-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.workspace-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0;
+}
+
+.title-icon {
+    font-size: 28px;
+}
+
+.workspace-subtitle {
+    color: #64748b;
+    margin: 4px 0 0 40px;
+    font-size: 14px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.environment-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.badge-label {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.badge-value {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.badge-value.regime-growth { color: #10b981; }
+.badge-value.regime-stagflation { color: #f59e0b; }
+.badge-value.regime-reflation { color: #3b82f6; }
+.badge-value.regime-unknown { color: #64748b; }
+
+.badge-value.policy-p0 { color: #ef4444; }
+.badge-value.policy-p1 { color: #f59e0b; }
+.badge-value.policy-p2 { color: #10b981; }
+
+/* Tab 导航 */
+.workspace-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.tab-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-size: 14px;
+    color: #64748b;
+    transition: all 0.2s;
+}
+
+.tab-button:hover {
+    color: #334155;
+    background: #f8fafc;
+}
+
+.tab-button.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+}
+
+.tab-count {
+    background: #e2e8f0;
+    color: #475569;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.tab-button.active .tab-count {
+    background: #667eea;
+    color: white;
+}
+
+/* Tab 内容 */
+.workspace-content {
+    min-height: 400px;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* 区域头部 */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.section-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.form-select-sm {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+/* 推荐卡片 */
+.recommendation-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    transition: box-shadow 0.2s;
+}
+
+.recommendation-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.rec-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.rec-asset {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.rec-asset strong {
+    font-size: 18px;
+}
+
+.rec-side {
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.rec-side-buy {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.rec-side-sell {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.rec-confidence {
+    font-size: 14px;
+    color: #64748b;
+}
+
+.rec-body {
+    display: grid;
+    gap: 12px;
+}
+
+.rec-scores {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border-radius: 8px;
+}
+
+.score-summary {
+    font-weight: 600;
+}
+
+.score-value-composite {
+    color: #667eea;
+    font-size: 18px;
+}
+
+.score-breakdown {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.rec-prices {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.price-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px;
+    background: #f8fafc;
+    border-radius: 6px;
+}
+
+.price-label {
+    font-size: 11px;
+    color: #64748b;
+}
+
+.price-value {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.rec-position {
+    display: flex;
+    gap: 16px;
+    padding: 8px 12px;
+    background: #f0f9ff;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.rec-rationale {
+    padding: 8px 12px;
+    background: #fffbeb;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #92400e;
+}
+
+.rec-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.rec-status {
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-new { background: #e0f2fe; color: #0284c7; }
+.status-reviewing { background: #fef3c7; color: #d97706; }
+.status-approved { background: #dcfce7; color: #16a34a; }
+.status-rejected { background: #fee2e2; color: #dc2626; }
+
+/* 审批卡片 */
+.approval-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.approval-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.approval-side {
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.approval-side-buy {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.approval-side-sell {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.approval-body {
+    padding: 8px 0;
+}
+
+.approval-info {
+    display: flex;
+    gap: 16px;
+    font-size: 13px;
+    color: #64748b;
+}
+
+.approval-footer {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #f1f5f9;
+}
+
+/* 冲突卡片 */
+.conflict-card {
+    background: #fffbeb;
+    border: 1px solid #fbbf24;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.conflict-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.conflict-badge {
+    background: #fbbf24;
+    color: #92400e;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.conflict-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.conflict-side {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 6px;
+}
+
+.conflict-buy {
+    background: #dcfce7;
+}
+
+.conflict-sell {
+    background: #fee2e2;
+}
+
+.side-label {
+    font-weight: 600;
+    width: 50px;
+}
+
+.conflict-footer {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #fde68a;
+}
+
+.conflict-hint {
+    font-size: 13px;
+    color: #92400e;
+}
+
+/* 空状态和加载状态 */
+.empty-state, .loading-state, .error-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #64748b;
+}
+
+.empty-icon, .error-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #e2e8f0;
+    border-top-color: #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+/* 徽章 */
+.badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.badge-primary { background: #e0f2fe; color: #0284c7; }
+.badge-success { background: #dcfce7; color: #16a34a; }
+.badge-warning { background: #fef3c7; color: #d97706; }
+
+/* 模态框 */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal-container {
+    background: white;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 700px;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #64748b;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+}
+
+.modal-close:hover {
+    background: #f1f5f9;
+}
+
+.modal-body {
+    padding: 20px 24px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 24px;
+    border-top: 1px solid #e2e8f0;
+}
+
+/* 审批模态框内容 */
+.approval-section {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: #f8fafc;
+    border-radius: 8px;
+}
+
+.section-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #475569;
+    margin: 0 0 12px 0;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.info-label {
+    font-size: 11px;
+    color: #64748b;
+}
+
+.info-value {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.info-value.direction {
+    font-weight: 700;
+}
+
+.info-value.direction-buy { color: #16a34a; }
+.info-value.direction-sell { color: #dc2626; }
+
+.price-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.price-item {
+    text-align: center;
+    padding: 8px;
+    background: white;
+    border-radius: 6px;
+}
+
+.price-label {
+    display: block;
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 4px;
+}
+
+.price-value {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.price-value.stop-loss {
+    color: #dc2626;
+}
+
+.position-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.position-item {
+    text-align: center;
+    padding: 8px;
+    background: white;
+    border-radius: 6px;
+}
+
+.position-label {
+    display: block;
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 4px;
+}
+
+.position-value {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.capital-label {
+    font-size: 11px;
+    color: #64748b;
+}
+
+.capital-value {
+    font-weight: 600;
+}
+
+/* 风险检查 */
+.risk-checks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.risk-check-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: white;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.risk-check-item.passed {
+    color: #16a34a;
+}
+
+.risk-check-item.failed {
+    color: #dc2626;
+}
+
+.check-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: currentColor;
+    color: white;
+    font-weight: 700;
+}
+
+.check-name {
+    font-weight: 600;
+    flex: 1;
+}
+
+.check-reason {
+    color: #64748b;
+}
+
+.risk-check-loading, .risk-check-error {
+    text-align: center;
+    padding: 12px;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.risk-check-error {
+    color: #dc2626;
+}
+
+/* Top-down 信息 */
+.topdown-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.topdown-item {
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    background: white;
+    border-radius: 6px;
+}
+
+.topdown-label {
+    font-size: 11px;
+    color: #64748b;
+}
+
+.topdown-value {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.topdown-value.pass { color: #16a34a; }
+.topdown-value.fail { color: #dc2626; }
+
+/* Bottom-up 分数 */
+.scores-grid {
+    display: grid;
+    gap: 8px;
+}
+
+.score-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: white;
+    border-radius: 6px;
+}
+
+.score-label {
+    font-size: 12px;
+    color: #64748b;
+    width: 80px;
+}
+
+.score-bar {
+    flex: 1;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.score-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    transition: width 0.3s;
+}
+
+.score-bar.composite .score-fill {
+    background: linear-gradient(90deg, #f59e0b, #ef4444);
+}
+
+.score-value {
+    font-weight: 600;
+    font-size: 13px;
+    width: 40px;
+    text-align: right;
+}
+
+/* 决策理由 */
+.reason-codes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.reason-tag {
+    padding: 4px 12px;
+    background: #e0f2fe;
+    color: #0284c7;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.no-reasons {
+    color: #64748b;
+    font-size: 13px;
+}
+
+.human-rationale {
+    padding: 12px;
+    background: white;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #475569;
+    margin: 0;
+}
+
+/* 表单 */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #475569;
+    margin-bottom: 6px;
+}
+
+.required {
+    color: #dc2626;
+}
+
+.form-select, .form-input, textarea.form-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.form-select:focus, .form-input:focus, textarea.form-input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+textarea.form-input {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* 按钮 */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: #667eea;
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #5a67d8;
+}
+
+.btn-secondary {
+    background: #64748b;
+    color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: #475569;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+}
+
+.btn-outline:hover:not(:disabled) {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+/* 告警横幅 */
+.alerts-section {
+    margin-bottom: 20px;
+}
+
+.alert {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.alert-success {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.alert-warning {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.alert-error, .alert-danger {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.alert-icon {
+    font-size: 20px;
+}
+
+.alert-content {
+    flex: 1;
+}
+
+.alert-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.7;
+}
+
+.alert-close:hover {
+    opacity: 1;
+}
+</style>
 {% endblock %}

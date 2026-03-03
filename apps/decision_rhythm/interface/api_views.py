@@ -208,6 +208,74 @@ class ExecutionPreviewView(APIView):
         if not recommendation_id:
             return Response({"success": False, "error": "recommendation_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # 优先查找 UnifiedRecommendation（M2 融合推荐）
+        from ..infrastructure.models import UnifiedRecommendationModel
+        from ..domain.entities import UnifiedRecommendation
+
+        uni_rec_model = UnifiedRecommendationModel.objects.filter(
+            recommendation_id=recommendation_id
+        ).first()
+
+        if uni_rec_model:
+            # 使用 UnifiedRecommendation 创建审批请求
+            uni_rec = uni_rec_model.to_domain()
+
+            # 检查是否有待审批请求
+            approval_repo = ExecutionApprovalRequestRepository()
+            if approval_repo.has_pending_request(account_id, uni_rec.security_code, uni_rec.side):
+                return Response(
+                    {"success": False, "error": "Pending request already exists for this account/security/side"},
+                    status=status.HTTP_409_CONFLICT,
+                )
+
+            # 构建 risk_checks
+            risk_checks = self._risk_checks_from_unified(uni_rec, market_price)
+            regime_source = _regime_context()["source"]
+
+            # 创建审批请求（关联 UnifiedRecommendation）
+            approval_request = self._create_approval_from_unified(
+                uni_rec=uni_rec,
+                uni_rec_model=uni_rec_model,
+                account_id=account_id,
+                risk_checks=risk_checks,
+                regime_source=regime_source,
+                market_price=market_price,
+            )
+
+            return Response(
+                {
+                    "success": True,
+                    "data": {
+                        "request_id": approval_request.request_id,
+                        "recommendation_id": uni_rec.recommendation_id,
+                        "recommendation_type": "unified",
+                        "preview": {
+                            "security_code": uni_rec.security_code,
+                            "side": uni_rec.side,
+                            "confidence": uni_rec.confidence,
+                            "composite_score": uni_rec.composite_score,
+                            "fair_value": str(uni_rec.fair_value),
+                            "price_range": {
+                                "entry_low": str(uni_rec.entry_price_low),
+                                "entry_high": str(uni_rec.entry_price_high),
+                                "target_low": str(uni_rec.target_price_low),
+                                "target_high": str(uni_rec.target_price_high),
+                                "stop_loss": str(uni_rec.stop_loss_price),
+                            },
+                            "position_suggestion": {
+                                "suggested_pct": uni_rec.position_pct,
+                                "suggested_quantity": uni_rec.suggested_quantity,
+                                "max_capital": str(uni_rec.max_capital),
+                            },
+                            "regime_source": regime_source,
+                        },
+                        "risk_checks": risk_checks,
+                    },
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+        # 回退到旧版 InvestmentRecommendation
         rec_repo = InvestmentRecommendationRepository()
         recommendation = rec_repo.get_by_id(recommendation_id)
         if recommendation is None:
@@ -238,6 +306,7 @@ class ExecutionPreviewView(APIView):
                 "data": {
                     "request_id": approval_request.request_id,
                     "recommendation_id": recommendation.recommendation_id,
+                    "recommendation_type": "legacy",
                     "valuation_snapshot_id": recommendation.valuation_snapshot_id,
                     "preview": {
                         "security_code": recommendation.security_code,
@@ -257,6 +326,99 @@ class ExecutionPreviewView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+    def _risk_checks_from_unified(self, uni_rec, market_price) -> Dict[str, Any]:
+        """从 UnifiedRecommendation 构建风控检查结果"""
+        result = {}
+
+        if market_price is None:
+            result["price_validation"] = {"passed": True, "reason": "未提供市场价"}
+        elif uni_rec.side == "BUY":
+            passed = market_price <= uni_rec.entry_price_high
+            result["price_validation"] = {
+                "passed": passed,
+                "reason": "" if passed else f"市场价格 {market_price} 高于入场上限 {uni_rec.entry_price_high}",
+            }
+        elif uni_rec.side == "SELL":
+            passed = market_price >= uni_rec.target_price_low
+            result["price_validation"] = {
+                "passed": passed,
+                "reason": "" if passed else f"市场价格 {market_price} 低于目标下限 {uni_rec.target_price_low}",
+            }
+        else:
+            result["price_validation"] = {"passed": True, "reason": "HOLD 无价格限制"}
+
+        # Beta Gate 检查
+        result["beta_gate"] = {
+            "passed": uni_rec.beta_gate_passed,
+            "reason": "" if uni_rec.beta_gate_passed else "Beta Gate 未通过",
+        }
+
+        # 配额检查
+        try:
+            quota = QuotaRepository().get_quota(QuotaPeriod.WEEKLY)
+            quota_ok = bool(quota and not quota.is_quota_exceeded)
+            result["quota"] = {
+                "passed": quota_ok,
+                "remaining": quota.remaining_decisions if quota else 0,
+                "reason": "" if quota_ok else "周配额不足",
+            }
+        except Exception as exc:
+            result["quota"] = {"passed": True, "reason": f"quota check skipped: {exc}"}
+
+        # 冷却检查
+        try:
+            cooldown = CooldownRepository().get_active_cooldown(uni_rec.security_code)
+            cooldown_ok = not cooldown or cooldown.is_decision_ready
+            result["cooldown"] = {
+                "passed": cooldown_ok,
+                "hours_remaining": cooldown.decision_ready_in_hours if cooldown else 0,
+                "reason": "" if cooldown_ok else f"冷却期内，剩余 {cooldown.decision_ready_in_hours:.1f} 小时",
+            }
+        except Exception as exc:
+            result["cooldown"] = {"passed": True, "reason": f"cooldown check skipped: {exc}"}
+
+        return result
+
+    def _create_approval_from_unified(
+        self, uni_rec, uni_rec_model, account_id, risk_checks, regime_source, market_price
+    ):
+        """从 UnifiedRecommendation 创建审批请求"""
+        from uuid import uuid4
+        from datetime import datetime, timezone
+        from ..infrastructure.models import ExecutionApprovalRequestModel
+
+        # 计算建议数量
+        entry_mid = (uni_rec.entry_price_low + uni_rec.entry_price_high) / 2
+        if entry_mid > 0:
+            suggested_qty = int(uni_rec.max_capital / entry_mid)
+        else:
+            suggested_qty = 0
+
+        approval_model = ExecutionApprovalRequestModel(
+            request_id=f"apr_{uuid4().hex[:12]}",
+            unified_recommendation=uni_rec_model,
+            account_id=account_id,
+            security_code=uni_rec.security_code,
+            side=uni_rec.side,
+            approval_status=ApprovalStatus.PENDING.value,
+            suggested_quantity=suggested_qty,
+            market_price_at_review=market_price,
+            price_range_low=uni_rec.entry_price_low,
+            price_range_high=uni_rec.entry_price_high,
+            stop_loss_price=uni_rec.stop_loss_price,
+            risk_check_results=risk_checks,
+            reviewer_comments="",
+            regime_source=regime_source,
+            created_at=datetime.now(timezone.utc),
+        )
+        approval_model.save()
+
+        # 更新 UnifiedRecommendation 状态为 REVIEWING
+        uni_rec_model.status = "REVIEWING"
+        uni_rec_model.save(update_fields=["status", "updated_at"])
+
+        return approval_model.to_domain()
 
 
 class ExecutionApproveView(APIView):
@@ -282,12 +444,50 @@ class ExecutionApproveView(APIView):
         if not can_approve:
             return Response({"success": False, "error": reason}, status=status.HTTP_400_BAD_REQUEST)
 
+        # 更新状态（会同步到 UnifiedRecommendation 和 InvestmentRecommendation）
         updated = repo.update_status(
             request_id=request_id,
             approval_status=ApprovalStatus.APPROVED,
             reviewer_comments=reviewer_comments,
         )
+
+        # 发布决策批准事件（触发 Candidate 状态同步）
+        self._publish_decision_approved_event(updated)
+
         return Response({"success": True, "data": updated.to_dict() if updated else {"request_id": request_id}})
+
+    def _publish_decision_approved_event(self, approval_request):
+        """发布决策批准事件，同步 Candidate 状态"""
+        try:
+            from apps.events.domain.entities import create_event, EventType
+            from apps.events.domain.services import get_event_bus
+
+            event_bus = get_event_bus()
+
+            # 获取关联的 candidate_id
+            from ..infrastructure.models import ExecutionApprovalRequestModel
+            model = ExecutionApprovalRequestModel.objects.get(request_id=approval_request.request_id)
+
+            candidate_ids = []
+            if model.unified_recommendation:
+                candidate_ids = model.unified_recommendation.source_candidate_ids or []
+
+            if candidate_ids:
+                event = create_event(
+                    event_type=EventType.DECISION_APPROVED,
+                    payload={
+                        "request_id": approval_request.request_id,
+                        "recommendation_id": approval_request.recommendation_id,
+                        "candidate_ids": candidate_ids,
+                        "security_code": approval_request.security_code,
+                        "side": approval_request.side,
+                        "reviewer_comments": approval_request.reviewer_comments,
+                    },
+                )
+                event_bus.publish(event)
+                logger.info(f"Published DECISION_APPROVED event for request {approval_request.request_id}")
+        except Exception as e:
+            logger.error(f"Failed to publish DECISION_APPROVED event: {e}", exc_info=True)
 
 
 class ExecutionRejectView(APIView):
@@ -312,12 +512,49 @@ class ExecutionRejectView(APIView):
         if not can_transition:
             return Response({"success": False, "error": reason}, status=status.HTTP_400_BAD_REQUEST)
 
+        # 更新状态（会同步到 UnifiedRecommendation 和 InvestmentRecommendation）
         updated = repo.update_status(
             request_id=request_id,
             approval_status=ApprovalStatus.REJECTED,
             reviewer_comments=reviewer_comments,
         )
+
+        # 发布决策拒绝事件
+        self._publish_decision_rejected_event(updated)
+
         return Response({"success": True, "data": updated.to_dict() if updated else {"request_id": request_id}})
+
+    def _publish_decision_rejected_event(self, approval_request):
+        """发布决策拒绝事件"""
+        try:
+            from apps.events.domain.entities import create_event, EventType
+            from apps.events.domain.services import get_event_bus
+
+            event_bus = get_event_bus()
+
+            # 获取关联的 candidate_id
+            from ..infrastructure.models import ExecutionApprovalRequestModel
+            model = ExecutionApprovalRequestModel.objects.get(request_id=approval_request.request_id)
+
+            candidate_ids = []
+            if model.unified_recommendation:
+                candidate_ids = model.unified_recommendation.source_candidate_ids or []
+
+            event = create_event(
+                event_type=EventType.DECISION_REJECTED,
+                payload={
+                    "request_id": approval_request.request_id,
+                    "recommendation_id": approval_request.recommendation_id,
+                    "candidate_ids": candidate_ids,
+                    "security_code": approval_request.security_code,
+                    "side": approval_request.side,
+                    "reviewer_comments": approval_request.reviewer_comments,
+                },
+            )
+            event_bus.publish(event)
+            logger.info(f"Published DECISION_REJECTED event for request {approval_request.request_id}")
+        except Exception as e:
+            logger.error(f"Failed to publish DECISION_REJECTED event: {e}", exc_info=True)
 
 
 class ExecutionRequestDetailView(APIView):
@@ -739,27 +976,35 @@ class UpdateModelParamView(APIView):
             )
 
         try:
-            # 获取或创建配置
-            config, created = DecisionModelParamConfigModel.objects.get_or_create(
+            # 查找当前激活的配置（避免 MultipleObjectsReturned）
+            active_config = DecisionModelParamConfigModel.objects.filter(
                 param_key=param_key,
                 env=env,
-                defaults={
-                    "param_value": str(param_value),
-                    "param_type": param_type,
-                    "is_active": True,
-                },
+                is_active=True,
+            ).order_by("-version").first()
+
+            old_value = ""
+            if active_config:
+                # 记录旧值
+                old_value = active_config.param_value
+                # 失活旧配置
+                active_config.is_active = False
+                active_config.save(update_fields=["is_active"])
+                new_version = active_config.version + 1
+            else:
+                new_version = 1
+
+            # 创建新版本配置
+            new_config = DecisionModelParamConfigModel.objects.create(
+                param_key=param_key,
+                param_value=str(param_value),
+                param_type=param_type,
+                env=env,
+                version=new_version,
+                is_active=True,
+                updated_by=request.user.username if hasattr(request, "user") and request.user.is_authenticated else "api",
+                updated_reason=updated_reason,
             )
-
-            old_value = config.param_value if not created else ""
-
-            if not created:
-                # 更新配置
-                config.param_value = str(param_value)
-                config.param_type = param_type
-                config.version += 1
-                config.updated_by = request.user.username if hasattr(request, "user") and request.user.is_authenticated else "api"
-                config.updated_reason = updated_reason
-                config.save()
 
             # 创建审计日志
             DecisionModelParamAuditLogModel.objects.create(
@@ -778,6 +1023,7 @@ class UpdateModelParamView(APIView):
                     "old_value": old_value,
                     "new_value": str(param_value),
                     "env": env,
+                    "version": new_version,
                 },
             })
 

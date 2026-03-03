@@ -65,21 +65,35 @@ class DecisionApprovedHandler(EventHandler):
         """
         try:
             # 从事件负载中提取数据
+            # 支持两种格式：candidate_id（单个）或 candidate_ids（多个）
             candidate_id = event.get_payload_value("candidate_id")
+            candidate_ids = event.get_payload_value("candidate_ids", [])
             request_id = event.get_payload_value("request_id")
 
-            if not candidate_id or not request_id:
+            if not request_id:
                 logger.debug(
-                    f"Event {event.event_id} missing candidate_id or request_id, skipping"
+                    f"Event {event.event_id} missing request_id, skipping"
                 )
                 return
 
-            # 回写 AlphaCandidate
-            self._update_alpha_candidate(candidate_id, request_id)
+            # 合并 candidate_id 和 candidate_ids
+            all_candidate_ids = set(candidate_ids or [])
+            if candidate_id:
+                all_candidate_ids.add(candidate_id)
+
+            if not all_candidate_ids:
+                logger.debug(
+                    f"Event {event.event_id} has no candidate_ids, skipping"
+                )
+                return
+
+            # 回写所有关联的 AlphaCandidate
+            for cid in all_candidate_ids:
+                self._update_alpha_candidate(cid, request_id)
 
             logger.info(
                 f"Updated AlphaCandidate.last_decision_request_id: "
-                f"candidate={candidate_id}, request={request_id}"
+                f"candidates={all_candidate_ids}, request={request_id}"
             )
 
         except Exception as e:
@@ -111,6 +125,101 @@ class DecisionApprovedHandler(EventHandler):
     def get_handler_id(self) -> str:
         """获取处理器标识符"""
         return "events.DecisionApprovedHandler"
+
+
+class DecisionRejectedHandler(EventHandler):
+    """
+    决策拒绝事件处理器
+
+    处理 DECISION_REJECTED 事件，更新 AlphaCandidate 状态为 REJECTED。
+
+    Attributes:
+        event_bus: 事件总线（可选）
+
+    Example:
+        >>> handler = DecisionRejectedHandler()
+        >>> handler.can_handle(EventType.DECISION_REJECTED)  # True
+    """
+
+    def __init__(self, event_bus=None):
+        """
+        初始化处理器
+
+        Args:
+            event_bus: 事件总线（可选）
+        """
+        self.event_bus = event_bus
+
+    def can_handle(self, event_type: EventType) -> bool:
+        """判断是否能处理该类型的事件"""
+        return event_type == EventType.DECISION_REJECTED
+
+    def handle(self, event: DomainEvent) -> None:
+        """
+        处理决策拒绝事件
+
+        更新 AlphaCandidate 状态为 REJECTED
+
+        Args:
+            event: 领域事件
+        """
+        try:
+            # 从事件负载中提取数据
+            candidate_id = event.get_payload_value("candidate_id")
+            candidate_ids = event.get_payload_value("candidate_ids", [])
+            request_id = event.get_payload_value("request_id")
+
+            if not request_id:
+                logger.debug(f"Event {event.event_id} missing request_id, skipping")
+                return
+
+            # 合并 candidate_id 和 candidate_ids
+            all_candidate_ids = set(candidate_ids or [])
+            if candidate_id:
+                all_candidate_ids.add(candidate_id)
+
+            if not all_candidate_ids:
+                logger.debug(f"Event {event.event_id} has no candidate_ids, skipping")
+                return
+
+            # 更新所有关联的 AlphaCandidate 状态
+            for cid in all_candidate_ids:
+                self._update_alpha_candidate_rejected(cid)
+
+            logger.info(
+                f"Updated AlphaCandidate.status to REJECTED: "
+                f"candidates={all_candidate_ids}, request={request_id}"
+            )
+
+        except Exception as e:
+            logger.error(
+                f"Error handling DECISION_REJECTED event {event.event_id}: {e}",
+                exc_info=True,
+            )
+
+    def _update_alpha_candidate_rejected(self, candidate_id: str) -> None:
+        """
+        更新 AlphaCandidate 状态为 REJECTED
+
+        Args:
+            candidate_id: 候选 ID
+        """
+        from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
+
+        try:
+            candidate = AlphaCandidateModel.objects.get(candidate_id=candidate_id)
+            candidate.status = AlphaCandidateModel.REJECTED
+            candidate.status_changed_at = datetime.now(timezone.utc)
+            candidate.save(
+                update_fields=["status", "status_changed_at", "updated_at"]
+            )
+
+        except ObjectDoesNotExist:
+            logger.warning(f"AlphaCandidate not found: {candidate_id}")
+
+    def get_handler_id(self) -> str:
+        """获取处理器标识符"""
+        return "events.DecisionRejectedHandler"
 
 
 class DecisionExecutedHandler(EventHandler):

@@ -240,6 +240,7 @@ class EventBusInitializer:
                 DecisionApprovedHandler,
                 DecisionExecutedHandler,
                 DecisionExecutionFailedHandler,
+                DecisionRejectedHandler,
             )
             from ..domain.entities import EventSubscription, EventType
             import uuid
@@ -252,6 +253,9 @@ class EventBusInitializer:
                 event_bus=self.event_bus
             )
             decision_execution_failed_handler = DecisionExecutionFailedHandler(
+                event_bus=self.event_bus
+            )
+            decision_rejected_handler = DecisionRejectedHandler(
                 event_bus=self.event_bus
             )
 
@@ -271,16 +275,23 @@ class EventBusInitializer:
                 event_type=EventType.DECISION_EXECUTION_FAILED,
                 handler=decision_execution_failed_handler,
             )
+            rejected_subscription = EventSubscription(
+                subscription_id=f"decision_rejected_{uuid.uuid4().hex[:8]}",
+                event_type=EventType.DECISION_REJECTED,
+                handler=decision_rejected_handler,
+            )
 
             # 注册
             self.event_bus.subscribe(approved_subscription)
             self.event_bus.subscribe(executed_subscription)
             self.event_bus.subscribe(failed_subscription)
+            self.event_bus.subscribe(rejected_subscription)
 
             self.handlers.extend([
                 decision_approved_handler,
                 decision_executed_handler,
                 decision_execution_failed_handler,
+                decision_rejected_handler,
             ])
 
             logger.info("Decision execution handlers registered")
