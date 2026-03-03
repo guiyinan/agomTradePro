@@ -574,3 +574,244 @@ class DjangoAuditRepository:
             for log in queryset
         ]
 
+    # ============ ValidateThresholdsUseCase 所需方法 ============
+
+    def get_active_threshold_configs_by_codes(
+        self,
+        indicator_codes: Optional[List[str]] = None
+    ) -> List[dict]:
+        """
+        获取激活的阈值配置（可选按指标代码过滤）
+
+        Args:
+            indicator_codes: 指标代码列表，None 表示获取全部
+
+        Returns:
+            List[dict]: 阈值配置字典列表
+        """
+        queryset = IndicatorThresholdConfigModel._default_manager.filter(
+            is_active=True
+        )
+
+        if indicator_codes:
+            queryset = queryset.filter(indicator_code__in=indicator_codes)
+
+        return [
+            {
+                'indicator_code': c.indicator_code,
+                'indicator_name': c.indicator_name,
+                'category': c.category,
+                'level_low': float(c.level_low) if c.level_low is not None else None,
+                'level_high': float(c.level_high) if c.level_high is not None else None,
+                'base_weight': float(c.base_weight),
+                'min_weight': float(c.min_weight),
+                'max_weight': float(c.max_weight),
+                'decay_threshold': float(c.decay_threshold),
+                'decay_penalty': float(c.decay_penalty),
+                'improvement_threshold': float(c.improvement_threshold),
+                'improvement_bonus': float(c.improvement_bonus),
+                'action_thresholds': c.action_thresholds or {},
+            }
+            for c in queryset
+        ]
+
+    def count_active_threshold_configs(
+        self,
+        indicator_codes: Optional[List[str]] = None
+    ) -> int:
+        """统计激活的阈值配置数量"""
+        queryset = IndicatorThresholdConfigModel._default_manager.filter(
+            is_active=True
+        )
+        if indicator_codes:
+            queryset = queryset.filter(indicator_code__in=indicator_codes)
+        return queryset.count()
+
+    def create_validation_summary_record(
+        self,
+        validation_run_id: str,
+        evaluation_period_start: date,
+        evaluation_period_end: date,
+        total_indicators: int = 0,
+        status: str = 'in_progress',
+        is_shadow_mode: bool = True,
+        run_date: Optional[date] = None,
+    ) -> dict:
+        """
+        创建验证摘要记录
+
+        Returns:
+            dict: 创建的记录信息
+        """
+        summary = ValidationSummaryModel._default_manager.create(
+            validation_run_id=validation_run_id,
+            run_date=run_date or date.today(),
+            evaluation_period_start=evaluation_period_start,
+            evaluation_period_end=evaluation_period_end,
+            total_indicators=total_indicators,
+            status=status,
+            is_shadow_mode=is_shadow_mode,
+        )
+        return {
+            'id': summary.id,
+            'validation_run_id': summary.validation_run_id,
+            'status': summary.status,
+        }
+
+    def update_validation_summary_status(
+        self,
+        validation_run_id: str,
+        status: str,
+        approved_indicators: int = 0,
+        rejected_indicators: int = 0,
+        pending_indicators: int = 0,
+        avg_f1_score: Optional[float] = None,
+        avg_stability_score: Optional[float] = None,
+        overall_recommendation: str = '',
+        error_message: str = '',
+    ) -> bool:
+        """
+        更新验证摘要状态
+
+        Returns:
+            bool: 是否更新成功
+        """
+        try:
+            summary = ValidationSummaryModel._default_manager.get(
+                validation_run_id=validation_run_id
+            )
+            summary.status = status
+            summary.approved_indicators = approved_indicators
+            summary.rejected_indicators = rejected_indicators
+            summary.pending_indicators = pending_indicators
+            if avg_f1_score is not None:
+                summary.avg_f1_score = avg_f1_score
+            if avg_stability_score is not None:
+                summary.avg_stability_score = avg_stability_score
+            summary.overall_recommendation = overall_recommendation
+            if error_message:
+                summary.error_message = error_message
+            summary.save()
+            return True
+        except ValidationSummaryModel.DoesNotExist:
+            return False
+
+    def get_validation_summary_by_run_id(self, validation_run_id: str) -> Optional[dict]:
+        """
+        根据运行 ID 获取验证摘要
+
+        Returns:
+            Optional[dict]: 验证摘要字典，不存在返回 None
+        """
+        try:
+            summary = ValidationSummaryModel._default_manager.get(
+                validation_run_id=validation_run_id
+            )
+            return {
+                'id': summary.id,
+                'validation_run_id': summary.validation_run_id,
+                'run_date': summary.run_date.isoformat(),
+                'evaluation_period_start': summary.evaluation_period_start.isoformat(),
+                'evaluation_period_end': summary.evaluation_period_end.isoformat(),
+                'total_indicators': summary.total_indicators,
+                'approved_indicators': summary.approved_indicators,
+                'rejected_indicators': summary.rejected_indicators,
+                'pending_indicators': summary.pending_indicators,
+                'avg_f1_score': float(summary.avg_f1_score) if summary.avg_f1_score else None,
+                'avg_stability_score': float(summary.avg_stability_score) if summary.avg_stability_score else None,
+                'overall_recommendation': summary.overall_recommendation,
+                'status': summary.status,
+                'is_shadow_mode': summary.is_shadow_mode,
+                'error_message': summary.error_message,
+            }
+        except ValidationSummaryModel.DoesNotExist:
+            return None
+
+    def get_performance_reports_by_date_range(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> List[dict]:
+        """
+        根据日期范围获取指标性能报告
+
+        Returns:
+            List[dict]: 性能报告字典列表
+        """
+        queryset = IndicatorPerformanceModel._default_manager.filter(
+            evaluation_period_start=start_date,
+            evaluation_period_end=end_date,
+        )
+
+        return [
+            {
+                'id': r.id,
+                'indicator_code': r.indicator_code,
+                'evaluation_period_start': r.evaluation_period_start.isoformat(),
+                'evaluation_period_end': r.evaluation_period_end.isoformat(),
+                'f1_score': float(r.f1_score) if r.f1_score else None,
+                'precision': float(r.precision) if r.precision else None,
+                'recall': float(r.recall) if r.recall else None,
+                'stability_score': float(r.stability_score) if r.stability_score else None,
+                'recommended_action': r.recommended_action,
+                'recommended_weight': float(r.recommended_weight) if r.recommended_weight else None,
+                'confidence_level': float(r.confidence_level) if r.confidence_level else None,
+            }
+            for r in queryset
+        ]
+
+    def update_threshold_config_weight(
+        self,
+        indicator_code: str,
+        new_weight: float,
+    ) -> bool:
+        """
+        更新阈值配置的权重
+
+        Returns:
+            bool: 是否更新成功
+        """
+        try:
+            config = IndicatorThresholdConfigModel._default_manager.get(
+                indicator_code=indicator_code
+            )
+            config.base_weight = new_weight
+            config.save()
+            return True
+        except IndicatorThresholdConfigModel.DoesNotExist:
+            return False
+
+    def get_indicator_performance_by_date_range(
+        self,
+        start_date: date,
+        end_date: date,
+    ) -> List[dict]:
+        """
+        根据日期范围获取指标表现报告
+
+        Returns:
+            List[dict]: 指标表现报告字典列表
+        """
+        queryset = IndicatorPerformanceModel._default_manager.filter(
+            evaluation_period_start=start_date,
+            evaluation_period_end=end_date,
+        )
+
+        return [
+            {
+                'id': r.id,
+                'indicator_code': r.indicator_code,
+                'evaluation_period_start': r.evaluation_period_start.isoformat(),
+                'evaluation_period_end': r.evaluation_period_end.isoformat(),
+                'f1_score': float(r.f1_score) if r.f1_score else None,
+                'precision': float(r.precision) if r.precision else None,
+                'recall': float(r.recall) if r.recall else None,
+                'stability_score': float(r.stability_score) if r.stability_score else None,
+                'recommended_action': r.recommended_action,
+                'recommended_weight': float(r.recommended_weight) if r.recommended_weight else None,
+                'confidence_level': float(r.confidence_level) if r.confidence_level else None,
+                'decay_rate': float(r.decay_rate) if r.decay_rate else None,
+            }
+            for r in queryset
+        ]
+
