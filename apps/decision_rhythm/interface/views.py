@@ -8,6 +8,7 @@ Decision Rhythm DRF Views
 
 import logging
 from typing import Any, Dict, List, Optional
+from decimal import Decimal
 
 from django.shortcuts import render
 from django.utils import timezone
@@ -483,6 +484,78 @@ class SubmitDecisionRequestView(APIView):
                     response.response,
                 )
 
+                # Legacy 接口转调：创建或更新 UnifiedRecommendation
+                recommendation_id = None
+                try:
+                    from ..infrastructure.models import UnifiedRecommendationModel, DecisionFeatureSnapshotModel
+                    from ..domain.entities import RecommendationStatus
+                    from uuid import uuid4
+
+                    # 获取账户 ID（支持多账户场景）
+                    account_id = data.get("account_id") or "default"
+
+                    # 检查是否已存在同账户同证券同方向的推荐
+                    existing_rec = UnifiedRecommendationModel.objects.filter(
+                        account_id=account_id,
+                        security_code=data["asset_code"],
+                        side=data["direction"],
+                    ).exclude(status="CONFLICT").first()
+
+                    if existing_rec:
+                        # 复用现有推荐，关联 legacy request
+                        recommendation_id = existing_rec.recommendation_id
+                        # 修复：即使已有列表为空，也要追加新 candidate_id
+                        if candidate_id:
+                            existing_ids = existing_rec.source_candidate_ids or []
+                            if candidate_id not in existing_ids:
+                                existing_ids = existing_ids + [candidate_id]
+                                existing_rec.source_candidate_ids = existing_ids
+                                existing_rec.save(update_fields=["source_candidate_ids", "updated_at"])
+                    else:
+                        # 创建新的 UnifiedRecommendation（简化版本，不含完整评分）
+                        snapshot = DecisionFeatureSnapshotModel.objects.create(
+                            snapshot_id=f"fsn_legacy_{uuid4().hex[:12]}",
+                            security_code=data["asset_code"],
+                            snapshot_time=timezone.now(),
+                            regime="UNKNOWN",
+                            regime_confidence=0.0,
+                            policy_level="UNKNOWN",
+                            beta_gate_passed=True,  # 默认通过，后续可更新
+                        )
+
+                        new_rec = UnifiedRecommendationModel.objects.create(
+                            recommendation_id=f"urec_legacy_{uuid4().hex[:12]}",
+                            account_id=account_id,
+                            security_code=data["asset_code"],
+                            side=data["direction"],
+                            regime="UNKNOWN",
+                            regime_confidence=0.0,
+                            policy_level="UNKNOWN",
+                            beta_gate_passed=True,
+                            composite_score=0.0,
+                            confidence=data.get("expected_confidence", 0.5),
+                            reason_codes=[data.get("reason", "legacy_submit")] if data.get("reason") else ["legacy_submit"],
+                            human_rationale=f"Legacy submit: {data.get('reason', 'N/A')}",
+                            fair_value=Decimal("0"),
+                            entry_price_low=Decimal("0"),
+                            entry_price_high=Decimal("0"),
+                            target_price_low=Decimal("0"),
+                            target_price_high=Decimal("0"),
+                            stop_loss_price=Decimal("0"),
+                            position_pct=0.0,
+                            suggested_quantity=data.get("quantity") or 0,
+                            max_capital=Decimal(str(data.get("notional") or 0)),
+                            source_signal_ids=[],
+                            source_candidate_ids=[candidate_id] if candidate_id else [],
+                            feature_snapshot=snapshot,
+                            status=RecommendationStatus.NEW.value,
+                        )
+                        recommendation_id = new_rec.recommendation_id
+                        logger.info(f"Created UnifiedRecommendation {recommendation_id} from legacy submit")
+
+                except Exception as e:
+                    logger.warning(f"Failed to create UnifiedRecommendation from legacy submit: {e}")
+
                 # 提交成功后收口候选状态，避免继续停留在 ACTIONABLE
                 if response.response.approved and response.decision_request.candidate_id:
                     try:
@@ -506,6 +579,7 @@ class SubmitDecisionRequestView(APIView):
                 return Response({
                     "success": True,
                     "result": request_serializer.data,
+                    "recommendation_id": recommendation_id,  # 添加 UnifiedRecommendation ID
                 })
             else:
                 return Response(

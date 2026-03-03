@@ -1851,6 +1851,8 @@ class UnifiedRecommendationModel(models.Model):
             models.Index(fields=["account_id", "security_code", "side", "-created_at"], name="idx_urec_acc_sec_side"),
             models.Index(fields=["status", "-composite_score"], name="idx_urec_status_score"),
             models.Index(fields=["beta_gate_passed", "status"], name="idx_urec_gate_status"),
+            # 复合索引：优化按账户+状态过滤 + 综合分排序的查询（M4 新增）
+            models.Index(fields=["account_id", "status", "-composite_score"], name="idx_urec_acc_status_score"),
         ]
 
     def __str__(self):

@@ -29,6 +29,10 @@ AUTOMATION_DEBUG_API_TOKENS = [t.strip() for t in env.list('AUTOMATION_DEBUG_API
 AUTOMATION_DEBUG_API_IP_ALLOWLIST = [ip.strip() for ip in env.list('AUTOMATION_DEBUG_API_IP_ALLOWLIST', default=[]) if ip.strip()]
 AUTOMATION_DEBUG_API_MAX_LIMIT = env.int('AUTOMATION_DEBUG_API_MAX_LIMIT', default=1000)
 
+# Decision Workspace V2 feature flag
+# When disabled, the unified recommendation API returns a fallback response
+DECISION_WORKSPACE_V2_ENABLED = env.bool('DECISION_WORKSPACE_V2_ENABLED', default=True)
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-change-this-in-production')
 

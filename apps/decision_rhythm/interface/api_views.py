@@ -613,6 +613,15 @@ class UnifiedRecommendationsView(APIView):
             page: 页码（默认 1）
             page_size: 每页大小（默认 20）
         """
+        # 灰度开关检查
+        from django.conf import settings
+        if not getattr(settings, 'DECISION_WORKSPACE_V2_ENABLED', True):
+            return Response({
+                "success": False,
+                "error": "Decision Workspace V2 is disabled. Use legacy /api/decision-rhythm/submit/ endpoint.",
+                "feature_flag": "DECISION_WORKSPACE_V2_ENABLED",
+            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
         account_id = request.query_params.get("account_id")
         if not account_id:
             return Response(
@@ -636,8 +645,10 @@ class UnifiedRecommendationsView(APIView):
             )
 
         try:
-            # 查询数据库
-            queryset = UnifiedRecommendationModel.objects.filter(account_id=account_id)
+            # 查询数据库（使用 select_related 预加载 feature_snapshot 避免 N+1 查询）
+            queryset = UnifiedRecommendationModel.objects.filter(
+                account_id=account_id
+            ).select_related('feature_snapshot')
 
             # 排除冲突
             queryset = queryset.exclude(status="CONFLICT")
