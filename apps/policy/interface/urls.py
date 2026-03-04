@@ -51,17 +51,16 @@ urlpatterns = [
     path("rss/logs/", RedirectView.as_view(url='/policy/workbench/', permanent=True), name="rss-logs"),
 
     # 政策事件列表 (API) - legacy format (backward compatibility)
-    path("api/events/", PolicyEventListView.as_view(), name="event-list"),
-    path("api/events/<str:event_date>/", PolicyEventDetailView.as_view(), name="event-detail-api-legacy"),
+    # Note: These API routes are kept for backward compatibility but will be deprecated
+    # New API routes are available at /api/policy/
+    path("events/", PolicyEventListView.as_view(), name="event-list"),
+    path("events/<str:event_date>/", PolicyEventDetailView.as_view(), name="event-detail-api-legacy"),
 
     # ========== 审核相关API ==========
     path("audit/review/<int:policy_log_id>/", ReviewPolicyItemView.as_view(), name="review-policy"),
     path("audit/bulk_review/", BulkReviewView.as_view(), name="bulk-review"),
     path("audit/auto_assign/", AutoAssignAuditsView.as_view(), name="auto-assign"),
 
-    # RSS REST API - new standard format (when mounted under /api/policy/)
-    path("", include(router.urls)),
-
-    # RSS REST API - legacy format (backward compatibility)
-    path("api/", include(router.urls)),
+    # Note: API routes are now handled by api_urls.py mounted at /api/policy/
+    # The router is defined here for reference but not included to avoid duplication
 ]

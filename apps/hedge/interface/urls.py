@@ -57,6 +57,6 @@ urlpatterns = [
     path('monitoring/run/', run_monitoring_view, name='run_monitoring'),
     path('alerts/<int:alert_id>/resolve/', resolve_alert_view, name='resolve_alert'),
 
-    # API routes - legacy format (backward compatibility when mounted under /hedge/)
-    path('api/', include(router.urls)),
+    # Note: API routes are now handled by api_urls.py mounted at /api/hedge/
+    # The router is defined here for reference but not included to avoid duplication
 ]

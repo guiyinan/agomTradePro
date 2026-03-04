@@ -44,6 +44,6 @@ urlpatterns = [
     # Action routes
     path('generate-signal/', rotation_generate_signal_view, name='generate_signal'),
 
-    # API routes - legacy format (backward compatibility when mounted under /rotation/)
-    path('api/', include(router.urls)),
+    # Note: API routes are now handled by api_urls.py mounted at /api/rotation/
+    # The router is defined here for reference but not included to avoid duplication
 ]

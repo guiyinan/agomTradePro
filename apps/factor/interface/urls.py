@@ -58,7 +58,6 @@ urlpatterns = [
     path('calculate/scores/', calculate_scores_view, name='calculate_scores'),
     path('explain/<str:stock_code>/', explain_stock_view, name='explain_stock'),
 
-    # API routes - legacy format (backward compatibility when mounted under /factor/)
-    path('api/', include(router.urls)),
-    path('health/', factor_api_home_redirect, name='health'),
+    # Note: API routes are now handled by api_urls.py mounted at /api/factor/
+    # The router is defined here for reference but not included to avoid duplication
 ]

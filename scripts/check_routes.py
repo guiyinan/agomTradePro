@@ -368,16 +368,8 @@ def find_violations(routes: List[RouteInfo], mount_points: Dict[str, List[str]])
                     violation_type='duplicate_api_route',
                     suggestion=f"模块已有 api_urls.py，API 路由应移至 api_urls.py 以避免重复",
                 ))
-            else:
-                # 模块没有 api_urls.py，记录为建议迁移（不是严格违规）
-                violations.append(RouteViolation(
-                    module=route.module,
-                    url_pattern=url,
-                    file_path=route.file_path,
-                    line_number=route.line_number,
-                    violation_type='api_in_urls_file_suggested',
-                    suggestion=f"建议创建 api_urls.py 并将 API 路由迁移过去",
-                ))
+            # 注意: api_in_urls_file_suggested 不计入违规，仅作为建议
+            # 因为模块可以只使用 urls.py，只要路由挂载到 /api/{module}/ 即可
 
         # 检查 2: 检查完整路由（挂载点 + 路由模式）是否是旧格式
         # 特别关注 /{module}/api/... 这种格式
