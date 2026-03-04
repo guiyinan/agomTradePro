@@ -1,0 +1,305 @@
+{% extends "audit/base.html" %}
+
+{% block title %}操作审计日志 - 管理员{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2><i class="fas fa-shield-alt"></i> 操作审计日志</h2>
+            <p class="text-muted">查看和管理所有 MCP/SDK 操作记录</p>
+        </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="row mb-4" id="stats-cards">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="card-title">总操作数</h6>
+                    <h2 id="total-count">-</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <h6 class="card-title">错误数</h6>
+                    <h2 id="error-count">-</h2>
+                    <small id="error-rate"></small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h6 class="card-title">平均耗时</h6>
+                    <h2 id="avg-duration">-</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Top 模块</h6>
+                    <div id="top-module">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 筛选条件 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-filter"></i> 筛选条件
+        </div>
+        <div class="card-body">
+            <form id="filter-form" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">开始日期</label>
+                    <input type="date" class="form-control" id="start-date" name="start_date">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">结束日期</label>
+                    <input type="date" class="form-control" id="end-date" name="end_date">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">模块</label>
+                    <select class="form-select" id="module" name="module">
+                        <option value="">全部</option>
+                        <option value="signal">信号</option>
+                        <option value="policy">政策</option>
+                        <option value="backtest">回测</option>
+                        <option value="regime">Regime</option>
+                        <option value="alpha">Alpha</option>
+                        <option value="account">账户</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">状态码</label>
+                    <select class="form-select" id="status" name="response_status">
+                        <option value="">全部</option>
+                        <option value="200">200 成功</option>
+                        <option value="400">400 参数错误</option>
+                        <option value="403">403 权限拒绝</option>
+                        <option value="500">500 服务器错误</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">工具名</label>
+                    <input type="text" class="form-control" id="tool-name" name="mcp_tool_name" placeholder="模糊匹配">
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> 查询
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="reset-btn">
+                        <i class="fas fa-undo"></i> 重置
+                    </button>
+                    <button type="button" class="btn btn-success" id="export-btn">
+                        <i class="fas fa-download"></i> 导出 CSV
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 日志列表 -->
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-list"></i> 操作记录
+            <span class="badge bg-secondary" id="total-badge">0 条</span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>用户</th>
+                            <th>工具/操作</th>
+                            <th>模块</th>
+                            <th>动作</th>
+                            <th>状态</th>
+                            <th>耗时</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logs-table">
+                        <tr>
+                            <td colspan="8" class="text-center">加载中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 分页 -->
+            <nav id="pagination">
+                <ul class="pagination justify-content-center">
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<!-- 详情抽屉 -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="detail-drawer">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title">操作详情</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body" id="detail-content">
+        <!-- 动态填充 -->
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // 加载统计数据
+    loadStats();
+
+    // 加载日志列表
+    loadLogs();
+
+    // 筛选表单提交
+    $('#filter-form').on('submit', function(e) {
+        e.preventDefault();
+        loadLogs();
+    });
+
+    // 重置按钮
+    $('#reset-btn').on('click', function() {
+        $('#filter-form')[0].reset();
+        loadLogs();
+    });
+
+    // 导出按钮
+    $('#export-btn').on('click', function() {
+        exportLogs();
+    });
+});
+
+function loadStats() {
+    $.get('/audit/api/operation-logs/stats/', function(data) {
+        $('#total-count').text(data.total_count.toLocaleString());
+        $('#error-count').text(data.error_count.toLocaleString());
+        $('#error-rate').text((data.error_rate * 100).toFixed(2) + '%');
+        $('#avg-duration').text(data.avg_duration_ms ? data.avg_duration_ms + ' ms' : '-');
+
+        if (data.by_module && data.by_module.length > 0) {
+            $('#top-module').text(data.by_module[0].module);
+        }
+    }).fail(function(xhr) {
+        if (xhr.status === 403) {
+            $('#stats-cards').html('<div class="col-12"><div class="alert alert-warning">需要管理员权限查看统计</div></div>');
+        }
+    });
+}
+
+function loadLogs(page = 1) {
+    var params = $('#filter-form').serialize() + '&page=' + page;
+
+    $.get('/audit/api/operation-logs/?' + params, function(data) {
+        if (!data.success) {
+            alert('加载失败: ' + data.error);
+            return;
+        }
+
+        $('#total-badge').text(data.total_count + ' 条');
+
+        var html = '';
+        if (data.logs.length === 0) {
+            html = '<tr><td colspan="8" class="text-center">暂无数据</td></tr>';
+        } else {
+            data.logs.forEach(function(log) {
+                var statusClass = log.response_status >= 400 ? 'danger' : 'success';
+                html += `
+                    <tr>
+                        <td>${formatTime(log.timestamp)}</td>
+                        <td>${log.username || '-'}</td>
+                        <td><code>${log.mcp_tool_name || log.operation_type}</code></td>
+                        <td><span class="badge bg-secondary">${log.module}</span></td>
+                        <td>${log.action}</td>
+                        <td><span class="badge bg-${statusClass}">${log.response_status}</span></td>
+                        <td>${log.duration_ms ? log.duration_ms + ' ms' : '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="showDetail('${log.id}')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+        $('#logs-table').html(html);
+
+        // 更新分页
+        updatePagination(data.page, Math.ceil(data.total_count / data.page_size));
+    });
+}
+
+function updatePagination(currentPage, totalPages) {
+    var html = '';
+
+    if (currentPage > 1) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="loadLogs(${currentPage - 1})">上一页</a></li>`;
+    }
+
+    for (var i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+        var active = i === currentPage ? 'active' : '';
+        html += `<li class="page-item ${active}"><a class="page-link" href="#" onclick="loadLogs(${i})">${i}</a></li>`;
+    }
+
+    if (currentPage < totalPages) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="loadLogs(${currentPage + 1})">下一页</a></li>`;
+    }
+
+    $('#pagination ul').html(html);
+}
+
+function showDetail(logId) {
+    $.get('/audit/api/operation-logs/' + logId + '/', function(data) {
+        if (!data.success) {
+            alert('加载详情失败: ' + data.error);
+            return;
+        }
+
+        var log = data.log;
+        var html = `
+            <table class="table table-sm">
+                <tr><th>请求 ID</th><td>${log.request_id}</td></tr>
+                <tr><th>用户</th><td>${log.username} (ID: ${log.user_id || '-'})</td></tr>
+                <tr><th>IP 地址</th><td>${log.ip_address || '-'}</td></tr>
+                <tr><th>来源</th><td>${log.source}</td></tr>
+                <tr><th>工具名</th><td><code>${log.mcp_tool_name || '-'}</code></td></tr>
+                <tr><th>模块</th><td>${log.module}</td></tr>
+                <tr><th>动作</th><td>${log.action}</td></tr>
+                <tr><th>状态码</th><td>${log.response_status}</td></tr>
+                <tr><th>耗时</th><td>${log.duration_ms ? log.duration_ms + ' ms' : '-'}</td></tr>
+                <tr><th>请求参数</th><td><pre>${JSON.stringify(log.request_params, null, 2)}</pre></td></tr>
+                <tr><th>响应消息</th><td>${log.response_message || '-'}</td></tr>
+                <tr><th>错误代码</th><td>${log.error_code || '-'}</td></tr>
+                <tr><th>User Agent</th><td><small>${log.user_agent || '-'}</small></td></tr>
+            </table>
+        `;
+
+        $('#detail-content').html(html);
+        var drawer = new bootstrap.Offcanvas(document.getElementById('detail-drawer'));
+        drawer.show();
+    });
+}
+
+function exportLogs() {
+    var params = $('#filter-form').serialize();
+    window.location.href = '/audit/api/operation-logs/export/?' + params + '&format=csv';
+}
+
+function formatTime(isoString) {
+    var date = new Date(isoString);
+    return date.toLocaleString('zh-CN');
+}
+</script>
+{% endblock %}

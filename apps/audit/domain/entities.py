@@ -7,7 +7,7 @@ Following four-layer architecture, this file uses ONLY Python standard library.
 
 from dataclasses import dataclass, field
 from datetime import date
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from enum import Enum
 
 
@@ -304,3 +304,274 @@ class RegimeSnapshot:
     growth_momentum_z: float
     inflation_momentum_z: float
     distribution: Dict[str, float]  # 各 Regime 的概率分布
+
+
+# ============ MCP/SDK 操作审计日志实体 ============
+
+class OperationSource(Enum):
+    """操作来源"""
+    MCP = "MCP"
+    SDK = "SDK"
+    API = "API"
+
+
+class OperationType(Enum):
+    """操作类型"""
+    MCP_CALL = "MCP_CALL"
+    API_ACCESS = "API_ACCESS"
+    DATA_MODIFY = "DATA_MODIFY"
+
+
+class OperationAction(Enum):
+    """操作动作"""
+    CREATE = "CREATE"
+    READ = "READ"
+    UPDATE = "UPDATE"
+    DELETE = "DELETE"
+    EXECUTE = "EXECUTE"
+
+
+@dataclass(frozen=True)
+class OperationLog:
+    """MCP/SDK 操作审计日志实体
+
+    记录所有通过 MCP 和 SDK 进行的工具调用，用于审计追踪。
+    遵循四层架构，此文件仅使用 Python 标准库。
+    """
+    # 唯一标识
+    id: str  # UUID
+    request_id: str  # 链路追踪ID
+
+    # 操作者身份
+    user_id: Optional[int]
+    username: str
+    ip_address: Optional[str]
+    user_agent: str
+
+    # 来源与租户
+    source: OperationSource
+    client_id: str
+
+    # 操作描述
+    operation_type: OperationType
+    module: str
+    action: OperationAction
+    resource_type: str
+    resource_id: Optional[str]
+
+    # MCP 特定字段
+    mcp_tool_name: Optional[str]
+    mcp_client_id: str
+    mcp_role: str
+    sdk_version: str
+
+    # 请求详情
+    request_method: str
+    request_path: str
+    request_params: Dict[str, Any]  # 已脱敏
+    response_status: int
+    response_message: str
+    error_code: str
+
+    # 时间与性能
+    timestamp: str  # ISO 8601 格式
+    duration_ms: Optional[int]
+
+    # 完整性
+    checksum: str
+
+    @classmethod
+    def create(
+        cls,
+        request_id: str,
+        user_id: Optional[int],
+        username: str,
+        source: OperationSource,
+        operation_type: OperationType,
+        module: str,
+        action: OperationAction,
+        mcp_tool_name: Optional[str] = None,
+        request_params: Optional[Dict[str, Any]] = None,
+        response_status: int = 200,
+        response_message: str = "",
+        error_code: str = "",
+        duration_ms: Optional[int] = None,
+        ip_address: Optional[str] = None,
+        user_agent: str = "",
+        client_id: str = "",
+        resource_type: str = "",
+        resource_id: Optional[str] = None,
+        mcp_client_id: str = "",
+        mcp_role: str = "",
+        sdk_version: str = "",
+        request_method: str = "MCP",
+        request_path: str = "",
+    ) -> 'OperationLog':
+        """创建操作日志实体"""
+        import uuid
+        from datetime import datetime, timezone
+
+        # 生成 UUID
+        log_id = str(uuid.uuid4())
+
+        # 时间戳
+        timestamp = datetime.now(timezone.utc).isoformat()
+
+        # 脱敏参数
+        masked_params = mask_sensitive_params(request_params or {})
+
+        # 计算校验和
+        checksum = cls._compute_checksum(log_id, request_id, timestamp, masked_params)
+
+        return cls(
+            id=log_id,
+            request_id=request_id,
+            user_id=user_id,
+            username=username or "anonymous",
+            ip_address=ip_address,
+            user_agent=user_agent,
+            source=source,
+            client_id=client_id,
+            operation_type=operation_type,
+            module=module,
+            action=action,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            mcp_tool_name=mcp_tool_name,
+            mcp_client_id=mcp_client_id,
+            mcp_role=mcp_role,
+            sdk_version=sdk_version,
+            request_method=request_method,
+            request_path=request_path,
+            request_params=masked_params,
+            response_status=response_status,
+            response_message=response_message,
+            error_code=error_code,
+            timestamp=timestamp,
+            duration_ms=duration_ms,
+            checksum=checksum,
+        )
+
+    @staticmethod
+    def _compute_checksum(log_id: str, request_id: str, timestamp: str, params: Dict) -> str:
+        """计算校验和"""
+        import hashlib
+        import json
+
+        data = f"{log_id}:{request_id}:{timestamp}:{json.dumps(params, sort_keys=True)}"
+        return hashlib.sha256(data.encode()).hexdigest()
+
+
+# 敏感字段关键词（用于脱敏）
+SENSITIVE_KEYWORDS = frozenset([
+    "password",
+    "token",
+    "secret",
+    "api_key",
+    "apikey",
+    "authorization",
+    "cookie",
+    "session",
+    "credential",
+    "private_key",
+    "access_key",
+    "secret_key",
+])
+
+
+def mask_sensitive_params(params: Any, mask: str = "***") -> Any:
+    """脱敏敏感参数
+
+    递归处理字典和列表，将敏感字段的值替换为掩码。
+
+    Args:
+        params: 原始参数（可以是 dict、list 或其他类型）
+        mask: 掩码字符串
+
+    Returns:
+        脱敏后的参数
+    """
+    if isinstance(params, dict):
+        masked = {}
+        for key, value in params.items():
+            key_lower = key.lower()
+            # 检查是否为敏感字段
+            if any(keyword in key_lower for keyword in SENSITIVE_KEYWORDS):
+                masked[key] = mask
+            else:
+                # 递归处理嵌套结构
+                masked[key] = mask_sensitive_params(value, mask)
+        return masked
+    elif isinstance(params, list):
+        return [mask_sensitive_params(item, mask) for item in params]
+    else:
+        return params
+
+
+def infer_action_from_tool(tool_name: str) -> OperationAction:
+    """从工具名推断操作动作
+
+    Args:
+        tool_name: MCP 工具名
+
+    Returns:
+        推断的操作动作
+    """
+    name_lower = tool_name.lower()
+
+    if name_lower.startswith("create_") or name_lower.startswith("add_"):
+        return OperationAction.CREATE
+    elif name_lower.startswith("update_") or name_lower.startswith("modify_") or name_lower.startswith("edit_"):
+        return OperationAction.UPDATE
+    elif name_lower.startswith("delete_") or name_lower.startswith("remove_"):
+        return OperationAction.DELETE
+    elif name_lower.startswith("execute_") or name_lower.startswith("run_") or name_lower.startswith("submit_"):
+        return OperationAction.EXECUTE
+    else:
+        return OperationAction.READ
+
+
+def infer_module_from_tool(tool_name: str) -> str:
+    """从工具名推断所属模块
+
+    Args:
+        tool_name: MCP 工具名
+
+    Returns:
+        推断的模块名
+    """
+    name_lower = tool_name.lower()
+
+    # 模块关键词映射
+    module_keywords = {
+        "signal": ["signal"],
+        "policy": ["policy"],
+        "backtest": ["backtest"],
+        "regime": ["regime"],
+        "macro": ["macro"],
+        "account": ["account", "portfolio", "position", "transaction"],
+        "equity": ["equity", "stock"],
+        "fund": ["fund"],
+        "sector": ["sector"],
+        "strategy": ["strategy"],
+        "alpha": ["alpha"],
+        "factor": ["factor"],
+        "rotation": ["rotation"],
+        "hedge": ["hedge"],
+        "realtime": ["realtime", "price"],
+        "sentiment": ["sentiment"],
+        "simulated": ["simulated", "trading"],
+        "dashboard": ["dashboard"],
+        "filter": ["filter"],
+        "event": ["event"],
+        "decision": ["decision"],
+        "task": ["task", "monitor"],
+        "ai_provider": ["ai_provider", "provider", "llm"],
+        "prompt": ["prompt"],
+    }
+
+    for module, keywords in module_keywords.items():
+        if any(kw in name_lower for kw in keywords):
+            return module
+
+    return "general"

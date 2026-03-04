@@ -1,0 +1,247 @@
+{% extends "audit/base.html" %}
+
+{% block title %}我的操作记录{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2><i class="fas fa-history"></i> 我的操作记录</h2>
+            <p class="text-muted">查看您的 MCP/SDK 操作历史</p>
+        </div>
+    </div>
+
+    <!-- 筛选条件 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-filter"></i> 筛选条件
+        </div>
+        <div class="card-body">
+            <form id="filter-form" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">开始日期</label>
+                    <input type="date" class="form-control" id="start-date" name="start_date">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">结束日期</label>
+                    <input type="date" class="form-control" id="end-date" name="end_date">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">工具名</label>
+                    <input type="text" class="form-control" id="tool-name" name="mcp_tool_name" placeholder="模糊匹配">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">状态</label>
+                    <select class="form-select" id="status" name="response_status">
+                        <option value="">全部</option>
+                        <option value="200">成功</option>
+                        <option value="400">参数错误</option>
+                        <option value="403">权限拒绝</option>
+                        <option value="500">服务器错误</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> 查询
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="reset-btn">
+                        <i class="fas fa-undo"></i> 重置
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 日志列表 -->
+    <div class="card">
+        <div class="card-header">
+            <i class="fas fa-list"></i> 操作记录
+            <span class="badge bg-secondary" id="total-badge">0 条</span>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>工具</th>
+                            <th>模块</th>
+                            <th>动作</th>
+                            <th>状态</th>
+                            <th>耗时</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logs-table">
+                        <tr>
+                            <td colspan="7" class="text-center">加载中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 分页 -->
+            <nav id="pagination">
+                <ul class="pagination justify-content-center">
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<!-- 详情模态框 -->
+<div class="modal fade" id="detail-modal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">操作详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detail-content">
+                <!-- 动态填充 -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // 设置默认日期范围（最近7天）
+    var today = new Date();
+    var weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    $('#end-date').val(today.toISOString().split('T')[0]);
+    $('#start-date').val(weekAgo.toISOString().split('T')[0]);
+
+    // 加载日志列表
+    loadLogs();
+
+    // 筛选表单提交
+    $('#filter-form').on('submit', function(e) {
+        e.preventDefault();
+        loadLogs();
+    });
+
+    // 重置按钮
+    $('#reset-btn').on('click', function() {
+        $('#filter-form')[0].reset();
+        $('#end-date').val(today.toISOString().split('T')[0]);
+        $('#start-date').val(weekAgo.toISOString().split('T')[0]);
+        loadLogs();
+    });
+});
+
+function loadLogs(page = 1) {
+    var params = $('#filter-form').serialize() + '&page=' + page;
+
+    $.get('/audit/api/operation-logs/?' + params, function(data) {
+        if (!data.success) {
+            $('#logs-table').html('<tr><td colspan="7" class="text-center text-danger">加载失败: ' + (data.error || '未知错误') + '</td></tr>');
+            return;
+        }
+
+        $('#total-badge').text(data.total_count + ' 条');
+
+        var html = '';
+        if (data.logs.length === 0) {
+            html = '<tr><td colspan="7" class="text-center">暂无操作记录</td></tr>';
+        } else {
+            data.logs.forEach(function(log) {
+                var statusClass = log.response_status >= 400 ? 'danger' : 'success';
+                var statusText = log.response_status >= 400 ? '失败' : '成功';
+
+                html += `
+                    <tr>
+                        <td>${formatTime(log.timestamp)}</td>
+                        <td><code>${log.mcp_tool_name || '-'}</code></td>
+                        <td><span class="badge bg-secondary">${log.module}</span></td>
+                        <td>${log.action}</td>
+                        <td><span class="badge bg-${statusClass}">${statusText}</span></td>
+                        <td>${log.duration_ms ? log.duration_ms + ' ms' : '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-info" onclick="showDetail('${log.id}')">
+                                <i class="fas fa-info-circle"></i> 详情
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+        $('#logs-table').html(html);
+
+        // 更新分页
+        updatePagination(data.page, Math.ceil(data.total_count / data.page_size));
+    }).fail(function(xhr) {
+        if (xhr.status === 403) {
+            $('#logs-table').html('<tr><td colspan="7" class="text-center text-warning">请先登录</td></tr>');
+        } else {
+            $('#logs-table').html('<tr><td colspan="7" class="text-center text-danger">加载失败</td></tr>');
+        }
+    });
+}
+
+function updatePagination(currentPage, totalPages) {
+    var html = '';
+
+    if (currentPage > 1) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="loadLogs(${currentPage - 1})">上一页</a></li>`;
+    }
+
+    for (var i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+        var active = i === currentPage ? 'active' : '';
+        html += `<li class="page-item ${active}"><a class="page-link" href="#" onclick="loadLogs(${i})">${i}</a></li>`;
+    }
+
+    if (currentPage < totalPages) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="loadLogs(${currentPage + 1})">下一页</a></li>`;
+    }
+
+    $('#pagination ul').html(html);
+}
+
+function showDetail(logId) {
+    $.get('/audit/api/operation-logs/' + logId + '/', function(data) {
+        if (!data.success) {
+            alert('加载详情失败: ' + (data.error || '未知错误'));
+            return;
+        }
+
+        var log = data.log;
+        var html = `
+            <table class="table table-sm">
+                <tr><th>请求 ID</th><td><code>${log.request_id}</code></td></tr>
+                <tr><th>时间</th><td>${formatTime(log.timestamp)}</td></tr>
+                <tr><th>工具名</th><td><code>${log.mcp_tool_name || '-'}</code></td></tr>
+                <tr><th>模块</th><td>${log.module}</td></tr>
+                <tr><th>动作</th><td>${log.action}</td></tr>
+                <tr><th>状态</th><td><span class="badge ${log.response_status >= 400 ? 'bg-danger' : 'bg-success'}">${log.response_status}</span></td></tr>
+                <tr><th>耗时</th><td>${log.duration_ms ? log.duration_ms + ' ms' : '-'}</td></tr>
+                <tr><th>请求参数</th><td><pre class="bg-light p-2" style="max-height: 200px; overflow: auto;">${JSON.stringify(log.request_params, null, 2)}</pre></td></tr>
+                ${log.response_message ? `<tr><th>响应消息</th><td>${log.response_message}</td></tr>` : ''}
+                ${log.error_code ? `<tr><th>错误代码</th><td><span class="text-danger">${log.error_code}</span></td></tr>` : ''}
+            </table>
+        `;
+
+        $('#detail-content').html(html);
+        var modal = new bootstrap.Modal(document.getElementById('detail-modal'));
+        modal.show();
+    }).fail(function(xhr) {
+        if (xhr.status === 403) {
+            alert('无权查看此记录');
+        } else {
+            alert('加载详情失败');
+        }
+    });
+}
+
+function formatTime(isoString) {
+    var date = new Date(isoString);
+    return date.toLocaleString('zh-CN');
+}
+</script>
+{% endblock %}

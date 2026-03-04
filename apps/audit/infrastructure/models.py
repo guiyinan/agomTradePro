@@ -2,7 +2,9 @@
 ORM Models for Audit.
 """
 
+import uuid
 from django.db import models
+from django.core.serializers.json import DjangoJSONEncoder
 from apps.backtest.infrastructure.models import BacktestResultModel
 
 
@@ -586,3 +588,185 @@ class ConfidenceConfigModel(models.Model):
             daily_consistency_bonus=self.daily_consistency_bonus,
             base_confidence=self.base_confidence,
         )
+
+
+# ============ MCP/SDK 操作审计日志 Models ============
+
+class OperationLogModel(models.Model):
+    """MCP/SDK 操作审计日志
+
+    记录所有通过 MCP 和 SDK 进行的工具调用，用于审计追踪。
+    """
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        verbose_name='日志ID'
+    )
+    request_id = models.CharField(
+        max_length=64,
+        db_index=True,
+        verbose_name='链路追踪ID',
+        help_text='用于关联请求链路'
+    )
+
+    # 操作者身份
+    user_id = models.IntegerField(
+        null=True,
+        db_index=True,
+        verbose_name='用户ID'
+    )
+    username = models.CharField(
+        max_length=150,
+        default='anonymous',
+        verbose_name='用户名'
+    )
+    ip_address = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        verbose_name='IP地址'
+    )
+    user_agent = models.CharField(
+        max_length=500,
+        blank=True,
+        verbose_name='User Agent'
+    )
+
+    # 来源与租户
+    source = models.CharField(
+        max_length=20,
+        default='MCP',
+        db_index=True,
+        verbose_name='来源',
+        help_text='MCP/SDK/API'
+    )
+    client_id = models.CharField(
+        max_length=100,
+        blank=True,
+        db_index=True,
+        verbose_name='客户端ID'
+    )
+
+    # 操作描述
+    operation_type = models.CharField(
+        max_length=50,
+        db_index=True,
+        verbose_name='操作类型',
+        help_text='MCP_CALL/API_ACCESS/DATA_MODIFY'
+    )
+    module = models.CharField(
+        max_length=50,
+        db_index=True,
+        verbose_name='模块',
+        help_text='signal/policy/backtest/...'
+    )
+    action = models.CharField(
+        max_length=50,
+        verbose_name='动作',
+        help_text='CREATE/READ/UPDATE/DELETE/EXECUTE'
+    )
+    resource_type = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name='资源类型'
+    )
+    resource_id = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name='资源ID'
+    )
+
+    # MCP 特定字段
+    mcp_tool_name = models.CharField(
+        max_length=120,
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name='MCP工具名'
+    )
+    mcp_client_id = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='MCP客户端ID'
+    )
+    mcp_role = models.CharField(
+        max_length=30,
+        blank=True,
+        verbose_name='MCP角色'
+    )
+    sdk_version = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name='SDK版本'
+    )
+
+    # 请求详情（params 为脱敏后）
+    request_method = models.CharField(
+        max_length=10,
+        default='MCP',
+        verbose_name='请求方法'
+    )
+    request_path = models.CharField(
+        max_length=500,
+        blank=True,
+        verbose_name='请求路径'
+    )
+    request_params = models.JSONField(
+        default=dict,
+        encoder=DjangoJSONEncoder,
+        verbose_name='请求参数',
+        help_text='已脱敏'
+    )
+    response_status = models.IntegerField(
+        default=200,
+        db_index=True,
+        verbose_name='响应状态码'
+    )
+    response_message = models.TextField(
+        blank=True,
+        verbose_name='响应消息'
+    )
+    error_code = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name='错误代码'
+    )
+
+    # 时间与性能
+    timestamp = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        verbose_name='时间戳'
+    )
+    duration_ms = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name='耗时(ms)'
+    )
+
+    # 完整性校验
+    checksum = models.CharField(
+        max_length=64,
+        blank=True,
+        verbose_name='校验和',
+        help_text='SHA-256'
+    )
+
+    class Meta:
+        db_table = 'audit_operation_log'
+        ordering = ['-timestamp']
+        verbose_name = '操作审计日志'
+        verbose_name_plural = '操作审计日志'
+        indexes = [
+            models.Index(fields=['user_id', '-timestamp'], name='idx_audit_user_ts'),
+            models.Index(fields=['operation_type', 'module'], name='idx_audit_type_module'),
+            models.Index(fields=['mcp_tool_name', '-timestamp'], name='idx_audit_tool_ts'),
+            models.Index(fields=['response_status', '-timestamp'], name='idx_audit_status_ts'),
+            models.Index(fields=['source', '-timestamp'], name='idx_audit_source_ts'),
+        ]
+
+    def __str__(self):
+        return f"{self.timestamp} | {self.username} | {self.mcp_tool_name or self.operation_type} | {self.response_status}"

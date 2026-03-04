@@ -815,3 +815,303 @@ class DjangoAuditRepository:
             for r in queryset
         ]
 
+    # ============ MCP/SDK 操作审计日志相关方法 ============
+
+    def save_operation_log(self, log_entity) -> str:
+        """
+        保存操作日志
+
+        Args:
+            log_entity: OperationLog 域实体
+
+        Returns:
+            str: 日志 ID
+        """
+        from .models import OperationLogModel
+
+        model = OperationLogModel._default_manager.create(
+            id=log_entity.id,
+            request_id=log_entity.request_id,
+            user_id=log_entity.user_id,
+            username=log_entity.username,
+            ip_address=log_entity.ip_address,
+            user_agent=log_entity.user_agent,
+            source=log_entity.source.value,
+            client_id=log_entity.client_id,
+            operation_type=log_entity.operation_type.value,
+            module=log_entity.module,
+            action=log_entity.action.value,
+            resource_type=log_entity.resource_type,
+            resource_id=log_entity.resource_id,
+            mcp_tool_name=log_entity.mcp_tool_name,
+            mcp_client_id=log_entity.mcp_client_id,
+            mcp_role=log_entity.mcp_role,
+            sdk_version=log_entity.sdk_version,
+            request_method=log_entity.request_method,
+            request_path=log_entity.request_path,
+            request_params=log_entity.request_params,
+            response_status=log_entity.response_status,
+            response_message=log_entity.response_message,
+            error_code=log_entity.error_code,
+            duration_ms=log_entity.duration_ms,
+            checksum=log_entity.checksum,
+        )
+        return str(model.id)
+
+    def query_operation_logs(
+        self,
+        user_id: Optional[int] = None,
+        username: Optional[str] = None,
+        operation_type: Optional[str] = None,
+        module: Optional[str] = None,
+        action: Optional[str] = None,
+        mcp_tool_name: Optional[str] = None,
+        mcp_role: Optional[str] = None,
+        response_status: Optional[int] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+        resource_id: Optional[str] = None,
+        source: Optional[str] = None,
+        ordering: str = "-timestamp",
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple:
+        """
+        查询操作日志
+
+        Args:
+            各种过滤条件
+            ordering: 排序字段
+            page: 页码
+            page_size: 每页数量
+
+        Returns:
+            tuple: (logs_list, total_count)
+        """
+        from .models import OperationLogModel
+        from django.db.models import Q
+
+        queryset = OperationLogModel._default_manager.all()
+
+        # 应用过滤条件
+        if user_id is not None:
+            queryset = queryset.filter(user_id=user_id)
+        if username:
+            queryset = queryset.filter(username__icontains=username)
+        if operation_type:
+            queryset = queryset.filter(operation_type=operation_type)
+        if module:
+            queryset = queryset.filter(module=module)
+        if action:
+            queryset = queryset.filter(action=action)
+        if mcp_tool_name:
+            queryset = queryset.filter(mcp_tool_name__icontains=mcp_tool_name)
+        if mcp_role:
+            queryset = queryset.filter(mcp_role=mcp_role)
+        if response_status is not None:
+            queryset = queryset.filter(response_status=response_status)
+        if start_date:
+            queryset = queryset.filter(timestamp__date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(timestamp__date__lte=end_date)
+        if resource_id:
+            queryset = queryset.filter(resource_id=resource_id)
+        if source:
+            queryset = queryset.filter(source=source)
+
+        # 统计总数
+        total_count = queryset.count()
+
+        # 排序
+        queryset = queryset.order_by(ordering)
+
+        # 分页
+        offset = (page - 1) * page_size
+        queryset = queryset[offset:offset + page_size]
+
+        # 序列化
+        logs = [
+            {
+                'id': str(log.id),
+                'request_id': log.request_id,
+                'user_id': log.user_id,
+                'username': log.username,
+                'ip_address': log.ip_address,
+                'user_agent': log.user_agent,
+                'source': log.source,
+                'client_id': log.client_id,
+                'operation_type': log.operation_type,
+                'module': log.module,
+                'action': log.action,
+                'resource_type': log.resource_type,
+                'resource_id': log.resource_id,
+                'mcp_tool_name': log.mcp_tool_name,
+                'mcp_client_id': log.mcp_client_id,
+                'mcp_role': log.mcp_role,
+                'sdk_version': log.sdk_version,
+                'request_method': log.request_method,
+                'request_path': log.request_path,
+                'request_params': log.request_params,
+                'response_status': log.response_status,
+                'response_message': log.response_message,
+                'error_code': log.error_code,
+                'timestamp': log.timestamp.isoformat(),
+                'duration_ms': log.duration_ms,
+                'checksum': log.checksum,
+            }
+            for log in queryset
+        ]
+
+        return logs, total_count
+
+    def get_operation_log_by_id(self, log_id: str) -> Optional[dict]:
+        """
+        根据 ID 获取操作日志
+
+        Args:
+            log_id: 日志 ID
+
+        Returns:
+            Optional[dict]: 日志字典，不存在返回 None
+        """
+        from .models import OperationLogModel
+
+        try:
+            log = OperationLogModel._default_manager.get(id=log_id)
+            return {
+                'id': str(log.id),
+                'request_id': log.request_id,
+                'user_id': log.user_id,
+                'username': log.username,
+                'ip_address': log.ip_address,
+                'user_agent': log.user_agent,
+                'source': log.source,
+                'client_id': log.client_id,
+                'operation_type': log.operation_type,
+                'module': log.module,
+                'action': log.action,
+                'resource_type': log.resource_type,
+                'resource_id': log.resource_id,
+                'mcp_tool_name': log.mcp_tool_name,
+                'mcp_client_id': log.mcp_client_id,
+                'mcp_role': log.mcp_role,
+                'sdk_version': log.sdk_version,
+                'request_method': log.request_method,
+                'request_path': log.request_path,
+                'request_params': log.request_params,
+                'response_status': log.response_status,
+                'response_message': log.response_message,
+                'error_code': log.error_code,
+                'timestamp': log.timestamp.isoformat(),
+                'duration_ms': log.duration_ms,
+                'checksum': log.checksum,
+            }
+        except (OperationLogModel.DoesNotExist, ValueError):
+            return None
+
+    def get_operation_stats(
+        self,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+        group_by: str = "module",
+    ) -> dict:
+        """
+        获取操作统计
+
+        Args:
+            start_date: 起始日期
+            end_date: 结束日期
+            group_by: 分组维度 (module/tool/user/status)
+
+        Returns:
+            dict: 统计结果
+        """
+        from .models import OperationLogModel
+        from django.db.models import Count, Avg, Q
+
+        queryset = OperationLogModel._default_manager.all()
+
+        if start_date:
+            queryset = queryset.filter(timestamp__date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(timestamp__date__lte=end_date)
+
+        # 基础统计
+        total_count = queryset.count()
+        error_count = queryset.filter(response_status__gte=400).count()
+        avg_duration = queryset.aggregate(avg=Avg('duration_ms'))['avg']
+
+        stats = {
+            'total_count': total_count,
+            'error_count': error_count,
+            'error_rate': error_count / total_count if total_count > 0 else 0,
+            'avg_duration_ms': round(avg_duration, 2) if avg_duration else None,
+            'period': {
+                'start_date': start_date.isoformat() if start_date else None,
+                'end_date': end_date.isoformat() if end_date else None,
+            },
+        }
+
+        # 按维度分组统计
+        if group_by == "module":
+            breakdown = (
+                queryset
+                .values('module')
+                .annotate(count=Count('id'))
+                .order_by('-count')[:10]
+            )
+            stats['by_module'] = list(breakdown)
+
+        elif group_by == "tool":
+            breakdown = (
+                queryset
+                .values('mcp_tool_name')
+                .annotate(count=Count('id'))
+                .order_by('-count')[:10]
+            )
+            stats['by_tool'] = list(breakdown)
+
+        elif group_by == "user":
+            breakdown = (
+                queryset
+                .values('user_id', 'username')
+                .annotate(count=Count('id'))
+                .order_by('-count')[:10]
+            )
+            stats['by_user'] = list(breakdown)
+
+        elif group_by == "status":
+            breakdown = (
+                queryset
+                .values('response_status')
+                .annotate(count=Count('id'))
+                .order_by('-count')
+            )
+            stats['by_status'] = list(breakdown)
+
+        return stats
+
+    def cleanup_old_operation_logs(self, days: int = 90, dry_run: bool = False) -> int:
+        """
+        清理旧的操作日志
+
+        Args:
+            days: 保留天数
+            dry_run: 是否只模拟运行
+
+        Returns:
+            int: 删除的记录数
+        """
+        from .models import OperationLogModel
+        from datetime import timedelta
+        from django.utils import timezone
+
+        cutoff_date = timezone.now() - timedelta(days=days)
+        queryset = OperationLogModel._default_manager.filter(timestamp__lt=cutoff_date)
+
+        if dry_run:
+            return queryset.count()
+
+        count, _ = queryset.delete()
+        return count
+

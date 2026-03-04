@@ -38,6 +38,7 @@ from agomsaaf_mcp.rbac import (
     enforce_prompt_access,
     enforce_resource_access,
     wrap_tool_with_rbac,
+    wrap_tool_with_rbac_and_audit,
 )
 
 # 创建 MCP 服务器实例
@@ -89,7 +90,7 @@ def register_all_tools() -> None:
 
 
 def apply_tool_rbac_guards() -> None:
-    """Apply RBAC guards to all registered tools."""
+    """Apply RBAC guards and audit logging to all registered tools."""
     manager = getattr(server, "_tool_manager", None)
     if manager is None:
         return
@@ -98,7 +99,8 @@ def apply_tool_rbac_guards() -> None:
         original = getattr(tool_obj, "fn", None)
         if original is None:
             continue
-        setattr(tool_obj, "fn", wrap_tool_with_rbac(name, original))
+        # 使用带审计的 RBAC 包装器
+        setattr(tool_obj, "fn", wrap_tool_with_rbac_and_audit(name, original))
 
 
 @server.resource(

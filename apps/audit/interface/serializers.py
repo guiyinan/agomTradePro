@@ -56,3 +56,119 @@ class GenerateAttributionReportResponseSerializer(serializers.Serializer):
     success = serializers.BooleanField()
     report_id = serializers.IntegerField(allow_null=True)
     error = serializers.CharField(allow_null=True, required=False)
+
+
+# ============ MCP/SDK 操作审计日志序列化器 ============
+
+class OperationLogSerializer(serializers.Serializer):
+    """操作审计日志序列化器"""
+    id = serializers.CharField()
+    request_id = serializers.CharField()
+    user_id = serializers.IntegerField(allow_null=True)
+    username = serializers.CharField()
+    ip_address = serializers.CharField(allow_null=True)
+    user_agent = serializers.CharField()
+    source = serializers.CharField()
+    client_id = serializers.CharField()
+    operation_type = serializers.CharField()
+    module = serializers.CharField()
+    action = serializers.CharField()
+    resource_type = serializers.CharField()
+    resource_id = serializers.CharField(allow_null=True)
+    mcp_tool_name = serializers.CharField(allow_null=True)
+    mcp_client_id = serializers.CharField()
+    mcp_role = serializers.CharField()
+    sdk_version = serializers.CharField()
+    request_method = serializers.CharField()
+    request_path = serializers.CharField()
+    request_params = serializers.DictField()
+    response_status = serializers.IntegerField()
+    response_message = serializers.CharField()
+    error_code = serializers.CharField()
+    timestamp = serializers.CharField()
+    duration_ms = serializers.IntegerField(allow_null=True)
+    checksum = serializers.CharField()
+
+
+class OperationLogListSerializer(serializers.Serializer):
+    """操作日志列表响应序列化器"""
+    success = serializers.BooleanField()
+    logs = OperationLogSerializer(many=True)
+    total_count = serializers.IntegerField()
+    page = serializers.IntegerField()
+    page_size = serializers.IntegerField()
+
+
+class OperationLogDetailSerializer(serializers.Serializer):
+    """操作日志详情响应序列化器"""
+    success = serializers.BooleanField()
+    log = OperationLogSerializer(allow_null=True)
+    error = serializers.CharField(allow_null=True, required=False)
+
+
+class OperationLogQuerySerializer(serializers.Serializer):
+    """操作日志查询参数序列化器"""
+    user_id = serializers.IntegerField(required=False, allow_null=True)
+    username = serializers.CharField(required=False, allow_blank=True)
+    operation_type = serializers.CharField(required=False, allow_blank=True)
+    module = serializers.CharField(required=False, allow_blank=True)
+    action = serializers.CharField(required=False, allow_blank=True)
+    mcp_tool_name = serializers.CharField(required=False, allow_blank=True)
+    mcp_role = serializers.CharField(required=False, allow_blank=True)
+    response_status = serializers.IntegerField(required=False, allow_null=True)
+    start_date = serializers.DateField(required=False, allow_null=True)
+    end_date = serializers.DateField(required=False, allow_null=True)
+    resource_id = serializers.CharField(required=False, allow_blank=True)
+    source = serializers.CharField(required=False, allow_blank=True)
+    ordering = serializers.CharField(required=False, default='-timestamp')
+    page = serializers.IntegerField(required=False, default=1, min_value=1)
+    page_size = serializers.IntegerField(required=False, default=20, min_value=1, max_value=100)
+
+
+class OperationLogIngestSerializer(serializers.Serializer):
+    """操作日志内部写入序列化器"""
+    request_id = serializers.CharField(required=True)
+    user_id = serializers.IntegerField(required=False, allow_null=True)
+    username = serializers.CharField(required=False, default='anonymous')
+    source = serializers.CharField(required=False, default='MCP')
+    operation_type = serializers.CharField(required=False, default='MCP_CALL')
+    module = serializers.CharField(required=False, default='')
+    action = serializers.CharField(required=False, default='READ')
+    mcp_tool_name = serializers.CharField(required=False, allow_null=True)
+    request_params = serializers.DictField(required=False, default=dict)
+    response_status = serializers.IntegerField(required=False, default=200)
+    response_message = serializers.CharField(required=False, default='')
+    error_code = serializers.CharField(required=False, default='')
+    duration_ms = serializers.IntegerField(required=False, allow_null=True)
+    ip_address = serializers.CharField(required=False, allow_null=True)
+    user_agent = serializers.CharField(required=False, default='')
+    client_id = serializers.CharField(required=False, default='')
+    resource_type = serializers.CharField(required=False, default='')
+    resource_id = serializers.CharField(required=False, allow_null=True)
+    mcp_client_id = serializers.CharField(required=False, default='')
+    mcp_role = serializers.CharField(required=False, default='')
+    sdk_version = serializers.CharField(required=False, default='')
+    request_method = serializers.CharField(required=False, default='MCP')
+    request_path = serializers.CharField(required=False, default='')
+
+
+class OperationStatsSerializer(serializers.Serializer):
+    """操作统计序列化器"""
+    total_count = serializers.IntegerField()
+    error_count = serializers.IntegerField()
+    error_rate = serializers.FloatField()
+    avg_duration_ms = serializers.FloatField(allow_null=True)
+    period = serializers.DictField()
+    by_module = serializers.ListField(required=False)
+    by_tool = serializers.ListField(required=False)
+    by_user = serializers.ListField(required=False)
+    by_status = serializers.ListField(required=False)
+
+
+class ExportOperationLogsSerializer(serializers.Serializer):
+    """导出操作日志响应序列化器"""
+    success = serializers.BooleanField()
+    data = serializers.CharField(allow_null=True, required=False)
+    filename = serializers.CharField(allow_null=True, required=False)
+    row_count = serializers.IntegerField()
+    error = serializers.CharField(allow_null=True, required=False)

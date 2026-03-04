@@ -33,6 +33,14 @@ urlpatterns = [
     path('api/threshold-validation-data/<int:summary_id>/', views.ThresholdValidationDataView.as_view(), name='threshold-validation-data'),
     path('api/run-validation/', views.RunValidationView.as_view(), name='run-validation'),
 
+    # API routes - Operation Logs (MCP/SDK 审计日志)
+    # 注意：具体路径必须在参数化路径之前，否则会被吞掉
+    path('api/operation-logs/', views.OperationLogListView.as_view(), name='operation-log-list'),
+    path('api/operation-logs/export/', views.OperationLogExportView.as_view(), name='operation-log-export'),
+    path('api/operation-logs/stats/', views.OperationLogStatsView.as_view(), name='operation-log-stats'),
+    path('api/operation-logs/<str:log_id>/', views.OperationLogDetailView.as_view(), name='operation-log-detail'),
+    path('api/internal/operation-logs/', views.OperationLogIngestView.as_view(), name='operation-log-ingest'),
+
     # HTML page routes
     path('page/', views.AuditPageView.as_view(), name='audit-page'),
     path('reports/', views.AuditPageView.as_view(), name='reports'),
@@ -40,4 +48,8 @@ urlpatterns = [
     path('indicator-performance/', views.IndicatorPerformancePageView.as_view(), name='indicator_performance'),
     path('threshold-validation/', views.ThresholdValidationPageView.as_view(), name='threshold_validation'),
     path('review/', views.AuditPageView.as_view(), name='review'),
+
+    # HTML page routes - Operation Logs
+    path('operation-logs/', views.OperationLogsAdminPageView.as_view(), name='operation_logs_admin'),
+    path('my-logs/', views.MyOperationLogsPageView.as_view(), name='my_operation_logs'),
 ]
