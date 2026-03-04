@@ -74,5 +74,35 @@
 
 ---
 
+### 7. 过程性文档批量归档 (process/)
+
+归档时间：2026-03-04
+
+#### process/plans
+
+- test-improvement-plan-from-report-2026-02-26.md
+- system-code-doc-alignment-implementation-plan-2026-02-06.md
+- sdk_mcp_coverage_matrix_20260226.md
+- sdk-mcp-2026-02-26plan.md
+- post-v34-followup-roadmap-2026-02-26.md
+- a0049fd-acceptance-issues-2026-02-27.md
+- home-workflow-outsourcing-spec-2026-03-01.md
+- decision-workspace-topdown-bottomup-outsourcing-spec-2026-03-02.md
+- outsourcing-valuation-pricing-execution-plan-2026-03-02.md
+- outsourcing-p0p1-stability-hardening-plan-2026-03-04.md
+
+#### process/testing
+
+- TEST_REPORT_2026-02-26.md
+- outsourcing-full-regression-plan-2026-02-26.md
+- outsourcing-acceptance-plan-post-v34-2026-02-26.md
+
+#### process/frontend
+
+- ux-user-journey-checklist-2026-02-18.md
+- ui-ux-full-page-audit-2026-02-18.md
+
+---
+
 **归档维护**: AgomSAAF Team
-**最后更新**: 2026-02-26
+**最后更新**: 2026-03-04

@@ -2,7 +2,7 @@
 
 ## 1. 背景
 
-- 来源文档：`docs/frontend/ui-ux-full-page-audit-2026-02-18.md`
+- 来源文档：`docs/archive/process/frontend/ui-ux-full-page-audit-2026-02-18.md`
 - 现状结论：
   - 全站功能覆盖完整，但跨模块体验一致性不足；
   - 路由命名与入口语义存在混淆；
@@ -128,7 +128,7 @@
   - 核心 4 页一致性改造按时完成率 >= 95%。
   - 主导航 404 数量 = 0。
 - 体验指标：
-  - 关键旅程走查通过率 >= 90%（按 `docs/frontend/ux-user-journey-checklist-2026-02-18.md`）。
+  - 关键旅程走查通过率 >= 90%（按 `docs/archive/process/frontend/ux-user-journey-checklist-2026-02-18.md`）。
   - 高优先级 UX 缺陷（P0/P1）发布时剩余 <= 2 个。
 - 维护指标：
   - 新增页面内联样式行数环比下降 >= 60%。

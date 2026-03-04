@@ -17,7 +17,7 @@
 | 外包团队 | [development/outsourcing-work-guidelines.md](development/outsourcing-work-guidelines.md) | **外包工作指南、代码规范、自查清单** |
 | 产品/业务 | [business/AgomSAAF_V3.4.md](business/AgomSAAF_V3.4.md) | 业务逻辑、金融规则、数据源 |
 | 最终用户 | [user/topdown-bottomup-execution-playbook.md](user/topdown-bottomup-execution-playbook.md) | 环境-标的-执行-审计一体化操作手册 |
-| 产品/设计 | [frontend/ui-ux-full-page-audit-2026-02-18.md](frontend/ui-ux-full-page-audit-2026-02-18.md) | 全站页面 UI/UX 与功能清单 |
+| 产品/设计 | [archive/process/frontend/ui-ux-full-page-audit-2026-02-18.md](archive/process/frontend/ui-ux-full-page-audit-2026-02-18.md) | 全站页面 UI/UX 与功能清单（归档） |
 | 运维人员 | [deployment/DOCKER_DEPLOYMENT.md](deployment/DOCKER_DEPLOYMENT.md) | 部署指南 |
 
 ---
@@ -71,25 +71,25 @@
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [implementation-progress-summary.md](plans/implementation-progress-summary.md) | **总体进度总结（Phase 1-5 完成）** | 最新 |
-| [post-v34-followup-roadmap-2026-02-26.md](plans/post-v34-followup-roadmap-2026-02-26.md) | V3.4 后续开发与完善路线图（12周） | ✅ 最新 |
+| [post-v34-followup-roadmap-2026-02-26.md](archive/process/plans/post-v34-followup-roadmap-2026-02-26.md) | V3.4 后续开发与完善路线图（12周）（归档） | ✅ 已归档 |
 | [agomsaaf-qlib-integration-plan-v1.1.md](plans/agomsaaf-qlib-integration-plan-v1.1.md) | Qlib 集成方案 v1.1 | 完整 |
 | [factor-rotation-hedge-implementation-plan.md](plans/factor-rotation-hedge-implementation-plan.md) | 因子轮动对冲实施计划 | 完整 |
 | [sdk-mcp-implementation.md](plans/sdk-mcp-implementation.md) | SDK & MCP 实施方案 | 完整 |
-| [sdk_mcp_coverage_matrix_20260226.md](plans/sdk_mcp_coverage_matrix_20260226.md) | SDK/MCP 覆盖矩阵（按模块） | ✅ 2026-02-26 更新 |
+| [sdk_mcp_coverage_matrix_20260226.md](archive/process/plans/sdk_mcp_coverage_matrix_20260226.md) | SDK/MCP 覆盖矩阵（按模块）（归档） | ✅ 已归档 |
 | [decision-making-improvement.md](plans/decision-making-improvement.md) | 决策流程改进方案 | 完整 |
-| [outsourcing-valuation-pricing-execution-plan-2026-03-02.md](plans/outsourcing-valuation-pricing-execution-plan-2026-03-02.md) | 外包落实计划：估值定价引擎与执行审批闭环 | ✅ 2026-03-02 新增 |
-| [decision-workspace-topdown-bottomup-outsourcing-spec-2026-03-02.md](plans/decision-workspace-topdown-bottomup-outsourcing-spec-2026-03-02.md) | 外包实施规格：Top-down + Bottom-up 决策融合一体化需求/计划/验收 | ✅ 2026-03-02 新增 |
+| [outsourcing-valuation-pricing-execution-plan-2026-03-02.md](archive/process/plans/outsourcing-valuation-pricing-execution-plan-2026-03-02.md) | 外包落实计划：估值定价引擎与执行审批闭环（归档） | ✅ 已归档 |
+| [decision-workspace-topdown-bottomup-outsourcing-spec-2026-03-02.md](archive/process/plans/decision-workspace-topdown-bottomup-outsourcing-spec-2026-03-02.md) | 外包实施规格：Top-down + Bottom-up 决策融合一体化需求/计划/验收（归档） | ✅ 已归档 |
 | [streamlit-dashboard-upgrade-plan.md](plans/streamlit-dashboard-upgrade-plan.md) | Streamlit 仪表盘交互升级实施方案 | 最新 |
 | [admin-to-modern-interaction-migration-plan.md](plans/admin-to-modern-interaction-migration-plan.md) | Admin 依赖迁移实施方案 | 最新 |
-| [system-code-doc-alignment-implementation-plan-2026-02-06.md](plans/system-code-doc-alignment-implementation-plan-2026-02-06.md) | 代码巡检与文档对齐实施方案 | 最新 |
+| [system-code-doc-alignment-implementation-plan-2026-02-06.md](archive/process/plans/system-code-doc-alignment-implementation-plan-2026-02-06.md) | 代码巡检与文档对齐实施方案（归档） | ✅ 已归档 |
 
 ### 5. 测试文档 (`testing/`)
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [master-test-strategy-2026-02.md](testing/master-test-strategy-2026-02.md) | **全面测试策略（L0-L7 层级、门禁定义）** | ✅ 2026-02-24 更新 |
-| [outsourcing-full-regression-plan-2026-02-26.md](testing/outsourcing-full-regression-plan-2026-02-26.md) | 外包全量回归执行方案（双环境+分层门禁+证据包） | ✅ 2026-02-26 新增 |
-| [outsourcing-acceptance-plan-post-v34-2026-02-26.md](testing/outsourcing-acceptance-plan-post-v34-2026-02-26.md) | 外包开发验收方案（V3.4 后续路线图） | ✅ 最新 |
+| [outsourcing-full-regression-plan-2026-02-26.md](archive/process/testing/outsourcing-full-regression-plan-2026-02-26.md) | 外包全量回归执行方案（双环境+分层门禁+证据包）（归档） | ✅ 已归档 |
+| [outsourcing-acceptance-plan-post-v34-2026-02-26.md](archive/process/testing/outsourcing-acceptance-plan-post-v34-2026-02-26.md) | 外包开发验收方案（V3.4 后续路线图）（归档） | ✅ 已归档 |
 | [requirements-traceability-matrix-2026-02.md](testing/requirements-traceability-matrix-2026-02.md) | **需求-测试追踪矩阵（RTM）** | ✅ 2026-02-26 更新 |
 | [sdk-mcp-integration-test-plan.md](testing/sdk-mcp-integration-test-plan.md) | SDK & MCP 集成测试计划（1000行） | 完整 |
 | [full-integration-test-report.md](testing/full-integration-test-report.md) | 完整集成测试报告 | 完整 |
@@ -138,8 +138,8 @@
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [ui-ux-full-page-audit-2026-02-18.md](frontend/ui-ux-full-page-audit-2026-02-18.md) | 全站页面 UI/UX 盘点与功能清单 | ✅ 最新 |
-| [ux-user-journey-checklist-2026-02-18.md](frontend/ux-user-journey-checklist-2026-02-18.md) | 用户旅程式 UX 检查清单 | ✅ 最新 |
+| [ui-ux-full-page-audit-2026-02-18.md](archive/process/frontend/ui-ux-full-page-audit-2026-02-18.md) | 全站页面 UI/UX 盘点与功能清单（归档） | ✅ 已归档 |
+| [ux-user-journey-checklist-2026-02-18.md](archive/process/frontend/ux-user-journey-checklist-2026-02-18.md) | 用户旅程式 UX 检查清单（归档） | ✅ 已归档 |
 
 ### 10. 模块文档 (`modules/`)
 

@@ -52,7 +52,7 @@
 
 ### 3.1 用户旅程测试
 
-基于 `docs/frontend/ux-user-journey-checklist-2026-02-18.md`
+基于 `docs/archive/process/frontend/ux-user-journey-checklist-2026-02-18.md`
 
 #### 旅程 A：新用户入门
 
@@ -259,7 +259,7 @@ python tests/uat/run_uat.py --generate-report
 ### 7.1 相关文档
 
 - PRD: `docs/plans/ui-ux-improvement-prd-2026-02-18.md`
-- UX 检查清单: `docs/frontend/ux-user-journey-checklist-2026-02-18.md`
+- UX 检查清单: `docs/archive/process/frontend/ux-user-journey-checklist-2026-02-18.md`
 - 测试代码: `tests/playwright/tests/uat/`
 
 ### 7.2 测试脚本

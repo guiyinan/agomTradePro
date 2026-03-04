@@ -80,7 +80,7 @@ path('__internal/legacy/', RedirectView.as_view(url='/dashboard/', permanent=Fal
 
 1. **docs/development/quick-reference.md** - 已更新为内部路径
 2. **docs/architecture/routing_naming_convention.md** - 作为规范示例（说明不应包含legacy）
-3. **docs/frontend/ui-ux-full-page-audit-2026-02-18.md** - 审计历史记录
+3. **docs/archive/process/frontend/ui-ux-full-page-audit-2026-02-18.md** - 审计历史记录
 4. **docs/frontend/epic-a-refactor-checklist-2026-02-18.md** - 改造清单历史
 5. **docs/fixes/api-routing-governance-plan-2026-02-18.md** - 治理计划文档
 6. **docs/plans/streamlit-dashboard-upgrade-plan.md** - 历史升级计划

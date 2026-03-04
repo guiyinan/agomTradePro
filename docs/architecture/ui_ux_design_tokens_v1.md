@@ -717,8 +717,8 @@ const chartColors = {
 
 - [前端设计指南](frontend_design_guide.md)
 - [Epic A 改造清单](../frontend/epic-a-refactor-checklist-2026-02-18.md)
-- [UI/UX 审计报告](../frontend/ui-ux-full-page-audit-2026-02-18.md)
-- [用户旅程清单](../frontend/ux-user-journey-checklist-2026-02-18.md)
+- [UI/UX 审计报告](../archive/process/frontend/ui-ux-full-page-audit-2026-02-18.md)
+- [用户旅程清单](../archive/process/frontend/ux-user-journey-checklist-2026-02-18.md)
 
 ---
 
