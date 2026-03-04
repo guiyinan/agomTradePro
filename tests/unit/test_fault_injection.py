@@ -27,7 +27,6 @@ from apps.events.application.decision_execution_handlers import (
 )
 from apps.events.application.event_retry import (
     EventRetryManager,
-    FailedEventModel,
     get_event_retry_manager,
 )
 

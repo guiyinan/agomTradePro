@@ -19,10 +19,8 @@
 
 ### 测试收集
 
-- **总测试数**: 2374（排除2个问题文件后）
-- **排除文件**:
-  - `tests/integration/policy/test_workbench_api.py`（模块名冲突）
-  - `tests/unit/test_fault_injection.py`（导入错误）
+- **当前收集数**: 2252（`tests/unit + tests/integration + tests/api`）
+- **说明**:
   - `tests/playwright/`（E2E测试，需单独运行）
 
 ### 测试分类
@@ -43,8 +41,8 @@
 
 | 项目 | 命令 | 结果 |
 |------|------|------|
-| 全量收集 | `pytest --collect-only -q tests/unit tests/integration tests/api` | 收集 `2220` 项，收集错误 `2` 项 |
-| 审计链路抽样 smoke | `pytest tests/unit/test_audit_domain.py tests/unit/test_audit_permissions.py tests/integration/test_audit_api.py tests/integration/test_audit_internal_ingest.py -q --no-cov` | `41` 项中 `39` 通过，`2` 失败（SQLite 锁库） |
+| 全量收集 | `pytest --collect-only -q tests/unit tests/integration tests/api` | 收集 `2252` 项，收集错误 `0` |
+| 审计链路抽样 smoke | `pytest tests/unit/test_audit_domain.py tests/unit/test_audit_permissions.py tests/integration/test_audit_api.py tests/integration/test_audit_internal_ingest.py -q --no-cov` | `41` 项中 `41` 通过 |
 
 ### 总体统计
 
@@ -88,22 +86,11 @@
 
 ## 已知问题
 
-### 1. 模块名冲突
-- **文件**: `tests/integration/policy/test_workbench_api.py`
-- **原因**: 与 `tests/api/test_workbench_api.py` 模块名相同
-- **建议**: 重命名其中一个文件
-
-### 2. 导入错误
-- **文件**: `tests/unit/test_fault_injection.py`
-- **错误**: `ImportError: cannot import name 'FailedEventModel'`
-- **原因**: 模块重构后导入路径变更
-- **建议**: 更新导入路径或删除过时测试
-
-### 3. SQLite 锁库（抽样 smoke）
-- **文件**: `tests/unit/test_audit_permissions.py`（2个用例）
-- **错误**: `sqlite3.OperationalError: database is locked`
-- **原因**: 本地 SQLite 出现锁竞争
-- **建议**: 使用隔离测试库后复跑（独立 sqlite 文件或 PostgreSQL 容器）
+### 1. 历史阻断项（已修复）
+- `tests/integration/policy/test_workbench_api.py` 与 `tests/api/test_workbench_api.py` 同名冲突：
+  - 已通过重命名为 `tests/integration/policy/test_policy_workbench_api.py` 修复。
+- `tests/unit/test_fault_injection.py` 导入 `FailedEventModel` 失败：
+  - 已移除失效导入，文件可正常收集并执行（`9 passed, 4 skipped`）。
 
 ---
 
@@ -134,12 +121,10 @@
 
 ## 建议改进
 
-1. **修复导入错误**: 更新 test_fault_injection.py 的导入路径
-2. **解决模块冲突**: 重命名重复的测试文件
-3. **补充E2E测试**: 增加 Playwright 关键旅程测试
-4. **CI集成**: 将测试纳入 PR Gate
+1. **补充E2E测试**: 增加 Playwright 关键旅程测试
+2. **CI集成**: 将测试纳入 PR Gate
 
 ---
 
-*报告状态: 已补充可复现执行记录，待锁库问题修复后收口*
+*报告状态: 收集阻断已清零，抽样 smoke 通过，可进入下一里程碑*
 *最后更新: 2026-03-04*

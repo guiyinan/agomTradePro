@@ -1,7 +1,7 @@
 # M0 基线冻结与风险收口 - 阶段报告
 
 > 日期：2026-03-04
-> 状态：🔄 阶段完成（smoke 基线已执行，仍有环境锁库问题待收口）
+> 状态：✅ 完成（收集阻断已清零，smoke 抽样通过）
 
 ---
 
@@ -20,7 +20,7 @@
 |------|------|------|
 | `api-routes-inventory.md` | API路由清单（含新旧路由并存现状） | ✅ 完成 |
 | `security-scan-report.md` | 安全扫描与依赖扫描快照 | ✅ 完成 |
-| `smoke-test-report.md` | 核心用例smoke测试结果 | 🔄 已执行（待锁库问题修复后复跑） |
+| `smoke-test-report.md` | 核心用例smoke测试结果 | ✅ 已执行并复核通过 |
 
 ### 2.2 任务看板
 
@@ -130,7 +130,7 @@
 | 有完整任务分解和负责人 | ✅ | task-board.md |
 | 有可复现基线报告 | ✅ | api-routes-inventory.md, security-scan-report.md |
 | 风险列表（前10项）和应对策略已确认 | ✅ | risk-register.md |
-| Smoke测试基线 | 🔄 | smoke-test-report.md（已执行并产出失败项） |
+| Smoke测试基线 | ✅ | smoke-test-report.md（已执行并复核通过） |
 
 ---
 
