@@ -145,9 +145,9 @@ module_patterns = [
     path('api/ai/', include(('apps.ai_provider.interface.urls', 'api_ai_provider'), namespace='api_ai_provider')),
     path('api/prompt/', include(('apps.prompt.interface.urls', 'api_prompt'), namespace='api_prompt')),
     path('api/realtime/', include(('apps.realtime.interface.urls', 'api_realtime'), namespace='api_realtime')),
-    path('api/factor/', include(('apps.factor.interface.urls', 'api_factor'), namespace='api_factor')),
-    path('api/rotation/', include(('apps.rotation.interface.urls', 'api_rotation'), namespace='api_rotation')),
-    path('api/hedge/', include(('apps.hedge.interface.urls', 'api_hedge'), namespace='api_hedge')),
+    path('api/factor/', include(('apps.factor.interface.api_urls', 'api_factor'), namespace='api_factor')),
+    path('api/rotation/', include(('apps.rotation.interface.api_urls', 'api_rotation'), namespace='api_rotation')),
+    path('api/hedge/', include(('apps.hedge.interface.api_urls', 'api_hedge'), namespace='api_hedge')),
     # Sentiment API routes (separate from page routes to avoid conflicts)
     path('api/sentiment/', include(('apps.sentiment.interface.api_urls', 'api_sentiment'), namespace='api_sentiment')),
     # Task Monitor

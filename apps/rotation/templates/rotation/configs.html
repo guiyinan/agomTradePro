@@ -1,0 +1,454 @@
+{% extends "rotation/base.html" %}
+
+{% block rotation_content %}
+<div class="rotation-header">
+    <h1>策略配置</h1>
+    <div class="header-meta">
+        <span class="meta-item">📅 {{ current_date|date:"Y-m-d" }}</span>
+        <button class="btn-primary" onclick="showCreateConfigModal()">+ 新建配置</button>
+    </div>
+</div>
+
+<!-- Configs List -->
+<div class="configs-container">
+    {% for config in configs %}
+    <div class="config-card {% if not config.is_active %}inactive{% endif %}">
+        <div class="config-header">
+            <div class="config-title">
+                <span class="config-name">{{ config.name }}</span>
+                <span class="config-badge strategy-{{ config.strategy_type }}">
+                    {% for value, label in strategy_types %}
+                        {% if value == config.strategy_type %}{{ label }}{% endif %}
+                    {% endfor %}
+                </span>
+                {% if config.is_active %}
+                <span class="status-badge active">启用</span>
+                {% else %}
+                <span class="status-badge inactive">未启用</span>
+                {% endif %}
+            </div>
+
+            <div class="config-actions">
+                {% if config.is_active %}
+                <button class="action-btn deactivate" onclick="toggleConfig({{ config.id }}, false)" title="停用">⏸</button>
+                {% else %}
+                <button class="action-btn activate" onclick="toggleConfig({{ config.id }}, true)" title="启用">▶</button>
+                {% endif %}
+                <button class="action-btn generate" onclick="generateSignal({{ config.id }}, '{{ config.name }}')" title="生成信号">🔄</button>
+                <button class="action-btn edit" onclick="editConfig({{ config.id }})" title="编辑">✏️</button>
+            </div>
+        </div>
+
+        {% if config.description %}
+        <div class="config-description">{{ config.description }}</div>
+        {% endif %}
+
+        <div class="config-details">
+            <div class="detail-row">
+                <span class="detail-label">资产池:</span>
+                <span class="detail-value">
+                    {% if config.asset_universe %}
+                        {{ config.asset_universe|join:", " }}
+                    {% else %}
+                        <em>未配置</em>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">调仓频率:</span>
+                <span class="detail-value">{{ config.rebalance_frequency }}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">权重范围:</span>
+                <span class="detail-value">{{ config.min_weight }} - {{ config.max_weight }}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">最大换手率:</span>
+                <span class="detail-value">{{ config.max_turnover }}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">回溯周期:</span>
+                <span class="detail-value">{{ config.lookback_period }} 天</span>
+            </div>
+            {% if config.top_n %}
+            <div class="detail-row">
+                <span class="detail-label">选资产数:</span>
+                <span class="detail-value">{{ config.top_n }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if config.latest_signal %}
+            {% with signal=config.latest_signal %}
+            <div class="config-signal">
+                <div class="signal-header">
+                    <span>最新信号</span>
+                    <span class="signal-date">{{ signal.signal_date }}</span>
+                </div>
+                <div class="signal-body">
+                    <div class="signal-regime">
+                        <span class="regime-label">当前象限:</span>
+                        <span class="regime-value regime-{{ signal.current_regime }}">{{ signal.current_regime }}</span>
+                    </div>
+                    <div class="signal-action">
+                        <span class="action-label">操作建议:</span>
+                        <span class="action-value action-{{ signal.action_required }}">{{ signal.action_required }}</span>
+                    </div>
+                    {% if signal.target_allocation %}
+                    <div class="signal-allocation">
+                        <span class="allocation-label">目标配置:</span>
+                        <div class="allocation-bars">
+                            {% for asset, weight in signal.target_allocation.items %}
+                            <div class="allocation-item">
+                                <span class="asset-name">{{ asset }}</span>
+                                <div class="weight-bar">
+                                    <div class="weight-fill" style="width: {% widthratio weight 1 100 %}%"></div>
+                                </div>
+                                <span class="weight-value">{% widthratio weight 1 100 %}%</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endwith %}
+        {% else %}
+        <div class="config-no-signal">
+            <span>暂无信号数据</span>
+            <button class="btn-small" onclick="generateSignal({{ config.id }}, '{{ config.name }}')">生成信号</button>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+{% if not configs %}
+<div class="empty-state">
+    <div class="empty-icon">⚙️</div>
+    <p>暂无策略配置</p>
+    <button class="btn-primary" onclick="showCreateConfigModal()">+ 创建第一个配置</button>
+</div>
+{% endif %}
+
+<!-- Create/Edit Config Modal -->
+<div id="configModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">新建策略配置</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="configForm" class="modal-body">
+            <input type="hidden" name="config_id" id="configId">
+
+            <div class="form-group">
+                <label>配置名称 *</label>
+                <input type="text" name="name" id="configName" class="form-input" required>
+            </div>
+
+            <div class="form-group">
+                <label>策略类型 *</label>
+                <select name="strategy_type" id="strategyType" class="form-select" required>
+                    {% for value, label in strategy_types %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>描述</label>
+                <textarea name="description" id="configDescription" class="form-textarea" rows="3"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>资产池 (逗号分隔)</label>
+                <input type="text" name="asset_universe" id="assetUniverse" class="form-input" placeholder="000001.SH, 000300.SH, ...">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>调仓频率</label>
+                    <select name="rebalance_frequency" id="rebalanceFreq" class="form-select">
+                        {% for freq in frequencies %}
+                        <option value="{{ freq }}"{% if freq == 'monthly' %} selected{% endif %}>{{ freq }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>选资产数</label>
+                    <input type="number" name="top_n" id="topN" class="form-input" value="3" min="1" max="10">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>最小权重</label>
+                    <input type="number" name="min_weight" id="minWeight" class="form-input" value="0" step="0.01" min="0" max="1">
+                </div>
+                <div class="form-group">
+                    <label>最大权重</label>
+                    <input type="number" name="max_weight" id="maxWeight" class="form-input" value="1" step="0.01" min="0" max="1">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>最大换手率</label>
+                    <input type="number" name="max_turnover" id="maxTurnover" class="form-input" value="1" step="0.1" min="0" max="2">
+                </div>
+                <div class="form-group">
+                    <label>回溯周期 (天)</label>
+                    <input type="number" name="lookback_period" id="lookbackPeriod" class="form-input" value="252" min="10" max="1000">
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeModal()">取消</button>
+                <button type="submit" class="btn-primary">保存配置</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Toggle config active status
+async function toggleConfig(configId, activate) {
+    const url = activate
+        ? `/api/rotation/configs/${configId}/activate/`
+        : `/api/rotation/configs/${configId}/deactivate/`;
+
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': window.csrfToken }
+        });
+
+        if (res.ok) {
+            showToast(activate ? '配置已启用' : '配置已停用', 'success');
+            location.reload();
+        } else {
+            showToast('操作失败', 'error');
+        }
+    } catch (e) {
+        showToast('操作失败: ' + e.message, 'error');
+    }
+}
+
+// Generate signal for config
+async function generateSignal(configId, configName) {
+    if (!await confirmAction(`确认为配置 "${configName}" 生成新信号？`)) {
+        return;
+    }
+
+    try {
+        const res = await fetch('{% url "rotation:generate_signal" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken
+            },
+            body: JSON.stringify({ config_name: configName })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            showToast('信号生成成功', 'success');
+            location.reload();
+        } else {
+            showToast('生成失败: ' + (data.error || '未知错误'), 'error');
+        }
+    } catch (e) {
+        showToast('生成失败: ' + e.message, 'error');
+    }
+}
+
+// Edit config
+function editConfig(configId) {
+    // Find config data and populate form
+    const configCard = document.querySelector(`.config-card:has(button[onclick*="${configId}"])`);
+    if (!configCard) return;
+
+    const name = configCard.querySelector('.config-name').textContent;
+    const description = configCard.querySelector('.config-description')?.textContent || '';
+
+    document.getElementById('configId').value = configId;
+    document.getElementById('configName').value = name;
+    document.getElementById('configDescription').value = description;
+    document.getElementById('modalTitle').textContent = '编辑策略配置';
+
+    document.getElementById('configModal').style.display = 'block';
+}
+
+// Show create modal
+function showCreateConfigModal() {
+    document.getElementById('configForm').reset();
+    document.getElementById('configId').value = '';
+    document.getElementById('modalTitle').textContent = '新建策略配置';
+    document.getElementById('configModal').style.display = 'block';
+}
+
+// Close modal
+function closeModal() {
+    document.getElementById('configModal').style.display = 'none';
+}
+
+// Form submit
+document.getElementById('configForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const configId = formData.get('config_id');
+
+    const data = {
+        name: formData.get('name'),
+        description: formData.get('description'),
+        strategy_type: formData.get('strategy_type'),
+        asset_universe: formData.get('asset_universe').split(',').map(s => s.trim()).filter(s => s),
+        rebalance_frequency: formData.get('rebalance_frequency'),
+        top_n: parseInt(formData.get('top_n')) || 3,
+        min_weight: parseFloat(formData.get('min_weight')) || 0,
+        max_weight: parseFloat(formData.get('max_weight')) || 1,
+        max_turnover: parseFloat(formData.get('max_turnover')) || 1,
+        lookback_period: parseInt(formData.get('lookback_period')) || 252,
+        is_active: true,
+    };
+
+    const url = configId
+        ? `/api/rotation/configs/${configId}/`
+        : '/api/rotation/configs/';
+
+    const method = configId ? 'PUT' : 'POST';
+
+    try {
+        const res = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (res.ok) {
+            showToast(configId ? '配置已更新' : '配置已创建', 'success');
+            closeModal();
+            location.reload();
+        } else {
+            const err = await res.json();
+            showToast('保存失败: ' + (err.detail || '未知错误'), 'error');
+        }
+    } catch (e) {
+        showToast('保存失败: ' + e.message, 'error');
+    }
+});
+
+// Close modal on outside click
+window.addEventListener('click', function(e) {
+    const modal = document.getElementById('configModal');
+    if (e.target === modal) {
+        closeModal();
+    }
+});
+</script>
+
+<style>
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 6px;
+}
+
+.form-input, .form-select, .form-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.btn-primary, .btn-secondary, .btn-small {
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.btn-primary {
+    background: #3b82f6;
+    color: white;
+}
+
+.btn-secondary {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 12px;
+    background: #3b82f6;
+    color: white;
+}
+</style>
+{% endblock %}

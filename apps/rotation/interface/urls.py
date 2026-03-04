@@ -1,10 +1,11 @@
 """
 Rotation Module Interface Layer - URL Configuration
 
-URL patterns for the rotation module API.
+URL patterns for the rotation module API and pages.
 """
 
 from django.urls import path, include
+from django.shortcuts import redirect
 from rest_framework.routers import DefaultRouter
 
 from apps.rotation.interface.views import (
@@ -12,19 +13,36 @@ from apps.rotation.interface.views import (
     RotationConfigViewSet,
     RotationSignalViewSet,
     RotationActionViewSet,
+    rotation_assets_view,
+    rotation_configs_view,
+    rotation_signals_view,
+    rotation_generate_signal_view,
 )
 
 app_name = 'rotation'
 
+# DRF API Router
 router = DefaultRouter()
 router.register(r'assets', AssetClassViewSet, basename='rotation-asset')
 router.register(r'configs', RotationConfigViewSet, basename='rotation-config')
 router.register(r'signals', RotationSignalViewSet, basename='rotation-signal')
 router.register(r'', RotationActionViewSet, basename='rotation-action')
 
+
+def rotation_home_redirect(request):
+    """Redirect root /rotation/ to assets page"""
+    return redirect('rotation:assets')
+
+
 urlpatterns = [
-    # API routes - new standard format (when mounted under /api/rotation/)
-    path('', include(router.urls)),
+    # Page routes
+    path('', rotation_home_redirect, name='home'),
+    path('assets/', rotation_assets_view, name='assets'),
+    path('configs/', rotation_configs_view, name='configs'),
+    path('signals/', rotation_signals_view, name='signals'),
+
+    # Action routes
+    path('generate-signal/', rotation_generate_signal_view, name='generate_signal'),
 
     # API routes - legacy format (backward compatibility when mounted under /rotation/)
     path('api/', include(router.urls)),

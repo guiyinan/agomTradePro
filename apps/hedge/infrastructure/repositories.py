@@ -6,7 +6,7 @@ Provides clean separation between domain logic and data persistence.
 """
 
 from datetime import date
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from django.db.models import Q
 
@@ -27,6 +27,14 @@ from apps.hedge.infrastructure.models import (
 )
 
 
+def _attach_domain_meta(entity, model, fields: tuple[str, ...]):
+    """Attach persistence metadata (e.g. id/timestamps) to frozen domain entities."""
+    for field in fields:
+        if hasattr(model, field):
+            object.__setattr__(entity, field, getattr(model, field))
+    return entity
+
+
 class HedgePairRepository:
     """Repository for HedgePair entities"""
 
@@ -36,13 +44,16 @@ class HedgePairRepository:
         if active_only:
             queryset = queryset.filter(is_active=True)
 
-        return [model.to_domain() for model in queryset]
+        return [
+            _attach_domain_meta(model.to_domain(), model, ("id", "created_at", "updated_at"))
+            for model in queryset
+        ]
 
     def get_by_name(self, name: str) -> Optional[HedgePair]:
         """Get hedge pair by name"""
         try:
             model = HedgePairModel._default_manager.get(name=name)
-            return model.to_domain()
+            return _attach_domain_meta(model.to_domain(), model, ("id", "created_at", "updated_at"))
         except HedgePairModel.DoesNotExist:
             return None
 
@@ -50,7 +61,7 @@ class HedgePairRepository:
         """Get hedge pair by ID"""
         try:
             model = HedgePairModel._default_manager.get(id=pair_id)
-            return model.to_domain()
+            return _attach_domain_meta(model.to_domain(), model, ("id", "created_at", "updated_at"))
         except HedgePairModel.DoesNotExist:
             return None
 
@@ -61,7 +72,7 @@ class HedgePairRepository:
                 long_asset=long_asset,
                 hedge_asset=hedge_asset
             )
-            return model.to_domain()
+            return _attach_domain_meta(model.to_domain(), model, ("id", "created_at", "updated_at"))
         except HedgePairModel.DoesNotExist:
             return None
 
@@ -83,7 +94,7 @@ class HedgePairRepository:
             is_active=True,
         )
         model.save()
-        return model.to_domain()
+        return _attach_domain_meta(model.to_domain(), model, ("id", "created_at", "updated_at"))
 
     def update(self, pair: HedgePair) -> Optional[HedgePair]:
         """Update existing hedge pair"""
@@ -99,9 +110,21 @@ class HedgePairRepository:
         model.correlation_alert_threshold = pair.correlation_alert_threshold
         model.rebalance_trigger = pair.rebalance_trigger
         model.beta_target = pair.beta_target
+        model.is_active = pair.is_active
         model.save()
 
-        return model.to_domain()
+        return _attach_domain_meta(model.to_domain(), model, ("id", "created_at", "updated_at"))
+
+    def set_active(self, pair_id: int, is_active: bool) -> Optional[HedgePair]:
+        """Set active status for a hedge pair"""
+        model = HedgePairModel._default_manager.filter(id=pair_id).first()
+        if not model:
+            return None
+
+        model.is_active = is_active
+        model.save()
+
+        return _attach_domain_meta(model.to_domain(), model, ("id", "created_at", "updated_at"))
 
 
 class CorrelationHistoryRepository:
@@ -194,7 +217,7 @@ class HedgePortfolioRepository:
             raise ValueError(f"Hedge pair not found: {portfolio.pair_name}")
 
         model, created = HedgePortfolioHoldingModel._default_manager.get_or_create(
-            config=pair_model,
+            pair=pair_model,
             trade_date=portfolio.trade_date,
             defaults={
                 'long_weight': portfolio.long_weight,
@@ -216,7 +239,7 @@ class HedgePortfolioRepository:
     def get_latest_portfolio(self, pair_name: str) -> Optional[HedgePortfolio]:
         """Get latest portfolio state for a pair"""
         model = HedgePortfolioHoldingModel._default_manager.filter(
-            config__name=pair_name
+            pair__name=pair_name
         ).order_by('-trade_date').first()
 
         if model:
@@ -231,7 +254,7 @@ class HedgePortfolioRepository:
     ) -> List[HedgePortfolio]:
         """Get portfolio history for a date range"""
         queryset = HedgePortfolioHoldingModel._default_manager.filter(
-            config__name=pair_name,
+            pair__name=pair_name,
             trade_date__gte=start_date
         )
 
@@ -239,6 +262,71 @@ class HedgePortfolioRepository:
             queryset = queryset.filter(trade_date__lte=end_date)
 
         return [model.to_domain() for model in queryset.order_by('trade_date')]
+
+    def get_recent_holdings(
+        self,
+        pair_name: Optional[str] = None,
+        rebalance_needed: Optional[bool] = None,
+        limit: int = 50
+    ) -> List[dict]:
+        """
+        Get recent holdings with filtering.
+        Returns dict representations for view rendering.
+        """
+        queryset = HedgePortfolioHoldingModel._default_manager.select_related('pair').all()
+
+        if pair_name:
+            queryset = queryset.filter(pair__name__icontains=pair_name)
+        if rebalance_needed is not None:
+            queryset = queryset.filter(rebalance_needed=rebalance_needed)
+
+        holdings = queryset.order_by('-trade_date', '-created_at')[:limit]
+
+        return [
+            {
+                'id': h.id,
+                'pair_name': h.pair.name if h.pair else 'Unknown',
+                'pair_id': h.pair_id,
+                'trade_date': h.trade_date,
+                'long_weight': round(h.long_weight * 100, 2),
+                'hedge_weight': round(h.hedge_weight * 100, 2),
+                'hedge_ratio': round(h.hedge_ratio, 3),
+                'target_hedge_ratio': round(h.target_hedge_ratio, 3),
+                'current_correlation': round(h.current_correlation, 4),
+                'correlation_20d': round(h.correlation_20d, 4),
+                'correlation_60d': round(h.correlation_60d, 4),
+                'portfolio_beta': round(h.portfolio_beta, 3),
+                'portfolio_volatility': round(h.portfolio_volatility * 100, 2),
+                'hedge_effectiveness': round(h.hedge_effectiveness * 100, 1),
+                'daily_return': round(h.daily_return * 100, 3),
+                'unhedged_return': round(h.unhedged_return * 100, 3),
+                'hedge_return': round(h.hedge_return * 100, 3),
+                'value_at_risk': round(h.value_at_risk * 100, 2),
+                'max_drawdown': round(h.max_drawdown * 100, 2),
+                'rebalance_needed': h.rebalance_needed,
+                'rebalance_reason': h.rebalance_reason,
+                'created_at': h.created_at,
+            }
+            for h in holdings
+        ]
+
+    def get_statistics(self) -> Dict[str, int]:
+        """Get statistics for holdings"""
+        from django.db.models import Count
+
+        total = HedgePortfolioHoldingModel._default_manager.count()
+        rebalance_needed = HedgePortfolioHoldingModel._default_manager.filter(
+            rebalance_needed=True
+        ).count()
+        unique_pairs = HedgePortfolioHoldingModel._default_manager.values(
+            'pair__name'
+        ).distinct().count()
+
+        return {
+            'total_holdings': total,
+            'rebalance_needed': rebalance_needed,
+            'unique_pairs': unique_pairs,
+        }
 
 
 class HedgeAlertRepository:
@@ -251,7 +339,10 @@ class HedgeAlertRepository:
         if pair_name:
             queryset = queryset.filter(pair_name=pair_name)
 
-        return [model.to_domain() for model in queryset.order_by('-alert_date')]
+        return [
+            _attach_domain_meta(model.to_domain(), model, ("id", "created_at"))
+            for model in queryset.order_by('-alert_date')
+        ]
 
     def get_recent_alerts(
         self,
@@ -269,7 +360,10 @@ class HedgeAlertRepository:
         if pair_name:
             queryset = queryset.filter(pair_name=pair_name)
 
-        return [model.to_domain() for model in queryset.order_by('-alert_date')]
+        return [
+            _attach_domain_meta(model.to_domain(), model, ("id", "created_at"))
+            for model in queryset.order_by('-alert_date')
+        ]
 
     def save_alert(self, alert: HedgeAlert) -> HedgeAlert:
         """Save alert to database"""
@@ -286,7 +380,7 @@ class HedgeAlertRepository:
             is_resolved=False,
         )
 
-        return model.to_domain()
+        return _attach_domain_meta(model.to_domain(), model, ("id", "created_at"))
 
     def resolve_alert(self, alert_id: int) -> Optional[HedgeAlert]:
         """Mark alert as resolved"""
@@ -295,7 +389,7 @@ class HedgeAlertRepository:
             model.is_resolved = True
             model.resolved_at = date.today()
             model.save()
-            return model.to_domain()
+            return _attach_domain_meta(model.to_domain(), model, ("id", "created_at"))
         except HedgeAlertModel.DoesNotExist:
             return None
 
@@ -319,7 +413,7 @@ class HedgePerformanceRepository:
             raise ValueError(f"Hedge pair not found: {pair_name}")
 
         HedgePerformanceModel._default_manager.update_or_create(
-            config=pair_model,
+            pair=pair_model,
             trade_date=trade_date,
             defaults={
                 'daily_return': returns,
@@ -339,7 +433,7 @@ class HedgePerformanceRepository:
     ) -> List[dict]:
         """Get performance history for a pair"""
         queryset = HedgePerformanceModel._default_manager.filter(
-            config__name=pair_name,
+            pair__name=pair_name,
             trade_date__gte=start_date
         )
 
@@ -357,4 +451,3 @@ class HedgePerformanceRepository:
             }
             for p in queryset.order_by('trade_date')
         ]
-
