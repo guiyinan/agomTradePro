@@ -124,6 +124,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.middleware.DeprecationHeaderMiddleware',  # Add deprecation headers for legacy routes
 ]
 
 ROOT_URLCONF = 'core.urls'

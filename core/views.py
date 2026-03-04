@@ -7,8 +7,9 @@ Core Views for AgomSAAF
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from datetime import date
+from datetime import datetime, timezone
 from apps.regime.application.current_regime import resolve_current_regime
+from core.health_checks import run_readiness_checks, is_healthy
 
 
 def index_view(request):
@@ -18,9 +19,46 @@ def index_view(request):
 
 
 def health_view(request):
-    """健康检查（公开端点，无需登录）"""
-    from django.http import JsonResponse
-    return JsonResponse({'status': 'healthy'})
+    """
+    健康检查 - Liveness Probe（存活检查）
+
+    Kubernetes liveness probe endpoint.
+    Returns simple "ok" status to indicate the service is running.
+    Public endpoint, no authentication required.
+    """
+    return JsonResponse({
+        'status': 'ok',
+        'timestamp': datetime.now(timezone.utc).isoformat()
+    })
+
+
+def readiness_view(request):
+    """
+    就绪检查 - Readiness Probe（就绪检查）
+
+    Kubernetes readiness probe endpoint.
+    Checks if the service is ready to accept traffic by verifying
+    database and Redis (if configured) connections.
+    Public endpoint, no authentication required.
+
+    Returns HTTP 200 if all checks pass, HTTP 503 if any check fails.
+    """
+    checks = run_readiness_checks()
+
+    if is_healthy(checks):
+        response_data = {
+            'status': 'ok',
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'checks': checks
+        }
+        return JsonResponse(response_data, status=200)
+    else:
+        response_data = {
+            'status': 'error',
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'checks': checks
+        }
+        return JsonResponse(response_data, status=503)
 
 
 def chat_example_view(request):

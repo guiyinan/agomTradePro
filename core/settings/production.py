@@ -2,8 +2,65 @@
 Django production settings for AgomSAAF project.
 """
 
-from .base import *
 import os
+from django.core.exceptions import ImproperlyConfigured
+
+
+def _validate_secret_key() -> str:
+    """
+    Validate SECRET_KEY for production use.
+
+    This function MUST be called before importing from base, because base.py
+    will set SECRET_KEY with a default value that we want to override.
+
+    Raises:
+        ImproperlyConfigured: If SECRET_KEY is missing or contains insecure patterns.
+    """
+    secret_key = os.environ.get('SECRET_KEY', '')
+
+    # Insecure patterns that indicate development/default keys
+    insecure_patterns = [
+        'django-insecure',
+        'change-this',
+        'dev-only',
+        'test-only',
+        'xxx',
+        'example',
+        'placeholder',
+    ]
+
+    if not secret_key:
+        raise ImproperlyConfigured(
+            "SECRET_KEY environment variable is required in production. "
+            "Generate a secure key using: "
+            "python -c \"import secrets; print(secrets.token_urlsafe(50))\""
+        )
+
+    secret_key_lower = secret_key.lower()
+    for pattern in insecure_patterns:
+        if pattern in secret_key_lower:
+            raise ImproperlyConfigured(
+                f"SECRET_KEY contains insecure pattern '{pattern}'. "
+                "Generate a secure key using: "
+                "python -c \"import secrets; print(secrets.token_urlsafe(50))\""
+            )
+
+    # Minimum length check (50 characters is a reasonable minimum for production)
+    if len(secret_key) < 50:
+        raise ImproperlyConfigured(
+            f"SECRET_KEY is too short ({len(secret_key)} characters). "
+            "Generate a secure key using: "
+            "python -c \"import secrets; print(secrets.token_urlsafe(50))\""
+        )
+
+    return secret_key
+
+
+# Set SECRET_KEY before importing base settings
+# This ensures our validation runs and overrides the default value
+SECRET_KEY = _validate_secret_key()
+
+from .base import *  # noqa: E402
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False

@@ -23,6 +23,7 @@ from apps.account.infrastructure.views import (
 from core.views import (
     index_view,
     health_view,
+    readiness_view,
     chat_example_view,
     docs_view,
     asset_screen_view,
@@ -41,6 +42,7 @@ from core.admin_log_views import (
 core_patterns = [
     path('', index_view, name='index'),
     path('api/health/', health_view, name='health'),
+    path('api/ready/', readiness_view, name='readiness'),
     path('chat-example/', chat_example_view, name='chat-example'),
     # 301 重定向旧页面到统一工作台
     path('policy/dashboard/', RedirectView.as_view(url='/policy/workbench/', permanent=True), name='policy-dashboard'),
