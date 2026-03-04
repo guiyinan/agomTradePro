@@ -32,6 +32,7 @@ router.register(r'rss/keywords', PolicyLevelKeywordViewSet, basename='rss-keywor
 urlpatterns = [
     # 工作台页面 (HTML)
     path("workbench/", WorkbenchView.as_view(), name="workbench"),
+    path("manage/", RedirectView.as_view(url='/policy/workbench/', permanent=True), name="manage-redirect"),
 
     # 政策状态
     path("status/", PolicyStatusView.as_view(), name="status"),

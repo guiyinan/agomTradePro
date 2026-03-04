@@ -8,9 +8,70 @@ on:
   workflow_dispatch:
 
 jobs:
-  guardrails:
+  detect-changes:
+    name: Detect changed modules
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    outputs:
+      changed-modules: ${{ steps.changes.outputs.changed-modules }}
+      test-count: ${{ steps.select-tests.outputs.test-count }}
+      test-paths: ${{ steps.select-tests.outputs.test-paths }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed modules
+        id: changes
+        run: |
+          if ${{ github.event_name == 'pull_request' ]]; then
+            BASE=${{ github.event.pull_request.base.sha }}
+          else
+            BASE=${{ github.event.before }}
+          fi
+
+          # 获取变更的文件
+          CHANGED_FILES=$(git diff --name-only ${BASE}...${{ github.sha }} 2>/dev/null || echo "")
+          echo "Changed files count: $(echo "$CHANGED_FILES" | grep -c '^' || echo 0)"
+
+          # 提取变更模块:
+          # - apps/<module>/... => <module>
+          # - core/...          => core
+          # - shared/...        => shared
+          CHANGED_MODULES=$(
+            echo "$CHANGED_FILES" | awk -F/ '
+              /^apps\/[^\/]+\//   { print $2; next }
+              /^core\//           { print "core"; next }
+              /^shared\//         { print "shared"; next }
+            ' | sort -u | tr '\n' ',' | sed 's/,$//'
+          )
+          echo "changed-modules=${CHANGED_MODULES:-none}" >> $GITHUB_OUTPUT
+          echo "Detected modules: ${CHANGED_MODULES:-none}"
+
+      - name: Select tests
+        id: select-tests
+        run: |
+          MODULES="${{ steps.changes.outputs.changed-modules }}"
+
+          if [ -z "$MODULES" ] || [ "$MODULES" = "none" ]; then
+            # 无模块变更，仅运行核心 guardrail 测试
+            TEST_PATHS="tests/guardrails/test_logic_guardrails.py tests/guardrails/test_no_501_on_primary_paths.py tests/guardrails/test_security_hardening_guardrails.py tests/guardrails/test_api_contract_minimal.py"
+          else
+            # 使用智能测试选择脚本
+            TEST_PATHS=$(python scripts/select_tests.py --changed-modules "$MODULES" 2>/dev/null || echo "tests/guardrails/")
+          fi
+
+          echo "test-paths=${TEST_PATHS}" >> $GITHUB_OUTPUT
+          TEST_COUNT=$(echo "$TEST_PATHS" | wc -w)
+          echo "test-count=${TEST_COUNT}" >> $GITHUB_OUTPUT
+          echo "Selected ${TEST_COUNT} test targets"
+          echo "Test paths: ${TEST_PATHS}"
+
+  guardrails:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    timeout-minutes: 15
     strategy:
       matrix:
         python-version: ['3.11', '3.13']
@@ -33,14 +94,12 @@ jobs:
       - name: Prepare database
         run: python manage.py migrate --noinput
 
-      - name: Run logic guardrail suite
+      - name: Run selected tests
         run: |
-          pytest -q \
-            tests/guardrails/test_logic_guardrails.py \
-            tests/guardrails/test_no_501_on_primary_paths.py \
-            tests/integration/policy/test_policy_integration.py \
-            tests/unit/policy/test_fetch_rss_use_case.py \
-            tests/unit/regime/test_config_threshold_regression.py
+          echo "Running ${{ needs.detect-changes.outputs.test-count }} test targets..."
+          echo "Changed modules: ${{ needs.detect-changes.outputs.changed-modules }}"
+          pytest -v --tb=short --durations=10 \
+            ${{ needs.detect-changes.outputs.test-paths }}
 
       - name: Check RTM key requirements
         run: |

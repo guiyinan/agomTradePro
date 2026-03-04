@@ -6,13 +6,15 @@
 """
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.test import Client
-from django.urls import reverse
-from apps.account.models import User
+
+User = get_user_model()
 
 
 @pytest.mark.e2e
 @pytest.mark.navigation
+@pytest.mark.django_db
 class TestNavigationNo404:
     """主导航 404 检查"""
 
@@ -73,7 +75,6 @@ class TestNavigationNo404:
 
 @pytest.mark.e2e
 @pytest.mark.navigation
-@pytest.mark.api
 class TestAPIEndpointsNo404:
     """API 端点 404 检查"""
 
