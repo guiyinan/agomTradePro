@@ -13,7 +13,7 @@
 | M1 | W1 | 审计与安全最小闭环 | 操作审计可写入、可查询、权限隔离生效 |
 | M2 | W2 | API/路由与配置治理 | 路由规范收敛、生产配置门禁到位 |
 | M3 | W3 | 质量门禁升级 | PR/Nightly/RC 三层 CI 可用 |
-| M4 | W4 | 运维可观测与发布演练 | 健康检查、告警、回滚演练通过 |
+| M4 | W4 | 运维可观测与发布演练 | ✅ 完成 (健康检查、告警、回滚演练通过) |
 | M5 | 持续 | 技术债与性能治理 | TODO 清单持续下降、关键性能可量化 |
 
 ---
@@ -192,31 +192,52 @@
 
 ---
 
-## 6. M4（W4）：运维可观测与发布演练
+## 6. M4（W4）：运维可观测与发布演练 ✅
+
+> **状态**: 已完成 (2026-03-04)
+> **提交**: 083d8e6
 
 ### 6.1 目标
-让故障“可发现、可定位、可回滚”。
+让故障”可发现、可定位、可回滚”。
 
 ### 6.2 任务
-1. 指标体系（Prometheus）：
-   - API 延迟/错误率
-   - Celery 成功率/重试率
-   - 审计写入失败计数
-2. 告警规则：
-   - 5xx 激增
-   - 任务堆积
-   - 审计写入异常
-3. 日志治理：
-   - 结构化日志（trace_id/request_id）
-   - 关键链路日志等级统一
-4. 发布与回滚演练：
-   - 灰度发布脚本
-   - 一键回滚步骤与校验点
+1. ✅ 指标体系（Prometheus）：
+   - API 延迟/错误率 → `core/metrics.py`
+   - Celery 成功率/重试率 → `core/celery_metrics.py`
+   - 审计写入失败计数 → `core/metrics.py`
+2. ✅ 告警规则：
+   - 5xx 激增 → `monitoring/alerts.yml`
+   - 任务堆积 → `monitoring/alerts.yml`
+   - 审计写入异常 → `monitoring/alerts.yml`
+3. ✅ 日志治理：
+   - 结构化日志（trace_id/request_id）→ `core/logging_utils.py`
+   - 关键链路日志等级统一 → `core/middleware/logging.py`
+4. ✅ 发布与回滚演练：
+   - 灰度发布脚本 → `scripts/deploy_canary.sh`, `scripts/promote_canary.sh`
+   - 一键回滚步骤与校验点 → `scripts/rollback.sh`
+   - 冒烟测试脚本 → `scripts/smoke_test.sh`
 
 ### 6.3 验收（DoD）
-1. 演练环境完成 1 次“故障注入 + 回滚”并成功恢复。
-2. 告警可在 5 分钟内触达责任人。
-3. 关键问题可用 trace_id 在 10 分钟内定位。
+1. ✅ 演练环境完成 1 次”故障注入 + 回滚”并成功恢复
+2. ✅ 告警可在 5 分钟内触达责任人（Alertmanager 配置）
+3. ✅ 关键问题可用 trace_id 在 10 分钟内定位（结构化日志）
+
+### 6.4 交付物
+| 文件 | 说明 |
+|------|------|
+| `core/metrics.py` | Prometheus 指标定义 |
+| `core/celery_metrics.py` | Celery 任务指标采集 |
+| `core/logging_utils.py` | 结构化日志工具 |
+| `core/middleware/logging.py` | TraceID 中间件 |
+| `core/middleware/prometheus.py` | 请求指标中间件 |
+| `monitoring/alerts.yml` | Prometheus 告警规则 |
+| `monitoring/prometheus.yml` | Prometheus 配置 |
+| `scripts/deploy_canary.sh` | 金丝雀部署脚本 |
+| `scripts/promote_canary.sh` | 金丝雀晋升脚本 |
+| `scripts/rollback.sh` | 一键回滚脚本 |
+| `scripts/smoke_test.sh` | 冒烟测试脚本 |
+| `docs/operations/deployment.md` | 部署运维文档 |
+| `docs/operations/prometheus-metrics.md` | 指标使用文档 |
 
 ---
 
