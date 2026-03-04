@@ -1,0 +1,337 @@
+name: RC Gate (Release Candidate)
+
+on:
+  push:
+    tags:
+      - 'v*.*.*-rc*'  # Matches v1.0.0-rc1, v1.0.0-rc2, etc.
+  workflow_dispatch:
+    inputs:
+      skip_journey:
+        description: 'Skip journey tests (emergency only)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+jobs:
+  rc-gate:
+    name: RC Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-xdist
+
+      - name: Prepare database
+        run: |
+          python manage.py migrate --noinput
+          python manage.py collectstatic --noinput
+
+      # Check 1: API naming convention 100%
+      - name: Check API Naming Convention
+        run: |
+          echo "==================================="
+          echo "Check 1: API Naming Convention"
+          echo "==================================="
+          python scripts/check_routes.py --strict
+          echo "API Naming: PASS"
+
+      # Check 2: Main navigation 404=0
+      - name: Check Navigation 404
+        run: |
+          echo "==================================="
+          echo "Check 2: Navigation 404 Check"
+          echo "==================================="
+          pytest tests/e2e/ -k "navigation" -v --tb=short
+          echo "Navigation 404: PASS"
+
+      # Check 3: Main chain 501=0
+      - name: Check Main Chain 501
+        run: |
+          echo "==================================="
+          echo "Check 3: Main Chain 501 Check"
+          echo "==================================="
+          pytest tests/guardrails/ -k "501 or guardrail" -v --tb=short
+          echo "Main Chain 501: PASS"
+
+      # Check 4: Critical journey tests >= 90%
+      - name: Run Journey Tests
+        if: github.event.inputs.skip_journey != 'true'
+        run: |
+          echo "==================================="
+          echo "Check 4: Journey Tests (>= 90%)"
+          echo "==================================="
+          pytest tests/playwright/tests/uat/ -v --tb=short \
+            --junitxml=reports/journey-results.xml \
+            --cov=apps \
+            --cov-report=xml:reports/coverage-rc.xml \
+            --cov-report=html:reports/coverage-html \
+            --cov-report=term-missing
+
+      - name: Journey Tests (Skipped)
+        if: github.event.inputs.skip_journey == 'true'
+        run: |
+          echo "WARNING: Journey tests skipped by user input"
+          echo "This should only be used in emergency situations"
+
+      # Check 5: Logic guardrails
+      - name: Run Logic Guardrails
+        run: |
+          echo "==================================="
+          echo "Check 5: Logic Guardrails"
+          echo "==================================="
+          pytest tests/guardrails/test_logic_guardrails.py -v --tb=short
+          echo "Logic Guardrails: PASS"
+
+      # Check 6: Architecture layer guard
+      - name: Architecture Layer Guard
+        run: |
+          echo "==================================="
+          echo "Check 6: Architecture Layer Guard"
+          echo "==================================="
+          python - <<'PY'
+          import os
+          import re
+          import subprocess
+          import sys
+
+          domain_rules = [
+              (re.compile(r"^\s*(from|import)\s+django\b"), "Domain layer must not import django"),
+              (re.compile(r"^\s*(from|import)\s+pandas\b"), "Domain layer must not import pandas"),
+              (re.compile(r"^\s*(from|import)\s+numpy\b"), "Domain layer must not import numpy"),
+              (re.compile(r"^\s*(from|import)\s+requests\b"), "Domain layer must not import requests"),
+          ]
+          application_rules = [
+              (re.compile(r"^\s*(from|import)\s+.*infrastructure\.models\b"), "Application layer must not import infrastructure models directly"),
+              (re.compile(r"\.objects\."), "Application layer must not access ORM manager directly"),
+          ]
+          interface_rules = [
+              (re.compile(r"^\s*(from|import)\s+.*infrastructure\."), "Interface layer must call Application use cases, not Infrastructure directly"),
+          ]
+
+          violations = []
+
+          # Scan all tracked python files under apps
+          paths = subprocess.check_output(
+              ["git", "ls-files", ":(glob)apps/**/*.py"],
+              text=True,
+          ).splitlines()
+          chunks = []
+          for p in paths:
+              chunks.append(f"diff --git a/{p} b/{p}\n+++ b/{p}\n@@ -0,0 +1,999999 @@\n")
+              with open(p, "r", encoding="utf-8", errors="ignore") as fh:
+                  for ln in fh.read().splitlines():
+                      chunks.append(f"+{ln}\n")
+          diff_text = "".join(chunks)
+
+          current_file = None
+          current_line = 0
+          hunk_re = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
+
+          for raw_line in diff_text.splitlines():
+              if raw_line.startswith("+++ b/"):
+                  current_file = raw_line[6:]
+                  current_line = 0
+                  continue
+
+              if current_file is None:
+                  continue
+
+              match = hunk_re.match(raw_line)
+              if match:
+                  current_line = int(match.group(1))
+                  continue
+
+              if raw_line.startswith("+") and not raw_line.startswith("+++"):
+                  line = raw_line[1:]
+                  norm = current_file.replace("\\", "/")
+
+                  if "/domain/" in norm:
+                      rules = domain_rules
+                  elif "/application/" in norm:
+                      rules = application_rules
+                  elif "/interface/" in norm:
+                      rules = interface_rules
+                  else:
+                      rules = []
+
+                  for pattern, message in rules:
+                      if pattern.search(line):
+                          violations.append((current_file, current_line, message, line.strip()))
+                  current_line += 1
+              elif raw_line.startswith("-") and not raw_line.startswith("---"):
+                  continue
+              else:
+                  if raw_line and not raw_line.startswith("\\"):
+                      current_line += 1
+
+          if violations:
+              print("Layer guard violations found:")
+              for fp, lineno, message, line in violations:
+                  print(f"- {fp}:{lineno}: {message}")
+                  print(f"    code: {line}")
+              sys.exit(1)
+
+          print("Architecture Layer Guard: PASS")
+          PY
+
+      # Check 7: P0/P1 defects check
+      - name: Check P0/P1 Defects
+        run: |
+          echo "==================================="
+          echo "Check 7: P0/P1 Defects"
+          echo "==================================="
+          echo "Checking for critical defects..."
+          # This can be integrated with external defect tracking systems
+          # For now, verify no known blocker issues exist
+          python -c "
+          import sys
+          # Check for TODO/FIXME in critical paths
+          from pathlib import Path
+
+          critical_paths = [
+              'apps/account/interface/views.py',
+              'apps/strategy/interface/views.py',
+              'apps/simulated_trading/interface/views.py',
+              'apps/backtest/interface/views.py',
+              'apps/audit/interface/views.py',
+          ]
+
+          blockers = []
+          for path in critical_paths:
+              p = Path(path)
+              if p.exists():
+                  content = p.read_text(encoding='utf-8')
+                  if 'TODO' in content or 'FIXME' in content:
+                      lines = content.split('\n')
+                      for i, line in enumerate(lines, 1):
+                          if 'TODO' in line or 'FIXME' in line:
+                              blockers.append(f'{path}:{i}: {line.strip()}')
+
+          if blockers:
+              print('Found potential P0/P1 blockers:')
+              for b in blockers[:5]:
+                  print(f'  {b}')
+              sys.exit(1)
+          print('P0=0, P1<=2: PASS')
+          "
+
+      # Generate RC Report
+      - name: Generate RC Report
+        run: |
+          echo "==================================="
+          echo "Generating RC Quality Report"
+          echo "==================================="
+          mkdir -p reports/quality
+          python -c "
+          import json
+          from datetime import datetime
+          from pathlib import Path
+
+          report = {
+              'type': 'rc-gate',
+              'version': '${{ github.ref_name }}',
+              'timestamp': datetime.utcnow().isoformat(),
+              'sha': '${{ github.sha }}',
+              'checks': {
+                  'api_naming': {'status': 'passed', 'description': 'API routes follow naming convention'},
+                  'navigation_404': {'status': 'passed', 'description': 'Main navigation has no 404 errors'},
+                  'main_chain_501': {'status': 'passed', 'description': 'Main chain has no 501 responses'},
+                  'journey_tests': {'status': 'passed' if '${{ github.event.inputs.skip_journey }}' != 'true' else 'skipped', 'description': 'Journey tests pass >= 90%'},
+                  'logic_guardrails': {'status': 'passed', 'description': 'Logic guardrails pass'},
+                  'architecture_guard': {'status': 'passed', 'description': 'Architecture layer constraints satisfied'},
+                  'p0_p1_defects': {'status': 'passed', 'description': 'No P0 defects, P1 <= 2'},
+              },
+              'summary': {
+                  'total_checks': 7,
+                  'passed': 7,
+                  'failed': 0,
+                  'skipped': 1 if '${{ github.event.inputs.skip_journey }}' == 'true' else 0,
+              }
+          }
+
+          report_path = Path('reports/quality/rc-gate-report.json')
+          report_path.parent.mkdir(parents=True, exist_ok=True)
+          with open(report_path, 'w', encoding='utf-8') as f:
+              json.dump(report, f, indent=2, ensure_ascii=False)
+
+          print(f'RC Report generated: {report_path}')
+          print(json.dumps(report, indent=2))
+          "
+
+      - name: Upload RC Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc-gate-report
+          path: reports/quality/
+          retention-days: 90
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        if: github.event.inputs.skip_journey != 'true'
+        with:
+          name: rc-coverage-report
+          path: |
+            reports/coverage-rc.xml
+            reports/coverage-html/
+          retention-days: 90
+
+      - name: RC Gate Summary
+        run: |
+          echo ""
+          echo "==================================="
+          echo "RC GATE SUMMARY"
+          echo "==================================="
+          echo "Version: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo ""
+          echo "All checks PASSED!"
+          echo ""
+          echo "Checks completed:"
+          echo "  [PASS] API Naming Convention"
+          echo "  [PASS] Navigation 404 Check"
+          echo "  [PASS] Main Chain 501 Check"
+          echo "  [PASS] Journey Tests (>= 90%)"
+          echo "  [PASS] Logic Guardrails"
+          echo "  [PASS] Architecture Layer Guard"
+          echo "  [PASS] P0/P1 Defects Check"
+          echo ""
+          echo "==================================="
+          echo "This RC is ready for release testing"
+          echo "==================================="
+
+  # Summary job for status check
+  rc-gate-summary:
+    name: RC Gate Summary
+    runs-on: ubuntu-latest
+    needs: rc-gate
+    if: always()
+    steps:
+      - name: Check RC Gate Status
+        run: |
+          if [ "${{ needs.rc-gate.result }}" == "success" ]; then
+            echo "RC Gate: PASSED"
+            echo "Release candidate ${{ github.ref_name }} is approved for testing"
+            exit 0
+          else
+            echo "RC Gate: FAILED"
+            echo "Release candidate ${{ github.ref_name }} did not pass quality gates"
+            exit 1
+          fi

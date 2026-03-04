@@ -1,0 +1,100 @@
+name: Nightly Tests
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # UTC 02:00 (北京时间 10:00)
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install playwright
+          playwright install chromium
+
+      - name: Prepare database
+        run: python manage.py migrate --noinput
+
+      - name: Run Unit Tests (full)
+        run: |
+          pytest tests/unit/ -v \
+            --cov=apps \
+            --cov-report=xml:coverage-unit.xml \
+            --cov-report=term-missing \
+            --cov-report=html:htmlcov-unit
+
+      - name: Run Integration Tests (core)
+        run: |
+          pytest tests/integration/ -v \
+            --cov=apps \
+            --cov-append \
+            --cov-report=xml:coverage-integration.xml \
+            --cov-report=term-missing \
+            -n auto
+
+      - name: Run Guardrail Tests
+        run: |
+          pytest tests/guardrails/ -v \
+            --cov=apps \
+            --cov-append \
+            --cov-report=xml:coverage-guardrail.xml
+
+      - name: Run Playwright Smoke Tests
+        run: |
+          pytest tests/playwright/tests/smoke/ -v \
+            --screenshot=only-on-failure \
+            --video=retain-on-failure
+        env:
+          PYTEST_PLAYWRIGHT_DRIVER: chromium
+
+      - name: Generate Quality Report
+        run: |
+          python scripts/generate_quality_report.py --type nightly --output reports/quality
+
+      - name: Upload Coverage Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports
+          path: |
+            coverage-*.xml
+            htmlcov-*/
+
+      - name: Upload Quality Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quality-report
+          path: reports/quality/
+
+      - name: Upload Playwright Artifacts
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-artifacts
+          path: |
+            tests/playwright/test-results/
+            tests/playwright/screenshots/
+
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          echo "::error::Nightly tests failed. Please check the logs."
+          # 可以在这里添加 Slack/Discord webhook 通知
+          # curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          #   -H 'Content-Type: application/json' \
+          #   -d '{"text":"Nightly tests failed for AgomSAAF"}'
