@@ -5,6 +5,7 @@ Repository for Audit Domain.
 from typing import List, Optional
 from datetime import date
 from django.db.models import QuerySet
+import logging
 
 from .models import (
     AttributionReport,
@@ -15,6 +16,9 @@ from .models import (
     ValidationSummaryModel,
 )
 from apps.backtest.infrastructure.models import BacktestResultModel
+
+
+logger = logging.getLogger(__name__)
 
 
 class DjangoAuditRepository:
@@ -821,6 +825,11 @@ class DjangoAuditRepository:
         """
         保存操作日志
 
+        增强可观测性：
+        - 失败时记录到失败计数器
+        - 记录详细错误日志
+        - 不抛出异常（让上层决定如何处理）
+
         Args:
             log_entity: OperationLog 域实体
 
@@ -829,34 +838,59 @@ class DjangoAuditRepository:
         """
         from .models import OperationLogModel
 
-        model = OperationLogModel._default_manager.create(
-            id=log_entity.id,
-            request_id=log_entity.request_id,
-            user_id=log_entity.user_id,
-            username=log_entity.username,
-            ip_address=log_entity.ip_address,
-            user_agent=log_entity.user_agent,
-            source=log_entity.source.value,
-            client_id=log_entity.client_id,
-            operation_type=log_entity.operation_type.value,
-            module=log_entity.module,
-            action=log_entity.action.value,
-            resource_type=log_entity.resource_type,
-            resource_id=log_entity.resource_id,
-            mcp_tool_name=log_entity.mcp_tool_name,
-            mcp_client_id=log_entity.mcp_client_id,
-            mcp_role=log_entity.mcp_role,
-            sdk_version=log_entity.sdk_version,
-            request_method=log_entity.request_method,
-            request_path=log_entity.request_path,
-            request_params=log_entity.request_params,
-            response_status=log_entity.response_status,
-            response_message=log_entity.response_message,
-            error_code=log_entity.error_code,
-            duration_ms=log_entity.duration_ms,
-            checksum=log_entity.checksum,
-        )
-        return str(model.id)
+        try:
+            model = OperationLogModel._default_manager.create(
+                id=log_entity.id,
+                request_id=log_entity.request_id,
+                user_id=log_entity.user_id,
+                username=log_entity.username,
+                ip_address=log_entity.ip_address,
+                user_agent=log_entity.user_agent,
+                source=log_entity.source.value,
+                client_id=log_entity.client_id,
+                operation_type=log_entity.operation_type.value,
+                module=log_entity.module,
+                action=log_entity.action.value,
+                resource_type=log_entity.resource_type,
+                resource_id=log_entity.resource_id,
+                mcp_tool_name=log_entity.mcp_tool_name,
+                mcp_client_id=log_entity.mcp_client_id,
+                mcp_role=log_entity.mcp_role,
+                sdk_version=log_entity.sdk_version,
+                request_method=log_entity.request_method,
+                request_path=log_entity.request_path,
+                request_params=log_entity.request_params,
+                response_status=log_entity.response_status,
+                response_message=log_entity.response_message,
+                error_code=log_entity.error_code,
+                duration_ms=log_entity.duration_ms,
+                checksum=log_entity.checksum,
+            )
+            logger.debug(
+                f"操作日志保存成功: log_id={model.id}, "
+                f"user={log_entity.username}, module={log_entity.module}"
+            )
+            return str(model.id)
+
+        except Exception as e:
+            # 记录到失败计数器（增强可观测性）
+            try:
+                from .failure_counter import record_audit_failure
+                record_audit_failure(
+                    component="database",
+                    reason=f"save_operation_log failed: {type(e).__name__}: {str(e)[:200]}",
+                )
+            except ImportError:
+                pass
+
+            # 记录详细错误日志
+            logger.error(
+                f"保存操作日志失败: user={log_entity.username}, "
+                f"module={log_entity.module}, action={log_entity.action}, error={e}",
+                exc_info=True,
+            )
+            # 重新抛出异常，让上层用例处理
+            raise
 
     def query_operation_logs(
         self,

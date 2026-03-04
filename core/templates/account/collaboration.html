@@ -1,0 +1,631 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}账户协作管理 - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/account.css' }">
+<style>
+.collaboration-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.collaboration-header {
+    margin-bottom: 24px;
+}
+
+.collaboration-header h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.subtitle {
+    color: #54595D;
+    font-size: 14px;
+}
+
+.collaboration-section {
+    background: #FFFFFF;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.section-title span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.section-title i {
+    color: #36C;
+}
+
+/* 添加观察员表单 */
+.add-observer-form {
+    display: grid;
+    grid-template-columns: 2fr 1fr auto;
+    gap: 12px;
+    align-items: end;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-weight: 500;
+    margin-bottom: 4px;
+    font-size: 13px;
+    color: #202122;
+}
+
+.form-control {
+    padding: 8px 12px;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #36C;
+    box-shadow: 0 0 0 2px rgba(51, 102, 204, 0.2);
+}
+
+.btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    text-decoration: none;
+    display: inline-block;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s;
+}
+
+.btn-primary {
+    background: #36C;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2a5aa8;
+}
+
+.btn-secondary {
+    background: #F8F9FA;
+    color: #202122;
+    border: 1px solid #E0E0E0;
+}
+
+.btn-danger {
+    background: #D33;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #b52b2b;
+}
+
+.btn-sm {
+    padding: 4px 10px;
+    font-size: 13px;
+}
+
+/* 观察员列表 */
+.observer-list {
+    margin-top: 16px;
+}
+
+.observer-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.observer-table thead {
+    background: #F8F9FA;
+}
+
+.observer-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    color: #54595D;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.observer-table td {
+    padding: 12px;
+    font-size: 13px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.observer-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* 状态标签 */
+.status-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-active {
+    background: #D5FBDD;
+    color: #14866D;
+}
+
+.status-revoked {
+    background: #FEE7E7;
+    color: #D33;
+}
+
+.status-expired {
+    background: #FFF4E5;
+    color: #FF6600;
+}
+
+/* 授权范围标签 */
+.scope-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 2px;
+    background: #EAF3FF;
+    color: #36C;
+    font-size: 12px;
+}
+
+/* 提示信息 */
+.info-box {
+    background: #EAF3FF;
+    border: 1px solid #B8D4F1;
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.info-box i {
+    color: #36C;
+    font-size: 16px;
+}
+
+.info-box-content {
+    flex: 1;
+}
+
+.info-box-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 2px;
+}
+
+.info-box-text {
+    font-size: 13px;
+    color: #54595D;
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 40px 24px;
+    color: #54595D;
+}
+
+.empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.empty-state-text {
+    font-size: 14px;
+}
+
+/* 用户搜索建议 */
+.user-suggestions {
+    position: absolute;
+    background: white;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 100;
+    width: 100%;
+}
+
+.user-suggestion-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.user-suggestion-item:hover {
+    background: #F8F9FA;
+}
+
+.user-suggestion-item .username {
+    font-weight: 500;
+}
+
+.user-suggestion-item .display-name {
+    color: #54595D;
+    font-size: 12px;
+}
+
+.input-wrapper {
+    position: relative;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="collaboration-container">
+    <div class="collaboration-header">
+        <h1>账户协作管理</h1>
+        <p class="subtitle">授权其他用户以只读方式观察您的账户</p>
+    </div>
+
+    <!-- 提示信息 -->
+    <div class="info-box">
+        <i class="bi bi-info-circle"></i>
+        <div class="info-box-content">
+            <div class="info-box-title">关于观察员授权</div>
+            <div class="info-box-text">每账户最多可授权 10 个观察员。观察员只能查看您的持仓信息，无法进行任何交易操作。</div>
+        </div>
+    </div>
+
+    <!-- 添加观察员表单 -->
+    <section class="collaboration-section">
+        <h2 class="section-title">
+            <span><i class="bi bi-person-plus"></i> 添加观察员</span>
+        </h2>
+
+        <form id="addObserverForm" class="add-observer-form">
+            {% csrf_token %}
+            <div class="form-group input-wrapper">
+                <label for="observerInput">用户名或用户ID</label>
+                <input type="text" id="observerInput" name="observer_username"
+                       class="form-control" placeholder="输入用户名搜索..."
+                       autocomplete="off" required>
+                <div id="userSuggestions" class="user-suggestions" style="display: none;"></div>
+            </div>
+            <div class="form-group">
+                <label for="expiresAt">过期时间（可选）</label>
+                <input type="date" id="expiresAt" name="expires_at"
+                       class="form-control" min="{% now 'Y-m-d' %}">
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-plus"></i> 添加观察员
+            </button>
+        </form>
+    </section>
+
+    <!-- 已授权观察员列表 -->
+    <section class="collaboration-section">
+        <h2 class="section-title">
+            <span><i class="bi bi-people"></i> 已授权观察员</span>
+            <span class="count-badge" id="observerCount">0 / 10</span>
+        </h2>
+
+        <div id="observerListContainer">
+            <!-- 通过 HTMX 加载观察员列表 -->
+            <div class="empty-state">
+                <div class="empty-state-icon">bi bi-people</div>
+                <div class="empty-state-text">加载中...</div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+(function() {
+    const API_BASE = '/account/api/observer-grants/';
+    let searchTimeout = null;
+
+    // 初始化：加载观察员列表
+    function loadObserverList() {
+        const container = document.getElementById('observerListContainer');
+        container.innerHTML = '<div class="empty-state"><div class="empty-state-text">加载中...</div></div>';
+
+        fetch(API_BASE)
+            .then(response => response.json())
+            .then(data => {
+                if (data.results && data.results.length > 0) {
+                    renderObserverList(data.results);
+                } else {
+                    renderEmptyState();
+                }
+            })
+            .catch(error => {
+                console.error('加载观察员列表失败:', error);
+                container.innerHTML = '<div class="empty-state"><div class="empty-state-text">加载失败，请刷新重试</div></div>';
+            });
+    }
+
+    // 渲染观察员列表
+    function renderObserverList(observers) {
+        const container = document.getElementById('observerListContainer');
+        const countBadge = document.getElementById('observerCount');
+
+        // 更新计数
+        const activeCount = observers.filter(o => o.status === 'active').length;
+        countBadge.textContent = `${activeCount} / 10`;
+
+        const html = `
+            <table class="observer-table">
+                <thead>
+                    <tr>
+                        <th>观察员</th>
+                        <th>授权范围</th>
+                        <th>状态</th>
+                        <th>创建时间</th>
+                        <th>过期时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${observers.map(observer => `
+                        <tr data-grant-id="${observer.id}">
+                            <td>
+                                <div class="observer-name">
+                                    <strong>${escapeHtml(observer.observer_username || 'N/A')}</strong>
+                                    ${observer.observer_display_name ? `<div class="text-muted" style="font-size: 12px;">${escapeHtml(observer.observer_display_name)}</div>` : ''}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="scope-badge">${getScopeDisplay(observer.scope)}</span>
+                            </td>
+                            <td>
+                                <span class="status-badge status-${observer.status}">
+                                    ${getStatusDisplay(observer.status)}
+                                </span>
+                            </td>
+                            <td>${formatDate(observer.created_at)}</td>
+                            <td>${observer.expires_at ? formatDate(observer.expires_at) : '永不过期'}</td>
+                            <td>
+                                ${observer.status === 'active' ? `
+                                    <button class="btn btn-danger btn-sm" onclick="revokeGrant(${observer.id})">
+                                        <i class="bi bi-x"></i> 撤销
+                                    </button>
+                                ` : '-'}
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+
+        container.innerHTML = html;
+    }
+
+    // 渲染空状态
+    function renderEmptyState() {
+        const container = document.getElementById('observerListContainer');
+        const countBadge = document.getElementById('observerCount');
+        countBadge.textContent = '0 / 10';
+
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="bi bi-people"></i>
+                </div>
+                <div class="empty-state-text">
+                    暂无观察员授权，点击上方表单添加观察员
+                </div>
+            </div>
+        `;
+    }
+
+    // 撤销授权
+    window.revokeGrant = function(grantId) {
+        if (!confirm('确定要撤销此观察员的授权吗？')) {
+            return;
+        }
+
+        fetch(`${API_BASE}${grantId}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': window.csrfToken
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                window.showToast('授权已撤销', 'success');
+                loadObserverList();
+            } else {
+                return response.json().then(data => {
+                    throw new Error(data.error || '撤销失败');
+                });
+            }
+        })
+        .catch(error => {
+            console.error('撤销授权失败:', error);
+            window.showToast(error.message || '撤销失败，请重试', 'error');
+        });
+    };
+
+    // 用户搜索（防抖）
+    const observerInput = document.getElementById('observerInput');
+    const suggestionsBox = document.getElementById('userSuggestions');
+
+    observerInput.addEventListener('input', function() {
+        const query = this.value.trim();
+
+        clearTimeout(searchTimeout);
+
+        if (query.length < 2) {
+            suggestionsBox.style.display = 'none';
+            return;
+        }
+
+        searchTimeout = setTimeout(() => {
+            searchUsers(query);
+        }, 300);
+    });
+
+    // 搜索用户
+    function searchUsers(query) {
+        // 注意：这里需要一个用户搜索 API，暂时使用前端提示
+        // 实际应该调用后端的用户搜索接口
+        fetch(`/account/api/users/search/?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.results && data.results.length > 0) {
+                    renderSuggestions(data.results);
+                } else {
+                    suggestionsBox.innerHTML = '<div class="user-suggestion-item">未找到匹配的用户</div>';
+                    suggestionsBox.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('用户搜索失败:', error);
+                suggestionsBox.style.display = 'none';
+            });
+    }
+
+    // 渲染搜索建议
+    function renderSuggestions(users) {
+        const html = users.map(user => `
+            <div class="user-suggestion-item" data-username="${user.username}">
+                <div>
+                    <span class="username">${escapeHtml(user.username)}</span>
+                    ${user.display_name ? `<span class="display-name">(${escapeHtml(user.display_name)})</span>` : ''}
+                </div>
+            </div>
+        `).join('');
+
+        suggestionsBox.innerHTML = html;
+        suggestionsBox.style.display = 'block';
+
+        // 点击选择用户
+        suggestionsBox.querySelectorAll('.user-suggestion-item').forEach(item => {
+            item.addEventListener('click', function() {
+                observerInput.value = this.dataset.username;
+                suggestionsBox.style.display = 'none';
+            });
+        });
+    }
+
+    // 点击其他地方关闭建议框
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.input-wrapper')) {
+            suggestionsBox.style.display = 'none';
+        }
+    });
+
+    // 添加观察员表单提交
+    document.getElementById('addObserverForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        const data = {
+            observer_username: formData.get('observer_username'),
+            scope: 'read_only',
+            expires_at: formData.get('expires_at') || null
+        };
+
+        // 检查数量限制
+        const currentCount = parseInt(document.getElementById('observerCount').textContent);
+        if (currentCount >= 10) {
+            window.showToast('每账户最多可授权 10 个观察员', 'warning');
+            return;
+        }
+
+        fetch(API_BASE, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                window.showToast(result.message || '观察员添加成功', 'success');
+                this.reset();
+                loadObserverList();
+            } else {
+                throw new Error(result.error || '添加失败');
+            }
+        })
+        .catch(error => {
+            console.error('添加观察员失败:', error);
+            window.showToast(error.message || '添加失败，请重试', 'error');
+        });
+    });
+
+    // 工具函数
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '-';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+    }
+
+    function getScopeDisplay(scope) {
+        const scopes = {
+            'read_only': '只读',
+            'full_access': '完全访问'
+        };
+        return scopes[scope] || scope;
+    }
+
+    function getStatusDisplay(status) {
+        const statuses = {
+            'active': '有效',
+            'revoked': '已撤销',
+            'expired': '已过期'
+        };
+        return statuses[status] || status;
+    }
+
+    // 初始化日期选择器
+    if (typeof flatpickr !== 'undefined') {
+        flatpickr('#expiresAt', {
+            locale: 'zh',
+            dateFormat: 'Y-m-d',
+            minDate: 'today',
+            allowInput: true
+        });
+    }
+
+    // 页面加载时初始化
+    loadObserverList();
+})();
+</script>
+{% endblock %}

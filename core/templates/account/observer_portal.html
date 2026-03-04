@@ -1,0 +1,674 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}观察门户 - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/account.css' }">
+<style>
+.observer-portal-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.observer-header {
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.observer-header h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.subtitle {
+    color: #54595D;
+    font-size: 14px;
+}
+
+.read-only-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: #FFF4E5;
+    color: #FF6600;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.read-only-badge i {
+    font-size: 14px;
+}
+
+/* 账户卡片网格 */
+.accounts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+    margin-bottom: 32px;
+}
+
+.account-card {
+    background: #FFFFFF;
+    border: 1px solid #E0E0E0;
+    border-radius: 8px;
+    padding: 20px;
+    transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.account-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-color: #B8D4F1;
+}
+
+.account-card-header {
+    display: flex;
+    align-items: start;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.account-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.account-info {
+    flex: 1;
+}
+
+.account-owner {
+    font-weight: 600;
+    font-size: 16px;
+    margin-bottom: 2px;
+}
+
+.account-owner-label {
+    font-size: 12px;
+    color: #54595D;
+}
+
+.account-meta {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: #54595D;
+}
+
+.account-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.account-meta-item i {
+    font-size: 14px;
+}
+
+/* 状态标签 */
+.status-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-active {
+    background: #D5FBDD;
+    color: #14866D;
+}
+
+.status-expired {
+    background: #FFF4E5;
+    color: #FF6600;
+}
+
+/* 操作按钮 */
+.account-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s;
+}
+
+.btn-primary {
+    background: #36C;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2a5aa8;
+}
+
+.btn-primary:disabled {
+    background: #A0A0A0;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: #F8F9FA;
+    color: #202122;
+    border: 1px solid #E0E0E0;
+}
+
+.btn-secondary:hover {
+    background: #E8E8E8;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+/* 持仓详情面板 */
+.positions-panel {
+    background: #FFFFFF;
+    border: 1px solid #E0E0E0;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 24px;
+}
+
+.positions-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.positions-panel-title {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.read-only-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #FFF4E5;
+    border: 1px solid #FFD8A8;
+    border-radius: 4px;
+    color: #FF6600;
+    font-size: 13px;
+}
+
+/* 持仓表格 */
+.positions-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.positions-table thead {
+    background: #F8F9FA;
+}
+
+.positions-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    color: #54595D;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.positions-table td {
+    padding: 12px;
+    font-size: 13px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.positions-table tr:last-child td {
+    border-bottom: none;
+}
+
+.pos-positive {
+    color: #14866D;
+}
+
+.pos-negative {
+    color: #D33;
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 60px 24px;
+    color: #54595D;
+}
+
+.empty-state-icon {
+    font-size: 56px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.empty-state-title {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.empty-state-text {
+    font-size: 14px;
+    color: #54595D;
+}
+
+/* 统计卡片 */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    background: #F8F9FA;
+    border-radius: 6px;
+    padding: 16px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #54595D;
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.stat-value.positive {
+    color: #14866D;
+}
+
+.stat-value.negative {
+    color: #D33;
+}
+
+/* 过滤器 */
+.filter-bar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    align-items: center;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-label {
+    font-size: 13px;
+    color: #54595D;
+}
+
+.filter-select {
+    padding: 6px 10px;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .accounts-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="observer-portal-container">
+    <div class="observer-header">
+        <div>
+            <h1>观察门户</h1>
+            <p class="subtitle">查看您有权限观察的账户持仓信息</p>
+        </div>
+        <div class="read-only-badge">
+            <i class="bi bi-eye"></i>
+            只读模式
+        </div>
+    </div>
+
+    <!-- 可观察账户列表 -->
+    <div id="accountsContainer">
+        <!-- 加载中 -->
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="bi bi-hourglass-split"></i>
+            </div>
+            <div class="empty-state-title">加载中...</div>
+        </div>
+    </div>
+
+    <!-- 持仓详情面板（动态显示） -->
+    <div id="positionsPanel" style="display: none;">
+        <!-- 内容由 JS 动态填充 -->
+    </div>
+</div>
+
+<script>
+(function() {
+    const API_BASE = '/account/api/';
+    let currentGrantId = null;
+
+    // 加载可观察的账户列表
+    function loadObservableAccounts() {
+        const container = document.getElementById('accountsContainer');
+
+        // 获取作为观察员的授权列表
+        fetch('/account/api/observer-grants/?as_observer=1')
+            .then(response => response.json())
+            .then(data => {
+                const grants = data.results || data.data || [];
+
+                if (grants.length === 0) {
+                    renderEmptyState();
+                    return;
+                }
+
+                renderAccountsGrid(grants);
+            })
+            .catch(error => {
+                console.error('加载账户列表失败:', error);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="bi bi-exclamation-triangle"></i>
+                        </div>
+                        <div class="empty-state-title">加载失败</div>
+                        <div class="empty-state-text">请刷新页面重试</div>
+                    </div>
+                `;
+            });
+    }
+
+    // 渲染空状态
+    function renderEmptyState() {
+        const container = document.getElementById('accountsContainer');
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="bi bi-eye-slash"></i>
+                </div>
+                <div class="empty-state-title">暂无可观察的账户</div>
+                <div class="empty-state-text">
+                    您需要等待其他用户授权您作为观察员。<br>
+                    如有疑问，请联系账户拥有者。
+                </div>
+            </div>
+        `;
+    }
+
+    // 渲染账户卡片网格
+    function renderAccountsGrid(grants) {
+        const container = document.getElementById('accountsContainer');
+
+        // 过滤出有效的授权
+        const activeGrants = grants.filter(g => g.status === 'active' || g.status === 'valid');
+
+        if (activeGrants.length === 0) {
+            renderEmptyState();
+            return;
+        }
+
+        const html = `
+            <div class="accounts-grid">
+                ${activeGrants.map(grant => `
+                    <div class="account-card" data-grant-id="${grant.id}">
+                        <div class="account-card-header">
+                            <div class="account-avatar">
+                                ${getInitials(grant.owner_username || 'U')}
+                            </div>
+                            <div class="account-info">
+                                <div class="account-owner">${escapeHtml(grant.owner_display_name || grant.owner_username)}</div>
+                                <div class="account-owner-label">@${escapeHtml(grant.owner_username)}</div>
+                            </div>
+                        </div>
+                        <div class="account-meta">
+                            <div class="account-meta-item">
+                                <i class="bi bi-shield-check"></i>
+                                <span>${getScopeDisplay(grant.scope)}</span>
+                            </div>
+                            <div class="account-meta-item">
+                                <i class="bi bi-calendar"></i>
+                                <span>${grant.expires_at ? formatDate(grant.expires_at) : '永不过期'}</span>
+                            </div>
+                        </div>
+                        <div class="account-actions">
+                            <button class="btn btn-primary btn-sm" onclick="viewPositions(${grant.id}, '${escapeHtml(grant.owner_username)}')">
+                                <i class="bi bi-eye"></i> 查看持仓
+                            </button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+
+        container.innerHTML = html;
+    }
+
+    // 查看持仓详情
+    window.viewPositions = function(grantId, ownerUsername) {
+        currentGrantId = grantId;
+
+        // 显示持仓面板
+        const panel = document.getElementById('positionsPanel');
+        panel.style.display = 'block';
+        panel.innerHTML = '<div class="empty-state"><div class="empty-state-text">加载中...</div></div>';
+        panel.scrollIntoView({ behavior: 'smooth' });
+
+        // 获取持仓数据
+        fetch(`/account/api/observer-grants/${grantId}/positions/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    renderPositionsPanel(data.data, ownerUsername);
+                } else {
+                    throw new Error(data.error || '加载失败');
+                }
+            })
+            .catch(error => {
+                console.error('加载持仓失败:', error);
+                panel.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-title">加载失败</div>
+                        <div class="empty-state-text">${error.message}</div>
+                        <button class="btn btn-secondary" onclick="closePositionsPanel()">关闭</button>
+                    </div>
+                `;
+            });
+    };
+
+    // 渲染持仓面板
+    function renderPositionsPanel(data, ownerUsername) {
+        const panel = document.getElementById('positionsPanel');
+
+        const positions = data.positions || [];
+        const stats = data.statistics || {};
+
+        const html = `
+            <div class="positions-panel">
+                <div class="positions-panel-header">
+                    <div class="positions-panel-title">
+                        ${escapeHtml(ownerUsername)} 的持仓
+                    </div>
+                    <div class="read-only-banner">
+                        <i class="bi bi-eye"></i>
+                        只读模式 - 无法进行交易操作
+                    </div>
+                </div>
+
+                ${positions.length > 0 ? `
+                    <!-- 统计卡片 -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">持仓数量</div>
+                            <div class="stat-value">${stats.position_count || positions.length}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">总市值</div>
+                            <div class="stat-value">¥${formatMoney(stats.total_value || 0)}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">总成本</div>
+                            <div class="stat-value">¥${formatMoney(stats.total_cost || 0)}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">总盈亏</div>
+                            <div class="stat-value ${stats.total_pnl >= 0 ? 'positive' : 'negative'}">
+                                ¥${formatMoney(stats.total_pnl || 0)}
+                                <small>(${stats.total_pnl_pct >= 0 ? '+' : ''}${(stats.total_pnl_pct || 0).toFixed(2)}%)</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 持仓表格 -->
+                    <table class="positions-table">
+                        <thead>
+                            <tr>
+                                <th>资产代码</th>
+                                <th>资产名称</th>
+                                <th>持仓数量</th>
+                                <th>均价</th>
+                                <th>现价</th>
+                                <th>市值</th>
+                                <th>盈亏</th>
+                                <th>盈亏率</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${positions.map(pos => `
+                                <tr>
+                                    <td><strong>${escapeHtml(pos.asset_code || '-')}</strong></td>
+                                    <td>${escapeHtml(pos.asset_name || '-')}</td>
+                                    <td>${formatNumber(pos.shares || 0)}</td>
+                                    <td>¥${formatMoney(pos.avg_cost || 0)}</td>
+                                    <td>¥${formatMoney(pos.current_price || 0)}</td>
+                                    <td>¥${formatMoney(pos.market_value || 0)}</td>
+                                    <td class="${pos.unrealized_pnl >= 0 ? 'pos-positive' : 'pos-negative'}">
+                                        ¥${formatMoney(pos.unrealized_pnl || 0)}
+                                    </td>
+                                    <td class="${pos.unrealized_pnl_pct >= 0 ? 'pos-positive' : 'pos-negative'}">
+                                        ${pos.unrealized_pnl_pct >= 0 ? '+' : ''}${(pos.unrealized_pnl_pct || 0).toFixed(2)}%
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                ` : `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="bi bi-inbox"></i>
+                        </div>
+                        <div class="empty-state-title">暂无持仓</div>
+                        <div class="empty-state-text">该账户当前没有持仓记录</div>
+                    </div>
+                `}
+
+                <div style="margin-top: 16px; text-align: right;">
+                    <button class="btn btn-secondary" onclick="closePositionsPanel()">
+                        <i class="bi bi-x"></i> 关闭
+                    </button>
+                </div>
+            </div>
+        `;
+
+        panel.innerHTML = html;
+    }
+
+    // 关闭持仓面板
+    window.closePositionsPanel = function() {
+        const panel = document.getElementById('positionsPanel');
+        panel.style.display = 'none';
+        currentGrantId = null;
+    };
+
+    // 工具函数
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function getInitials(username) {
+        if (!username) return 'U';
+        return username.substring(0, 2).toUpperCase();
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '-';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+    }
+
+    function formatMoney(value) {
+        return parseFloat(value || 0).toLocaleString('zh-CN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function formatNumber(value) {
+        return parseFloat(value || 0).toLocaleString('zh-CN', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 4
+        });
+    }
+
+    function getScopeDisplay(scope) {
+        const scopes = {
+            'read_only': '只读访问',
+            'full_access': '完全访问'
+        };
+        return scopes[scope] || scope;
+    }
+
+    // 页面加载时初始化
+    loadObservableAccounts();
+})();
+</script>
+{% endblock %}

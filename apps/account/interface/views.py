@@ -938,6 +938,57 @@ def system_settings_view(request):
 
 
 # ============================================================
+# 账户协作视图
+# ============================================================
+
+@login_required
+@require_http_methods(["GET"])
+def collaboration_view(request):
+    """
+    账户协作管理视图
+
+    显示和授权观察员。
+    """
+    from apps.account.infrastructure.models import PortfolioObserverGrantModel
+
+    # 获取当前用户的授权统计
+    grant_count = PortfolioObserverGrantModel._default_manager.filter(
+        owner_user_id=request.user,
+        status='active'
+    ).count()
+
+    context = {
+        "user": request.user,
+        "grant_count": grant_count,
+        "max_grants": 10,
+    }
+    return render(request, "account/collaboration.html", context)
+
+
+@login_required
+@require_http_methods(["GET"])
+def observer_portal_view(request):
+    """
+    观察员门户视图
+
+    显示当前用户有权限观察的账户列表。
+    """
+    from apps.account.infrastructure.models import PortfolioObserverGrantModel
+
+    # 获取当前用户作为观察员的授权数量
+    observable_count = PortfolioObserverGrantModel._default_manager.filter(
+        observer_user_id=request.user,
+        status='active'
+    ).count()
+
+    context = {
+        "user": request.user,
+        "observable_count": observable_count,
+    }
+    return render(request, "account/observer_portal.html", context)
+
+
+# ============================================================
 # 注释：创建实仓和模拟仓视图已移除
 # ============================================================
 #

@@ -10,6 +10,9 @@ from django.db.models import Sum, F
 from django.contrib.auth.models import User
 from decimal import Decimal
 from apps.account.application.rbac import ROLE_CHOICES
+import uuid
+from django.core.exceptions import ValidationError
+from datetime import datetime, timezone
 
 
 # ============================================================
@@ -1220,3 +1223,152 @@ class SystemSettingsModel(models.Model):
 <h3>五、风险自担</h3>
 <p><strong>我已充分了解投资风险，理解本系统提供的所有信息仅供参考，将自行承担所有投资决策带来的风险和损失。</strong></p>
         """
+
+
+# ============================================================
+# Portfolio Observer Grant Model
+# ============================================================
+
+class PortfolioObserverGrantModel(models.Model):
+    """
+    投资组合观察员授权表
+
+    记录用户 A 授权用户 B 查看其投资组合的记录。
+    支持授权范围、状态管理和过期时间。
+    """
+    # 主键
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, verbose_name="授权ID")
+
+    # 授权关系
+    owner_user_id = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='granted_observers',
+        verbose_name="账户拥有者"
+    )
+    observer_user_id = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='observed_portfolios',
+        verbose_name="观察员"
+    )
+
+    # 授权范围（首版固定为 portfolio_read）
+    SCOPE_CHOICES = [
+        ('portfolio_read', '查看投资组合'),
+    ]
+    scope = models.CharField(
+        max_length=50,
+        choices=SCOPE_CHOICES,
+        default='portfolio_read',
+        verbose_name="授权范围"
+    )
+
+    # 状态枚举
+    STATUS_CHOICES = [
+        ('active', '激活'),
+        ('revoked', '已撤销'),
+        ('expired', '已过期'),
+    ]
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='active',
+        verbose_name="状态"
+    )
+
+    # 过期时间（可选）
+    expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="过期时间"
+    )
+
+    # 审计字段
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_observer_grants',
+        verbose_name="创建者"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    revoked_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="撤销时间"
+    )
+    revoked_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='revoked_observer_grants',
+        verbose_name="撤销者"
+    )
+
+    class Meta:
+        db_table = 'portfolio_observer_grant'
+        verbose_name = '投资组合观察员授权'
+        verbose_name_plural = '投资组合观察员授权'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['owner_user_id', 'observer_user_id'], name='idx_owner_observer'),
+            models.Index(fields=['observer_user_id', 'status'], name='idx_observer_status'),
+            models.Index(fields=['status', 'expires_at']),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['owner_user_id', 'observer_user_id'],
+                condition=models.Q(status='active'),
+                name='unique_active_grant'
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.owner_user_id.username} -> {self.observer_user_id.username} ({self.get_status_display()})"
+
+    def clean(self):
+        """验证约束条件"""
+        # 不能授权给自己
+        if self.owner_user_id == self.observer_user_id:
+            raise ValidationError({"observer_user_id": "不能授权给自己"})
+
+        # 检查是否已存在 active 授权
+        if self.status == 'active':
+            existing = PortfolioObserverGrantModel.objects.filter(
+                owner_user_id=self.owner_user_id,
+                observer_user_id=self.observer_user_id,
+                status='active'
+            ).exclude(id=self.id)
+            if existing.exists():
+                raise ValidationError({
+                    "owner_user_id": "该用户已被授权为观察员",
+                    "observer_user_id": "该用户已被授权为观察员"
+                })
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def is_valid(self):
+        """检查授权是否有效"""
+        if self.status != 'active':
+            return False
+        if self.expires_at and self.expires_at < datetime.now(timezone.utc):
+            return False
+        return True
+
+    def is_expired(self):
+        """检查授权是否已过期"""
+        if self.expires_at is None:
+            return False
+        return self.expires_at < datetime.now(timezone.utc)
+
+    def revoke(self, revoked_by_user):
+        """撤销授权"""
+        self.status = 'revoked'
+        self.revoked_at = datetime.now(timezone.utc)
+        self.revoked_by = revoked_by_user
+        self.save()

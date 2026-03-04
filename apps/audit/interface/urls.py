@@ -41,6 +41,11 @@ urlpatterns = [
     path('api/operation-logs/<str:log_id>/', views.OperationLogDetailView.as_view(), name='operation-log-detail'),
     path('api/internal/operation-logs/', views.OperationLogIngestView.as_view(), name='operation-log-ingest'),
 
+    # API routes - Health Check & Observability
+    path('api/health/', views.AuditHealthCheckView.as_view(), name='audit-health-check'),
+    path('api/failure-counter/', views.AuditFailureCounterView.as_view(), name='audit-failure-counter'),
+    path('api/metrics/', views.AuditMetricsView.as_view(), name='audit-metrics'),
+
     # HTML page routes
     path('page/', views.AuditPageView.as_view(), name='audit-page'),
     path('reports/', views.AuditPageView.as_view(), name='reports'),

@@ -17,6 +17,7 @@ router.register(r'positions', api_views.PositionViewSet, basename='position_api'
 router.register(r'transactions', api_views.TransactionViewSet, basename='transaction_api')
 router.register(r'capital-flows', api_views.CapitalFlowViewSet, basename='capital_flow_api')
 router.register(r'assets', api_views.AssetMetadataViewSet, basename='asset_api')
+router.register(r'observer-grants', api_views.ObserverGrantViewSet, basename='observer_grant_api')
 
 # Classification API Router
 classification_router = DefaultRouter()
@@ -33,6 +34,10 @@ urlpatterns = [
     path('settings/', views.settings_view, name='settings'),
     path('capital-flow/', views.capital_flow_view, name='capital_flow'),
     path('backtest/<int:backtest_id>/apply/', views.apply_backtest_results_view, name='apply_backtest'),
+
+    # 账户协作视图
+    path('collaboration/', views.collaboration_view, name='collaboration'),
+    path('observer/', views.observer_portal_view, name='observer_portal'),
 
     # ⭐ 创建投资组合功能已移至 simulated_trading 模块
     # 访问路径：/simulated-trading/my-accounts/
@@ -51,6 +56,7 @@ urlpatterns = [
     # API 视图
     path('api/profile/', api_views.AccountProfileView.as_view(), name='api_profile'),
     path('api/health/', api_views.AccountHealthView.as_view(), name='api_health'),
+    path('api/users/search/', api_views.UserSearchView.as_view(), name='api_user_search'),
     path('api/', include(router.urls)),
     path('api/volatility/', views.portfolio_volatility_api_view, name='api_volatility'),
 

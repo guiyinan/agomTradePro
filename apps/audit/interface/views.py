@@ -1278,3 +1278,150 @@ class OperationLogIngestView(APIView):
                 status=status.HTTP_202_ACCEPTED
             )
 
+
+# ============ Health Check API Views ============
+
+class AuditHealthCheckView(APIView):
+    """审计模块健康检查 API"""
+
+    permission_classes = []  # 健康检查不需要认证
+
+    @extend_schema(
+        summary="审计模块健康检查",
+        description="检查审计日志系统的健康状态，包括失败计数器、数据库连接和表可访问性",
+        responses={
+            200: OpenApiTypes.OBJECT,
+            503: OpenApiTypes.OBJECT,
+        },
+    )
+    def get(self, request):
+        """
+        执行健康检查
+
+        Query Parameters:
+            warning_threshold: WARNING 状态阈值（可选，默认 10）
+            error_threshold: ERROR 状态阈值（可选，默认 50）
+        """
+        from apps.audit.application.health_check import check_audit_health
+
+        warning_threshold = request.query_params.get('warning_threshold')
+        error_threshold = request.query_params.get('error_threshold')
+
+        # 转换参数类型
+        if warning_threshold:
+            try:
+                warning_threshold = int(warning_threshold)
+            except ValueError:
+                warning_threshold = None
+        if error_threshold:
+            try:
+                error_threshold = int(error_threshold)
+            except ValueError:
+                error_threshold = None
+
+        # 执行健康检查
+        report = check_audit_health(
+            warning_threshold=warning_threshold,
+            error_threshold=error_threshold,
+        )
+
+        # 根据 overall_status 设置 HTTP 状态码
+        http_status = status.HTTP_200_OK
+        if report.overall_status == "ERROR":
+            http_status = status.HTTP_503_SERVICE_UNAVAILABLE
+        elif report.overall_status == "WARNING":
+            http_status = status.HTTP_200_OK  # WARNING 仍然返回 200，但 status 字段为 WARNING
+
+        return Response(report.to_dict(), status=http_status)
+
+
+class AuditFailureCounterView(APIView):
+    """审计失败计数器 API"""
+
+    permission_classes = []  # 公开访问（可配置权限）
+
+    @extend_schema(
+        summary="获取审计失败计数",
+        description="获取审计日志写入失败的统计信息",
+        responses={
+            200: OpenApiTypes.OBJECT,
+        },
+    )
+    def get(self, request):
+        """获取失败计数"""
+        from apps.audit.infrastructure.failure_counter import get_audit_failure_counter
+
+        counter = get_audit_failure_counter()
+        stats = counter.get_failure_stats()
+
+        return Response(stats.to_dict())
+
+    @extend_schema(
+        summary="重置审计失败计数器",
+        description="重置审计失败计数器（需要管理员权限）",
+        responses={
+            200: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+        },
+    )
+    def post(self, request):
+        """重置计数器"""
+        from apps.audit.infrastructure.failure_counter import get_audit_failure_counter
+
+        # TODO: 添加管理员权限检查
+        # if not request.user.is_staff:
+        #     return Response(
+        #         {'error': '需要管理员权限'},
+        #         status=status.HTTP_403_FORBIDDEN
+        #     )
+
+        counter = get_audit_failure_counter()
+        counter.reset()
+
+        logger.info("Audit failure counter reset", extra={'user': request.user})
+
+        return Response({'success': True, 'message': '计数器已重置'})
+
+
+class AuditMetricsView(APIView):
+    """审计模块 Prometheus 指标 API"""
+
+    permission_classes = []  # 指标端点通常是公开的
+
+    @extend_schema(
+        summary="审计模块 Prometheus 指标",
+        description="获取审计日志写入的 Prometheus 指标，包括成功/失败计数和延迟直方图",
+        responses={
+            200: str,
+            500: dict,
+        },
+    )
+    def get(self, request):
+        """
+        获取 Prometheus 格式的指标
+
+        支持的格式：
+        - prometheus: Prometheus 文本格式（默认）
+        - json: JSON 格式的指标摘要
+        """
+        from apps.audit.infrastructure.metrics import export_metrics, get_audit_metrics_summary
+
+        format_type = request.query_params.get('format', 'prometheus')
+
+        if format_type == 'json':
+            # 返回 JSON 格式的指标摘要
+            summary = get_audit_metrics_summary()
+            return Response(summary)
+
+        else:
+            # 返回 Prometheus 文本格式
+            from django.http import HttpResponse
+
+            metrics_text = export_metrics()
+            return HttpResponse(
+                metrics_text,
+                content_type='text/plain; version=0.0.4; charset=utf-8',
+                status=status.HTTP_200_OK,
+            )
+
+

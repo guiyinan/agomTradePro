@@ -15,6 +15,7 @@ from apps.account.infrastructure.models import (
     AssetMetadataModel,
     CurrencyModel,
     AssetCategoryModel,
+    PortfolioObserverGrantModel,
 )
 
 
@@ -233,3 +234,140 @@ class PortfolioStatisticsSerializer(serializers.Serializer):
     total_capital_inflow = serializers.DecimalField(max_digits=20, decimal_places=2)
     total_capital_outflow = serializers.DecimalField(max_digits=20, decimal_places=2)
     net_capital_flow = serializers.DecimalField(max_digits=20, decimal_places=2)
+
+
+# ==================== Observer Grant ====================
+
+class ObserverGrantSerializer(serializers.ModelSerializer):
+    """观察员授权序列化器"""
+
+    owner_username = serializers.CharField(source='owner_user_id.username', read_only=True)
+    observer_username = serializers.CharField(source='observer_user_id.username', read_only=True)
+    scope_display = serializers.CharField(source='get_scope_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    is_valid = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = PortfolioObserverGrantModel
+        fields = [
+            'id', 'owner_user_id', 'observer_user_id', 'owner_username', 'observer_username',
+            'scope', 'scope_display', 'status', 'status_display', 'expires_at',
+            'is_valid', 'created_at', 'revoked_at', 'revoked_by'
+        ]
+        read_only_fields = ['id', 'created_at', 'revoked_at', 'revoked_by']
+
+
+class ObserverGrantCreateSerializer(serializers.ModelSerializer):
+    """观察员授权创建序列化器"""
+
+    # 支持通过 observer_user_id 或 username 指定观察员
+    username = serializers.CharField(
+        write_only=True,
+        required=False,
+        help_text="观察员用户名（与 observer_user_id 二选一）"
+    )
+
+    class Meta:
+        model = PortfolioObserverGrantModel
+        fields = ['observer_user_id', 'username', 'expires_at']
+
+    def validate(self, attrs):
+        """验证创建授权请求"""
+        request = self.context.get('request')
+        if not request or not request.user:
+            raise serializers.ValidationError("用户未登录")
+
+        # 获取观察员用户
+        observer_user_id = attrs.get('observer_user_id')
+        username = attrs.get('username')
+
+        if not observer_user_id and not username:
+            raise serializers.ValidationError({
+                "observer_user_id": "请提供 observer_user_id 或 username"
+            })
+
+        if username:
+            # 通过 username 查找用户
+            from django.contrib.auth.models import User
+            try:
+                observer = User.objects.get(username=username)
+                attrs['observer_user_id'] = observer.id
+            except User.DoesNotExist:
+                raise serializers.ValidationError({
+                    "username": f"用户 '{username}' 不存在"
+                })
+
+        # 验证观察员用户存在
+        from django.contrib.auth.models import User
+        try:
+            observer = User.objects.get(id=attrs['observer_user_id'])
+        except User.DoesNotExist:
+            raise serializers.ValidationError({
+                "observer_user_id": "观察员用户不存在"
+            })
+
+        # 不能授权给自己
+        if observer.id == request.user.id:
+            raise serializers.ValidationError({
+                "observer_user_id": "不能授权给自己"
+            })
+
+        # 检查是否已存在 active 授权
+        existing = PortfolioObserverGrantModel._default_manager.filter(
+            owner_user_id=request.user,
+            observer_user_id=observer,
+            status='active'
+        ).first()
+        if existing:
+            raise serializers.ValidationError({
+                "observer_user_id": f"该用户已被授权为观察员，授权 ID: {existing.id}"
+            })
+
+        # 检查观察员数量限制（每账户最多 10 个）
+        active_count = PortfolioObserverGrantModel._default_manager.filter(
+            owner_user_id=request.user,
+            status='active'
+        ).count()
+        if active_count >= 10:
+            raise serializers.ValidationError({
+                "__all__": "已达到观察员数量上限（10个），请先撤销部分授权"
+            })
+
+        # 验证过期时间
+        expires_at = attrs.get('expires_at')
+        if expires_at:
+            from django.utils import timezone
+            if expires_at <= timezone.now():
+                raise serializers.ValidationError({
+                    "expires_at": "过期时间必须大于当前时间"
+                })
+
+        return attrs
+
+    def create(self, validated_data):
+        """创建授权记录"""
+        request = self.context.get('request')
+        validated_data.pop('username', None)  # 移除临时字段
+
+        grant = PortfolioObserverGrantModel._default_manager.create(
+            owner_user_id=request.user,
+            created_by=request.user,
+            **validated_data
+        )
+        return grant
+
+
+class ObserverGrantUpdateSerializer(serializers.ModelSerializer):
+    """观察员授权更新序列化器（仅支持更新过期时间）"""
+
+    class Meta:
+        model = PortfolioObserverGrantModel
+        fields = ['expires_at']
+
+    def validate_expires_at(self, value):
+        """验证过期时间"""
+        if value:
+            from django.utils import timezone
+            if value <= timezone.now():
+                raise serializers.ValidationError("过期时间必须大于当前时间")
+        return value

@@ -1205,7 +1205,16 @@ class LogOperationUseCase:
         记录操作日志
 
         此用例用于内部写入接口，审计失败不阻塞主流程。
+
+        增强可观测性：
+        - 失败时记录到专门的计数器
+        - 记录 Prometheus 指标
+        - 记录详细的错误上下文
+        - 不影响主流程执行
         """
+        import time
+        start_time = time.time()
+
         try:
             from apps.audit.domain.services import OperationLogFactory
 
@@ -1239,6 +1248,20 @@ class LogOperationUseCase:
             # 保存到数据库
             log_id = self.audit_repo.save_operation_log(log)
 
+            # 计算延迟并记录 Prometheus 指标
+            latency_seconds = time.time() - start_time
+            try:
+                from apps.audit.infrastructure.metrics import record_audit_write_success
+
+                record_audit_write_success(
+                    module=request.module or "unknown",
+                    action=request.action or "unknown",
+                    source=request.source.value if hasattr(request.source, 'value') else str(request.source),
+                    latency_seconds=latency_seconds,
+                )
+            except ImportError:
+                pass  # Prometheus 指标模块不可用时跳过
+
             logger.info(f"操作日志已记录: log_id={log_id}, tool={request.mcp_tool_name}")
 
             return LogOperationResponse(
@@ -1247,8 +1270,49 @@ class LogOperationUseCase:
             )
 
         except Exception as e:
+            # 计算延迟
+            latency_seconds = time.time() - start_time
+
             # 审计失败不阻塞主流程，但记录错误日志
-            logger.error(f"记录操作日志失败: {e}", exc_info=True)
+            error_msg = f"记录操作日志失败: {e}"
+
+            # 增强可观测性：记录到失败计数器
+            try:
+                from apps.audit.infrastructure.failure_counter import record_audit_failure
+
+                # 判断失败组件类型
+                component = "repository"
+                if "database" in str(e).lower() or "connection" in str(e).lower():
+                    component = "database"
+                elif "validation" in str(e).lower():
+                    component = "validation"
+                elif "timeout" in str(e).lower():
+                    component = "timeout"
+
+                record_audit_failure(
+                    component=component,
+                    reason=f"{type(e).__name__}: {str(e)[:200]}",
+                    exc_info=False,  # 已在下面记录
+                )
+            except ImportError:
+                # 如果计数器模块不可用，继续执行
+                pass
+
+            # 记录 Prometheus 失败指标
+            try:
+                from apps.audit.infrastructure.metrics import record_audit_write_failure
+
+                record_audit_write_failure(
+                    module=request.module or "unknown",
+                    error_type=component if 'component' in locals() else "unknown",
+                    source=request.source.value if hasattr(request.source, 'value') else str(request.source),
+                    latency_seconds=latency_seconds,
+                )
+            except ImportError:
+                pass  # Prometheus 指标模块不可用时跳过
+
+            logger.error(error_msg, exc_info=True)
+
             return LogOperationResponse(
                 success=False,
                 error=str(e),
