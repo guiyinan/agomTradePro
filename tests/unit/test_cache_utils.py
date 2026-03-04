@@ -251,14 +251,17 @@ class CachedApiDecoratorTests(TestCase):
 
         @cached_api(key_prefix='test_drf', ttl_seconds=60)
         def test_view(request):
-            return Response({'data': 'value'})
+            return Response({'data': 'value'}, status=201, headers={'X-Test': 'cached'})
 
         request = self.factory.get('/api/test/')
         response1 = test_view(request)
         response2 = test_view(request)
 
-        # Should cache Response.data
+        # Should preserve Response semantics on cache hit
         self.assertEqual(response1.data, {'data': 'value'})
+        self.assertEqual(response2.data, {'data': 'value'})
+        self.assertEqual(response2.status_code, 201)
+        self.assertEqual(response2['X-Test'], 'cached')
 
 
 class CachedFunctionDecoratorTests(TestCase):

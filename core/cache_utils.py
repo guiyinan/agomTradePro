@@ -19,6 +19,9 @@ from prometheus_client import Counter, Histogram
 
 logger = logging.getLogger(__name__)
 
+# Internal marker for serialized DRF responses in cache.
+_CACHED_RESPONSE_MARKER = "_agomsaaf_cached_response_v1"
+
 # ============== Prometheus Metrics ==============
 
 cache_hits_total = Counter(
@@ -200,6 +203,41 @@ class cached_api:
         self.method = method
 
     def __call__(self, func: Callable) -> Callable:
+        def _serialize_response_for_cache(response: Any) -> Any:
+            """
+            Serialize response objects for cache storage.
+
+            DRF Response objects are converted to a plain dict envelope so cache
+            backends only store serializable data while preserving status/headers.
+            """
+            if hasattr(response, 'data'):
+                headers: Dict[str, str] = {}
+                try:
+                    headers = dict(response.items())
+                except Exception:
+                    headers = {}
+                return {
+                    _CACHED_RESPONSE_MARKER: True,
+                    'kind': 'drf_response',
+                    'data': response.data,
+                    'status_code': getattr(response, 'status_code', 200),
+                    'headers': headers,
+                }
+            return response
+
+        def _restore_cached_response(cached_value: Any) -> Any:
+            """Restore cached payload back into a DRF Response when applicable."""
+            if isinstance(cached_value, dict) and cached_value.get(_CACHED_RESPONSE_MARKER):
+                if cached_value.get('kind') == 'drf_response':
+                    from rest_framework.response import Response
+
+                    return Response(
+                        data=cached_value.get('data'),
+                        status=cached_value.get('status_code', 200),
+                        headers=cached_value.get('headers') or None,
+                    )
+            return cached_value
+
         @wraps(func)
         def wrapper(request: HttpRequest, *args, **kwargs):
             # Only cache specified method
@@ -230,7 +268,7 @@ class cached_api:
                 if cached_data is not None:
                     cache_hits_total.labels(endpoint=endpoint_name, key_prefix=self.key_prefix).inc()
                     logger.debug(f"Cache hit: {key}")
-                    return cached_data
+                    return _restore_cached_response(cached_data)
             except Exception as e:
                 cache_errors_total.labels(
                     endpoint=endpoint_name,
@@ -260,11 +298,8 @@ class cached_api:
             # Cache the response
             try:
                 with cache_latency_seconds.labels(endpoint=endpoint_name, operation='set').time():
-                    # For DRF Response objects, cache the data
-                    if hasattr(response, 'data'):
-                        cache.set(key, response.data, timeout=self.ttl_seconds)
-                    else:
-                        cache.set(key, response, timeout=self.ttl_seconds)
+                    cache_payload = _serialize_response_for_cache(response)
+                    cache.set(key, cache_payload, timeout=self.ttl_seconds)
                 logger.debug(f"Cache set: {key} (TTL={self.ttl_seconds}s)")
             except Exception as e:
                 cache_errors_total.labels(
