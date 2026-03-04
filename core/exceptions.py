@@ -4,7 +4,15 @@ AgomSAAF Custom Exceptions
 Provides standardized exception classes for consistent error handling across the application.
 """
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union
+import logging
+
+from django.http import Http404
+from rest_framework.views import exception_handler
+from rest_framework.response import Response
+from rest_framework import status
+
+logger = logging.getLogger(__name__)
 
 
 class AgomSAAFException(Exception):
@@ -212,3 +220,119 @@ class DataValidationError(BusinessLogicError):
 
     default_message = "数据验证失败"
     default_code = "DATA_VALIDATION_ERROR"
+
+
+# ========== DRF Exception Handler ==========
+
+def custom_exception_handler(exc: Exception, context: dict) -> Optional[Response]:
+    """
+    Custom exception handler for Django REST Framework.
+
+    Provides unified error response format for all API exceptions:
+    - AgomSAAFException subclasses: use their structured format
+    - DRF validation errors: wrap in standard format
+    - Other exceptions: pass through to DRF default handler
+
+    Response format:
+    {
+        "error": "Error message",
+        "code": "ERROR_CODE",
+        "details": {...}  # Optional
+    }
+
+    Args:
+        exc: The exception that was raised
+        context: DRF context dict containing view, request, etc.
+
+    Returns:
+        Response object or None (falls through to default handler)
+    """
+    # First, let DRF handle the exception to get the standard response
+    response = exception_handler(exc, context)
+
+    # Handle AgomSAAFException subclasses
+    if isinstance(exc, AgomSAAFException):
+        logger.warning(
+            f"AgomSAAFException raised: {exc.code} - {exc.message}",
+            extra={
+                "code": exc.code,
+                "status_code": exc.status_code,
+                "details": exc.details,
+                "view": context.get("view").__class__.__name__ if context.get("view") else None,
+            }
+        )
+        return Response(
+            exc.to_dict(),
+            status=exc.status_code
+        )
+
+    # If DRF already handled it, format the response
+    if response is not None:
+        # Standardize the error format for DRF exceptions
+        error_data = response.data
+
+        # Handle different DRF error formats
+        if isinstance(error_data, dict):
+            # Check if it's already in our format
+            if "error" in error_data and "code" in error_data:
+                return response
+
+            # Wrap validation errors
+            if "detail" in error_data:
+                # Single error message
+                return Response(
+                    {
+                        "error": str(error_data["detail"]),
+                        "code": "API_ERROR",
+                    },
+                    status=response.status_code
+                )
+            else:
+                # Multiple field errors (e.g., serializer validation)
+                return Response(
+                    {
+                        "error": "请求参数验证失败",
+                        "code": "VALIDATION_ERROR",
+                        "details": error_data,
+                    },
+                    status=response.status_code
+                )
+        elif isinstance(error_data, list):
+            # List of errors
+            return Response(
+                {
+                    "error": "; ".join(str(e) for e in error_data),
+                    "code": "API_ERROR",
+                },
+                status=response.status_code
+            )
+        elif isinstance(error_data, str):
+            return Response(
+                {
+                    "error": error_data,
+                    "code": "API_ERROR",
+                },
+                status=response.status_code
+            )
+
+        return response
+
+    # Handle Django Http404 (not caught by DRF)
+    if isinstance(exc, Http404):
+        return Response(
+            {
+                "error": "资源不存在",
+                "code": "NOT_FOUND",
+            },
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    # For unhandled exceptions, return None to let DRF use default behavior
+    # In production, this will result in a 500 error
+    logger.exception(
+        f"Unhandled exception in API: {type(exc).__name__}: {exc}",
+        extra={
+            "view": context.get("view").__class__.__name__ if context.get("view") else None,
+        }
+    )
+    return None

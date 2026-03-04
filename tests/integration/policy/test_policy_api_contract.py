@@ -8,6 +8,23 @@ from rest_framework.test import APIClient
 from apps.policy.infrastructure.models import PolicyLog
 
 
+@pytest.fixture(autouse=True)
+def _use_locmem_cache(settings):
+    """
+    Force local in-memory cache for this module's API contract tests.
+
+    These tests exercise DRF throttling paths. In CI/local environments without
+    Redis, default cache backend may raise connection errors and hide real API
+    contract regressions.
+    """
+    settings.CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "policy-api-contract-tests",
+        }
+    }
+
+
 def _build_authenticated_api_client(username: str = "policy_api_tester") -> APIClient:
     user_model = get_user_model()
     user, _ = user_model.objects.get_or_create(username=username)

@@ -1,5 +1,7 @@
 """
 DRF Serializers for Signal API.
+
+P1-4: 接入输入消毒，防止 XSS 攻击
 """
 
 from rest_framework import serializers
@@ -8,6 +10,7 @@ from typing import Dict, Any, Optional
 
 from apps.signal.infrastructure.models import InvestmentSignalModel
 from apps.signal.domain.entities import SignalStatus
+from shared.infrastructure.sanitization import sanitize_plain_text
 
 
 class InvestmentSignalSerializer(serializers.ModelSerializer):
@@ -54,7 +57,10 @@ class InvestmentSignalCreateSerializer(serializers.ModelSerializer):
         ]
 
     def validate_invalidation_logic(self, value):
-        """验证证伪逻辑"""
+        """验证证伪逻辑（含 XSS 消毒）"""
+        # P1-4: XSS 消毒
+        value = sanitize_plain_text(value)
+
         if not value or len(value.strip()) < 5:
             raise serializers.ValidationError(
                 "证伪逻辑至少需要 5 个字符"
@@ -72,6 +78,11 @@ class InvestmentSignalCreateSerializer(serializers.ModelSerializer):
             )
 
         return value
+
+    def validate_logic_desc(self, value):
+        """验证投资逻辑描述（含 XSS 消毒）"""
+        # P1-4: XSS 消毒
+        return sanitize_plain_text(value)
 
     def create(self, validated_data):
         """创建信号，解析证伪逻辑"""

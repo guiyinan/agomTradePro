@@ -52,6 +52,13 @@ DEBUG = False
 ALLOWED_HOSTS = []
 
 # Application definition
+
+# P1-3: DoS 基线 - 请求体大小限制
+# 防止大请求耗尽服务器资源
+DATA_UPLOAD_MAX_MEMORY_SIZE = env.int('DATA_UPLOAD_MAX_MEMORY_SIZE', default=10 * 1024 * 1024)  # 10MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = env.int('FILE_UPLOAD_MAX_MEMORY_SIZE', default=10 * 1024 * 1024)  # 10MB
+DATA_UPLOAD_MAX_NUMBER_FIELDS = env.int('DATA_UPLOAD_MAX_NUMBER_FIELDS', default=1000)  # 最多1000个字段
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -221,6 +228,8 @@ DAILY_INSPECTION_EMAIL_ENABLED = env.bool('DAILY_INSPECTION_EMAIL_ENABLED', defa
 # REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    # 异常处理器（P0-1：统一异常返回格式）
+    'EXCEPTION_HANDLER': 'core.exceptions.custom_exception_handler',
     # 认证配置
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',  # Session 认证（Web界面）
@@ -236,6 +245,9 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'anon': env('DRF_THROTTLE_ANON', default='100/hour'),
         'user': env('DRF_THROTTLE_USER', default='1000/hour'),
+        'backtest': env('DRF_THROTTLE_BACKTEST', default='10/hour'),  # P0-2：回测专用限流
+        'write': env('DRF_THROTTLE_WRITE', default='100/hour'),  # P0-2：写操作限流
+        'burst': env('DRF_THROTTLE_BURST', default='30/minute'),  # P0-2：突发保护限流
     },
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
@@ -554,6 +566,20 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(hour=4, minute=0, day_of_week="sun"),  # 每周日凌晨 4:00
         "options": {
             "days_to_keep": 30,  # 保留 30 天
+            "expires": 3600,  # 1 小时超时
+        }
+    },
+    # ============================================
+
+    # ========== P1-2: 数据库备份 ==========
+    "database-daily-backup": {
+        "task": "apps.task_monitor.application.tasks.backup_database_task",
+        "schedule": crontab(hour=3, minute=0),  # 每天凌晨 3:00
+        "kwargs": {
+            "keep_days": 7,  # 保留 7 天
+            "compress": True,
+        },
+        "options": {
             "expires": 3600,  # 1 小时超时
         }
     },

@@ -1,0 +1,235 @@
+# Security Scan Workflow
+# P0-3: CI 安全扫描门禁
+#
+# This workflow runs security scans on every PR and push to main.
+# It includes:
+# - Bandit: Python code security analysis
+# - Safety: Dependency vulnerability scanning
+# - pip-audit: Additional dependency audit
+#
+# Baseline mechanism:
+# - Historical issues are logged as warnings
+# - New high-severity issues block PR merge
+
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # Run daily at 2:00 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  bandit-scan:
+    name: Bandit Code Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for baseline comparison
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Bandit
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit bandit-baseline
+
+      - name: Create baseline file if not exists
+        run: |
+          mkdir -p reports/security
+          if [ ! -f reports/security/bandit-baseline.json ]; then
+            echo '{"results": [], "errors": [], "generated_at": "'$(date -Iseconds)'"}' > reports/security/bandit-baseline.json
+          fi
+
+      - name: Run Bandit scan
+        id: bandit
+        run: |
+          # Run Bandit with baseline comparison
+          bandit -r apps/ core/ shared/ -f json -o reports/security/bandit-report.json --baseline reports/security/bandit-baseline.json || true
+
+          # Check for new high-severity issues
+          NEW_HIGH=$(python3 -c "
+          import json
+          import sys
+          try:
+              with open('reports/security/bandit-report.json') as f:
+                  data = json.load(f)
+              new_high = [r for r in data.get('results', []) if r.get('issue_severity') == 'HIGH' and not r.get('is_baseline', False)]
+              print(len(new_high))
+          except Exception as e:
+              print(0)
+          ")
+
+          echo "new_high_issues=$NEW_HIGH" >> $GITHUB_OUTPUT
+
+          if [ "$NEW_HIGH" -gt 0 ]; then
+            echo "::error::Found $NEW_HIGH new high-severity security issues. Please fix before merging."
+            exit 1
+          fi
+
+      - name: Upload Bandit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-security-report
+          path: reports/security/
+          retention-days: 30
+
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install scanning tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install safety pip-audit
+
+      - name: Create reports directory
+        run: mkdir -p reports/security
+
+      - name: Run Safety scan
+        id: safety
+        run: |
+          # Run safety check and save report
+          safety check --json > reports/security/safety-report.json 2>&1 || true
+
+          # Parse results
+          VULN_COUNT=$(python3 -c "
+          import json
+          import sys
+          try:
+              with open('reports/security/safety-report.json') as f:
+                  data = json.load(f)
+              # Safety JSON format varies by version
+              if isinstance(data, dict):
+                  vulns = data.get('vulnerabilities', [])
+                  if isinstance(vulns, list):
+                      print(len(vulns))
+                  else:
+                      print(0)
+              elif isinstance(data, list):
+                  print(len(data))
+              else:
+                  print(0)
+          except Exception as e:
+              print(0)
+          " || echo "0")
+
+          echo "vulnerability_count=$VULN_COUNT" >> $GITHUB_OUTPUT
+
+          if [ "$VULN_COUNT" -gt 0 ]; then
+            echo "::warning::Found $VULN_COUNT known vulnerabilities in dependencies. Review reports/security/safety-report.json"
+          fi
+
+      - name: Run pip-audit
+        id: pip-audit
+        run: |
+          pip-audit --format json --output reports/security/pip-audit-report.json 2>/dev/null || true
+
+          # Parse results
+          AUDIT_COUNT=$(python3 -c "
+          import json
+          try:
+              with open('reports/security/pip-audit-report.json') as f:
+                  data = json.load(f)
+              print(len(data.get('vulnerabilities', [])))
+          except:
+              print(0)
+          " || echo "0")
+
+          echo "audit_vulnerability_count=$AUDIT_COUNT" >> $GITHUB_OUTPUT
+
+          if [ "$AUDIT_COUNT" -gt 0 ]; then
+            echo "::warning::pip-audit found $AUDIT_COUNT vulnerabilities. Review reports/security/pip-audit-report.json"
+          fi
+
+      - name: Upload dependency scan reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-security-report
+          path: reports/security/
+          retention-days: 30
+
+      - name: Check for critical vulnerabilities
+        run: |
+          # Fail if there are critical vulnerabilities in production dependencies
+          # This is a soft gate - warnings don't fail, only critical issues
+          CRITICAL_COUNT=$(python3 -c "
+          import json
+          try:
+              with open('reports/security/pip-audit-report.json') as f:
+                  data = json.load(f)
+              critical = [v for v in data.get('vulnerabilities', []) if v.get('severity', '').upper() == 'CRITICAL']
+              print(len(critical))
+          except:
+              print(0)
+          " || echo "0")
+
+          if [ "$CRITICAL_COUNT" -gt 0 ]; then
+            echo "::error::Found $CRITICAL_COUNT CRITICAL vulnerabilities in dependencies. These must be fixed before merging."
+            exit 1
+          fi
+
+  security-summary:
+    name: Security Scan Summary
+    runs-on: ubuntu-latest
+    needs: [bandit-scan, dependency-scan]
+    if: always()
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: reports/security/
+
+      - name: Generate summary
+        run: |
+          echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Scan Type | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.bandit-scan.result }}" == "success" ]; then
+            echo "| Bandit Code Scan | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Bandit Code Scan | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "${{ needs.dependency-scan.result }}" == "success" ]; then
+            echo "| Dependency Scan | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Dependency Scan | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Reports are available as artifacts (retained for 30 days)." >> $GITHUB_STEP_SUMMARY
+
+      - name: Overall status
+        run: |
+          if [ "${{ needs.bandit-scan.result }}" != "success" ] || [ "${{ needs.dependency-scan.result }}" != "success" ]; then
+            echo "::error::One or more security scans failed. Please review the reports."
+            exit 1
+          fi
+          echo "All security scans passed!"

@@ -13,6 +13,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from datetime import date
 
+from core.throttling import BacktestRateThrottle, WriteRateThrottle
 from ..infrastructure.models import BacktestResultModel, BacktestTradeModel
 from ..infrastructure.repositories import DjangoBacktestRepository
 from ..application.use_cases import (
@@ -99,7 +100,23 @@ def backtest_create_view(request):
 # ==================== API Views (DRF) ====================
 
 class BacktestViewSet(viewsets.ViewSet):
-    """回测 API 视图集"""
+    """回测 API 视图集
+
+    P0-2: 应用分层限流（限流逻辑在 throttle 类内部按请求方法过滤）
+
+    限流策略：
+    - BacktestRateThrottle: 仅对 POST (create) 生效，10/hour
+    - WriteRateThrottle: 对 POST/PUT/PATCH/DELETE 生效，100/hour
+    - GET (list/retrieve/statistics): 仅使用默认全局限流，不受上述限制
+
+    配置方式（settings.py 或环境变量）：
+    - REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']['backtest'] 或 DRF_THROTTLE_BACKTEST
+    - REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']['write'] 或 DRF_THROTTLE_WRITE
+    """
+
+    # P0-2: 分层限流配置
+    # 注意：限流类内部已实现方法过滤，GET 请求不会触发这些限流
+    throttle_classes = [BacktestRateThrottle, WriteRateThrottle]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
