@@ -19,7 +19,7 @@ function Wait-ServerReady([int]$port, [int]$timeoutSeconds = 40) {
     for ($i = 0; $i -lt $timeoutSeconds; $i++) {
         Start-Sleep -Seconds 1
         try {
-            $resp = Invoke-WebRequest -Uri "$base/health/" -UseBasicParsing -TimeoutSec 2
+            $resp = Invoke-WebRequest -Uri "$base/api/health/" -UseBasicParsing -TimeoutSec 2
             if ($resp.StatusCode -eq 200) { return $true }
         } catch {}
     }
@@ -73,7 +73,7 @@ $results.server_started_by_script = $serverStartedByScript
 
 try {
     # 1) health
-    $results.health = (Invoke-WebRequest -Uri "$baseUrl/health/" -UseBasicParsing -TimeoutSec 10).StatusCode
+    $results.health = (Invoke-WebRequest -Uri "$baseUrl/api/health/" -UseBasicParsing -TimeoutSec 10).StatusCode
 
     # 2) no token -> 401
     try {
@@ -92,7 +92,7 @@ try {
     }
 
     # generate additional logs
-    1..3 | ForEach-Object { Invoke-WebRequest -Uri "$baseUrl/health/" -UseBasicParsing -TimeoutSec 10 | Out-Null }
+    1..3 | ForEach-Object { Invoke-WebRequest -Uri "$baseUrl/api/health/" -UseBasicParsing -TimeoutSec 10 | Out-Null }
 
     # 4) good token first pull
     $r1 = Invoke-WebRequest -Uri "$baseUrl/api/debug/server-logs/stream/?since=0&limit=2" -Headers @{ Authorization = "Bearer $Token" } -UseBasicParsing -TimeoutSec 10
@@ -102,7 +102,7 @@ try {
     $results.first_last_id = [int]$j1.last_id
 
     # 5) incremental with cursor
-    Invoke-WebRequest -Uri "$baseUrl/health/" -UseBasicParsing -TimeoutSec 10 | Out-Null
+    Invoke-WebRequest -Uri "$baseUrl/api/health/" -UseBasicParsing -TimeoutSec 10 | Out-Null
     $r2 = Invoke-WebRequest -Uri "$baseUrl/api/debug/server-logs/stream/?since=$($j1.last_id)&limit=50" -Headers @{ Authorization = "Bearer $Token" } -UseBasicParsing -TimeoutSec 10
     $j2 = $r2.Content | ConvertFrom-Json
     $results.incremental_status = $r2.StatusCode
@@ -119,7 +119,7 @@ try {
     $exp = Invoke-WebRequest -Uri "$baseUrl/api/debug/server-logs/export/" -Headers @{ Authorization = "Bearer $Token" } -UseBasicParsing -TimeoutSec 10
     $results.export_status = $exp.StatusCode
     $results.export_len = $exp.Content.Length
-    $results.export_has_health = [bool]($exp.Content -match "/health/")
+    $results.export_has_health = [bool]($exp.Content -match "/api/health/")
 
     # 8) response shape
     $shapeOk = ($j1.PSObject.Properties.Name -contains "entries") -and

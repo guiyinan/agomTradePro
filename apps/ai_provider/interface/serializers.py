@@ -6,10 +6,12 @@ Django REST Framework 序列化器。
 
 from rest_framework import serializers
 from ..infrastructure.models import AIProviderConfig, AIUsageLog
+from ..infrastructure.repositories import AIProviderRepository
 
 
 class AIProviderConfigSerializer(serializers.ModelSerializer):
     """AI提供商配置序列化器"""
+    _provider_repo = AIProviderRepository()
 
     class Meta:
         model = AIProviderConfig
@@ -25,11 +27,8 @@ class AIProviderConfigSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         """隐藏API Key的部分内容"""
         data = super().to_representation(instance)
-        if data.get('api_key'):
-            # 只显示前8位和后4位
-            api_key = data['api_key']
-            if len(api_key) > 12:
-                data['api_key'] = f"{api_key[:8]}...{api_key[-4:]}"
+        api_key = self._provider_repo.get_api_key(instance)
+        data['api_key'] = f"****{api_key[-4:]}" if api_key and len(api_key) >= 4 else '****'
         return data
 
 

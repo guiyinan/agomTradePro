@@ -78,11 +78,12 @@ class AIClientFactory:
         if not provider_config:
             raise ValueError(f"AI Provider not found: {provider_id}")
 
-        # 创建客户端
+        # 创建客户端 - 使用 repository 的 get_api_key 方法解密
         extra_config = provider_config.extra_config if isinstance(provider_config.extra_config, dict) else {}
+        api_key = self.provider_repository.get_api_key(provider_config)
         client = OpenAICompatibleAdapter(
             base_url=provider_config.base_url,
-            api_key=provider_config.api_key,
+            api_key=api_key,
             default_model=provider_config.default_model,
             api_mode=extra_config.get("api_mode"),
             fallback_enabled=extra_config.get("fallback_enabled"),

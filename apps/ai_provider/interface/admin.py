@@ -9,11 +9,13 @@ from django.db.models import Sum, Count
 from datetime import date
 
 from ..infrastructure.models import AIProviderConfig, AIUsageLog
+from ..infrastructure.repositories import AIProviderRepository
 
 
 @admin.register(AIProviderConfig)
 class AIProviderConfigAdmin(admin.ModelAdmin):
     """AI提供商配置管理"""
+    _provider_repo = AIProviderRepository()
 
     list_display = [
         'name',
@@ -23,6 +25,7 @@ class AIProviderConfigAdmin(admin.ModelAdmin):
         'default_model',
         'api_mode',
         'fallback_enabled',
+        'masked_api_key',
         'last_used_at',
         'created_at'
     ]
@@ -50,6 +53,14 @@ class AIProviderConfigAdmin(admin.ModelAdmin):
     )
 
     readonly_fields = ['created_at', 'updated_at', 'last_used_at']
+
+    def masked_api_key(self, obj):
+        """显示掩码后的 API Key"""
+        api_key = self._provider_repo.get_api_key(obj)
+        if api_key:
+            return f"****{api_key[-4:]}" if len(api_key) >= 4 else "****"
+        return '****'
+    masked_api_key.short_description = 'API Key'
 
 
 @admin.register(AIUsageLog)

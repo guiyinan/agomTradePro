@@ -1,0 +1,1561 @@
+{
+  "version": "1.0",
+  "created": "2026-03-04T10:01:11.666467",
+  "routes": [
+    "/api/policy/workbench/items/{id}/",
+    "/sentiment/console/",
+    "/api/policy/workbench/items/{id}/",
+    "/api/policy/workbench/items/{id}/approve/",
+    "/api/policy/workbench/items/{id}/reject/",
+    "/api/policy/workbench/items/{id}/rollback/",
+    "/api/policy/workbench/items/{id}/override/",
+    "/api/equity/multidim-screen/",
+    "/api/providers/",
+    "/api/providers/",
+    "/api/logs/",
+    "/dashboard/legacy/",
+    "/dashboard/legacy/",
+    "/api/alpha/",
+    "/asset-analysis/api/screen/{asset_type}/",
+    "/asset-analysis/api/pool-summary/",
+    "/api/simulated-trading/accounts/",
+    "/api/simulated-trading/accounts/{id}/",
+    "/api/simulated-trading/accounts/",
+    "/api/simulated-trading/accounts/{id}/positions/",
+    "/api/simulated-trading/accounts/{id}/trades/",
+    "/api/simulated-trading/accounts/{id}/performance/",
+    "/api/simulated-trading/manual-trade/",
+    "/api/simulated-trading/fee-configs/",
+    "/api/simulated-trading/accounts/{id}/trigger-auto-trading/",
+    "/api/realtime/prices/{code}/",
+    "/api/events/publish/",
+    "/api/events/query/",
+    "/api/events/metrics/",
+    "/api/events/status/",
+    "/api/events/replay/",
+    "/audit/api/attribution-chart-data/{report_id}/",
+    "/api/regime/chart-data/",
+    "/api/celery/task-status/",
+    "/opt/agomsaaf",
+    "/opt/agomsaaf",
+    "/opt/agomsaaf",
+    "/macro/dashboard/",
+    "/bin/sh",
+    "/bin/sh",
+    "/api/alpha/",
+    "/api/debug/server-logs/stream/?since=<id>&limit=<n>",
+    "/api/signals/",
+    "/admin/account/",
+    "/admin/prompt/",
+    "/admin/account/",
+    "/admin/regime/",
+    "/admin/equity/",
+    "/admin/signal/",
+    "/admin/policy/",
+    "/admin/prompt/",
+    "/api/decision-rhythm/requests/{request_id}/execute/",
+    "/api/simulated-trading/accounts/",
+    "/dashboard/legacy/",
+    "/macro/dashboard/",
+    "/equity/dashboard/",
+    "/dashboard/legacy/",
+    "/macro/dashboard/",
+    "/equity/dashboard/",
+    "/rsshub/routes",
+    "/mof/zhengcefabu",
+    "/api/decision/workspace/recommendations/?account_id={id}",
+    "/api/decision/workspace/conflicts/?account_id={id}",
+    "/api/decision-rhythm/requests/{request_id}/execute/",
+    "/api/valuation/snapshot/{id}/",
+    "/api/decision/execute/{request_id}/",
+    "/dashboard/api/v1/equity-curve/?range=...",
+    "/dashboard/api/v1/signal-status/?limit=...",
+    "/dashboard/legacy/",
+    "/api/macro/...",
+    "/api/policy/...",
+    "/api/asset-analysis/screen/{asset_type}/",
+    "/api/strategy/api/position-rules/{id}/evaluate/",
+    "/api/strategy/api/strategies/{id}/evaluate_position_management/",
+    "/simulated-trading/api/accounts/{account_id}/inspections/run/",
+    "/api/asset-analysis/screen/equity/",
+    "/api/strategy/api/position-rules/{id}/evaluate/",
+    "/simulated-trading/api/accounts/{id}/inspections/run/",
+    "/macro/indicators/",
+    "/macro/health/",
+    "/policy/hedges/",
+    "/equity/stocks/",
+    "/equity/screener/",
+    "/sector/sectors/",
+    "/sector/relative-strength/",
+    "/fund/analyze-style/",
+    "/fund/info/",
+    "/fund/nav/",
+    "/fund/holdings/",
+    "/fund/performance/",
+    "/account/portfolios/",
+    "/account/positions/",
+    "/account/transactions/",
+    "/account/capital-flows/",
+    "/account/allocation/",
+    "/account/health/",
+    "/audit/attribution/",
+    "/audit/analyze/",
+    "/prompt/chat/",
+    "/prompt/providers/",
+    "/prompt/models/",
+    "/prompt/signal-generation/",
+    "/prompt/report-generation/",
+    "/prompt/chains/",
+    "/prompt/templates/",
+    "/filter/filters/",
+    "/filter/apply/",
+    "/filter/health/",
+    "/api/decision-rhythm/requests/{request_id}/execute/",
+    "/api/decision-rhythm/requests/{request_id}/cancel/",
+    "/docs/uat-doc-json/",
+    "/docs/uat-doc-json/",
+    "/docs/uat-doc-json/",
+    "/health/",
+    "/api/account",
+    "/account/admin/users/<user_id>/role/",
+    "/ai/manage/",
+    "/ai/detail/",
+    "/api/alpha/",
+    "/api/system/",
+    "/api/sentiment/",
+    "/macro/indicator/",
+    "/regime/state/",
+    "/signal/list/",
+    "/policy/manage/",
+    "/backtest/history/",
+    "/backtest/list/",
+    "/filter/manage/",
+    "/sector/analysis/",
+    "/strategy/list/",
+    "/realtime/monitor/",
+    "/api/account/",
+    "/api/equity/",
+    "/api/fund/",
+    "/api/asset-analysis/",
+    "/api/simulated-trading/",
+    "/api/alpha/",
+    "/api/system/",
+    "/api/decision-rhythm/requests/{request_id}/execute/",
+    "/api/decision-rhythm/requests/{request_id}/cancel/",
+    "/simulated-trading/api/accounts/{account_id}/inspections/run/",
+    "/simulated-trading/api/accounts/{account_id}/inspections/?limit=20&inspection_date=2026-02-08",
+    "/strategy/api/position-rules/{id}/evaluate/",
+    "/strategy/api/strategies/{id}/position_rule/",
+    "/strategy/api/strategies/{id}/evaluate_position_management/",
+    "/dashboard/legacy/",
+    "/dashboard/legacy/",
+    "/macro/dashboard/",
+    "/equity/dashboard/",
+    "/dashboard/legacy/",
+    "/dashboard/legacy/",
+    "/dashboard/legacy/",
+    "/models/qlib",
+    "/api/policy/workbench/items/{id}/approve/",
+    "/api/policy/workbench/items/{id}/reject/",
+    "/api/policy/workbench/items/{id}/override/",
+    "/api/policy/workbench/items/{id}/rollback/",
+    "/dashboard/legacy/",
+    "/api/filter/api/",
+    "/api/filter/api/\\.(?P<format>[a-z0-9]+)/?",
+    "/api/filter/api/compare/",
+    "/api/filter/api/compare\\.(?P<format>[a-z0-9]+)/?",
+    "/api/filter/api/config/(?P<indicator_code>[/]+)/",
+    "/api/filter/api/config/(?P<indicator_code>[/]+)\\.(?P<format>[a-z0-9]+)/?",
+    "/api/filter/api/get-data/",
+    "/api/filter/api/get-data\\.(?P<format>[a-z0-9]+)/?",
+    "/api/filter/api/indicators/",
+    "/api/filter/api/indicators\\.(?P<format>[a-z0-9]+)/?",
+    "/api/filter/api/<drf_format_suffix:format>",
+    "/api/ai/api/providers\\.(?P<format>[a-z0-9]+)/?",
+    "/api/ai/api/logs\\.(?P<format>[a-z0-9]+)/?",
+    "/api/prompt/api/templates/",
+    "/api/prompt/api/templates\\.(?P<format>[a-z0-9]+)/?",
+    "/api/prompt/api/templates/categories/",
+    "/api/prompt/api/templates/categories\\.(?P<format>[a-z0-9]+)/?",
+    "/api/prompt/api/templates/(?P<pk>[/.]+)/",
+    "/api/prompt/api/templates/(?P<pk>[/.]+)\\.(?P<format>[a-z0-9]+)/?",
+    "/api/prompt/api/templates/(?P<pk>[/.]+)/execute/",
+    "/api/prompt/api/templates/(?P<pk>[/.]+)/execute\\.(?P<format>[a-z0-9]+)/?",
+    "/api/prompt/api/chains/",
+    "/api/prompt/api/chains\\.(?P<format>[a-z0-9]+)/?",
+    "/api/prompt/api/chains/execution_modes/",
+    "/api/prompt/api/chains/execution_modes\\.(?P<format>[a-z0-9]+)/?",
+    "/api/prompt/api/chains/(?P<pk>[/.]+)/",
+    "/api/prompt/api/chains/(?P<pk>[/.]+)\\.(?P<format>[a-z0-9]+)/?",
+    "/api/prompt/api/chains/(?P<pk>[/.]+)/execute/",
+    "/api/prompt/api/chains/(?P<pk>[/.]+)/execute\\.(?P<format>[a-z0-9]+)/?",
+    "/api/prompt/api/logs\\.(?P<format>[a-z0-9]+)/?",
+    "/api/prompt/api/",
+    "/api/prompt/api/<drf_format_suffix:format>",
+    "/api/prompt/api/reports/generate",
+    "/api/prompt/api/chat",
+    "/api/prompt/api/chat/providers",
+    "/api/prompt/api/chat/models"
+  ],
+  "issues": [
+    {
+      "type": "missing_route",
+      "source": "docs\\policy_sentiment_hotspot_workbench_outsource_spec.md",
+      "route": "/api/policy/workbench/items/{id}/",
+      "details": "Route /api/policy/workbench/items/{id}/ referenced in docs but not found in Django (baseline)",
+      "line": 110
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\policy_sentiment_hotspot_workbench_outsource_spec.md",
+      "route": "/sentiment/console/",
+      "details": "Route /sentiment/console/ referenced in docs but not found in Django (baseline)",
+      "line": 147
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\policy_sentiment_hotspot_workbench_outsource_spec.md",
+      "route": "/api/policy/workbench/items/{id}/",
+      "details": "Route /api/policy/workbench/items/{id}/ referenced in docs but not found in Django (baseline)",
+      "line": 299
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\policy_sentiment_hotspot_workbench_outsource_spec.md",
+      "route": "/api/policy/workbench/items/{id}/approve/",
+      "details": "Route /api/policy/workbench/items/{id}/approve/ referenced in docs but not found in Django (baseline)",
+      "line": 308
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\policy_sentiment_hotspot_workbench_outsource_spec.md",
+      "route": "/api/policy/workbench/items/{id}/reject/",
+      "details": "Route /api/policy/workbench/items/{id}/reject/ referenced in docs but not found in Django (baseline)",
+      "line": 309
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\policy_sentiment_hotspot_workbench_outsource_spec.md",
+      "route": "/api/policy/workbench/items/{id}/rollback/",
+      "details": "Route /api/policy/workbench/items/{id}/rollback/ referenced in docs but not found in Django (baseline)",
+      "line": 310
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\policy_sentiment_hotspot_workbench_outsource_spec.md",
+      "route": "/api/policy/workbench/items/{id}/override/",
+      "details": "Route /api/policy/workbench/items/{id}/override/ referenced in docs but not found in Django (baseline)",
+      "line": 311
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\asset_analysis_framework.md",
+      "route": "/api/equity/multidim-screen/",
+      "details": "Route /api/equity/multidim-screen/ referenced in docs but not found in Django (baseline)",
+      "line": 1185
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\project_structure.md",
+      "route": "/api/providers/",
+      "details": "Route /api/providers/ referenced in docs but not found in Django (baseline)",
+      "line": 534
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\project_structure.md",
+      "route": "/api/providers/",
+      "details": "Route /api/providers/ referenced in docs but not found in Django (baseline)",
+      "line": 535
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\project_structure.md",
+      "route": "/api/logs/",
+      "details": "Route /api/logs/ referenced in docs but not found in Django (baseline)",
+      "line": 541
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\routing_naming_convention.md",
+      "route": "/dashboard/legacy/",
+      "details": "Route /dashboard/legacy/ referenced in docs but not found in Django (baseline)",
+      "line": 160
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\routing_naming_convention.md",
+      "route": "/dashboard/legacy/",
+      "details": "Route /dashboard/legacy/ referenced in docs but not found in Django (baseline)",
+      "line": 228
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\routing_naming_convention.md",
+      "route": "/api/alpha/",
+      "details": "Route /api/alpha/ referenced in docs but not found in Django (baseline)",
+      "line": 238
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\SYSTEM_OVERVIEW.md",
+      "route": "/asset-analysis/api/screen/{asset_type}/",
+      "details": "Route /asset-analysis/api/screen/{asset_type}/ referenced in docs but not found in Django (baseline)",
+      "line": 298
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\SYSTEM_OVERVIEW.md",
+      "route": "/asset-analysis/api/pool-summary/",
+      "details": "Route /asset-analysis/api/pool-summary/ referenced in docs but not found in Django (baseline)",
+      "line": 301
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\SYSTEM_OVERVIEW.md",
+      "route": "/api/simulated-trading/accounts/",
+      "details": "Route /api/simulated-trading/accounts/ referenced in docs but not found in Django (baseline)",
+      "line": 454
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\SYSTEM_OVERVIEW.md",
+      "route": "/api/simulated-trading/accounts/{id}/",
+      "details": "Route /api/simulated-trading/accounts/{id}/ referenced in docs but not found in Django (baseline)",
+      "line": 455
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\SYSTEM_OVERVIEW.md",
+      "route": "/api/simulated-trading/accounts/",
+      "details": "Route /api/simulated-trading/accounts/ referenced in docs but not found in Django (baseline)",
+      "line": 456
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\SYSTEM_OVERVIEW.md",
+      "route": "/api/simulated-trading/accounts/{id}/positions/",
+      "details": "Route /api/simulated-trading/accounts/{id}/positions/ referenced in docs but not found in Django (baseline)",
+      "line": 457
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\SYSTEM_OVERVIEW.md",
+      "route": "/api/simulated-trading/accounts/{id}/trades/",
+      "details": "Route /api/simulated-trading/accounts/{id}/trades/ referenced in docs but not found in Django (baseline)",
+      "line": 458
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\SYSTEM_OVERVIEW.md",
+      "route": "/api/simulated-trading/accounts/{id}/performance/",
+      "details": "Route /api/simulated-trading/accounts/{id}/performance/ referenced in docs but not found in Django (baseline)",
+      "line": 459
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\SYSTEM_OVERVIEW.md",
+      "route": "/api/simulated-trading/manual-trade/",
+      "details": "Route /api/simulated-trading/manual-trade/ referenced in docs but not found in Django (baseline)",
+      "line": 460
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\SYSTEM_OVERVIEW.md",
+      "route": "/api/simulated-trading/fee-configs/",
+      "details": "Route /api/simulated-trading/fee-configs/ referenced in docs but not found in Django (baseline)",
+      "line": 461
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\SYSTEM_OVERVIEW.md",
+      "route": "/api/simulated-trading/accounts/{id}/trigger-auto-trading/",
+      "details": "Route /api/simulated-trading/accounts/{id}/trigger-auto-trading/ referenced in docs but not found in Django (baseline)",
+      "line": 462
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\SYSTEM_OVERVIEW.md",
+      "route": "/api/realtime/prices/{code}/",
+      "details": "Route /api/realtime/prices/{code}/ referenced in docs but not found in Django (baseline)",
+      "line": 508
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\SYSTEM_OVERVIEW.md",
+      "route": "/api/events/publish/",
+      "details": "Route /api/events/publish/ referenced in docs but not found in Django (baseline)",
+      "line": 643
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\SYSTEM_OVERVIEW.md",
+      "route": "/api/events/query/",
+      "details": "Route /api/events/query/ referenced in docs but not found in Django (baseline)",
+      "line": 644
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\SYSTEM_OVERVIEW.md",
+      "route": "/api/events/metrics/",
+      "details": "Route /api/events/metrics/ referenced in docs but not found in Django (baseline)",
+      "line": 645
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\SYSTEM_OVERVIEW.md",
+      "route": "/api/events/status/",
+      "details": "Route /api/events/status/ referenced in docs but not found in Django (baseline)",
+      "line": 646
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\SYSTEM_OVERVIEW.md",
+      "route": "/api/events/replay/",
+      "details": "Route /api/events/replay/ referenced in docs but not found in Django (baseline)",
+      "line": 647
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\SYSTEM_OVERVIEW.md",
+      "route": "/audit/api/attribution-chart-data/{report_id}/",
+      "details": "Route /audit/api/attribution-chart-data/{report_id}/ referenced in docs but not found in Django (baseline)",
+      "line": 970
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\SYSTEM_OVERVIEW.md",
+      "route": "/api/regime/chart-data/",
+      "details": "Route /api/regime/chart-data/ referenced in docs but not found in Django (baseline)",
+      "line": 1005
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\architecture\\SYSTEM_OVERVIEW.md",
+      "route": "/api/celery/task-status/",
+      "details": "Route /api/celery/task-status/ referenced in docs but not found in Django (baseline)",
+      "line": 1077
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\deployment\\VPS_BUNDLE_DEPLOYMENT.md",
+      "route": "/opt/agomsaaf",
+      "details": "Route /opt/agomsaaf referenced in docs but not found in Django (baseline)",
+      "line": 124
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\deployment\\VPS_DEPLOYMENT_QUICKSTART.md",
+      "route": "/opt/agomsaaf",
+      "details": "Route /opt/agomsaaf referenced in docs but not found in Django (baseline)",
+      "line": 47
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\deployment\\VPS_DEPLOYMENT_RUNBOOK_141.11.211.21.md",
+      "route": "/opt/agomsaaf",
+      "details": "Route /opt/agomsaaf referenced in docs but not found in Django (baseline)",
+      "line": 14
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\deployment\\VPS_DEPLOYMENT_RUNBOOK_141.11.211.21.md",
+      "route": "/macro/dashboard/",
+      "details": "Route /macro/dashboard/ referenced in docs but not found in Django (baseline)",
+      "line": 125
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\deployment\\VPS_DEPLOYMENT_RUNBOOK_141.11.211.21.md",
+      "route": "/bin/sh",
+      "details": "Route /bin/sh referenced in docs but not found in Django (baseline)",
+      "line": 222
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\deployment\\VPS_PACKAGING_MEMO.md",
+      "route": "/bin/sh",
+      "details": "Route /bin/sh referenced in docs but not found in Django (baseline)",
+      "line": 78
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\development\\api-route-consistency.md",
+      "route": "/api/alpha/",
+      "details": "Route /api/alpha/ referenced in docs but not found in Django (baseline)",
+      "line": 71
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\development\\debug-automation-log-api.md",
+      "route": "/api/debug/server-logs/stream/?since=<id>&limit=<n>",
+      "details": "Route /api/debug/server-logs/stream/?since=<id>&limit=<n> referenced in docs but not found in Django (baseline)",
+      "line": 14
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\development\\system-review-report.md",
+      "route": "/api/signals/",
+      "details": "Route /api/signals/ referenced in docs but not found in Django (baseline)",
+      "line": 87
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\development\\system_initialization.md",
+      "route": "/admin/account/",
+      "details": "Route /admin/account/ referenced in docs but not found in Django (baseline)",
+      "line": 85
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\development\\system_initialization.md",
+      "route": "/admin/prompt/",
+      "details": "Route /admin/prompt/ referenced in docs but not found in Django (baseline)",
+      "line": 192
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\development\\system_initialization.md",
+      "route": "/admin/account/",
+      "details": "Route /admin/account/ referenced in docs but not found in Django (baseline)",
+      "line": 303
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\development\\system_initialization.md",
+      "route": "/admin/regime/",
+      "details": "Route /admin/regime/ referenced in docs but not found in Django (baseline)",
+      "line": 304
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\development\\system_initialization.md",
+      "route": "/admin/equity/",
+      "details": "Route /admin/equity/ referenced in docs but not found in Django (baseline)",
+      "line": 305
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\development\\system_initialization.md",
+      "route": "/admin/signal/",
+      "details": "Route /admin/signal/ referenced in docs but not found in Django (baseline)",
+      "line": 306
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\development\\system_initialization.md",
+      "route": "/admin/policy/",
+      "details": "Route /admin/policy/ referenced in docs but not found in Django (baseline)",
+      "line": 307
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\development\\system_initialization.md",
+      "route": "/admin/prompt/",
+      "details": "Route /admin/prompt/ referenced in docs but not found in Django (baseline)",
+      "line": 308
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\development\\wp3-deployment-checklist.md",
+      "route": "/api/decision-rhythm/requests/{request_id}/execute/",
+      "details": "Route /api/decision-rhythm/requests/{request_id}/execute/ referenced in docs but not found in Django (baseline)",
+      "line": 9
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\development\\wp3-deployment-checklist.md",
+      "route": "/api/simulated-trading/accounts/",
+      "details": "Route /api/simulated-trading/accounts/ referenced in docs but not found in Django (baseline)",
+      "line": 10
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\frontend\\ui-ux-full-page-audit-2026-02-18.md",
+      "route": "/dashboard/legacy/",
+      "details": "Route /dashboard/legacy/ referenced in docs but not found in Django (baseline)",
+      "line": 23
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\frontend\\ui-ux-full-page-audit-2026-02-18.md",
+      "route": "/macro/dashboard/",
+      "details": "Route /macro/dashboard/ referenced in docs but not found in Django (baseline)",
+      "line": 148
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\frontend\\ui-ux-full-page-audit-2026-02-18.md",
+      "route": "/equity/dashboard/",
+      "details": "Route /equity/dashboard/ referenced in docs but not found in Django (baseline)",
+      "line": 148
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\frontend\\ui-ux-full-page-audit-2026-02-18.md",
+      "route": "/dashboard/legacy/",
+      "details": "Route /dashboard/legacy/ referenced in docs but not found in Django (baseline)",
+      "line": 154
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\frontend\\ui-ux-full-page-audit-2026-02-18.md",
+      "route": "/macro/dashboard/",
+      "details": "Route /macro/dashboard/ referenced in docs but not found in Django (baseline)",
+      "line": 174
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\frontend\\ui-ux-full-page-audit-2026-02-18.md",
+      "route": "/equity/dashboard/",
+      "details": "Route /equity/dashboard/ referenced in docs but not found in Django (baseline)",
+      "line": 174
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\integration\\how2usersshub.md",
+      "route": "/rsshub/routes",
+      "details": "Route /rsshub/routes referenced in docs but not found in Django (baseline)",
+      "line": 116
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\integration\\rss_policy_integration.md",
+      "route": "/mof/zhengcefabu",
+      "details": "Route /mof/zhengcefabu referenced in docs but not found in Django (baseline)",
+      "line": 465
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\plans\\decision-workspace-topdown-bottomup-outsourcing-spec-2026-03-02.md",
+      "route": "/api/decision/workspace/recommendations/?account_id={id}",
+      "details": "Route /api/decision/workspace/recommendations/?account_id={id} referenced in docs but not found in Django (baseline)",
+      "line": 129
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\plans\\decision-workspace-topdown-bottomup-outsourcing-spec-2026-03-02.md",
+      "route": "/api/decision/workspace/conflicts/?account_id={id}",
+      "details": "Route /api/decision/workspace/conflicts/?account_id={id} referenced in docs but not found in Django (baseline)",
+      "line": 135
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\plans\\home-workflow-outsourcing-spec-2026-03-01.md",
+      "route": "/api/decision-rhythm/requests/{request_id}/execute/",
+      "details": "Route /api/decision-rhythm/requests/{request_id}/execute/ referenced in docs but not found in Django (baseline)",
+      "line": 180
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\plans\\outsourcing-valuation-pricing-execution-plan-2026-03-02.md",
+      "route": "/api/valuation/snapshot/{id}/",
+      "details": "Route /api/valuation/snapshot/{id}/ referenced in docs but not found in Django (baseline)",
+      "line": 96
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\plans\\outsourcing-valuation-pricing-execution-plan-2026-03-02.md",
+      "route": "/api/decision/execute/{request_id}/",
+      "details": "Route /api/decision/execute/{request_id}/ referenced in docs but not found in Django (baseline)",
+      "line": 101
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\plans\\streamlit-dashboard-upgrade-plan.md",
+      "route": "/dashboard/api/v1/equity-curve/?range=...",
+      "details": "Route /dashboard/api/v1/equity-curve/?range=... referenced in docs but not found in Django (baseline)",
+      "line": 46
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\plans\\streamlit-dashboard-upgrade-plan.md",
+      "route": "/dashboard/api/v1/signal-status/?limit=...",
+      "details": "Route /dashboard/api/v1/signal-status/?limit=... referenced in docs but not found in Django (baseline)",
+      "line": 48
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\plans\\streamlit-dashboard-upgrade-plan.md",
+      "route": "/dashboard/legacy/",
+      "details": "Route /dashboard/legacy/ referenced in docs but not found in Django (baseline)",
+      "line": 113
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\user\\topdown-bottomup-execution-playbook.md",
+      "route": "/api/macro/...",
+      "details": "Route /api/macro/... referenced in docs but not found in Django (baseline)",
+      "line": 44
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\user\\topdown-bottomup-execution-playbook.md",
+      "route": "/api/policy/...",
+      "details": "Route /api/policy/... referenced in docs but not found in Django (baseline)",
+      "line": 47
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\user\\topdown-bottomup-execution-playbook.md",
+      "route": "/api/asset-analysis/screen/{asset_type}/",
+      "details": "Route /api/asset-analysis/screen/{asset_type}/ referenced in docs but not found in Django (baseline)",
+      "line": 69
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\user\\topdown-bottomup-execution-playbook.md",
+      "route": "/api/strategy/api/position-rules/{id}/evaluate/",
+      "details": "Route /api/strategy/api/position-rules/{id}/evaluate/ referenced in docs but not found in Django (baseline)",
+      "line": 141
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\user\\topdown-bottomup-execution-playbook.md",
+      "route": "/api/strategy/api/strategies/{id}/evaluate_position_management/",
+      "details": "Route /api/strategy/api/strategies/{id}/evaluate_position_management/ referenced in docs but not found in Django (baseline)",
+      "line": 142
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\user\\topdown-bottomup-execution-playbook.md",
+      "route": "/simulated-trading/api/accounts/{account_id}/inspections/run/",
+      "details": "Route /simulated-trading/api/accounts/{account_id}/inspections/run/ referenced in docs but not found in Django (baseline)",
+      "line": 175
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\user\\topdown-bottomup-execution-playbook.md",
+      "route": "/api/asset-analysis/screen/equity/",
+      "details": "Route /api/asset-analysis/screen/equity/ referenced in docs but not found in Django (baseline)",
+      "line": 268
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\user\\topdown-bottomup-execution-playbook.md",
+      "route": "/api/strategy/api/position-rules/{id}/evaluate/",
+      "details": "Route /api/strategy/api/position-rules/{id}/evaluate/ referenced in docs but not found in Django (baseline)",
+      "line": 269
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\user\\topdown-bottomup-execution-playbook.md",
+      "route": "/simulated-trading/api/accounts/{id}/inspections/run/",
+      "details": "Route /simulated-trading/api/accounts/{id}/inspections/run/ referenced in docs but not found in Django (baseline)",
+      "line": 270
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/macro/indicators/",
+      "details": "Route /macro/indicators/ referenced in docs but not found in Django (baseline)",
+      "line": 44
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/macro/health/",
+      "details": "Route /macro/health/ referenced in docs but not found in Django (baseline)",
+      "line": 47
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/policy/hedges/",
+      "details": "Route /policy/hedges/ referenced in docs but not found in Django (baseline)",
+      "line": 137
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/equity/stocks/",
+      "details": "Route /equity/stocks/ referenced in docs but not found in Django (baseline)",
+      "line": 235
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/equity/screener/",
+      "details": "Route /equity/screener/ referenced in docs but not found in Django (baseline)",
+      "line": 239
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/sector/sectors/",
+      "details": "Route /sector/sectors/ referenced in docs but not found in Django (baseline)",
+      "line": 284
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/sector/relative-strength/",
+      "details": "Route /sector/relative-strength/ referenced in docs but not found in Django (baseline)",
+      "line": 287
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/fund/analyze-style/",
+      "details": "Route /fund/analyze-style/ referenced in docs but not found in Django (baseline)",
+      "line": 308
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/fund/info/",
+      "details": "Route /fund/info/ referenced in docs but not found in Django (baseline)",
+      "line": 310
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/fund/nav/",
+      "details": "Route /fund/nav/ referenced in docs but not found in Django (baseline)",
+      "line": 311
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/fund/holdings/",
+      "details": "Route /fund/holdings/ referenced in docs but not found in Django (baseline)",
+      "line": 312
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/fund/performance/",
+      "details": "Route /fund/performance/ referenced in docs but not found in Django (baseline)",
+      "line": 313
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/account/portfolios/",
+      "details": "Route /account/portfolios/ referenced in docs but not found in Django (baseline)",
+      "line": 377
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/account/positions/",
+      "details": "Route /account/positions/ referenced in docs but not found in Django (baseline)",
+      "line": 379
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/account/transactions/",
+      "details": "Route /account/transactions/ referenced in docs but not found in Django (baseline)",
+      "line": 380
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/account/capital-flows/",
+      "details": "Route /account/capital-flows/ referenced in docs but not found in Django (baseline)",
+      "line": 381
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/account/allocation/",
+      "details": "Route /account/allocation/ referenced in docs but not found in Django (baseline)",
+      "line": 383
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/account/health/",
+      "details": "Route /account/health/ referenced in docs but not found in Django (baseline)",
+      "line": 384
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/audit/attribution/",
+      "details": "Route /audit/attribution/ referenced in docs but not found in Django (baseline)",
+      "line": 396
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/audit/analyze/",
+      "details": "Route /audit/analyze/ referenced in docs but not found in Django (baseline)",
+      "line": 397
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/prompt/chat/",
+      "details": "Route /prompt/chat/ referenced in docs but not found in Django (baseline)",
+      "line": 407
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/prompt/providers/",
+      "details": "Route /prompt/providers/ referenced in docs but not found in Django (baseline)",
+      "line": 408
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/prompt/models/",
+      "details": "Route /prompt/models/ referenced in docs but not found in Django (baseline)",
+      "line": 409
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/prompt/signal-generation/",
+      "details": "Route /prompt/signal-generation/ referenced in docs but not found in Django (baseline)",
+      "line": 410
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/prompt/report-generation/",
+      "details": "Route /prompt/report-generation/ referenced in docs but not found in Django (baseline)",
+      "line": 411
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/prompt/chains/",
+      "details": "Route /prompt/chains/ referenced in docs but not found in Django (baseline)",
+      "line": 412
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/prompt/templates/",
+      "details": "Route /prompt/templates/ referenced in docs but not found in Django (baseline)",
+      "line": 413
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/filter/filters/",
+      "details": "Route /filter/filters/ referenced in docs but not found in Django (baseline)",
+      "line": 444
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/filter/apply/",
+      "details": "Route /filter/apply/ referenced in docs but not found in Django (baseline)",
+      "line": 446
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/filter/health/",
+      "details": "Route /filter/health/ referenced in docs but not found in Django (baseline)",
+      "line": 447
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/api/decision-rhythm/requests/{request_id}/execute/",
+      "details": "Route /api/decision-rhythm/requests/{request_id}/execute/ referenced in docs but not found in Django (baseline)",
+      "line": 560
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\api\\API_REFERENCE.md",
+      "route": "/api/decision-rhythm/requests/{request_id}/cancel/",
+      "details": "Route /api/decision-rhythm/requests/{request_id}/cancel/ referenced in docs but not found in Django (baseline)",
+      "line": 618
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-memo-2026-02-07.md",
+      "route": "/docs/uat-doc-json/",
+      "details": "Route /docs/uat-doc-json/ referenced in docs but not found in Django (baseline)",
+      "line": 58
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-memo-2026-02-07.md",
+      "route": "/docs/uat-doc-json/",
+      "details": "Route /docs/uat-doc-json/ referenced in docs but not found in Django (baseline)",
+      "line": 112
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-memo-2026-02-07.md",
+      "route": "/docs/uat-doc-json/",
+      "details": "Route /docs/uat-doc-json/ referenced in docs but not found in Django (baseline)",
+      "line": 131
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-memo-2026-02-07.md",
+      "route": "/health/",
+      "details": "Route /health/ referenced in docs but not found in Django (baseline)",
+      "line": 138
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-memo-2026-02-07.md",
+      "route": "/api/account",
+      "details": "Route /api/account referenced in docs but not found in Django (baseline)",
+      "line": 147
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-memo-2026-02-07.md",
+      "route": "/account/admin/users/<user_id>/role/",
+      "details": "Route /account/admin/users/<user_id>/role/ referenced in docs but not found in Django (baseline)",
+      "line": 213
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/ai/manage/",
+      "details": "Route /ai/manage/ referenced in docs but not found in Django (baseline)",
+      "line": 57
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/ai/detail/",
+      "details": "Route /ai/detail/ referenced in docs but not found in Django (baseline)",
+      "line": 57
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/api/alpha/",
+      "details": "Route /api/alpha/ referenced in docs but not found in Django (baseline)",
+      "line": 65
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/api/system/",
+      "details": "Route /api/system/ referenced in docs but not found in Django (baseline)",
+      "line": 67
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/api/sentiment/",
+      "details": "Route /api/sentiment/ referenced in docs but not found in Django (baseline)",
+      "line": 96
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/macro/indicator/",
+      "details": "Route /macro/indicator/ referenced in docs but not found in Django (baseline)",
+      "line": 124
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/regime/state/",
+      "details": "Route /regime/state/ referenced in docs but not found in Django (baseline)",
+      "line": 125
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/signal/list/",
+      "details": "Route /signal/list/ referenced in docs but not found in Django (baseline)",
+      "line": 126
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/policy/manage/",
+      "details": "Route /policy/manage/ referenced in docs but not found in Django (baseline)",
+      "line": 127
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/backtest/history/",
+      "details": "Route /backtest/history/ referenced in docs but not found in Django (baseline)",
+      "line": 128
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/backtest/list/",
+      "details": "Route /backtest/list/ referenced in docs but not found in Django (baseline)",
+      "line": 128
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/filter/manage/",
+      "details": "Route /filter/manage/ referenced in docs but not found in Django (baseline)",
+      "line": 130
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/sector/analysis/",
+      "details": "Route /sector/analysis/ referenced in docs but not found in Django (baseline)",
+      "line": 131
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/strategy/list/",
+      "details": "Route /strategy/list/ referenced in docs but not found in Django (baseline)",
+      "line": 132
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/realtime/monitor/",
+      "details": "Route /realtime/monitor/ referenced in docs but not found in Django (baseline)",
+      "line": 133
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/api/account/",
+      "details": "Route /api/account/ referenced in docs but not found in Django (baseline)",
+      "line": 135
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/api/equity/",
+      "details": "Route /api/equity/ referenced in docs but not found in Django (baseline)",
+      "line": 136
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/api/fund/",
+      "details": "Route /api/fund/ referenced in docs but not found in Django (baseline)",
+      "line": 137
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/api/asset-analysis/",
+      "details": "Route /api/asset-analysis/ referenced in docs but not found in Django (baseline)",
+      "line": 138
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/api/simulated-trading/",
+      "details": "Route /api/simulated-trading/ referenced in docs but not found in Django (baseline)",
+      "line": 139
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/api/alpha/",
+      "details": "Route /api/alpha/ referenced in docs but not found in Django (baseline)",
+      "line": 140
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\testing\\archive\\uat-route-baseline-2026-02-21.md",
+      "route": "/api/system/",
+      "details": "Route /api/system/ referenced in docs but not found in Django (baseline)",
+      "line": 141
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\modules\\decision\\decision-workflow-guide.md",
+      "route": "/api/decision-rhythm/requests/{request_id}/execute/",
+      "details": "Route /api/decision-rhythm/requests/{request_id}/execute/ referenced in docs but not found in Django (baseline)",
+      "line": 128
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\modules\\decision\\decision-workflow-guide.md",
+      "route": "/api/decision-rhythm/requests/{request_id}/cancel/",
+      "details": "Route /api/decision-rhythm/requests/{request_id}/cancel/ referenced in docs but not found in Django (baseline)",
+      "line": 319
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\modules\\simulated_trading\\daily-inspection.md",
+      "route": "/simulated-trading/api/accounts/{account_id}/inspections/run/",
+      "details": "Route /simulated-trading/api/accounts/{account_id}/inspections/run/ referenced in docs but not found in Django (baseline)",
+      "line": 56
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\modules\\simulated_trading\\daily-inspection.md",
+      "route": "/simulated-trading/api/accounts/{account_id}/inspections/?limit=20&inspection_date=2026-02-08",
+      "details": "Route /simulated-trading/api/accounts/{account_id}/inspections/?limit=20&inspection_date=2026-02-08 referenced in docs but not found in Django (baseline)",
+      "line": 59
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\modules\\strategy\\position-management.md",
+      "route": "/strategy/api/position-rules/{id}/evaluate/",
+      "details": "Route /strategy/api/position-rules/{id}/evaluate/ referenced in docs but not found in Django (baseline)",
+      "line": 33
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\modules\\strategy\\position-management.md",
+      "route": "/strategy/api/strategies/{id}/position_rule/",
+      "details": "Route /strategy/api/strategies/{id}/position_rule/ referenced in docs but not found in Django (baseline)",
+      "line": 34
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\modules\\strategy\\position-management.md",
+      "route": "/strategy/api/strategies/{id}/evaluate_position_management/",
+      "details": "Route /strategy/api/strategies/{id}/evaluate_position_management/ referenced in docs but not found in Django (baseline)",
+      "line": 35
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\archive\\fixes\\api-routing-governance-plan-2026-02-18.md",
+      "route": "/dashboard/legacy/",
+      "details": "Route /dashboard/legacy/ referenced in docs but not found in Django (baseline)",
+      "line": 36
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\archive\\frontend\\epic-a-refactor-checklist-2026-02-18.md",
+      "route": "/dashboard/legacy/",
+      "details": "Route /dashboard/legacy/ referenced in docs but not found in Django (baseline)",
+      "line": 37
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\archive\\frontend\\epic-a-refactor-checklist-2026-02-18.md",
+      "route": "/macro/dashboard/",
+      "details": "Route /macro/dashboard/ referenced in docs but not found in Django (baseline)",
+      "line": 189
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\archive\\frontend\\epic-a-refactor-checklist-2026-02-18.md",
+      "route": "/equity/dashboard/",
+      "details": "Route /equity/dashboard/ referenced in docs but not found in Django (baseline)",
+      "line": 190
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\archive\\frontend\\epic-a-refactor-checklist-2026-02-18.md",
+      "route": "/dashboard/legacy/",
+      "details": "Route /dashboard/legacy/ referenced in docs but not found in Django (baseline)",
+      "line": 204
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\archive\\frontend\\routing-governance-report-2026-02-18.md",
+      "route": "/dashboard/legacy/",
+      "details": "Route /dashboard/legacy/ referenced in docs but not found in Django (baseline)",
+      "line": 16
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\archive\\frontend\\routing-governance-report-2026-02-18.md",
+      "route": "/dashboard/legacy/",
+      "details": "Route /dashboard/legacy/ referenced in docs but not found in Django (baseline)",
+      "line": 40
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\archive\\plans\\phase3-training-summary.md",
+      "route": "/models/qlib",
+      "details": "Route /models/qlib referenced in docs but not found in Django (baseline)",
+      "line": 249
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\archive\\plans\\policy-rss-hotspot-sentiment-unified-workbench-plan-2026-02-27.md",
+      "route": "/api/policy/workbench/items/{id}/approve/",
+      "details": "Route /api/policy/workbench/items/{id}/approve/ referenced in docs but not found in Django (baseline)",
+      "line": 223
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\archive\\plans\\policy-rss-hotspot-sentiment-unified-workbench-plan-2026-02-27.md",
+      "route": "/api/policy/workbench/items/{id}/reject/",
+      "details": "Route /api/policy/workbench/items/{id}/reject/ referenced in docs but not found in Django (baseline)",
+      "line": 224
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\archive\\plans\\policy-rss-hotspot-sentiment-unified-workbench-plan-2026-02-27.md",
+      "route": "/api/policy/workbench/items/{id}/override/",
+      "details": "Route /api/policy/workbench/items/{id}/override/ referenced in docs but not found in Django (baseline)",
+      "line": 225
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\archive\\plans\\policy-rss-hotspot-sentiment-unified-workbench-plan-2026-02-27.md",
+      "route": "/api/policy/workbench/items/{id}/rollback/",
+      "details": "Route /api/policy/workbench/items/{id}/rollback/ referenced in docs but not found in Django (baseline)",
+      "line": 226
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\archive\\plans\\ui-ux-improvement-prd-2026-02-18.md",
+      "route": "/dashboard/legacy/",
+      "details": "Route /dashboard/legacy/ referenced in docs but not found in Django (baseline)",
+      "line": 39
+    },
+    {
+      "type": "deprecated_route",
+      "source": "rest_framework.routers",
+      "route": "/api/filter/api/",
+      "details": "Route /api/filter/api/ uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.filter.interface.api_views",
+      "route": "/api/filter/api/\\.(?P<format>[a-z0-9]+)/?",
+      "details": "Route /api/filter/api/\\.(?P<format>[a-z0-9]+)/? uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.filter.interface.api_views",
+      "route": "/api/filter/api/compare/",
+      "details": "Route /api/filter/api/compare/ uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.filter.interface.api_views",
+      "route": "/api/filter/api/compare\\.(?P<format>[a-z0-9]+)/?",
+      "details": "Route /api/filter/api/compare\\.(?P<format>[a-z0-9]+)/? uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.filter.interface.api_views",
+      "route": "/api/filter/api/config/(?P<indicator_code>[/]+)/",
+      "details": "Route /api/filter/api/config/(?P<indicator_code>[/]+)/ uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.filter.interface.api_views",
+      "route": "/api/filter/api/config/(?P<indicator_code>[/]+)\\.(?P<format>[a-z0-9]+)/?",
+      "details": "Route /api/filter/api/config/(?P<indicator_code>[/]+)\\.(?P<format>[a-z0-9]+)/? uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.filter.interface.api_views",
+      "route": "/api/filter/api/get-data/",
+      "details": "Route /api/filter/api/get-data/ uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.filter.interface.api_views",
+      "route": "/api/filter/api/get-data\\.(?P<format>[a-z0-9]+)/?",
+      "details": "Route /api/filter/api/get-data\\.(?P<format>[a-z0-9]+)/? uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.filter.interface.api_views",
+      "route": "/api/filter/api/indicators/",
+      "details": "Route /api/filter/api/indicators/ uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.filter.interface.api_views",
+      "route": "/api/filter/api/indicators\\.(?P<format>[a-z0-9]+)/?",
+      "details": "Route /api/filter/api/indicators\\.(?P<format>[a-z0-9]+)/? uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "rest_framework.routers",
+      "route": "/api/filter/api/<drf_format_suffix:format>",
+      "details": "Route /api/filter/api/<drf_format_suffix:format> uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.ai_provider.interface.views.api_views",
+      "route": "/api/ai/api/providers\\.(?P<format>[a-z0-9]+)/?",
+      "details": "Route /api/ai/api/providers\\.(?P<format>[a-z0-9]+)/? uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.ai_provider.interface.views.api_views",
+      "route": "/api/ai/api/logs\\.(?P<format>[a-z0-9]+)/?",
+      "details": "Route /api/ai/api/logs\\.(?P<format>[a-z0-9]+)/? uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/templates/",
+      "details": "Route /api/prompt/api/templates/ uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/templates\\.(?P<format>[a-z0-9]+)/?",
+      "details": "Route /api/prompt/api/templates\\.(?P<format>[a-z0-9]+)/? uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/templates/categories/",
+      "details": "Route /api/prompt/api/templates/categories/ uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/templates/categories\\.(?P<format>[a-z0-9]+)/?",
+      "details": "Route /api/prompt/api/templates/categories\\.(?P<format>[a-z0-9]+)/? uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/templates/(?P<pk>[/.]+)/",
+      "details": "Route /api/prompt/api/templates/(?P<pk>[/.]+)/ uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/templates/(?P<pk>[/.]+)\\.(?P<format>[a-z0-9]+)/?",
+      "details": "Route /api/prompt/api/templates/(?P<pk>[/.]+)\\.(?P<format>[a-z0-9]+)/? uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/templates/(?P<pk>[/.]+)/execute/",
+      "details": "Route /api/prompt/api/templates/(?P<pk>[/.]+)/execute/ uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/templates/(?P<pk>[/.]+)/execute\\.(?P<format>[a-z0-9]+)/?",
+      "details": "Route /api/prompt/api/templates/(?P<pk>[/.]+)/execute\\.(?P<format>[a-z0-9]+)/? uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/chains/",
+      "details": "Route /api/prompt/api/chains/ uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/chains\\.(?P<format>[a-z0-9]+)/?",
+      "details": "Route /api/prompt/api/chains\\.(?P<format>[a-z0-9]+)/? uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/chains/execution_modes/",
+      "details": "Route /api/prompt/api/chains/execution_modes/ uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/chains/execution_modes\\.(?P<format>[a-z0-9]+)/?",
+      "details": "Route /api/prompt/api/chains/execution_modes\\.(?P<format>[a-z0-9]+)/? uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/chains/(?P<pk>[/.]+)/",
+      "details": "Route /api/prompt/api/chains/(?P<pk>[/.]+)/ uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/chains/(?P<pk>[/.]+)\\.(?P<format>[a-z0-9]+)/?",
+      "details": "Route /api/prompt/api/chains/(?P<pk>[/.]+)\\.(?P<format>[a-z0-9]+)/? uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/chains/(?P<pk>[/.]+)/execute/",
+      "details": "Route /api/prompt/api/chains/(?P<pk>[/.]+)/execute/ uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/chains/(?P<pk>[/.]+)/execute\\.(?P<format>[a-z0-9]+)/?",
+      "details": "Route /api/prompt/api/chains/(?P<pk>[/.]+)/execute\\.(?P<format>[a-z0-9]+)/? uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/logs\\.(?P<format>[a-z0-9]+)/?",
+      "details": "Route /api/prompt/api/logs\\.(?P<format>[a-z0-9]+)/? uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "rest_framework.routers",
+      "route": "/api/prompt/api/",
+      "details": "Route /api/prompt/api/ uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "rest_framework.routers",
+      "route": "/api/prompt/api/<drf_format_suffix:format>",
+      "details": "Route /api/prompt/api/<drf_format_suffix:format> uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/reports/generate",
+      "details": "Route /api/prompt/api/reports/generate uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/chat",
+      "details": "Route /api/prompt/api/chat uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/chat/providers",
+      "details": "Route /api/prompt/api/chat/providers uses deprecated pattern",
+      "line": 0
+    },
+    {
+      "type": "deprecated_route",
+      "source": "apps.prompt.interface.views",
+      "route": "/api/prompt/api/chat/models",
+      "details": "Route /api/prompt/api/chat/models uses deprecated pattern",
+      "line": 0
+    }
+  ],
+  "notes": "Baseline for existing inconsistencies - warnings only"
+}

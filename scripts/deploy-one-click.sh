@@ -41,6 +41,6 @@ VPS_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || true)
 echo ""
 log_info "Deployment completed"
 echo "Health:"
-echo "  http://$VPS_IP:$HTTP_PORT/health/"
+echo "  http://$VPS_IP:$HTTP_PORT/api/health/"
 echo ""
 echo "If you see HTTP 400 Bad Request, check `ALLOWED_HOSTS` in $ENV_FILE."

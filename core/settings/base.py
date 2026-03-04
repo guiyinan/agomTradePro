@@ -29,6 +29,17 @@ AUTOMATION_DEBUG_API_TOKENS = [t.strip() for t in env.list('AUTOMATION_DEBUG_API
 AUTOMATION_DEBUG_API_IP_ALLOWLIST = [ip.strip() for ip in env.list('AUTOMATION_DEBUG_API_IP_ALLOWLIST', default=[]) if ip.strip()]
 AUTOMATION_DEBUG_API_MAX_LIMIT = env.int('AUTOMATION_DEBUG_API_MAX_LIMIT', default=1000)
 
+# Field-level encryption for sensitive data (API keys, etc.)
+# Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# Set via environment variable: AGOMSAAF_ENCRYPTION_KEY
+AGOMSAAF_ENCRYPTION_KEY = env('AGOMSAAF_ENCRYPTION_KEY', default='')
+if not AGOMSAAF_ENCRYPTION_KEY:
+    import warnings
+    warnings.warn(
+        "AGOMSAAF_ENCRYPTION_KEY not configured. New AI provider API key writes will be rejected. "
+        "Generate a key with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+    )
+
 # Decision Workspace V2 feature flag
 # When disabled, the unified recommendation API returns a fallback response
 DECISION_WORKSPACE_V2_ENABLED = env.bool('DECISION_WORKSPACE_V2_ENABLED', default=True)

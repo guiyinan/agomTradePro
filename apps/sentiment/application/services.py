@@ -141,11 +141,12 @@ class SentimentAnalyzer:
             # 使用优先级最高的提供商
             provider = providers[0]
 
-            # 创建适配器
+            # 创建适配器 - 使用 repository 的 get_api_key 方法解密
             extra_config = provider.extra_config if isinstance(provider.extra_config, dict) else {}
+            api_key = self.provider_repo.get_api_key(provider)
             self._adapter_cache = OpenAICompatibleAdapter(
                 base_url=provider.base_url,
-                api_key=provider.api_key,
+                api_key=api_key,
                 default_model=provider.default_model,
                 api_mode=extra_config.get("api_mode"),
                 fallback_enabled=extra_config.get("fallback_enabled"),

@@ -203,7 +203,7 @@ class UATTester:
 
     async def test_health_endpoint(self):
         """Test health check endpoint"""
-        response = await self.page.goto(f"{self.base_url}/health/", wait_until="networkidle")
+        response = await self.page.goto(f"{self.base_url}/api/health/", wait_until="networkidle")
         assert response is not None, "No response from health endpoint"
         # Health check should return 200
         assert response.status in [200, 404], \

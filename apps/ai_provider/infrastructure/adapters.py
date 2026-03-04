@@ -296,7 +296,7 @@ class AIFailoverHelper:
             try:
                 adapter = OpenAICompatibleAdapter(
                     base_url=provider["base_url"],
-                    api_key=provider["api_key"],
+                    api_key=provider.get("api_key_decrypted") or provider["api_key"],
                     default_model=provider.get("default_model", "gpt-4o-mini"),
                     api_mode=provider.get("api_mode"),
                     fallback_enabled=provider.get("fallback_enabled"),

@@ -69,7 +69,7 @@ for ($i = 0; $i -lt 40; $i++) {
     if ($proc.HasExited) { break }
     Start-Sleep -Milliseconds 500
     try {
-        $resp = Invoke-WebRequest -Uri "http://127.0.0.1:$Port/health/" -UseBasicParsing -TimeoutSec 2
+        $resp = Invoke-WebRequest -Uri "http://127.0.0.1:$Port/api/health/" -UseBasicParsing -TimeoutSec 2
         if ($resp.StatusCode -ge 200 -and $resp.StatusCode -lt 500) {
             $ready = $true
             break

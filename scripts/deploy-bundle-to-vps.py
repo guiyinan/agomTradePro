@@ -251,7 +251,7 @@ def main() -> int:
         )
         if out.strip().isdigit():
             http_port = out.strip()
-        code, out, err = _run(ssh, f"curl -fsS --max-time 5 http://127.0.0.1:{http_port}/health/ || true", timeout=args.timeout)
+        code, out, err = _run(ssh, f"curl -fsS --max-time 5 http://127.0.0.1:{http_port}/api/health/ || true", timeout=args.timeout)
         if out.strip():
             _info(f"Health: {out.strip()}")
         else:

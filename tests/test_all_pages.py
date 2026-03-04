@@ -31,7 +31,7 @@ from django.conf import settings
 PAGE_ROUTES = [
     # 公开页面
     {"url": "/", "name": "首页", "requires_auth": False},
-    {"url": "/health/", "name": "健康检查", "requires_auth": False},
+    {"url": "/api/health/", "name": "健康检查", "requires_auth": False},
     {"url": "/docs/", "name": "文档列表", "requires_auth": False},
 
     # 认证页面
@@ -347,7 +347,7 @@ def ensure_django_server():
 
     # 检查服务器是否已经在运行
     try:
-        response = requests.get('http://localhost:8000/health/', timeout=2)
+        response = requests.get('http://localhost:8000/api/health/', timeout=2)
         print("Django 开发服务器已在运行")
         return True
     except:
@@ -370,7 +370,7 @@ def ensure_django_server():
     import time
     for i in range(30):
         try:
-            response = requests.get('http://localhost:8000/health/', timeout=1)
+            response = requests.get('http://localhost:8000/api/health/', timeout=1)
             print("Django 开发服务器启动成功")
             return True
         except:

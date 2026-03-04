@@ -383,10 +383,12 @@ def create_ai_policy_classifier() -> Optional[AIPolicyClassifier]:
         providers_list = []
         for provider in active_providers:
             extra_config = provider.extra_config if isinstance(provider.extra_config, dict) else {}
+            # 使用 repository 的 get_api_key 方法解密
+            api_key = provider_repo.get_api_key(provider)
             providers_list.append({
                 'name': provider.name,
                 'base_url': provider.base_url,
-                'api_key': provider.api_key,
+                'api_key': api_key,
                 'default_model': provider.default_model,
                 'priority': provider.priority,
                 'api_mode': extra_config.get('api_mode'),

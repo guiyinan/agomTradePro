@@ -7,12 +7,16 @@ Repository Implementations for AI Provider Management.
 from typing import List, Optional, Dict, Any
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+import logging
 
 from django.db.models import Sum, Count, Q, Avg
 from django.db.models.functions import TruncDate
 
 from .models import AIProviderConfig, AIUsageLog
 from ..domain.entities import AIUsageRecord
+from shared.infrastructure.crypto import FieldEncryptionService
+
+logger = logging.getLogger(__name__)
 
 
 class AIProviderRepository:
@@ -20,7 +24,61 @@ class AIProviderRepository:
     AI提供商仓储
 
     负责AI提供商配置的CRUD操作。
+    支持API Key的加密存储和解密读取。
     """
+
+    def __init__(self):
+        """Initialize repository with encryption service."""
+        self._crypto: Optional[FieldEncryptionService] = None
+
+    @property
+    def _crypto_service(self) -> FieldEncryptionService:
+        """Lazy-load encryption service."""
+        if self._crypto is None:
+            try:
+                self._crypto = FieldEncryptionService()
+            except ValueError:
+                logger.error("AGOMSAAF_ENCRYPTION_KEY not configured")
+                raise ValueError("AGOMSAAF_ENCRYPTION_KEY not configured")
+        if self._crypto is None:
+            raise ValueError("Encryption service not available")
+        return self._crypto
+
+    def _encrypt_api_key(self, api_key: str) -> str:
+        """Encrypt API key. Plaintext fallback is not allowed."""
+        if not api_key:
+            return ''
+        return self._crypto_service.encrypt(api_key)
+
+    def _decrypt_api_key(self, encrypted_key: str) -> str:
+        """Decrypt API key if encryption service is available."""
+        if not encrypted_key:
+            return ''
+        try:
+            return self._crypto_service.decrypt(encrypted_key)
+        except Exception:
+            # If decryption fails, return as-is (might be plaintext)
+            return encrypted_key
+
+    def get_api_key(self, provider: AIProviderConfig) -> str:
+        """
+        Get decrypted API key from provider.
+
+        Prioritizes encrypted field, falls back to plaintext field.
+
+        Args:
+            provider: AIProviderConfig instance
+
+        Returns:
+            Decrypted API key
+        """
+        # Try encrypted field first
+        if provider.api_key_encrypted:
+            decrypted = self._decrypt_api_key(provider.api_key_encrypted)
+            if decrypted:
+                return decrypted
+        # Fall back to plaintext field
+        return provider.api_key or ''
 
     def get_all(self) -> List[AIProviderConfig]:
         """获取所有提供商配置"""
@@ -54,13 +112,29 @@ class AIProviderRepository:
         ).order_by('priority'))
 
     def create(self, **kwargs) -> AIProviderConfig:
-        """创建新提供商"""
+        """
+        创建新提供商
+
+        API key will be encrypted if provided.
+        """
+        api_key = kwargs.pop('api_key', '')
+        kwargs['api_key_encrypted'] = self._encrypt_api_key(api_key)
+        kwargs['api_key'] = ''  # Clear plaintext field
         return AIProviderConfig._default_manager.create(**kwargs)
 
     def update(self, pk: int, **kwargs) -> bool:
-        """更新提供商"""
+        """
+        更新提供商
+
+        API key will be encrypted if provided.
+        """
         try:
             provider = AIProviderConfig._default_manager.get(pk=pk)
+            # Handle API key encryption
+            if 'api_key' in kwargs:
+                api_key = kwargs.pop('api_key')
+                kwargs['api_key_encrypted'] = self._encrypt_api_key(api_key)
+                kwargs['api_key'] = ''  # Clear plaintext field
             for key, value in kwargs.items():
                 setattr(provider, key, value)
             provider.save()
@@ -379,4 +453,3 @@ class AIUsageRepository:
             }
             for r in results
         ]
-

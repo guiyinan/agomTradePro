@@ -56,7 +56,12 @@ class AIProviderConfig(models.Model):
     )
     api_key = models.CharField(
         max_length=500,
-        help_text="API Key"
+        blank=True,
+        help_text="API Key (plaintext, deprecated - use api_key_encrypted)"
+    )
+    api_key_encrypted = models.TextField(
+        blank=True,
+        help_text="API Key (encrypted at rest)"
     )
     default_model = models.CharField(
         max_length=50,

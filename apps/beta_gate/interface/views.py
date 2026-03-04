@@ -289,7 +289,7 @@ class BetaGateJsonSuggestAPIView(APIView):
                 {
                     "name": p.name,
                     "base_url": p.base_url,
-                    "api_key": p.api_key,
+                    "api_key": provider_repo.get_api_key(p),
                     "default_model": p.default_model,
                 }
                 for p in providers
