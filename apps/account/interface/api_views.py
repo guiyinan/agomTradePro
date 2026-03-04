@@ -67,6 +67,8 @@ class PortfolioViewSet(viewsets.ModelViewSet):
     权限说明:
     - 账户拥有者：完全访问权限
     - 观察员：只读权限（通过有效的 PortfolioObserverGrant）
+
+    注意：观察员授权已撤销/过期时返回 403 而非 404
     """
 
     permission_classes = [IsAuthenticated, ObserverAccessPermission]
@@ -75,6 +77,66 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         """返回用户可访问的投资组合（包括被授权观察的）"""
         from .permissions import get_accessible_portfolios
         return get_accessible_portfolios(self.request.user)
+
+    def get_object(self):
+        """
+        获取单个对象，区分 404 和 403
+
+        关键：观察员授权已撤销/过期时返回 403 而非 404
+        """
+        from apps.account.infrastructure.models import PortfolioModel, PortfolioObserverGrantModel
+        from django.utils import timezone
+        from django.core.exceptions import PermissionDenied
+        from rest_framework.exceptions import NotFound
+
+        # 先尝试获取对象（不限制 queryset）
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        pk = self.kwargs[lookup_url_kwarg]
+
+        try:
+            portfolio = PortfolioModel._default_manager.select_related('user').get(pk=pk)
+        except (PortfolioModel.DoesNotExist, ValueError):
+            raise NotFound(f"投资组合 {pk} 不存在")
+
+        # 检查权限
+        user = self.request.user
+
+        # 1. 拥有者：完全访问权限
+        if portfolio.user == user:
+            # 检查对象级权限（ObserverAccessPermission.has_object_permission）
+            self.check_object_permissions(self.request, portfolio)
+            return portfolio
+
+        # 2. 非拥有者：检查观察员授权
+        now = timezone.now()
+        try:
+            grant = PortfolioObserverGrantModel._default_manager.get(
+                owner_user_id=portfolio.user,
+                observer_user_id=user,
+                status='active',
+            )
+
+            # 检查授权是否有效（未过期）
+            if grant.is_valid():
+                # 有效授权：检查对象级权限
+                self.check_object_permissions(self.request, portfolio)
+                return portfolio
+            else:
+                # 授权已过期：返回 403
+                raise PermissionDenied("观察员授权已过期")
+        except PortfolioObserverGrantModel.DoesNotExist:
+            # 检查是否存在已撤销的授权
+            revoked_grant = PortfolioObserverGrantModel._default_manager.filter(
+                owner_user_id=portfolio.user,
+                observer_user_id=user,
+            ).exclude(status='active').first()
+
+            if revoked_grant:
+                # 存在已撤销的授权：返回 403
+                raise PermissionDenied(f"观察员授权已{revoked_grant.get_status_display()}")
+
+        # 无任何授权：返回 403
+        raise PermissionDenied("无权访问此投资组合")
 
     def get_serializer_class(self):
         """根据操作选择 serializer"""
@@ -86,22 +148,39 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         """创建时自动关联当前用户（只有拥有者可以创建）"""
         serializer.save(user=self.request.user)
 
-    def check_permissions(self, request):
-        """写操作需要拥有者权限"""
-        if request.method not in ['GET', 'HEAD', 'OPTIONS']:
-            # 写操作：检查是否是拥有者
-            if hasattr(self, 'get_object'):
-                try:
-                    obj = self.get_object()
-                    if obj.user != request.user:
-                        self.permission_denied(
-                            request,
-                            message="观察员无权执行写操作，只有账户拥有者可以修改投资组合"
-                        )
-                except Exception:
-                    # 在获取对象之前无法检查，跳过
-                    pass
-        super().check_permissions(request)
+    def update(self, request, *args, **kwargs):
+        """
+        更新投资组合
+
+        关键：观察员尝试更新时返回 403
+        """
+        portfolio = self.get_object()
+
+        # 检查是否是拥有者
+        if portfolio.user != request.user:
+            return Response({
+                'success': False,
+                'error': '观察员无权更新投资组合，只有账户拥有者可以执行此操作'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        删除投资组合
+
+        关键：观察员尝试删除时返回 403
+        """
+        portfolio = self.get_object()
+
+        # 检查是否是拥有者
+        if portfolio.user != request.user:
+            return Response({
+                'success': False,
+                'error': '观察员无权删除投资组合，只有账户拥有者可以执行此操作'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        return super().destroy(request, *args, **kwargs)
 
     @action(detail=True, methods=['get'])
     def positions(self, request, pk=None):
@@ -287,6 +366,8 @@ class PositionViewSet(viewsets.ModelViewSet):
     权限说明:
     - 账户拥有者：完全访问权限
     - 观察员：只读权限（通过有效的 PortfolioObserverGrant）
+
+    注意：观察员授权已撤销/过期时返回 403 而非 404
     """
 
     permission_classes = [IsAuthenticated, ObserverAccessPermission]
@@ -297,6 +378,59 @@ class PositionViewSet(viewsets.ModelViewSet):
         accessible_portfolios = get_accessible_portfolios(self.request.user)
         return PositionModel._default_manager.filter(portfolio__in=accessible_portfolios)
 
+    def get_object(self):
+        """
+        获取单个对象，区分 404 和 403
+
+        关键：观察员授权已撤销/过期时返回 403 而非 404
+        """
+        from apps.account.infrastructure.models import PortfolioModel, PositionModel, PortfolioObserverGrantModel
+        from django.utils import timezone
+        from django.core.exceptions import PermissionDenied
+        from rest_framework.exceptions import NotFound
+
+        # 先尝试获取对象（不限制 queryset）
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+        pk = self.kwargs[lookup_url_kwarg]
+
+        try:
+            position = PositionModel._default_manager.select_related('portfolio', 'portfolio__user').get(pk=pk)
+        except (PositionModel.DoesNotExist, ValueError):
+            raise NotFound(f"持仓 {pk} 不存在")
+
+        portfolio = position.portfolio
+        user = self.request.user
+
+        # 1. 拥有者：完全访问权限
+        if portfolio.user == user:
+            self.check_object_permissions(self.request, position)
+            return position
+
+        # 2. 非拥有者：检查观察员授权
+        now = timezone.now()
+        try:
+            grant = PortfolioObserverGrantModel._default_manager.get(
+                owner_user_id=portfolio.user,
+                observer_user_id=user,
+                status='active',
+            )
+
+            if grant.is_valid():
+                self.check_object_permissions(self.request, position)
+                return position
+            else:
+                raise PermissionDenied("观察员授权已过期")
+        except PortfolioObserverGrantModel.DoesNotExist:
+            revoked_grant = PortfolioObserverGrantModel._default_manager.filter(
+                owner_user_id=portfolio.user,
+                observer_user_id=user,
+            ).exclude(status='active').first()
+
+            if revoked_grant:
+                raise PermissionDenied(f"观察员授权已{revoked_grant.get_status_display()}")
+
+        raise PermissionDenied("无权访问此持仓")
+
     def get_serializer_class(self):
         """根据操作选择 serializer"""
         if self.action == 'create':
@@ -304,6 +438,38 @@ class PositionViewSet(viewsets.ModelViewSet):
         elif self.action in ['update', 'partial_update']:
             return PositionUpdateSerializer
         return PositionSerializer
+
+    def create(self, request, *args, **kwargs):
+        """
+        创建持仓
+
+        关键：观察员尝试创建时返回 403 而非 400/404
+        """
+        portfolio_id = request.data.get('portfolio')
+        if not portfolio_id:
+            return Response({
+                'success': False,
+                'error': '缺少 portfolio 参数'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 检查投资组合是否存在
+        try:
+            portfolio = PortfolioModel._default_manager.select_related('user').get(id=portfolio_id)
+        except PortfolioModel.DoesNotExist:
+            return Response({
+                'success': False,
+                'error': f'投资组合 {portfolio_id} 不存在'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # 关键：检查是否是拥有者（观察员不能创建持仓）
+        if portfolio.user != request.user:
+            return Response({
+                'success': False,
+                'error': '观察员无权创建持仓，只有账户拥有者可以执行此操作'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # 拥有者：继续正常创建流程
+        return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer):
         """创建时需要指定投资组合（只有拥有者可以创建）"""
@@ -339,6 +505,40 @@ class PositionViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
+
+    def update(self, request, *args, **kwargs):
+        """
+        更新持仓
+
+        关键：观察员尝试更新时返回 403
+        """
+        position = self.get_object()
+
+        # 检查是否是拥有者
+        if position.portfolio.user != request.user:
+            return Response({
+                'success': False,
+                'error': '观察员无权更新持仓，只有账户拥有者可以执行此操作'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        删除持仓
+
+        关键：观察员尝试删除时返回 403
+        """
+        position = self.get_object()
+
+        # 检查是否是拥有者
+        if position.portfolio.user != request.user:
+            return Response({
+                'success': False,
+                'error': '观察员无权删除持仓，只有账户拥有者可以执行此操作'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        return super().destroy(request, *args, **kwargs)
 
     def list(self, request, *args, **kwargs):
         """列表查询时记录观察员访问"""
@@ -888,11 +1088,13 @@ class ObserverGrantViewSet(viewsets.ModelViewSet):
             response_status=201
         )
 
-        headers = self.get_success_headers(serializer.data)
+        # 使用完整序列化器返回创建的数据
+        response_serializer = ObserverGrantSerializer(grant)
+        headers = self.get_success_headers(response_serializer.data)
         return Response({
             'success': True,
             'message': '观察员授权创建成功',
-            'data': serializer.data
+            'data': response_serializer.data
         }, status=status.HTTP_201_CREATED, headers=headers)
 
     def _log_audit_action(self, request, action: str, resource_type: str,
