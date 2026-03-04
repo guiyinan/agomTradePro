@@ -1,0 +1,469 @@
+{% extends "factor/base.html" %}
+{% load static %}
+{% load factor_tags %}
+
+{% block title %}因子组合配置 - AgomSAAF{% endblock %}
+
+{% block factor_content %}
+<!-- Header -->
+<div class="factor-header">
+    <h1>因子组合配置</h1>
+    <div class="factor-actions">
+        <button class="btn-factor" onclick="showCreateModal()">
+            <i class="bi bi-plus-lg"></i> 新建组合
+        </button>
+        <button class="btn-factor secondary" onclick="refreshPortfolios()">
+            <i class="bi bi-arrow-clockwise"></i> 刷新
+        </button>
+    </div>
+</div>
+
+<!-- Statistics -->
+<div class="factor-stats">
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.total }}</div>
+        <div class="stat-label">总配置数</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: #10b981;">{{ stats.active }}</div>
+        <div class="stat-label">启用配置</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: #64748b;">{{ stats.total|subtract:stats.active }}</div>
+        <div class="stat-label">禁用配置</div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="factor-filters">
+    <div class="filter-group">
+        <label>状态:</label>
+        <select id="activeFilter" class="form-select" onchange="applyFilters()">
+            <option value="">全部</option>
+            <option value="true" {% if filter_is_active == 'true' %}selected{% endif %}>启用</option>
+            <option value="false" {% if filter_is_active == 'false' %}selected{% endif %}>禁用</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>搜索:</label>
+        <input type="text" id="searchInput" class="form-input" placeholder="名称/描述"
+               value="{{ filter_search }}" onkeyup="debounceFilter()">
+    </div>
+</div>
+
+<!-- Portfolio Configuration List -->
+<div class="portfolio-list">
+    {% for config in configs %}
+    <div class="portfolio-card {% if not config.is_active %}inactive{% endif %}" data-id="{{ config.id }}">
+        <div class="portfolio-main">
+            <div class="portfolio-title">
+                <span class="portfolio-name">{{ config.name }}</span>
+                {% if config.is_active %}
+                <span class="status-badge status-active">启用</span>
+                {% else %}
+                <span class="status-badge status-inactive">已禁用</span>
+                {% endif %}
+            </div>
+            <div class="portfolio-desc">{{ config.description|default:"暂无描述" }}</div>
+
+            <div class="portfolio-details">
+                <div class="detail-section">
+                    <h4>因子权重</h4>
+                    <div class="factor-weights">
+                        {% for factor_code, weight in config.factor_weights.items %}
+                        <div class="weight-item">
+                            <span class="factor-label">{{ factor_code }}</span>
+                            <span class="weight-value">{{ weight|floatformat:2 }}</span>
+                        </div>
+                        {% empty %}
+                        <span class="empty-text">未设置因子权重</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h4>选股参数</h4>
+                    <div class="params-grid">
+                        <div class="param-item">
+                            <span class="param-label">股票池</span>
+                            <span class="param-value">{{ universe_choices|lookup:config.universe }}</span>
+                        </div>
+                        <div class="param-item">
+                            <span class="param-label">选股数量</span>
+                            <span class="param-value">{{ config.top_n }}</span>
+                        </div>
+                        <div class="param-item">
+                            <span class="param-label">调仓频率</span>
+                            <span class="param-value">{{ rebalance_choices|lookup:config.rebalance_frequency }}</span>
+                        </div>
+                        <div class="param-item">
+                            <span class="param-label">权重方式</span>
+                            <span class="param-value">{{ weight_method_choices|lookup:config.weight_method }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {% if config.min_market_cap or config.max_market_cap or config.max_pe or config.max_pb %}
+                <div class="detail-section">
+                    <h4>筛选条件</h4>
+                    <div class="params-grid">
+                        {% if config.min_market_cap %}
+                        <div class="param-item">
+                            <span class="param-label">最小市值</span>
+                            <span class="param-value">{{ config.min_market_cap }}亿</span>
+                        </div>
+                        {% endif %}
+                        {% if config.max_market_cap %}
+                        <div class="param-item">
+                            <span class="param-label">最大市值</span>
+                            <span class="param-value">{{ config.max_market_cap }}亿</span>
+                        </div>
+                        {% endif %}
+                        {% if config.max_pe %}
+                        <div class="param-item">
+                            <span class="param-label">最大PE</span>
+                            <span class="param-value">{{ config.max_pe }}</span>
+                        </div>
+                        {% endif %}
+                        {% if config.max_pb %}
+                        <div class="param-item">
+                            <span class="param-label">最大PB</span>
+                            <span class="param-value">{{ config.max_pb }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="detail-section">
+                    <h4>最新持仓</h4>
+                    {% if config.latest_trade_date %}
+                    <div class="holdings-info">
+                        <span>日期: {{ config.latest_trade_date|date:"Y-m-d" }}</span>
+                        <span>股票数: {{ config.holdings_count }}</span>
+                    </div>
+                    {% else %}
+                    <div class="holdings-info">
+                        <span class="empty-text">暂无持仓数据</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="portfolio-meta">
+                <span>创建时间: {{ config.created_at|date:"Y-m-d H:i" }}</span>
+                <span>更新时间: {{ config.updated_at|date:"Y-m-d H:i" }}</span>
+            </div>
+        </div>
+
+        <div class="portfolio-actions">
+            <button class="action-btn view" onclick="viewPortfolio({{ config.id }})" title="查看详情">
+                <i class="bi bi-eye"></i>
+            </button>
+            <button class="action-btn edit" onclick="editPortfolio({{ config.id }})" title="编辑">
+                <i class="bi bi-pencil"></i>
+            </button>
+            {% if config.is_active %}
+            <button class="action-btn toggle" onclick="togglePortfolio({{ config.id }})" title="禁用">
+                <i class="bi bi-dash-circle"></i>
+            </button>
+            {% else %}
+            <button class="action-btn toggle" onclick="togglePortfolio({{ config.id }})" title="启用">
+                <i class="bi bi-check-circle"></i>
+            </button>
+            {% endif %}
+            <button class="action-btn generate" onclick="generatePortfolio({{ config.id }})" title="生成组合">
+                <i class="bi bi-play-circle"></i>
+            </button>
+            <button class="action-btn delete" onclick="deletePortfolio({{ config.id }})" title="删除">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not configs %}
+<div class="empty-state">
+    <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
+    <div>暂无组合配置</div>
+</div>
+{% endif %}
+
+<!-- Create/Edit Modal -->
+<div id="portfolioModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content large">
+        <div class="modal-header">
+            <h3 id="modalTitle">新建因子组合</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="portfolioForm">
+                <input type="hidden" name="config_id" id="configId">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>配置名称 *</label>
+                        <input type="text" name="name" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label>股票池</label>
+                        <select name="universe" class="form-select">
+                            {% for key, label in universe_choices.items %}
+                            <option value="{{ key }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>描述</label>
+                    <textarea name="description" class="form-textarea" rows="2"></textarea>
+                </div>
+
+                <div class="form-section">
+                    <h4>因子权重设置</h4>
+                    <div id="factorWeightsContainer" class="factor-weights-input">
+                        {% for factor in factor_definitions %}
+                        <div class="weight-input-row">
+                            <label class="factor-label">{{ factor.name }} ({{ factor.code }})</label>
+                            <div class="weight-input-group">
+                                <input type="number" type="number" step="0.01" min="-1" max="1"
+                                       name="weight_{{ factor.code }}" class="form-input small"
+                                       placeholder="权重" value="0">
+                                <span class="weight-hint">范围: -1 到 1</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="form-hint">提示: 正值表示做多该因子，负值表示做空，0表示不使用</div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>选股数量</label>
+                        <input type="number" name="top_n" class="form-input" value="30" min="1" max="500">
+                    </div>
+                    <div class="form-group">
+                        <label>调仓频率</label>
+                        <select name="rebalance_frequency" class="form-select">
+                            {% for key, label in rebalance_choices.items %}
+                            <option value="{{ key }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>权重方式</label>
+                        <select name="weight_method" class="form-select">
+                            {% for key, label in weight_method_choices.items %}
+                            <option value="{{ key }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h4>筛选条件 (可选)</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>最小市值 (亿)</label>
+                            <input type="number" name="min_market_cap" class="form-input" step="0.01" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>最大市值 (亿)</label>
+                            <input type="number" name="max_market_cap" class="form-input" step="0.01" min="0">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>最大PE</label>
+                            <input type="number" name="max_pe" class="form-input" step="0.01" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>最大PB</label>
+                            <input type="number" name="max_pb" class="form-input" step="0.01" min="0">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>最大资产负债率 (%)</label>
+                            <input type="number" name="max_debt_ratio" class="form-input" step="0.1" min="0" max="100">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-modal primary">保存配置</button>
+                    <button type="button" class="btn-modal secondary" onclick="closeModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// URL configuration
+const API_URLS = {
+    factorPortfolios: "{% url 'factor:portfolios' %}",
+    factorCreateConfig: "{% url 'factor:create_config' %}",
+    factorConfigAction: (id) => `{% url 'factor:config_action' 0 %}`.replace('0', id),
+};
+
+let filterDebounceTimer;
+
+function debounceFilter() {
+    clearTimeout(filterDebounceTimer);
+    filterDebounceTimer = setTimeout(applyFilters, 300);
+}
+
+function applyFilters() {
+    const active = document.getElementById('activeFilter').value;
+    const search = document.getElementById('searchInput').value;
+
+    const params = new URLSearchParams();
+    if (active) params.append('is_active', active);
+    if (search) params.append('search', search);
+
+    window.location.href = `${API_URLS.factorPortfolios}?${params.toString()}`;
+}
+
+function refreshPortfolios() {
+    window.location.reload();
+}
+
+function showCreateModal() {
+    document.getElementById('modalTitle').textContent = '新建因子组合';
+    document.getElementById('configId').value = '';
+    document.getElementById('portfolioForm').reset();
+    document.getElementById('portfolioModal').style.display = 'block';
+}
+
+function viewPortfolio(id) {
+    window.location.href = `{% url 'factor:calculate' %}?config_id=${id}`;
+}
+
+function editPortfolio(id) {
+    showToast('编辑功能待实现', 'info');
+}
+
+async function togglePortfolio(id) {
+    const config = document.querySelector(`[data-id="${id}"]`);
+    const isActive = config.classList.contains('active');
+
+    if (!await window.uiConfirm(`确认${isActive ? '禁用' : '启用'}该组合配置？`, { title: '切换状态', icon: 'question' })) return;
+
+    const formData = new FormData();
+    formData.append('action', isActive ? 'deactivate' : 'activate');
+
+    try {
+        const res = await fetch(API_URLS.factorConfigAction(id), {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            showToast(data.message, 'success');
+            location.reload();
+        } else {
+            showToast('操作失败: ' + data.error, 'error');
+        }
+    } catch (e) {
+        showToast('网络错误: ' + e.message, 'error');
+    }
+}
+
+async function generatePortfolio(id) {
+    if (!await window.uiConfirm('确认生成该因子组合？', { title: '生成组合', icon: 'question' })) return;
+
+    const formData = new FormData();
+    formData.append('action', 'generate');
+
+    try {
+        const res = await fetch(API_URLS.factorConfigAction(id), {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            showToast(data.message, 'success');
+            location.reload();
+        } else {
+            showToast('生成失败: ' + data.error, 'error');
+        }
+    } catch (e) {
+        showToast('网络错误: ' + e.message, 'error');
+    }
+}
+
+async function deletePortfolio(id) {
+    if (!await window.uiConfirm('确认删除该组合配置？此操作不可恢复。', { title: '删除组合', icon: 'warning' })) return;
+
+    try {
+        const res = await fetch(API_URLS.factorConfigAction(id), {
+            method: 'DELETE'
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            showToast(data.message, 'success');
+            document.querySelector(`[data-id="${id}"]`).remove();
+        } else {
+            showToast('删除失败: ' + data.error, 'error');
+        }
+    } catch (e) {
+        showToast('网络错误: ' + e.message, 'error');
+    }
+}
+
+function closeModal() {
+    document.getElementById('portfolioModal').style.display = 'none';
+}
+
+// Form submission
+document.getElementById('portfolioForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+
+    // Collect factor weights
+    const factorWeights = {};
+    document.querySelectorAll('#factorWeightsContainer input[name^="weight_"]').forEach(input => {
+        const factorCode = input.name.replace('weight_', '');
+        const weight = parseFloat(input.value) || 0;
+        if (weight !== 0) {
+            factorWeights[factorCode] = weight;
+        }
+    });
+
+    formData.append('factor_weights', JSON.stringify(factorWeights));
+
+    try {
+        const res = await fetch(API_URLS.factorCreateConfig, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            showToast(data.message, 'success');
+            closeModal();
+            location.reload();
+        } else {
+            showToast('创建失败: ' + data.error, 'error');
+        }
+    } catch (e) {
+        showToast('网络错误: ' + e.message, 'error');
+    }
+});
+
+// Close modal on outside click
+document.getElementById('portfolioModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+});
+</script>
+{% endblock %}

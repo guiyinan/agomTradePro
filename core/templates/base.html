@@ -117,6 +117,47 @@
                     </div>
                 </div>
 
+                <!-- 智能模块：下拉菜单 -->
+                {% if user.is_staff %}
+                <div class="dropdown">
+                    <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">智能模块</button>
+                    <div class="dropdown-menu">
+                        <div class="dropdown-section-title">因子分析</div>
+                        <a href="{% url 'factor:manage' %}" class="dropdown-item">
+                            <i class="bi bi-calculator"></i> 因子管理
+                        </a>
+                        <a href="{% url 'factor:portfolios' %}" class="dropdown-item">
+                            <i class="bi bi-collection"></i> 组合配置
+                        </a>
+                        <a href="{% url 'factor:calculate' %}" class="dropdown-item">
+                            <i class="bi bi-sort-numeric-up"></i> 因子计算
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-section-title">轮动策略</div>
+                        <a href="{% url 'rotation:assets' %}" class="dropdown-item">
+                            <i class="bi bi-grid-3x3-gap"></i> 资产列表
+                        </a>
+                        <a href="{% url 'rotation:configs' %}" class="dropdown-item">
+                            <i class="bi bi-gear"></i> 轮动配置
+                        </a>
+                        <a href="{% url 'rotation:signals' %}" class="dropdown-item">
+                            <i class="bi bi-arrow-left-right"></i> 轮动信号
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-section-title">对冲策略</div>
+                        <a href="{% url 'hedge:pairs' %}" class="dropdown-item">
+                            <i class="bi bi-link-45deg"></i> 对冲对管理
+                        </a>
+                        <a href="{% url 'hedge:holdings' %}" class="dropdown-item">
+                            <i class="bi bi-box-seam"></i> 组合持仓
+                        </a>
+                        <a href="{% url 'hedge:alerts' %}" class="dropdown-item">
+                            <i class="bi bi-bell"></i> 告警中心
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+
                 <!-- 决策引擎：下拉菜单 -->
                 {% if user.is_staff %}
                 <div class="dropdown">

@@ -1,0 +1,196 @@
+{% extends "hedge/base.html" %}
+{% load static %}
+
+{% block hedge_page_title %}对冲对配置{% endblock %}
+
+{% block hedge_content %}
+<!-- 统计卡片 -->
+<div class="hedge-stats-row">
+    <div class="hedge-stat-card">
+        <div class="hedge-stat-value">{{ stats.total }}</div>
+        <div class="hedge-stat-label">总对冲对</div>
+    </div>
+    <div class="hedge-stat-card">
+        <div class="hedge-stat-value" style="color: #10b981;">{{ stats.active }}</div>
+        <div class="hedge-stat-label">启用中</div>
+    </div>
+    <div class="hedge-stat-card">
+        <div class="hedge-stat-value" style="color: #6b7280;">{{ stats.inactive }}</div>
+        <div class="hedge-stat-label">未启用</div>
+    </div>
+</div>
+
+<!-- 操作栏 -->
+<div class="hedge-actions-bar">
+    <button class="hedge-btn hedge-btn-primary" onclick="updateAllPortfolios()">
+        <i class="bi bi-arrow-clockwise"></i> 更新所有持仓
+    </button>
+</div>
+
+<!-- 对冲对列表 -->
+<div class="hedge-pairs-list">
+    {% for pair in pairs %}
+    <div class="hedge-pair-card {% if pair.is_active %}active{% else %}inactive{% endif %}">
+        <div class="hedge-pair-header">
+            <div class="hedge-pair-title">
+                <span class="hedge-pair-name">{{ pair.name }}</span>
+                <span class="hedge-pair-method">{{ pair.hedge_method_display }}</span>
+                <span class="hedge-pair-status {% if pair.is_active %}status-active{% else %}status-inactive{% endif %}">
+                    {% if pair.is_active %}启用中{% else %}未启用{% endif %}
+                </span>
+            </div>
+            <div class="hedge-pair-actions">
+                {% if pair.is_active %}
+                <button class="hedge-action-btn" onclick="deactivatePair({{ pair.id }})" title="停用">
+                    <i class="bi bi-pause-circle"></i>
+                </button>
+                {% else %}
+                <button class="hedge-action-btn" onclick="activatePair({{ pair.id }})" title="启用">
+                    <i class="bi bi-play-circle"></i>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="hedge-pair-body">
+            <div class="hedge-pair-section">
+                <h4 class="hedge-section-title">资产配置</h4>
+                <div class="hedge-pair-grid">
+                    <div class="hedge-pair-item">
+                        <span class="hedge-item-label">多头资产</span>
+                        <span class="hedge-item-value">{{ pair.long_asset }}</span>
+                    </div>
+                    <div class="hedge-pair-item">
+                        <span class="hedge-item-label">对冲资产</span>
+                        <span class="hedge-item-value">{{ pair.hedge_asset }}</span>
+                    </div>
+                    <div class="hedge-pair-item">
+                        <span class="hedge-item-label">目标权重</span>
+                        <span class="hedge-item-value">
+                            {{ pair.target_long_weight }}% / {{ pair.target_hedge_weight }}%
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hedge-pair-section">
+                <h4 class="hedge-section-title">相关性监控</h4>
+                <div class="hedge-pair-grid">
+                    <div class="hedge-pair-item">
+                        <span class="hedge-item-label">当前相关性</span>
+                        <span class="hedge-item-value {% if pair.current_correlation %}correlation-{{ pair.correlation_trend }}{% endif %}">
+                            {% if pair.current_correlation %}{{ pair.current_correlation }}{% else %}--{% endif %}
+                        </span>
+                    </div>
+                    <div class="hedge-pair-item">
+                        <span class="hedge-item-label">Beta</span>
+                        <span class="hedge-item-value">
+                            {% if pair.current_beta %}{{ pair.current_beta }}{% else %}--{% endif %}
+                        </span>
+                    </div>
+                    <div class="hedge-pair-item">
+                        <span class="hedge-item-label">趋势</span>
+                        <span class="hedge-item-value">
+                            {% if pair.correlation_trend %}
+                                {% if pair.correlation_trend == 'up' %}<i class="bi bi-arrow-up text-success"></i>
+                                {% elif pair.correlation_trend == 'down' %}<i class="bi bi-arrow-down text-danger"></i>
+                                {% else %}<i class="bi bi-dash text-muted"></i>{% endif %}
+                            {% else %}--{% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            {% if pair.hedge_ratio is not None %}
+            <div class="hedge-pair-section">
+                <h4 class="hedge-section-title">持仓状态</h4>
+                <div class="hedge-pair-grid">
+                    <div class="hedge-pair-item">
+                        <span class="hedge-item-label">对冲比例</span>
+                        <span class="hedge-item-value">{{ pair.hedge_ratio }}</span>
+                    </div>
+                    <div class="hedge-pair-item">
+                        <span class="hedge-item-label">对冲有效性</span>
+                        <span class="hedge-item-value {% if pair.hedge_effectiveness >= 70 %}text-success{% elif pair.hedge_effectiveness >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                            {{ pair.hedge_effectiveness }}%
+                        </span>
+                    </div>
+                    <div class="hedge-pair-item">
+                        <span class="hedge-item-label">调仓状态</span>
+                        <span class="hedge-item-value {% if pair.rebalance_needed %}text-warning{% endif %}">
+                            {% if pair.rebalance_needed %}需要调仓{% else %}正常{% endif %}
+                        </span>
+                    </div>
+                </div>
+                {% if pair.rebalance_needed and pair.rebalance_reason %}
+                <div class="hedge-rebalance-hint">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    {{ pair.rebalance_reason }}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="hedge-pair-footer">
+            <span class="hedge-meta">
+                <i class="bi bi-clock"></i> 更新于 {{ pair.updated_at|date:"Y-m-d H:i" }}
+            </span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not pairs %}
+<div class="hedge-empty-state">
+    <div style="font-size: 48px; margin-bottom: 16px;"><i class="bi bi-link-45deg"></i></div>
+    <div>暂无对冲对配置</div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function activatePair(id) {
+    if (!await window.uiConfirm('确认启用该对冲对？', { title: '启用对冲对', icon: 'info' })) return;
+
+    const res = await fetch(HEDGE_URLS.activatePair(id), { method: 'POST' });
+    const data = await res.json();
+
+    if (data.success) {
+        showToast(data.message);
+        location.reload();
+    } else {
+        showToast('操作失败: ' + (data.error || '未知错误'), 'error');
+    }
+}
+
+async function deactivatePair(id) {
+    if (!await window.uiConfirm('确认停用该对冲对？', { title: '停用对冲对', icon: 'warning' })) return;
+
+    const res = await fetch(HEDGE_URLS.deactivatePair(id), { method: 'POST' });
+    const data = await res.json();
+
+    if (data.success) {
+        showToast(data.message);
+        location.reload();
+    } else {
+        showToast('操作失败: ' + (data.error || '未知错误'), 'error');
+    }
+}
+
+async function updateAllPortfolios() {
+    if (!await window.uiConfirm('确认更新所有对冲持仓？', { title: '更新持仓', icon: 'info' })) return;
+
+    const res = await fetch(HEDGE_URLS.updatePortfolios, { method: 'POST' });
+    const data = await res.json();
+
+    if (data.success) {
+        showToast(`已更新 ${data.updated} 个对冲组合`);
+        location.reload();
+    } else {
+        showToast('更新失败', 'error');
+    }
+}
+</script>
+{% endblock %}

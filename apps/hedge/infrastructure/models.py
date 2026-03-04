@@ -320,6 +320,32 @@ class HedgePortfolioHoldingModel(models.Model):
     def __str__(self):
         return f"{self.pair.name} - {self.trade_date}"
 
+    def to_domain(self):
+        """Convert to domain entity"""
+        from apps.hedge.domain.entities import HedgePortfolio
+
+        return HedgePortfolio(
+            pair_name=self.pair.name,
+            trade_date=self.trade_date,
+            long_weight=self.long_weight,
+            hedge_weight=self.hedge_weight,
+            hedge_ratio=self.hedge_ratio,
+            target_hedge_ratio=self.target_hedge_ratio,
+            current_correlation=self.current_correlation,
+            correlation_20d=self.correlation_20d,
+            correlation_60d=self.correlation_60d,
+            portfolio_beta=self.portfolio_beta,
+            portfolio_volatility=self.portfolio_volatility,
+            hedge_effectiveness=self.hedge_effectiveness,
+            daily_return=self.daily_return,
+            unhedged_return=self.unhedged_return,
+            hedge_return=self.hedge_return,
+            value_at_risk=self.value_at_risk,
+            max_drawdown=self.max_drawdown,
+            rebalance_needed=self.rebalance_needed,
+            rebalance_reason=self.rebalance_reason,
+        )
+
 
 class HedgeAlertModel(models.Model):
     """Hedge alert table"""
@@ -403,6 +429,31 @@ class HedgeAlertModel(models.Model):
 
     def __str__(self):
         return f"{self.pair_name} - {self.alert_type} - {self.alert_date}"
+
+    def to_domain(self):
+        """Convert to domain entity"""
+        from apps.hedge.domain.entities import HedgeAlert, HedgeAlertType
+
+        alert_type_map = {
+            'correlation_breakdown': HedgeAlertType.CORRELATION_BREAKDOWN,
+            'hedge_ratio_drift': HedgeAlertType.HEDGE_RATIO_DRIFT,
+            'beta_change': HedgeAlertType.BETA_CHANGE,
+            'liquidity_risk': HedgeAlertType.LIQUIDITY_RISK,
+        }
+
+        return HedgeAlert(
+            pair_name=self.pair_name,
+            alert_date=self.alert_date,
+            alert_type=alert_type_map.get(self.alert_type, HedgeAlertType.CORRELATION_BREAKDOWN),
+            severity=self.severity,
+            message=self.message,
+            current_value=self.current_value,
+            threshold_value=self.threshold_value,
+            action_required=self.action_required,
+            action_priority=self.action_priority,
+            is_resolved=self.is_resolved,
+            resolved_at=self.resolved_at,
+        )
 
 
 class HedgePerformanceModel(models.Model):

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/factor.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="factor-container">
+    <!-- Factor Navigation -->
+    <div class="factor-nav">
+        <a href="{% url 'factor:manage' %}" class="factor-nav-item {% if request.resolver_match.url_name == 'manage' %}active{% endif %}">
+            <i class="bi bi-list-check"></i> 因子定义
+        </a>
+        <a href="{% url 'factor:portfolios' %}" class="factor-nav-item {% if request.resolver_match.url_name == 'portfolios' %}active{% endif %}">
+            <i class="bi bi-layers"></i> 组合配置
+        </a>
+        <a href="{% url 'factor:calculate' %}" class="factor-nav-item {% if request.resolver_match.url_name == 'calculate' %}active{% endif %}">
+            <i class="bi bi-calculator"></i> 因子计算
+        </a>
+    </div>
+
+    {% block factor_content %}{% endblock %}
+</div>
+{% endblock %}

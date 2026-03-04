@@ -1,0 +1,131 @@
+# Feature definitions for Qlib training
+# Qlib 特征定义配置文件
+#
+# 说明:
+#   - 定义用于模型训练的技术指标特征
+#   - 定义预测目标（标签）
+#   - 支持自定义特征表达式
+#
+# 特征命名规范:
+#   - $open: 开盘价
+#   - $high: 最高价
+#   - $low: 最低价
+#   - $close: 收盘价
+#   - $volume: 成交量
+#   - $vwap: 成交额
+#   - Ref($field, n): 引用 n 期前的值
+#   - Mean($field, n): n 期均值
+#   - Std($field, n): n 期标准差
+#   - Max($field, n): n 期最大值
+#   - Min($field, n): n 期最小值
+
+# 技术指标特征
+features:
+  # ===== 价格相关特征 =====
+  # 收益率特征
+  - Ref($close, 1) / $close - 1           # 1日收益率
+  - Ref($close, 5) / $close - 1           # 5日收益率
+  - Ref($close, 10) / $close - 1          # 10日收益率
+  - Ref($close, 20) / $close - 1          # 20日收益率
+
+  # 移动平均线
+  - Mean($close, 5) / $close              # 5日均线相对位置
+  - Mean($close, 10) / $close             # 10日均线相对位置
+  - Mean($close, 20) / $close             # 20日均线相对位置
+  - Mean($close, 60) / $close             # 60日均线相对位置
+
+  # 均线交叉
+  - Mean($close, 5) / Mean($close, 20) - 1  # 短期/长期均线比率
+  - Mean($close, 10) / Mean($close, 60) - 1 # 中期/长期均线比率
+
+  # ===== 波动率特征 =====
+  - Std($close, 5) / $close               # 5日波动率
+  - Std($close, 10) / $close              # 10日波动率
+  - Std($close, 20) / $close              # 20日波动率
+
+  - Max($high, 5) / Min($low, 5) - 1      # 5日振幅
+  - Max($high, 10) / Min($low, 10) - 1    # 10日振幅
+  - Max($high, 20) / Min($low, 20) - 1    # 20日振幅
+
+  # ===== 成交量特征 =====
+  - Mean($volume, 5) / $volume            # 5日量比
+  - Mean($volume, 20) / $volume           # 20日量比
+  - $volume / Mean($volume, 60) - 1       # 相对60日均量
+
+  # 量价关系
+  - Corr($close, $volume, 5)              # 5日量价相关性
+  - Corr($close, $volume, 20)             # 20日量价相关性
+
+  # ===== 动量特征 =====
+  - $close / Ref($close, 1) - 1           # 当日涨跌幅
+  - $close / Ref($close, 5) - 1           # 5日涨跌幅
+  - $close / Max($high, 20) - 1           # 相对20日最高位置
+  - $close / Min($low, 20) - 1            # 相对20日最低位置
+
+  # RSI (相对强弱指标)
+  - Mean($close - Ref($close, 1), 5) / Std($close - Ref($close, 1), 5)  # 5日RSI近似
+  - Mean($close - Ref($close, 1), 20) / Std($close - Ref($close, 1), 20) # 20日RSI近似
+
+  # MACD (指数平滑异同移动平均线)
+  - Mean($close, 12) - Mean($close, 26)   # DIF线
+  - Mean(Mean($close, 12) - Mean($close, 26), 9)  # DEA线
+
+  # ===== 技术指标特征 =====
+  # 布林带
+  - ($close - Mean($close, 20)) / Std($close, 20)  # 布林带位置
+
+  # ROC (变动率指标)
+  - $close / Ref($close, 12) - 1          # 12日ROC
+
+  # MOM (动量指标)
+  - $close - Ref($close, 10)              # 10日动量
+
+  # Williams %R
+  - ($close - Min($low, 14)) / (Max($high, 14) - Min($low, 14)) - 0.5  # 威廉指标
+
+  # ===== 趋势特征 =====
+  # 线性回归斜率
+  - Slope($close, 5) / $close             # 5日趋势斜率
+  - Slope($close, 20) / $close            # 20日趋势斜率
+
+  # 趋势强度
+  - Corr($close, Ref($close, 1), 5)       # 5日自相关性
+  - Corr($close, Ref($close, 1), 20)      # 20日自相关性
+
+# 预测目标（标签）
+labels:
+  # 1日收益率预测
+  - Ref($close, -2) / Ref($close, -1) - 1
+
+  # 5日收益率预测
+  - Ref($close, -6) / Ref($close, -1) - 1
+
+  # 10日收益率预测
+  - Ref($close, -11) / Ref($close, -1) - 1
+
+# 特征组定义
+feature_groups:
+  price_features:
+    - Ref($close, 1) / $close - 1
+    - Ref($close, 5) / $close - 1
+    - Mean($close, 5) / $close
+    - Mean($close, 20) / $close
+    - Mean($close, 5) / Mean($close, 20) - 1
+
+  volatility_features:
+    - Std($close, 5) / $close
+    - Std($close, 20) / $close
+    - Max($high, 20) / Min($low, 20) - 1
+
+  volume_features:
+    - Mean($volume, 5) / $volume
+    - $volume / Mean($volume, 60) - 1
+
+  momentum_features:
+    - $close / Ref($close, 5) - 1
+    - $close / Max($high, 20) - 1
+    - ($close - Mean($close, 20)) / Std($close, 20)
+
+  trend_features:
+    - Slope($close, 5) / $close
+    - Corr($close, Ref($close, 1), 20)

@@ -1,0 +1,76 @@
+# LightGBM model configuration for CSI 300
+# Qlib 训练配置文件 - LGBModel
+#
+# 说明:
+#   - 本文件定义了 LightGBM 模型的超参数配置
+#   - 适用于沪深300股票池
+#   - 用于 Alpha 信号预测
+#
+# 使用方式:
+#   python manage.py train_qlib_model --name lgb_csi300 --type LGBModel \
+#       --config config/qlib/lgb_csi300.yaml --activate
+
+model:
+  class: LGBModel
+  loss: mse
+  # LightGBM 超参数
+  colsample_bytree: 0.8879
+  learning_rate: 0.0421
+  subsample: 0.8789
+  lambda_l1: 205.6999
+  lambda_l2: 580.9768
+  max_depth: 8
+  num_leaves: 210
+  num_threads: 4
+  early_stopping_rounds: 100
+
+# 数据集配置
+dataset:
+  class: DatasetH
+  handler:
+    class: Alpha360
+    # 时间范围
+    start_time: 2020-01-01
+    end_time: 2026-03-03
+    fit_start_time: 2020-01-01
+    fit_end_time: 2024-12-31
+    # 股票池
+    instruments: csi300
+    # 特征配置
+    fit_filter: null  # 可选：自定义特征过滤器
+
+  # 数据分段
+  segments:
+    train: [2020-01-01, 2023-12-31]
+    valid: [2024-01-01, 2024-12-31]
+    test: [2025-01-01, 2026-03-03]
+
+# 训练配置
+training:
+  # 训练参数
+  batch_size: 2048
+  n_epochs: 100
+  # 早停配置
+  early_stopping_rounds: 20
+  # 评估指标
+  metric: ic
+  # 优化器
+  optimizer: adam
+  # 学习率调度
+  lr_scheduler: step
+  lr_decay: 0.95
+  lr_decay_steps: 10
+
+# 回测配置（用于模型评估）
+backtest:
+  # 策略类型
+  strategy: TopkDropoutStrategy
+  # 策略参数
+  topk: 30
+  n_drop: 5
+  # 交易频率
+  exchange_freq: 1d
+  # 基准
+  benchmark: SH000300
+  # 交易成本
+  trade_cost: 0.0015

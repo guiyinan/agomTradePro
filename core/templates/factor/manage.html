@@ -1,0 +1,311 @@
+{% extends "factor/base.html" %}
+{% load static %}
+{% load factor_tags %}
+
+{% block title %}因子定义管理 - AgomSAAF{% endblock %}
+
+{% block factor_content %}
+<!-- Header -->
+<div class="factor-header">
+    <h1>因子定义管理</h1>
+    <div class="factor-actions">
+        <button class="btn-factor" onclick="showFactorModal()">
+            <i class="bi bi-plus-lg"></i> 新建因子
+        </button>
+        <button class="btn-factor secondary" onclick="refreshFactors()">
+            <i class="bi bi-arrow-clockwise"></i> 刷新
+        </button>
+    </div>
+</div>
+
+<!-- Statistics -->
+<div class="factor-stats">
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.total }}</div>
+        <div class="stat-label">总因子数</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: #10b981;">{{ stats.active }}</div>
+        <div class="stat-label">启用因子</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: #64748b;">{{ stats.total|subtract:stats.active }}</div>
+        <div class="stat-label">禁用因子</div>
+    </div>
+    {% for category, count in stats.by_category.items %}
+    <div class="stat-card">
+        <div class="stat-value">{{ count }}</div>
+        <div class="stat-label">{{ category_choices|lookup:category }}</div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Filters -->
+<div class="factor-filters">
+    <div class="filter-group">
+        <label>类别:</label>
+        <select id="categoryFilter" class="form-select" onchange="applyFilters()">
+            <option value="">全部</option>
+            {% for cat in categories %}
+            <option value="{{ cat.category }}" {% if filter_category == cat.category %}selected{% endif %}>
+                {{ category_choices|lookup:cat.category }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>状态:</label>
+        <select id="activeFilter" class="form-select" onchange="applyFilters()">
+            <option value="">全部</option>
+            <option value="true" {% if filter_is_active == 'true' %}selected{% endif %}>启用</option>
+            <option value="false" {% if filter_is_active == 'false' %}selected{% endif %}>禁用</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label>搜索:</label>
+        <input type="text" id="searchInput" class="form-input" placeholder="代码/名称/描述"
+               value="{{ filter_search }}" onkeyup="debounceFilter()">
+    </div>
+</div>
+
+<!-- Factor List -->
+<div class="factor-list">
+    {% for factor in factors %}
+    <div class="factor-card {% if not factor.is_active %}inactive{% endif %}" data-id="{{ factor.id }}">
+        <div class="factor-main">
+            <div class="factor-title">
+                <span class="factor-code">{{ factor.code }}</span>
+                <span class="factor-name">{{ factor.name }}</span>
+                {% if not factor.is_active %}
+                <span class="status-badge status-inactive">已禁用</span>
+                {% else %}
+                <span class="status-badge status-active">启用</span>
+                {% endif %}
+            </div>
+            <div class="factor-category">{{ factor.get_category_display }}</div>
+            <div class="factor-desc">{{ factor.description|default:"暂无描述" }}</div>
+            <div class="factor-meta">
+                <span>数据源: {{ factor.data_source }}</span>
+                <span>字段: {{ factor.data_field }}</span>
+                <span>方向:
+                    {% if factor.direction == 'positive' %}正向
+                    {% elif factor.direction == 'negative' %}反向
+                    {% else %}中性{% endif %}
+                </span>
+                <span>更新: {{ factor.update_frequency }}</span>
+            </div>
+            {% if factor.min_data_points or not factor.allow_missing %}
+            <div class="factor-constraints">
+                {% if factor.min_data_points %}
+                <span class="constraint">最小数据点: {{ factor.min_data_points }}</span>
+                {% endif %}
+                {% if not factor.allow_missing %}
+                <span class="constraint">不允许缺失</span>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        <div class="factor-actions">
+            <button class="action-btn view" onclick="viewFactor({{ factor.id }})" title="查看详情">
+                <i class="bi bi-eye"></i>
+            </button>
+            <button class="action-btn edit" onclick="editFactor({{ factor.id }})" title="编辑">
+                <i class="bi bi-pencil"></i>
+            </button>
+            {% if factor.is_active %}
+            <button class="action-btn toggle" onclick="toggleFactor({{ factor.id }})" title="禁用">
+                <i class="bi bi-dash-circle"></i>
+            </button>
+            {% else %}
+            <button class="action-btn toggle" onclick="toggleFactor({{ factor.id }})" title="启用">
+                <i class="bi bi-check-circle"></i>
+            </button>
+            {% endif %}
+            <button class="action-btn delete" onclick="deleteFactor({{ factor.id }})" title="删除">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not factors %}
+<div class="empty-state">
+    <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
+    <div>暂无因子定义</div>
+</div>
+{% endif %}
+
+<!-- Factor Detail Modal -->
+<div id="factorModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modalTitle">因子详情</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="modalBody">
+            <!-- Content loaded dynamically -->
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal secondary" onclick="closeModal()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// URL configuration
+const API_URLS = {
+    factorManage: "{% url 'factor:manage' %}",
+};
+
+let filterDebounceTimer;
+
+function debounceFilter() {
+    clearTimeout(filterDebounceTimer);
+    filterDebounceTimer = setTimeout(applyFilters, 300);
+}
+
+function applyFilters() {
+    const category = document.getElementById('categoryFilter').value;
+    const active = document.getElementById('activeFilter').value;
+    const search = document.getElementById('searchInput').value;
+
+    const params = new URLSearchParams();
+    if (category) params.append('category', category);
+    if (active) params.append('is_active', active);
+    if (search) params.append('search', search);
+
+    window.location.href = `${API_URLS.factorManage}?${params.toString()}`;
+}
+
+function refreshFactors() {
+    window.location.reload();
+}
+
+function showFactorModal() {
+    document.getElementById('modalTitle').textContent = '新建因子';
+    document.getElementById('modalBody').innerHTML = `
+        <form id="factorForm">
+            <div class="form-group">
+                <label>因子代码</label>
+                <input type="text" name="code" class="form-input" required>
+            </div>
+            <div class="form-group">
+                <label>因子名称</label>
+                <input type="text" name="name" class="form-input" required>
+            </div>
+            <div class="form-group">
+                <label>因子类别</label>
+                <select name="category" class="form-select" required>
+                    <option value="value">价值</option>
+                    <option value="quality">质量</option>
+                    <option value="growth">成长</option>
+                    <option value="momentum">动量</option>
+                    <option value="volatility">波动</option>
+                    <option value="liquidity">流动性</option>
+                    <option value="technical">技术</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>描述</label>
+                <textarea name="description" class="form-textarea" rows="3"></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>数据源</label>
+                    <input type="text" name="data_source" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label>数据字段</label>
+                    <input type="text" name="data_field" class="form-input" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>因子方向</label>
+                    <select name="direction" class="form-select">
+                        <option value="positive">正向</option>
+                        <option value="negative">反向</option>
+                        <option value="neutral">中性</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>更新频率</label>
+                    <select name="update_frequency" class="form-select">
+                        <option value="daily">每日</option>
+                        <option value="weekly">每周</option>
+                        <option value="monthly">每月</option>
+                        <option value="quarterly">每季度</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" name="is_active" checked> 启用因子
+                </label>
+            </div>
+            <button type="submit" class="btn-modal primary">创建因子</button>
+        </form>
+    `;
+    document.getElementById('factorModal').style.display = 'block';
+
+    document.getElementById('factorForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        showToast('因子创建功能待实现', 'info');
+    });
+}
+
+async function viewFactor(id) {
+    const factorCard = document.querySelector(`[data-id="${id}"]`);
+    const code = factorCard.querySelector('.factor-code').textContent;
+    const name = factorCard.querySelector('.factor-name').textContent;
+    const category = factorCard.querySelector('.factor-category').textContent;
+    const desc = factorCard.querySelector('.factor-desc').textContent;
+
+    document.getElementById('modalTitle').textContent = '因子详情';
+    document.getElementById('modalBody').innerHTML = `
+        <div class="factor-detail">
+            <div class="detail-row">
+                <span class="detail-label">代码:</span>
+                <span class="detail-value">${code}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">名称:</span>
+                <span class="detail-value">${name}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">类别:</span>
+                <span class="detail-value">${category}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">描述:</span>
+                <span class="detail-value">${desc}</span>
+            </div>
+        </div>
+    `;
+    document.getElementById('factorModal').style.display = 'block';
+}
+
+function editFactor(id) {
+    showToast('编辑功能待实现', 'info');
+}
+
+async function toggleFactor(id) {
+    showToast('切换状态功能待实现', 'info');
+}
+
+async function deleteFactor(id) {
+    if (!await window.uiConfirm('确认删除该因子？', { title: '删除因子', icon: 'warning' })) return;
+    showToast('删除功能待实现', 'info');
+}
+
+function closeModal() {
+    document.getElementById('factorModal').style.display = 'none';
+}
+
+// Close modal on outside click
+document.getElementById('factorModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+});
+</script>
+{% endblock %}

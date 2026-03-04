@@ -1,0 +1,149 @@
+{% extends "rotation/base.html" %}
+
+{% block rotation_content %}
+<div class="rotation-header">
+    <h1>资产类别</h1>
+    <div class="header-meta">
+        <span class="meta-item">📅 {{ current_date|date:"Y-m-d" }}</span>
+        {% if latest_calc_date %}
+        <span class="meta-item">📊 动量计算: {{ latest_calc_date }}</span>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Stats Summary -->
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="stat-value">{{ assets|length }}</div>
+        <div class="stat-label">资产总数</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ categories.equity.assets|length }}</div>
+        <div class="stat-label">股票</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ categories.bond.assets|length }}</div>
+        <div class="stat-label">债券</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ categories.commodity.assets|length }}</div>
+        <div class="stat-label">商品</div>
+    </div>
+</div>
+
+<!-- Asset Categories -->
+{% for category_key, category_info in categories.items %}
+{% if category_info.assets %}
+<div class="asset-category">
+    <div class="category-header">
+        <h2>{{ category_info.name }}</h2>
+        <span class="category-count">{{ category_info.assets|length }} 个资产</span>
+    </div>
+
+    <div class="asset-grid">
+        {% for asset in category_info.assets %}
+        <div class="asset-card" data-code="{{ asset.code }}">
+            <div class="asset-header">
+                <span class="asset-code">{{ asset.code }}</span>
+                <span class="asset-name">{{ asset.name }}</span>
+            </div>
+
+            <div class="asset-details">
+                {% if asset.has_price_data %}
+                <div class="price-info">
+                    <span class="price-label">当前价格:</span>
+                    <span class="price-value">{{ asset.current_price }}</span>
+                </div>
+                <div class="change-info {% if asset.change_20d > 0 %}positive{% elif asset.change_20d < 0 %}negative{% endif %}">
+                    <span class="change-label">20日涨跌:</span>
+                    <span class="change-value">
+                        {% if asset.change_20d > 0 %}+{% endif %}{{ asset.change_20d }}%
+                    </span>
+                </div>
+                {% else %}
+                <div class="price-info">暂无价格数据</div>
+                {% endif %}
+            </div>
+
+            {% if asset.code in momentum_scores %}
+            <div class="momentum-info">
+                <div class="momentum-score">
+                    <span class="score-label">综合得分:</span>
+                    <span class="score-value">{{ momentum_scores.asset.code.composite_score|default:"-" }}</span>
+                </div>
+                <div class="momentum-rank">
+                    <span class="rank-label">排名:</span>
+                    <span class="rank-value">#{{ momentum_scores.asset.code.rank|default:"-" }}</span>
+                </div>
+                <div class="momentum-trend">
+                    <span class="trend-label">趋势强度:</span>
+                    <span class="trend-value">{{ momentum_scores.asset.code.trend_strength|default:"-" }}</span>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if asset.description %}
+            <div class="asset-description">{{ asset.description }}</div>
+            {% endif %}
+
+            {% if asset.underlying_index %}
+            <div class="asset-index">标的指数: {{ asset.underlying_index }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+{% if not assets %}
+<div class="empty-state">
+    <div class="empty-icon">📊</div>
+    <p>暂无资产类别数据</p>
+    <p class="empty-hint">请先在数据库中添加资产类别</p>
+</div>
+{% endif %}
+
+<script>
+// Momentum scores data for JavaScript access
+const momentumScoresData = {{ momentum_scores|safe }};
+
+// Get momentum score for an asset
+function getMomentumScore(assetCode, field) {
+    if (momentumScoresData && momentumScoresData[assetCode]) {
+        const value = momentumScoresData[assetCode][field];
+        return value !== undefined && value !== null ? value : '-';
+    }
+    return '-';
+}
+
+// Update momentum display in cards
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.asset-card').forEach(card => {
+        const code = card.getAttribute('data-code');
+        const scoreValue = card.querySelector('.score-value');
+        const rankValue = card.querySelector('.rank-value');
+        const trendValue = card.querySelector('.trend-value');
+
+        if (scoreValue) {
+            const score = getMomentumScore(code, 'composite_score');
+            scoreValue.textContent = typeof score === 'number' ? score.toFixed(3) : score;
+        }
+        if (rankValue) {
+            const rank = getMomentumScore(code, 'rank');
+            rankValue.textContent = rank !== '-' ? '#' + rank : rank;
+        }
+        if (trendValue) {
+            const trend = getMomentumScore(code, 'trend_strength');
+            trendValue.textContent = typeof trend === 'number' ? trend.toFixed(3) : trend;
+        }
+
+        // Add click handler
+        card.addEventListener('click', function() {
+            console.log('Asset clicked:', code);
+            // Could navigate to detail page or show modal
+        });
+    });
+});
+</script>
+{% endblock %}

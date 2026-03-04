@@ -1,13 +1,18 @@
 """
 Hedge Module Interface Layer - Views
 
-DRF ViewSets for the hedge module API.
+DRF ViewSets and page views for the hedge module.
 """
 
+from django.shortcuts import render
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from datetime import date, datetime
 
+# Infrastructure models - kept for DRF ViewSets (read-only access)
 from apps.hedge.infrastructure.models import (
     HedgePairModel,
     CorrelationHistoryModel,
@@ -15,12 +20,34 @@ from apps.hedge.infrastructure.models import (
     HedgeAlertModel,
 )
 from apps.hedge.infrastructure.services import HedgeIntegrationService
+from apps.hedge.infrastructure.repositories import (
+    HedgePairRepository,
+    CorrelationHistoryRepository,
+    HedgePortfolioRepository,
+    HedgeAlertRepository,
+)
 from apps.hedge.interface.serializers import (
     HedgePairSerializer,
     CorrelationHistorySerializer,
     HedgePortfolioHoldingSerializer,
     HedgeAlertSerializer,
     HedgeEffectivenessRequestSerializer,
+)
+
+# Application layer UseCases - for page views
+from apps.hedge.application.use_cases import (
+    GetHedgePairsForViewUseCase,
+    GetHedgeHoldingsForViewUseCase,
+    GetHedgeAlertsForViewUseCase,
+    ActivateHedgePairUseCase,
+    DeactivateHedgePairUseCase,
+    ResolveHedgeAlertUseCase,
+    HedgePairsViewRequest,
+    HedgeHoldingsViewRequest,
+    HedgeAlertsViewRequest,
+    ActivateHedgePairRequest,
+    DeactivateHedgePairRequest,
+    ResolveHedgeAlertRequest,
 )
 
 
@@ -139,7 +166,7 @@ class HedgePortfolioHoldingViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for HedgePortfolioHolding model"""
     queryset = HedgePortfolioHoldingModel._default_manager.all()
     serializer_class = HedgePortfolioHoldingSerializer
-    filterset_fields = ['config', 'trade_date', 'rebalance_needed']
+    filterset_fields = ['pair', 'trade_date', 'rebalance_needed']
     ordering = ['-trade_date']
 
     @action(detail=False, methods=['get'])
@@ -361,3 +388,257 @@ class HedgeActionViewSet(viewsets.ViewSet):
             'matrix': matrix,
         })
 
+
+# ============================================================================
+# Page Views (for HTML rendering)
+# ============================================================================
+
+def hedge_pairs_view(request):
+    """
+    Hedge pairs configuration page.
+    Uses UseCase to access data through Application layer.
+    """
+    # Get filter parameters
+    is_active_filter = request.GET.get('is_active', '')
+    hedge_method_filter = request.GET.get('hedge_method', '')
+    search = request.GET.get('search', '')
+
+    # Parse is_active filter
+    is_active = None
+    if is_active_filter:
+        is_active = (is_active_filter == 'true')
+
+    # Parse hedge_method filter
+    hedge_method = hedge_method_filter if hedge_method_filter else None
+
+    # Parse search filter
+    search_term = search if search else None
+
+    # Create request DTO
+    usecase_request = HedgePairsViewRequest(
+        is_active=is_active,
+        hedge_method=hedge_method,
+        search=search_term,
+    )
+
+    # Instantiate repositories
+    pair_repo = HedgePairRepository()
+    correlation_repo = CorrelationHistoryRepository()
+    holding_repo = HedgePortfolioRepository()
+
+    # Execute UseCase
+    use_case = GetHedgePairsForViewUseCase(pair_repo, correlation_repo, holding_repo)
+    response = use_case.execute(usecase_request)
+
+    # Hedge method choices (for filter dropdown)
+    hedge_methods = [
+        ('beta', 'Beta对冲'),
+        ('min_variance', '最小方差'),
+        ('equal_risk', '等风险贡献'),
+        ('dollar_neutral', '货币中性'),
+        ('fixed_ratio', '固定比例'),
+    ]
+
+    context = {
+        'pairs': response.pairs,
+        'stats': response.stats,
+        'hedge_methods': hedge_methods,
+        'filter_is_active': is_active_filter,
+        'filter_hedge_method': hedge_method_filter,
+        'filter_search': search,
+    }
+
+    return render(request, 'hedge/pairs.html', context)
+
+
+def hedge_holdings_view(request):
+    """
+    Hedge holdings status page.
+    Uses UseCase to access data through Application layer.
+    """
+    # Get filter parameters
+    pair_name_filter = request.GET.get('pair_name', '')
+    rebalance_filter = request.GET.get('rebalance_needed', '')
+
+    # Parse filters
+    pair_name = pair_name_filter if pair_name_filter else None
+    rebalance_needed = None
+    if rebalance_filter:
+        rebalance_needed = (rebalance_filter == 'true')
+
+    # Create request DTO
+    usecase_request = HedgeHoldingsViewRequest(
+        pair_name=pair_name,
+        rebalance_needed=rebalance_needed,
+        limit=50,
+    )
+
+    # Instantiate repositories
+    holding_repo = HedgePortfolioRepository()
+    pair_repo = HedgePairRepository()
+
+    # Execute UseCase
+    use_case = GetHedgeHoldingsForViewUseCase(holding_repo, pair_repo)
+    response = use_case.execute(usecase_request)
+
+    context = {
+        'holdings': response.holdings,
+        'stats': response.stats,
+        'pair_names': response.pair_names,
+        'filter_pair_name': pair_name_filter,
+        'filter_rebalance_needed': rebalance_filter,
+    }
+
+    return render(request, 'hedge/holdings.html', context)
+
+
+def hedge_alerts_view(request):
+    """
+    Hedge alerts page.
+    Uses UseCase to access data through Application layer.
+    """
+    # Get filter parameters
+    pair_name_filter = request.GET.get('pair_name', '')
+    severity_filter = request.GET.get('severity', '')
+    alert_type_filter = request.GET.get('alert_type', '')
+    is_resolved_filter = request.GET.get('is_resolved', '')
+
+    # Parse filters
+    pair_name = pair_name_filter if pair_name_filter else None
+    severity = severity_filter if severity_filter else None
+    alert_type = alert_type_filter if alert_type_filter else None
+    is_resolved = None
+    if is_resolved_filter:
+        is_resolved = (is_resolved_filter == 'true')
+
+    # Create request DTO
+    usecase_request = HedgeAlertsViewRequest(
+        pair_name=pair_name,
+        severity=severity,
+        alert_type=alert_type,
+        is_resolved=is_resolved,
+        limit=100,
+    )
+
+    # Instantiate repositories
+    alert_repo = HedgeAlertRepository()
+    pair_repo = HedgePairRepository()
+
+    # Execute UseCase
+    use_case = GetHedgeAlertsForViewUseCase(alert_repo, pair_repo)
+    response = use_case.execute(usecase_request)
+
+    context = {
+        'alerts': response.alerts,
+        'stats': response.stats,
+        'alert_types': response.alert_types,
+        'severity_choices': response.severity_choices,
+        'pair_names': response.pair_names,
+        'filter_pair_name': pair_name_filter,
+        'filter_severity': severity_filter,
+        'filter_alert_type': alert_type_filter,
+        'filter_is_resolved': is_resolved_filter,
+    }
+
+    return render(request, 'hedge/alerts.html', context)
+
+
+@require_http_methods(["POST"])
+def activate_pair_view(request, pair_id):
+    """
+    Activate a hedge pair.
+    Uses UseCase to access data through Application layer.
+    """
+    usecase_request = ActivateHedgePairRequest(pair_id=pair_id)
+    pair_repo = HedgePairRepository()
+    use_case = ActivateHedgePairUseCase(pair_repo)
+    response = use_case.execute(usecase_request)
+
+    if response.success:
+        return JsonResponse({
+            'success': True,
+            'message': response.message
+        })
+    else:
+        return JsonResponse({
+            'success': False,
+            'error': response.message
+        }, status=404)
+
+
+@require_http_methods(["POST"])
+def deactivate_pair_view(request, pair_id):
+    """
+    Deactivate a hedge pair.
+    Uses UseCase to access data through Application layer.
+    """
+    usecase_request = DeactivateHedgePairRequest(pair_id=pair_id)
+    pair_repo = HedgePairRepository()
+    use_case = DeactivateHedgePairUseCase(pair_repo)
+    response = use_case.execute(usecase_request)
+
+    if response.success:
+        return JsonResponse({
+            'success': True,
+            'message': response.message
+        })
+    else:
+        return JsonResponse({
+            'success': False,
+            'error': response.message
+        }, status=404)
+
+
+@require_http_methods(["POST"])
+def update_portfolios_view(request):
+    """Update all hedge portfolios"""
+    service = HedgeIntegrationService()
+    portfolios = service.update_all_portfolios()
+
+    return JsonResponse({
+        'success': True,
+        'updated': len(portfolios),
+        'portfolios': [
+            {
+                'pair_name': p.pair_name,
+                'trade_date': p.trade_date.isoformat(),
+                'hedge_ratio': round(p.hedge_ratio, 3),
+            }
+            for p in portfolios
+        ]
+    })
+
+
+@require_http_methods(["POST"])
+def run_monitoring_view(request):
+    """Run hedge pair monitoring"""
+    service = HedgeIntegrationService()
+    alerts = service.monitor_hedge_pairs()
+
+    return JsonResponse({
+        'success': True,
+        'generated_alerts': len(alerts),
+    })
+
+
+@require_http_methods(["POST"])
+def resolve_alert_view(request, alert_id):
+    """
+    Mark an alert as resolved.
+    Uses UseCase to access data through Application layer.
+    """
+    usecase_request = ResolveHedgeAlertRequest(alert_id=alert_id)
+    alert_repo = HedgeAlertRepository()
+    use_case = ResolveHedgeAlertUseCase(alert_repo)
+    response = use_case.execute(usecase_request)
+
+    if response.success:
+        return JsonResponse({
+            'success': True,
+            'message': response.message
+        })
+    else:
+        return JsonResponse({
+            'success': False,
+            'error': response.message
+        }, status=404)

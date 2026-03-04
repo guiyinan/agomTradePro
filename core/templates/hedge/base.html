@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/hedge.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="hedge-container">
+    <!-- Header -->
+    <div class="hedge-header">
+        <h1>{% block hedge_page_title %}对冲策略{% endblock %}</h1>
+        <nav class="hedge-nav">
+            <a href="{% url 'hedge:pairs' %}" class="hedge-nav-item {% if request.resolver_match.url_name == 'pairs' %}active{% endif %}">
+                <i class="bi bi-link-45deg"></i> 对冲对配置
+            </a>
+            <a href="{% url 'hedge:holdings' %}" class="hedge-nav-item {% if request.resolver_match.url_name == 'holdings' %}active{% endif %}">
+                <i class="bi bi-briefcase"></i> 持仓状态
+            </a>
+            <a href="{% url 'hedge:alerts' %}" class="hedge-nav-item {% if request.resolver_match.url_name == 'alerts' %}active{% endif %}">
+                <i class="bi bi-bell"></i> 告警中心
+            </a>
+        </nav>
+    </div>
+
+    {% block hedge_content %}{% endblock %}
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+{% block extra_js %}
+<script>
+// URL 配置
+const HEDGE_URLS = {
+    activatePair: (id) => `{% url 'hedge:activate_pair' 0 %}`.replace('0', id),
+    deactivatePair: (id) => `{% url 'hedge:deactivate_pair' 0 %}`.replace('0', id),
+    updatePortfolios: "{% url 'hedge:update_portfolios' %}",
+    runMonitoring: "{% url 'hedge:run_monitoring' %}",
+    resolveAlert: (id) => `{% url 'hedge:resolve_alert' 0 %}`.replace('0', id),
+};
+
+function showToast(msg, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.className = `toast ${type} show`;
+    setTimeout(() => toast.classList.remove('show'), 3000);
+}
+</script>
+{% endblock %}
+{% endblock %}

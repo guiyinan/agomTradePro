@@ -1,0 +1,380 @@
+{% extends "factor/base.html" %}
+{% load static %}
+{% load factor_tags %}
+
+{% block title %}因子计算 - AgomSAAF{% endblock %}
+
+{% block factor_content %}
+<!-- Header -->
+<div class="factor-header">
+    <h1>因子计算</h1>
+    <div class="factor-actions">
+        <button class="btn-factor" onclick="showCalculateModal()">
+            <i class="bi bi-calculator"></i> 计算因子得分
+        </button>
+    </div>
+</div>
+
+<!-- Configuration Panel -->
+<div class="calculation-panel">
+    <div class="panel-section">
+        <h3>选择组合配置</h3>
+        <div class="config-selector">
+            <select id="configSelect" class="form-select large" onchange="selectConfig()">
+                <option value="">-- 选择因子组合配置 --</option>
+                {% for config in configs %}
+                <option value="{{ config.id }}" {% if config_id == config.id|stringformat:"s" %}selected{% endif %}>
+                    {{ config.name }} ({{ config.get_rebalance_frequency_display }})
+                </option>
+                {% endfor %}
+            </select>
+            {% if selected_config %}
+            <div class="selected-config-info">
+                <div class="config-detail">
+                    <span class="label">描述:</span>
+                    <span>{{ selected_config.description|default:"无" }}</span>
+                </div>
+                <div class="config-detail">
+                    <span class="label">股票池:</span>
+                    <span>{{ selected_config.get_universe_display }}</span>
+                </div>
+                <div class="config-detail">
+                    <span class="label">选股数:</span>
+                    <span>{{ selected_config.top_n }}</span>
+                </div>
+                <div class="config-detail">
+                    <span class="label">权重方式:</span>
+                    <span>{{ selected_config.get_weight_method_display }}</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="panel-section">
+        <h3>计算参数</h3>
+        <div class="params-input">
+            <div class="param-row">
+                <label>交易日期:</label>
+                <input type="date" id="tradeDateInput" class="form-input"
+                       value="{{ trade_date|date:"Y-m-d" }}">
+            </div>
+            <div class="param-row">
+                <label>Top N 股票:</label>
+                <input type="number" id="topNInput" class="form-input"
+                       value="{{ top_n }}" min="1" max="500">
+            </div>
+            <div class="param-row">
+                <button class="btn-factor primary" onclick="calculateScores()">
+                    <i class="bi bi-play-fill"></i> 开始计算
+                </button>
+                <button class="btn-factor secondary" onclick="exportResults()">
+                    <i class="bi bi-download"></i> 导出结果
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel-section">
+        <h3>因子概览</h3>
+        <div class="factor-categories">
+            {% for category, factors in factors_by_category.items %}
+            <div class="factor-category-group">
+                <div class="category-header">{{ category }}</div>
+                <div class="category-factors">
+                    {% for factor in factors %}
+                    <div class="factor-chip">
+                        <span class="chip-code">{{ factor.code }}</span>
+                        <span class="chip-name">{{ factor.name }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Results Section -->
+{% if calculated_results %}
+<div class="calculation-results">
+    <div class="results-header">
+        <h2>计算结果 - {{ calculated_results.config_name }}</h2>
+        <div class="results-meta">
+            <span>交易日期: {{ calculated_results.trade_date|date:"Y-m-d" }}</span>
+            <span>股票数量: {{ calculated_results.total_stocks }}</span>
+            <span>Top N: {{ calculated_results.top_n }}</span>
+        </div>
+    </div>
+
+    <div class="results-table-wrapper">
+        <table class="results-table">
+            <thead>
+                <tr>
+                    <th>排名</th>
+                    <th>股票代码</th>
+                    <th>股票名称</th>
+                    <th>因子得分</th>
+                    <th>权重</th>
+                    <th>行业</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for holding in calculated_results.holdings %}
+                <tr>
+                    <td>{{ holding.rank }}</td>
+                    <td>{{ holding.stock_code }}</td>
+                    <td>{{ holding.stock_name }}</td>
+                    <td>
+                        <div class="score-bar">
+                            <div class="score-fill" style="width: {{ holding.factor_score|floatformat:2|add:"100"|divide:2 }}%;"></div>
+                            <span class="score-value">{{ holding.factor_score|floatformat:2 }}</span>
+                        </div>
+                    </td>
+                    <td>{{ holding.weight|floatformat:4 }}</td>
+                    <td>{{ holding.sector|default:"-" }}</td>
+                    <td>
+                        <button class="btn-small" onclick="explainStock('{{ holding.stock_code }}')">解释</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if calculated_results.total_stocks > calculated_results.top_n %}
+    <div class="results-footer">
+        <p>仅显示前 {{ calculated_results.top_n }} 只股票，共 {{ calculated_results.total_stocks }} 只</p>
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="empty-state">
+    <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
+    <div>请选择组合配置并点击"开始计算"</div>
+</div>
+{% endif %}
+
+<!-- Explanation Modal -->
+<div id="explainModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content large">
+        <div class="modal-header">
+            <h3>因子得分解释</h3>
+            <button class="modal-close" onclick="closeExplainModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="explainModalBody">
+            <div class="loading-spinner">加载中...</div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal secondary" onclick="closeExplainModal()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- Calculate Modal -->
+<div id="calculateModal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>计算因子得分</h3>
+            <button class="modal-close" onclick="closeCalculateModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="calculateProgress" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">正在计算...</div>
+            </div>
+            <div id="calculateResult" style="display: none;">
+                <div class="result-summary">
+                    <div class="summary-item">
+                        <span class="summary-label">计算股票数</span>
+                        <span class="summary-value" id="resultCount">-</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">交易日期</span>
+                        <span class="summary-value" id="resultDate">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-modal secondary" onclick="closeCalculateModal()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// URL configuration
+const API_URLS = {
+    factorCalculate: "{% url 'factor:calculate' %}",
+    factorCalculateScores: "{% url 'factor:calculate_scores' %}",
+    factorExplainStock: (code) => `{% url 'factor:explain_stock' 'CODE' %}`.replace('CODE', code),
+};
+
+let selectedConfigId = '{{ config_id|default:"" }}';
+
+function selectConfig() {
+    const select = document.getElementById('configSelect');
+    selectedConfigId = select.value;
+
+    if (selectedConfigId) {
+        const url = new URL(window.location);
+        url.searchParams.set('config_id', selectedConfigId);
+        window.location.href = url.toString();
+    }
+}
+
+async function calculateScores() {
+    const configId = document.getElementById('configSelect').value;
+    const tradeDate = document.getElementById('tradeDateInput').value;
+    const topN = document.getElementById('topNInput').value;
+
+    if (!configId) {
+        showToast('请先选择组合配置', 'warning');
+        return;
+    }
+
+    // Show modal
+    document.getElementById('calculateModal').style.display = 'block';
+    document.getElementById('calculateProgress').style.display = 'block';
+    document.getElementById('calculateResult').style.display = 'none';
+    document.getElementById('progressFill').style.width = '0%';
+
+    // Simulate progress
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+        progress += 10;
+        if (progress > 90) progress = 90;
+        document.getElementById('progressFill').style.width = progress + '%';
+    }, 200);
+
+    try {
+        const formData = new FormData();
+        formData.append('config_id', configId);
+        formData.append('trade_date', tradeDate);
+        formData.append('top_n', topN);
+
+        const res = await fetch(API_URLS.factorCalculateScores, {
+            method: 'POST',
+            body: formData
+        });
+
+        clearInterval(progressInterval);
+        document.getElementById('progressFill').style.width = '100%';
+
+        const data = await res.json();
+
+        if (data.success) {
+            document.getElementById('progressText').textContent = '计算完成！';
+            document.getElementById('resultCount').textContent = data.total_scores;
+            document.getElementById('resultDate').textContent = tradeDate;
+            document.getElementById('calculateResult').style.display = 'block';
+
+            // Redirect to results
+            setTimeout(() => {
+                closeCalculateModal();
+                const url = new URL(window.location);
+                url.searchParams.set('config_id', configId);
+                url.searchParams.set('top_n', topN);
+                window.location.href = url.toString();
+            }, 1000);
+        } else {
+            document.getElementById('progressText').textContent = '计算失败: ' + data.error;
+        }
+    } catch (e) {
+        clearInterval(progressInterval);
+        document.getElementById('progressText').textContent = '网络错误: ' + e.message;
+    }
+}
+
+function showCalculateModal() {
+    calculateScores();
+}
+
+function closeCalculateModal() {
+    document.getElementById('calculateModal').style.display = 'none';
+}
+
+async function explainStock(stockCode) {
+    if (!selectedConfigId) {
+        showToast('请先选择组合配置', 'warning');
+        return;
+    }
+
+    document.getElementById('explainModal').style.display = 'block';
+    document.getElementById('explainModalBody').innerHTML = '<div class="loading-spinner">加载中...</div>';
+
+    try {
+        const url = new URL(API_URLS.factorExplainStock(stockCode), window.location.origin);
+        url.searchParams.set('config_id', selectedConfigId);
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.success && data.explanation) {
+            const exp = data.explanation;
+            let html = `
+                <div class="stock-explanation">
+                    <div class="explanation-header">
+                        <h4>${exp.stock_code} - ${exp.stock_name || ''}</h4>
+                        <div class="composite-score">
+                            综合得分: <span class="score-value">${exp.composite_score ? exp.composite_score.toFixed(2) : '-'}</span>
+                        </div>
+                    </div>
+            `;
+
+            if (exp.factor_scores) {
+                html += '<div class="factor-breakdown"><h5>因子得分明细</h5><div class="factor-scores-list">';
+                for (const [factor, score] of Object.entries(exp.factor_scores)) {
+                    html += `
+                        <div class="factor-score-item">
+                            <span class="factor-name">${factor}</span>
+                            <div class="score-bar-small">
+                                <div class="score-fill-small" style="width: ${Math.min(100, Math.max(0, (score + 1) * 50))}%;"></div>
+                                <span class="score-text">${score.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+                html += '</div></div>';
+            }
+
+            if (exp.explanation) {
+                html += `<div class="explanation-text"><h5>分析说明</h5><p>${exp.explanation}</p></div>`;
+            }
+
+            html += '</div>';
+            document.getElementById('explainModalBody').innerHTML = html;
+        } else {
+            document.getElementById('explainModalBody').innerHTML = '<div class="error-message">无法获取因子解释</div>';
+        }
+    } catch (e) {
+        document.getElementById('explainModalBody').innerHTML = '<div class="error-message">网络错误: ' + e.message + '</div>';
+    }
+}
+
+function closeExplainModal() {
+    document.getElementById('explainModal').style.display = 'none';
+}
+
+function exportResults() {
+    if (!selectedConfigId) {
+        showToast('没有可导出的结果', 'warning');
+        return;
+    }
+
+    showToast('导出功能待实现', 'info');
+}
+
+// Close modals on outside click
+document.getElementById('explainModal').addEventListener('click', function(e) {
+    if (e.target === this) closeExplainModal();
+});
+
+document.getElementById('calculateModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCalculateModal();
+});
+</script>
+{% endblock %}

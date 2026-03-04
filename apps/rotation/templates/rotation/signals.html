@@ -1,0 +1,183 @@
+{% extends "rotation/base.html" %}
+
+{% block rotation_content %}
+<div class="rotation-header">
+    <h1>轮动信号</h1>
+    <div class="header-meta">
+        {% if current_regime %}
+        <span class="meta-item regime-badge">当前象限: {{ current_regime }}</span>
+        {% endif %}
+        <span class="meta-item">📅 {{ current_date|date:"Y-m-d" }}</span>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filters-bar">
+    <form method="get" class="filters-form">
+        <select name="config" class="filter-select">
+            <option value="">所有配置</option>
+            {% for config in configs %}
+            <option value="{{ config.id }}" {% if config.id == filter_config|add:0 %}selected{% endif %}>
+                {{ config.name }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <select name="regime" class="filter-select">
+            <option value="">所有象限</option>
+            {% for regime in regime_choices %}
+            <option value="{{ regime }}" {% if regime == filter_regime %}selected{% endif %}>
+                {{ regime }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <select name="action" class="filter-select">
+            <option value="">所有操作</option>
+            {% for action in action_choices %}
+            <option value="{{ action }}" {% if action == filter_action %}selected{% endif %}>
+                {% if action == 'rebalance' %}调仓
+                {% elif action == 'hold' %}持有
+                {% elif action == 'reduce' %}减仓
+                {% elif action == 'increase' %}增持{% endif %}
+            </option>
+            {% endfor %}
+        </select>
+
+        <button type="submit" class="btn-filter">筛选</button>
+        {% if filter_config or filter_regime or filter_action %}
+        <a href="{% url 'rotation:signals' %}" class="btn-clear">清除筛选</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Latest Signals Summary -->
+{% if latest_by_config %}
+<div class="signals-summary">
+    <h2>最新信号</h2>
+    <div class="summary-cards">
+        {% for config_id, signal in latest_by_config.items %}
+        <div class="summary-card signal-{{ signal.action_required }}">
+            <div class="summary-header">
+                <span class="summary-config">
+                    {% for config in configs %}
+                        {% if config.id == config_id %}{{ config.name }}{% endif %}
+                    {% endfor %}
+                </span>
+                <span class="summary-date">{{ signal.signal_date }}</span>
+            </div>
+            <div class="summary-body">
+                <div class="summary-regime regime-{{ signal.current_regime }}">
+                    {{ signal.current_regime }}
+                </div>
+                <div class="summary-action">
+                    {% if signal.action_required == 'rebalance' %}🔄 调仓
+                    {% elif signal.action_required == 'hold' %}✋ 持有
+                    {% elif signal.action_required == 'reduce' %}📉 减仓
+                    {% elif signal.action_required == 'increase' %}📈 增持
+                    {% else %}{{ signal.action_required }}{% endif %}
+                </div>
+            </div>
+            {% if signal.target_allocation %}
+            <div class="summary-allocation">
+                {% for asset, weight in signal.target_allocation.items %}
+                <div class="mini-allocation">
+                    <span>{{ asset }}</span>
+                    <span>{% widthratio weight 1 100 %}%</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Signal History -->
+<div class="signals-history">
+    <h2>历史信号</h2>
+    {% if signals %}
+    <div class="signals-list">
+        {% for signal in signals %}
+        <div class="signal-item">
+            <div class="signal-item-header">
+                <div class="signal-item-title">
+                    <span class="signal-config">
+                        {% for config in configs %}
+                            {% if config.id == signal.config_id %}{{ config.name }}{% endif %}
+                        {% endfor %}
+                    </span>
+                    <span class="signal-date">{{ signal.signal_date }}</span>
+                </div>
+                <div class="signal-item-badges">
+                    <span class="regime-badge regime-{{ signal.current_regime }}">
+                        {{ signal.current_regime }}
+                    </span>
+                    <span class="action-badge action-{{ signal.action_required }}">
+                        {% if signal.action_required == 'rebalance' %}🔄 调仓
+                        {% elif signal.action_required == 'hold' %}✋ 持有
+                        {% elif signal.action_required == 'reduce' %}📉 减仓
+                        {% elif signal.action_required == 'increase' %}📈 增持
+                        {% else %}{{ signal.action_required }}{% endif %}
+                    </span>
+                </div>
+            </div>
+
+            {% if signal.target_allocation %}
+            <div class="signal-item-allocation">
+                <span class="allocation-label">目标配置:</span>
+                <div class="allocation-chips">
+                    {% for asset, weight in signal.target_allocation.items %}
+                    <span class="allocation-chip">{{ asset }}: {% widthratio weight 1 100 %}%</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if signal.reason %}
+            <div class="signal-item-reason">
+                <span class="reason-label">原因:</span>
+                <span class="reason-text">{{ signal.reason }}</span>
+            </div>
+            {% endif %}
+
+            {% if signal.momentum_ranking %}
+            <div class="signal-item-momentum">
+                <span class="momentum-label">动量排名:</span>
+                <div class="momentum-list">
+                    {% for item in signal.momentum_ranking %}
+                    <span class="momentum-item">{{ item }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="signal-item-metrics">
+                {% if signal.expected_return %}
+                <span class="metric-item">
+                    <span class="metric-label">预期收益:</span>
+                    <span class="metric-value {% if signal.expected_return > 0 %}positive{% else %}negative{% endif %}">
+                        {% widthratio signal.expected_return 1 100 %}%
+                    </span>
+                </span>
+                {% endif %}
+                {% if signal.expected_volatility %}
+                <span class="metric-item">
+                    <span class="metric-label">预期波动:</span>
+                    <span class="metric-value">{% widthratio signal.expected_volatility 1 100 %}%</span>
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📈</div>
+        <p>暂无信号记录</p>
+        <p class="empty-hint">生成第一个策略信号以开始使用</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

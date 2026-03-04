@@ -1,0 +1,1024 @@
+/**
+ * Factor Module Styles
+ * AgomSAAF - Factor Management Module
+ */
+
+/* ============================================================================
+   Layout & Container
+   ============================================================================ */
+
+.factor-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.factor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.factor-header h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+}
+
+.factor-actions {
+    display: flex;
+    gap: 12px;
+}
+
+/* ============================================================================
+   Factor Navigation
+   ============================================================================ */
+
+.factor-nav {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    background: var(--bg-secondary, #f9fafb);
+    padding: 8px;
+    border-radius: 8px;
+}
+
+.factor-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--text-secondary, #6b7280);
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.factor-nav-item:hover {
+    background: var(--bg-tertiary, #f3f4f6);
+    color: var(--text-primary, #111827);
+}
+
+.factor-nav-item.active {
+    background: var(--color-primary, #3b82f6);
+    color: white;
+}
+
+/* ============================================================================
+   Buttons
+   ============================================================================ */
+
+.btn-factor {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--color-primary, #3b82f6);
+    color: white;
+}
+
+.btn-factor:hover {
+    background: var(--color-primary-dark, #2563eb);
+    transform: translateY(-1px);
+}
+
+.btn-factor.secondary {
+    background: var(--bg-secondary, #f3f4f6);
+    color: var(--text-primary, #111827);
+}
+
+.btn-factor.secondary:hover {
+    background: var(--bg-tertiary, #e5e7eb);
+}
+
+.btn-small {
+    padding: 4px 12px;
+    font-size: 12px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-small:hover {
+    background: var(--bg-secondary, #f9fafb);
+}
+
+/* ============================================================================
+   Statistics Cards
+   ============================================================================ */
+
+.factor-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: white;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text-primary, #111827);
+}
+
+.stat-label {
+    font-size: 13px;
+    color: var(--text-secondary, #6b7280);
+    margin-top: 4px;
+}
+
+/* ============================================================================
+   Filters
+   ============================================================================ */
+
+.factor-filters {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-group label {
+    font-size: 14px;
+    color: var(--text-secondary, #6b7280);
+    white-space: nowrap;
+}
+
+.form-select,
+.form-input,
+.form-textarea {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+.form-select.large {
+    padding: 12px 16px;
+    font-size: 16px;
+    width: 100%;
+}
+
+.form-select:focus,
+.form-input:focus,
+.form-textarea:focus {
+    outline: none;
+    border-color: var(--color-primary, #3b82f6);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-input.small {
+    width: 100px;
+}
+
+/* ============================================================================
+   Factor Cards
+   ============================================================================ */
+
+.factor-list,
+.portfolio-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.factor-card,
+.portfolio-card {
+    background: white;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    gap: 16px;
+    transition: box-shadow 0.2s ease;
+}
+
+.factor-card:hover,
+.portfolio-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.factor-card.inactive,
+.portfolio-card.inactive {
+    opacity: 0.6;
+    background: var(--bg-secondary, #f9fafb);
+}
+
+.factor-main,
+.portfolio-main {
+    flex: 1;
+}
+
+.factor-title,
+.portfolio-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.factor-code,
+.portfolio-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+}
+
+.factor-name {
+    font-size: 15px;
+    color: var(--text-primary, #111827);
+}
+
+.factor-category {
+    font-size: 13px;
+    color: var(--text-secondary, #6b7280);
+    margin-bottom: 8px;
+}
+
+.factor-desc,
+.portfolio-desc {
+    font-size: 14px;
+    color: var(--text-secondary, #6b7280);
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+
+.factor-meta,
+.portfolio-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 13px;
+    color: var(--text-tertiary, #9ca3af);
+}
+
+.factor-constraints {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.constraint {
+    font-size: 12px;
+    padding: 2px 8px;
+    background: var(--bg-secondary, #f9fafb);
+    border-radius: 4px;
+    color: var(--text-secondary, #6b7280);
+}
+
+/* ============================================================================
+   Status Badges
+   ============================================================================ */
+
+.status-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-badge.status-active {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.status-badge.status-inactive {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* ============================================================================
+   Action Buttons
+   ============================================================================ */
+
+.factor-actions,
+.portfolio-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.action-btn {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    color: var(--text-secondary, #6b7280);
+}
+
+.action-btn:hover {
+    background: var(--bg-secondary, #f9fafb);
+    color: var(--text-primary, #111827);
+}
+
+.action-btn.view:hover {
+    background: #dbeafe;
+    color: #1e40af;
+    border-color: #bfdbfe;
+}
+
+.action-btn.edit:hover {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+}
+
+.action-btn.toggle:hover {
+    background: #d1fae5;
+    color: #065f46;
+    border-color: #a7f3d0;
+}
+
+.action-btn.generate:hover {
+    background: #e0e7ff;
+    color: #4338ca;
+    border-color: #c7d2fe;
+}
+
+.action-btn.delete:hover {
+    background: #fee2e2;
+    color: #dc2626;
+    border-color: #fecaca;
+}
+
+/* ============================================================================
+   Portfolio Details
+   ============================================================================ */
+
+.portfolio-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.detail-section {
+    background: var(--bg-secondary, #f9fafb);
+    padding: 12px;
+    border-radius: 6px;
+}
+
+.detail-section h4 {
+    margin: 0 0 12px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary, #6b7280);
+    text-transform: uppercase;
+}
+
+.factor-weights {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.weight-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+}
+
+.factor-label {
+    color: var(--text-secondary, #6b7280);
+}
+
+.weight-value {
+    font-weight: 500;
+    color: var(--text-primary, #111827);
+}
+
+.params-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.param-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+}
+
+.param-label {
+    color: var(--text-secondary, #6b7280);
+}
+
+.param-value {
+    font-weight: 500;
+    color: var(--text-primary, #111827);
+}
+
+.holdings-info {
+    display: flex;
+    gap: 16px;
+    font-size: 13px;
+}
+
+.empty-text {
+    color: var(--text-tertiary, #9ca3af);
+    font-style: italic;
+}
+
+/* ============================================================================
+   Calculation Panel
+   ============================================================================ */
+
+.calculation-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.panel-section {
+    background: white;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.panel-section h3 {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+}
+
+.config-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.selected-config-info {
+    padding: 12px;
+    background: var(--bg-secondary, #f9fafb);
+    border-radius: 6px;
+}
+
+.config-detail {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 6px;
+}
+
+.config-detail:last-child {
+    margin-bottom: 0;
+}
+
+.config-detail .label {
+    color: var(--text-secondary, #6b7280);
+}
+
+.params-input {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.param-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.param-row label {
+    font-size: 14px;
+    color: var(--text-secondary, #6b7280);
+    min-width: 80px;
+}
+
+.factor-categories {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.factor-category-group {
+    margin-bottom: 16px;
+}
+
+.category-header {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary, #6b7280);
+    margin-bottom: 8px;
+}
+
+.category-factors {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.factor-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--bg-secondary, #f9fafb);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 16px;
+    font-size: 12px;
+}
+
+.chip-code {
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+}
+
+.chip-name {
+    color: var(--text-secondary, #6b7280);
+}
+
+/* ============================================================================
+   Results Table
+   ============================================================================ */
+
+.calculation-results {
+    background: white;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.results-header {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.results-header h2 {
+    margin: 0 0 12px 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.results-meta {
+    display: flex;
+    gap: 24px;
+    font-size: 13px;
+    color: var(--text-secondary, #6b7280);
+}
+
+.results-table-wrapper {
+    overflow-x: auto;
+}
+
+.results-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.results-table th,
+.results-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.results-table th {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary, #6b7280);
+    background: var(--bg-secondary, #f9fafb);
+}
+
+.results-table td {
+    font-size: 14px;
+}
+
+.score-bar {
+    position: relative;
+    display: inline-block;
+    width: 100px;
+    height: 20px;
+    background: var(--bg-tertiary, #e5e7eb);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.score-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #ef4444, #f59e0b, #10b981);
+    transition: width 0.3s ease;
+}
+
+.score-value {
+    position: relative;
+    z-index: 1;
+    display: block;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 20px;
+    color: white;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+}
+
+.results-footer {
+    padding: 16px 20px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-secondary, #6b7280);
+    border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+/* ============================================================================
+   Modal
+   ============================================================================ */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.modal-content.large {
+    max-width: 800px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.modal-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-secondary, #6b7280);
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.btn-modal {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-modal.primary {
+    background: var(--color-primary, #3b82f6);
+    color: white;
+}
+
+.btn-modal.primary:hover {
+    background: var(--color-primary-dark, #2563eb);
+}
+
+.btn-modal.secondary {
+    background: var(--bg-secondary, #f3f4f6);
+    color: var(--text-primary, #111827);
+}
+
+.btn-modal.secondary:hover {
+    background: var(--bg-tertiary, #e5e7eb);
+}
+
+/* ============================================================================
+   Form Styles in Modal
+   ============================================================================ */
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary, #6b7280);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.form-section {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: var(--bg-secondary, #f9fafb);
+    border-radius: 8px;
+}
+
+.form-section h4 {
+    margin: 0 0 16px 0;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.form-hint {
+    font-size: 12px;
+    color: var(--text-tertiary, #9ca3af);
+    margin-top: 8px;
+}
+
+.factor-weights-input {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.weight-input-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.weight-input-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.weight-hint {
+    font-size: 11px;
+    color: var(--text-tertiary, #9ca3af);
+}
+
+/* ============================================================================
+   Factor Explanation
+   ============================================================================ */
+
+.stock-explanation {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.explanation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.explanation-header h4 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.composite-score {
+    text-align: center;
+}
+
+.composite-score .score-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--color-primary, #3b82f6);
+}
+
+.factor-breakdown h5,
+.explanation-text h5 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary, #6b7280);
+}
+
+.factor-scores-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.factor-score-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    background: var(--bg-secondary, #f9fafb);
+    border-radius: 6px;
+}
+
+.factor-score-item .factor-name {
+    font-size: 14px;
+    color: var(--text-secondary, #6b7280);
+}
+
+.score-bar-small {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 150px;
+}
+
+.score-fill-small {
+    height: 6px;
+    background: linear-gradient(90deg, #ef4444, #f59e0b, #10b981);
+    border-radius: 3px;
+}
+
+.score-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+}
+
+.explanation-text {
+    padding: 16px;
+    background: var(--bg-secondary, #f9fafb);
+    border-radius: 8px;
+}
+
+.explanation-text p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-secondary, #6b7280);
+}
+
+/* ============================================================================
+   Loading & Progress
+   ============================================================================ */
+
+.loading-spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    color: var(--text-secondary, #6b7280);
+}
+
+.progress-bar {
+    height: 8px;
+    background: var(--bg-tertiary, #e5e7eb);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--color-primary, #3b82f6);
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    text-align: center;
+    font-size: 14px;
+    color: var(--text-secondary, #6b7280);
+}
+
+.result-summary {
+    display: flex;
+    justify-content: space-around;
+    padding: 20px 0;
+}
+
+.summary-item {
+    text-align: center;
+}
+
+.summary-label {
+    display: block;
+    font-size: 13px;
+    color: var(--text-secondary, #6b7280);
+    margin-bottom: 8px;
+}
+
+.summary-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary, #111827);
+}
+
+.error-message {
+    padding: 20px;
+    text-align: center;
+    color: #ef4444;
+}
+
+/* ============================================================================
+   Empty State
+   ============================================================================ */
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary, #6b7280);
+}
+
+.empty-state div {
+    font-size: 14px;
+}
+
+/* ============================================================================
+   Factor Detail
+   ============================================================================ */
+
+.factor-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.detail-label {
+    font-weight: 500;
+    color: var(--text-secondary, #6b7280);
+}
+
+.detail-value {
+    color: var(--text-primary, #111827);
+}

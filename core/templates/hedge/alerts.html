@@ -1,0 +1,159 @@
+{% extends "hedge/base.html" %}
+{% load static %}
+
+{% block hedge_page_title %}告警中心{% endblock %}
+
+{% block hedge_content %}
+<!-- 统计卡片 -->
+<div class="hedge-stats-row">
+    <div class="hedge-stat-card">
+        <div class="hedge-stat-value">{{ stats.total }}</div>
+        <div class="hedge-stat-label">总告警</div>
+    </div>
+    <div class="hedge-stat-card">
+        <div class="hedge-stat-value" style="color: #f59e0b;">{{ stats.active }}</div>
+        <div class="hedge-stat-label">未处理</div>
+    </div>
+    <div class="hedge-stat-card">
+        <div class="hedge-stat-value" style="color: #ef4444;">{{ stats.critical }}</div>
+        <div class="hedge-stat-label">严重</div>
+    </div>
+    <div class="hedge-stat-card">
+        <div class="hedge-stat-value" style="color: #dc2626;">{{ stats.high }}</div>
+        <div class="hedge-stat-label">高优先级</div>
+    </div>
+    <div class="hedge-stat-card">
+        <div class="hedge-stat-value" style="color: #10b981;">{{ stats.resolved }}</div>
+        <div class="hedge-stat-label">已解决</div>
+    </div>
+</div>
+
+<!-- 操作栏 -->
+<div class="hedge-actions-bar">
+    <button class="hedge-btn hedge-btn-primary" onclick="runMonitoring()">
+        <i class="bi bi-arrow-repeat"></i> 运行监控
+    </button>
+</div>
+
+<!-- 告警列表 -->
+<div class="hedge-alerts-list">
+    {% for alert in alerts %}
+    <div class="hedge-alert-card severity-{{ alert.severity }} {% if alert.is_resolved %}resolved{% endif %}">
+        <div class="hedge-alert-header">
+            <div class="hedge-alert-title">
+                <span class="hedge-alert-pair">{{ alert.pair_name }}</span>
+                <span class="hedge-alert-type">{{ alert.alert_type_display }}</span>
+                <span class="hedge-alert-severity severity-{{ alert.severity }}">
+                    {{ alert.severity_display }}
+                </span>
+                {% if alert.is_resolved %}
+                <span class="hedge-alert-status status-resolved">
+                    <i class="bi bi-check-circle"></i> 已解决
+                </span>
+                {% endif %}
+            </div>
+            <div class="hedge-alert-actions">
+                {% if not alert.is_resolved %}
+                <button class="hedge-action-btn" onclick="resolveAlert({{ alert.id }})" title="标记为已解决">
+                    <i class="bi bi-check-square"></i>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="hedge-alert-body">
+            <div class="hedge-alert-message">
+                <i class="bi bi-chat-text"></i>
+                {{ alert.message }}
+            </div>
+
+            <div class="hedge-alert-grid">
+                <div class="hedge-alert-item">
+                    <span class="hedge-item-label">当前值</span>
+                    <span class="hedge-item-value hedge-highlight">{{ alert.current_value }}</span>
+                </div>
+                <div class="hedge-alert-item">
+                    <span class="hedge-item-label">阈值</span>
+                    <span class="hedge-item-value">{{ alert.threshold_value }}</span>
+                </div>
+                <div class="hedge-alert-item">
+                    <span class="hedge-item-label">优先级</span>
+                    <span class="hedge-item-value">
+                        {% if alert.action_priority <= 3 %}
+                            <span class="priority-high">P{{ alert.action_priority }}</span>
+                        {% elif alert.action_priority <= 7 %}
+                            <span class="priority-medium">P{{ alert.action_priority }}</span>
+                        {% else %}
+                            <span class="priority-low">P{{ alert.action_priority }}</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="hedge-alert-item">
+                    <span class="hedge-item-label">告警日期</span>
+                    <span class="hedge-item-value">{{ alert.alert_date }}</span>
+                </div>
+            </div>
+
+            {% if alert.action_required %}
+            <div class="hedge-alert-action">
+                <i class="bi bi-lightbulb"></i>
+                <strong>建议操作:</strong> {{ alert.action_required }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="hedge-alert-footer">
+            <span class="hedge-meta">
+                <i class="bi bi-clock"></i> 创建于 {{ alert.created_at|date:"Y-m-d H:i" }}
+            </span>
+            {% if alert.resolved_at %}
+            <span class="hedge-meta">
+                <i class="bi bi-check-circle"></i> 解决于 {{ alert.resolved_at|date:"Y-m-d H:i" }}
+            </span>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not alerts %}
+<div class="hedge-empty-state">
+    <div style="font-size: 48px; margin-bottom: 16px;"><i class="bi bi-bell"></i></div>
+    <div>暂无告警记录</div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function runMonitoring() {
+    if (!await window.uiConfirm('确认运行对冲监控检查？', { title: '运行监控', icon: 'info' })) return;
+
+    const res = await fetch(HEDGE_URLS.runMonitoring, { method: 'POST' });
+    const data = await res.json();
+
+    if (data.success) {
+        showToast(`监控完成，生成 ${data.generated_alerts} 个新告警`);
+        if (data.generated_alerts > 0) {
+            location.reload();
+        }
+    } else {
+        showToast('监控运行失败', 'error');
+    }
+}
+
+async function resolveAlert(id) {
+    if (!await window.uiConfirm('确认标记该告警为已解决？', { title: '解决告警', icon: 'info' })) return;
+
+    const res = await fetch(HEDGE_URLS.resolveAlert(id), { method: 'POST' });
+    const data = await res.json();
+
+    if (data.success) {
+        showToast(data.message);
+        location.reload();
+    } else {
+        showToast('操作失败: ' + (data.error || '未知错误'), 'error');
+    }
+}
+</script>
+{% endblock %}

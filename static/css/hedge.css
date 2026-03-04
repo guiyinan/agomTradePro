@@ -1,0 +1,541 @@
+/**
+ * Hedge Module Styles
+ * 对冲策略模块样式
+ */
+
+/* Container */
+.hedge-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Header */
+.hedge-header {
+    margin-bottom: 24px;
+}
+
+.hedge-header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: #1f2937;
+}
+
+.hedge-nav {
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 12px;
+}
+
+.hedge-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    color: #6b7280;
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.hedge-nav-item:hover {
+    background-color: #f3f4f6;
+    color: #374151;
+}
+
+.hedge-nav-item.active {
+    background-color: #eff6ff;
+    color: #2563eb;
+    font-weight: 500;
+}
+
+.hedge-nav-item i {
+    font-size: 16px;
+}
+
+/* Stats Row */
+.hedge-stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.hedge-stat-card {
+    background-color: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+}
+
+.hedge-stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.hedge-stat-label {
+    font-size: 13px;
+    color: #6b7280;
+    margin-top: 4px;
+}
+
+/* Actions Bar */
+.hedge-actions-bar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.hedge-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.hedge-btn-primary {
+    background-color: #2563eb;
+    color: #ffffff;
+}
+
+.hedge-btn-primary:hover {
+    background-color: #1d4ed8;
+}
+
+.hedge-btn-secondary {
+    background-color: #f3f4f6;
+    color: #374151;
+}
+
+.hedge-btn-secondary:hover {
+    background-color: #e5e7eb;
+}
+
+/* Pair Cards */
+.hedge-pairs-list,
+.hedge-holdings-list,
+.hedge-alerts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.hedge-pair-card,
+.hedge-holding-card,
+.hedge-alert-card {
+    background-color: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+}
+
+.hedge-pair-card:hover,
+.hedge-holding-card:hover,
+.hedge-alert-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.hedge-pair-card.active {
+    border-left: 4px solid #10b981;
+}
+
+.hedge-pair-card.inactive {
+    border-left: 4px solid #9ca3af;
+    opacity: 0.7;
+}
+
+.hedge-holding-card.needs-rebalance {
+    border-left: 4px solid #f59e0b;
+}
+
+/* Alert Severity Colors */
+.hedge-alert-card.severity-critical {
+    border-left: 4px solid #dc2626;
+}
+
+.hedge-alert-card.severity-high {
+    border-left: 4px solid #f97316;
+}
+
+.hedge-alert-card.severity-medium {
+    border-left: 4px solid #f59e0b;
+}
+
+.hedge-alert-card.severity-low {
+    border-left: 4px solid #6b7280;
+}
+
+.hedge-alert-card.resolved {
+    opacity: 0.6;
+}
+
+/* Card Headers */
+.hedge-pair-header,
+.hedge-holding-header,
+.hedge-alert-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid #f3f4f6;
+    background-color: #fafafa;
+}
+
+.hedge-pair-title,
+.hedge-holding-title,
+.hedge-alert-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.hedge-pair-name,
+.hedge-holding-pair,
+.hedge-alert-pair {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.hedge-pair-method,
+.hedge-alert-type {
+    font-size: 13px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background-color: #e5e7eb;
+    color: #4b5563;
+}
+
+.hedge-pair-status,
+.hedge-holding-badge,
+.hedge-alert-severity,
+.hedge-alert-status {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.hedge-pair-status.status-active,
+.hedge-alert-status.status-resolved {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.hedge-pair-status.status-inactive {
+    background-color: #f3f4f6;
+    color: #6b7280;
+}
+
+.hedge-holding-badge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.hedge-holding-badge.badge-warning {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.hedge-alert-severity.severity-critical {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.hedge-alert-severity.severity-high {
+    background-color: #ffedd5;
+    color: #9a3412;
+}
+
+.hedge-alert-severity.severity-medium {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.hedge-alert-severity.severity-low {
+    background-color: #e5e7eb;
+    color: #4b5563;
+}
+
+.hedge-holding-date {
+    font-size: 13px;
+    color: #6b7280;
+}
+
+/* Actions */
+.hedge-pair-actions,
+.hedge-alert-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.hedge-action-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    background-color: transparent;
+    color: #6b7280;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.hedge-action-btn:hover {
+    background-color: #e5e7eb;
+    color: #374151;
+}
+
+/* Card Body */
+.hedge-pair-body,
+.hedge-holding-body,
+.hedge-alert-body {
+    padding: 16px;
+}
+
+.hedge-pair-section,
+.hedge-holding-section {
+    margin-bottom: 16px;
+}
+
+.hedge-pair-section:last-child,
+.hedge-holding-section:last-child {
+    margin-bottom: 0;
+}
+
+.hedge-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.hedge-pair-grid,
+.hedge-holding-grid,
+.hedge-alert-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+}
+
+.hedge-pair-item,
+.hedge-holding-item,
+.hedge-alert-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.hedge-item-label {
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+
+.hedge-item-value {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1f2937;
+}
+
+.hedge-item-value.hedge-highlight {
+    color: #2563eb;
+    font-weight: 600;
+}
+
+.hedge-item-value.text-success {
+    color: #10b981;
+}
+
+.hedge-item-value.text-warning {
+    color: #f59e0b;
+}
+
+.hedge-item-value.text-danger {
+    color: #ef4444;
+}
+
+.hedge-item-value.text-muted {
+    color: #9ca3af;
+}
+
+.hedge-item-value.correlation-up {
+    color: #10b981;
+}
+
+.hedge-item-value.correlation-down {
+    color: #ef4444;
+}
+
+.hedge-item-value.correlation-neutral {
+    color: #6b7280;
+}
+
+/* Rebalance Hints */
+.hedge-rebalance-hint,
+.hedge-rebalance-reason {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background-color: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #92400e;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Alert Message */
+.hedge-alert-message {
+    margin-bottom: 12px;
+    padding: 12px;
+    background-color: #f9fafb;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hedge-alert-action {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background-color: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #1e40af;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Priority Badges */
+.priority-high {
+    padding: 2px 6px;
+    border-radius: 4px;
+    background-color: #fee2e2;
+    color: #991b1b;
+    font-weight: 600;
+}
+
+.priority-medium {
+    padding: 2px 6px;
+    border-radius: 4px;
+    background-color: #fef3c7;
+    color: #92400e;
+    font-weight: 600;
+}
+
+.priority-low {
+    padding: 2px 6px;
+    border-radius: 4px;
+    background-color: #e5e7eb;
+    color: #4b5563;
+    font-weight: 600;
+}
+
+/* Card Footer */
+.hedge-pair-footer,
+.hedge-holding-footer,
+.hedge-alert-footer {
+    padding: 12px 16px;
+    border-top: 1px solid #f3f4f6;
+    background-color: #fafafa;
+}
+
+.hedge-meta {
+    font-size: 12px;
+    color: #9ca3af;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Empty State */
+.hedge-empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #9ca3af;
+}
+
+.hedge-empty-state i {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+/* Toast */
+.toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    border-radius: 6px;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s;
+    z-index: 1000;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.toast:not(.error) {
+    background-color: #10b981;
+}
+
+.toast.error {
+    background-color: #ef4444;
+}
+
+.toast.warning {
+    background-color: #f59e0b;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .hedge-stats-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .hedge-pair-grid,
+    .hedge-holding-grid,
+    .hedge-alert-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .hedge-actions-bar {
+        flex-direction: column;
+    }
+
+    .hedge-pair-title,
+    .hedge-holding-title,
+    .hedge-alert-title {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

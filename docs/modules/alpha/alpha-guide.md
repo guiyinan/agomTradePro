@@ -1,10 +1,13 @@
 # Alpha 模块指南
 
-> **最后更新**: 2026-02-06
+> **最后更新**: 2026-03-03
 
 ## 概述
 
 Alpha 模块是 AgomSAAF 的 AI 选股信号抽象层，与 Qlib 深度集成，支持 4 层降级机制。
+
+**相关文档**:
+- [Qlib 模型训练指南](./training-guide.md) - 详细的模型训练、评估和部署指南
 
 ## 架构
 
@@ -52,3 +55,12 @@ python manage.py list_models
 ## 快速开始
 
 详见 [alpha-quickstart.md](../../business/alpha-quickstart.md)
+
+## 模型训练
+
+详见 [training-guide.md](./training-guide.md) 获取：
+- 环境配置步骤
+- 数据准备指南
+- 模型训练命令
+- IC/ICIR 指标说明
+- 生产部署流程

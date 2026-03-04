@@ -1,0 +1,79 @@
+# MLP model configuration for CSI 300
+# Qlib 训练配置文件 - MLPModel
+#
+# 说明:
+#   - 本文件定义了多层感知机模型的超参数配置
+#   - 适用于沪深300股票池
+#   - 轻量级模型，训练速度快
+#
+# 使用方式:
+#   python manage.py train_qlib_model --name mlp_csi300 --type MLPModel \
+#       --config config/qlib/mlp_csi300.yaml --activate
+
+model:
+  class: MLPTPModel
+  loss: mse
+  # MLP 网络结构
+  d_feat: 20
+  hidden_size: 128
+  num_layers: 3
+  dropout: 0.2
+  # 训练参数
+  batch_size: 2048
+  n_epochs: 100
+  early_stopping_rounds: 20
+  lr: 0.002
+  # 优化器配置
+  optimizer: adam
+  weight_decay: 0.0001
+  # GPU 配置
+  GPU: 0
+  n_jobs: 4
+
+# 数据集配置
+dataset:
+  class: DatasetH
+  handler:
+    class: Alpha360
+    # 时间范围
+    start_time: 2020-01-01
+    end_time: 2026-03-03
+    fit_start_time: 2020-01-01
+    fit_end_time: 2024-12-31
+    # 股票池
+    instruments: csi300
+
+  # 数据分段
+  segments:
+    train: [2020-01-01, 2023-12-31]
+    valid: [2024-01-01, 2024-12-31]
+    test: [2025-01-01, 2026-03-03]
+
+# 训练配置
+training:
+  # 批次大小
+  batch_size: 2048
+  # 训练轮数
+  n_epochs: 100
+  # 早停配置
+  early_stopping_rounds: 20
+  # 评估指标
+  metric: ic
+  # 学习率调度
+  lr_scheduler: step
+  lr_decay: 0.98
+  lr_decay_steps: 5
+
+# 回测配置（用于模型评估）
+backtest:
+  # 策略类型
+  strategy: TopkDropoutStrategy
+  # 策略参数
+  topk: 30
+  n_drop: 5
+  # 交易频率
+  exchange_freq: 1d
+  # 基准
+  benchmark: SH000300
+  # 交易成本
+  trade_cost: 0.0015
