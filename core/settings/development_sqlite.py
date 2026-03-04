@@ -11,3 +11,11 @@ DATABASES = {
     }
 }
 CORS_ALLOW_ALL_ORIGINS = True
+
+# 使用内存缓存（用于测试环境，避免 Redis 依赖）
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
+}

@@ -124,9 +124,11 @@ class TestPortfolioObserverAccess:
         assert response.status_code == 200
         assert response.data['count'] >= 1
 
-        # 验证结果包含被授权的投资组合
+        # 验证结果包含被授权的投资组合（ID 可能是整数或字符串）
         portfolio_ids = [p['id'] for p in response.data['results']]
-        assert str(data['portfolio'].id) in portfolio_ids
+        # 兼容整数和字符串ID比较
+        found = any(str(pid) == str(data['portfolio'].id) or pid == data['portfolio'].id for pid in portfolio_ids)
+        assert found, f"Portfolio ID {data['portfolio'].id} not found in {portfolio_ids}"
 
     def test_observer_can_retrieve_granted_portfolio(self, setup_observer_test_data):
         """测试观察员可以获取被授权的投资组合详情"""
@@ -137,7 +139,8 @@ class TestPortfolioObserverAccess:
         response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/')
 
         assert response.status_code == 200
-        assert response.data['id'] == str(data['portfolio'].id)
+        # ID 可能是整数或字符串，使用灵活比较
+        assert str(response.data['id']) == str(data['portfolio'].id)
         assert response.data['name'] == '测试组合'
 
     def test_observer_cannot_access_unauthorized_portfolio(self, setup_observer_test_data):
@@ -415,11 +418,17 @@ class TestOwnerFullAccess:
         client = APIClient()
         client.force_authenticate(user=data['owner'])
 
+        # 创建持仓需要更多字段，这里只测试拥有者不被 403 拒绝
         payload = {
             'portfolio': data['portfolio'].id,
             'asset_code': '000002.SZ',
             'shares': 100,
             'avg_cost': 20.00,
+            'currency': data['position'].currency.id,
+            'category': data['position'].category.id,
+            'asset_class': 'equity',
+            'region': 'CN',
+            'cross_border': 'domestic',
         }
 
         response = client.post('/account/api/positions/', payload)

@@ -906,6 +906,24 @@ class ObserverGrantViewSet(viewsets.ModelViewSet):
 
         return queryset.order_by('-created_at')
 
+    def get_object(self):
+        """
+        对写操作使用全量查询后做显式鉴权，确保“对象存在但无权限”返回 403。
+        """
+        if self.action in ['destroy', 'update', 'partial_update']:
+            lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+            lookup_value = self.kwargs.get(lookup_url_kwarg)
+            grant = get_object_or_404(
+                PortfolioObserverGrantModel._default_manager.select_related(
+                    'owner_user_id', 'observer_user_id', 'revoked_by'
+                ),
+                **{self.lookup_field: lookup_value},
+            )
+            if grant.owner_user_id != self.request.user:
+                self.permission_denied(self.request, message='无权访问此授权')
+            return grant
+        return super().get_object()
+
     @action(detail=True, methods=['get'])
     def positions(self, request, pk=None):
         """
@@ -1220,4 +1238,3 @@ class UserSearchView(APIView):
             "success": True,
             "results": results
         })
-

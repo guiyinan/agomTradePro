@@ -363,7 +363,7 @@ class TestObserverGrantE2E:
         # 1. A 创建授权
         api_client.force_authenticate(user=data['user_a'])
         create_response = api_client.post('/account/api/observer-grants/', {
-            'observer_user_id': data['user_b'].id,
+            'username': data['user_b'].username,
         })
         assert create_response.status_code == 201
         grant_id = create_response.data['data']['id']

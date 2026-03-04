@@ -2,6 +2,7 @@
 DRF Serializers for Account API.
 """
 
+from django.contrib.auth.models import User
 from rest_framework import serializers
 from datetime import date
 from decimal import Decimal
@@ -261,6 +262,12 @@ class ObserverGrantCreateSerializer(serializers.ModelSerializer):
     """观察员授权创建序列化器"""
 
     # 支持通过 observer_user_id 或 username 指定观察员
+    observer_user_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(),
+        required=False,
+        write_only=True,
+        help_text="观察员用户ID（与 username 二选一）"
+    )
     username = serializers.CharField(
         write_only=True,
         required=False,
@@ -288,22 +295,31 @@ class ObserverGrantCreateSerializer(serializers.ModelSerializer):
 
         if username:
             # 通过 username 查找用户
-            from django.contrib.auth.models import User
             try:
                 observer = User.objects.get(username=username)
-                attrs['observer_user_id'] = observer.id
+                attrs['observer_user_id'] = observer
             except User.DoesNotExist:
                 raise serializers.ValidationError({
                     "username": f"用户 '{username}' 不存在"
                 })
 
-        # 验证观察员用户存在
-        from django.contrib.auth.models import User
-        try:
-            observer = User.objects.get(id=attrs['observer_user_id'])
-        except User.DoesNotExist:
+        # observer_user_id 可能是 User 对象（来自 PrimaryKeyRelatedField 或 username 转换）
+        # 或整数 ID（来自直接传递）
+        observer_user_id_value = attrs.get('observer_user_id')
+
+        # 处理 DRF 反序列化的情况：可能是 User 对象或整数 ID
+        if isinstance(observer_user_id_value, User):
+            observer = observer_user_id_value
+        elif observer_user_id_value:
+            try:
+                observer = User.objects.get(id=observer_user_id_value)
+            except (User.DoesNotExist, ValueError, TypeError):
+                raise serializers.ValidationError({
+                    "observer_user_id": "观察员用户不存在"
+                })
+        else:
             raise serializers.ValidationError({
-                "observer_user_id": "观察员用户不存在"
+                "observer_user_id": "请提供观察员用户"
             })
 
         # 不能授权给自己
@@ -346,12 +362,12 @@ class ObserverGrantCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         """创建授权记录"""
-        request = self.context.get('request')
         validated_data.pop('username', None)  # 移除临时字段
 
+        # owner_user_id 由视图的 perform_create 方法提供
+        # 这里只处理 validated_data 中的字段
         grant = PortfolioObserverGrantModel._default_manager.create(
-            owner_user_id=request.user,
-            created_by=request.user,
+            created_by=self.context['request'].user,
             **validated_data
         )
         return grant
