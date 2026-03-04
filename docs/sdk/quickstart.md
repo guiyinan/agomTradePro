@@ -205,4 +205,4 @@ except AgomSAAFAPIError as e:
 
 - Read the [API Reference](api_reference.md)
 - Check out the [Examples](examples/)
-- Learn about [MCP Integration](mcp_guide.md)
+- Learn about [MCP Integration](../mcp/mcp_guide.md)

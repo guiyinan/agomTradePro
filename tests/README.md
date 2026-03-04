@@ -202,4 +202,5 @@ cd ..
 - **Full Test Plan**: `docs/testing/sdk-mcp-integration-test-plan.md`
 - **Bug Report Template**: `docs/testing/bug-report-template.md`
 - **Test Results Template**: `docs/testing/test-results-template.md`
-- **SDK Documentation**: `sdk/docs/`
+- **SDK Documentation**: `docs/sdk/`
+

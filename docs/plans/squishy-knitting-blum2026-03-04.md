@@ -111,7 +111,7 @@ DoD：
 
 1. 增加 `sdk/agomsaaf_mcp/__main__.py` 作为标准启动入口。
 2. 提供 `sdk/.mcp/claude-desktop-config.json` 模板。
-3. 新增 `sdk/docs/mcp-deployment.md`，包含：
+3. 新增 `docs/mcp/mcp-deployment.md`，包含：
    - 本地调试
    - Claude Code 配置
    - 常见故障排查
@@ -120,7 +120,7 @@ DoD：
 
 - `sdk/agomsaaf_mcp/__main__.py`（新增）
 - `sdk/.mcp/claude-desktop-config.json`（新增）
-- `sdk/docs/mcp-deployment.md`（新增）
+- `docs/mcp/mcp-deployment.md`（新增）
 
 DoD：
 
@@ -303,7 +303,7 @@ DoD：
 | `.github/workflows/security-scan.yml` | 安全扫描门禁 |
 | `sdk/agomsaaf_mcp/__main__.py` | MCP 标准入口 |
 | `sdk/.mcp/claude-desktop-config.json` | Claude Desktop 配置模板 |
-| `sdk/docs/mcp-deployment.md` | MCP 部署文档 |
+| `docs/mcp/mcp-deployment.md` | MCP 部署文档 |
 | `shared/infrastructure/sanitization.py` | 输入消毒模块 |
 | `apps/signal/interface/serializers.py` | Signal 接入消毒 |
 | `apps/policy/interface/serializers.py` | Policy 接入消毒 |
@@ -319,3 +319,4 @@ DoD：
 1. 所有配置项改动保持可开关（feature flag 或最小化回滚 patch）。
 2. P0/P1 每项都要有“单项回滚步骤”。
 3. API 版本化在 Phase A/B 完成前禁止删除旧路由。
+

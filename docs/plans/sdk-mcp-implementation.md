@@ -118,9 +118,9 @@ sdk/
 ### Phase 6: 文档和测试（已完成）✅
 
 1. ✅ `README.md` - 项目说明（更新，包含所有模块和工具）
-2. ✅ `docs/quickstart.md` - 快速开始指南
-3. ✅ `docs/mcp_guide.md` - MCP 使用指南
-4. ✅ `docs/api_reference.md` - API 参考文档
+2. ✅ `docs/sdk/quickstart.md` - 快速开始指南
+3. ✅ `docs/mcp/mcp_guide.md` - MCP 使用指南
+4. ✅ `docs/sdk/api_reference.md` - API 参考文档
 5. ✅ `docs/examples/` - 使用示例：
    - ✅ `basic_usage.py` - 基础使用示例
    - ✅ `backtesting.py` - 回测示例
@@ -210,9 +210,9 @@ sdk/
 
 #### 文档文件 (7)
 - `README.md`
-- `docs/quickstart.md`
-- `docs/mcp_guide.md`
-- `docs/api_reference.md`
+- `docs/sdk/quickstart.md`
+- `docs/mcp/mcp_guide.md`
+- `docs/sdk/api_reference.md`
 - `docs/examples/basic_usage.py`
 - `docs/examples/backtesting.py`
 - `docs/examples/data_analysis.py`
@@ -477,3 +477,4 @@ pytest tests/ -v
 2. 更多模块：simulated_trading, equity, fund, sector, strategy, realtime
 3. OpenAPI 代码生成工具
 4. 版本同步验证工具
+

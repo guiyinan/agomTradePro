@@ -997,5 +997,6 @@ python tests/integration/test_realtime_monitoring_flow.py
 | 测试计划 | `docs/testing/sdk-mcp-integration-test-plan.md` |
 | Bug 报告模板 | `docs/testing/bug-report-template.md` |
 | 测试结果模板 | `docs/testing/test-results-template.md` |
-| SDK 文档 | `sdk/docs/` |
+| SDK 文档 | `docs/sdk/` |
 | 测试指南 | `tests/README.md` |
+

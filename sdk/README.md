@@ -188,11 +188,11 @@ Three methods (priority order):
 
 | Document | Description |
 |----------|-------------|
-| [Quick Start Guide](docs/quickstart.md) | Getting started with the SDK |
-| [MCP Guide](docs/mcp_guide.md) | MCP server setup and usage |
-| [Smoke Test Guide](docs/smoke_test.md) | End-to-end local smoke checklist |
-| [API Reference](docs/api_reference.md) | Complete API documentation |
-| [Implementation Plan](docs/plans/sdk-mcp-implementation.md) | Implementation status and plan |
+| [Quick Start Guide](../docs/sdk/quickstart.md) | Getting started with the SDK |
+| [MCP Guide](../docs/mcp/mcp_guide.md) | MCP server setup and usage |
+| [Smoke Test Guide](../docs/sdk/smoke_test.md) | End-to-end local smoke checklist |
+| [API Reference](../docs/sdk/api_reference.md) | Complete API documentation |
+| [Implementation Plan](../docs/plans/sdk-mcp-implementation.md) | Implementation status and plan |
 
 ## Migration Guide (V3.5)
 
@@ -231,12 +231,12 @@ For detailed migration information, see:
 
 | Example | Description |
 |---------|-------------|
-| [basic_usage.py](docs/examples/basic_usage.py) | Basic SDK operations |
-| [backtesting.py](docs/examples/backtesting.py) | Running and analyzing backtests |
-| [data_analysis.py](docs/examples/data_analysis.py) | Data analysis with pandas |
-| [simulated_trading.py](docs/examples/simulated_trading.py) | Simulated trading workflow |
-| [equity_fund_analysis.py](docs/examples/equity_fund_analysis.py) | Stock and fund analysis |
-| [realtime_strategy.py](docs/examples/realtime_strategy.py) | Real-time monitoring and strategies |
+| [basic_usage.py](../docs/sdk/examples/basic_usage.py) | Basic SDK operations |
+| [backtesting.py](../docs/sdk/examples/backtesting.py) | Running and analyzing backtests |
+| [data_analysis.py](../docs/sdk/examples/data_analysis.py) | Data analysis with pandas |
+| [simulated_trading.py](../docs/sdk/examples/simulated_trading.py) | Simulated trading workflow |
+| [equity_fund_analysis.py](../docs/sdk/examples/equity_fund_analysis.py) | Stock and fund analysis |
+| [realtime_strategy.py](../docs/sdk/examples/realtime_strategy.py) | Real-time monitoring and strategies |
 
 ## Development
 
