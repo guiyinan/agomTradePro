@@ -291,3 +291,97 @@ def wrap_tool_with_rbac(name: str, fn: Callable) -> Callable:
         return fn(*args, **kwargs)
 
     return _wrapped
+
+
+def wrap_tool_with_rbac_and_audit(name: str, fn: Callable) -> Callable:
+    """
+    Wrap a tool with RBAC enforcement and audit logging.
+
+    This wrapper:
+    1. Creates audit context before execution
+    2. Enforces RBAC checks
+    3. Executes the tool
+    4. Logs the result to the audit backend
+    5. Returns the original result (audit failures don't block)
+
+    Args:
+        name: Tool name
+        fn: Original tool function
+
+    Returns:
+        Wrapped function with RBAC and audit logging
+    """
+    def _wrapped(*args, **kwargs):
+        import time
+        from .audit import get_audit_logger, AuditContext
+
+        # 创建审计上下文
+        context = AuditContext.create(
+            user_id=_get_user_id(),
+            username=_get_username(),
+            mcp_role=_role(),
+        )
+
+        audit_logger = get_audit_logger()
+        error = None
+        result = None
+
+        try:
+            # 执行 RBAC 检查
+            enforce_tool_access(name)
+
+            # 执行原始工具
+            result = fn(*args, **kwargs)
+            return result
+
+        except PermissionError as e:
+            error = e
+            raise
+        except Exception as e:
+            error = e
+            raise
+        finally:
+            # 异步记录审计日志（不阻塞主流程）
+            try:
+                audit_logger.log_mcp_call(
+                    tool_name=name,
+                    params={
+                        "args": list(args),
+                        "kwargs": kwargs,
+                    },
+                    result=result,
+                    error=error,
+                    context=context,
+                )
+            except Exception as audit_error:
+                # 审计失败不阻塞主流程
+                import logging
+                logging.warning(f"审计日志记录失败: {audit_error}")
+
+    return _wrapped
+
+
+def _get_user_id() -> int | None:
+    """获取当前用户 ID（从后端 API 获取）"""
+    try:
+        from agomsaaf import AgomSAAFClient
+        client = AgomSAAFClient()
+        payload = client.get("account/api/profile/")
+        if isinstance(payload, dict):
+            return payload.get("id")
+    except Exception:
+        pass
+    return None
+
+
+def _get_username() -> str:
+    """获取当前用户名（从后端 API 获取）"""
+    try:
+        from agomsaaf import AgomSAAFClient
+        client = AgomSAAFClient()
+        payload = client.get("account/api/profile/")
+        if isinstance(payload, dict):
+            return payload.get("username", "anonymous")
+    except Exception:
+        pass
+    return "anonymous"

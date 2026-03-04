@@ -260,6 +260,8 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+    # 避免与业务参数 ?format=csv 冲突（如审计导出接口）
+    'URL_FORMAT_OVERRIDE': None,
 }
 
 # CORS Configuration (跨域资源共享)
@@ -639,3 +641,9 @@ CELERY_TASK_SOFT_TIME_LIMIT = 3300  # 55 分钟
 # Qlib Worker 配置建议
 # celery -A core worker -l info -Q qlib_infer --max-tasks-per-child=10 --concurrency=2
 # celery -A core worker -l info -Q qlib_train --max-tasks-per-child=1 --concurrency=1
+
+# ========== MCP/SDK 操作审计日志配置 ==========
+AUDIT_RETENTION_DAYS = env.int('AUDIT_RETENTION_DAYS', default=90)
+AUDIT_EXPORT_MAX_ROWS = env.int('AUDIT_EXPORT_MAX_ROWS', default=10000)
+AUDIT_EXPORT_MAX_DAYS = env.int('AUDIT_EXPORT_MAX_DAYS', default=90)
+AUDIT_INTERNAL_SECRET_KEY = env('AUDIT_INTERNAL_SECRET_KEY', default='')

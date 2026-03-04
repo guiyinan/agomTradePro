@@ -772,3 +772,509 @@ class ThresholdValidationPageView(LoginRequiredMixin, TemplateView):
 
         return context
 
+
+class OperationLogsAdminPageView(LoginRequiredMixin, TemplateView):
+    """操作审计日志管理页 - HTML 视图（仅管理员）"""
+    template_name = 'audit/operation_logs_admin.html'
+    login_url = '/account/login/'
+
+    def dispatch(self, request, *args, **kwargs):
+        # 检查管理员权限
+        if not IsAuditAdmin().has_permission(request, self):
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("需要审计管理员权限")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = '操作审计日志 - 管理员'
+        return context
+
+
+class MyOperationLogsPageView(LoginRequiredMixin, TemplateView):
+    """用户操作记录页 - HTML 视图"""
+    template_name = 'audit/my_operation_logs.html'
+    login_url = '/account/login/'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = '我的操作记录'
+        context['current_user_id'] = self.request.user.id
+        return context
+
+
+# ============ MCP/SDK 操作审计日志 API Views ============
+
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import JSONParser
+from rest_framework.renderers import JSONRenderer
+from .permissions import (
+    IsAuditAdmin,
+    OperationLogReadPermission,
+    HasInternalAuditSignature,
+    IsSelfOrAuditAdmin,
+)
+from .serializers import (
+    OperationLogSerializer,
+    OperationLogListSerializer,
+    OperationLogDetailSerializer,
+    OperationLogQuerySerializer,
+    OperationLogIngestSerializer,
+    OperationStatsSerializer,
+    ExportOperationLogsSerializer,
+)
+
+
+class OperationLogPagination(PageNumberPagination):
+    """操作日志分页器"""
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
+class OperationLogListView(APIView):
+    """操作日志列表 API"""
+
+    permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser]
+    renderer_classes = [JSONRenderer]
+
+    @extend_schema(
+        summary="查询操作日志",
+        description="查询 MCP/SDK 操作审计日志。管理员可查询全量日志，普通用户仅可查询本人日志。",
+        parameters=[
+            OpenApiParameter(
+                name='user_id',
+                type=int,
+                required=False,
+                description='用户 ID（普通用户会被覆盖为本人）',
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='username',
+                type=str,
+                required=False,
+                description='用户名（模糊匹配）',
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='operation_type',
+                type=str,
+                required=False,
+                description='操作类型（MCP_CALL/API_ACCESS/DATA_MODIFY）',
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='module',
+                type=str,
+                required=False,
+                description='模块名',
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='mcp_tool_name',
+                type=str,
+                required=False,
+                description='MCP 工具名',
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='response_status',
+                type=int,
+                required=False,
+                description='响应状态码',
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='start_date',
+                type=str,
+                required=False,
+                description='开始日期（YYYY-MM-DD）',
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='end_date',
+                type=str,
+                required=False,
+                description='结束日期（YYYY-MM-DD）',
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='page',
+                type=int,
+                required=False,
+                description='页码',
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='page_size',
+                type=int,
+                required=False,
+                description='每页数量（最大 100）',
+                location=OpenApiParameter.QUERY,
+            ),
+        ],
+        responses={
+            200: OperationLogListSerializer,
+            400: OpenApiTypes.OBJECT,
+        },
+    )
+    def get(self, request):
+        """查询操作日志列表"""
+        serializer = OperationLogQuerySerializer(data=request.query_params)
+        if not serializer.is_valid():
+            return Response(
+                {'success': False, 'error': '参数验证失败', 'details': serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        data = serializer.validated_data
+
+        # 判断是否为管理员
+        is_admin = IsAuditAdmin().has_permission(request, self)
+
+        from apps.audit.application.use_cases import (
+            QueryOperationLogsUseCase,
+            QueryOperationLogsRequest,
+        )
+
+        use_case = QueryOperationLogsUseCase(
+            audit_repository=DjangoAuditRepository()
+        )
+
+        response = use_case.execute(
+            QueryOperationLogsRequest(
+                user_id=data.get('user_id'),
+                username=data.get('username'),
+                operation_type=data.get('operation_type'),
+                module=data.get('module'),
+                action=data.get('action'),
+                mcp_tool_name=data.get('mcp_tool_name'),
+                mcp_role=data.get('mcp_role'),
+                response_status=data.get('response_status'),
+                start_date=data.get('start_date'),
+                end_date=data.get('end_date'),
+                resource_id=data.get('resource_id'),
+                source=data.get('source'),
+                ordering=data.get('ordering', '-timestamp'),
+                page=data.get('page', 1),
+                page_size=data.get('page_size', 20),
+                is_admin=is_admin,
+                current_user_id=request.user.id if request.user.is_authenticated else None,
+            )
+        )
+
+        if not response.success:
+            return Response(
+                {'success': False, 'error': response.error},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response({
+            'success': True,
+            'logs': response.logs,
+            'total_count': response.total_count,
+            'page': response.page,
+            'page_size': response.page_size,
+        })
+
+
+class OperationLogDetailView(APIView):
+    """操作日志详情 API"""
+
+    permission_classes = [IsAuthenticated, OperationLogReadPermission]
+    parser_classes = [JSONParser]
+    renderer_classes = [JSONRenderer]
+
+    @extend_schema(
+        summary="获取操作日志详情",
+        description="获取单条操作日志的详细信息。管理员可查看所有日志，普通用户仅可查看本人日志。",
+        responses={
+            200: OperationLogDetailSerializer,
+            403: OpenApiTypes.OBJECT,
+            404: OpenApiTypes.OBJECT,
+        },
+    )
+    def get(self, request, log_id):
+        """获取操作日志详情"""
+        from apps.audit.application.use_cases import (
+            GetOperationLogDetailUseCase,
+            GetOperationLogDetailRequest,
+        )
+
+        is_admin = IsAuditAdmin().has_permission(request, self)
+
+        use_case = GetOperationLogDetailUseCase(
+            audit_repository=DjangoAuditRepository()
+        )
+
+        response = use_case.execute(
+            GetOperationLogDetailRequest(
+                log_id=log_id,
+                current_user_id=request.user.id if request.user.is_authenticated else None,
+                is_admin=is_admin,
+            )
+        )
+
+        if not response.success:
+            if '无权' in (response.error or ''):
+                return Response(
+                    {'success': False, 'error': response.error},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            return Response(
+                {'success': False, 'error': response.error},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        return Response({
+            'success': True,
+            'log': response.log,
+        })
+
+
+class OperationLogExportView(APIView):
+    """操作日志导出 API（仅管理员）"""
+
+    permission_classes = [IsAuthenticated, IsAuditAdmin]
+    parser_classes = [JSONParser]
+    # 禁用 DRF 的 ?format=... 渲染器协商，避免与导出格式参数冲突
+    format_kwarg = None
+
+    @extend_schema(
+        summary="导出操作日志",
+        description="导出操作日志为 CSV 或 JSON 格式。仅管理员可用。最多导出 10000 条，时间范围最多 90 天。",
+        parameters=[
+            OpenApiParameter(
+                name='start_date',
+                type=str,
+                required=False,
+                description='开始日期（YYYY-MM-DD）',
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='end_date',
+                type=str,
+                required=False,
+                description='结束日期（YYYY-MM-DD）',
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='format',
+                type=str,
+                required=False,
+                description='导出格式（csv 或 json）',
+                location=OpenApiParameter.QUERY,
+            ),
+        ],
+        responses={
+            200: OpenApiTypes.STR,
+            403: OpenApiTypes.OBJECT,
+        },
+    )
+    def get(self, request):
+        """导出操作日志"""
+        from apps.audit.application.use_cases import (
+            ExportOperationLogsUseCase,
+            ExportOperationLogsRequest,
+        )
+
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        export_format = request.query_params.get('format', 'csv')
+
+        # 解析日期
+        try:
+            start = datetime.strptime(start_date, '%Y-%m-%d').date() if start_date else None
+            end = datetime.strptime(end_date, '%Y-%m-%d').date() if end_date else None
+        except ValueError:
+            return Response(
+                {'success': False, 'error': '日期格式错误，应为 YYYY-MM-DD'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        use_case = ExportOperationLogsUseCase(
+            audit_repository=DjangoAuditRepository()
+        )
+
+        response = use_case.execute(
+            ExportOperationLogsRequest(
+                start_date=start,
+                end_date=end,
+                format=export_format,
+            )
+        )
+
+        if not response.success:
+            return Response(
+                {'success': False, 'error': response.error},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 设置响应头
+        from django.http import HttpResponse
+        content_type = 'text/csv' if export_format == 'csv' else 'application/json'
+        http_response = HttpResponse(response.data, content_type=content_type)
+        http_response['Content-Disposition'] = f'attachment; filename="{response.filename}"'
+        return http_response
+
+
+class OperationLogStatsView(APIView):
+    """操作统计 API（仅管理员）"""
+
+    permission_classes = [IsAuthenticated, IsAuditAdmin]
+    parser_classes = [JSONParser]
+    renderer_classes = [JSONRenderer]
+
+    @extend_schema(
+        summary="获取操作统计",
+        description="获取操作日志的统计数据，包括总量、错误率、平均耗时等。仅管理员可用。",
+        parameters=[
+            OpenApiParameter(
+                name='start_date',
+                type=str,
+                required=False,
+                description='开始日期（YYYY-MM-DD）',
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='end_date',
+                type=str,
+                required=False,
+                description='结束日期（YYYY-MM-DD）',
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='group_by',
+                type=str,
+                required=False,
+                description='分组维度（module/tool/user/status）',
+                location=OpenApiParameter.QUERY,
+            ),
+        ],
+        responses={
+            200: OperationStatsSerializer,
+            403: OpenApiTypes.OBJECT,
+        },
+    )
+    def get(self, request):
+        """获取操作统计"""
+        from apps.audit.application.use_cases import (
+            GetOperationStatsUseCase,
+            GetOperationStatsRequest,
+        )
+
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        group_by = request.query_params.get('group_by', 'module')
+
+        # 解析日期
+        try:
+            start = datetime.strptime(start_date, '%Y-%m-%d').date() if start_date else None
+            end = datetime.strptime(end_date, '%Y-%m-%d').date() if end_date else None
+        except ValueError:
+            return Response(
+                {'success': False, 'error': '日期格式错误，应为 YYYY-MM-DD'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        use_case = GetOperationStatsUseCase(
+            audit_repository=DjangoAuditRepository()
+        )
+
+        response = use_case.execute(
+            GetOperationStatsRequest(
+                start_date=start,
+                end_date=end,
+                group_by=group_by,
+            )
+        )
+
+        if not response.success:
+            return Response(
+                {'success': False, 'error': response.error},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(response.stats)
+
+
+class OperationLogIngestView(APIView):
+    """操作日志内部写入 API"""
+
+    permission_classes = [HasInternalAuditSignature]
+    parser_classes = [JSONParser]
+    authentication_classes = []  # 不需要用户认证，使用签名验证
+
+    @extend_schema(
+        summary="内部写入操作日志",
+        description="MCP/SDK 服务调用此接口写入操作日志。需要 X-Audit-Signature 和 X-Audit-Timestamp 头。",
+        request=OperationLogIngestSerializer,
+        responses={
+            201: OpenApiTypes.OBJECT,
+            400: OpenApiTypes.OBJECT,
+            403: OpenApiTypes.OBJECT,
+        },
+    )
+    def post(self, request):
+        """写入操作日志"""
+        serializer = OperationLogIngestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {'success': False, 'error': '参数验证失败', 'details': serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        data = serializer.validated_data
+
+        from apps.audit.application.use_cases import (
+            LogOperationUseCase,
+            LogOperationRequest,
+        )
+
+        use_case = LogOperationUseCase(
+            audit_repository=DjangoAuditRepository()
+        )
+
+        response = use_case.execute(
+            LogOperationRequest(
+                request_id=data.get('request_id', ''),
+                user_id=data.get('user_id'),
+                username=data.get('username', 'anonymous'),
+                source=data.get('source', 'MCP'),
+                operation_type=data.get('operation_type', 'MCP_CALL'),
+                module=data.get('module', ''),
+                action=data.get('action', 'READ'),
+                mcp_tool_name=data.get('mcp_tool_name'),
+                request_params=data.get('request_params'),
+                response_status=data.get('response_status', 200),
+                response_message=data.get('response_message', ''),
+                error_code=data.get('error_code', ''),
+                duration_ms=data.get('duration_ms'),
+                ip_address=data.get('ip_address'),
+                user_agent=data.get('user_agent', ''),
+                client_id=data.get('client_id', ''),
+                resource_type=data.get('resource_type', ''),
+                resource_id=data.get('resource_id'),
+                mcp_client_id=data.get('mcp_client_id', ''),
+                mcp_role=data.get('mcp_role', ''),
+                sdk_version=data.get('sdk_version', ''),
+                request_method=data.get('request_method', 'MCP'),
+                request_path=data.get('request_path', ''),
+            )
+        )
+
+        if response.success:
+            return Response(
+                {'success': True, 'log_id': response.log_id},
+                status=status.HTTP_201_CREATED
+            )
+        else:
+            # 审计失败：返回 202 Accepted 表示请求已收到但处理不完整
+            # 这样 SDK 可以通过检查 response.success 来判断是否真正成功
+            return Response(
+                {'success': False, 'error': response.error, 'log_id': None},
+                status=status.HTTP_202_ACCEPTED
+            )
+
