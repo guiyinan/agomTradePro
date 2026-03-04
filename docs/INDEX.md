@@ -165,7 +165,14 @@
 | [realtime_data_system.md](integration/realtime_data_system.md) | 实时数据系统 | 完整 |
 | [rss_policy_integration.md](integration/rss_policy_integration.md) | RSS 政策集成 | 完整 |
 
-### 12. 归档文档 (`archive/`)
+### 12. 迁移文档 (`migration/`)
+
+| 文档 | 说明 | 状态 |
+|------|------|------|
+| [route-migration-guide.md](migration/route-migration-guide.md) | **API 路由迁移指南（V3.5）** | ✅ 2026-03-04 新增 |
+| [migration-quick-reference.md](migration/migration-quick-reference.md) | **迁移速查表** | ✅ 2026-03-04 新增 |
+
+### 13. 归档文档 (`archive/`)
 
 | 文档 | 说明 |
 |------|------|

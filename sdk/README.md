@@ -194,6 +194,39 @@ Three methods (priority order):
 | [API Reference](docs/api_reference.md) | Complete API documentation |
 | [Implementation Plan](docs/plans/sdk-mcp-implementation.md) | Implementation status and plan |
 
+## Migration Guide (V3.5)
+
+### API Route Migration
+
+Starting from V3.5, AgomSAAF uses unified API route format: `/api/{module}/{resource}/`
+
+**SDK users**: No code changes required! Simply upgrade to the latest SDK version:
+
+```bash
+pip install --upgrade agomsaaf-sdk
+```
+
+The SDK automatically uses the new routes while maintaining backward compatibility.
+
+**What changed**:
+
+| Old Route | New Route |
+|-----------|-----------|
+| `/regime/api/current/` | `/api/regime/current/` |
+| `/signal/api/` | `/api/signal/` |
+| `/macro/api/supported-indicators/` | `/api/macro/supported-indicators/` |
+| `/policy/api/events/` | `/api/policy/events/` |
+| `/factor/api/` | `/api/factor/` |
+
+For detailed migration information, see:
+- [API Route Migration Guide](../docs/migration/route-migration-guide.md) - Complete migration guide
+- [Migration Quick Reference](../docs/migration/migration-quick-reference.md) - Quick lookup table
+
+**Important dates**:
+- 2026-03-04: New routes released, old routes marked deprecated
+- 2026-04-01: Old routes enter read-only mode (GET only)
+- 2026-06-01: Old routes will be removed
+
 ## Examples
 
 | Example | Description |
