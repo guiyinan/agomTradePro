@@ -4,6 +4,8 @@ URL configuration for AgomSAAF project.
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import RedirectView
+from django.http import HttpResponse
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 # Apply custom admin branding
 import core.admin as agom_admin_config
@@ -162,4 +164,35 @@ urlpatterns = [
     *admin_docs_patterns,
     *api_docs_patterns,
     *module_patterns,
+]
+
+# ========== Prometheus 指标端点 ==========
+def metrics_view(request):
+    """
+    Prometheus 指标导出端点
+
+    将所有指标以 Prometheus 文本格式导出，供 Prometheus 服务器抓取。
+
+    访问方式: GET /metrics/
+
+    返回格式:
+        # HELP api_request_total Total API requests
+        # TYPE api_request_total counter
+        api_request_total{method="GET",endpoint="/api/regime/",status_code="200",view_name="RegimeViewSet"} 123.0
+        ...
+    """
+    # 检查权限（可选：生产环境建议添加认证）
+    # 可以通过 IP 白名单、Token 或 Basic Auth 保护
+
+    response = HttpResponse(generate_latest(), content_type=CONTENT_TYPE_LATEST)
+
+    # 添加 CORS 头（如果需要跨域访问）
+    response['Access-Control-Allow-Origin'] = '*'
+
+    return response
+
+
+# 将 metrics 端点添加到核心路由
+urlpatterns += [
+    path('metrics/', metrics_view, name='prometheus-metrics'),
 ]

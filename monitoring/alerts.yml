@@ -1,0 +1,103 @@
+groups:
+  - name: agomsaaf_alerts
+    rules:
+      # 5xx 激增告警
+      - alert: High5xxRate
+        expr: |
+          sum(rate(api_request_total{status=~"5.."}[5m]))
+          / sum(rate(api_request_total[5m])) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High 5xx error rate detected"
+          description: "5xx error rate is {{ $value | humanizePercentage }}"
+
+      # 任务堆积告警
+      - alert: CeleryTaskBacklog
+        expr: celery_task_pending > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Celery task backlog detected"
+          description: "{{ $value }} tasks pending"
+
+      # 审计写入异常告警
+      - alert: AuditWriteFailure
+        expr: |
+          sum(rate(audit_write_total{status="failure"}[5m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Audit write failures detected"
+          description: "Audit log write is failing"
+
+      # API 响应时间告警
+      - alert: HighAPILatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(api_request_duration_seconds_bucket[5m])) by (le, endpoint)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API latency detected"
+          description: "P95 latency is {{ $value }}s"
+
+      # 数据采集失败告警
+      - alert: DataCollectionFailure
+        expr: |
+          sum(rate(data_collection_total{status="failure"}[10m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Data collection failures detected"
+          description: "Data collection failure rate is {{ $value | humanizePercentage }}"
+
+      # Qlib 推理失败告警
+      - alert: QlibInferenceFailure
+        expr: |
+          sum(rate(qlib_inference_total{status="failure"}[5m])) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Qlib inference failures detected"
+          description: "Qlib inference failure rate is {{ $value | humanizePercentage }}"
+
+      # 数据库连接池告警
+      - alert: DatabaseConnectionPoolExhausted
+        expr: |
+          (db_connections_active / db_connections_max) > 0.9
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "Connection pool usage is {{ $value | humanizePercentage }}"
+
+      # Redis 连接告警
+      - alert: RedisConnectionFailure
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis connection lost"
+          description: "Redis is not responding"
+
+      # 磁盘空间告警
+      - alert: DiskSpaceLow
+        expr: |
+          (node_filesystem_avail_bytes{mountpoint="/"}
+            / node_filesystem_size_bytes{mountpoint="/"}) < 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk space low"
+          description: "Only {{ $value | humanizePercentage }} disk space remaining"

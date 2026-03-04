@@ -113,18 +113,26 @@ INSTALLED_APPS = [
 
     # ========== 新模块：任务监控 ==========
     'apps.task_monitor',   # 任务监控模块（新增）
+
+    # ========== Prometheus 指标 ==========
+    'django_prometheus',   # Prometheus 指标导出（新增）
 ]
 
 MIDDLEWARE = [
+    'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',  # CORS middleware - must be before CommonMiddleware
     'django.contrib.sessions.middleware.SessionMiddleware',
+    # 结构化日志中间件 - 在 CommonMiddleware 之前设置
+    'core.middleware.logging.TraceIDMiddleware',  # 添加 trace_id 追踪
+    'core.middleware.logging.RequestLoggingMiddleware',  # 记录请求日志
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.DeprecationHeaderMiddleware',  # Add deprecation headers for legacy routes
+    'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -648,3 +656,6 @@ AUDIT_RETENTION_DAYS = env.int('AUDIT_RETENTION_DAYS', default=90)
 AUDIT_EXPORT_MAX_ROWS = env.int('AUDIT_EXPORT_MAX_ROWS', default=10000)
 AUDIT_EXPORT_MAX_DAYS = env.int('AUDIT_EXPORT_MAX_DAYS', default=90)
 AUDIT_INTERNAL_SECRET_KEY = env('AUDIT_INTERNAL_SECRET_KEY', default='')
+
+# ========== Prometheus 指标配置 ==========
+PROMETHEUS_EXPORT_MIGRATIONS = False  # 不导出 Django 迁移指标

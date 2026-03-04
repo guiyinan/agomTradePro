@@ -29,18 +29,38 @@ CSRF_TRUSTED_ORIGINS = [
 CSRF_COOKIE_SAMESITE = 'Lax'
 
 # Logging
+# 结构化日志配置 - 支持 trace_id/request_id 追踪
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
+        # 结构化 JSON 格式（用于生产环境日志收集）
+        'structured': {
+            '()': 'core.logging_utils.StructuredFormatter',
+        },
+        # 详细结构化 JSON 格式（用于调试）
+        'structured_verbose': {
+            '()': 'core.logging_utils.StructuredFormatterVerbose',
+        },
+        # 简单文本格式（用于开发环境控制台）
         'simple': {
             'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        # 带 trace_id 的简单文本格式
+        'simple_with_trace': {
+            'format': '{levelname} {asctime} {module} [trace_id={trace_id}] {message}',
             'style': '{',
         },
     },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
+            'formatter': 'simple_with_trace',
+        },
+        'console_json': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'structured',
         },
         'in_memory': {
             'class': 'core.logging_handlers.InMemoryLogHandler',
@@ -57,5 +77,25 @@ LOGGING = {
             'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
             'propagate': False,
         },
+        'django.request': {
+            'handlers': ['console', 'in_memory'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'apps': {
+            'handlers': ['console', 'in_memory'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'core': {
+            'handlers': ['console', 'in_memory'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
     },
 }
+
+# 环境变量控制是否使用 JSON 格式日志
+USE_JSON_LOGGING = os.getenv('USE_JSON_LOGGING', 'false').lower() == 'true'
+if USE_JSON_LOGGING:
+    LOGGING['handlers']['console']['formatter'] = 'structured'

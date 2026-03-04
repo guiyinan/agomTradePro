@@ -111,12 +111,18 @@ if SECURE_SSL_REDIRECT:
     CSRF_TRUSTED_ORIGINS.extend([f'https://{host}' for host in ALLOWED_HOSTS])
 
 # Logging configuration
+# 结构化日志配置 - 生产环境默认使用 JSON 格式
 LOG_TO_FILE = env.bool('LOG_TO_FILE', default=False)
+USE_JSON_LOGGING = env.bool('USE_JSON_LOGGING', default=True)
 
 handlers = {
     'console': {
         'class': 'logging.StreamHandler',
-        'formatter': 'verbose',
+        'formatter': 'structured' if USE_JSON_LOGGING else 'verbose',
+    },
+    'console_json': {
+        'class': 'logging.StreamHandler',
+        'formatter': 'structured',
     },
     'in_memory': {
         'class': 'core.logging_handlers.InMemoryLogHandler',
@@ -133,20 +139,41 @@ if LOG_TO_FILE:
         'filename': '/var/log/agomsaaf/django.log',
         'maxBytes': 1024 * 1024 * 100,
         'backupCount': 10,
-        'formatter': 'verbose',
+        'formatter': 'structured',
     }
-    django_handlers.append('file')
+    handlers['file_json'] = {
+        'class': 'logging.handlers.RotatingFileHandler',
+        'filename': '/var/log/agomsaaf/django.json.log',
+        'maxBytes': 1024 * 1024 * 100,
+        'backupCount': 10,
+        'formatter': 'structured',
+    }
+    django_handlers.extend(['file', 'file_json'])
 
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
+        # 结构化 JSON 格式（生产环境推荐）
+        'structured': {
+            '()': 'core.logging_utils.StructuredFormatter',
+        },
+        # 详细结构化 JSON 格式
+        'structured_verbose': {
+            '()': 'core.logging_utils.StructuredFormatterVerbose',
+        },
+        # 文本格式（备用）
         'verbose': {
             'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
             'style': '{',
         },
         'simple': {
             'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        # 带 trace_id 的文本格式
+        'simple_with_trace': {
+            'format': '{levelname} {asctime} {module} [trace_id={trace_id}] {message}',
             'style': '{',
         },
     },
@@ -161,7 +188,33 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
+        'django.request': {
+            'handlers': django_handlers,
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
         'apps': {
+            'handlers': django_handlers,
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'core': {
+            'handlers': django_handlers,
+            'level': 'INFO',
+            'propagate': False,
+        },
+        # Celery 日志
+        'celery': {
+            'handlers': django_handlers,
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'celery.task': {
             'handlers': django_handlers,
             'level': 'INFO',
             'propagate': False,

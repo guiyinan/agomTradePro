@@ -1,0 +1,52 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'agomsaaf'
+    environment: 'production'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['localhost:9093']
+
+rule_files:
+  - alerts.yml
+
+scrape_configs:
+  # Django 应用指标
+  - job_name: 'agomsaaf'
+    static_configs:
+      - targets: ['localhost:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Celery Worker 指标
+  - job_name: 'celery'
+    static_configs:
+      - targets: ['localhost:9540']
+    scrape_interval: 30s
+
+  # Flower (Celery 监控)
+  - job_name: 'flower'
+    static_configs:
+      - targets: ['localhost:5555']
+    scrape_interval: 30s
+
+  # PostgreSQL 指标
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['localhost:9187']
+    scrape_interval: 30s
+
+  # Redis 指标
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['localhost:9121']
+    scrape_interval: 30s
+
+  # Node Exporter (系统指标)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+    scrape_interval: 30s

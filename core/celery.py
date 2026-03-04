@@ -16,3 +16,12 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
+
+# ========== Prometheus 指标信号处理 ==========
+# 导入 Celery 信号处理器，自动记录任务指标
+# 必须在 Django setup 之后导入
+try:
+    from .celery_metrics import *  # noqa: F401, F403
+except Exception:
+    # 在 worker 启动时可能尚未 setup Django，忽略错误
+    pass

@@ -129,6 +129,7 @@ CORE_GUARDRAIL_TESTS = [
     "tests/guardrails/test_logic_guardrails.py",
     "tests/guardrails/test_no_501_on_primary_paths.py",
     "tests/guardrails/test_security_hardening_guardrails.py",
+    "tests/guardrails/test_api_contract_minimal.py",  # API 合同最小集测试
 ]
 
 # 全量测试路径（当无法确定范围或检测到广泛变更时使用）

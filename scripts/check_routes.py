@@ -482,6 +482,11 @@ def main():
         action='store_true',
         help='显示详细信息'
     )
+    parser.add_argument(
+        '--strict',
+        action='store_true',
+        help='严格模式：任何违规立即失败（退出码1）'
+    )
     args = parser.parse_args()
 
     # 收集路由
@@ -501,6 +506,9 @@ def main():
     # 返回退出码
     if violations:
         print(f"\n发现 {len(violations)} 个路由违规")
+        if args.strict:
+            print("严格模式：检查失败")
+            return 1
         return 1
     else:
         print("\n所有路由符合规范")
