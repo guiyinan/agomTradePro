@@ -6,7 +6,6 @@
 """
 
 import logging
-import uuid
 from typing import Callable
 
 from django.http import HttpRequest, HttpResponse
@@ -79,8 +78,9 @@ class TraceIDMiddleware:
             # 处理请求
             response = self.get_response(request)
 
-            # 添加 trace_id 到响应头
-            response['X-Trace-ID'] = trace_id
+            # 添加 trace_id 到响应头（容错：测试桩可能返回非 HttpResponse 对象）
+            if hasattr(response, '__setitem__'):
+                response['X-Trace-ID'] = trace_id
 
             return response
         finally:

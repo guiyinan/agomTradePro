@@ -10,6 +10,7 @@
 
 import json
 import logging
+import sys
 import threading
 import time
 from datetime import datetime
@@ -143,7 +144,7 @@ class TestStructuredFormatter:
         try:
             raise ValueError("Test exception")
         except ValueError:
-            exc_info = True
+            exc_info = sys.exc_info()
 
         record = logging.LogRecord(
             name='test.logger',

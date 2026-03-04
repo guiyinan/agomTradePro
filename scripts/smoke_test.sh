@@ -34,6 +34,7 @@ BASE_URL="${1:-http://localhost:8000}"
 TIMEOUT="${HTTP_TIMEOUT:-10}"
 VERBOSE="${VERBOSE:-false}"
 SKIP_BUSINESS="${SKIP_BUSINESS:-false}"
+STRICT_WARNINGS="${STRICT_WARNINGS:-true}"
 
 # Logging functions
 log_info() {
@@ -256,7 +257,7 @@ test_health_endpoint "${BASE_URL}/regime/health/" "Regime module"
 test_health_endpoint "${BASE_URL}/signal/api/health/" "Signal module"
 
 # Task monitor
-test_health_endpoint "${BASE_URL}/task/celery/health/" "Celery health"
+test_health_endpoint "${BASE_URL}/api/system/celery/health/" "Celery health"
 
 # Account module
 test_health_endpoint "${BASE_URL}/account/api/health/" "Account module"
@@ -281,13 +282,13 @@ log_section "Critical API Endpoints"
 test_critical_endpoint "${BASE_URL}/api/regime/" "Regime API list" "200,401"
 
 # Signal API
-test_critical_endpoint "${BASE_URL}/api/signals/" "Signal API list" "200,401"
+test_critical_endpoint "${BASE_URL}/api/signal/" "Signal API list" "200,401"
 
 # Macro data API
 test_critical_endpoint "${BASE_URL}/api/macro/" "Macro API list" "200,401"
 
 # Asset analysis API
-test_critical_endpoint "${BASE_URL}/api/assets/" "Asset API list" "200,401"
+test_critical_endpoint "${BASE_URL}/api/asset-analysis/" "Asset API list" "200,401"
 
 # ============================================================================
 # Section 5: Business Read Tests
@@ -299,13 +300,13 @@ if [ "$SKIP_BUSINESS" = "false" ]; then
     test_business_read "${BASE_URL}/api/regime/current/" "Current Regime"
 
     # Test Signal list
-    test_business_read "${BASE_URL}/api/signals/" "Signals list"
+    test_business_read "${BASE_URL}/api/signal/" "Signals list"
 
     # Test Macro indicators
     test_business_read "${BASE_URL}/api/macro/indicators/" "Macro indicators"
 
     # Test Asset list
-    test_business_read "${BASE_URL}/api/assets/" "Assets list"
+    test_business_read "${BASE_URL}/api/asset-analysis/" "Assets list"
 else
     log_info "Business read tests skipped (SKIP_BUSINESS=true)"
 fi
@@ -337,6 +338,10 @@ if [ "$TESTS_FAILED" -gt 0 ]; then
     log_error "Smoke test FAILED with $TESTS_FAILED error(s)"
     exit 1
 elif [ "$TESTS_WARNED" -gt 0 ]; then
+    if [ "$STRICT_WARNINGS" = "true" ]; then
+        log_error "Smoke test FAILED due to $TESTS_WARNED warning(s) in strict mode"
+        exit 1
+    fi
     log_warn "Smoke test completed with $TESTS_WARNED warning(s)"
     exit 0
 else

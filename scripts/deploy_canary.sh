@@ -185,11 +185,10 @@ log_info "Health checks passed"
 # Run smoke tests if script exists and SKIP_SMOKE_TESTS is not set
 if [ "${SKIP_SMOKE_TESTS:-false}" != "true" ] && [ -f "$PROJECT_ROOT/scripts/smoke_test.sh" ]; then
     log_info "Running smoke tests..."
-    if bash "$PROJECT_ROOT/scripts/smoke_test.sh" "$(echo "$HEALTH_CHECK_URL" | sed 's|/api/health/||')"; then
+    if STRICT_WARNINGS=true bash "$PROJECT_ROOT/scripts/smoke_test.sh" "$(echo "$HEALTH_CHECK_URL" | sed 's|/api/health/||')"; then
         log_info "Smoke tests passed"
     else
-        log_warn "Smoke tests failed - review output above before proceeding"
-        # Don't fail deployment on smoke test warnings, but alert the user
+        die "Smoke tests failed, aborting canary deployment"
     fi
 else
     log_warn "Smoke tests skipped (script not found or SKIP_SMOKE_TESTS=true)"

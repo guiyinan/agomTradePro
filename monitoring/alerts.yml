@@ -4,7 +4,7 @@ groups:
       # 5xx 激增告警
       - alert: High5xxRate
         expr: |
-          sum(rate(api_request_total{status=~"5.."}[5m]))
+          sum(rate(api_request_total{status_code=~"5.."}[5m]))
           / sum(rate(api_request_total[5m])) > 0.05
         for: 2m
         labels:
@@ -15,7 +15,7 @@ groups:
 
       # 任务堆积告警
       - alert: CeleryTaskBacklog
-        expr: celery_task_pending > 100
+        expr: sum(celery_queue_length) > 100
         for: 5m
         labels:
           severity: warning
@@ -38,7 +38,7 @@ groups:
       - alert: HighAPILatency
         expr: |
           histogram_quantile(0.95,
-            sum(rate(api_request_duration_seconds_bucket[5m])) by (le, endpoint)
+            sum(rate(api_request_latency_seconds_bucket[5m])) by (le, endpoint)
           ) > 1
         for: 5m
         labels:
@@ -72,7 +72,7 @@ groups:
       # 数据库连接池告警
       - alert: DatabaseConnectionPoolExhausted
         expr: |
-          (db_connections_active / db_connections_max) > 0.9
+          sum(db_connections_total{status="active"}) > 100
         for: 2m
         labels:
           severity: critical

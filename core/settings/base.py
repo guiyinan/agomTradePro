@@ -126,6 +126,7 @@ MIDDLEWARE = [
     # 结构化日志中间件 - 在 CommonMiddleware 之前设置
     'core.middleware.logging.TraceIDMiddleware',  # 添加 trace_id 追踪
     'core.middleware.logging.RequestLoggingMiddleware',  # 记录请求日志
+    'core.middleware.prometheus.PrometheusMetricsMiddleware',  # 自定义 API 业务指标
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',

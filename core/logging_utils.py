@@ -9,7 +9,8 @@ import json
 import logging
 import threading
 import uuid
-from datetime import datetime
+import sys
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 
@@ -42,12 +43,12 @@ class StructuredFormatter(logging.Formatter):
         """
         # 基础日志数据
         log_data: Dict[str, Any] = {
-            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
             'level': record.levelname,
             'logger': record.name,
             'message': record.getMessage(),
             'module': record.module,
-            'function': record.funcName,
+            'function': record.funcName or '<unknown>',
             'line': record.lineno,
             'process': record.process,
             'thread': record.thread,
@@ -62,13 +63,14 @@ class StructuredFormatter(logging.Formatter):
         if hasattr(record, 'request_id'):
             log_data['request_id'] = record.request_id
 
-        # 添加用户信息（如果存在）
-        if hasattr(record, 'user_id'):
-            log_data['user_id'] = record.user_id
-
         # 添加异常信息
         if record.exc_info:
-            log_data['exception'] = self.formatException(record.exc_info)
+            if isinstance(record.exc_info, tuple):
+                log_data['exception'] = self.formatException(record.exc_info)
+            elif record.exc_info is True:
+                current_exc = sys.exc_info()
+                if current_exc and current_exc[0] is not None:
+                    log_data['exception'] = self.formatException(current_exc)
 
         # 添加额外字段
         extra_data = {}
@@ -78,7 +80,7 @@ class StructuredFormatter(logging.Formatter):
                 'filename', 'module', 'lineno', 'funcName', 'created', 'msecs',
                 'relativeCreated', 'thread', 'threadName', 'processName',
                 'process', 'getMessage', 'exc_info', 'exc_text', 'stack_info',
-                'message', 'asctime', 'trace_id', 'request_id', 'user_id',
+                'message', 'asctime', 'trace_id', 'request_id',
             }:
                 extra_data[key] = value
 
