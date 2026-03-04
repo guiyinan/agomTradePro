@@ -479,13 +479,10 @@ class AnalyzeRegimeCorrelationUseCase:
                 raise ValueError(f"未找到股票 {request.stock_code} 的价格数据")
 
             # 3. 获取 Regime 历史（从 Regime 模块）
-            # TODO: 实现 regime_repo.get_regime_history(start_date, end_date)
-            # 临时使用模拟数据
-            regime_history = self._get_mock_regime_history(start_date, end_date)
+            regime_history = self._get_regime_history(start_date, end_date)
 
-            # 4. 获取市场收益率（简化：使用沪深 300）
-            # TODO: 实现 market_repo.get_market_returns(start_date, end_date)
-            market_returns = self._get_mock_market_returns(start_date, end_date)
+            # 4. 获取市场收益率（使用沪深 300）
+            market_returns = self._get_market_returns(start_date, end_date)
 
             # 5. 调用 Domain 层分析
             analyzer = RegimeCorrelationAnalyzer()
@@ -548,43 +545,116 @@ class AnalyzeRegimeCorrelationUseCase:
                 error=str(e)
             )
 
-    def _get_mock_regime_history(self, start_date: date, end_date: date) -> Dict[date, str]:
+    def _get_regime_history(self, start_date: date, end_date: date) -> Dict[date, str]:
         """
-        模拟 Regime 历史（临时方法）
+        获取 Regime 历史数据
 
-        TODO: 替换为真实的 Regime 数据
+        从 regime 模块获取指定日期范围内的 Regime 快照，
+        将其转换为按日期索引的字典。
+
+        Args:
+            start_date: 起始日期
+            end_date: 结束日期
+
+        Returns:
+            {日期: Regime 名称}
+        """
+        from apps.equity.infrastructure.adapters import RegimeRepositoryAdapter
+
+        try:
+            regime_adapter = RegimeRepositoryAdapter()
+            snapshots = regime_adapter.get_snapshots_in_range(start_date, end_date)
+
+            # 将快照列表转换为日期字典
+            regime_history = {}
+            for snapshot in snapshots:
+                regime_history[snapshot.observed_at] = snapshot.dominant_regime
+
+            # 对于缺失的日期，使用前一个有效日期的 Regime
+            return self._fill_missing_dates(regime_history, start_date, end_date)
+
+        except Exception as e:
+            # 如果获取失败，返回空字典
+            # Domain 层的 RegimeCorrelationAnalyzer 会处理空数据情况
+            return {}
+
+    def _get_market_returns(self, start_date: date, end_date: date) -> Dict[date, float]:
+        """
+        获取市场指数收益率
+
+        使用沪深 300（000300.SH）作为市场基准。
+
+        Args:
+            start_date: 起始日期
+            end_date: 结束日期
+
+        Returns:
+            {日期: 收益率}
+        """
+        from apps.equity.infrastructure.adapters import MarketDataRepositoryAdapter
+
+        try:
+            market_adapter = MarketDataRepositoryAdapter()
+            # 使用沪深 300 作为市场基准
+            return market_adapter.get_index_daily_returns(
+                index_code="000300.SH",
+                start_date=start_date,
+                end_date=end_date
+            )
+
+        except Exception as e:
+            # 如果获取失败，返回空字典
+            return {}
+
+    def _fill_missing_dates(
+        self,
+        regime_history: Dict[date, str],
+        start_date: date,
+        end_date: date
+    ) -> Dict[date, str]:
+        """
+        填充缺失的日期
+
+        Regime 数据通常不会每天都有，使用前一个有效日期的值填充。
+
+        Args:
+            regime_history: 原始 Regime 历史（可能有日期缺失）
+            start_date: 起始日期
+            end_date: 结束日期
+
+        Returns:
+            填充后的完整日期字典
         """
         from datetime import timedelta
 
         result = {}
         current = start_date
-        regime_list = ['Recovery', 'Overheat', 'Stagflation', 'Deflation']
-        idx = 0
+        last_regime = 'Recovery'  # 默认 Regime
+
+        # 按日期排序
+        sorted_dates = sorted(regime_history.keys())
 
         while current <= end_date:
-            # 每 90 天切换一个 Regime
-            if current.day % 90 == 0:
-                idx = (idx + 1) % 4
-            result[current] = regime_list[idx]
-            current += timedelta(days=1)
+            # 如果当前日期有数据，使用当前日期的数据
+            if current in regime_history:
+                result[current] = regime_history[current]
+                last_regime = regime_history[current]
+            else:
+                # 找到最近的前一个日期
+                prev_date = None
+                for d in sorted_dates:
+                    if d <= current:
+                        prev_date = d
+                    else:
+                        break
 
-        return result
+                if prev_date:
+                    result[current] = regime_history[prev_date]
+                    last_regime = regime_history[prev_date]
+                else:
+                    # 没有找到前一个日期，使用已知的最后一个 Regime
+                    result[current] = last_regime
 
-    def _get_mock_market_returns(self, start_date: date, end_date: date) -> Dict[date, float]:
-        """
-        模拟市场收益率（临时方法）
-
-        TODO: 替换为真实的沪深 300 数据
-        """
-        from datetime import timedelta
-        import random
-
-        result = {}
-        current = start_date
-
-        while current <= end_date:
-            # 随机生成市场收益率（-2% 到 +2%）
-            result[current] = random.uniform(-0.02, 0.02)
             current += timedelta(days=1)
 
         return result

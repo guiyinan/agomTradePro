@@ -16,6 +16,7 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from core.cache_utils import cached_api, CACHE_TTL
 from apps.dashboard.application.use_cases import GetDashboardDataUseCase
 from apps.account.infrastructure.repositories import AccountRepository
 from apps.account.infrastructure.repositories import PortfolioRepository
@@ -460,6 +461,7 @@ def performance_chart_htmx(request):
 @api_view(["GET"])
 @authentication_classes([SessionAuthentication, TokenAuthentication])
 @permission_classes([IsAuthenticated])
+@cached_api(key_prefix='dashboard_summary', ttl_seconds=CACHE_TTL['dashboard_summary'], include_user=True)
 def dashboard_summary_v1(request):
     """Summary endpoint for Streamlit dashboard."""
     data = _build_dashboard_data(request.user.id)
@@ -491,6 +493,7 @@ def dashboard_summary_v1(request):
 @api_view(["GET"])
 @authentication_classes([SessionAuthentication, TokenAuthentication])
 @permission_classes([IsAuthenticated])
+@cached_api(key_prefix='regime_quadrant', ttl_seconds=CACHE_TTL['regime_current'], include_user=False)
 def regime_quadrant_v1(request):
     """Regime quadrant data for Streamlit visualization."""
     data = _build_dashboard_data(request.user.id)
@@ -545,6 +548,7 @@ def equity_curve_v1(request):
 @api_view(["GET"])
 @authentication_classes([SessionAuthentication, TokenAuthentication])
 @permission_classes([IsAuthenticated])
+@cached_api(key_prefix='signal_status', ttl_seconds=CACHE_TTL['signal_list'], vary_on=['limit'], include_user=True)
 def signal_status_v1(request):
     """Signal status and recent signal list for Streamlit."""
     try:

@@ -10,6 +10,9 @@ from typing import List, Optional, Protocol, Dict, Any
 import logging
 import time
 
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import DatabaseError, IntegrityError
+
 from ..domain.entities import (
     PolicyEvent, PolicyLevel, RSSItem, RSSSourceConfig, ProxyConfig,
     InfoCategory, AuditStatus, RiskImpact
@@ -28,6 +31,16 @@ from ..infrastructure.repositories import DjangoPolicyRepository, RSSRepository
 from ..infrastructure.models import RSSSourceConfigModel, PolicyAuditQueue, PolicyLog
 from ..infrastructure.adapters import FeedparserAdapter, create_content_extractor
 from ..infrastructure.adapters.content_extractor import ContentExtractorError
+
+from core.exceptions import (
+    BusinessLogicError,
+    DataValidationError,
+    ExternalServiceError,
+    DataFetchError,
+    InvalidInputError,
+    AIServiceError,
+)
+from core.metrics import record_exception
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +63,21 @@ class GetCurrentPolicyUseCase:
         try:
             level = self.repository.get_current_policy_level(date.today())
             return GetCurrentPolicyResponse(success=True, policy_level=level)
+        except (DataFetchError, ExternalServiceError) as e:
+            # Known external/data errors - log warning and return error response
+            logger.warning(f"GetCurrentPolicyUseCase: data fetch error: {e}")
+            record_exception(e, module="policy", is_handled=True)
+            return GetCurrentPolicyResponse(success=False, policy_level=None, error=str(e))
+        except DatabaseError as e:
+            # Database error - convert to DataFetchError
+            logger.exception(f"GetCurrentPolicyUseCase: database error: {e}")
+            exc = DataFetchError(f"Failed to fetch policy level from database: {e}")
+            record_exception(exc, module="policy", is_handled=True)
+            return GetCurrentPolicyResponse(success=False, policy_level=None, error=str(exc))
         except Exception as e:
-            logger.error("GetCurrentPolicyUseCase failed: %s", e, exc_info=True)
+            # Unexpected error - log with full context
+            logger.exception(f"GetCurrentPolicyUseCase: unexpected error: {e}")
+            record_exception(e, module="policy", is_handled=False)
             return GetCurrentPolicyResponse(success=False, policy_level=None, error=str(e))
 
 
@@ -231,9 +257,26 @@ class CreatePolicyEventUseCase:
                 f"Policy event created successfully: {input.level.value} - {input.title}"
             )
 
+        except (DataFetchError, DataValidationError) as e:
+            # Known data/validation errors - record and continue
+            output.errors.append(f"数据处理错误: {str(e)}")
+            logger.error(f"Data error creating policy event: {e}", exc_info=True)
+            record_exception(e, module="policy", is_handled=True)
+        except IntegrityError as e:
+            # Database integrity error
+            output.errors.append(f"数据一致性错误: 事件可能已存在")
+            logger.error(f"Integrity error creating policy event: {e}", exc_info=True)
+            record_exception(e, module="policy", is_handled=True)
+        except DatabaseError as e:
+            # General database error
+            output.errors.append(f"数据库错误: {str(e)}")
+            logger.error(f"Database error creating policy event: {e}", exc_info=True)
+            record_exception(e, module="policy", is_handled=True)
         except Exception as e:
+            # Unexpected error
             output.errors.append(f"系统错误: {str(e)}")
-            logger.error(f"Failed to create policy event: {e}", exc_info=True)
+            logger.exception(f"Unexpected error creating policy event: {e}")
+            record_exception(e, module="policy", is_handled=False)
 
         return output
 
@@ -297,8 +340,13 @@ class CreatePolicyEventUseCase:
             if success:
                 logger.info(f"Alert sent for policy level {event.level.value}")
             return success
+        except ExternalServiceError as e:
+            logger.warning(f"External service error sending alert: {e}")
+            record_exception(e, module="policy", is_handled=True, service_name="alert")
+            return False
         except Exception as e:
             logger.error(f"Failed to send alert: {e}")
+            record_exception(e, module="policy", is_handled=True)
             return False
 
 
@@ -706,10 +754,21 @@ class FetchRSSUseCase:
                 output.total_items += detail.get('items_count', 0)
                 output.new_policy_events += detail.get('new_events_count', 0)
 
-            except Exception as e:
-                error_msg = f"RSS源 {source.name} 抓取失败: {str(e)}"
+            except (ExternalServiceError, DataFetchError) as e:
+                error_msg = f"RSS源 {source.name} 抓取失败（外部服务）: {str(e)}"
                 output.errors.append(error_msg)
                 logger.error(error_msg, exc_info=True)
+                record_exception(e, module="policy", is_handled=True, service_name="rss")
+            except (ValueError, TypeError) as e:
+                error_msg = f"RSS源 {source.name} 配置错误: {str(e)}"
+                output.errors.append(error_msg)
+                logger.error(error_msg, exc_info=True)
+                record_exception(e, module="policy", is_handled=True)
+            except Exception as e:
+                error_msg = f"RSS源 {source.name} 抓取失败（未预期）: {str(e)}"
+                output.errors.append(error_msg)
+                logger.exception(error_msg)
+                record_exception(e, module="policy", is_handled=False)
 
         output.success = output.sources_processed > 0
         return output
@@ -810,8 +869,12 @@ class FetchRSSUseCase:
                                 f"AI classification failed for {item.title}: "
                                 f"{classification_result.error_message}"
                             )
+                    except AIServiceError as e:
+                        logger.warning(f"AI service error for {item.title}: {e}")
+                        record_exception(e, module="policy", is_handled=True, service_name="ai_classification")
                     except Exception as e:
                         logger.error(f"AI classification error for {item.title}: {e}")
+                        record_exception(e, module="policy", is_handled=True)
 
                 # ========== 确定政策档位 ==========
                 level = None
@@ -865,8 +928,12 @@ class FetchRSSUseCase:
                                             ai_confidence = classification_result.ai_confidence
                                             structured_data = classification_result.structured_data
                                             risk_impact = classification_result.risk_impact
+                                    except AIServiceError as e:
+                                        logger.warning(f"AI classification failed (service error): {e}")
+                                        record_exception(e, module="policy", is_handled=True, service_name="ai_classification")
                                     except Exception as e:
-                                        logger.warning(f"AI classification failed: {e}")
+                                        logger.warning(f"AI classification failed (unexpected): {e}")
+                                        record_exception(e, module="policy", is_handled=True)
                     except ContentExtractorError as e:
                         logger.warning(f"Failed to extract content from {item.link}: {e}")
 
@@ -947,14 +1014,16 @@ class FetchRSSUseCase:
                         structured_data=structured_data_dict
                     )
 
-            except Exception as e:
-                # 处理失败时保留原始记录，避免数据丢失
-                logger.warning(f"Failed to process RSS item {item.link}: {e}, keeping pending raw record")
+            except (AIServiceError, ExternalServiceError) as e:
+                # External service error - keep pending and continue
+                logger.warning(f"Failed to process RSS item {item.link} (service error): {e}, keeping pending raw record")
+                record_exception(e, module="policy", is_handled=True)
                 try:
                     if policy_log_orm:
                         policy_log_orm.processing_metadata = {
                             **(policy_log_orm.processing_metadata or {}),
                             'error': str(e),
+                            'error_type': 'external_service',
                             'saved_as_pending': True,
                             'processing_stage': 'failed'
                         }

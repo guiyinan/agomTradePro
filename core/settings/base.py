@@ -127,6 +127,7 @@ MIDDLEWARE = [
     'core.middleware.logging.TraceIDMiddleware',  # 添加 trace_id 追踪
     'core.middleware.logging.RequestLoggingMiddleware',  # 记录请求日志
     'core.middleware.prometheus.PrometheusMetricsMiddleware',  # 自定义 API 业务指标
+    'core.middleware.query_profiler.QueryProfilerMiddleware',  # 慢查询分析（需 QUERY_PROFILER_ENABLED=True）
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -660,3 +661,11 @@ AUDIT_INTERNAL_SECRET_KEY = env('AUDIT_INTERNAL_SECRET_KEY', default='')
 
 # ========== Prometheus 指标配置 ==========
 PROMETHEUS_EXPORT_MIGRATIONS = False  # 不导出 Django 迁移指标
+
+# ========== 慢查询分析配置 ==========
+# 查询性能分析中间件开关（默认关闭，生产环境按需开启）
+QUERY_PROFILER_ENABLED = env.bool('QUERY_PROFILER_ENABLED', default=False)
+# 慢查询阈值（毫秒），超过此值的查询会被记录
+SLOW_QUERY_THRESHOLD_MS = env.int('SLOW_QUERY_THRESHOLD_MS', default=100)
+# 每个请求的查询数量阈值（超过则警告）
+QUERY_COUNT_WARNING_THRESHOLD = env.int('QUERY_COUNT_WARNING_THRESHOLD', default=50)

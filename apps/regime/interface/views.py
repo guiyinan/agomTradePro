@@ -12,6 +12,9 @@ from apps.regime.application.use_cases import CalculateRegimeV2UseCase, Calculat
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from apps.macro.infrastructure.models import DataSourceConfig
 
+# API Cache layer
+from core.cache_utils import cached_api, CACHE_TTL
+
 
 def regime_dashboard_view(request):
     """Regime 判定仪表板页面（统一使用 V2 水平法）"""
@@ -136,6 +139,7 @@ def regime_dashboard_view(request):
 
 
 @require_http_methods(["POST"])
+@cached_api(key_prefix='regime_clear_cache', ttl_seconds=0, method='POST')
 def clear_regime_cache(request):
     """清除 Regime 缓存的 API 接口"""
     try:

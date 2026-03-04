@@ -14,6 +14,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from core.cache_utils import cached_api, CACHE_TTL
 from ..application.services import AlphaService
 from .serializers import (
     GetStockScoresRequestSerializer,
@@ -80,6 +81,7 @@ def get_stock_scores(request: Request) -> Response:
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+@cached_api(key_prefix='alpha_provider_status', ttl_seconds=60, method='GET')
 def get_provider_status(request: Request) -> Response:
     """
     获取 Alpha Provider 状态
@@ -126,6 +128,7 @@ def get_provider_status(request: Request) -> Response:
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+@cached_api(key_prefix='alpha_universes', ttl_seconds=3600, method='GET')
 def get_available_universes(request: Request) -> Response:
     """
     获取支持的股票池列表
@@ -156,6 +159,7 @@ def get_available_universes(request: Request) -> Response:
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+@cached_api(key_prefix='alpha_health', ttl_seconds=30, method='GET')
 def health_check(request: Request) -> Response:
     """
     Alpha 服务健康检查

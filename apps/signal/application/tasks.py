@@ -5,16 +5,26 @@ Celery Tasks for Signal Management
 """
 
 from celery import shared_task
+from celery.exceptions import MaxRetriesExceededError
 from django.utils import timezone
 from django.conf import settings
+from django.db import DatabaseError
 import logging
 from typing import List, Optional
+
+from core.exceptions import DataFetchError, BusinessLogicError
+from core.metrics import record_exception
 
 logger = logging.getLogger(__name__)
 
 
-@shared_task(name='signal.check_all_invalidations')
-def check_all_signal_invalidations():
+@shared_task(
+    name='signal.check_all_invalidations',
+    bind=True,
+    max_retries=3,
+    default_retry_delay=300,
+)
+def check_all_signal_invalidations(self):
     """
     定期检查所有已批准信号是否满足证伪条件
 
@@ -36,13 +46,33 @@ def check_all_signal_invalidations():
 
         return result
 
+    except (DataFetchError, DatabaseError) as e:
+        # Retryable data errors
+        logger.warning(f"信号证伪检查失败（数据错误）: {e}")
+        record_exception(e, module="signal", is_handled=True)
+        try:
+            raise self.retry(exc=e)
+        except MaxRetriesExceededError:
+            logger.error("Max retries exceeded for signal invalidation check")
+            raise
+    except BusinessLogicError as e:
+        # Non-retryable business logic errors
+        logger.error(f"信号证伪检查失败（业务逻辑）: {e}")
+        record_exception(e, module="signal", is_handled=True)
+        raise
     except Exception as e:
-        logger.error(f"信号证伪检查失败: {e}", exc_info=True)
+        logger.exception(f"信号证伪检查失败（未预期）: {e}")
+        record_exception(e, module="signal", is_handled=False)
         raise
 
 
-@shared_task(name='signal.check_single_invalidation')
-def check_single_signal_invalidation(signal_id: int):
+@shared_task(
+    name='signal.check_single_invalidation',
+    bind=True,
+    max_retries=2,
+    default_retry_delay=60,
+)
+def check_single_signal_invalidation(self, signal_id: int):
     """
     检查单个信号的证伪状态
 
@@ -73,8 +103,21 @@ def check_single_signal_invalidation(signal_id: int):
             logger.warning(f"信号 {signal_id} 不存在")
             return None
 
+    except (DataFetchError, DatabaseError) as e:
+        logger.warning(f"检查信号 {signal_id} 失败（数据错误）: {e}")
+        record_exception(e, module="signal", is_handled=True)
+        try:
+            raise self.retry(exc=e)
+        except MaxRetriesExceededError:
+            logger.error(f"Max retries exceeded for signal {signal_id}")
+            return {
+                'signal_id': signal_id,
+                'error': str(e),
+                'status': 'failed'
+            }
     except Exception as e:
-        logger.error(f"检查信号 {signal_id} 失败: {e}", exc_info=True)
+        logger.exception(f"检查信号 {signal_id} 失败（未预期）: {e}")
+        record_exception(e, module="signal", is_handled=False)
         raise
 
 

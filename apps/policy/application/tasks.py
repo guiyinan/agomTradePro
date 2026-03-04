@@ -11,12 +11,32 @@ from typing import Optional, Dict, Any
 from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError
 from django.db.models import Count, Q
+from django.db import DatabaseError, IntegrityError
 
 from ..domain.entities import PolicyLevel, PolicyEvent
 from ..infrastructure.repositories import DjangoPolicyRepository
+from ..infrastructure.notification_service import NotificationServiceFactory
 from .use_cases import GetPolicyStatusUseCase
 
+from core.exceptions import (
+    ExternalServiceError,
+    DataFetchError,
+    BusinessLogicError,
+)
+from core.metrics import record_exception
+
 logger = logging.getLogger(__name__)
+
+# 获取通知服务实例（通过工厂单例）
+_notification_service = None
+
+
+def _get_notification_service():
+    """获取通知服务实例（延迟初始化）"""
+    global _notification_service
+    if _notification_service is None:
+        _notification_service = NotificationServiceFactory.get_alert_service()
+    return _notification_service
 
 
 @shared_task(
@@ -60,8 +80,29 @@ def check_policy_status_alert(self, as_of_date_str: Optional[str] = None):
             "date": as_of_date.isoformat()
         }
 
+    except (DataFetchError, ExternalServiceError) as e:
+        # Retryable external errors
+        logger.warning(f"Policy status check failed (retryable): {e}")
+        record_exception(e, module="policy", is_handled=True, service_name="policy_check")
+        try:
+            raise self.retry(exc=e)
+        except MaxRetriesExceededError:
+            logger.error("Max retries exceeded for policy status check")
+            record_exception(e, module="policy", is_handled=True, service_name="policy_check")
+            raise
+    except (BusinessLogicError, ValueError) as e:
+        # Non-retryable business logic errors
+        logger.error(f"Policy status check failed (non-retryable): {e}")
+        record_exception(e, module="policy", is_handled=True)
+        return {
+            "status": "error",
+            "error": str(e),
+            "error_type": "business_logic"
+        }
     except Exception as e:
-        logger.error(f"Policy status check failed: {e}", exc_info=True)
+        # Unexpected error - still retry but log differently
+        logger.exception(f"Policy status check failed (unexpected): {e}")
+        record_exception(e, module="policy", is_handled=False)
         try:
             raise self.retry(exc=e)
         except MaxRetriesExceededError:
@@ -108,8 +149,17 @@ def monitor_policy_transitions():
             "transitions_found": len(changes) if len(recent_events) > 1 else 0
         }
 
+    except (DataFetchError, DatabaseError) as e:
+        logger.warning(f"Policy transition monitoring failed (data error): {e}")
+        record_exception(e, module="policy", is_handled=True)
+        return {
+            "status": "error",
+            "error": str(e),
+            "error_type": "data_fetch"
+        }
     except Exception as e:
-        logger.error(f"Policy transition monitoring failed: {e}", exc_info=True)
+        logger.exception(f"Policy transition monitoring failed (unexpected): {e}")
+        record_exception(e, module="policy", is_handled=False)
         return {
             "status": "error",
             "error": str(e)
@@ -144,8 +194,17 @@ def cleanup_old_policy_logs(days_to_keep: int = 365):
             "cutoff_date": cutoff_date.isoformat()
         }
 
+    except DatabaseError as e:
+        logger.error(f"Policy log cleanup failed (database error): {e}", exc_info=True)
+        record_exception(e, module="policy", is_handled=True)
+        return {
+            "status": "error",
+            "error": str(e),
+            "error_type": "database"
+        }
     except Exception as e:
-        logger.error(f"Policy log cleanup failed: {e}", exc_info=True)
+        logger.exception(f"Policy log cleanup failed (unexpected): {e}")
+        record_exception(e, module="policy", is_handled=False)
         return {
             "status": "error",
             "error": str(e)
@@ -168,43 +227,15 @@ def _send_policy_alert(
         status: 政策状态
     """
     try:
-        # 这里可以集成具体的告警服务
-        # 例如：Slack webhook、邮件、短信等
+        # 使用通知服务发送告警
+        alert_service = _get_notification_service()
+        alert_service.send_policy_alert(level, event, status)
 
         alert_level = "critical" if level == PolicyLevel.P3 else "warning"
-
-        message = f"""
-**政策状态告警**
-
-档位: {level.value} - {status.level_name}
-标题: {event.title}
-描述: {event.description}
-日期: {event.event_date}
-
-**响应措施**:
-- 现金调整: +{status.response_config.cash_adjustment}%
-- 行动: {status.response_config.market_action.value}
-"""
-
-        if status.response_config.signal_pause_hours:
-            message += f"- 信号暂停: {status.response_config.signal_pause_hours} 小时\n"
-
-        message += f"""
-**建议**:
-{chr(10).join(f'- {r}' for r in status.recommendations)}
-
-证据: {event.evidence_url}
-        """
-
-        # TODO: 实际发送告警
-        # - Slack: send_slack_message(alert_level, message)
-        # - Email: send_email(alert_level, message)
-        # - SMS: send_sms(alert_level, message)
-
-        logger.warning(f"Policy alert would be sent: {alert_level} - {level.value}")
+        logger.info(f"Policy alert sent: {alert_level} - {level.value}")
 
     except Exception as e:
-        logger.error(f"Failed to send policy alert: {e}")
+        logger.error(f"Failed to send policy alert: {e}", exc_info=True)
 
 
 def _send_transition_summary(changes: list):
@@ -215,19 +246,14 @@ def _send_transition_summary(changes: list):
         changes: 变更列表
     """
     try:
-        message = "**政策档位变更摘要**\n\n"
+        # 使用通知服务发送摘要
+        alert_service = _get_notification_service()
+        alert_service.send_transition_summary(changes)
 
-        for change in changes:
-            message += f"""
-- {change['date']}: {change['from']} → {change['to']}
-  标题: {change['title']}
-"""
-
-        # TODO: 实际发送
-        logger.warning(f"Policy transition summary: {len(changes)} changes")
+        logger.info(f"Policy transition summary sent: {len(changes)} changes")
 
     except Exception as e:
-        logger.error(f"Failed to send transition summary: {e}")
+        logger.error(f"Failed to send transition summary: {e}", exc_info=True)
 
 
 # ========== RSS 相关任务 ==========
@@ -631,7 +657,9 @@ def monitor_sla_exceeded_task():
                 f"SLA exceeded: {p23_exceeded.count()} P2/P3, "
                 f"{normal_exceeded.count()} P0/P1"
             )
-            # TODO: 发送告警通知
+            # 使用通知服务发送SLA告警
+            alert_service = _get_notification_service()
+            alert_service.send_sla_alert(p23_exceeded.count(), normal_exceeded.count())
 
         return {
             "status": "success",

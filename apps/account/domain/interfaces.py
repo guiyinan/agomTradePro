@@ -9,6 +9,7 @@ Application layer should depend on these protocols, not concrete implementations
 from typing import Protocol, List, Optional, Dict, Any
 from decimal import Decimal
 from datetime import date
+from dataclasses import dataclass
 
 from apps.account.domain.entities import (
     AccountProfile,
@@ -350,5 +351,105 @@ class TransactionCostConfigRepositoryProtocol(Protocol):
 
         Returns:
             Dict with default values
+        """
+        ...
+
+
+# =============================================================================
+# Market Data Protocol - 行情数据服务协议
+# =============================================================================
+
+class MarketDataPort(Protocol):
+    """
+    Market data service protocol for fetching current prices.
+
+    Defines the interface for fetching real-time or latest market prices.
+    Infrastructure layer should implement this protocol using actual data sources.
+    """
+
+    def get_current_price(self, asset_code: str) -> Optional[Decimal]:
+        """
+        Get current price for an asset.
+
+        Args:
+            asset_code: Asset code (e.g., '000001.SZ', '000001.SH')
+
+        Returns:
+            Decimal: Current price, or None if unavailable
+        """
+        ...
+
+    def get_prices_batch(self, asset_codes: List[str]) -> Dict[str, Optional[Decimal]]:
+        """
+        Get current prices for multiple assets.
+
+        Args:
+            asset_codes: List of asset codes
+
+        Returns:
+            Dict mapping asset_code to price (None if unavailable)
+        """
+        ...
+
+    def is_available(self) -> bool:
+        """
+        Check if the market data service is available.
+
+        Returns:
+            True if service is available, False otherwise
+        """
+        ...
+
+
+# =============================================================================
+# Notification Protocol - 通知服务协议
+# =============================================================================
+
+@dataclass
+class StopLossNotificationData:
+    """Data for stop loss notification."""
+    user_id: int
+    user_email: str
+    position_id: int
+    asset_code: str
+    trigger_type: str
+    trigger_price: Decimal
+    trigger_time: Any
+    trigger_reason: str
+    pnl: Decimal
+    pnl_pct: float
+    shares_closed: Optional[float] = None
+
+
+class StopLossNotificationPort(Protocol):
+    """
+    Stop loss notification service protocol.
+
+    Defines the interface for sending notifications when stop loss is triggered.
+    Infrastructure layer should implement this with actual notification mechanisms
+    (email, in-app message, etc.).
+    """
+
+    def notify_stop_loss_triggered(self, data: StopLossNotificationData) -> bool:
+        """
+        Send notification when stop loss is triggered.
+
+        Args:
+            data: Stop loss notification data
+
+        Returns:
+            True if notification was sent successfully, False otherwise
+        """
+        ...
+
+    def notify_take_profit_triggered(self, data: StopLossNotificationData) -> bool:
+        """
+        Send notification when take profit is triggered.
+
+        Args:
+            data: Take profit notification data
+
+        Returns:
+            True if notification was sent successfully, False otherwise
         """
         ...

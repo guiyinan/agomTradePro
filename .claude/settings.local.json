@@ -134,7 +134,12 @@
       "Bash(export:*)",
       "Bash(npx skills:*)",
       "Bash(agomsaaf_env/Scripts/python.exe:*)",
-      "Bash(pwsh:*)"
+      "Bash(pwsh:*)",
+      "Bash(DJANGO_SETTINGS_MODULE=core.settings.development_sqlite python:*)",
+      "Bash(chmod +x:*)",
+      "Bash(agomsaafScriptspython:*)",
+      "Bash(agomsaaf/Scripts/pip.exe list:*)",
+      "Bash(agomsaaf/Scripts/pytest.exe:*)"
     ]
   }
 }

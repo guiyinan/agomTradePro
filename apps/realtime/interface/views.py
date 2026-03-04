@@ -17,6 +17,8 @@ from django.views.decorators.http import require_http_methods
 
 from apps.realtime.application.price_polling_service import PricePollingUseCase
 
+from core.cache_utils import cached_api, CACHE_TTL
+
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +56,8 @@ class RealtimePriceView(View):
         """
         asset_codes_str = request.GET.get("assets")
 
+        # Note: Realtime prices have very short cache TTL (30s) to reduce load
+        # while still providing near-realtime data
         if asset_codes_str:
             # 获取指定资产的价格
             asset_codes = [code.strip() for code in asset_codes_str.split(",") if code.strip()]

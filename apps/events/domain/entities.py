@@ -121,6 +121,12 @@ class EventType(Enum):
     POSITION_ADJUSTED = "position_adjusted"
     """持仓被调整时触发"""
 
+    STOP_LOSS_TRIGGERED = "stop_loss_triggered"
+    """止损被触发时触发"""
+
+    TAKE_PROFIT_TRIGGERED = "take_profit_triggered"
+    """止盈被触发时触发"""
+
     # ========== System 事件 ==========
     SYSTEM_ERROR = "system_error"
     """系统错误时触发"""

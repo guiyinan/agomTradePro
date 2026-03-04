@@ -11,9 +11,18 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Optional, List, Dict, Set, Tuple
 
+from django.db import DatabaseError
+
 from ..domain.services import RegimeCalculator, calculate_momentum, calculate_absolute_momentum, calculate_rolling_zscore
 from ..domain.entities import RegimeSnapshot
 from shared.infrastructure.config_helper import ConfigHelper, ConfigKeys
+
+from core.exceptions import (
+    DataFetchError,
+    InsufficientDataError,
+    BusinessLogicError,
+)
+from core.metrics import record_exception
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +72,18 @@ class GetCurrentRegimeUseCase:
                 distribution={},
             )
             return GetCurrentRegimeResponse(success=True, regime_state=latest)
+        except (DataFetchError, InsufficientDataError) as e:
+            logger.warning(f"GetCurrentRegimeUseCase: data error: {e}")
+            record_exception(e, module="regime", is_handled=True)
+            return GetCurrentRegimeResponse(success=False, regime_state=None, error=str(e))
+        except DatabaseError as e:
+            logger.exception(f"GetCurrentRegimeUseCase: database error: {e}")
+            exc = DataFetchError(f"Failed to fetch regime data from database: {e}")
+            record_exception(exc, module="regime", is_handled=True)
+            return GetCurrentRegimeResponse(success=False, regime_state=None, error=str(exc))
         except Exception as e:
-            logger.error("GetCurrentRegimeUseCase failed: %s", e, exc_info=True)
+            logger.exception(f"GetCurrentRegimeUseCase: unexpected error: {e}")
+            record_exception(e, module="regime", is_handled=False)
             return GetCurrentRegimeResponse(success=False, regime_state=None, error=str(e))
 
 

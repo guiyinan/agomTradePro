@@ -21,7 +21,7 @@ class OptimizedStockScreener(StockScreener):
     1. 预筛选：先快速过滤明显不符合的股票
     2. 批量处理：减少数据库查询次数
     3. 缓存：缓存常用的筛选结果
-    4. 并行计算：对独立计算使用多进程（TODO）
+    4. [未来优化] 并行计算：对独立计算使用多进程（concurrent.futures）
     """
 
     def __init__(self, enable_cache: bool = True) -> None:
@@ -146,6 +146,63 @@ class IncrementalScreeningEngine:
         self.last_screening_date: Optional[date] = None
         self.last_selected_stocks: Set[str] = set()
         self.stock_data_version: Dict[str, int] = {}  # {stock_code: version}
+        self._last_rule_hash: Optional[str] = None  # 上次规则的哈希值
+
+    def _has_rule_changed(self, rule: StockScreeningRule) -> bool:
+        """
+        检测规则是否变化
+
+        通过计算规则的哈希值来判断规则是否发生变化。
+
+        Args:
+            rule: 当前的筛选规则
+
+        Returns:
+            True 表示规则已变化，False 表示规则未变化
+        """
+        current_hash = self._compute_rule_hash(rule)
+
+        if self._last_rule_hash is None:
+            self._last_rule_hash = current_hash
+            return False  # 首次运行，不算变化
+
+        if current_hash != self._last_rule_hash:
+            self._last_rule_hash = current_hash
+            return True
+
+        return False
+
+    def _compute_rule_hash(self, rule: StockScreeningRule) -> str:
+        """
+        计算规则的哈希值
+
+        Args:
+            rule: 筛选规则
+
+        Returns:
+            规则的哈希字符串
+        """
+        import hashlib
+        import json
+
+        rule_dict = {
+            'min_roe': rule.min_roe,
+            'min_revenue_growth': rule.min_revenue_growth,
+            'min_profit_growth': rule.min_profit_growth,
+            'max_debt_ratio': rule.max_debt_ratio,
+            'max_pe': rule.max_pe,
+            'max_pb': rule.max_pb,
+            'min_market_cap': str(rule.min_market_cap),
+            'sector_preference': sorted(rule.sector_preference) if rule.sector_preference else [],
+            'max_count': rule.max_count
+        }
+
+        rule_str = json.dumps(rule_dict, sort_keys=True)
+        return hashlib.md5(rule_str.encode()).hexdigest()
+
+    def _update_rule_hash(self, rule: StockScreeningRule) -> None:
+        """更新规则的哈希值"""
+        self._last_rule_hash = self._compute_rule_hash(rule)
 
     def incremental_screen(
         self,
@@ -177,7 +234,16 @@ class IncrementalScreeningEngine:
             return selected_stocks
 
         # 规则变化，全量筛选
-        # TODO: 检测规则是否变化
+        if self._has_rule_changed(rule):
+            # 规则已变化，执行全量筛选
+            screener = OptimizedStockScreener()
+            selected_stocks = screener.screen(all_stocks, rule)
+
+            self.last_screening_date = current_date
+            self.last_selected_stocks = set(selected_stocks)
+            self._update_rule_hash(rule)
+
+            return selected_stocks
 
         # 增量筛选
         # 1. 移除不再符合条件的股票
@@ -293,6 +359,20 @@ def cached_sector_filter(stock_code: str, allowed_sectors: tuple) -> bool:
     Returns:
         是否在允许的行业中
     """
-    # TODO: 从数据库或缓存中获取股票的行业
-    # 这里简化处理，返回 True
-    return True
+    # 从数据库或缓存中获取股票的行业
+    try:
+        from apps.equity.infrastructure.models import StockInfoModel
+
+        stock_model = StockInfoModel.objects.filter(
+            stock_code=stock_code,
+            is_active=True
+        ).first()
+
+        if stock_model and stock_model.sector:
+            return stock_model.sector in allowed_sectors
+
+        return False
+
+    except Exception:
+        # 发生异常时，保守返回 False
+        return False

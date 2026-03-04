@@ -447,3 +447,60 @@ class ScoringWeightConfigModel(models.Model):
             revenue_growth_weight=self.revenue_growth_weight,
             profit_growth_weight=self.profit_growth_weight
         )
+
+
+class StockPoolSnapshot(models.Model):
+    """股票池快照表
+
+    存储筛选后的股票池快照，支持历史追踪。
+    """
+
+    stock_codes = models.JSONField(
+        default=list,
+        verbose_name="股票代码列表"
+    )
+    regime = models.CharField(
+        max_length=20,
+        verbose_name="筛选时使用的 Regime"
+    )
+    as_of_date = models.DateField(
+        verbose_name="数据截止日期"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="是否为当前活跃池"
+    )
+
+    # 统计信息（冗余存储，便于查询）
+    count = models.IntegerField(
+        default=0,
+        verbose_name="股票数量"
+    )
+    avg_roe = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="平均 ROE"
+    )
+    avg_pe = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="平均 PE"
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="创建时间"
+    )
+
+    class Meta:
+        db_table = 'equity_stock_pool_snapshot'
+        verbose_name = '股票池快照'
+        verbose_name_plural = '股票池快照'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['is_active']),
+        ]
+
+    def __str__(self):
+        return f"股票池 {self.regime} - {self.as_of_date} ({self.count} 只)"

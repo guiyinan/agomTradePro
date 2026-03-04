@@ -86,8 +86,9 @@ class EquityViewSet(viewsets.ViewSet):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.stock_repo = DjangoStockRepository()
-        # TODO: 注入 regime_repo
-        # self.regime_repo = ...
+        # 注入 regime_repo（使用适配器）
+        from apps.equity.infrastructure.adapters import RegimeRepositoryAdapter
+        self.regime_repo = RegimeRepositoryAdapter()
 
     @extend_schema(
         summary="筛选个股",
@@ -135,13 +136,10 @@ class EquityViewSet(viewsets.ViewSet):
             max_count=data.get('max_count', 30)
         )
 
-        # 3. 执行用例（需要 regime_repo，暂时使用 mock）
-        # TODO: 注入真实的 regime_repo
-        from apps.regime.infrastructure.repositories import DjangoRegimeRepository
-
+        # 3. 执行用例
         use_case = ScreenStocksUseCase(
             stock_repository=self.stock_repo,
-            regime_repository=DjangoRegimeRepository()
+            regime_repository=self.regime_repo
         )
         use_case_response = use_case.execute(use_case_request)
 
@@ -449,58 +447,95 @@ class EquityViewSet(viewsets.ViewSet):
 
         获取当前股票池
         """
-        # TODO: 实现股票池逻辑
-        # 临时返回模拟数据
         from datetime import datetime
+        from apps.equity.infrastructure.adapters import StockPoolRepositoryAdapter
         from apps.regime.application.current_regime import resolve_current_regime
-        latest_regime = resolve_current_regime()
 
-        # 模拟股票数据
-        mock_stocks = [
-            {
-                'code': '600030.SH',
-                'name': '中信证券',
-                'sector': '金融',
-                'roe': 12.5,
-                'pe': 15.2,
-                'pb': 1.3,
-                'revenue_growth': 8.5,
-                'profit_growth': 10.2,
-                'score': 75.5
-            },
-            {
-                'code': '000001.SZ',
-                'name': '平安银行',
-                'sector': '金融',
-                'roe': 11.8,
-                'pe': 6.5,
-                'pb': 0.85,
-                'revenue_growth': 5.2,
-                'profit_growth': 8.1,
-                'score': 70.2
-            },
-            {
-                'code': '600519.SH',
-                'name': '贵州茅台',
-                'sector': '消费',
-                'roe': 25.5,
-                'pe': 28.5,
-                'pb': 9.2,
-                'revenue_growth': 15.8,
-                'profit_growth': 18.5,
-                'score': 85.0
-            }
-        ]
+        try:
+            pool_adapter = StockPoolRepositoryAdapter()
 
-        return Response({
-            'success': True,
-            'regime': latest_regime.dominant_regime if latest_regime else 'Unknown',
-            'count': len(mock_stocks),
-            'update_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'avg_roe': sum(s['roe'] for s in mock_stocks) / len(mock_stocks),
-            'avg_pe': sum(s['pe'] for s in mock_stocks) / len(mock_stocks),
-            'stocks': mock_stocks
-        })
+            # 获取当前股票池
+            stock_codes = pool_adapter.get_current_pool()
+
+            # 获取股票池元数据
+            pool_info = pool_adapter.get_latest_pool_info()
+
+            # 获取当前 Regime
+            latest_regime = resolve_current_regime()
+
+            if not stock_codes:
+                # 如果没有股票池，返回空结果
+                return Response({
+                    'success': True,
+                    'regime': latest_regime.dominant_regime if latest_regime else 'Unknown',
+                    'count': 0,
+                    'update_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'stocks': []
+                })
+
+            # 获取股票详细信息
+            stocks = []
+            total_roe = 0
+            total_pe = 0
+            valid_pe_count = 0
+
+            for stock_code in stock_codes[:100]:  # 限制最多返回 100 只
+                stock_info = self.stock_repo.get_stock_info(stock_code)
+                if not stock_info:
+                    continue
+
+                # 获取最新估值和财务数据
+                from datetime import timedelta
+                end_date = date.today()
+                start_date = end_date - timedelta(days=7)
+
+                valuations = self.stock_repo.get_valuation_history(
+                    stock_code, start_date, end_date
+                )
+                latest_valuation = valuations[-1] if valuations else None
+
+                financial = self.stock_repo.get_latest_financial_data(stock_code)
+
+                stock_data = {
+                    'code': stock_info.stock_code,
+                    'name': stock_info.name,
+                    'sector': stock_info.sector,
+                    'roe': financial.roe if financial else 0,
+                    'pe': latest_valuation.pe if latest_valuation and latest_valuation.pe > 0 else 0,
+                    'pb': latest_valuation.pb if latest_valuation and latest_valuation.pb > 0 else 0,
+                    'revenue_growth': financial.revenue_growth if financial else 0,
+                    'profit_growth': financial.net_profit_growth if financial else 0,
+                    'score': 0  # 暂时为 0，后续可添加评分逻辑
+                }
+                stocks.append(stock_data)
+
+                if financial:
+                    total_roe += financial.roe
+                if latest_valuation and latest_valuation.pe > 0:
+                    total_pe += latest_valuation.pe
+                    valid_pe_count += 1
+
+            avg_roe = total_roe / len(stocks) if stocks else 0
+            avg_pe = total_pe / valid_pe_count if valid_pe_count > 0 else 0
+
+            return Response({
+                'success': True,
+                'regime': pool_info.get('regime') if pool_info else (
+                    latest_regime.dominant_regime if latest_regime else 'Unknown'
+                ),
+                'count': len(stocks),
+                'update_time': pool_info.get('updated_at') if pool_info else datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'avg_roe': round(avg_roe, 2),
+                'avg_pe': round(avg_pe, 2),
+                'stocks': stocks
+            })
+
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': f'获取股票池失败: {str(e)}',
+                'stocks': []
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['post'], url_path='pool/refresh')
     def refresh_pool(self, request):
@@ -508,18 +543,62 @@ class EquityViewSet(viewsets.ViewSet):
         POST /equity/api/pool/refresh/
 
         刷新股票池
-        """
-        # TODO: 实现刷新逻辑
-        from datetime import datetime
-        from apps.regime.application.current_regime import resolve_current_regime
-        latest_regime = resolve_current_regime()
 
-        return Response({
-            'success': True,
-            'message': '股票池已刷新',
-            'regime': latest_regime.dominant_regime if latest_regime else 'Unknown',
-            'update_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        })
+        基于当前 Regime 重新筛选股票池。
+        """
+        from datetime import datetime
+        from apps.equity.infrastructure.adapters import StockPoolRepositoryAdapter
+        from apps.regime.application.current_regime import resolve_current_regime
+
+        try:
+            # 获取当前 Regime
+            latest_regime = resolve_current_regime()
+            if not latest_regime:
+                return Response({
+                    'success': False,
+                    'message': '无法获取当前 Regime，请先运行 Regime 判定'
+                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+            # 构造筛选请求
+            screen_request = ScreenStocksRequest(
+                regime=latest_regime.dominant_regime,
+                max_count=50  # 默认筛选 50 只股票
+            )
+
+            # 执行筛选
+            screen_use_case = ScreenStocksUseCase(
+                stock_repository=self.stock_repo,
+                regime_repository=self.regime_repo
+            )
+            screen_response = screen_use_case.execute(screen_request)
+
+            if not screen_response.success:
+                return Response({
+                    'success': False,
+                    'message': f'筛选失败: {screen_response.error}'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            # 保存新的股票池
+            pool_adapter = StockPoolRepositoryAdapter()
+            pool_adapter.save_pool(
+                stock_codes=screen_response.stock_codes,
+                regime=latest_regime.dominant_regime,
+                as_of_date=date.today()
+            )
+
+            return Response({
+                'success': True,
+                'message': '股票池已刷新',
+                'regime': latest_regime.dominant_regime,
+                'count': len(screen_response.stock_codes),
+                'update_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
+
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': f'刷新股票池失败: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # ==================== 多维度筛选 API（通用资产分析框架集成） ====================

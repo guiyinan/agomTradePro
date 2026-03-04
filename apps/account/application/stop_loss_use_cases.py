@@ -2,11 +2,13 @@
 Account Application - Stop Loss Use Cases
 
 自动止损止盈用例编排。
+集成行情数据服务和通知服务。
 """
 
+import logging
 from decimal import Decimal
 from typing import List, Dict, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass
 
 from apps.account.domain.entities import (
@@ -22,12 +24,22 @@ from apps.account.domain.services import (
     TakeProfitService,
     TakeProfitCheckResult,
 )
+from apps.account.domain.interfaces import (
+    MarketDataPort,
+    StopLossNotificationPort,
+    StopLossNotificationData,
+)
 from apps.account.infrastructure.models import (
     PositionModel,
     StopLossConfigModel,
     TakeProfitConfigModel,
     StopLossTriggerModel,
 )
+from apps.account.infrastructure.market_price_service import MarketPriceService
+from apps.account.infrastructure.notification_service import InMemoryStopLossNotificationService
+from core.exceptions import DataFetchError
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -62,9 +74,20 @@ class AutoStopLossUseCase:
     定期检查所有激活的止损配置，触发止损时自动平仓。
     """
 
-    def __init__(self, position_repo=None):
-        # 暂时直接使用 ORM，后续通过依赖注入传入
-        self.position_repo = position_repo
+    def __init__(
+        self,
+        market_data_service: Optional[MarketDataPort] = None,
+        notification_service: Optional[StopLossNotificationPort] = None,
+    ):
+        """
+        初始化自动止损用例
+
+        Args:
+            market_data_service: 行情数据服务（默认使用 MarketPriceService）
+            notification_service: 通知服务（默认使用内存通知服务）
+        """
+        self.market_data_service = market_data_service or _MarketDataAdapter()
+        self.notification_service = notification_service or InMemoryStopLossNotificationService()
 
     def check_and_execute_stop_loss(self, user_id: Optional[int] = None) -> List[StopLossCheckOutput]:
         """
@@ -108,8 +131,12 @@ class AutoStopLossUseCase:
         """
         position = config.position
 
-        # 获取当前价格（TODO: 从行情接口获取）
-        current_price = float(position.current_price or position.avg_cost)
+        # 从行情接口获取当前价格
+        current_price = self._get_current_price(position.asset_code)
+        if current_price is None:
+            logger.warning(f"无法获取资产 {position.asset_code} 的价格，跳过止损检查")
+            return None
+
         entry_price = float(position.avg_cost)
         highest_price = float(config.highest_price or entry_price)
 
@@ -128,7 +155,7 @@ class AutoStopLossUseCase:
         elif config.stop_loss_type == 'time_based' and config.max_holding_days:
             check_result = StopLossService.check_time_stop_loss(
                 opened_at=position.opened_at,
-                current_time=datetime.now(),
+                current_time=datetime.now(timezone.utc),
                 max_holding_days=config.max_holding_days,
             )
         else:
@@ -139,7 +166,7 @@ class AutoStopLossUseCase:
             new_highest, new_time = StopLossService.update_trailing_stop_highest(
                 current_highest=highest_price,
                 current_price=current_price,
-                current_price_time=datetime.now(),
+                current_price_time=datetime.now(timezone.utc),
                 last_update_time=config.highest_price_updated_at,
             )
             if new_highest != highest_price:
@@ -159,6 +186,25 @@ class AutoStopLossUseCase:
             unrealized_pnl=unrealized_pnl,
             unrealized_pnl_pct=check_result.unrealized_pnl_pct,
         )
+
+    def _get_current_price(self, asset_code: str) -> Optional[float]:
+        """
+        从行情接口获取当前价格
+
+        Args:
+            asset_code: 资产代码
+
+        Returns:
+            float: 当前价格，获取失败返回 None
+        """
+        try:
+            price = self.market_data_service.get_current_price(asset_code)
+            if price is not None:
+                return float(price)
+            return None
+        except Exception as e:
+            logger.error(f"获取资产 {asset_code} 价格失败: {e}")
+            return None
 
     def _execute_stop_loss(self, config: StopLossConfigModel, check_result: StopLossCheckOutput):
         """
@@ -184,7 +230,7 @@ class AutoStopLossUseCase:
 
         # 更新止损配置状态
         config.status = 'triggered'
-        config.triggered_at = datetime.now()
+        config.triggered_at = datetime.now(timezone.utc)
         config.save(update_fields=['status', 'triggered_at'])
 
         # 创建触发记录
@@ -192,14 +238,63 @@ class AutoStopLossUseCase:
             position=position,
             trigger_type=config.stop_loss_type,
             trigger_price=current_price,
-            trigger_time=datetime.now(),
+            trigger_time=datetime.now(timezone.utc),
             trigger_reason=check_result.check_result.trigger_reason,
             pnl=check_result.unrealized_pnl,
             pnl_pct=check_result.unrealized_pnl_pct,
             notes=f"自动止损执行",
         )
 
-        # TODO: 发送通知
+        # 发送通知
+        self._send_stop_loss_notification(
+            position=position,
+            config=config,
+            check_result=check_result,
+        )
+
+    def _send_stop_loss_notification(
+        self,
+        position: PositionModel,
+        config: StopLossConfigModel,
+        check_result: StopLossCheckOutput,
+    ):
+        """
+        发送止损触发通知
+
+        Args:
+            position: 持仓模型
+            config: 止损配置
+            check_result: 检查结果
+        """
+        try:
+            # 获取用户邮箱
+            user_email = position.portfolio.user.email
+
+            # 构造通知数据
+            notification_data = StopLossNotificationData(
+                user_id=position.portfolio.user_id,
+                user_email=user_email,
+                position_id=position.id,
+                asset_code=position.asset_code,
+                trigger_type=config.stop_loss_type,
+                trigger_price=Decimal(str(check_result.current_price)),
+                trigger_time=datetime.now(timezone.utc),
+                trigger_reason=check_result.check_result.trigger_reason,
+                pnl=check_result.unrealized_pnl,
+                pnl_pct=check_result.unrealized_pnl_pct,
+                shares_closed=position.shares,  # 全部平仓
+            )
+
+            # 发送通知
+            success = self.notification_service.notify_stop_loss_triggered(notification_data)
+            if success:
+                logger.info(f"止损通知已发送: 用户 {position.portfolio.user_id}, 持仓 {position.id}")
+            else:
+                logger.warning(f"止损通知发送失败: 用户 {position.portfolio.user_id}, 持仓 {position.id}")
+
+        except Exception as e:
+            # 通知失败不应影响止损执行
+            logger.error(f"发送止损通知异常: {e}", exc_info=True)
 
 
 class AutoTakeProfitUseCase:
@@ -209,8 +304,20 @@ class AutoTakeProfitUseCase:
     定期检查所有激活的止盈配置，触发止盈时自动平仓或部分平仓。
     """
 
-    def __init__(self, position_repo=None):
-        self.position_repo = position_repo
+    def __init__(
+        self,
+        market_data_service: Optional[MarketDataPort] = None,
+        notification_service: Optional[StopLossNotificationPort] = None,
+    ):
+        """
+        初始化自动止盈用例
+
+        Args:
+            market_data_service: 行情数据服务（默认使用 MarketPriceService）
+            notification_service: 通知服务（默认使用内存通知服务）
+        """
+        self.market_data_service = market_data_service or _MarketDataAdapter()
+        self.notification_service = notification_service or InMemoryStopLossNotificationService()
 
     def check_and_execute_take_profit(self, user_id: Optional[int] = None) -> List[TakeProfitCheckOutput]:
         """
@@ -252,8 +359,12 @@ class AutoTakeProfitUseCase:
         """
         position = config.position
 
-        # 获取当前价格
-        current_price = float(position.current_price or position.avg_cost)
+        # 从行情接口获取当前价格
+        current_price = self._get_current_price(position.asset_code)
+        if current_price is None:
+            logger.warning(f"无法获取资产 {position.asset_code} 的价格，跳过止盈检查")
+            return None
+
         entry_price = float(position.avg_cost)
 
         # 检查止盈
@@ -277,6 +388,25 @@ class AutoTakeProfitUseCase:
             unrealized_pnl_pct=check_result.unrealized_pnl_pct,
             partial_level=check_result.partial_level,
         )
+
+    def _get_current_price(self, asset_code: str) -> Optional[float]:
+        """
+        从行情接口获取当前价格
+
+        Args:
+            asset_code: 资产代码
+
+        Returns:
+            float: 当前价格，获取失败返回 None
+        """
+        try:
+            price = self.market_data_service.get_current_price(asset_code)
+            if price is not None:
+                return float(price)
+            return None
+        except Exception as e:
+            logger.error(f"获取资产 {asset_code} 价格失败: {e}")
+            return None
 
     def _execute_take_profit(self, config: TakeProfitConfigModel, check_result: TakeProfitCheckOutput):
         """
@@ -313,7 +443,59 @@ class AutoTakeProfitUseCase:
             config.is_active = False
             config.save(update_fields=['is_active'])
 
-        # TODO: 发送通知
+        # 发送通知
+        self._send_take_profit_notification(
+            position=position,
+            config=config,
+            check_result=check_result,
+            sell_shares=sell_shares,
+        )
+
+    def _send_take_profit_notification(
+        self,
+        position: PositionModel,
+        config: TakeProfitConfigModel,
+        check_result: TakeProfitCheckOutput,
+        sell_shares: Optional[float],
+    ):
+        """
+        发送止盈触发通知
+
+        Args:
+            position: 持仓模型
+            config: 止盈配置
+            check_result: 检查结果
+            sell_shares: 平仓数量
+        """
+        try:
+            # 获取用户邮箱
+            user_email = position.portfolio.user.email
+
+            # 构造通知数据
+            notification_data = StopLossNotificationData(
+                user_id=position.portfolio.user_id,
+                user_email=user_email,
+                position_id=position.id,
+                asset_code=position.asset_code,
+                trigger_type="take_profit",
+                trigger_price=Decimal(str(check_result.current_price)),
+                trigger_time=datetime.now(timezone.utc),
+                trigger_reason=check_result.check_result.trigger_reason,
+                pnl=check_result.unrealized_pnl,
+                pnl_pct=check_result.unrealized_pnl_pct,
+                shares_closed=sell_shares,
+            )
+
+            # 发送通知
+            success = self.notification_service.notify_take_profit_triggered(notification_data)
+            if success:
+                logger.info(f"止盈通知已发送: 用户 {position.portfolio.user_id}, 持仓 {position.id}")
+            else:
+                logger.warning(f"止盈通知发送失败: 用户 {position.portfolio.user_id}, 持仓 {position.id}")
+
+        except Exception as e:
+            # 通知失败不应影响止盈执行
+            logger.error(f"发送止盈通知异常: {e}", exc_info=True)
 
 
 class CreateStopLossConfigUseCase:
@@ -408,3 +590,35 @@ class CreateTakeProfitConfigUseCase:
 
         return config
 
+
+# =============================================================================
+# Internal Adapter - 将 MarketPriceService 适配为 MarketDataPort
+# =============================================================================
+
+class _MarketDataAdapter(MarketDataPort):
+    """
+    MarketPriceService 适配器
+
+    将 MarketPriceService 适配为 MarketDataPort 协议接口。
+    这是一个内部适配器，用于在不修改现有 MarketPriceService 的情况下
+    满足新的协议接口要求。
+    """
+
+    def __init__(self):
+        self._service = MarketPriceService()
+
+    def get_current_price(self, asset_code: str) -> Optional[Decimal]:
+        """获取当前价格"""
+        try:
+            return self._service.get_current_price(asset_code)
+        except Exception as e:
+            logger.error(f"获取资产 {asset_code} 价格失败: {e}")
+            return None
+
+    def get_prices_batch(self, asset_codes: List[str]) -> Dict[str, Optional[Decimal]]:
+        """批量获取价格"""
+        return self._service.get_prices_batch(asset_codes)
+
+    def is_available(self) -> bool:
+        """检查服务是否可用"""
+        return self._service.is_available()

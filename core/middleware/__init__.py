@@ -5,6 +5,7 @@ Core middleware for AgomSAAF.
 from core.middleware.deprecation import DeprecationHeaderMiddleware
 from core.middleware.logging import TraceIDMiddleware, RequestLoggingMiddleware
 from core.middleware.prometheus import PrometheusMetricsMiddleware, ResponseViewNameMixin
+from core.middleware.query_profiler import QueryProfilerMiddleware, QuerySummary
 
 __all__ = [
     'DeprecationHeaderMiddleware',
@@ -12,4 +13,6 @@ __all__ = [
     'RequestLoggingMiddleware',
     'PrometheusMetricsMiddleware',
     'ResponseViewNameMixin',
+    'QueryProfilerMiddleware',
+    'QuerySummary',
 ]

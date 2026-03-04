@@ -120,6 +120,29 @@ audit_write_latency_seconds = Histogram(
     buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0)
 )
 
+# ==================== 异常指标 ====================
+
+# 异常总数（按模块、异常类型分组）
+exception_total = Counter(
+    'app_exception_total',
+    'Total exceptions by type',
+    ['module', 'exception_class']
+)
+
+# 未捕获异常总数
+unhandled_exception_total = Counter(
+    'app_unhandled_exception_total',
+    'Total unhandled exceptions',
+    ['module']
+)
+
+# 外部服务异常总数
+external_service_error_total = Counter(
+    'app_external_service_error_total',
+    'Total external service errors',
+    ['service_name', 'error_type']
+)
+
 
 # ==================== 记录函数 ====================
 
@@ -356,6 +379,49 @@ def track_celery_task(task_func: Callable) -> Callable:
 
 
 # ==================== 指标摘要 ====================
+
+def record_exception(
+    exception: Exception,
+    module: str = 'unknown',
+    is_handled: bool = True,
+    service_name: Optional[str] = None,
+) -> None:
+    """
+    记录异常指标
+
+    Args:
+        exception: 异常实例
+        module: 模块名称
+        is_handled: 是否已处理（True表示已捕获处理，False表示未处理）
+        service_name: 外部服务名称（如果是外部服务错误）
+    """
+    try:
+        exception_class = exception.__class__.__name__
+
+        # 记录异常总数
+        exception_total.labels(
+            module=module or 'unknown',
+            exception_class=exception_class
+        ).inc()
+
+        # 记录未处理异常
+        if not is_handled:
+            unhandled_exception_total.labels(
+                module=module or 'unknown'
+            ).inc()
+
+        # 记录外部服务错误
+        if service_name:
+            error_type = 'timeout' if 'timeout' in str(exception).lower() else 'other'
+            external_service_error_total.labels(
+                service_name=service_name,
+                error_type=error_type
+            ).inc()
+
+    except Exception as e:
+        # 指标记录失败不应影响业务
+        logger.warning(f"Failed to record exception metric: {e}")
+
 
 def get_metrics_summary() -> dict:
     """

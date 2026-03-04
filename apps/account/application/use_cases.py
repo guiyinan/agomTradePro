@@ -357,12 +357,17 @@ class UpdatePositionPricesUseCase:
         """
         批量更新用户持仓价格
 
-        返回更新统计
-        """
-        # TODO: 集成行情数据源
-        # 这里提供框架，实际实现需要调用外部API
+        从行情数据源获取最新价格并更新持仓记录。
+        如果行情接口不可用，则使用当前价格（成本价作为后备）。
 
-        # 临时方案：批量更新（使用成本价）
+        Args:
+            user_id: 用户ID
+
+        Returns:
+            Dict: 更新统计，包含 updated_count, user_id, updated_at
+        """
+        # 通过 AssetMetadataRepository 批量更新持仓价格
+        # 该方法已集成行情数据源 (MarketPriceService)
         count = self.asset_meta_repo.update_position_prices(user_id)
 
         return {

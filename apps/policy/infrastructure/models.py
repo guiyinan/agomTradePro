@@ -1126,3 +1126,93 @@ class GateActionAuditLog(models.Model):
 
     def __str__(self):
         return f"{self.event.title} - {self.get_action_display()} ({self.created_at.strftime('%Y-%m-%d %H:%M')})"
+
+
+# ============================================================
+# 通知相关模型
+# ============================================================
+
+class InAppNotification(models.Model):
+    """
+    站内通知模型
+
+    存储发送给用户的通知消息，供界面展示。
+    """
+
+    PRIORITY_CHOICES = [
+        ('low', '低'),
+        ('normal', '普通'),
+        ('high', '高'),
+        ('critical', '紧急'),
+    ]
+
+    CHANNEL_CHOICES = [
+        ('email', '邮件'),
+        ('in_app', '站内信'),
+        ('webhook', 'Webhook'),
+    ]
+
+    # 通知内容
+    title = models.CharField(max_length=200, verbose_name="标题")
+    content = models.TextField(verbose_name="内容")
+
+    # 通知属性
+    channel = models.CharField(
+        max_length=20,
+        choices=CHANNEL_CHOICES,
+        default='in_app',
+        verbose_name="通知渠道"
+    )
+    priority = models.CharField(
+        max_length=20,
+        choices=PRIORITY_CHOICES,
+        default='normal',
+        verbose_name="优先级",
+        db_index=True
+    )
+
+    # 收件人
+    recipient_username = models.CharField(
+        max_length=150,
+        blank=True,
+        null=True,
+        verbose_name="收件人用户名",
+        help_text="留空表示全局通知"
+    )
+    is_global = models.BooleanField(
+        default=False,
+        verbose_name="全局通知",
+        help_text="是否为全局通知（所有用户可见）"
+    )
+
+    # 读取状态
+    is_read = models.BooleanField(default=False, verbose_name="已读")
+    read_at = models.DateTimeField(null=True, blank=True, verbose_name="读取时间")
+
+    # 元数据
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="元数据",
+        help_text="额外的结构化信息"
+    )
+
+    # 时间戳
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间", db_index=True)
+
+    class Meta:
+        db_table = 'in_app_notification'
+        verbose_name = "站内通知"
+        verbose_name_plural = "站内通知"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['recipient_username', '-created_at']),
+            models.Index(fields=['is_read', 'priority']),
+            models.Index(fields=['is_global', '-created_at']),
+        ]
+
+    def __str__(self):
+        recipient = self.recipient_username or "全局"
+        status = "已读" if self.is_read else "未读"
+        return f"[{recipient}] {self.title} ({status})"

@@ -596,16 +596,60 @@ class AssetMetadataRepository:
         ]
 
     def update_position_prices(self, user_id: int) -> int:
-        """批量更新用户持仓的当前价格（需要外部行情接口）"""
-        # TODO: 集成行情数据源
-        # 这里提供一个接口框架，实际价格获取需要调用外部API
-        count = PositionModel._default_manager.filter(
+        """
+        批量更新用户持仓的当前价格
+
+        从行情接口获取最新价格并更新持仓记录。
+        如果行情接口不可用，则使用当前价格（成本价作为后备）。
+
+        Args:
+            user_id: 用户ID
+
+        Returns:
+            int: 更新的持仓数量
+        """
+        from .market_price_service import get_market_price_service
+
+        # 获取用户所有活跃持仓
+        positions = PositionModel._default_manager.filter(
             portfolio__user_id=user_id,
             is_closed=False
-        ).update(
-            current_price=F("avg_cost")  # 暂时使用成本价
         )
-        return count
+
+        updated_count = 0
+        price_service = get_market_price_service()
+
+        for position in positions:
+            try:
+                # 从行情接口获取价格
+                price_metadata = price_service.get_price_with_metadata(position.asset_code)
+                if price_metadata and price_metadata['price'] is not None:
+                    new_price = price_metadata['price']
+                    # 更新持仓价格
+                    position.current_price = new_price
+                    position.market_value = Decimal(str(position.shares * float(new_price)))
+                    # 计算盈亏
+                    pnl = (new_price - position.avg_cost) * position.shares
+                    position.unrealized_pnl = pnl
+                    position.unrealized_pnl_pct = float((new_price / position.avg_cost - 1) * 100)
+                    position.save(update_fields=[
+                        'current_price', 'market_value',
+                        'unrealized_pnl', 'unrealized_pnl_pct'
+                    ])
+                    updated_count += 1
+                else:
+                    # 行情接口不可用时，保持当前价格不变
+                    logger.warning(
+                        f"无法获取持仓 {position.id} ({position.asset_code}) 的价格，"
+                        f"使用现有价格 {position.current_price}"
+                    )
+            except Exception as e:
+                logger.error(
+                    f"更新持仓 {position.id} ({position.asset_code}) 价格失败: {e}"
+                )
+                # 继续处理其他持仓
+
+        return updated_count
 
     def get_asset_by_code(self, asset_code: str) -> Optional[Dict[str, Any]]:
         """

@@ -9,6 +9,7 @@ from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from core.cache_utils import cached_api, CACHE_TTL
 from apps.signal.infrastructure.models import InvestmentSignalModel
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.signal.application.use_cases import (

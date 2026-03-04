@@ -5,9 +5,11 @@ Account Application - Celery Tasks
 """
 
 from celery import shared_task
+from celery.exceptions import MaxRetriesExceededError
 from celery.utils.log import get_task_logger
 from django.core.mail import send_mail
 from django.conf import settings
+from django.db import DatabaseError
 from typing import Dict, List
 
 from apps.account.application.stop_loss_use_cases import (
@@ -18,6 +20,9 @@ from apps.account.application.volatility_use_cases import (
     VolatilityAnalysisUseCase,
     VolatilityAdjustmentUseCase,
 )
+
+from core.exceptions import DataFetchError, BusinessLogicError, ExternalServiceError
+from core.metrics import record_exception
 
 logger = get_task_logger(__name__)
 
@@ -56,8 +61,28 @@ def check_stop_loss_task(self, user_id: int = None):
             'triggered_count': len([r for r in results if r.should_close]),
         }
 
+    except (DataFetchError, DatabaseError) as exc:
+        # Retryable data errors
+        logger.warning(f"止损检查任务失败（数据错误）: {exc}")
+        record_exception(exc, module="account", is_handled=True)
+        try:
+            raise self.retry(exc=exc)
+        except MaxRetriesExceededError:
+            logger.error("Max retries exceeded for stop loss check")
+            raise
+    except BusinessLogicError as exc:
+        # Non-retryable business logic errors
+        logger.error(f"止损检查任务失败（业务逻辑）: {exc}")
+        record_exception(exc, module="account", is_handled=True)
+        return {
+            'status': 'error',
+            'error': str(exc),
+            'error_type': 'business_logic'
+        }
     except Exception as exc:
-        logger.error(f"止损检查任务失败: {exc}")
+        # Unexpected error
+        logger.exception(f"止损检查任务失败（未预期）: {exc}")
+        record_exception(exc, module="account", is_handled=False)
         raise self.retry(exc=exc)
 
 
