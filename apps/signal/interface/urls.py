@@ -28,6 +28,7 @@ urlpatterns = [
 
     # Page routes
     path('manage/', views.signal_manage_view, name='manage'),
+    path('list/', views.signal_manage_view, name='list_legacy'),
 
     # Signal actions
     path('create/', views.create_signal_view, name='create'),
@@ -37,6 +38,7 @@ urlpatterns = [
     path('delete/<int:signal_id>/', views.delete_signal_view, name='delete'),
     path('check/<int:signal_id>/', views.check_invalidation_view, name='check'),
     path('batch-check/', views.run_batch_check_view, name='batch_check'),
+    path('list/validate/', views.run_batch_check_view, name='list_validate_legacy'),
     path('eligibility/', views.signal_eligibility_info_view, name='eligibility'),
 
     # AI Assistant routes

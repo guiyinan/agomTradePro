@@ -2,7 +2,7 @@
 Page Views for Investment Signal Management.
 """
 
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
@@ -118,9 +118,12 @@ def get_recommended_assets(regime: str):
     }
 
 
-@require_http_methods(["POST"])
+@require_http_methods(["GET", "POST"])
 def create_signal_view(request):
     """创建新投资信号"""
+    if request.method == "GET":
+        return redirect("signal:manage")
+
     import json
 
     asset_code = request.POST.get('asset_code', '').strip()
@@ -310,9 +313,12 @@ def check_invalidation_view(request, signal_id):
         })
 
 
-@require_http_methods(["POST"])
+@require_http_methods(["GET", "POST"])
 def run_batch_check_view(request):
     """批量检查所有信号"""
+    if request.method == "GET":
+        return redirect("signal:manage")
+
     from apps.signal.application.invalidation_checker import check_and_invalidate_signals
 
     result = check_and_invalidate_signals()
@@ -540,4 +546,3 @@ class UnifiedSignalViewSet(viewsets.ViewSet):
                 {'error': 'Signal not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
-

@@ -94,6 +94,11 @@ core_patterns = [
     # 301 重定向 sentiment 旧页面
     path('sentiment/dashboard/', RedirectView.as_view(url='/policy/workbench/', permanent=True), name='sentiment-dashboard-redirect'),
     path('sentiment/analyze/', RedirectView.as_view(url='/policy/workbench/', permanent=True), name='sentiment-analyze-redirect'),
+
+    # Legacy page-path compatibility aliases (prevent 404 from historical links/bookmarks)
+    path('simulated_trading/my-accounts/', RedirectView.as_view(url='/simulated-trading/my-accounts/', permanent=False), name='simulated-trading-legacy-my-accounts'),
+    path('ai/manage/', RedirectView.as_view(url='/ai/', permanent=False), name='ai-manage-legacy'),
+    path('sector/dashboard/', RedirectView.as_view(url='/sector/', permanent=False), name='sector-dashboard-legacy'),
 ]
 
 admin_docs_patterns = [
@@ -161,6 +166,7 @@ module_patterns = [
     # P0: Account 模块
     path('api/account/', include(('apps.account.interface.urls', 'account'), namespace='api_account')),
     # P1: Simulated Trading 模块
+    path('api/simulated-trading/accounts/', RedirectView.as_view(url='/api/simulated-trading/api/accounts/', permanent=False), name='api-simulated-trading-accounts-legacy'),
     path('api/simulated-trading/', include(('apps.simulated_trading.interface.urls', 'simulated_trading'), namespace='api_simulated_trading')),
     # P1: Strategy 模块
     path('api/strategy/', include(('apps.strategy.interface.urls', 'strategy'), namespace='api_strategy')),

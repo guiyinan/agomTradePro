@@ -78,3 +78,34 @@ def test_macro_templates_do_not_hardcode_legacy_api_paths():
 
     assert "const API_BASE = '/macro/api';" not in macro_controller
     assert '{% url "api_macro:get_supported_indicators" %}' in macro_controller
+
+
+def test_legacy_compatibility_routes_resolvable():
+    assert resolve("/signal/list/").view_name.endswith("list_legacy")
+    assert resolve("/signal/list/validate/").view_name.endswith("list_validate_legacy")
+    assert resolve("/backtest/list/").view_name.endswith("list-legacy")
+    assert resolve("/backtest/reports/").view_name.endswith("reports-legacy")
+    assert resolve("/simulated_trading/my-accounts/").view_name.endswith("simulated-trading-legacy-my-accounts")
+    assert resolve("/ai/manage/").view_name.endswith("ai-manage-legacy")
+    assert resolve("/sector/dashboard/").view_name.endswith("sector-dashboard-legacy")
+    assert resolve("/api/simulated-trading/accounts/").view_name.endswith("api-simulated-trading-accounts-legacy")
+
+
+def test_admin_problem_pages_do_not_return_500(db):
+    admin = get_user_model().objects.create_superuser(
+        username="route_admin",
+        email="route_admin@example.com",
+        password="x",
+    )
+    client = Client()
+    client.force_login(admin)
+
+    urls = [
+        "/admin/regime/regimethresholdconfig/add/",
+        "/admin/simulated_trading/simulatedaccountmodel/",
+        "/admin/simulated_trading/simulatedaccountmodel/add/",
+        "/admin/simulated_trading/positionmodel/add/",
+    ]
+    for url in urls:
+        response = client.get(url)
+        assert response.status_code < 500

@@ -38,14 +38,14 @@ class RegimeThresholdConfigAdmin(admin.ModelAdmin):
         'activate_action'
     ]
     list_filter = ['is_active', 'created_at']
-    search_fields = ['name', 'description']
+    search_fields = ['name']
     readonly_fields = ['created_at', 'updated_at']
 
     inlines = [RegimeIndicatorThresholdInline]
 
     fieldsets = (
         ('基本信息', {
-            'fields': ('name', 'is_active', 'description')
+            'fields': ('name', 'is_active')
         }),
         ('指标阈值（通过下方表格编辑）', {
             'fields': ()

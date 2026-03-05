@@ -107,6 +107,7 @@ class SimulatedAccountAdmin(admin.ModelAdmin):
     search_fields = ['account_name']
     readonly_fields = [
         'id',
+        'start_date',
         'current_cash',
         'current_market_value',
         'total_value',
@@ -143,7 +144,6 @@ class SimulatedAccountAdmin(admin.ModelAdmin):
                 'max_position_pct',
                 'stop_loss_pct',
                 ('commission_rate', 'slippage_rate'),
-                'fee_config',
             )
         }),
         ('自动交易', {
@@ -183,11 +183,13 @@ class SimulatedAccountAdmin(admin.ModelAdmin):
 
     def total_value_display(self, obj):
         """总资产显示"""
-        color = 'green' if obj.total_value >= obj.initial_capital else 'red'
+        total_value = obj.total_value or 0
+        color = 'green' if total_value >= (obj.initial_capital or 0) else 'red'
+        amount_text = f"{float(total_value):,.2f}"
         return format_html(
-            '<span style="color: {}; font-weight: bold;">¥{:,}</span>',
+            '<span style="color: {}; font-weight: bold;">¥{}</span>',
             color,
-            obj.total_value
+            amount_text
         )
     total_value_display.short_description = '总资产'
 
@@ -196,10 +198,11 @@ class SimulatedAccountAdmin(admin.ModelAdmin):
         if obj.total_return is None:
             return '-'
         color = 'green' if obj.total_return >= 0 else 'red'
+        pct_text = f"{obj.total_return:+.2f}%"
         return format_html(
-            '<span style="color: {}; font-weight: bold;">{:+.2f}%%</span>',
+            '<span style="color: {}; font-weight: bold;">{}</span>',
             color,
-            obj.total_return
+            pct_text
         )
     total_return_display.short_description = '总收益率'
 
@@ -208,10 +211,11 @@ class SimulatedAccountAdmin(admin.ModelAdmin):
         if obj.sharpe_ratio is None:
             return '-'
         color = 'green' if obj.sharpe_ratio >= 1.0 else 'orange' if obj.sharpe_ratio >= 0 else 'red'
+        value_text = f"{obj.sharpe_ratio:.2f}"
         return format_html(
-            '<span style="color: {}; font-weight: bold;">{:.2f}</span>',
+            '<span style="color: {}; font-weight: bold;">{}</span>',
             color,
-            obj.sharpe_ratio
+            value_text
         )
     sharpe_ratio_display.short_description = '夏普比率'
 
@@ -220,10 +224,11 @@ class SimulatedAccountAdmin(admin.ModelAdmin):
         if obj.win_rate is None:
             return '-'
         color = 'green' if obj.win_rate >= 50 else 'red'
+        pct_text = f"{obj.win_rate:.1f}%"
         return format_html(
-            '<span style="color: {}; font-weight: bold;">{:.1f}%%</span>',
+            '<span style="color: {}; font-weight: bold;">{}</span>',
             color,
-            obj.win_rate
+            pct_text
         )
     win_rate_display.short_description = '胜率'
 
@@ -251,6 +256,7 @@ class SimulatedPositionAdmin(admin.ModelAdmin):
     search_fields = ['asset_code', 'asset_name', 'account__account_name']
     readonly_fields = [
         'id',
+        'last_update_date',
         'market_value',
         'unrealized_pnl',
         'unrealized_pnl_pct',
@@ -301,7 +307,7 @@ class SimulatedPositionAdmin(admin.ModelAdmin):
     def account_link(self, obj):
         """账户链接"""
         from django.urls import reverse
-        url = reverse('admin:simulated_trading_simulatedaccountmodel_change', args=[obj.account.account_id])
+        url = reverse('admin:simulated_trading_simulatedaccountmodel_change', args=[obj.account_id])
         return format_html('<a href="{}">{}</a>', url, obj.account.account_name)
     account_link.short_description = '账户'
 
@@ -323,20 +329,22 @@ class SimulatedPositionAdmin(admin.ModelAdmin):
     def unrealized_pnl_display(self, obj):
         """浮盈显示"""
         color = 'green' if obj.unrealized_pnl >= 0 else 'red'
+        pnl_text = f"{obj.unrealized_pnl:+,.2f}"
         return format_html(
-            '<span style="color: {}; font-weight: bold;">¥{:+,.2f}</span>',
+            '<span style="color: {}; font-weight: bold;">¥{}</span>',
             color,
-            obj.unrealized_pnl
+            pnl_text
         )
     unrealized_pnl_display.short_description = '浮盈'
 
     def unrealized_pnl_pct_display(self, obj):
         """浮盈率显示"""
         color = 'green' if obj.unrealized_pnl_pct >= 0 else 'red'
+        pct_text = f"{obj.unrealized_pnl_pct:+.2f}%"
         return format_html(
-            '<span style="color: {}; font-weight: bold;">{:+.2f}%%</span>',
+            '<span style="color: {}; font-weight: bold;">{}</span>',
             color,
-            obj.unrealized_pnl_pct
+            pct_text
         )
     unrealized_pnl_pct_display.short_description = '浮盈率'
 
@@ -430,7 +438,7 @@ class SimulatedTradeAdmin(admin.ModelAdmin):
     def account_link(self, obj):
         """账户链接"""
         from django.urls import reverse
-        url = reverse('admin:simulated_trading_simulatedaccountmodel_change', args=[obj.account.account_id])
+        url = reverse('admin:simulated_trading_simulatedaccountmodel_change', args=[obj.account_id])
         return format_html('<a href="{}">{}</a>', url, obj.account.account_name)
     account_link.short_description = '账户'
 
@@ -465,10 +473,11 @@ class SimulatedTradeAdmin(admin.ModelAdmin):
         if obj.realized_pnl is None:
             return '-'
         color = 'green' if obj.realized_pnl >= 0 else 'red'
+        pnl_text = f"{obj.realized_pnl:+,.2f}"
         return format_html(
-            '<span style="color: {}; font-weight: bold;">¥{:+,.2f}</span>',
+            '<span style="color: {}; font-weight: bold;">¥{}</span>',
             color,
-            obj.realized_pnl
+            pnl_text
         )
     realized_pnl_display.short_description = '已实现盈亏'
 
@@ -477,10 +486,11 @@ class SimulatedTradeAdmin(admin.ModelAdmin):
         if obj.realized_pnl_pct is None:
             return '-'
         color = 'green' if obj.realized_pnl_pct >= 0 else 'red'
+        pct_text = f"{obj.realized_pnl_pct:+.2f}%"
         return format_html(
-            '<span style="color: {}; font-weight: bold;">{:+.2f}%%</span>',
+            '<span style="color: {}; font-weight: bold;">{}</span>',
             color,
-            obj.realized_pnl_pct
+            pct_text
         )
     realized_pnl_pct_display.short_description = '盈亏率'
 
