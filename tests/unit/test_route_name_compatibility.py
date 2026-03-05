@@ -35,14 +35,15 @@ def test_equity_fund_page_route_names_resolvable():
 
 def test_policy_workbench_and_rss_page_routes_resolvable():
     assert reverse("policy:workbench") == "/policy/workbench/"
-    assert reverse("policy:rss-manage") == "/policy/rss/manage/"
-    assert reverse("policy:rss-source-create") == "/policy/rss/manage/new/"
+    assert reverse("policy:rss-manage") == "/policy/rss/sources/"
+    assert reverse("policy:rss-source-create") == "/policy/rss/sources/new/"
     assert reverse("policy:rss-reader") == "/policy/rss/reader/"
     assert reverse("policy:rss-keywords") == "/policy/rss/keywords/"
     assert reverse("policy:rss-logs") == "/policy/rss/logs/"
 
     assert resolve("/policy/workbench/").view_name.endswith("workbench")
-    assert resolve("/policy/rss/manage/").view_name.endswith("rss-manage")
+    assert resolve("/policy/rss/sources/").view_name.endswith("rss-manage")
+    assert resolve("/policy/rss/manage/").view_name.endswith("rss-manage-legacy")
 
 
 def test_macro_legacy_and_new_api_routes_resolvable():
