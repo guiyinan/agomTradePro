@@ -139,7 +139,8 @@
       "Bash(chmod +x:*)",
       "Bash(agomsaafScriptspython:*)",
       "Bash(agomsaaf/Scripts/pip.exe list:*)",
-      "Bash(agomsaaf/Scripts/pytest.exe:*)"
+      "Bash(agomsaaf/Scripts/pytest.exe:*)",
+      "Bash(do:*)"
     ]
   }
 }
