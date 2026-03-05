@@ -20,6 +20,12 @@ services:
       timeout: 3s
       retries: 5
     mem_limit: 300m
+    cpus: 0.5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   web:
     image: ${WEB_IMAGE:?WEB_IMAGE is required}
@@ -60,6 +66,12 @@ services:
       retries: 5
       start_period: 20s
     mem_limit: 700m
+    cpus: 1.5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
 
   celery_worker:
     image: ${WEB_IMAGE:?WEB_IMAGE is required}
@@ -90,6 +102,12 @@ services:
       web:
         condition: service_healthy
     mem_limit: 500m
+    cpus: 1.0
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "25m"
+        max-file: "5"
 
   celery_beat:
     image: ${WEB_IMAGE:?WEB_IMAGE is required}
@@ -120,6 +138,12 @@ services:
       web:
         condition: service_healthy
     mem_limit: 300m
+    cpus: 0.5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   rsshub:
     image: ${RSSHUB_IMAGE:-diygod/rsshub:latest}

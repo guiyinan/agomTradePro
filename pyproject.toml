@@ -59,6 +59,7 @@ dev = [
     "mypy",
     "ipython",
     "ipdb",
+    "pip-tools>=7.0",
 ]
 
 # 完整开发环境（包含 Qlib）

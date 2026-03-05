@@ -44,5 +44,8 @@ python-dateutil>=2.8
 pytz>=2023.3
 typing-extensions>=4.9
 
+# Error tracking
+sentry-sdk[django,celery]>=2.0
+
 # Security / Encryption
 cryptography>=41.0

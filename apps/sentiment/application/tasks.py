@@ -16,7 +16,9 @@ logger = logging.getLogger(__name__)
     name='sentiment.calculate_daily_sentiment_index',
     bind=True,
     max_retries=3,
-    default_retry_delay=300  # 5 分钟后重试
+    default_retry_delay=300,  # 5 分钟后重试
+    time_limit=900,
+    soft_time_limit=850,
 )
 def calculate_daily_sentiment_index(self, target_date: str = None) -> Dict[str, Any]:
     """
@@ -104,7 +106,9 @@ def calculate_daily_sentiment_index(self, target_date: str = None) -> Dict[str, 
     name='sentiment.analyze_policy_event',
     bind=True,
     max_retries=2,
-    default_retry_delay=60
+    default_retry_delay=60,
+    time_limit=300,
+    soft_time_limit=280,
 )
 def analyze_policy_event_sentiment(self, event_id: int) -> Dict[str, Any]:
     """
@@ -152,9 +156,17 @@ def analyze_policy_event_sentiment(self, event_id: int) -> Dict[str, Any]:
 
 
 @shared_task(
-    name='sentiment.batch_analyze_texts'
+    name='sentiment.batch_analyze_texts',
+    bind=True,
+    max_retries=3,
+    default_retry_delay=300,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_jitter=True,
+    time_limit=900,
+    soft_time_limit=850,
 )
-def batch_analyze_texts(texts: list) -> list:
+def batch_analyze_texts(self, texts: list) -> list:
     """
     批量分析文本情感
 
@@ -191,9 +203,14 @@ def batch_analyze_texts(texts: list) -> list:
 
 
 @shared_task(
-    name='sentiment.check_data_freshness'
+    name='sentiment.check_data_freshness',
+    bind=True,
+    max_retries=2,
+    default_retry_delay=60,
+    time_limit=300,
+    soft_time_limit=280,
 )
-def check_sentiment_data_freshness() -> Dict[str, Any]:
+def check_sentiment_data_freshness(self) -> Dict[str, Any]:
     """
     检查情绪数据新鲜度
 

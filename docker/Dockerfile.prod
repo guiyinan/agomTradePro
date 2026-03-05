@@ -5,6 +5,7 @@ WORKDIR /app
 ARG PIP_OFFLINE_ONLY=1
 
 COPY requirements-prod.txt /tmp/requirements-prod.txt
+COPY requirements-prod.lock /tmp/requirements-prod.lock
 COPY .cache/pip-wheels/linux-py311 /tmp/pip-wheels/linux-py311
 
 RUN set -eu; \
@@ -12,7 +13,7 @@ RUN set -eu; \
       idx="$1"; \
       trusted="$2"; \
       echo "Installing from: $idx"; \
-      pip install --prefer-binary --retries 25 --timeout 180 --trusted-host "$trusted" -i "$idx" -r /tmp/requirements-prod.txt; \
+      pip install --prefer-binary --retries 25 --timeout 180 --trusted-host "$trusted" -i "$idx" -r /tmp/requirements-prod.lock; \
     }; \
     PYPI_URL="https://pypi.org/simple/"; \
     ALIYUN_URL="http://mirrors.aliyun.com/pypi/simple/"; \
@@ -20,9 +21,9 @@ RUN set -eu; \
     if [ -d "/tmp/pip-wheels/linux-py311" ] && [ "$(ls -A /tmp/pip-wheels/linux-py311 2>/dev/null)" ]; then \
       echo "Installing from local Linux wheelhouse first"; \
       if [ "$PIP_OFFLINE_ONLY" = "1" ]; then \
-        pip install --no-index --find-links=/tmp/pip-wheels/linux-py311 -r /tmp/requirements-prod.txt; \
+        pip install --no-index --find-links=/tmp/pip-wheels/linux-py311 -r /tmp/requirements-prod.lock; \
       else \
-        pip install --no-index --find-links=/tmp/pip-wheels/linux-py311 -r /tmp/requirements-prod.txt || \
+        pip install --no-index --find-links=/tmp/pip-wheels/linux-py311 -r /tmp/requirements-prod.lock || \
         (pip_install "$ALIYUN_URL" "mirrors.aliyun.com" || pip_install "$TUNA_URL" "pypi.tuna.tsinghua.edu.cn" || pip_install "$PYPI_URL" "pypi.org"); \
       fi; \
     else \

@@ -77,6 +77,75 @@ def check_redis() -> Dict[str, Any]:
         return {"status": "error", "error": str(e)}
 
 
+def check_celery() -> Dict[str, Any]:
+    """
+    Check Celery worker availability by sending a ping.
+
+    Returns:
+        Dict with status:
+        - {"status": "ok", "workers": N} if workers respond
+        - {"status": "skipped"} if Celery not configured
+        - {"status": "error", "error": "..."} if unhealthy
+    """
+    from django.conf import settings
+
+    if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
+        return {"status": "skipped", "reason": "Celery in eager mode"}
+
+    try:
+        from core.celery import app as celery_app
+
+        result = celery_app.control.ping(timeout=3.0)
+        if result:
+            return {"status": "ok", "workers": len(result)}
+        return {"status": "error", "error": "No Celery workers responded"}
+    except Exception as e:
+        logger.warning(f"Celery health check failed: {e}")
+        return {"status": "error", "error": str(e)}
+
+
+def check_critical_data() -> Dict[str, Any]:
+    """
+    Check that critical data tables are non-empty.
+
+    Verifies macro_indicator and regime tables have data,
+    which are required for the system to function correctly.
+
+    Returns:
+        Dict with status and detail on checked tables.
+    """
+    try:
+        from django.apps import apps
+
+        checks: Dict[str, bool] = {}
+
+        # Check macro indicators
+        try:
+            MacroIndicator = apps.get_model('macro', 'MacroIndicator')
+            checks['macro_indicator'] = MacroIndicator.objects.exists()
+        except Exception:
+            checks['macro_indicator'] = False
+
+        # Check regime state
+        try:
+            RegimeLog = apps.get_model('regime', 'RegimeLog')
+            checks['regime_state'] = RegimeLog.objects.exists()
+        except Exception:
+            checks['regime_state'] = False
+
+        empty_tables = [k for k, v in checks.items() if not v]
+        if empty_tables:
+            return {
+                "status": "warning",
+                "empty_tables": empty_tables,
+                "detail": checks,
+            }
+        return {"status": "ok", "detail": checks}
+    except Exception as e:
+        logger.warning(f"Critical data check failed: {e}")
+        return {"status": "error", "error": str(e)}
+
+
 def run_readiness_checks() -> Dict[str, Dict[str, Any]]:
     """
     Run all readiness checks.
@@ -85,12 +154,16 @@ def run_readiness_checks() -> Dict[str, Dict[str, Any]]:
         Dict of check results keyed by check name:
         {
             "database": {"status": "ok"},
-            "redis": {"status": "ok"}
+            "redis": {"status": "ok"},
+            "celery": {"status": "ok"},
+            "critical_data": {"status": "ok"}
         }
     """
     checks = {
         "database": check_database(),
         "redis": check_redis(),
+        "celery": check_celery(),
+        "critical_data": check_critical_data(),
     }
     return checks
 
@@ -107,7 +180,7 @@ def is_healthy(checks: Dict[str, Dict[str, Any]]) -> bool:
     """
     for check_name, result in checks.items():
         status = result.get("status")
-        # "skipped" is acceptable (e.g., Redis not configured)
-        if status not in ("ok", "skipped"):
+        # "skipped" and "warning" are acceptable (e.g., Redis not configured, empty tables)
+        if status not in ("ok", "skipped", "warning"):
             return False
     return True

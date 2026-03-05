@@ -1,0 +1,23 @@
+{
+  "description": "Alpha score cache samples for testing",
+  "universe_id": "csi300",
+  "generated_at": "2024-12-15T17:30:00Z",
+  "provider": "qlib",
+  "scores": [
+    {"stock_code": "600519.SH", "stock_name": "贵州茅台", "score": 0.92, "rank": 1, "factors": {"momentum": 0.88, "value": 0.95, "quality": 0.93}},
+    {"stock_code": "000858.SZ", "stock_name": "五粮液", "score": 0.88, "rank": 2, "factors": {"momentum": 0.85, "value": 0.90, "quality": 0.89}},
+    {"stock_code": "601318.SH", "stock_name": "中国平安", "score": 0.85, "rank": 3, "factors": {"momentum": 0.80, "value": 0.88, "quality": 0.87}},
+    {"stock_code": "000001.SZ", "stock_name": "平安银行", "score": 0.82, "rank": 4, "factors": {"momentum": 0.78, "value": 0.85, "quality": 0.83}},
+    {"stock_code": "600036.SH", "stock_name": "招商银行", "score": 0.80, "rank": 5, "factors": {"momentum": 0.75, "value": 0.83, "quality": 0.82}},
+    {"stock_code": "000651.SZ", "stock_name": "格力电器", "score": 0.78, "rank": 6, "factors": {"momentum": 0.72, "value": 0.82, "quality": 0.80}},
+    {"stock_code": "600276.SH", "stock_name": "恒瑞医药", "score": 0.76, "rank": 7, "factors": {"momentum": 0.70, "value": 0.80, "quality": 0.78}},
+    {"stock_code": "002415.SZ", "stock_name": "海康威视", "score": 0.74, "rank": 8, "factors": {"momentum": 0.68, "value": 0.78, "quality": 0.76}},
+    {"stock_code": "600900.SH", "stock_name": "长江电力", "score": 0.72, "rank": 9, "factors": {"momentum": 0.65, "value": 0.76, "quality": 0.75}},
+    {"stock_code": "601166.SH", "stock_name": "兴业银行", "score": 0.70, "rank": 10, "factors": {"momentum": 0.62, "value": 0.75, "quality": 0.73}},
+    {"stock_code": "000333.SZ", "stock_name": "美的集团", "score": 0.68, "rank": 11, "factors": {"momentum": 0.60, "value": 0.73, "quality": 0.71}},
+    {"stock_code": "601888.SH", "stock_name": "中国中免", "score": 0.66, "rank": 12, "factors": {"momentum": 0.58, "value": 0.72, "quality": 0.68}},
+    {"stock_code": "300750.SZ", "stock_name": "宁德时代", "score": 0.64, "rank": 13, "factors": {"momentum": 0.55, "value": 0.70, "quality": 0.67}},
+    {"stock_code": "601012.SH", "stock_name": "隆基绿能", "score": 0.62, "rank": 14, "factors": {"momentum": 0.52, "value": 0.68, "quality": 0.66}},
+    {"stock_code": "002594.SZ", "stock_name": "比亚迪", "score": 0.60, "rank": 15, "factors": {"momentum": 0.50, "value": 0.65, "quality": 0.65}}
+  ]
+}

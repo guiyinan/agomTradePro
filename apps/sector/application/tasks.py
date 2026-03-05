@@ -14,8 +14,18 @@ from ..infrastructure.repositories import DjangoSectorRepository
 from ..infrastructure.adapters.akshare_sector_adapter import AKShareSectorAdapter
 
 
-@shared_task(name='sector.update_daily_data')
-def update_daily_sector_data(level: str = 'SW1'):
+@shared_task(
+    name='sector.update_daily_data',
+    bind=True,
+    max_retries=3,
+    default_retry_delay=300,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_jitter=True,
+    time_limit=900,
+    soft_time_limit=850,
+)
+def update_daily_sector_data(self, level: str = 'SW1'):
     """
     每日更新板块指数数据
 
@@ -61,8 +71,18 @@ def update_daily_sector_data(level: str = 'SW1'):
         }
 
 
-@shared_task(name='sector.analyze_rotation')
-def analyze_sector_rotation(regime: str = None):
+@shared_task(
+    name='sector.analyze_rotation',
+    bind=True,
+    max_retries=3,
+    default_retry_delay=300,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_jitter=True,
+    time_limit=900,
+    soft_time_limit=850,
+)
+def analyze_sector_rotation(self, regime: str = None):
     """
     分析板块轮动
 

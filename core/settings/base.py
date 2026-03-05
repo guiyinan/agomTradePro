@@ -384,6 +384,10 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
+# Celery safety: re-deliver tasks if worker crashes mid-execution
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_TASK_ACKS_LATE = True
+
 # Celery Beat 定时任务配置
 CELERY_BEAT_SCHEDULE = {
     'daily-sync-and-calculate': {

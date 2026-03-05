@@ -35,6 +35,8 @@ logger = get_task_logger(__name__)
     bind=True,
     max_retries=3,
     default_retry_delay=60,
+    time_limit=300,
+    soft_time_limit=280,
 )
 def publish_event_async(
     self,
@@ -124,6 +126,9 @@ def publish_event_async(
     name="events.publish_batch_events_async",
     bind=True,
     max_retries=3,
+    default_retry_delay=60,
+    time_limit=300,
+    soft_time_limit=280,
 )
 def publish_batch_events_async(
     self,
@@ -191,6 +196,9 @@ def publish_batch_events_async(
     name="events.replay_events_async",
     bind=True,
     max_retries=2,
+    default_retry_delay=60,
+    time_limit=300,
+    soft_time_limit=280,
 )
 def replay_events_async(
     self,
@@ -278,6 +286,10 @@ def replay_events_async(
 @shared_task(
     name="events.cleanup_old_events",
     bind=True,
+    max_retries=2,
+    default_retry_delay=60,
+    time_limit=300,
+    soft_time_limit=280,
 )
 def cleanup_old_events(
     self,
@@ -342,6 +354,10 @@ def cleanup_old_events(
 @shared_task(
     name="events.cleanup_old_snapshots",
     bind=True,
+    max_retries=2,
+    default_retry_delay=60,
+    time_limit=300,
+    soft_time_limit=280,
 )
 def cleanup_old_snapshots(
     self,
@@ -418,8 +434,13 @@ def cleanup_old_snapshots(
 
 @shared_task(
     name="events.collect_event_metrics",
+    bind=True,
+    max_retries=2,
+    default_retry_delay=60,
+    time_limit=300,
+    soft_time_limit=280,
 )
-def collect_event_metrics() -> Dict[str, Any]:
+def collect_event_metrics(self) -> Dict[str, Any]:
     """
     收集事件指标
 
@@ -476,8 +497,13 @@ def collect_event_metrics() -> Dict[str, Any]:
 
 @shared_task(
     name="events.health_check",
+    bind=True,
+    max_retries=2,
+    default_retry_delay=60,
+    time_limit=300,
+    soft_time_limit=280,
 )
-def event_bus_health_check() -> Dict[str, Any]:
+def event_bus_health_check(self) -> Dict[str, Any]:
     """
     事件总线健康检查
 

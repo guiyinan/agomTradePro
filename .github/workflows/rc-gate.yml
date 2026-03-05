@@ -192,7 +192,29 @@ jobs:
           print("Architecture Layer Guard: PASS")
           PY
 
-      # Check 7: P0/P1 defects check
+      # Check 7: Domain layer coverage >= 70%
+      - name: Domain Layer Coverage Gate
+        run: |
+          echo "==================================="
+          echo "Check 7: Domain Layer Coverage"
+          echo "==================================="
+          pytest tests/unit/domain/ -v --tb=short \
+            -o "addopts=" \
+            --cov=apps/hedge/domain \
+            --cov=apps/fund/domain \
+            --cov=apps/factor/domain \
+            --cov=apps/rotation/domain \
+            --cov=apps/regime/domain \
+            --cov=apps/backtest/domain \
+            --cov=apps/dashboard/domain \
+            --cov=apps/sector/domain \
+            --cov=apps/equity/domain \
+            --cov=apps/events/domain \
+            --cov-fail-under=70 \
+            --cov-report=term-missing
+          echo "Domain Coverage: PASS"
+
+      # Check 8: P0/P1 defects check (renumbered)
       - name: Check P0/P1 Defects
         run: |
           echo "==================================="

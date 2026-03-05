@@ -125,6 +125,8 @@ def qlib_predict_scores(
 @shared_task(
     bind=True,
     max_retries=1,
+    time_limit=3600,
+    soft_time_limit=3300,
 )
 def qlib_train_model(
     self,
@@ -243,6 +245,8 @@ def qlib_train_model(
 @shared_task(
     bind=True,
     max_retries=1,
+    time_limit=3600,
+    soft_time_limit=3300,
 )
 def qlib_evaluate_model(
     self,
@@ -289,8 +293,16 @@ def qlib_evaluate_model(
         raise
 
 
-@shared_task
+@shared_task(
+    name='alpha.qlib_refresh_cache',
+    bind=True,
+    max_retries=2,
+    default_retry_delay=600,
+    time_limit=3600,
+    soft_time_limit=3300,
+)
 def qlib_refresh_cache(
+    self,
     universe_id: str,
     days_back: int = 7
 ) -> dict:
@@ -352,8 +364,16 @@ def qlib_refresh_cache(
         }
 
 
-@shared_task
+@shared_task(
+    name='alpha.qlib_daily_inference',
+    bind=True,
+    max_retries=2,
+    default_retry_delay=600,
+    time_limit=3600,
+    soft_time_limit=3300,
+)
 def qlib_daily_inference(
+    self,
     universe_id: str = "csi300",
     top_n: int = 30
 ) -> dict:

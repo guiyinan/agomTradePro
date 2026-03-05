@@ -2,6 +2,7 @@
 Django production settings for AgomSAAF project.
 """
 
+import logging
 import os
 from django.core.exceptions import ImproperlyConfigured
 
@@ -68,7 +69,11 @@ ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
 
 # Database - PostgreSQL for production
 DATABASES = {
-    'default': env.db('DATABASE_URL', default='sqlite:///db.sqlite3')
+    'default': {
+        **env.db('DATABASE_URL', default='sqlite:///db.sqlite3'),
+        'CONN_MAX_AGE': env.int('DB_CONN_MAX_AGE', default=600),
+        'CONN_HEALTH_CHECKS': True,  # Django 4.1+ auto-detect broken connections
+    }
 }
 
 # Security settings
@@ -231,6 +236,29 @@ LOGGING = {
         },
     },
 }
+
+# ---------------------
+# Sentry Error Tracking
+# ---------------------
+_sentry_dsn = os.environ.get('SENTRY_DSN', '')
+if _sentry_dsn:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.celery import CeleryIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
+
+    sentry_sdk.init(
+        dsn=_sentry_dsn,
+        integrations=[
+            DjangoIntegration(),
+            CeleryIntegration(),
+            LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
+        ],
+        traces_sample_rate=float(os.environ.get('SENTRY_TRACES_RATE', '0.1')),
+        send_default_pii=False,
+        environment=os.environ.get('SENTRY_ENVIRONMENT', 'production'),
+        release=os.environ.get('SENTRY_RELEASE', ''),
+    )
 
 # Celery Beat settings (use database scheduler)
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers.DatabaseScheduler'

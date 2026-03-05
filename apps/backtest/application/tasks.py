@@ -19,7 +19,13 @@ from ..infrastructure.repositories import DjangoBacktestRepository
 logger = logging.getLogger(__name__)
 
 
-@shared_task(bind=True, max_retries=3)
+@shared_task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=600,
+    time_limit=3600,
+    soft_time_limit=3300,
+)
 def run_backtest_task(
     self,
     backtest_id: int,
@@ -146,8 +152,15 @@ def run_backtest_task(
         }
 
 
-@shared_task
-def cleanup_old_backtests(days_old: int = 90) -> int:
+@shared_task(
+    name='backtest.cleanup_old_backtests',
+    bind=True,
+    max_retries=2,
+    default_retry_delay=60,
+    time_limit=300,
+    soft_time_limit=280,
+)
+def cleanup_old_backtests(self, days_old: int = 90) -> int:
     """
     清理旧的回测记录
 
@@ -178,8 +191,15 @@ def cleanup_old_backtests(days_old: int = 90) -> int:
     return deleted_count
 
 
-@shared_task
-def generate_backtest_report(backtest_id: int) -> Dict[str, Any]:
+@shared_task(
+    name='backtest.generate_backtest_report',
+    bind=True,
+    max_retries=2,
+    default_retry_delay=60,
+    time_limit=300,
+    soft_time_limit=280,
+)
+def generate_backtest_report(self, backtest_id: int) -> Dict[str, Any]:
     """
     生成回测报告
 

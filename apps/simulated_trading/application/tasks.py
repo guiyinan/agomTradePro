@@ -43,7 +43,13 @@ logger = logging.getLogger(__name__)
 # 核心定时任务
 # ============================================================================
 
-@shared_task(bind=True, max_retries=3)
+@shared_task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=300,
+    time_limit=900,
+    soft_time_limit=850,
+)
 def daily_auto_trading_task(
     self,
     trade_date: Optional[str] = None,
@@ -138,8 +144,18 @@ def daily_auto_trading_task(
         }
 
 
-@shared_task
-def update_position_prices_task(account_id: Optional[int] = None) -> Dict[str, Any]:
+@shared_task(
+    name='simulated.update_position_prices',
+    bind=True,
+    max_retries=3,
+    default_retry_delay=300,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_jitter=True,
+    time_limit=900,
+    soft_time_limit=850,
+)
+def update_position_prices_task(self, account_id: Optional[int] = None) -> Dict[str, Any]:
     """
     更新持仓价格任务
 
@@ -239,8 +255,18 @@ def update_position_prices_task(account_id: Optional[int] = None) -> Dict[str, A
         }
 
 
-@shared_task
-def calculate_all_performance_task(trade_date: Optional[str] = None) -> Dict[str, Any]:
+@shared_task(
+    name='simulated.calculate_all_performance',
+    bind=True,
+    max_retries=3,
+    default_retry_delay=300,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_jitter=True,
+    time_limit=900,
+    soft_time_limit=850,
+)
+def calculate_all_performance_task(self, trade_date: Optional[str] = None) -> Dict[str, Any]:
     """
     全量绩效计算任务
 
@@ -302,8 +328,18 @@ def calculate_all_performance_task(trade_date: Optional[str] = None) -> Dict[str
 # 维护任务
 # ============================================================================
 
-@shared_task
-def cleanup_inactive_accounts_task(inactive_days: int = 180) -> Dict[str, Any]:
+@shared_task(
+    name='simulated.cleanup_inactive_accounts',
+    bind=True,
+    max_retries=3,
+    default_retry_delay=300,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_jitter=True,
+    time_limit=900,
+    soft_time_limit=850,
+)
+def cleanup_inactive_accounts_task(self, inactive_days: int = 180) -> Dict[str, Any]:
     """
     清理不活跃账户任务
 
@@ -356,8 +392,18 @@ def cleanup_inactive_accounts_task(inactive_days: int = 180) -> Dict[str, Any]:
         }
 
 
-@shared_task
-def send_performance_summary_task(account_ids: Optional[list] = None) -> Dict[str, Any]:
+@shared_task(
+    name='simulated.send_performance_summary',
+    bind=True,
+    max_retries=3,
+    default_retry_delay=300,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_jitter=True,
+    time_limit=900,
+    soft_time_limit=850,
+)
+def send_performance_summary_task(self, account_ids: Optional[list] = None) -> Dict[str, Any]:
     """
     发送绩效摘要任务
 
@@ -424,8 +470,19 @@ def send_performance_summary_task(account_ids: Optional[list] = None) -> Dict[st
         }
 
 
-@shared_task(name="simulated.daily_portfolio_inspection")
+@shared_task(
+    name="simulated.daily_portfolio_inspection",
+    bind=True,
+    max_retries=3,
+    default_retry_delay=300,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_jitter=True,
+    time_limit=900,
+    soft_time_limit=850,
+)
 def daily_portfolio_inspection_task(
+    self,
     account_id: int = 679,
     strategy_id: Optional[int] = 4,
     inspection_date: Optional[str] = None,
@@ -747,8 +804,18 @@ class NotificationConfig:
 # 持仓证伪检查任务
 # ============================================================================
 
-@shared_task
-def check_position_invalidation_task() -> Dict[str, Any]:
+@shared_task(
+    name='simulated.check_position_invalidation',
+    bind=True,
+    max_retries=3,
+    default_retry_delay=300,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_jitter=True,
+    time_limit=900,
+    soft_time_limit=850,
+)
+def check_position_invalidation_task(self) -> Dict[str, Any]:
     """
     持仓证伪检查任务
 
@@ -802,8 +869,18 @@ def check_position_invalidation_task() -> Dict[str, Any]:
         }
 
 
-@shared_task
-def notify_invalidated_positions_task() -> Dict[str, Any]:
+@shared_task(
+    name='simulated.notify_invalidated_positions',
+    bind=True,
+    max_retries=3,
+    default_retry_delay=300,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_jitter=True,
+    time_limit=900,
+    soft_time_limit=850,
+)
+def notify_invalidated_positions_task(self) -> Dict[str, Any]:
     """
     证伪持仓通知任务
 
@@ -853,7 +930,13 @@ def notify_invalidated_positions_task() -> Dict[str, Any]:
 # 实时价格监控任务（集成 realtime 模块）
 # ============================================================================
 
-@shared_task(bind=True, max_retries=3)
+@shared_task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=300,
+    time_limit=600,
+    soft_time_limit=570,
+)
 def update_all_prices_after_close(self, account_id: Optional[int] = None) -> Dict[str, Any]:
     """
     收盘后批量价格更新任务
