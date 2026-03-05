@@ -4,7 +4,7 @@ URL configuration for AgomSAAF project.
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import RedirectView
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 # Apply custom admin branding
@@ -41,8 +41,45 @@ from core.admin_log_views import (
 )
 
 
+# API 根路径视图
+def api_root_view(request):
+    """API 根路径 - 返回可用的 API 端点列表"""
+    return JsonResponse({
+        'endpoints': {
+            'account': '/api/account/',
+            'alpha': '/api/alpha/',
+            'asset-analysis': '/api/asset-analysis/',
+            'audit': '/api/audit/',
+            'backtest': '/api/backtest/',
+            'dashboard': '/api/dashboard/',
+            'equity': '/api/equity/',
+            'factor': '/api/factor/',
+            'filter': '/api/filter/',
+            'fund': '/api/fund/',
+            'hedge': '/api/hedge/',
+            'macro': '/api/macro/',
+            'policy': '/api/policy/',
+            'portfolio': '/api/portfolio/',
+            'prompt': '/api/prompt/',
+            'realtime': '/api/realtime/',
+            'regime': '/api/regime/',
+            'rotation': '/api/rotation/',
+            'sector': '/api/sector/',
+            'sentiment': '/api/sentiment/',
+            'signal': '/api/signal/',
+            'signals': '/api/signals/',
+            'simulated-trading': '/api/simulated-trading/',
+            'strategy': '/api/strategy/',
+            'system': '/api/system/',
+            'docs': '/api/docs/',
+            'schema': '/api/schema/',
+        }
+    })
+
+
 core_patterns = [
     path('', index_view, name='index'),
+    path('api/', api_root_view, name='api-root'),
     path('api/health/', health_view, name='health'),
     path('api/ready/', readiness_view, name='readiness'),
     path('chat-example/', chat_example_view, name='chat-example'),
@@ -133,8 +170,12 @@ module_patterns = [
     path('api/policy/', include(('apps.policy.interface.api_urls', 'policy'), namespace='api_policy')),
     # P2: Signal 模块
     path('api/signal/', include(('apps.signal.interface.urls', 'signal'), namespace='api_signal')),
+    # P2: Signal 模块（复数别名）
+    path('api/signals/', include(('apps.signal.interface.urls', 'signal'), namespace='api_signals')),
     # P2: Macro 模块
     path('api/macro/', include(('apps.macro.interface.urls', 'macro'), namespace='api_macro')),
+    # P2: Macro indicators 别名
+    path('api/macro/indicators/', RedirectView.as_view(url='/api/macro/supported-indicators/', permanent=False), name='api-macro-indicators'),
     # P2: Filter 模块
     path('api/filter/', include(('apps.filter.interface.urls', 'api_filter'), namespace='api_filter')),
     # P2: Backtest 模块
@@ -156,6 +197,10 @@ module_patterns = [
     path('api/sentiment/', include(('apps.sentiment.interface.api_urls', 'api_sentiment'), namespace='api_sentiment')),
     # Task Monitor
     path('api/system/', include(('apps.task_monitor.interface.urls', 'task_monitor'), namespace='task_monitor')),
+    # Dashboard API routes
+    path('api/dashboard/', include(('apps.dashboard.interface.urls', 'api_dashboard'), namespace='api_dashboard')),
+    # Portfolio API routes (alias for simulated-trading accounts)
+    path('api/portfolio/', RedirectView.as_view(url='/api/simulated-trading/api/accounts/', permanent=False), name='api-portfolio'),
 ]
 
 
