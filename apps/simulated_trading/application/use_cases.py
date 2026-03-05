@@ -11,6 +11,8 @@ from datetime import date, datetime
 import logging
 from dataclasses import replace
 
+from django.utils import timezone
+
 from apps.simulated_trading.domain.entities import (
     SimulatedAccount,
     Position,
@@ -269,7 +271,7 @@ class ExecuteBuyOrderUseCase:
             signal_id=signal_id,
             order_date=date.today(),
             execution_date=date.today(),
-            execution_time=datetime.now(),
+            execution_time=timezone.now(),
             status=OrderStatus.EXECUTED
         )
 
@@ -483,7 +485,7 @@ class ExecuteSellOrderUseCase:
             signal_id=position.signal_id,
             order_date=date.today(),
             execution_date=date.today(),
-            execution_time=datetime.now(),
+            execution_time=timezone.now(),
             status=OrderStatus.EXECUTED
         )
 

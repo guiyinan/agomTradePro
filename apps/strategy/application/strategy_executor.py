@@ -10,6 +10,8 @@ import logging
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
+from django.utils import timezone
+
 from apps.strategy.domain.entities import (
     Strategy,
     StrategyType,
@@ -123,7 +125,7 @@ class StrategyExecutor:
         Returns:
             策略执行结果
         """
-        start_time = datetime.now()
+        start_time = timezone.now()
         error_message = ""
         signals = []
         is_success = False
@@ -152,7 +154,7 @@ class StrategyExecutor:
             is_success = False
 
         # 4. 计算执行时长
-        end_time = datetime.now()
+        end_time = timezone.now()
         duration_ms = int((end_time - start_time).total_seconds() * 1000)
 
         # 5. 构建执行结果

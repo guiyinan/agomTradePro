@@ -2,7 +2,7 @@
 Unit tests for decision_rhythm domain entities/services.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -78,7 +78,7 @@ class TestCooldownManager:
         req = _mk_request(DecisionPriority.MEDIUM)
         manager.cooldowns[req.asset_code] = CooldownPeriod(
             asset_code=req.asset_code,
-            last_decision_at=datetime.now() - timedelta(hours=1),
+            last_decision_at=datetime.now(timezone.utc) - timedelta(hours=1),
             min_decision_interval_hours=24,
         )
         result = manager.check_cooldown(req)
@@ -90,7 +90,7 @@ class TestCooldownManager:
         req = _mk_request(DecisionPriority.MEDIUM)
         manager.cooldowns[req.asset_code] = CooldownPeriod(
             asset_code=req.asset_code,
-            last_decision_at=datetime.now() - timedelta(hours=30),
+            last_decision_at=datetime.now(timezone.utc) - timedelta(hours=30),
             min_decision_interval_hours=24,
         )
         result = manager.check_cooldown(req)

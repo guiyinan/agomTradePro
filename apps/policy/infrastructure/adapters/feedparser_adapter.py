@@ -18,6 +18,9 @@ Feedparser RSS Adapter
 import logging
 from typing import List, Optional
 from datetime import datetime
+
+from django.utils import timezone
+
 try:
     import requests
 except ImportError:
@@ -195,4 +198,4 @@ class FeedparserAdapter(BaseRSSAdapter):
                 pass
 
         # 默认使用当前时间
-        return datetime.now()
+        return timezone.now()

@@ -10,6 +10,8 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 from dataclasses import dataclass, field
 
+from django.utils import timezone
+
 from apps.asset_analysis.domain.entities import AssetScore
 from apps.asset_analysis.domain.value_objects import WeightConfig, ScoreContext
 
@@ -422,7 +424,7 @@ class AlertService:
 
             alert = AssetAnalysisAlert._default_manager.get(id=alert_id)
             alert.is_resolved = True
-            alert.resolved_at = datetime.now()
+            alert.resolved_at = timezone.now()
             alert.resolved_by = resolved_by
             alert.resolution_notes = resolution_notes
             alert.save()

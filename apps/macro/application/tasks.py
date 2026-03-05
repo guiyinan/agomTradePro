@@ -25,7 +25,9 @@ logger = get_task_logger(__name__)
     autoretry_for=(Exception,),
     retry_backoff=True,
     retry_backoff_max=600,
-    retry_jitter=True
+    retry_jitter=True,
+    time_limit=900,
+    soft_time_limit=850,
 )
 def sync_macro_data(
     self,
@@ -88,7 +90,9 @@ def sync_macro_data(
     max_retries=3,
     default_retry_delay=300,
     autoretry_for=(Exception,),
-    retry_backoff=True
+    retry_backoff=True,
+    time_limit=900,
+    soft_time_limit=850,
 )
 def calculate_regime(
     self,
@@ -132,7 +136,7 @@ def calculate_regime(
         raise
 
 
-@shared_task
+@shared_task(time_limit=300, soft_time_limit=280)
 def check_data_freshness() -> dict:
     """
     检查数据新鲜度任务
@@ -188,7 +192,7 @@ def check_data_freshness() -> dict:
         raise
 
 
-@shared_task
+@shared_task(time_limit=300, soft_time_limit=280)
 def send_data_freshness_alert(stale_indicators: list) -> dict:
     """
     发送数据新鲜度告警
@@ -222,7 +226,7 @@ def send_data_freshness_alert(stale_indicators: list) -> dict:
         raise
 
 
-@shared_task
+@shared_task(time_limit=900, soft_time_limit=850)
 def cleanup_old_data(days_to_keep: int = 365 * 10) -> dict:
     """
     清理旧数据任务
@@ -274,7 +278,9 @@ def cleanup_old_data(days_to_keep: int = 365 * 10) -> dict:
     max_retries=3,
     default_retry_delay=300,
     autoretry_for=(Exception,),
-    retry_backoff=True
+    retry_backoff=True,
+    time_limit=900,
+    soft_time_limit=850,
 )
 def sync_high_frequency_bonds(
     self,
@@ -342,7 +348,9 @@ def sync_high_frequency_bonds(
     max_retries=3,
     default_retry_delay=300,
     autoretry_for=(Exception,),
-    retry_backoff=True
+    retry_backoff=True,
+    time_limit=900,
+    soft_time_limit=850,
 )
 def sync_high_frequency_commodities(
     self,
@@ -398,7 +406,7 @@ def sync_high_frequency_commodities(
         raise
 
 
-@shared_task
+@shared_task(time_limit=900, soft_time_limit=850)
 def generate_daily_regime_signal(
     as_of_date: Optional[str] = None
 ) -> dict:
@@ -463,7 +471,7 @@ def generate_daily_regime_signal(
         raise
 
 
-@shared_task
+@shared_task(time_limit=900, soft_time_limit=850)
 def recalculate_regime_with_daily_signal(
     as_of_date: Optional[str] = None,
     use_pit: bool = True
@@ -576,7 +584,7 @@ def recalculate_regime_with_daily_signal(
 #    - 说明：这个编排任务会自动依次执行 sync -> calculate -> notify
 
 
-@shared_task
+@shared_task(time_limit=900, soft_time_limit=850)
 def sync_and_calculate_regime(
     source: str = 'akshare',
     indicator: Optional[str] = None,

@@ -6,12 +6,10 @@ Application layer orchestrating the workflow of calculating Regime.
 
 import logging
 import os
-import warnings
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Optional, List, Dict, Set, Tuple
 
-from django.db import DatabaseError
 
 from ..domain.services import RegimeCalculator, calculate_momentum, calculate_absolute_momentum, calculate_rolling_zscore
 from ..domain.entities import RegimeSnapshot
@@ -33,58 +31,6 @@ DEFAULT_US_YIELD_THRESHOLD = 4.5
 DEFAULT_DAILY_PERSIST_DAYS = 10
 DEFAULT_CONFLICT_CONFIDENCE_BOOST = 0.2
 
-
-@dataclass
-class GetCurrentRegimeResponse:
-    """Backward-compatible response for current regime queries."""
-    success: bool
-    regime_state: Optional[RegimeSnapshot] = None
-    error: Optional[str] = None
-
-
-class GetCurrentRegimeUseCase:
-    """
-    Deprecated use case.
-
-    Keep for backward compatibility only. New code must use
-    `apps.regime.application.current_regime.resolve_current_regime`.
-    """
-
-    def __init__(self, repository=None):
-        self.repository = repository
-
-    def execute(self) -> GetCurrentRegimeResponse:
-        try:
-            warnings.warn(
-                "GetCurrentRegimeUseCase is deprecated; use resolve_current_regime()",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            from .current_regime import resolve_current_regime
-            current = resolve_current_regime()
-            # Build a minimal backward-compatible RegimeSnapshot-like payload.
-            latest = RegimeSnapshot(
-                observed_at=current.observed_at,
-                dominant_regime=current.dominant_regime,
-                confidence=current.confidence,
-                growth_momentum_z=0.0,
-                inflation_momentum_z=0.0,
-                distribution={},
-            )
-            return GetCurrentRegimeResponse(success=True, regime_state=latest)
-        except (DataFetchError, InsufficientDataError) as e:
-            logger.warning(f"GetCurrentRegimeUseCase: data error: {e}")
-            record_exception(e, module="regime", is_handled=True)
-            return GetCurrentRegimeResponse(success=False, regime_state=None, error=str(e))
-        except DatabaseError as e:
-            logger.exception(f"GetCurrentRegimeUseCase: database error: {e}")
-            exc = DataFetchError(f"Failed to fetch regime data from database: {e}")
-            record_exception(exc, module="regime", is_handled=True)
-            return GetCurrentRegimeResponse(success=False, regime_state=None, error=str(exc))
-        except Exception as e:
-            logger.exception(f"GetCurrentRegimeUseCase: unexpected error: {e}")
-            record_exception(e, module="regime", is_handled=False)
-            return GetCurrentRegimeResponse(success=False, regime_state=None, error=str(e))
 
 
 # ==================== High-Frequency Signal Use Cases ====================

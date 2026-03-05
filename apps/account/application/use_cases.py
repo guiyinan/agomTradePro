@@ -11,6 +11,8 @@ from typing import List, Optional, Dict
 from datetime import datetime, date
 from dataclasses import dataclass
 
+from django.utils import timezone
+
 logger = logging.getLogger(__name__)
 
 from apps.account.domain.entities import (
@@ -373,7 +375,7 @@ class UpdatePositionPricesUseCase:
         return {
             "updated_count": count,
             "user_id": user_id,
-            "updated_at": datetime.now(),
+            "updated_at": timezone.now(),
         }
 
 

@@ -23,14 +23,41 @@ Audit Module Prometheus Metrics
     >>> record_audit_write_failure(module="regime", error_type="database")
 """
 
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Histogram, CollectorRegistry, REGISTRY
 import logging
 
 logger = logging.getLogger(__name__)
 
 
+def _safe_counter(name: str, description: str, labelnames: list) -> Counter:
+    """Safely create a Counter, returning existing one if already registered."""
+    try:
+        return Counter(name, description, labelnames)
+    except ValueError:
+        # Already registered - retrieve existing collector from registry
+        for collector in REGISTRY._names_to_collectors.values():
+            if hasattr(collector, '_name') and collector._name == name:
+                return collector
+        # Fallback: re-raise if we can't find it
+        raise
+
+
+def _safe_histogram(name: str, description: str, labelnames: list, buckets=None) -> Histogram:
+    """Safely create a Histogram, returning existing one if already registered."""
+    try:
+        kwargs = {"buckets": buckets} if buckets else {}
+        return Histogram(name, description, labelnames, **kwargs)
+    except ValueError:
+        # Already registered - retrieve existing collector from registry
+        for collector in REGISTRY._names_to_collectors.values():
+            if hasattr(collector, '_name') and collector._name == name:
+                return collector
+        # Fallback: re-raise if we can't find it
+        raise
+
+
 # 审计写入成功次数（按模块和操作类型分组）
-audit_write_success_total = Counter(
+audit_write_success_total = _safe_counter(
     "audit_write_success_total",
     "Total number of successful audit write operations",
     ["module", "action", "source"]
@@ -38,7 +65,7 @@ audit_write_success_total = Counter(
 
 
 # 审计写入失败次数（按模块和错误类型分组）
-audit_write_failure_total = Counter(
+audit_write_failure_total = _safe_counter(
     "audit_write_failure_total",
     "Total number of failed audit write operations",
     ["module", "error_type", "source"]
@@ -46,7 +73,7 @@ audit_write_failure_total = Counter(
 
 
 # 审计写入延迟（秒）
-audit_write_latency_seconds = Histogram(
+audit_write_latency_seconds = _safe_histogram(
     "audit_write_latency_seconds",
     "Audit write operation latency in seconds",
     ["module", "source"],
@@ -55,7 +82,7 @@ audit_write_latency_seconds = Histogram(
 
 
 # 审计写入操作总数（按状态标签分组）
-audit_write_operations_total = Counter(
+audit_write_operations_total = _safe_counter(
     "audit_write_operations_total",
     "Total audit write operations by status",
     ["module", "status", "source"]

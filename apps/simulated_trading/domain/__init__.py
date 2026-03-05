@@ -13,7 +13,7 @@ Infrastructure层:
 - 如果需要更完善的failover，可参考apps.macro的FailoverAdapter实现
 """
 from typing import Optional, Dict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 import logging
 
 logger = logging.getLogger(__name__)
@@ -79,7 +79,7 @@ class MarketDataProvider:
         cached_price, cached_time = self._price_cache.get(asset_code, (None, None))
         if cached_price is not None:
             # 检查缓存是否过期
-            if datetime.now() - cached_time < timedelta(minutes=self.cache_ttl_minutes):
+            if datetime.now(timezone.utc) - cached_time < timedelta(minutes=self.cache_ttl_minutes):
                 logger.debug(f"缓存命中: {asset_code} = {cached_price}")
                 return cached_price
 
@@ -97,7 +97,7 @@ class MarketDataProvider:
 
         # 3. 更新缓存
         if price is not None:
-            self._price_cache[asset_code] = (price, datetime.now())
+            self._price_cache[asset_code] = (price, datetime.now(timezone.utc))
 
         return price
 

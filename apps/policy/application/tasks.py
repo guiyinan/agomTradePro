@@ -12,6 +12,7 @@ from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError
 from django.db.models import Count, Q
 from django.db import DatabaseError, IntegrityError
+from django.utils import timezone
 
 from ..domain.entities import PolicyLevel, PolicyEvent
 from ..infrastructure.repositories import DjangoPolicyRepository
@@ -43,6 +44,8 @@ def _get_notification_service():
     bind=True,
     max_retries=3,
     default_retry_delay=300,  # 5分钟后重试
+    time_limit=600,
+    soft_time_limit=570,
 )
 def check_policy_status_alert(self, as_of_date_str: Optional[str] = None):
     """
@@ -110,7 +113,7 @@ def check_policy_status_alert(self, as_of_date_str: Optional[str] = None):
             raise
 
 
-@shared_task
+@shared_task(time_limit=600, soft_time_limit=570)
 def monitor_policy_transitions():
     """
     监控政策档位变更
@@ -166,7 +169,7 @@ def monitor_policy_transitions():
         }
 
 
-@shared_task
+@shared_task(time_limit=600, soft_time_limit=570)
 def cleanup_old_policy_logs(days_to_keep: int = 365):
     """
     清理旧的政策日志
@@ -265,7 +268,9 @@ def _send_transition_summary(changes: list):
     autoretry_for=(Exception,),
     retry_backoff=True,
     retry_backoff_max=600,
-    retry_jitter=True
+    retry_jitter=True,
+    time_limit=600,
+    soft_time_limit=570,
 )
 def fetch_rss_sources(self, source_id: Optional[int] = None):
     """
@@ -338,7 +343,7 @@ def fetch_rss_sources(self, source_id: Optional[int] = None):
             raise
 
 
-@shared_task
+@shared_task(time_limit=600, soft_time_limit=570)
 def cleanup_old_rss_logs(days_to_keep: int = 90):
     """
     清理旧的RSS抓取日志
@@ -363,7 +368,7 @@ def cleanup_old_rss_logs(days_to_keep: int = 90):
 
 # ========== 审核相关任务 ==========
 
-@shared_task
+@shared_task(time_limit=600, soft_time_limit=570)
 def auto_assign_pending_audits(max_per_user: int = 10):
     """
     自动分配待审核的政策
@@ -430,7 +435,7 @@ def auto_assign_pending_audits(max_per_user: int = 10):
         }
 
 
-@shared_task
+@shared_task(time_limit=600, soft_time_limit=570)
 def cleanup_old_audit_queues(days_to_keep: int = 30):
     """
     清理旧的审核队列记录
@@ -460,7 +465,7 @@ def cleanup_old_audit_queues(days_to_keep: int = 30):
         return {"status": "error", "error": str(e)}
 
 
-@shared_task
+@shared_task(time_limit=600, soft_time_limit=570)
 def generate_daily_policy_summary():
     """
     生成每日政策摘要（增强版）
@@ -529,7 +534,9 @@ def generate_daily_policy_summary():
     max_retries=3,
     default_retry_delay=60,
     autoretry_for=(Exception,),
-    retry_backoff=True
+    retry_backoff=True,
+    time_limit=600,
+    soft_time_limit=570,
 )
 def trigger_signal_reevaluation(
     self,
@@ -604,7 +611,7 @@ def trigger_signal_reevaluation(
 
 # ========== 工作台相关任务 ==========
 
-@shared_task
+@shared_task(time_limit=600, soft_time_limit=570)
 def auto_assign_pending_audits_task(max_per_user: int = 10):
     """
     自动分配待审核的政策
@@ -617,7 +624,7 @@ def auto_assign_pending_audits_task(max_per_user: int = 10):
     return auto_assign_pending_audits(max_per_user)
 
 
-@shared_task
+@shared_task(time_limit=600, soft_time_limit=570)
 def monitor_sla_exceeded_task():
     """
     监控 SLA 超时事件
@@ -676,7 +683,7 @@ def monitor_sla_exceeded_task():
         }
 
 
-@shared_task
+@shared_task(time_limit=600, soft_time_limit=570)
 def refresh_gate_constraints_task():
     """
     刷新闸门约束

@@ -175,7 +175,7 @@ def qlib_train_model(
         model_path = train_config.get("model_path", "/models/qlib")
 
         # 计算数据版本
-        data_version = end_date or datetime.now().strftime("%Y-%m-%d")
+        data_version = end_date or timezone.now().strftime("%Y-%m-%d")
 
         # 1. 准备数据
         logger.info("  准备训练数据...")
@@ -648,7 +648,7 @@ def _save_model_artifact(
             "model_name": model_name,
             "artifact_hash": artifact_hash,
             "train_config": train_config,
-            "created_at": datetime.now().isoformat(),
+            "created_at": timezone.now().isoformat(),
         }, f, indent=2)
 
     # 保存指标
@@ -671,7 +671,7 @@ def _save_model_artifact(
     # 保存数据版本
     data_version_file = artifact_dir / "data_version.txt"
     with open(data_version_file, "w") as f:
-        f.write(train_config.get("end_date", datetime.now().strftime("%Y-%m-%d")))
+        f.write(train_config.get("end_date", timezone.now().strftime("%Y-%m-%d")))
 
     logger.info(f"模型已保存: {artifact_dir}")
 

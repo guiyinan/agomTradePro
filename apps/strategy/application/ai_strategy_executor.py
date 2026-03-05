@@ -12,6 +12,8 @@ import time
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
+from django.utils import timezone
+
 from apps.strategy.domain.entities import (
     Strategy,
     SignalRecommendation,
@@ -412,7 +414,7 @@ class AIStrategyExecutor:
         """
         context = {
             'portfolio_id': portfolio_id,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': timezone.now().isoformat()
         }
 
         # 获取宏观数据

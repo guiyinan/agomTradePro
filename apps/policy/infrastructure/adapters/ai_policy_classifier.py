@@ -11,6 +11,8 @@ import re
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
+from django.utils import timezone
+
 from apps.ai_provider.infrastructure.adapters import OpenAICompatibleAdapter, AIFailoverHelper
 from apps.ai_provider.infrastructure.repositories import AIProviderRepository
 from apps.ai_provider.domain.services import AICostCalculator
@@ -84,7 +86,7 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
         Returns:
             AIClassificationResult: 分类结果
         """
-        start_time = datetime.now()
+        start_time = timezone.now()
 
         # 构建提示词
         messages = self._build_classification_prompt(item, content)
@@ -96,7 +98,7 @@ class AIPolicyClassifier(PolicyClassifierProtocol):
             max_tokens=2000
         )
 
-        processing_time_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+        processing_time_ms = int((timezone.now() - start_time).total_seconds() * 1000)
 
         # 记录AI使用日志
         if self.usage_repo and ai_result.get('provider_used'):

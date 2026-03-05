@@ -12,7 +12,7 @@ import threading
 from collections import defaultdict, deque
 from copy import deepcopy
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Set
 
 from .entities import (
@@ -289,7 +289,7 @@ class InMemoryEventBus(EventBus):
             if not subscription.should_process(event):
                 continue
 
-            start_time = datetime.now()
+            start_time = datetime.now(timezone.utc)
             success = False
             error_message = None
             retry_count = 0
@@ -322,14 +322,14 @@ class InMemoryEventBus(EventBus):
 
             finally:
                 # 计算处理时间
-                processing_time = (datetime.now() - start_time).total_seconds() * 1000
+                processing_time = (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
                 self._update_avg_processing_time(processing_time)
 
                 # 保存快照
                 if self.config.enable_persistence:
                     snapshot = EventSnapshot(
                         event=event,
-                        processed_at=datetime.now(),
+                        processed_at=datetime.now(timezone.utc),
                         handler_id=subscription.handler.get_handler_id(),
                         success=success,
                         error_message=error_message,

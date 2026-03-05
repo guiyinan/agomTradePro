@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
     bind=True,
     max_retries=3,
     default_retry_delay=300,
+    time_limit=600,
+    soft_time_limit=570,
 )
 def check_all_signal_invalidations(self):
     """
@@ -71,6 +73,8 @@ def check_all_signal_invalidations(self):
     bind=True,
     max_retries=2,
     default_retry_delay=60,
+    time_limit=600,
+    soft_time_limit=570,
 )
 def check_single_signal_invalidation(self, signal_id: int):
     """
@@ -121,7 +125,7 @@ def check_single_signal_invalidation(self, signal_id: int):
         raise
 
 
-@shared_task(name='signal.cleanup_old_invalidated')
+@shared_task(name='signal.cleanup_old_invalidated', time_limit=600, soft_time_limit=570)
 def cleanup_old_invalidated_signals(days: int = 90):
     """
     清理旧的已证伪信号
@@ -153,7 +157,7 @@ def cleanup_old_invalidated_signals(days: int = 90):
         raise
 
 
-@shared_task(name='signal.daily_summary')
+@shared_task(name='signal.daily_summary', time_limit=600, soft_time_limit=570)
 def send_daily_signal_summary():
     """
     发送每日信号状态摘要

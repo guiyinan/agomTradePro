@@ -287,11 +287,11 @@ class Command(BaseCommand):
 
         end_date = options.get('end_date')
         if not end_date:
-            end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+            end_date = (timezone.now() - timedelta(days=1)).strftime('%Y-%m-%d')
 
         start_date = options.get('start_date')
         if not start_date:
-            start_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
+            start_date = (timezone.now() - timedelta(days=365)).strftime('%Y-%m-%d')
 
         return {
             'start_date': start_date,
@@ -377,7 +377,7 @@ class Command(BaseCommand):
                 'model_type': config.get('model_type'),
                 'artifact_hash': artifact_hash,
                 'train_config': config,
-                'created_at': datetime.now().isoformat(),
+                'created_at': timezone.now().isoformat(),
             }, f, indent=2)
 
         # 保存指标

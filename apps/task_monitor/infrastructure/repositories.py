@@ -270,5 +270,5 @@ class CeleryHealthChecker(CeleryHealthCheckerProtocol):
             active_tasks_count=active_tasks_count,
             pending_tasks_count=pending_tasks_count,
             scheduled_tasks_count=scheduled_tasks_count,
-            last_check=datetime.now(),
+            last_check=timezone.now(),
         )

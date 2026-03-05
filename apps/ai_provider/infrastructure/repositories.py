@@ -10,6 +10,7 @@ from decimal import Decimal
 import logging
 
 from django.db.models import Sum, Count, Q, Avg
+from django.utils import timezone
 from django.db.models.functions import TruncDate
 
 from .models import AIProviderConfig, AIUsageLog
@@ -155,7 +156,7 @@ class AIProviderRepository:
         """更新最后使用时间"""
         try:
             provider = AIProviderConfig._default_manager.get(pk=pk)
-            provider.last_used_at = datetime.now()
+            provider.last_used_at = timezone.now()
             provider.save(update_fields=['last_used_at'])
             return True
         except AIProviderConfig.DoesNotExist:
@@ -217,7 +218,7 @@ class AIUsageRepository:
         )
 
         # 更新提供商最后使用时间
-        provider.last_used_at = datetime.now()
+        provider.last_used_at = timezone.now()
         provider.save(update_fields=['last_used_at'])
 
         return log

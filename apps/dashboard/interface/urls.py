@@ -18,9 +18,6 @@ urlpatterns = [
     path('positions/', RedirectView.as_view(url='/dashboard/api/positions/', permanent=False), name='positions_list'),
     path('alpha/stocks/', RedirectView.as_view(url='/dashboard/api/alpha/stocks/', permanent=False), name='alpha_stocks'),
 
-    # 内部调试路由 (仅供开发调试使用，不对普通用户开放)
-    path('__internal/legacy/', RedirectView.as_view(url='/dashboard/', permanent=False), name='internal_legacy'),
-
     # API 路由 - 所有 HTMX 端点统一使用 /api/ 前缀
     path('api/position/<str:asset_code>/', views.position_detail_htmx, name='api_position_detail'),
     path('api/positions/', views.positions_list_htmx, name='api_positions_list'),

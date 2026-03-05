@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 
 from django.db import transaction
+from django.utils import timezone
 from django.db.models import Q
 
 from ..domain.entities import (
@@ -178,7 +179,7 @@ class DjangoPromptRepository:
             template_id: 模板ID
         """
         self._model.objects.filter(id=template_id).update(
-            last_used_at=datetime.now()
+            last_used_at=timezone.now()
         )
 
     @staticmethod

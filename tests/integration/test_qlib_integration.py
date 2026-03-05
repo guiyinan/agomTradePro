@@ -4,6 +4,7 @@ Integration Tests for Qlib Alpha Module
 测试 Qlib 模块的端到端功能。
 """
 
+import importlib.util
 import os
 import pytest
 from datetime import date, timedelta
@@ -327,6 +328,10 @@ class TestQlibIntegrationWithAlphaService:
 class TestQlibEndToEnd:
     """Qlib 端到端测试"""
 
+    @pytest.mark.skipif(
+        not importlib.util.find_spec("qlib"),
+        reason="qlib not installed"
+    )
     def test_full_prediction_flow(self):
         """测试完整的预测流程（使用模拟数据）"""
         from apps.alpha.application.tasks import _execute_qlib_prediction

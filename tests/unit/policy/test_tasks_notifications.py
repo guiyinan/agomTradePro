@@ -95,9 +95,13 @@ class TestNotificationServiceIntegration:
 class TestMonitorSlaExceededTask:
     """测试 SLA 超时监控任务"""
 
+    def setup_method(self):
+        """每个测试前重置通知服务"""
+        tasks._notification_service = None
+
     @patch('apps.policy.application.tasks.NotificationServiceFactory')
-    @patch('apps.policy.application.tasks.WorkbenchRepository')
-    @patch('apps.policy.application.tasks.PolicyLog')
+    @patch('apps.policy.infrastructure.repositories.WorkbenchRepository')
+    @patch('apps.policy.infrastructure.models.PolicyLog')
     @patch('apps.policy.application.tasks.timezone')
     def test_sla_exceeded_sends_alert(
         self, mock_timezone, mock_policy_log, mock_repo_cls, mock_factory
@@ -111,7 +115,7 @@ class TestMonitorSlaExceededTask:
         mock_config = Mock()
         mock_config.p23_sla_hours = 2
         mock_config.normal_sla_hours = 24
-        mock_repo.return_value.get_ingestion_config.return_value = mock_config
+        mock_repo_cls.return_value.get_ingestion_config.return_value = mock_config
 
         # 设置模拟的 PolicyLog 查询
         mock_p23_qs = Mock()
@@ -142,8 +146,8 @@ class TestMonitorSlaExceededTask:
         assert result["normal_exceeded"] == 5
 
     @patch('apps.policy.application.tasks.NotificationServiceFactory')
-    @patch('apps.policy.application.tasks.WorkbenchRepository')
-    @patch('apps.policy.application.tasks.PolicyLog')
+    @patch('apps.policy.infrastructure.repositories.WorkbenchRepository')
+    @patch('apps.policy.infrastructure.models.PolicyLog')
     @patch('apps.policy.application.tasks.timezone')
     def test_no_sla_exceeded_no_alert(
         self, mock_timezone, mock_policy_log, mock_repo_cls, mock_factory
@@ -155,7 +159,7 @@ class TestMonitorSlaExceededTask:
         mock_config = Mock()
         mock_config.p23_sla_hours = 2
         mock_config.normal_sla_hours = 24
-        mock_repo.return_value.get_ingestion_config.return_value = mock_config
+        mock_repo_cls.return_value.get_ingestion_config.return_value = mock_config
 
         mock_p23_qs = Mock()
         mock_p23_qs.count.return_value = 0
@@ -204,7 +208,7 @@ class TestCheckPolicyStatusAlert:
         )
         mock_status.latest_event = mock_event
 
-        mock_use_case.return_value.execute.return_value = mock_status
+        mock_use_case_cls.return_value.execute.return_value = mock_status
 
         # 执行任务
         result = tasks.check_policy_status_alert("2026-03-04")
@@ -234,7 +238,7 @@ class TestCheckPolicyStatusAlert:
         )
         mock_status.latest_event = mock_event
 
-        mock_use_case.return_value.execute.return_value = mock_status
+        mock_use_case_cls.return_value.execute.return_value = mock_status
 
         result = tasks.check_policy_status_alert("2026-03-04")
 
@@ -252,7 +256,7 @@ class TestCheckPolicyStatusAlert:
             mock_status.current_level = level
             mock_status.latest_event = Mock()
 
-            mock_use_case.return_value.execute.return_value = mock_status
+            mock_use_case_cls.return_value.execute.return_value = mock_status
 
             result = tasks.check_policy_status_alert("2026-03-04")
 
@@ -276,7 +280,7 @@ class TestMonitorPolicyTransitions:
         event1 = PolicyEvent(yesterday, PolicyLevel.P0, "Event 1", "Desc 1", "url1")
         event2 = PolicyEvent(today, PolicyLevel.P2, "Event 2", "Desc 2", "url2")
 
-        mock_repo.return_value.get_events_in_range.return_value = [event1, event2]
+        mock_repo_cls.return_value.get_events_in_range.return_value = [event1, event2]
 
         result = tasks.monitor_policy_transitions()
 
@@ -300,7 +304,7 @@ class TestMonitorPolicyTransitions:
         event1 = PolicyEvent(yesterday, PolicyLevel.P0, "Event 1", "Desc 1", "url1")
         event2 = PolicyEvent(today, PolicyLevel.P0, "Event 2", "Desc 2", "url2")
 
-        mock_repo.return_value.get_events_in_range.return_value = [event1, event2]
+        mock_repo_cls.return_value.get_events_in_range.return_value = [event1, event2]
 
         result = tasks.monitor_policy_transitions()
 
@@ -313,7 +317,7 @@ class TestMonitorPolicyTransitions:
         self, mock_repo_cls, mock_send_summary
     ):
         """测试事件不足时处理"""
-        mock_repo.return_value.get_events_in_range.return_value = [
+        mock_repo_cls.return_value.get_events_in_range.return_value = [
             PolicyEvent(date(2026, 3, 4), PolicyLevel.P0, "Event", "Desc", "url")
         ]
 

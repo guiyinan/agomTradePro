@@ -9,6 +9,8 @@ from typing import List, Union
 from datetime import datetime
 from dataclasses import replace
 
+from django.utils import timezone
+
 from apps.asset_analysis.domain.entities import AssetScore, AssetType, AssetStyle, AssetSize
 from apps.asset_analysis.domain.value_objects import ScoreContext, WeightConfig
 from apps.asset_analysis.domain.interfaces import WeightConfigRepositoryProtocol, AssetRepositoryProtocol
@@ -94,7 +96,7 @@ class MultiDimScreenUseCase:
             # 8. 构建响应
             return ScreenResponse(
                 success=True,
-                timestamp=datetime.now().isoformat(),
+                timestamp=timezone.now().isoformat(),
                 context=context.to_dict(),
                 weights=current_weights.to_dict(),
                 assets=asset_dtos,
@@ -103,7 +105,7 @@ class MultiDimScreenUseCase:
         except Exception as e:
             return ScreenResponse(
                 success=False,
-                timestamp=datetime.now().isoformat(),
+                timestamp=timezone.now().isoformat(),
                 context=context.to_dict(),
                 weights={},
                 assets=[],

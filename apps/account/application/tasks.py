@@ -31,6 +31,8 @@ logger = get_task_logger(__name__)
     bind=True,
     max_retries=3,
     default_retry_delay=300,  # 5分钟后重试
+    time_limit=600,
+    soft_time_limit=570,
 )
 def check_stop_loss_task(self, user_id: int = None):
     """
@@ -90,6 +92,8 @@ def check_stop_loss_task(self, user_id: int = None):
     bind=True,
     max_retries=3,
     default_retry_delay=300,
+    time_limit=600,
+    soft_time_limit=570,
 )
 def check_take_profit_task(self, user_id: int = None):
     """
@@ -125,6 +129,8 @@ def check_take_profit_task(self, user_id: int = None):
     bind=True,
     max_retries=3,
     default_retry_delay=300,
+    time_limit=600,
+    soft_time_limit=570,
 )
 def check_stop_loss_and_take_profit_task(self, user_id: int = None):
     """
@@ -293,6 +299,8 @@ def _send_take_profit_notifications(results: List, user_id: int = None):
     bind=True,
     max_retries=3,
     default_retry_delay=300,
+    time_limit=600,
+    soft_time_limit=570,
 )
 def check_volatility_and_adjust_task(self, user_id: int = None):
     """

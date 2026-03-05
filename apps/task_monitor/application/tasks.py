@@ -329,7 +329,7 @@ def task_revoked_handler(
 from celery import shared_task
 
 
-@shared_task
+@shared_task(time_limit=300, soft_time_limit=280)
 def cleanup_old_task_records(days_to_keep: int = 30) -> dict:
     """
     清理旧的任务记录
@@ -367,6 +367,8 @@ def cleanup_old_task_records(days_to_keep: int = 30) -> dict:
     bind=True,
     max_retries=3,
     default_retry_delay=300,  # 5 minutes
+    time_limit=300,
+    soft_time_limit=280,
 )
 def backup_database_task(
     self,
@@ -437,7 +439,7 @@ def backup_database_task(
         raise
 
 
-@shared_task
+@shared_task(time_limit=300, soft_time_limit=280)
 def verify_backup_task(backup_file: str) -> dict:
     """
     验证备份文件完整性

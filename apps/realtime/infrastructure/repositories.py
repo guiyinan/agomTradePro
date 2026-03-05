@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 
 from django.core.cache import cache
+from django.utils import timezone
 from django.db import models
 
 from apps.realtime.domain.entities import (
@@ -130,8 +131,8 @@ class TusharePriceDataProvider(PriceDataProviderProtocol):
             # 获取最新日线数据（使用 fetch_daily_data 方法）
             df = self.adapter.fetch_daily_data(
                 stock_code=ts_code,
-                start_date=(datetime.now() - timedelta(days=5)).strftime("%Y%m%d"),
-                end_date=datetime.now().strftime("%Y%m%d")
+                start_date=(timezone.now() - timedelta(days=5)).strftime("%Y%m%d"),
+                end_date=timezone.now().strftime("%Y%m%d")
             )
 
             if df is None or df.empty:
@@ -148,7 +149,7 @@ class TusharePriceDataProvider(PriceDataProviderProtocol):
                 change=None,  # Tushare日线数据不包含change字段，需要计算
                 change_pct=None,  # 同上
                 volume=int(latest.get("vol", 0)) if latest.get("vol") else None,
-                timestamp=datetime.now(),
+                timestamp=timezone.now(),
                 source="tushare"
             )
 
@@ -246,7 +247,7 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
                 change=str(latest.get("涨跌额", 0)) if latest.get("涨跌额") else None,
                 change_pct=str(latest.get("涨跌幅", 0)) if latest.get("涨跌幅") else None,
                 volume=int(latest.get("成交量", 0)) if latest.get("成交量") else None,
-                timestamp=datetime.now(),
+                timestamp=timezone.now(),
                 source="akshare"
             )
 
@@ -283,7 +284,7 @@ class AKSharePriceDataProvider(PriceDataProviderProtocol):
                         change=str(latest.get("涨跌额", 0)) if latest.get("涨跌额") else None,
                         change_pct=str(latest.get("涨跌幅", 0)) if latest.get("涨跌幅") else None,
                         volume=int(latest.get("成交量", 0)) if latest.get("成交量") else None,
-                        timestamp=datetime.now(),
+                        timestamp=timezone.now(),
                         source="akshare"
                     ))
 

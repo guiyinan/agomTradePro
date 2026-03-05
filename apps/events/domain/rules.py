@@ -7,7 +7,7 @@ Events Domain Rules
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set
 from enum import Enum
 
@@ -162,11 +162,11 @@ class EventDeduplicationRule(Rule):
         # 检查是否在时间窗口内
         if signature in self._seen_events:
             last_seen = self._seen_events[signature]
-            if (datetime.now() - last_seen).total_seconds() < self.dedup_window:
+            if (datetime.now(timezone.utc) - last_seen).total_seconds() < self.dedup_window:
                 return True  # 重复事件
 
         # 更新最后见时间
-        self._seen_events[signature] = datetime.now()
+        self._seen_events[signature] = datetime.now(timezone.utc)
         return False
 
     def _create_signature(self, event: DomainEvent) -> str:
@@ -206,7 +206,7 @@ class EventDeduplicationRule(Rule):
         Returns:
             清理的数量
         """
-        cutoff = datetime.now() - timedelta(seconds=older_than)
+        cutoff = datetime.now(timezone.utc) - timedelta(seconds=older_than)
         to_remove = [
             sig for sig, ts in self._seen_events.items()
             if ts < cutoff
@@ -249,7 +249,7 @@ class EventThrottleRule(Rule):
             return False
 
         event_type = event.event_type.value
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
 
         # 获取该类型事件的时间戳列表
         timestamps = self._event_counts.setdefault(event_type, [])
@@ -295,7 +295,7 @@ class EventAgeRule(Rule):
         if not event or not isinstance(event, DomainEvent):
             return False
 
-        age = (datetime.now() - event.occurred_at).total_seconds()
+        age = (datetime.now(timezone.utc) - event.occurred_at).total_seconds()
         return age > self.max_age_seconds
 
 

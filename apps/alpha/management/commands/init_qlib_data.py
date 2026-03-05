@@ -157,7 +157,7 @@ class Command(BaseCommand):
 
             # 检查最近数据
             from datetime import datetime, timedelta
-            end_date = datetime.now()
+            end_date = timezone.now()
             start_date = end_date - timedelta(days=7)
 
             # 尝试获取一些数据
@@ -226,7 +226,7 @@ class Command(BaseCommand):
             self.stdout.write(f'  股票池大小: {len(instruments)}')
 
             # 检查数据范围
-            end_date = datetime.now()
+            end_date = timezone.now()
             start_date = end_date - timedelta(days=days)
 
             # 尝试获取数据

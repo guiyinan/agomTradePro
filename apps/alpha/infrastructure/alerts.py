@@ -10,6 +10,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Callable, Dict, List, Optional
 
+from django.utils import timezone
+
 from shared.infrastructure.metrics import AlertRule, AlertManager, get_alpha_metrics
 
 
@@ -285,7 +287,7 @@ class AlphaAlertManager(AlertManager):
                         metric_name=rule.metric_name,
                         current_value=metric.value,
                         threshold=rule.threshold,
-                        timestamp=datetime.now()
+                        timestamp=timezone.now()
                     )
 
                     notifications.append(notification)

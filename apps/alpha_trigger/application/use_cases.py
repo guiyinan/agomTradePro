@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
+from django.utils import timezone
+
 from ..domain.entities import (
     AlphaTrigger,
     AlphaCandidate,
@@ -297,7 +299,7 @@ class CreateAlphaTriggerUseCase:
             # 计算过期时间
             expires_at = None
             if request.expires_in_days:
-                expires_at = datetime.now() + timedelta(days=request.expires_in_days)
+                expires_at = timezone.now() + timedelta(days=request.expires_in_days)
 
             # 创建触发器
             trigger = AlphaTrigger(
@@ -310,7 +312,7 @@ class CreateAlphaTriggerUseCase:
                 invalidation_conditions=invalidation_conditions,
                 strength=strength,
                 confidence=request.confidence,
-                created_at=datetime.now(),
+                created_at=timezone.now(),
                 expires_at=expires_at,
                 status=TriggerStatus.ACTIVE,
                 source_signal_id=request.source_signal_id,
@@ -455,7 +457,7 @@ class CheckTriggerInvalidationUseCase:
                 updated_trigger = self.trigger_repository.update_status(
                     trigger_id=request.trigger_id,
                     status=TriggerStatus.INVALIDATED,
-                    invalidated_at=datetime.now(),
+                    invalidated_at=timezone.now(),
                 )
 
                 # 发布事件
@@ -555,7 +557,7 @@ class EvaluateAlphaTriggerUseCase:
                 updated_trigger = self.trigger_repository.update_status(
                     trigger_id=request.trigger_id,
                     status=TriggerStatus.TRIGGERED,
-                    triggered_at=datetime.now(),
+                    triggered_at=timezone.now(),
                 )
 
                 # 发布事件

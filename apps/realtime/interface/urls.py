@@ -18,17 +18,11 @@ app_name = "realtime"
 
 urlpatterns = [
     # Page redirect (legacy support)
-    path("", RedirectView.as_view(url="/realtime/api/prices/", permanent=False), name="home"),
+    path("", RedirectView.as_view(url="/api/realtime/prices/", permanent=False), name="home"),
 
     # API routes - new standard format (when mounted under /api/realtime/)
     path("prices/", RealtimePriceView.as_view(), name="price-list"),
     path("prices/<str:asset_code>/", SingleAssetPriceView.as_view(), name="price-detail"),
     path("poll/", PricePollingTriggerView.as_view(), name="trigger-poll"),
     path("health/", HealthCheckView.as_view(), name="health-check"),
-
-    # API routes - legacy format (backward compatibility when mounted under /realtime/)
-    path("api/prices/", RealtimePriceView.as_view(), name="price-list_legacy"),
-    path("api/prices/<str:asset_code>/", SingleAssetPriceView.as_view(), name="price-detail_legacy"),
-    path("api/poll/", PricePollingTriggerView.as_view(), name="trigger-poll_legacy"),
-    path("api/health/", HealthCheckView.as_view(), name="health-check_legacy"),
 ]

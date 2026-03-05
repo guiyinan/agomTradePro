@@ -15,6 +15,8 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional, Dict, Any
 
+from django.utils import timezone
+
 from apps.simulated_trading.infrastructure.market_data_provider import MarketDataProvider
 
 logger = logging.getLogger(__name__)
@@ -134,7 +136,7 @@ class MarketPriceService:
             "price": price,
             "asset_code": asset_code,
             "source": "MarketDataProvider",  # 数据源
-            "timestamp": datetime.now(),
+            "timestamp": timezone.now(),
             "trade_date": trade_date or date.today(),
         }
 

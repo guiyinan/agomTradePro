@@ -15,12 +15,12 @@ from django.utils import timezone
 from django.db.models import Count, Sum, Avg
 
 # Import models and repositories
-from apps.macro.infrastructure.models import MacroIndicator, DataSource
+from apps.macro.infrastructure.models import MacroIndicator, DataSourceConfig
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
-from apps.macro.application.use_cases import FetchMacroDataUseCase
-from apps.regime.infrastructure.models import RegimeState
+from apps.macro.application.use_cases import SyncMacroDataUseCase, SyncMacroDataRequest
+from apps.regime.infrastructure.models import RegimeLog
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
-from apps.regime.application.use_cases import CalculateRegimeUseCase
+from apps.regime.application.use_cases import CalculateRegimeUseCase, CalculateRegimeRequest
 from apps.policy.infrastructure.models import PolicyLog
 from apps.policy.infrastructure.repositories import DjangoPolicyRepository
 from apps.signal.infrastructure.models import InvestmentSignalModel
@@ -71,7 +71,7 @@ class DataConnectionTester:
             self.log_result("Database", "宏观数据表", "success", f"找到 {macro_count} 条记录")
 
             # Test regime table
-            regime_count = RegimeState.objects.count()
+            regime_count = RegimeLog.objects.count()
             self.log_result("Database", "Regime表", "success", f"找到 {regime_count} 条记录")
 
             # Test policy table
@@ -170,26 +170,27 @@ class DataConnectionTester:
                 self.log_result("Macro", "CPI数据", "warning", "暂无CPI数据")
 
             # Check data sources
-            source_count = DataSource.objects.count()
-            active_sources = DataSource.objects.filter(is_active=True).count()
+            source_count = DataSourceConfig.objects.count()
+            active_sources = DataSourceConfig.objects.filter(is_active=True).count()
             self.log_result("Macro", "数据源配置", "success",
                           f"共 {source_count} 个源，{active_sources} 个激活")
 
             # Try to fetch new data
             self.stdout.write("\n   🔄 尝试获取最新PMI数据...")
             try:
-                use_case = FetchMacroDataUseCase(macro_repo=repo)
-                result = use_case.execute(
-                    indicator_code='PMI',
-                    source_name='akshare',
-                    days_back=5
+                use_case = SyncMacroDataUseCase(repository=repo)
+                request = SyncMacroDataRequest(
+                    start_date=(timezone.now() - timedelta(days=5)).date(),
+                    end_date=timezone.now().date(),
+                    indicators=['PMI'],
                 )
+                result = use_case.execute(request)
                 if result.success:
                     self.log_result("Macro", "PMI数据更新", "success",
-                                  f"成功获取 {len(result.fetched)} 条新数据")
+                                  f"同步成功，新增 {result.synced_count} 条，跳过 {result.skipped_count} 条")
                 else:
                     self.log_result("Macro", "PMI数据更新", "warning",
-                                  f"更新失败: {result.error_message}")
+                                  f"同步失败: {', '.join(result.errors) if result.errors else '未知错误'}")
             except Exception as e:
                 self.log_result("Macro", "PMI数据更新", "error", str(e))
 
@@ -208,37 +209,43 @@ class DataConnectionTester:
             repo = DjangoRegimeRepository()
 
             # Get latest regime
-            latest = repo.get_latest_regime()
+            latest = repo.get_latest_snapshot()
             if latest:
                 self.log_result("Regime", "最新Regime状态", "success",
-                              f"日期: {latest.date}, "
-                              f"象限: {latest.quadrant}, "
+                              f"日期: {latest.observed_at}, "
+                              f"象限: {latest.dominant_regime}, "
                               f"置信度: {latest.confidence:.2%}")
             else:
                 self.log_result("Regime", "最新Regime状态", "warning", "暂无Regime数据")
 
             # Check regime distribution
-            all_regimes = repo.get_all_regimes()
+            all_regimes = repo.get_snapshots_in_range(
+                start_date=date(2000, 1, 1),
+                end_date=timezone.now().date(),
+            )
             if all_regimes:
                 distribution = {}
                 for r in all_regimes:
-                    distribution[r.quadrant] = distribution.get(r.quadrant, 0) + 1
+                    distribution[r.dominant_regime] = distribution.get(r.dominant_regime, 0) + 1
                 self.log_result("Regime", "Regime历史数据", "success",
                               f"共 {len(all_regimes)} 条记录，分布: {distribution}")
 
             # Try to calculate new regime
             self.stdout.write("\n   🔄 尝试计算最新Regime...")
             try:
-                use_case = CalculateRegimeUseCase(regime_repo=repo)
-                result = use_case.execute()
+                use_case = CalculateRegimeUseCase(
+                    repository=DjangoMacroRepository(),
+                    regime_repository=repo,
+                )
+                result = use_case.execute(
+                    request=CalculateRegimeRequest(as_of_date=timezone.now().date())
+                )
                 if result.success:
                     self.log_result("Regime", "Regime计算", "success",
-                                  f"计算成功 - {result.quadrant}, "
-                                  f"增长Z: {result.growth_z:.2f}, "
-                                  f"通胀Z: {result.inflation_z:.2f}")
+                                  f"计算成功 - {result.snapshot.dominant_regime if result.snapshot else 'N/A'}")
                 else:
                     self.log_result("Regime", "Regime计算", "error",
-                                  f"计算失败: {result.error_message}")
+                                  f"计算失败: {result.error or '未知错误'}")
             except Exception as e:
                 self.log_result("Regime", "Regime计算", "error", str(e))
 
@@ -425,10 +432,10 @@ class DataConnectionTester:
                 self.log_result("Consistency", "信号资产元数据", "success", "正常")
 
             # Check if regime states have macro data
-            latest_regime = RegimeState.objects.order_by('-date').first()
+            latest_regime = RegimeLog.objects.order_by('-observed_at').first()
             if latest_regime:
                 macro_exists = MacroIndicator.objects.filter(
-                    indicator_date__lte=latest_regime.date
+                    reporting_period__lte=latest_regime.observed_at
                 ).exists()
                 if macro_exists:
                     self.log_result("Consistency", "Regime-宏观数据", "success", "正常")

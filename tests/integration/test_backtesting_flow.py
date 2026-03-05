@@ -27,6 +27,11 @@ os.environ.setdefault("AGOMSAAF_API_TOKEN", "test-token")
 
 from sdk.agomsaaf import AgomSAAFClient
 
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("AGOMSAAF_LIVE_SERVER"),
+    reason="Requires running server (set AGOMSAAF_LIVE_SERVER=1)"
+)
+
 
 def print_step(step: int, description: str) -> None:
     """Print a test step"""

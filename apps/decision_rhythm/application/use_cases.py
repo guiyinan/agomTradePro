@@ -9,7 +9,7 @@ Decision Rhythm Application Use Cases
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from django.utils import timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
@@ -1011,7 +1011,7 @@ class ExecuteDecisionUseCase:
             self.request_repo.update_execution_status(
                 request_id=request.request_id,
                 execution_status=ExecutionStatus.EXECUTED,
-                executed_at=datetime.now(),
+                executed_at=timezone.now(),
                 execution_ref=execution_ref,
             )
 
@@ -1035,7 +1035,7 @@ class ExecuteDecisionUseCase:
             result = ExecutionResult(
                 request_id=request.request_id,
                 execution_status="EXECUTED",
-                executed_at=datetime.now(),
+                executed_at=timezone.now(),
                 execution_ref=execution_ref,
                 candidate_status=candidate_status,
             )
@@ -2205,7 +2205,7 @@ class UpdateModelParamUseCase:
                     updated_by=request.updated_by,
                     updated_reason=request.updated_reason,
                     created_at=old_config.created_at,
-                    updated_at=datetime.now(),
+                    updated_at=timezone.now(),
                 )
             else:
                 config = ModelParamConfig(
@@ -2491,7 +2491,7 @@ class GenerateUnifiedRecommendationsUseCase:
                 snapshot = DecisionFeatureSnapshot(
                     snapshot_id=f"fsn_{uuid4().hex[:12]}",
                     security_code=security_code,
-                    snapshot_time=datetime.now(),
+                    snapshot_time=timezone.now(),
                     regime=regime_data.get("regime", "") if regime_data else "",
                     regime_confidence=regime_data.get("confidence", 0.0) if regime_data else 0.0,
                     policy_level=policy_level or "",

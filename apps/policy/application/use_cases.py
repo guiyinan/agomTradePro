@@ -1014,16 +1014,16 @@ class FetchRSSUseCase:
                         structured_data=structured_data_dict
                     )
 
-            except (AIServiceError, ExternalServiceError) as e:
-                # External service error - keep pending and continue
-                logger.warning(f"Failed to process RSS item {item.link} (service error): {e}, keeping pending raw record")
+            except Exception as e:
+                # Processing error - keep pending raw record and continue
+                logger.warning(f"Failed to process RSS item {item.link} (error): {e}, keeping pending raw record")
                 record_exception(e, module="policy", is_handled=True)
                 try:
                     if policy_log_orm:
                         policy_log_orm.processing_metadata = {
                             **(policy_log_orm.processing_metadata or {}),
                             'error': str(e),
-                            'error_type': 'external_service',
+                            'error_type': type(e).__name__,
                             'saved_as_pending': True,
                             'processing_stage': 'failed'
                         }

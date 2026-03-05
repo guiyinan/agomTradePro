@@ -9,7 +9,7 @@ Decision Rhythm Domain Services
 
 import logging
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from uuid import uuid4
@@ -453,7 +453,7 @@ class RhythmManager:
     def _schedule_execution(self, request: DecisionRequest) -> datetime:
         """调度执行时间"""
         # 立即执行（实际应该考虑交易时间等）
-        return datetime.now()
+        return datetime.now(timezone.utc)
 
     def get_summary(self) -> Dict[str, Any]:
         """获取决策节奏摘要"""
@@ -1212,7 +1212,7 @@ class RecommendationConsolidationService:
             account_id=account_id,
             valuation_snapshot_id=first.valuation_snapshot_id,  # 使用第一条的快照
             source_recommendation_ids=all_source_ids,
-            created_at=datetime.now(),
+            created_at=datetime.now(timezone.utc),
             status="CONSOLIDATED",
         )
 
@@ -1303,7 +1303,7 @@ class ExecutionApprovalService:
             reviewer_comments=reviewer_comments,
             regime_source=approval_request.regime_source,
             created_at=approval_request.created_at,
-            reviewed_at=datetime.now(),
+            reviewed_at=datetime.now(timezone.utc),
             executed_at=None,
         )
 
@@ -1345,7 +1345,7 @@ class ExecutionApprovalService:
             reviewer_comments=reviewer_comments,
             regime_source=approval_request.regime_source,
             created_at=approval_request.created_at,
-            reviewed_at=datetime.now(),
+            reviewed_at=datetime.now(timezone.utc),
             executed_at=None,
         )
 
@@ -1386,7 +1386,7 @@ class ExecutionApprovalService:
             regime_source=approval_request.regime_source,
             created_at=approval_request.created_at,
             reviewed_at=approval_request.reviewed_at,
-            executed_at=datetime.now(),
+            executed_at=datetime.now(timezone.utc),
         )
 
     def mark_failed(
@@ -1416,7 +1416,7 @@ class ExecutionApprovalService:
         updated_risk_checks["execution_error"] = {
             "passed": False,
             "reason": error_message,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         return ExecutionApprovalRequest(
@@ -1817,7 +1817,7 @@ class RecommendationAggregator:
             feature_snapshot_id=best.feature_snapshot_id,
             status=best.status,
             created_at=best.created_at,
-            updated_at=datetime.now(),
+            updated_at=datetime.now(timezone.utc),
         )
 
 

@@ -46,8 +46,4 @@ urlpatterns = [
     # API routes - new standard format (when mounted under /api/signal/)
     path('', include(router.urls)),
     path('health/', SignalHealthView.as_view(), name='health'),
-
-    # API routes - legacy format (backward compatibility when mounted under /signal/)
-    path('api/', include(router.urls)),
-    path('api/health/', SignalHealthView.as_view(), name='health_legacy'),
 ]

@@ -8,7 +8,7 @@ Beta Gate Domain Entities
 """
 
 from dataclasses import InitVar, dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -378,7 +378,7 @@ class GateDecision:
         ...     current_regime="Recovery",
         ...     policy_level=0,
         ...     regime_confidence=0.7,
-        ...     evaluated_at=datetime.now()
+        ...     evaluated_at=datetime.now(timezone.utc)
         ... )
         >>> if decision.is_passed:
         ...     print(f"{decision.asset_code} 通过闸门")
@@ -408,7 +408,7 @@ class GateDecision:
 
     def __post_init__(self) -> None:
         if self.evaluated_at is None:
-            self.evaluated_at = self.created_at or datetime.now()
+            self.evaluated_at = self.created_at or datetime.now(timezone.utc)
         if self.created_at is None:
             self.created_at = self.evaluated_at
         if self.is_passed is None:
@@ -527,7 +527,7 @@ class GateConfig:
     _is_valid_override: Optional[bool] = field(default=None, init=False, repr=False)
 
     def __post_init__(self, is_valid: Optional[bool] = None):
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         # dataclass InitVar and same-name @property can leak the property object
         # into __post_init__ when caller doesn't pass is_valid.
         self._is_valid_override = None if isinstance(is_valid, property) else is_valid
@@ -549,7 +549,7 @@ class GateConfig:
         if self._is_valid_override is not None:
             return self._is_valid_override
         tz = self.valid_from.tzinfo if self.valid_from and getattr(self.valid_from, "tzinfo", None) else None
-        now = datetime.now(tz) if tz else datetime.now()
+        now = datetime.now(tz) if tz else datetime.now(timezone.utc)
         if not self.is_active or self.is_expired:
             return False
         if self.valid_from and now < self.valid_from:

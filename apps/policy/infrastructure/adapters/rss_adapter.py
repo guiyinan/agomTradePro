@@ -8,6 +8,8 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Protocol
 from datetime import datetime
 
+from django.utils import timezone
+
 from ...domain.entities import RSSItem, RSSSourceConfig, ProxyConfig
 
 
@@ -99,7 +101,7 @@ class BaseRSSAdapter(ABC):
         try:
             return parsedate_to_datetime(date_str)
         except Exception:
-            return datetime.now()
+            return timezone.now()
 
     def _get_dedup_key(self, item: RSSItem) -> str:
         """

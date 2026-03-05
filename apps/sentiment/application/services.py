@@ -11,6 +11,8 @@ import logging
 from typing import List, Optional
 from datetime import datetime
 
+from django.utils import timezone
+
 from apps.sentiment.domain.entities import (
     SentimentAnalysisResult,
     SentimentIndex,
@@ -83,7 +85,7 @@ class SentimentAnalyzer:
                 confidence=0.0,
                 category=SentimentCategory.NEUTRAL,
                 keywords=[],
-                analyzed_at=datetime.now(),
+                analyzed_at=timezone.now(),
                 error_message=f"AI 调用失败: {response.get('error', 'Unknown error')}",
             )
 
@@ -98,7 +100,7 @@ class SentimentAnalyzer:
             confidence=confidence,
             category=category,
             keywords=keywords,
-            analyzed_at=datetime.now(),
+            analyzed_at=timezone.now(),
         )
 
     def analyze_batch(self, texts: List[str]) -> List[SentimentAnalysisResult]:
@@ -383,7 +385,7 @@ class SentimentIndexCalculator:
         data_sufficient = len(news_scores) > 0 or len(policy_scores) > 0
 
         return SentimentIndex(
-            index_date=datetime.now(),
+            index_date=timezone.now(),
             news_sentiment=news_sentiment,
             policy_sentiment=policy_sentiment,
             composite_index=composite_index,

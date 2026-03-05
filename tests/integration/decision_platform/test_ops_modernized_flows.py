@@ -59,7 +59,9 @@ class TestOpsModernizedFlows:
         provider.refresh_from_db()
         assert provider.priority == 5
         assert provider.default_model == "gpt-4o"
-        assert provider.api_key == "sk-test-original"
+        # api_key is cleared after encryption; verify it was preserved via encrypted field
+        assert provider.api_key == ""  # plaintext cleared after encryption
+        assert provider.api_key_encrypted  # encrypted key should exist
         assert provider.extra_config == {"timeout": 30, "retry": 2}
 
     def test_beta_gate_create_edit_activate_without_admin(self):

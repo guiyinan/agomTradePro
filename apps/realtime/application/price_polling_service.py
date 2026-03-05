@@ -9,9 +9,10 @@ Following AgomSaaS architecture rules:
 """
 
 import logging
-from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional
+
+from django.utils import timezone
 
 from apps.realtime.domain.entities import (
     PricePollingConfig,
@@ -63,7 +64,7 @@ class PricePollingService:
         if total_assets == 0:
             logger.warning("No assets to monitor")
             return PriceSnapshot(
-                timestamp=datetime.now(),
+                timestamp=timezone.now(),
                 prices=[],
                 total_assets=0,
                 success_count=0,
@@ -92,7 +93,7 @@ class PricePollingService:
         )
 
         return PriceSnapshot(
-            timestamp=datetime.now(),
+            timestamp=timezone.now(),
             prices=prices,
             total_assets=total_assets,
             success_count=success_count,
@@ -123,7 +124,7 @@ class PricePollingService:
                 old_price=Decimal(old_price.price) if old_price else None,
                 new_price=None,
                 status=PriceUpdateStatus.FAILED,
-                timestamp=datetime.now(),
+                timestamp=timezone.now(),
                 error_message="Failed to fetch price from data provider"
             )
 
@@ -143,7 +144,7 @@ class PricePollingService:
             old_price=Decimal(old_price.price) if old_price else None,
             new_price=Decimal(new_price.price),
             status=status,
-            timestamp=datetime.now()
+            timestamp=timezone.now()
         )
 
         logger.debug(
@@ -192,7 +193,7 @@ class PricePollingService:
                 old_price=old_price,
                 new_price=new_price,
                 status=PriceUpdateStatus.SUCCESS if old_price != new_price else PriceUpdateStatus.NO_CHANGE,
-                timestamp=datetime.now()
+                timestamp=timezone.now()
             ))
 
         logger.info(f"Updated {len(updates)} position prices")

@@ -8,6 +8,7 @@ from datetime import date, datetime
 from typing import List, Optional, Dict
 
 from django.db import transaction
+from django.utils import timezone
 from django.db.models import Max, Q
 
 from ..domain.entities import MacroIndicator, PeriodType
@@ -388,7 +389,7 @@ class DjangoMacroRepository:
             # 考虑发布延迟
             query = query.filter(published_at__lte=as_of_date)
         else:
-            query = query.filter(published_at__lte=datetime.now().date())
+            query = query.filter(published_at__lte=timezone.now().date())
 
         latest = query.order_by('-reporting_period').first()
         if latest:

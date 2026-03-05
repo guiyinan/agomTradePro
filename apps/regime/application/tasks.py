@@ -20,7 +20,9 @@ logger = get_task_logger(__name__)
     max_retries=3,
     default_retry_delay=300,
     autoretry_for=(Exception,),
-    retry_backoff=True
+    retry_backoff=True,
+    time_limit=600,
+    soft_time_limit=570,
 )
 def calculate_regime_task(
     self,
@@ -80,7 +82,7 @@ def calculate_regime_task(
         raise
 
 
-@shared_task
+@shared_task(time_limit=600, soft_time_limit=570)
 def notify_regime_change(regime_result: dict) -> dict:
     """
     发送 Regime 变化通知
@@ -138,7 +140,7 @@ def notify_regime_change(regime_result: dict) -> dict:
         raise
 
 
-@shared_task
+@shared_task(time_limit=600, soft_time_limit=570)
 def check_regime_health() -> dict:
     """
     检查 Regime 计算健康状态

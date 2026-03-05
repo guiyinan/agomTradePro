@@ -6,7 +6,7 @@ Dashboard Domain Services
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Union
 
@@ -70,7 +70,7 @@ class MetricCalculationResult:
     trend: Optional[str] = None
     trend_value: Optional[float] = None
     severity: Optional[AlertSeverity] = None
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -172,7 +172,7 @@ class DashboardLayoutService:
                 "layout_id": layout.layout_id,
                 "columns": layout.columns,
                 "row_height": layout.row_height,
-                "resolved_at": datetime.now().isoformat(),
+                "resolved_at": datetime.now(timezone.utc).isoformat(),
             }
         )
 
@@ -507,7 +507,7 @@ class DashboardAlertService:
         """
         cooldown_state = cooldown_state or {}
         triggered_alerts = []
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
 
         for config in alert_configs:
             if not config.is_enabled:

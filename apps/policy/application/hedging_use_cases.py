@@ -9,6 +9,8 @@ from typing import Optional, Dict, List
 from datetime import datetime
 from dataclasses import dataclass
 
+from django.utils import timezone
+
 
 @dataclass
 class HedgeCalculationResult:
@@ -152,7 +154,7 @@ class ExecuteHedgingUseCase:
             hedge_value=calculation.hedge_value,
             execution_price=Decimal('0'),  # 实际执行时更新
             cost=calculation.estimated_cost,
-            executed_at=datetime.now(),
+            executed_at=timezone.now(),
         )
 
 

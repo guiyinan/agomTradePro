@@ -9,8 +9,6 @@ from django.views.generic import RedirectView
 from rest_framework.routers import DefaultRouter
 from .views import (
     PolicyStatusView,
-    PolicyEventListView,
-    PolicyEventDetailView,
     RSSSourceConfigViewSet,
     RSSFetchLogViewSet,
     PolicyLevelKeywordViewSet,
@@ -50,12 +48,6 @@ urlpatterns = [
     path("rss/keywords/new/", RedirectView.as_view(url='/policy/workbench/', permanent=True), name="rss-keyword-create"),
     path("rss/keywords/<int:keyword_id>/edit/", RedirectView.as_view(url='/policy/workbench/', permanent=True), name="rss-keyword-edit"),
     path("rss/logs/", RedirectView.as_view(url='/policy/workbench/', permanent=True), name="rss-logs"),
-
-    # 政策事件列表 (API) - legacy format (backward compatibility)
-    # Note: These API routes are kept for backward compatibility but will be deprecated
-    # New API routes are available at /api/policy/
-    path("events/", PolicyEventListView.as_view(), name="event-list"),
-    path("events/<str:event_date>/", PolicyEventDetailView.as_view(), name="event-detail-api-legacy"),
 
     # ========== 审核相关API ==========
     path("audit/review/<int:policy_log_id>/", ReviewPolicyItemView.as_view(), name="review-policy"),

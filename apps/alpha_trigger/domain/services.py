@@ -9,7 +9,7 @@ Alpha 事件触发的核心业务逻辑实现。
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from .entities import (
@@ -331,7 +331,7 @@ class TriggerInvalidator:
         else:
             return False, "无效的触发时间格式", {}
 
-        now = datetime.now(triggered_at.tzinfo) if triggered_at.tzinfo else datetime.now()
+        now = datetime.now(triggered_at.tzinfo) if triggered_at.tzinfo else datetime.now(timezone.utc)
         elapsed = now - triggered_at
         hours_elapsed = elapsed.total_seconds() / 3600
         days_elapsed = elapsed.days
@@ -446,8 +446,8 @@ class CandidateGenerator:
             time_horizon=time_window_days,
             expected_asymmetry=asymmetry,
             status=status,
-            created_at=datetime.now(),
-            updated_at=datetime.now(),
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
             audit_trail=[f"从触发器 {trigger.trigger_id} 生成"],
         )
 

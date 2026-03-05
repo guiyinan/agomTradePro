@@ -9,6 +9,8 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from enum import Enum
 
+from django.utils import timezone
+
 from ..domain.entities import EventType
 
 
@@ -79,7 +81,7 @@ class BaseResponseDTO:
     success: bool
     message: Optional[str] = None
     error_code: Optional[str] = None
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    timestamp: str = field(default_factory=lambda: timezone.now().isoformat())
 
 
 @dataclass

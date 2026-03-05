@@ -8,6 +8,8 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from django.utils import timezone
+
 from celery import shared_task
 from celery.utils.log import get_task_logger
 
@@ -104,7 +106,7 @@ def publish_event_async(
             "success": True,
             "event_id": event.event_id,
             "event_type": event_type,
-            "published_at": datetime.now().isoformat(),
+            "published_at": timezone.now().isoformat(),
         }
 
     except Exception as exc:
@@ -264,7 +266,7 @@ def replay_events_async(
             "success": True,
             "events_replayed": count,
             "event_type": event_type,
-            "replayed_at": datetime.now().isoformat(),
+            "replayed_at": timezone.now().isoformat(),
         }
 
     except Exception as exc:
@@ -312,7 +314,7 @@ def cleanup_old_events(
         from django.db import transaction
         from ..infrastructure.event_store import StoredEventModel
 
-        cutoff = datetime.now() - timedelta(days=older_than_days)
+        cutoff = timezone.now() - timedelta(days=older_than_days)
 
         # 获取要删除的事件 ID
         event_ids = list(
@@ -340,7 +342,7 @@ def cleanup_old_events(
             "success": True,
             "deleted_count": deleted_count,
             "older_than_days": older_than_days,
-            "cleaned_at": datetime.now().isoformat(),
+            "cleaned_at": timezone.now().isoformat(),
         }
 
     except Exception as exc:
@@ -379,7 +381,7 @@ def cleanup_old_snapshots(
         from datetime import timedelta
         from ..infrastructure.event_store import EventSnapshotModel
 
-        cutoff = datetime.now() - timedelta(days=older_than_days)
+        cutoff = timezone.now() - timedelta(days=older_than_days)
 
         # 获取所有快照
         snapshots = EventSnapshotModel._default_manager.filter(
@@ -418,7 +420,7 @@ def cleanup_old_snapshots(
             "deleted_count": deleted_count,
             "older_than_days": older_than_days,
             "keep_latest": keep_latest,
-            "cleaned_at": datetime.now().isoformat(),
+            "cleaned_at": timezone.now().isoformat(),
         }
 
     except Exception as exc:
@@ -477,7 +479,7 @@ def collect_event_metrics(self) -> Dict[str, Any]:
                 "total_events": stored_metrics.total_events,
                 "events_by_type": stored_metrics.events_by_type,
             },
-            "collected_at": datetime.now().isoformat(),
+            "collected_at": timezone.now().isoformat(),
         }
 
         logger.info(f"Event metrics collected: {memory_metrics.total_published} published, {memory_metrics.total_processed} processed")
@@ -534,7 +536,7 @@ def event_bus_health_check(self) -> Dict[str, Any]:
                 "total_subscribers": metrics.total_subscribers,
                 "avg_processing_time_ms": metrics.avg_processing_time_ms,
             },
-            "checked_at": datetime.now().isoformat(),
+            "checked_at": timezone.now().isoformat(),
         }
 
     except Exception as exc:
@@ -543,6 +545,6 @@ def event_bus_health_check(self) -> Dict[str, Any]:
             "success": False,
             "is_healthy": False,
             "error": str(exc),
-            "checked_at": datetime.now().isoformat(),
+            "checked_at": timezone.now().isoformat(),
         }
 

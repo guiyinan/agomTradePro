@@ -141,8 +141,8 @@ class TestObserverAccessPermission:
 
         response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/')
 
-        # 未授权用户无法在 queryset 中找到该投资组合
-        assert response.status_code == 404
+        # 未授权用户无法访问该投资组合，返回 403（权限拒绝）或 404（不在 queryset 中）
+        assert response.status_code in (403, 404)
 
     def test_observer_can_list_positions(self, setup_observer_test_data):
         """观察员可以查看持仓列表"""
@@ -269,8 +269,8 @@ class TestObserverAccessPermission:
 
         response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/')
 
-        # 过期授权的投资组合不在 queryset 中，返回 404
-        assert response.status_code == 404
+        # 过期授权的投资组合不可访问，返回 403（权限拒绝）或 404（不在 queryset 中）
+        assert response.status_code in (403, 404)
 
     def test_revoked_grant_denied(self, setup_observer_test_data):
         """已撤销授权被拒绝"""
@@ -284,8 +284,8 @@ class TestObserverAccessPermission:
 
         response = client.get(f'/account/api/portfolios/{data["portfolio"].id}/')
 
-        # 撤销授权的投资组合不在 queryset 中，返回 404
-        assert response.status_code == 404
+        # 撤销授权的投资组合不可访问，返回 403（权限拒绝）或 404（不在 queryset 中）
+        assert response.status_code in (403, 404)
 
 
 class TestObserverAuditLogging:

@@ -808,7 +808,7 @@ class StopLossRepository:
             position_id=position_id,
             trigger_type=trigger_type,
             trigger_price=trigger_price,
-            trigger_time=datetime.now(),
+            trigger_time=timezone.now(),
             trigger_reason=trigger_reason,
             pnl=pnl,
             pnl_pct=pnl_pct,

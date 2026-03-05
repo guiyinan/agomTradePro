@@ -8,6 +8,7 @@ import logging
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from django.shortcuts import redirect, render
+from django.utils import timezone as django_timezone
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseNotAllowed
 from django.conf import settings
@@ -145,7 +146,7 @@ def _get_alpha_provider_status() -> dict:
         return {
             "providers": provider_status,
             "metrics": provider_metrics,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": django_timezone.now().isoformat(),
         }
     except Exception as e:
         logger.warning(f"Failed to get alpha provider status: {e}")
@@ -167,7 +168,7 @@ def _get_alpha_coverage_metrics() -> dict:
             "coverage_ratio": round(coverage.value, 3) if coverage else 0.0,
             "total_requests": int(request_count.value) if request_count else 0,
             "cache_hit_rate": round(cache_hit_rate.value, 3) if cache_hit_rate else 0.0,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": django_timezone.now().isoformat(),
         }
     except Exception as e:
         logger.warning(f"Failed to get alpha coverage metrics: {e}")

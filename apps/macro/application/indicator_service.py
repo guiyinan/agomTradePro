@@ -6,6 +6,8 @@
 
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime, timedelta
+from django.utils import timezone
+
 from apps.macro.infrastructure.models import MacroIndicator, IndicatorUnitConfig
 
 
@@ -535,7 +537,7 @@ class IndicatorService:
                 from django.db.models import Avg, Max, Min
                 stats = MacroIndicator._default_manager.filter(
                     code=code,
-                    reporting_period__gte=datetime.now().date() - timedelta(days=365)
+                    reporting_period__gte=timezone.now().date() - timedelta(days=365)
                 ).aggregate(
                     avg_value=Avg('value'),
                     max_value=Max('value'),
@@ -603,7 +605,7 @@ class IndicatorService:
     @classmethod
     def get_indicator_history(cls, code: str, periods: int = 12) -> List[Dict]:
         """获取指标历史数据（返回展示值）"""
-        end_date = datetime.now().date()
+        end_date = timezone.now().date()
         start_date = end_date - timedelta(days=periods * 35)
 
         data_points = MacroIndicator._default_manager.filter(

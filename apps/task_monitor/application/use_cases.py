@@ -8,6 +8,8 @@ import logging
 from datetime import datetime
 from typing import List, Optional
 
+from django.utils import timezone
+
 from apps.task_monitor.domain.entities import (
     TaskStatus,
     TaskPriority,
@@ -82,7 +84,7 @@ class RecordTaskExecutionUseCase:
             retries=record.retries,
             max_retries=max_retries,
             is_final_failure=is_final,
-            triggered_at=datetime.now(),
+            triggered_at=timezone.now(),
         )
 
         if alert.should_alert():

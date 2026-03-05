@@ -8,7 +8,7 @@ Decision Rhythm Domain Entities
 """
 
 from dataclasses import dataclass, field, replace
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
@@ -282,14 +282,14 @@ class DecisionQuota:
         """是否已过期"""
         if self.period_end is None:
             return False
-        return datetime.now() > self.period_end
+        return datetime.now(timezone.utc) > self.period_end
 
     @property
     def days_remaining(self) -> Optional[int]:
         """剩余天数"""
         if self.period_end is None:
             return None
-        delta = self.period_end - datetime.now()
+        delta = self.period_end - datetime.now(timezone.utc)
         return max(0, delta.days)
 
     def consume_decision(self, count: int = 1) -> "DecisionQuota":
@@ -304,7 +304,7 @@ class DecisionQuota:
             period_end=self.period_end,
             quota_id=self.quota_id,
             created_at=self.created_at,
-            updated_at=datetime.now(),
+            updated_at=datetime.now(timezone.utc),
         )
 
     def consume_execution(self, count: int = 1) -> "DecisionQuota":
@@ -319,7 +319,7 @@ class DecisionQuota:
             period_end=self.period_end,
             quota_id=self.quota_id,
             created_at=self.created_at,
-            updated_at=datetime.now(),
+            updated_at=datetime.now(timezone.utc),
         )
 
     def reset(self) -> "DecisionQuota":
@@ -330,11 +330,11 @@ class DecisionQuota:
             max_execution_count=self.max_execution_count,
             used_decisions=0,
             used_executions=0,
-            period_start=datetime.now(),
+            period_start=datetime.now(timezone.utc),
             period_end=self._calculate_period_end(),
             quota_id=self.quota_id,
             created_at=self.created_at,
-            updated_at=datetime.now(),
+            updated_at=datetime.now(timezone.utc),
         )
 
     def _calculate_period_end(self, now: Optional[datetime] = None) -> Optional[datetime]:
@@ -344,7 +344,7 @@ class DecisionQuota:
             now: 可选的时间戳，用于避免竞态条件
         """
         if now is None:
-            now = datetime.now()
+            now = datetime.now(timezone.utc)
         if self.period == QuotaPeriod.DAILY:
             return now.replace(hour=23, minute=59, second=59)
         elif self.period == QuotaPeriod.WEEKLY:
@@ -423,7 +423,7 @@ class CooldownPeriod:
         if self.last_decision_at is None:
             return True
 
-        elapsed = (datetime.now() - self.last_decision_at).total_seconds() / 3600
+        elapsed = (datetime.now(timezone.utc) - self.last_decision_at).total_seconds() / 3600
         return elapsed >= self.min_decision_interval_hours
 
     @property
@@ -432,7 +432,7 @@ class CooldownPeriod:
         if self.last_execution_at is None:
             return True
 
-        elapsed = (datetime.now() - self.last_execution_at).total_seconds() / 3600
+        elapsed = (datetime.now(timezone.utc) - self.last_execution_at).total_seconds() / 3600
         return elapsed >= self.min_execution_interval_hours
 
     @property
@@ -441,7 +441,7 @@ class CooldownPeriod:
         if self.last_decision_at is None:
             return 0.0
 
-        elapsed = (datetime.now() - self.last_decision_at).total_seconds() / 3600
+        elapsed = (datetime.now(timezone.utc) - self.last_decision_at).total_seconds() / 3600
         remaining = self.min_decision_interval_hours - elapsed
         return max(0.0, remaining)
 
@@ -451,7 +451,7 @@ class CooldownPeriod:
         if self.last_execution_at is None:
             return 0.0
 
-        elapsed = (datetime.now() - self.last_execution_at).total_seconds() / 3600
+        elapsed = (datetime.now(timezone.utc) - self.last_execution_at).total_seconds() / 3600
         remaining = self.min_execution_interval_hours - elapsed
         return max(0.0, remaining)
 
@@ -459,7 +459,7 @@ class CooldownPeriod:
         """更新决策时间，返回新的冷却期对象"""
         return CooldownPeriod(
             asset_code=self.asset_code,
-            last_decision_at=datetime.now(),
+            last_decision_at=datetime.now(timezone.utc),
             last_execution_at=self.last_execution_at,
             min_decision_interval_hours=self.min_decision_interval_hours,
             min_execution_interval_hours=self.min_execution_interval_hours,
@@ -472,7 +472,7 @@ class CooldownPeriod:
         return CooldownPeriod(
             asset_code=self.asset_code,
             last_decision_at=self.last_decision_at,
-            last_execution_at=datetime.now(),
+            last_execution_at=datetime.now(timezone.utc),
             min_decision_interval_hours=self.min_decision_interval_hours,
             min_execution_interval_hours=self.min_execution_interval_hours,
             same_asset_cooldown_hours=self.same_asset_cooldown_hours,
@@ -569,7 +569,7 @@ class DecisionRequest:
         """是否已过期"""
         if self.expires_at is None:
             return False
-        return datetime.now() > self.expires_at
+        return datetime.now(timezone.utc) > self.expires_at
 
     @property
     def is_executed(self) -> bool:
@@ -804,7 +804,7 @@ def create_quota(
     """
     from uuid import uuid4
 
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     quota = DecisionQuota(
         period=period,
         max_decisions=max_decisions,
@@ -942,7 +942,7 @@ class ValuationSnapshot:
         ...     target_price_low=Decimal("13.00"),
         ...     target_price_high=Decimal("14.50"),
         ...     stop_loss_price=Decimal("9.50"),
-        ...     calculated_at=datetime.now(),
+        ...     calculated_at=datetime.now(timezone.utc),
         ...     input_parameters={"pe_percentile": 0.15, "pb_percentile": 0.20},
         ... )
     """
@@ -1077,7 +1077,7 @@ class InvestmentRecommendation:
         ...     human_readable_rationale="PMI 连续回升，估值处于历史低位",
         ...     valuation_snapshot_id="vs_001",
         ...     source_recommendation_ids=[],
-        ...     created_at=datetime.now(),
+        ...     created_at=datetime.now(timezone.utc),
         ...     status="ACTIVE",
         ... )
     """
@@ -1239,7 +1239,7 @@ class ExecutionApprovalRequest:
         ...     risk_check_results={"beta_gate": {"passed": True}},
         ...     reviewer_comments="",
         ...     regime_source="V2_CALCULATION",
-        ...     created_at=datetime.now(),
+        ...     created_at=datetime.now(timezone.utc),
         ... )
     """
 
@@ -1376,7 +1376,7 @@ def create_valuation_snapshot(
         target_price_low=target_price_low,
         target_price_high=target_price_high,
         stop_loss_price=stop_loss_price,
-        calculated_at=datetime.now(),
+        calculated_at=datetime.now(timezone.utc),
         input_parameters=input_parameters,
         is_legacy=is_legacy,
     )
@@ -1430,7 +1430,7 @@ def create_investment_recommendation(
         account_id=account_id,
         valuation_snapshot_id=valuation_snapshot.snapshot_id,
         source_recommendation_ids=source_recommendation_ids or [],
-        created_at=datetime.now(),
+        created_at=datetime.now(timezone.utc),
     )
 
 
@@ -1471,7 +1471,7 @@ def create_execution_approval_request(
         risk_check_results=risk_check_results,
         reviewer_comments="",
         regime_source=regime_source,
-        created_at=datetime.now(),
+        created_at=datetime.now(timezone.utc),
     )
 
 
@@ -1580,7 +1580,7 @@ class DecisionFeatureSnapshot:
         self.fundamental_score = fundamental_score
         self.alpha_model_score = alpha_model_score
         self.extra_features = extra_features or {}
-        self.created_at = created_at or datetime.now()
+        self.created_at = created_at or datetime.now(timezone.utc)
 
     def __repr__(self) -> str:
         return (
@@ -1747,8 +1747,8 @@ class UnifiedRecommendation:
         self.feature_snapshot_id = feature_snapshot_id
         # 状态
         self.status = status
-        self.created_at = created_at or datetime.now()
-        self.updated_at = updated_at or datetime.now()
+        self.created_at = created_at or datetime.now(timezone.utc)
+        self.updated_at = updated_at or datetime.now(timezone.utc)
 
     def __repr__(self) -> str:
         return (
@@ -1840,8 +1840,8 @@ class ModelParamConfig:
         self.description = description
         self.updated_by = updated_by
         self.updated_reason = updated_reason
-        self.created_at = created_at or datetime.now()
-        self.updated_at = updated_at or datetime.now()
+        self.created_at = created_at or datetime.now(timezone.utc)
+        self.updated_at = updated_at or datetime.now(timezone.utc)
 
     def __repr__(self) -> str:
         return f"ModelParamConfig({self.param_key}={self.param_value}, env={self.env})"
@@ -1907,7 +1907,7 @@ class ModelParamAuditLog:
         self.env = env
         self.changed_by = changed_by
         self.change_reason = change_reason
-        self.changed_at = changed_at or datetime.now()
+        self.changed_at = changed_at or datetime.now(timezone.utc)
 
     def __repr__(self) -> str:
         return (

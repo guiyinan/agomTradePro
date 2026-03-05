@@ -8,7 +8,7 @@ Alpha 事件触发的核心实体定义。
 """
 
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -271,7 +271,7 @@ class AlphaTrigger:
         ...     invalidation_conditions=[...],
         ...     strength=SignalStrength.STRONG,
         ...     confidence=0.75,
-        ...     created_at=datetime.now(),
+        ...     created_at=datetime.now(timezone.utc),
         ...     thesis="PMI 回升，经济复苏预期增强"
         ... )
     """
@@ -311,7 +311,7 @@ class AlphaTrigger:
         """是否已过期"""
         if self.expires_at is None:
             return False
-        now = datetime.now(self.expires_at.tzinfo) if self.expires_at.tzinfo else datetime.now()
+        now = datetime.now(self.expires_at.tzinfo) if self.expires_at.tzinfo else datetime.now(timezone.utc)
         return now > self.expires_at
 
     @property
@@ -322,21 +322,21 @@ class AlphaTrigger:
     @property
     def days_since_creation(self) -> int:
         """创建后天数"""
-        return (datetime.now() - self.created_at).days
+        return (datetime.now(timezone.utc) - self.created_at).days
 
     @property
     def days_since_trigger(self) -> Optional[int]:
         """触发后天数"""
         if self.triggered_at is None:
             return None
-        return (datetime.now() - self.triggered_at).days
+        return (datetime.now(timezone.utc) - self.triggered_at).days
 
     @property
     def remaining_days(self) -> Optional[int]:
         """剩余有效天数"""
         if self.expires_at is None:
             return None
-        delta = self.expires_at - datetime.now()
+        delta = self.expires_at - datetime.now(timezone.utc)
         return max(0, delta.days)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -415,7 +415,7 @@ class TriggerEvent:
         ...     event_id="event_001",
         ...     trigger_id="trigger_001",
         ...     event_type="triggered",
-        ...     occurred_at=datetime.now(),
+        ...     occurred_at=datetime.now(timezone.utc),
         ...     trigger_value=0.75,
         ...     reason="PMI 超预期回升"
         ... )

@@ -9,6 +9,8 @@ from datetime import date, datetime, timedelta
 from typing import List, Optional, Dict
 import logging
 
+from django.utils import timezone
+
 from shared.config.secrets import get_secrets
 
 logger = logging.getLogger(__name__)
@@ -272,7 +274,7 @@ class PriceDataCache:
 
         if cache_key in self._cache:
             prices, cached_at = self._cache[cache_key]
-            if datetime.now() - cached_at < self._ttl:
+            if timezone.now() - cached_at < self._ttl:
                 return prices
             else:
                 # Expired, remove from cache
@@ -288,7 +290,7 @@ class PriceDataCache:
     ):
         """Cache prices"""
         cache_key = f"{asset_code}_{end_date}"
-        self._cache[cache_key] = (prices, datetime.now())
+        self._cache[cache_key] = (prices, timezone.now())
 
     def clear(self):
         """Clear all cached data"""

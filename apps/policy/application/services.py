@@ -8,6 +8,8 @@ import logging
 from typing import List, Optional, Dict
 from datetime import datetime
 
+from django.utils import timezone
+
 from ..domain.entities import PolicyLevel, RSSItem, PolicyLevelKeywordRule
 
 logger = logging.getLogger(__name__)
@@ -168,7 +170,7 @@ def extract_policy_level_from_title(
     item = RSSItem(
         title=title,
         link="",
-        pub_date=datetime.now(),
+        pub_date=timezone.now(),
         source="extractor"
     )
 

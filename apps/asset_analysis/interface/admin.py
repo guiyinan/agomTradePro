@@ -178,10 +178,10 @@ class AssetAnalysisAlertAdmin(admin.ModelAdmin):
 
     def mark_as_resolved(self, request, queryset):
         """批量标记为已解决"""
-        from datetime import datetime
+        from django.utils import timezone
         count = queryset.update(
             is_resolved=True,
-            resolved_at=datetime.now(),
+            resolved_at=timezone.now(),
             resolved_by=request.user.id if request.user.is_authenticated else None
         )
         self.message_user(request, f'已标记 {count} 条告警为已解决')

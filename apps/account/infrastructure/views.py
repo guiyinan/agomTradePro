@@ -7,6 +7,7 @@ import io
 from datetime import datetime
 
 from django.shortcuts import render, redirect, get_object_or_404
+from django.utils import timezone
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
@@ -227,7 +228,7 @@ def _export_json(queryset):
         json.dumps(data, ensure_ascii=False, indent=2),
         content_type='application/json; charset=utf-8'
     )
-    response['Content-Disposition'] = f'attachment; filename=docs_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+    response['Content-Disposition'] = f'attachment; filename=docs_export_{timezone.now().strftime("%Y%m%d_%H%M%S")}.json'
     return response
 
 
@@ -252,7 +253,7 @@ def _export_csv(queryset):
         output.getvalue().encode('utf-8-sig'),
         content_type='text/csv; charset=utf-8'
     )
-    response['Content-Disposition'] = f'attachment; filename=docs_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+    response['Content-Disposition'] = f'attachment; filename=docs_export_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv'
     return response
 
 

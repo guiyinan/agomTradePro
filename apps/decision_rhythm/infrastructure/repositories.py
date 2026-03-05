@@ -1117,10 +1117,10 @@ class ExecutionApprovalRequestRepository:
                     model.reviewer_comments = reviewer_comments
 
                 if approval_status in [ApprovalStatus.APPROVED, ApprovalStatus.REJECTED]:
-                    model.reviewed_at = datetime.now()
+                    model.reviewed_at = timezone.now()
 
                 if approval_status == ApprovalStatus.EXECUTED:
-                    model.executed_at = datetime.now()
+                    model.executed_at = timezone.now()
 
                 model.save()
 

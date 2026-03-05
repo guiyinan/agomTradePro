@@ -8,7 +8,7 @@ Beta Gate Domain Services
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from .entities import (
@@ -164,7 +164,7 @@ class BetaGateEvaluator:
             current_regime=current_regime,
             policy_level=policy_level,
             regime_confidence=regime_confidence,
-            evaluated_at=datetime.now(),
+            evaluated_at=datetime.now(timezone.utc),
             regime_check=(regime_passed, regime_reason),
             policy_check=(policy_passed, policy_reason),
             portfolio_check=(True, ""),
@@ -336,7 +336,7 @@ class BetaGateEvaluator:
             current_regime=current_regime,
             policy_level=policy_level,
             regime_confidence=regime_confidence,
-            evaluated_at=datetime.now(),
+            evaluated_at=datetime.now(timezone.utc),
             regime_check=regime_check,
             policy_check=policy_check,
             portfolio_check=portfolio_check,

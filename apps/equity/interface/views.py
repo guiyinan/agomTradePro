@@ -8,6 +8,7 @@
 """
 
 from django.shortcuts import render
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from rest_framework import viewsets, status
@@ -447,7 +448,7 @@ class EquityViewSet(viewsets.ViewSet):
 
         获取当前股票池
         """
-        from datetime import datetime
+        from datetime import date
         from apps.equity.infrastructure.adapters import StockPoolRepositoryAdapter
         from apps.regime.application.current_regime import resolve_current_regime
 
@@ -469,7 +470,7 @@ class EquityViewSet(viewsets.ViewSet):
                     'success': True,
                     'regime': latest_regime.dominant_regime if latest_regime else 'Unknown',
                     'count': 0,
-                    'update_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'update_time': timezone.now().strftime('%Y-%m-%d %H:%M:%S'),
                     'stocks': []
                 })
 
@@ -524,7 +525,7 @@ class EquityViewSet(viewsets.ViewSet):
                     latest_regime.dominant_regime if latest_regime else 'Unknown'
                 ),
                 'count': len(stocks),
-                'update_time': pool_info.get('updated_at') if pool_info else datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'update_time': pool_info.get('updated_at') if pool_info else timezone.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'avg_roe': round(avg_roe, 2),
                 'avg_pe': round(avg_pe, 2),
                 'stocks': stocks
@@ -546,7 +547,6 @@ class EquityViewSet(viewsets.ViewSet):
 
         基于当前 Regime 重新筛选股票池。
         """
-        from datetime import datetime
         from apps.equity.infrastructure.adapters import StockPoolRepositoryAdapter
         from apps.regime.application.current_regime import resolve_current_regime
 
@@ -591,7 +591,7 @@ class EquityViewSet(viewsets.ViewSet):
                 'message': '股票池已刷新',
                 'regime': latest_regime.dominant_regime,
                 'count': len(screen_response.stock_codes),
-                'update_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                'update_time': timezone.now().strftime('%Y-%m-%d %H:%M:%S')
             })
 
         except Exception as e:
