@@ -153,8 +153,8 @@ class PositionModel(models.Model):
     market_value = models.DecimalField("市值(元)", max_digits=15, decimal_places=2)
 
     # 盈亏信息
-    unrealized_pnl = models.DecimalField("浮动盈亏(元)", max_digits=15, decimal_places=2)
-    unrealized_pnl_pct = models.FloatField("浮动盈亏率(%)")
+    unrealized_pnl = models.DecimalField("浮动盈亏(元)", max_digits=15, decimal_places=2, default=0)
+    unrealized_pnl_pct = models.FloatField("浮动盈亏率(%)", default=0.0)
 
     # 时间信息
     first_buy_date = models.DateField("首次买入日期")
@@ -952,4 +952,8 @@ class NotificationHistoryModel(models.Model):
         self.retry_count += 1
         self.status = self.STATUS_RETRYING
         self.save()
+
+
+# Backward compatibility alias for legacy imports
+SimulatedPositionModel = PositionModel
 

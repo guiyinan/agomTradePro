@@ -1,6 +1,7 @@
 """
 模拟盘交易模块 URL 配置
 """
+from django.http import JsonResponse
 from django.urls import path
 from .views import (
     # 页面视图
@@ -29,6 +30,17 @@ from .views import (
 app_name = 'simulated_trading'
 
 urlpatterns = [
+    # API 根路径（兼容旧调用）
+    path('', lambda request: JsonResponse({
+        'module': 'simulated-trading',
+        'endpoints': [
+            '/api/simulated-trading/api/accounts/',
+            '/api/simulated-trading/api/accounts/{account_id}/',
+            '/api/simulated-trading/api/accounts/{account_id}/positions/',
+            '/api/simulated-trading/api/accounts/{account_id}/trades/',
+        ],
+    }), name='api-root'),
+
     # ============================================================================
     # 页面路由
     # ============================================================================

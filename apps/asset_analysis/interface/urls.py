@@ -2,6 +2,7 @@
 资产分析模块 - URL 路由配置
 """
 
+from django.http import JsonResponse
 from django.urls import path
 from apps.asset_analysis.interface.views import (
     MultiDimScreenAPIView,
@@ -16,6 +17,17 @@ from apps.asset_analysis.interface.pool_views import (
 app_name = "asset_analysis"
 
 urlpatterns = [
+    # API 根路径（兼容旧调用）
+    path("", lambda request: JsonResponse({
+        "module": "asset-analysis",
+        "endpoints": [
+            "/api/asset-analysis/multidim-screen/",
+            "/api/asset-analysis/weight-configs/",
+            "/api/asset-analysis/current-weight/",
+            "/api/asset-analysis/pool-summary/",
+        ],
+    }), name="api_root"),
+
     # 多维度筛选 API
     path("multidim-screen/", MultiDimScreenAPIView.as_view(), name="multidim_screen"),
 

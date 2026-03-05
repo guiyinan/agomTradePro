@@ -33,12 +33,33 @@ class SimulatedAccountMapper:
     """模拟账户Mapper - Domain实体 ↔ ORM模型"""
 
     @staticmethod
+    def _normalize_account_type(raw_value: str) -> AccountType:
+        """
+        兼容历史脏数据:
+        - "SIMULATED" / "REAL"（大写）
+        - "simulated" / "real"（标准值）
+        """
+        value = (raw_value or "").strip()
+        if not value:
+            raise ValueError("account_type 不能为空")
+
+        normalized = value.lower()
+        try:
+            return AccountType(normalized)
+        except ValueError:
+            # 兜底支持枚举名称格式
+            try:
+                return AccountType[value.upper()]
+            except KeyError as ex:
+                raise ValueError(f"非法 account_type: {raw_value}") from ex
+
+    @staticmethod
     def to_entity(model: SimulatedAccountModel) -> SimulatedAccount:
         """ORM模型 → Domain实体"""
         return SimulatedAccount(
             account_id=model.id,
             account_name=model.account_name,
-            account_type=AccountType(model.account_type),
+            account_type=SimulatedAccountMapper._normalize_account_type(model.account_type),
             initial_capital=float(model.initial_capital),
             current_cash=float(model.current_cash),
             current_market_value=float(model.current_market_value),

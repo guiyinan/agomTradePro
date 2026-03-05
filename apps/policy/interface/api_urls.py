@@ -42,6 +42,8 @@ router.register(r"rss/keywords", PolicyLevelKeywordViewSet, basename="rss-keywor
 
 urlpatterns = [
     path("status/", PolicyStatusView.as_view(), name="status"),
+    # 兼容旧路径
+    path("level/", PolicyStatusView.as_view(), name="level-legacy"),
     path("events/", PolicyEventListView.as_view(), name="event-list"),
     path("events/<str:event_date>/", PolicyEventDetailView.as_view(), name="event-detail"),
     path("audit/queue/", AuditQueueView.as_view(), name="audit-queue"),
