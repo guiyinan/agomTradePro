@@ -978,8 +978,8 @@ let currentSort = '-reporting_period';
 let selectedIds = new Set();
 let allData = [];
 
-// API 基础路径
-const API_BASE = '/macro/api';
+// API 基础路径（通过反向路由获取，避免硬编码导致 404）
+const API_BASE = '{% url "api_macro:get_supported_indicators" %}'.replace(/supported-indicators\/$/, '').replace(/\/$/, '');
 
 // 期间类型显示映射
 const PERIOD_TYPE_LABELS = {

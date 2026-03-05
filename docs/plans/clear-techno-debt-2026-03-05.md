@@ -87,16 +87,14 @@ AgomSAAF V3.4 功能已完成，但在代码质量扫描中发现以下技术债
 
 ---
 
-## D5: Legacy 路由清理
+## D5: Legacy 路由治理（兼容双轨，不提前删除）
 
-Sunset date 2026-06-01，当前 2026-03-05，进入倒计时。删除所有 `_legacy` 路由：
-- `apps/macro/interface/urls.py`：12 条
-- `apps/policy/interface/urls.py`：1 条
-- `apps/realtime/interface/urls.py`：4 条
-- `apps/regime/interface/urls.py`：1 条
-- `apps/signal/interface/urls.py`：1 条
-- `apps/dashboard/interface/urls.py`：1 条
-- 保留 `core/middleware/deprecation.py` 作为兜底
+Sunset date 2026-06-01。当前阶段采用“兼容 + 观测 + 分阶段下线”，不做一次性删除：
+- 保留 `_legacy` 路由，确保历史模板、SDK 与外部脚本不中断
+- 页面模板优先改为 `{% url %}` 反向路由，逐步移除硬编码 URL
+- 新增路由兼容测试（`reverse/resolve`）防止回归
+- 在发布说明中标记 legacy 路由为 deprecated，并给出标准路由迁移目标
+- 计划在 2026-06-01 前基于访问日志评估是否可下线
 
 ---
 
@@ -125,6 +123,6 @@ for f in apps/*/application/tasks.py; do echo "$f"; grep -c "time_limit" "$f"; d
 # 3. 全量测试通过
 pytest tests/unit/ tests/integration/ -v --tb=short -q
 
-# 4. legacy 路由数量为 0
-grep -rn "_legacy" apps/*/interface/urls.py | wc -l
+# 4. legacy 路由仍可解析（直到 sunset）
+python -c "from django.urls import resolve; print(resolve('/macro/api/quick-sync/').view_name)"
 ```

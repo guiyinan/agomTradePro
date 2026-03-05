@@ -105,7 +105,7 @@ async function selectIndicator(code) {
     showIndicatorInfoBar();
 
     // 获取数据并渲染图表
-    const response = await fetch(`/macro/api/indicator-data/?code=${code}`);
+    const response = await fetch(`{% url "api_macro:get_indicator_data" %}?code=${code}`);
     const result = await response.json();
 
     if (result.success && result.data) {

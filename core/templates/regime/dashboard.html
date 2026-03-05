@@ -123,7 +123,7 @@ async function syncData() {
         const formData = new FormData();
         formData.append('source', '{{ current_source|default:"akshare" }}');
 
-        const response = await fetch('/macro/api/quick-sync/', {
+        const response = await fetch('{% url "api_macro:quick_sync" %}', {
             method: 'POST',
             headers: {
                 'X-CSRFToken': window.csrfToken

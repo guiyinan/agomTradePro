@@ -42,4 +42,20 @@ urlpatterns = [
     path('record/create/', views.api_create_record, name='create_record'),
     path('record/<int:record_id>/update/', views.api_update_record, name='update_record'),
     path('batch-delete/', views.api_batch_delete, name='batch_delete'),
+
+    # API 接口 - legacy format (backward compatibility when mounted under /macro/)
+    # Keep these aliases to avoid breaking existing templates/scripts still calling /macro/api/*.
+    path('api/supported-indicators/', views.api_get_supported_indicators, name='get_supported_indicators_legacy'),
+    path('api/fetch/stream/', views.api_fetch_data_stream, name='fetch_data_stream_legacy'),
+    path('api/fetch/', views.api_fetch_data, name='fetch_data_legacy'),
+    path('api/delete/', views.api_delete_data, name='delete_data_legacy'),
+    path('api/due-indicators/', views.api_get_due_indicators, name='get_due_indicators_legacy'),
+    path('api/sync-due/', views.api_sync_due_indicators, name='sync_due_indicators_legacy'),
+    path('api/indicator-data/', views.api_get_indicator_data, name='get_indicator_data_legacy'),
+    path('api/quick-sync/', views.api_quick_sync, name='quick_sync_legacy'),
+    path('api/table/', views.api_table_data, name='table_data_legacy'),
+    path('api/record/<int:record_id>/', views.api_delete_record, name='delete_record_legacy'),
+    path('api/record/create/', views.api_create_record, name='create_record_legacy'),
+    path('api/record/<int:record_id>/update/', views.api_update_record, name='update_record_legacy'),
+    path('api/batch-delete/', views.api_batch_delete, name='batch_delete_legacy'),
 ]

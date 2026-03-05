@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.test import Client
-from django.urls import reverse
+from django.urls import resolve, reverse
+from pathlib import Path
 
 
 def test_dashboard_legacy_api_route_names_resolvable():
@@ -32,6 +33,14 @@ def test_equity_fund_page_route_names_resolvable():
     assert reverse("fund:multidim_screen_page")
 
 
+def test_macro_legacy_and_new_api_routes_resolvable():
+    assert reverse("api_macro:quick_sync")
+    assert reverse("api_macro:get_indicator_data")
+
+    assert resolve("/macro/api/quick-sync/").view_name.endswith("quick_sync_legacy")
+    assert resolve("/macro/api/indicator-data/").view_name.endswith("get_indicator_data_legacy")
+
+
 def test_dashboard_page_does_not_raise_reverse_error(db):
     user = get_user_model().objects.create_user(username="route_test_user", password="x")
     client = Client()
@@ -40,3 +49,19 @@ def test_dashboard_page_does_not_raise_reverse_error(db):
     response = client.get("/dashboard/")
     assert response.status_code in (200, 302)
 
+
+def test_macro_templates_do_not_hardcode_legacy_api_paths():
+    template_dir = Path("core/templates")
+
+    regime_dashboard = (template_dir / "regime/dashboard.html").read_text(encoding="utf-8")
+    macro_data = (template_dir / "macro/data.html").read_text(encoding="utf-8")
+    macro_controller = (template_dir / "macro/data_controller.html").read_text(encoding="utf-8")
+
+    assert "/macro/api/quick-sync/" not in regime_dashboard
+    assert '{% url "api_macro:quick_sync" %}' in regime_dashboard
+
+    assert "/macro/api/indicator-data/" not in macro_data
+    assert '{% url "api_macro:get_indicator_data" %}' in macro_data
+
+    assert "const API_BASE = '/macro/api';" not in macro_controller
+    assert '{% url "api_macro:get_supported_indicators" %}' in macro_controller
