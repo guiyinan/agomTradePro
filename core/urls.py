@@ -183,8 +183,8 @@ module_patterns = [
     # P2: Audit 模块
     path('api/audit/', include(('apps.audit.interface.urls', 'api_audit'), namespace='api_audit')),
     # P3: 其他模块
-    path('api/equity/', include(('apps.equity.interface.urls', 'api_equity'), namespace='api_equity')),
-    path('api/fund/', include(('apps.fund.interface.urls', 'api_fund'), namespace='api_fund')),
+    path('api/equity/', include(('apps.equity.interface.api_urls', 'api_equity'), namespace='api_equity')),
+    path('api/fund/', include(('apps.fund.interface.api_urls', 'api_fund'), namespace='api_fund')),
     path('api/asset-analysis/', include(('apps.asset_analysis.interface.urls', 'api_asset_analysis'), namespace='api_asset_analysis')),
     path('api/sector/', include(('apps.sector.interface.urls', 'api_sector'), namespace='api_sector')),
     path('api/ai/', include(('apps.ai_provider.interface.urls', 'api_ai_provider'), namespace='api_ai_provider')),
@@ -198,7 +198,7 @@ module_patterns = [
     # Task Monitor
     path('api/system/', include(('apps.task_monitor.interface.urls', 'task_monitor'), namespace='task_monitor')),
     # Dashboard API routes
-    path('api/dashboard/', include(('apps.dashboard.interface.urls', 'api_dashboard'), namespace='api_dashboard')),
+    path('api/dashboard/', include(('apps.dashboard.interface.api_urls', 'api_dashboard'), namespace='api_dashboard')),
     # Portfolio API routes (alias for simulated-trading accounts)
     path('api/portfolio/', RedirectView.as_view(url='/api/simulated-trading/api/accounts/', permanent=False), name='api-portfolio'),
 ]

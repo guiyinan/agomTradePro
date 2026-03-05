@@ -1,0 +1,50 @@
+"""Dashboard API URL configuration."""
+
+from django.http import JsonResponse
+from django.urls import path
+
+from apps.dashboard.interface import views
+
+app_name = "dashboard_api"
+
+
+def dashboard_api_root(request):
+    """Discoverable dashboard API root."""
+    return JsonResponse(
+        {
+            "endpoints": {
+                "position_detail": "/api/dashboard/position/{asset_code}/",
+                "positions": "/api/dashboard/positions/",
+                "allocation": "/api/dashboard/allocation/",
+                "performance": "/api/dashboard/performance/",
+                "v1_summary": "/api/dashboard/v1/summary/",
+                "v1_regime_quadrant": "/api/dashboard/v1/regime-quadrant/",
+                "v1_equity_curve": "/api/dashboard/v1/equity-curve/",
+                "v1_signal_status": "/api/dashboard/v1/signal-status/",
+                "alpha_stocks": "/api/dashboard/alpha/stocks/",
+                "alpha_provider_status": "/api/dashboard/alpha/provider-status/",
+                "alpha_coverage": "/api/dashboard/alpha/coverage/",
+                "alpha_ic_trends": "/api/dashboard/alpha/ic-trends/",
+                "workflow_refresh_candidates": "/api/dashboard/workflow/refresh-candidates/",
+            }
+        }
+    )
+
+
+urlpatterns = [
+    path("", dashboard_api_root, name="api_root"),
+    path("position/<str:asset_code>/", views.position_detail_htmx, name="position_detail"),
+    path("positions/", views.positions_list_htmx, name="positions_list"),
+    path("allocation/", views.allocation_chart_htmx, name="allocation"),
+    path("performance/", views.performance_chart_htmx, name="performance"),
+    path("v1/summary/", views.dashboard_summary_v1, name="v1_summary"),
+    path("v1/regime-quadrant/", views.regime_quadrant_v1, name="v1_regime_quadrant"),
+    path("v1/equity-curve/", views.equity_curve_v1, name="v1_equity_curve"),
+    path("v1/signal-status/", views.signal_status_v1, name="v1_signal_status"),
+    path("alpha/stocks/", views.alpha_stocks_htmx, name="alpha_stocks"),
+    path("alpha/provider-status/", views.alpha_provider_status_htmx, name="alpha_provider_status"),
+    path("alpha/coverage/", views.alpha_coverage_htmx, name="alpha_coverage"),
+    path("alpha/ic-trends/", views.alpha_ic_trends_htmx, name="alpha_ic_trends"),
+    path("workflow/refresh-candidates/", views.workflow_refresh_candidates, name="workflow_refresh_candidates"),
+]
+

@@ -113,7 +113,7 @@ bash /opt/agomsaaf/current/scripts/deploy-on-vps.sh \
 
 1. 健康检查
 ```bash
-curl -fsS http://141.11.211.21:8000/health/
+curl -fsS http://141.11.211.21:8000/api/health/
 ```
 
 2. 服务检查

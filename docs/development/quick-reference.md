@@ -203,10 +203,10 @@ mypy apps/ --strict
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/realtime/api/prices/` | GET | 查询价格 |
-| `/api/realtime/api/poll/` | POST | 手动触发轮询 |
-| `/api/realtime/api/prices/{code}/` | GET | 查询单个资产价格 |
-| `/api/realtime/api/health/` | GET | 健康检查 |
+| `/api/realtime/prices/` | GET | 查询价格 |
+| `/api/realtime/poll/` | POST | 手动触发轮询 |
+| `/api/realtime/prices/{code}/` | GET | 查询单个资产价格 |
+| `/api/realtime/health/` | GET | 健康检查 |
 
 ### Alpha API (AI 选股)
 
@@ -242,10 +242,12 @@ mypy apps/ --strict
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/dashboard/api/v1/summary/` | GET | 仪表盘摘要 |
-| `/dashboard/api/v1/regime-quadrant/` | GET | Regime 象限数据 |
-| `/dashboard/api/v1/equity-curve/` | GET | 资金曲线数据 |
-| `/dashboard/api/v1/signal-status/` | GET | 信号状态数据 |
+| `/api/dashboard/` | GET | Dashboard API 根路径（端点清单） |
+| `/api/dashboard/v1/summary/` | GET | 仪表盘摘要 |
+| `/api/dashboard/v1/regime-quadrant/` | GET | Regime 象限数据 |
+| `/api/dashboard/v1/equity-curve/` | GET | 资金曲线数据 |
+| `/api/dashboard/v1/signal-status/` | GET | 信号状态数据 |
+| `/dashboard/api/v1/*` | GET | 兼容路径（legacy） |
 
 ### Operations UI
 

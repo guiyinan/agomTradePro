@@ -97,7 +97,7 @@
 #### A-01 服务健康
 1. 执行：
 ```powershell
-python -c "import requests;print(requests.get('http://127.0.0.1:8000/health/', timeout=8).status_code)"
+python -c "import requests;print(requests.get('http://127.0.0.1:8000/api/health/', timeout=8).status_code)"
 ```
 2. 期望：返回 `200`。
 3. 证据：终端输出截图，文件名 `A-01-health-YYYYMMDD-HHMM.png`。
@@ -354,7 +354,7 @@ reports/quality/outsource/
 
 ```powershell
 # 1) 健康检查
-python -c "import requests;print(requests.get('http://127.0.0.1:8000/health/', timeout=8).status_code)"
+python -c "import requests;print(requests.get('http://127.0.0.1:8000/api/health/', timeout=8).status_code)"
 
 # 2) UAT/E2E
 python tests/uat/run_uat.py

@@ -33,19 +33,19 @@ This plan uses gradual replacement:
 
 ### 3.1 Runtime architecture
 
-- Django serves data and authentication (`/dashboard/api/v1/*`)
+- Django serves data and authentication (`/api/dashboard/v1/*`)
 - Streamlit renders visual interface (`streamlit run streamlit_app/app.py`)
 - Streamlit consumes Django APIs via DRF token auth
 
 ### 3.2 New API contracts
 
-1. `GET /dashboard/api/v1/summary/`
+1. `GET /api/dashboard/v1/summary/`
    - User identity + portfolio summary + current regime headline
-2. `GET /dashboard/api/v1/regime-quadrant/`
+2. `GET /api/dashboard/v1/regime-quadrant/`
    - `current_regime`, `distribution`, `confidence`, macro details
-3. `GET /dashboard/api/v1/equity-curve/?range=...`
+3. `GET /api/dashboard/v1/equity-curve/?range=...`
    - `series`, `range`, `has_history`
-4. `GET /dashboard/api/v1/signal-status/?limit=...`
+4. `GET /api/dashboard/v1/signal-status/?limit=...`
    - `stats`, `signals`, `limit`
 
 ### 3.3 Streamlit pages

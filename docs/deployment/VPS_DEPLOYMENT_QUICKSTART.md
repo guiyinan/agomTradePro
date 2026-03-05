@@ -75,7 +75,7 @@ docker compose -f /opt/agomsaaf/current/docker/docker-compose.vps.yml --env-file
 健康检查：
 
 ```bash
-curl -fsS http://your-vps-ip:8000/health/
+curl -fsS http://your-vps-ip:8000/api/health/
 ```
 
 如果返回 HTTP 400 Bad Request，一般是 `ALLOWED_HOSTS` 没包含你的 IP/域名：

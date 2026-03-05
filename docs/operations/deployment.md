@@ -383,13 +383,13 @@ tail -100 /var/log/agomsaaf/application.log | grep ERROR
 
 | Module | Endpoint |
 |--------|----------|
-| Audit | `/audit/api/health/` |
-| Alpha | `/alpha/health/` |
-| Filter | `/filter/api/health/` |
-| Realtime | `/realtime/health/` |
-| Regime | `/regime/health/` |
-| Signal | `/signal/api/health/` |
-| Task Monitor | `/task/celery/health/` |
+| Audit | `/api/audit/api/health/` |
+| Alpha | `/api/alpha/health/` |
+| Filter | `/api/filter/api/health/` |
+| Realtime | `/api/realtime/health/` |
+| Regime | `/api/regime/health/` |
+| Signal | `/api/signal/health/` |
+| Task Monitor | `/api/system/celery/health/` |
 
 ---
 

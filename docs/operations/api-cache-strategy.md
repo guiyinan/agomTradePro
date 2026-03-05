@@ -49,7 +49,7 @@ def get(self, request, *args, **kwargs):
     ...
 ```
 
-### 2. Regime 判定查询 (`/dashboard/api/v1/regime-quadrant/`)
+### 2. Regime 判定查询 (`/api/dashboard/v1/regime-quadrant/`)
 
 | 参数 | 值 |
 |------|-----|
@@ -65,7 +65,7 @@ def regime_quadrant_v1(request):
     ...
 ```
 
-### 3. Dashboard 概览 (`/dashboard/api/v1/summary/`)
+### 3. Dashboard 概览 (`/api/dashboard/v1/summary/`)
 
 | 参数 | 值 |
 |------|-----|
@@ -82,7 +82,7 @@ def dashboard_summary_v1(request):
     ...
 ```
 
-### 4. 信号状态查询 (`/dashboard/api/v1/signal-status/`)
+### 4. 信号状态查询 (`/api/dashboard/v1/signal-status/`)
 
 | 参数 | 值 |
 |------|-----|

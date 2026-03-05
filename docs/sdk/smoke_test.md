@@ -36,7 +36,7 @@ If you prefer UI management, as admin open `/account/admin/tokens/` and generate
 ## 3. Health Check
 
 ```bash
-python -c "import requests; print(requests.get('http://127.0.0.1:8000/health/', timeout=8).status_code)"
+python -c "import requests; print(requests.get('http://127.0.0.1:8000/api/health/', timeout=8).status_code)"
 ```
 
 Expected: `200`

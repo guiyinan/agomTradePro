@@ -31,12 +31,12 @@ Services expected:
 Because system `nginx` is already binding `80`/`443`, Caddy is mapped to non-standard host ports.
 
 - App entry (HTTP via Caddy): `http://141.11.211.21:8000`
-- Health check: `http://141.11.211.21:8000/health/`
+- Health check: `http://141.11.211.21:8000/api/health/`
 
 Quick verification (from anywhere):
 
 ```sh
-curl -fsS http://141.11.211.21:8000/health/
+curl -fsS http://141.11.211.21:8000/api/health/
 ```
 
 If you later free ports `80/443`, you can remap Caddy by editing `/opt/agomsaaf/current/deploy/.env`:

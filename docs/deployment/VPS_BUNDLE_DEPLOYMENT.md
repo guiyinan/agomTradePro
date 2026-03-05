@@ -230,13 +230,13 @@ Health check:
 
 ```bash
 HTTP_PORT=$(grep '^CADDY_HTTP_PORT=' /opt/agomsaaf/current/deploy/.env | cut -d '=' -f2- | tail -n 1)
-curl -f "http://127.0.0.1:${HTTP_PORT:-8000}/health/"
+curl -f "http://127.0.0.1:${HTTP_PORT:-8000}/api/health/"
 ```
 
 If domain is configured:
 
 ```bash
-curl -f https://your-domain/health/
+curl -f https://your-domain/api/health/
 ```
 
 ---
