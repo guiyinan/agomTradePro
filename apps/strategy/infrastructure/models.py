@@ -9,6 +9,7 @@ Infrastructure层:
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.utils import timezone
 
 
 class StrategyModel(models.Model):
@@ -485,3 +486,142 @@ class StrategyExecutionLogModel(models.Model):
     def __str__(self):
         status = "成功" if self.is_success else "失败"
         return f"{self.strategy.name} @ {self.portfolio.account_name} - {status}"
+
+
+class StrategyParamVersionModel(models.Model):
+    """策略参数版本配置（支持参数回滚）"""
+
+    # 关联策略
+    strategy = models.ForeignKey(
+        StrategyModel,
+        on_delete=models.CASCADE,
+        related_name='param_versions',
+        verbose_name="所属策略"
+    )
+
+    # 版本号（每个策略从1开始递增）
+    version = models.PositiveIntegerField("版本号", db_index=True)
+
+    # 参数配置（JSON格式存储）
+    params_json = models.JSONField(
+        verbose_name="参数配置",
+        help_text="策略参数的JSON序列化"
+    )
+
+    # 版本状态
+    is_active = models.BooleanField(
+        "是否激活",
+        default=False,
+        db_index=True,
+        help_text="同一策略只能有一个激活版本"
+    )
+
+    # 变更说明
+    change_description = models.TextField(
+        "变更说明",
+        blank=True,
+        help_text="记录本次参数变更的原因和内容"
+    )
+
+    # 变更者
+    changed_by = models.ForeignKey(
+        'account.AccountProfileModel',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="变更者"
+    )
+
+    # 元数据
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        db_table = 'strategy_param_version'
+        verbose_name = "策略参数版本"
+        verbose_name_plural = "策略参数版本"
+        unique_together = [['strategy', 'version']]
+        ordering = ['-version']
+        indexes = [
+            models.Index(fields=['strategy', '-version']),
+            models.Index(fields=['strategy', 'is_active']),
+            models.Index(fields=['-created_at']),
+        ]
+
+    def __str__(self):
+        status = "激活" if self.is_active else "未激活"
+        return f"{self.strategy.name} 参数版本 v{self.version} ({status})"
+
+
+class OrderIntentModel(models.Model):
+    """订单意图持久化模型（M0/M2 幂等与审计链路）"""
+
+    intent_id = models.CharField("意图ID", max_length=64, unique=True, db_index=True)
+    idempotency_key = models.CharField("幂等键", max_length=128, unique=True, db_index=True)
+
+    strategy = models.ForeignKey(
+        StrategyModel,
+        on_delete=models.CASCADE,
+        related_name='order_intents',
+        verbose_name="策略"
+    )
+    portfolio = models.ForeignKey(
+        'simulated_trading.SimulatedAccountModel',
+        on_delete=models.CASCADE,
+        related_name='strategy_order_intents',
+        verbose_name="投资组合"
+    )
+
+    symbol = models.CharField("资产代码", max_length=32, db_index=True)
+    side = models.CharField(
+        "方向",
+        max_length=8,
+        choices=[('buy', '买入'), ('sell', '卖出')],
+    )
+    qty = models.PositiveIntegerField("数量")
+    limit_price = models.FloatField("限价", null=True, blank=True)
+    time_in_force = models.CharField(
+        "订单时效",
+        max_length=8,
+        default='day',
+        choices=[('day', 'DAY'), ('gtc', 'GTC'), ('ioc', 'IOC'), ('fok', 'FOK')],
+    )
+    reason = models.TextField("原因", blank=True)
+    status = models.CharField(
+        "状态",
+        max_length=32,
+        default='draft',
+        db_index=True,
+        choices=[
+            ('draft', '草稿'),
+            ('pending_approval', '待审批'),
+            ('approved', '已批准'),
+            ('rejected', '已拒绝'),
+            ('sent', '已发送'),
+            ('partial_filled', '部分成交'),
+            ('filled', '已成交'),
+            ('canceled', '已取消'),
+            ('failed', '失败'),
+        ],
+    )
+
+    decision_json = models.JSONField("决策快照", default=dict)
+    sizing_json = models.JSONField("仓位快照", default=dict)
+    risk_snapshot_json = models.JSONField("风控快照", default=dict)
+
+    created_at = models.DateTimeField("创建时间", default=timezone.now, db_index=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        db_table = 'order_intent'
+        verbose_name = "订单意图"
+        verbose_name_plural = "订单意图"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['portfolio', 'status']),
+            models.Index(fields=['strategy', '-created_at']),
+            models.Index(fields=['symbol', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.intent_id} {self.symbol} {self.side} {self.qty} ({self.status})"

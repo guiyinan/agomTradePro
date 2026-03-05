@@ -12,7 +12,7 @@ from datetime import datetime
 from hashlib import sha256
 
 from django.db import transaction
-from django.db.models import Q, F, Prefetch
+from django.db.models import Q, F, Prefetch, Max
 
 from apps.strategy.domain.entities import (
     Strategy,
@@ -26,12 +26,21 @@ from apps.strategy.domain.entities import (
     AIConfig,
     RuleCondition,
     SignalRecommendation,
-    StrategyExecutionResult
+    StrategyExecutionResult,
+    OrderIntent,
+    OrderSide,
+    OrderStatus,
+    TimeInForce,
+    DecisionResult,
+    DecisionAction,
+    SizingResult,
+    RiskSnapshot,
 )
 from apps.strategy.domain.protocols import (
     StrategyRepositoryProtocol,
     RuleConditionRepositoryProtocol,
-    StrategyExecutionLogRepositoryProtocol
+    StrategyExecutionLogRepositoryProtocol,
+    OrderIntentRepositoryProtocol,
 )
 from apps.strategy.infrastructure.models import (
     StrategyModel,
@@ -39,7 +48,9 @@ from apps.strategy.infrastructure.models import (
     ScriptConfigModel,
     AIStrategyConfigModel,
     PortfolioStrategyAssignmentModel,
-    StrategyExecutionLogModel
+    StrategyExecutionLogModel,
+    StrategyParamVersionModel,
+    OrderIntentModel,
 )
 
 logger = logging.getLogger(__name__)
@@ -536,3 +547,332 @@ class DjangoStrategyExecutionLogRepository:
 
         return [self._orm_to_domain_entity(obj) for obj in orm_objects]
 
+
+# ========================================================================
+# Strategy Param Version Repository
+# ========================================================================
+
+class StrategyParamRepository:
+    """策略参数版本仓储"""
+
+    def get_active_params(self, strategy_id: int) -> dict:
+        """
+        获取策略的激活参数
+
+        Args:
+            strategy_id: 策略ID
+
+        Returns:
+            参数字典，如果不存在返回空字典
+        """
+        try:
+            orm_obj = StrategyParamVersionModel._default_manager.filter(
+                strategy_id=strategy_id,
+                is_active=True
+            ).latest('created_at')
+            return orm_obj.params_json
+        except StrategyParamVersionModel.DoesNotExist:
+            return {}
+
+    def save_params(
+        self,
+        strategy_id: int,
+        params: dict,
+        version: int,
+        change_description: str = "",
+        changed_by_id: int = None,
+        set_as_active: bool = True
+    ) -> Optional[StrategyParamVersionModel]:
+        """
+        保存策略参数新版本
+
+        Args:
+            strategy_id: 策略ID
+            params: 参数字典
+            version: 版本号
+            change_description: 变更说明
+            changed_by_id: 变更者ID
+            set_as_active: 是否设置为激活版本
+
+        Returns:
+            创建的参数版本对象，失败返回 None
+        """
+        from apps.strategy.infrastructure.models import StrategyModel
+
+        try:
+            with transaction.atomic():
+                # 验证策略存在
+                strategy = StrategyModel._default_manager.get(id=strategy_id)
+
+                # 如果设置为激活，先取消其他激活版本
+                if set_as_active:
+                    StrategyParamVersionModel._default_manager.filter(
+                        strategy_id=strategy_id,
+                        is_active=True
+                    ).update(is_active=False)
+
+                # 创建新版本
+                param_version = StrategyParamVersionModel._default_manager.create(
+                    strategy_id=strategy_id,
+                    version=version,
+                    params_json=params,
+                    is_active=set_as_active,
+                    change_description=change_description,
+                    changed_by_id=changed_by_id
+                )
+
+                logger.info(
+                    f"Created param version {version} for strategy {strategy_id}: "
+                    f"{change_description}"
+                )
+                return param_version
+
+        except StrategyModel.DoesNotExist:
+            logger.error(f"Strategy {strategy_id} does not exist")
+            return None
+        except Exception as e:
+            logger.error(f"Failed to save params for strategy {strategy_id}: {e}")
+            return None
+
+    def rollback_to_version(self, strategy_id: int, version: int) -> bool:
+        """
+        回滚到指定版本的参数
+
+        Args:
+            strategy_id: 策略ID
+            version: 目标版本号
+
+        Returns:
+            是否回滚成功
+        """
+        try:
+            with transaction.atomic():
+                # 获取目标版本
+                target_version = StrategyParamVersionModel._default_manager.get(
+                    strategy_id=strategy_id,
+                    version=version
+                )
+
+                # 创建新版本（复制目标版本的参数）
+                # 获取当前最大版本号
+                max_version = StrategyParamVersionModel._default_manager.filter(
+                    strategy_id=strategy_id
+                ).aggregate(max_v=Max('version'))['max_v'] or 0
+
+                new_version = max_version + 1
+
+                # 取消所有激活版本
+                StrategyParamVersionModel._default_manager.filter(
+                    strategy_id=strategy_id,
+                    is_active=True
+                ).update(is_active=False)
+
+                # 创建回滚版本（记录为从旧版本回滚）
+                StrategyParamVersionModel._default_manager.create(
+                    strategy_id=strategy_id,
+                    version=new_version,
+                    params_json=target_version.params_json,
+                    is_active=True,
+                    change_description=f"从版本 {version} 回滚",
+                    changed_by_id=target_version.changed_by_id
+                )
+
+                logger.info(
+                    f"Rolled back strategy {strategy_id} to version {version}, "
+                    f"created new version {new_version}"
+                )
+                return True
+
+        except StrategyParamVersionModel.DoesNotExist:
+            logger.error(f"Version {version} not found for strategy {strategy_id}")
+            return False
+        except Exception as e:
+            logger.error(f"Failed to rollback strategy {strategy_id} to version {version}: {e}")
+            return False
+
+    def get_next_version(self, strategy_id: int) -> int:
+        """
+        获取下一个版本号
+
+        Args:
+            strategy_id: 策略ID
+
+        Returns:
+            下一个版本号（如果没有历史版本，返回1）
+        """
+        from django.db.models import Max
+
+        max_version = StrategyParamVersionModel._default_manager.filter(
+            strategy_id=strategy_id
+        ).aggregate(max_v=Max('version'))['max_v']
+
+        return (max_version or 0) + 1
+
+    def set_active_version(self, strategy_id: int, version: int) -> bool:
+        """
+        设置指定版本为激活版本（不创建新版本）
+
+        Args:
+            strategy_id: 策略ID
+            version: 版本号
+
+        Returns:
+            是否设置成功
+        """
+        try:
+            with transaction.atomic():
+                # 取消所有激活版本
+                StrategyParamVersionModel._default_manager.filter(
+                    strategy_id=strategy_id,
+                    is_active=True
+                ).update(is_active=False)
+
+                # 激活目标版本
+                count = StrategyParamVersionModel._default_manager.filter(
+                    strategy_id=strategy_id,
+                    version=version
+                ).update(is_active=True)
+
+                if count == 0:
+                    logger.error(f"Version {version} not found for strategy {strategy_id}")
+                    return False
+
+                logger.info(f"Set version {version} as active for strategy {strategy_id}")
+                return True
+
+        except Exception as e:
+            logger.error(f"Failed to set active version {version} for strategy {strategy_id}: {e}")
+            return False
+
+
+# ========================================================================
+# Order Intent Repository
+# ========================================================================
+
+class DjangoOrderIntentRepository(OrderIntentRepositoryProtocol):
+    """订单意图仓储（支持幂等查重与状态更新）"""
+
+    @staticmethod
+    def _build_decision(data: dict) -> DecisionResult:
+        valid_until_raw = data.get('valid_until')
+        valid_until = None
+        if valid_until_raw:
+            try:
+                valid_until = datetime.fromisoformat(valid_until_raw)
+            except ValueError:
+                valid_until = None
+        return DecisionResult(
+            action=DecisionAction(data.get('action', DecisionAction.DENY.value)),
+            reason_codes=data.get('reason_codes', []),
+            reason_text=data.get('reason_text', ''),
+            valid_until=valid_until,
+            confidence=float(data.get('confidence', 1.0)),
+        )
+
+    @staticmethod
+    def _build_sizing(data: dict) -> SizingResult:
+        return SizingResult(
+            target_notional=float(data.get('target_notional', 0.0)),
+            qty=int(data.get('qty', 0)),
+            expected_risk_pct=float(data.get('expected_risk_pct', 0.0)),
+            sizing_method=data.get('sizing_method', ''),
+            sizing_explain=data.get('sizing_explain', ''),
+        )
+
+    @staticmethod
+    def _build_risk_snapshot(data: dict) -> RiskSnapshot:
+        return RiskSnapshot(
+            total_equity=float(data.get('total_equity', 0.0)),
+            cash_balance=float(data.get('cash_balance', 0.0)),
+            total_position_value=float(data.get('total_position_value', 0.0)),
+            daily_pnl_pct=float(data.get('daily_pnl_pct', 0.0)),
+            max_single_position_pct=float(data.get('max_single_position_pct', 0.0)),
+            top3_position_pct=float(data.get('top3_position_pct', 0.0)),
+            current_regime=data.get('current_regime', 'Unknown'),
+            regime_confidence=float(data.get('regime_confidence', 0.0)),
+            volatility_index=data.get('volatility_index'),
+            max_position_limit_pct=float(data.get('max_position_limit_pct', 20.0)),
+            daily_loss_limit_pct=float(data.get('daily_loss_limit_pct', 5.0)),
+            daily_trade_limit=int(data.get('daily_trade_limit', 10)),
+        )
+
+    @classmethod
+    def _orm_to_domain_entity(cls, orm_obj: OrderIntentModel) -> OrderIntent:
+        decision = cls._build_decision(orm_obj.decision_json or {})
+        sizing = cls._build_sizing(orm_obj.sizing_json or {})
+        risk_snapshot = cls._build_risk_snapshot(orm_obj.risk_snapshot_json or {})
+        return OrderIntent(
+            intent_id=orm_obj.intent_id,
+            strategy_id=orm_obj.strategy_id,
+            portfolio_id=orm_obj.portfolio_id,
+            symbol=orm_obj.symbol,
+            side=OrderSide(orm_obj.side),
+            qty=orm_obj.qty,
+            decision=decision,
+            sizing=sizing,
+            risk_snapshot=risk_snapshot,
+            limit_price=orm_obj.limit_price,
+            time_in_force=TimeInForce(orm_obj.time_in_force),
+            reason=orm_obj.reason,
+            idempotency_key=orm_obj.idempotency_key,
+            status=OrderStatus(orm_obj.status),
+            created_at=orm_obj.created_at,
+            updated_at=orm_obj.updated_at,
+        )
+
+    def save(self, intent: OrderIntent) -> OrderIntent:
+        with transaction.atomic():
+            defaults = {
+                'strategy_id': intent.strategy_id,
+                'portfolio_id': intent.portfolio_id,
+                'symbol': intent.symbol,
+                'side': intent.side.value,
+                'qty': intent.qty,
+                'limit_price': intent.limit_price,
+                'time_in_force': intent.time_in_force.value,
+                'reason': intent.reason,
+                'status': intent.status.value,
+                'decision_json': intent.decision.to_dict(),
+                'sizing_json': intent.sizing.to_dict(),
+                'risk_snapshot_json': intent.risk_snapshot.to_dict(),
+            }
+            if intent.created_at is not None:
+                defaults['created_at'] = intent.created_at
+
+            OrderIntentModel._default_manager.update_or_create(
+                intent_id=intent.intent_id,
+                defaults={**defaults, 'idempotency_key': intent.idempotency_key},
+            )
+            orm_obj = OrderIntentModel._default_manager.get(intent_id=intent.intent_id)
+            return self._orm_to_domain_entity(orm_obj)
+
+    def get_by_id(self, intent_id: str) -> Optional[OrderIntent]:
+        try:
+            orm_obj = OrderIntentModel._default_manager.get(intent_id=intent_id)
+            return self._orm_to_domain_entity(orm_obj)
+        except OrderIntentModel.DoesNotExist:
+            return None
+
+    def get_by_idempotency_key(self, idempotency_key: str) -> Optional[OrderIntent]:
+        try:
+            orm_obj = OrderIntentModel._default_manager.get(idempotency_key=idempotency_key)
+            return self._orm_to_domain_entity(orm_obj)
+        except OrderIntentModel.DoesNotExist:
+            return None
+
+    def update_status(self, intent_id: str, status: OrderStatus) -> bool:
+        updated = OrderIntentModel._default_manager.filter(intent_id=intent_id).update(
+            status=status.value
+        )
+        return updated > 0
+
+    def get_pending_intents(self, portfolio_id: int) -> List[OrderIntent]:
+        orm_objects = OrderIntentModel._default_manager.filter(
+            portfolio_id=portfolio_id,
+            status__in=[
+                OrderStatus.DRAFT.value,
+                OrderStatus.PENDING_APPROVAL.value,
+                OrderStatus.APPROVED.value,
+            ],
+        ).order_by('-created_at').all()
+        return [self._orm_to_domain_entity(obj) for obj in orm_objects]

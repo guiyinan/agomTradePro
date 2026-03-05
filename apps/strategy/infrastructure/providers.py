@@ -317,3 +317,255 @@ class DjangoPortfolioDataProvider:
         except Exception as e:
             logger.error(f"Error getting cash for portfolio {portfolio_id}: {e}")
             return 0.0
+
+
+# ========================================================================
+# M3: 执行适配器实现
+# ========================================================================
+
+class PaperExecutionAdapter:
+    """
+    模拟执行适配器
+
+    不实际发送订单，只模拟执行过程并记录日志。
+    用于：
+    - 策略回测
+    - 开发测试
+    - 金丝雀发布前的验证
+    """
+
+    def __init__(self, portfolio_id: int):
+        self.portfolio_id = portfolio_id
+        self._orders: Dict[str, Dict[str, Any]] = {}
+
+    def submit_order(self, intent) -> str:
+        """
+        模拟提交订单
+
+        Args:
+            intent: OrderIntent 订单意图
+
+        Returns:
+            模拟订单ID（使用 intent_id）
+        """
+        import uuid
+        from django.utils import timezone
+
+        from apps.strategy.domain.entities import OrderStatus, OrderEvent
+        from apps.strategy.domain.services import OrderStateMachine
+
+        # 生成模拟订单ID
+        paper_order_id = f"PAPER-{intent.intent_id}"
+
+        # 模拟订单状态
+        self._orders[paper_order_id] = {
+            'intent_id': intent.intent_id,
+            'symbol': intent.symbol,
+            'side': intent.side.value,
+            'qty': intent.qty,
+            'limit_price': intent.limit_price,
+            'status': OrderStatus.SENT.value,
+            'filled_qty': 0,
+            'filled_price': None,
+            'created_at': timezone.now().isoformat(),
+            'updated_at': timezone.now().isoformat(),
+        }
+
+        logger.info(
+            f"[PaperAdapter] Order submitted: {paper_order_id} "
+            f"symbol={intent.symbol} side={intent.side.value} qty={intent.qty}"
+        )
+
+        return paper_order_id
+
+    def query_order_status(self, broker_order_id: str) -> Dict[str, Any]:
+        """
+        查询模拟订单状态
+
+        Args:
+            broker_order_id: 模拟订单ID
+
+        Returns:
+            订单状态信息
+        """
+        from django.utils import timezone
+
+        from apps.strategy.domain.entities import OrderStatus
+
+        if broker_order_id in self._orders:
+            order = self._orders[broker_order_id]
+
+            # 模拟部分成交或全部成交
+            if order['status'] == OrderStatus.SENT.value:
+                # 模拟立即全部成交
+                order['status'] = OrderStatus.FILLED.value
+                order['filled_qty'] = order['qty']
+                order['filled_price'] = order['limit_price'] or 100.0  # 默认价格
+                order['updated_at'] = timezone.now().isoformat()
+
+            return {
+                'status': order['status'],
+                'filled_qty': order['filled_qty'],
+                'filled_price': order['filled_price'],
+                'remaining_qty': order['qty'] - order['filled_qty'],
+                'error_message': None,
+            }
+
+        return {
+            'status': 'not_found',
+            'filled_qty': 0,
+            'filled_price': None,
+            'remaining_qty': 0,
+            'error_message': f'Order not found: {broker_order_id}',
+        }
+
+    def cancel_order(self, broker_order_id: str) -> bool:
+        """
+        模拟撤销订单
+
+        Args:
+            broker_order_id: 模拟订单ID
+
+        Returns:
+            是否撤销成功
+        """
+        from django.utils import timezone
+
+        from apps.strategy.domain.entities import OrderStatus
+
+        if broker_order_id in self._orders:
+            order = self._orders[broker_order_id]
+            if order['status'] == OrderStatus.SENT.value:
+                order['status'] = OrderStatus.CANCELED.value
+                order['updated_at'] = timezone.now().isoformat()
+                logger.info(f"[PaperAdapter] Order canceled: {broker_order_id}")
+                return True
+            else:
+                logger.warning(
+                    f"[PaperAdapter] Cannot cancel order in status: {order['status']}"
+                )
+                return False
+
+        return False
+
+    def get_name(self) -> str:
+        return "paper"
+
+    def is_live(self) -> bool:
+        return False
+
+
+class BrokerExecutionAdapter:
+    """
+    券商执行适配器（占位实现）
+
+    实盘执行适配器，需要根据实际券商API实现。
+    当前为占位实现，用于：
+    - 接口定义
+    - 沙盒测试
+    """
+
+    def __init__(self, broker_config: Dict[str, Any]):
+        """
+        初始化券商适配器
+
+        Args:
+            broker_config: 券商配置，包含：
+            - broker_type: 券商类型（如 "xtp", "ib"）
+            - api_key: API密钥
+            - api_secret: API密钥
+            - sandbox: 是否沙箱模式
+        """
+        self.broker_config = broker_config
+        self._is_sandbox = broker_config.get('sandbox', True)
+
+    def submit_order(self, intent) -> str:
+        """
+        提交订单到券商
+
+        Args:
+            intent: OrderIntent 订单意图
+
+        Returns:
+            券商订单ID
+
+        Raises:
+            NotImplementedError: 当前为占位实现
+        """
+        # 占位实现： 实际使用时需要对接券商API
+        raise NotImplementedError(
+            "BrokerExecutionAdapter.submit_order is not implemented. "
+            "Please implement the actual broker API integration."
+        )
+
+    def query_order_status(self, broker_order_id: str) -> Dict[str, Any]:
+        """
+        查询券商订单状态
+
+        Args:
+            broker_order_id: 券商订单ID
+
+        Returns:
+            订单状态信息
+
+        Raises:
+            NotImplementedError: 当前为占位实现
+        """
+        raise NotImplementedError(
+            "BrokerExecutionAdapter.query_order_status is not implemented. "
+            "Please implement the actual broker API integration."
+        )
+
+    def cancel_order(self, broker_order_id: str) -> bool:
+        """
+        撤销券商订单
+
+        Args:
+            broker_order_id: 券商订单ID
+
+        Returns:
+            是否撤销成功
+
+        Raises:
+            NotImplementedError: 当前为占位实现
+        """
+        raise NotImplementedError(
+            "BrokerExecutionAdapter.cancel_order is not implemented. "
+            "Please implement the actual broker API integration."
+        )
+
+    def get_name(self) -> str:
+        return f"broker_{self.broker_config.get('broker_type', 'unknown')}"
+
+    def is_live(self) -> bool:
+        return not self._is_sandbox
+
+
+class ExecutionAdapterFactory:
+    """执行适配器工厂"""
+
+    @staticmethod
+    def create_adapter(
+        mode: str,
+        portfolio_id: int,
+        broker_config: Dict[str, Any] = None
+    ):
+        """
+        创建执行适配器
+
+        Args:
+            mode: 执行模式 ("paper" | "broker")
+            portfolio_id: 投资组合ID
+            broker_config: 券商配置（仅broker模式需要）
+
+        Returns:
+            执行适配器实例
+        """
+        if mode == "paper":
+            return PaperExecutionAdapter(portfolio_id)
+        elif mode == "broker":
+            if not broker_config:
+                raise ValueError("broker_config is required for broker mode")
+            return BrokerExecutionAdapter(broker_config)
+        else:
+            raise ValueError(f"Unknown execution mode: {mode}")

@@ -119,14 +119,17 @@ handlers = {
     'console': {
         'class': 'logging.StreamHandler',
         'formatter': 'structured' if USE_JSON_LOGGING else 'verbose',
+        'filters': ['trace_context'],
     },
     'console_json': {
         'class': 'logging.StreamHandler',
         'formatter': 'structured',
+        'filters': ['trace_context'],
     },
     'in_memory': {
         'class': 'core.logging_handlers.InMemoryLogHandler',
         'formatter': 'simple',
+        'filters': ['trace_context'],
     },
 }
 
@@ -140,6 +143,7 @@ if LOG_TO_FILE:
         'maxBytes': 1024 * 1024 * 100,
         'backupCount': 10,
         'formatter': 'structured',
+        'filters': ['trace_context'],
     }
     handlers['file_json'] = {
         'class': 'logging.handlers.RotatingFileHandler',
@@ -147,12 +151,18 @@ if LOG_TO_FILE:
         'maxBytes': 1024 * 1024 * 100,
         'backupCount': 10,
         'formatter': 'structured',
+        'filters': ['trace_context'],
     }
     django_handlers.extend(['file', 'file_json'])
 
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'filters': {
+        'trace_context': {
+            '()': 'core.logging_utils.TraceContextFilter',
+        },
+    },
     'formatters': {
         # 结构化 JSON 格式（生产环境推荐）
         'structured': {

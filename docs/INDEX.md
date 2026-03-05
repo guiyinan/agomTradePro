@@ -10,6 +10,7 @@
 
 | 角色 | 入口文档 | 说明 |
 |------|----------|------|
+| **系统概览** | [SYSTEM_SPECIFICATION.md](SYSTEM_SPECIFICATION.md) | **完整系统说明书（技术+功能）** |
 | **新用户** | [QUICK_START.md](QUICK_START.md) | **个人实战上手手册（冷启动版）** |
 | 开发人员 | [development/quick-reference.md](development/quick-reference.md) | 命令速查、API端点、模块速查 |
 | 新加入者 | [architecture/SYSTEM_OVERVIEW.md](architecture/SYSTEM_OVERVIEW.md) | 系统全景、模块说明、数据流 |

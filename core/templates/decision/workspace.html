@@ -459,6 +459,16 @@ async function loadUserAccounts() {
                 const el = document.getElementById(id);
                 if (el) el.innerHTML = options;
             });
+
+            // 默认选中第一个账户，避免首次加载无 account_id
+            if (userAccounts.length > 0) {
+                ['account-selector', 'approval-account-selector', 'conflict-account-selector'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el && !el.value) {
+                        el.value = String(userAccounts[0].account_id);
+                    }
+                });
+            }
         }
     } catch (error) {
         console.error('加载账户失败:', error);
@@ -481,7 +491,7 @@ async function loadRecommendations() {
     try {
         let url = '/api/decision/workspace/recommendations/';
         const params = new URLSearchParams();
-        if (accountId) params.append('account_id', accountId);
+        params.append('account_id', accountId || 'default');
         if (statusFilter) params.append('status', statusFilter);
         if (params.toString()) url += '?' + params.toString();
 
@@ -624,7 +634,7 @@ async function loadApprovals() {
     try {
         let url = '/api/decision/workspace/recommendations/';
         const params = new URLSearchParams();
-        if (accountId) params.append('account_id', accountId);
+        params.append('account_id', accountId || 'default');
         params.append('status', 'APPROVED');
         if (params.toString()) url += '?' + params.toString();
 
@@ -704,7 +714,7 @@ async function loadConflicts() {
     try {
         let url = '/api/decision/workspace/conflicts/';
         const params = new URLSearchParams();
-        if (accountId) params.append('account_id', accountId);
+        params.append('account_id', accountId || 'default');
         if (params.toString()) url += '?' + params.toString();
 
         const res = await fetch(url, {

@@ -120,6 +120,19 @@ class StructuredFormatterVerbose(StructuredFormatter):
         return json.dumps(log_data, ensure_ascii=False, default=str)
 
 
+class TraceContextFilter(logging.Filter):
+    """
+    Ensure log records always have trace context fields required by formatters.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not hasattr(record, 'trace_id') or not getattr(record, 'trace_id', None):
+            record.trace_id = get_trace_id() or '-'
+        if not hasattr(record, 'request_id'):
+            record.request_id = '-'
+        return True
+
+
 # Thread-local storage for trace_id
 _thread_local = threading.local()
 

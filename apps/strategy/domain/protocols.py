@@ -377,3 +377,154 @@ class PortfolioDataProviderProtocol(Protocol):
             现金余额
         """
         ...
+
+
+# ========================================================================
+# M3: 执行适配器协议
+# ========================================================================
+
+class ExecutionAdapterProtocol(Protocol):
+    """
+    执行适配器接口
+
+    统一的订单执行接口，支持：
+    - PaperAdapter: 模拟执行
+    - BrokerAdapter: 实盘执行
+    """
+
+    @abstractmethod
+    def submit_order(self, intent: 'OrderIntent') -> str:
+        """
+        提交订单
+
+        Args:
+            intent: 订单意图
+
+        Returns:
+            broker_order_id: 券商订单ID
+
+        Raises:
+            ExecutionError: 执行失败
+        """
+        ...
+
+    @abstractmethod
+    def query_order_status(self, broker_order_id: str) -> Dict[str, Any]:
+        """
+        查询订单状态
+
+        Args:
+            broker_order_id: 券商订单ID
+
+        Returns:
+            订单状态信息，包含：
+            - status: 订单状态
+            - filled_qty: 已成交数量
+            - filled_price: 成交均价
+            - remaining_qty: 剩余数量
+            - error_message: 错误信息（如果有）
+        """
+        ...
+
+    @abstractmethod
+    def cancel_order(self, broker_order_id: str) -> bool:
+        """
+        撤销订单
+
+        Args:
+            broker_order_id: 券商订单ID
+
+        Returns:
+            是否撤销成功
+        """
+        ...
+
+    @abstractmethod
+    def get_name(self) -> str:
+        """
+        获取适配器名称
+
+        Returns:
+            适配器名称（如 "paper", "broker_xxx"）
+        """
+        ...
+
+    @abstractmethod
+    def is_live(self) -> bool:
+        """
+        是否是实盘模式
+
+        Returns:
+            True 表示实盘， False 表示模拟
+        """
+        ...
+
+
+class OrderIntentRepositoryProtocol(Protocol):
+    """订单意图仓储接口"""
+
+    @abstractmethod
+    def save(self, intent: 'OrderIntent') -> 'OrderIntent':
+        """
+        保存订单意图
+
+        Args:
+            intent: 订单意图
+
+        Returns:
+            保存后的订单意图
+        """
+        ...
+
+    @abstractmethod
+    def get_by_id(self, intent_id: str) -> Optional['OrderIntent']:
+        """
+        根据ID获取订单意图
+
+        Args:
+            intent_id: 订单意图ID
+
+        Returns:
+            订单意图，如果不存在返回 None
+        """
+        ...
+
+    @abstractmethod
+    def get_by_idempotency_key(self, idempotency_key: str) -> Optional['OrderIntent']:
+        """
+        根据幂等键获取订单意图
+
+        Args:
+            idempotency_key: 幂等键
+
+        Returns:
+            订单意图，如果不存在返回 None
+        """
+        ...
+
+    @abstractmethod
+    def update_status(self, intent_id: str, status: 'OrderStatus') -> bool:
+        """
+        更新订单状态
+
+        Args:
+            intent_id: 订单意图ID
+            status: 新状态
+
+        Returns:
+            是否更新成功
+        """
+        ...
+
+    @abstractmethod
+    def get_pending_intents(self, portfolio_id: int) -> List['OrderIntent']:
+        """
+        获取待处理的订单意图
+
+        Args:
+            portfolio_id: 投资组合ID
+
+        Returns:
+            待处理的订单意图列表
+        """
+        ...

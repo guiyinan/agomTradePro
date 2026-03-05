@@ -16,6 +16,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.db.models import Count, Q, Sum
+from django.conf import settings
 
 from apps.strategy.infrastructure.models import (
     StrategyModel,
@@ -39,11 +40,18 @@ from apps.strategy.interface.serializers import (
     PortfolioStrategyAssignmentSerializer,
     PortfolioStrategyAssignmentDetailSerializer,
     StrategyExecutionLogSerializer,
-    StrategyExecutionLogListSerializer
+    StrategyExecutionLogListSerializer,
+    ExecutionEvaluateInputSerializer,
+    ExecutionEvaluateOutputSerializer,
 )
 from apps.strategy.application.position_management_service import (
     PositionManagementService,
     PositionRuleError,
+)
+from apps.strategy.domain.services import (
+    DecisionPolicyEngine,
+    SizingEngine,
+    PreTradeRiskGate,
 )
 
 
@@ -873,6 +881,111 @@ def strategy_execute(request, strategy_id):
             'failed_rules': [{'error': str(e)}],
             'duration_ms': 0
         })
+
+
+@login_required
+def execution_evaluate(request):
+    """执行评估 API：返回 decision/sizing/risk 的静态评估结果，不提交真实订单。"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': '只支持 POST 请求'}, status=405)
+
+    import json
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') if request.body else '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': '无效 JSON'}, status=400)
+
+    input_serializer = ExecutionEvaluateInputSerializer(data=payload)
+    if not input_serializer.is_valid():
+        return JsonResponse(
+            {'success': False, 'errors': input_serializer.errors},
+            status=400
+        )
+
+    data = input_serializer.validated_data
+
+    decision_engine = DecisionPolicyEngine(
+        signal_threshold=getattr(settings, 'DECISION_SIGNAL_THRESHOLD', 0.6),
+        confidence_threshold=getattr(settings, 'DECISION_CONFIDENCE_THRESHOLD', 0.7),
+        regime_alignment_required=getattr(settings, 'DECISION_REGIME_ALIGNMENT_REQUIRED', True),
+        max_daily_loss_pct=getattr(settings, 'RISK_MAX_DAILY_LOSS_PCT', 5.0),
+        max_daily_trades=getattr(settings, 'RISK_MAX_DAILY_TRADES', 10),
+    )
+    sizing_engine = SizingEngine(
+        default_method=getattr(settings, 'SIZING_DEFAULT_METHOD', 'fixed_fraction'),
+        risk_per_trade_pct=getattr(settings, 'SIZING_RISK_PER_TRADE_PCT', 1.0),
+        max_position_pct=getattr(settings, 'SIZING_MAX_POSITION_PCT', 20.0),
+        min_qty=getattr(settings, 'SIZING_MIN_QTY', 1),
+    )
+    risk_gate = PreTradeRiskGate(
+        max_single_position_pct=getattr(settings, 'RISK_MAX_SINGLE_POSITION_PCT', 20.0),
+        max_daily_trades=getattr(settings, 'RISK_MAX_DAILY_TRADES', 10),
+        max_daily_loss_pct=getattr(settings, 'RISK_MAX_DAILY_LOSS_PCT', 5.0),
+        min_volume=getattr(settings, 'RISK_MIN_VOLUME', 100000),
+    )
+
+    signal_direction = data.get('signal_direction') or ('bullish' if data['side'] == 'buy' else 'bearish')
+    current_price = data.get('current_price') or 100.0
+
+    decision_action, reason_codes, reason_text, valid_until_seconds = decision_engine.evaluate(
+        signal_strength=data['signal_strength'],
+        signal_direction=signal_direction,
+        signal_confidence=data['signal_confidence'],
+        regime=data.get('target_regime') or 'Unknown',
+        regime_confidence=0.8,
+        daily_pnl_pct=data['daily_pnl_pct'],
+        daily_trade_count=data['daily_trade_count'],
+        volatility_z=data.get('volatility_z'),
+        target_regime=data.get('target_regime'),
+    )
+
+    target_notional, qty, expected_risk_pct, sizing_method, sizing_explain = sizing_engine.calculate(
+        method=data.get('sizing_method') or getattr(settings, 'SIZING_DEFAULT_METHOD', 'fixed_fraction'),
+        account_equity=data['account_equity'],
+        current_price=current_price,
+        stop_loss_price=data.get('stop_loss_price'),
+        atr=data.get('atr'),
+        current_position_value=data['current_position_value'],
+    )
+
+    passed, violations, warnings, _ = risk_gate.check(
+        symbol=data['symbol'],
+        side=data['side'],
+        qty=qty,
+        price=current_price,
+        account_equity=data['account_equity'],
+        current_position_value=data['current_position_value'],
+        daily_trade_count=data['daily_trade_count'],
+        daily_pnl_pct=data['daily_pnl_pct'],
+        avg_volume=data.get('avg_volume'),
+    )
+
+    risk_snapshot = {
+        'daily_trade_count': data['daily_trade_count'],
+        'daily_pnl_pct': data['daily_pnl_pct'],
+        'violations': violations,
+        'warnings': warnings,
+    }
+
+    output = {
+        'decision_action': decision_action,
+        'decision_reasons': reason_codes,
+        'decision_text': reason_text,
+        'decision_confidence': data['signal_confidence'],
+        'valid_until_seconds': valid_until_seconds,
+        'target_notional': target_notional,
+        'qty': qty,
+        'expected_risk_pct': expected_risk_pct,
+        'sizing_method': sizing_method,
+        'sizing_explain': sizing_explain,
+        'risk_snapshot': risk_snapshot,
+        'can_execute': decision_action == 'allow' and passed,
+        'requires_confirmation': decision_action == 'watch',
+    }
+    output_serializer = ExecutionEvaluateOutputSerializer(data=output)
+    output_serializer.is_valid(raise_exception=True)
+    return JsonResponse({'success': True, 'data': output_serializer.validated_data})
 
 
 @login_required

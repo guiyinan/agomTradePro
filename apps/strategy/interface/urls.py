@@ -26,6 +26,7 @@ from apps.strategy.interface.views import (
     strategy_edit,
     strategy_toggle_status,
     strategy_execute,
+    execution_evaluate,
     bind_strategy,
     unbind_strategy,
     test_script,
@@ -58,6 +59,7 @@ urlpatterns = [
     # API 路由
     path('api/', include(router.urls)),
     path('api/test-script/', test_script, name='test-script'),
+    path('api/execution/evaluate/', execution_evaluate, name='execution-evaluate'),
     path('api/bind-strategy/', bind_strategy, name='bind-strategy'),
     path('api/unbind-strategy/', unbind_strategy, name='unbind-strategy'),
 ]

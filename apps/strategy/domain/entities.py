@@ -264,3 +264,196 @@ class StrategyExecutionResult:
             'error_message': self.error_message,
             'context': self.context
         }
+
+
+# ========================================================================
+# M0: 执行升级 - 订单意图与状态机
+# ========================================================================
+
+class OrderSide(Enum):
+    """订单方向"""
+    BUY = "buy"
+    SELL = "sell"
+
+
+class OrderStatus(Enum):
+    """订单状态"""
+    DRAFT = "draft"                    # 草稿
+    PENDING_APPROVAL = "pending_approval"  # 待审批
+    APPROVED = "approved"              # 已批准
+    REJECTED = "rejected"              # 已拒绝
+    SENT = "sent"                      # 已发送
+    PARTIAL_FILLED = "partial_filled"  # 部分成交
+    FILLED = "filled"                  # 全部成交
+    CANCELED = "canceled"              # 已取消
+    FAILED = "failed"                  # 失败
+
+
+class OrderEvent(Enum):
+    """订单事件"""
+    SUBMIT = "submit"          # 提交审批
+    APPROVE = "approve"        # 批准
+    REJECT = "reject"          # 拒绝
+    SEND = "send"              # 发送到交易所
+    PARTIAL_FILL = "partial_fill"  # 部分成交
+    FILL = "fill"              # 全部成交
+    CANCEL = "cancel"          # 取消
+    FAIL = "fail"              # 失败
+
+
+class TimeInForce(Enum):
+    """订单时效"""
+    DAY = "day"          # 当日有效
+    GTC = "gtc"          # 撤销前有效
+    IOC = "ioc"          # 立即成交或取消
+    FOK = "fok"          # 全部成交或取消
+
+
+class DecisionAction(Enum):
+    """决策动作"""
+    ALLOW = "allow"      # 允许交易
+    DENY = "deny"        # 拒绝交易
+    WATCH = "watch"      # 观察模式（需人工确认）
+
+
+@dataclass(frozen=True)
+class RiskSnapshot:
+    """风险快照（值对象）- 记录下单时的风险状态"""
+    # 账户风险
+    total_equity: float
+    cash_balance: float
+    total_position_value: float
+    daily_pnl_pct: float
+
+    # 持仓集中度
+    max_single_position_pct: float
+    top3_position_pct: float
+
+    # 市场状态
+    current_regime: str
+    regime_confidence: float
+    volatility_index: Optional[float] = None
+
+    # 风控参数
+    max_position_limit_pct: float = 20.0
+    daily_loss_limit_pct: float = 5.0
+    daily_trade_limit: int = 10
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            'total_equity': self.total_equity,
+            'cash_balance': self.cash_balance,
+            'total_position_value': self.total_position_value,
+            'daily_pnl_pct': self.daily_pnl_pct,
+            'max_single_position_pct': self.max_single_position_pct,
+            'top3_position_pct': self.top3_position_pct,
+            'current_regime': self.current_regime,
+            'regime_confidence': self.regime_confidence,
+            'volatility_index': self.volatility_index,
+            'max_position_limit_pct': self.max_position_limit_pct,
+            'daily_loss_limit_pct': self.daily_loss_limit_pct,
+            'daily_trade_limit': self.daily_trade_limit,
+        }
+
+
+@dataclass(frozen=True)
+class SizingResult:
+    """仓位计算结果（值对象）"""
+    target_notional: float       # 目标名义金额
+    qty: int                      # 数量
+    expected_risk_pct: float      # 预期风险比例
+    sizing_method: str            # 计算方法
+    sizing_explain: str           # 计算说明
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            'target_notional': self.target_notional,
+            'qty': self.qty,
+            'expected_risk_pct': self.expected_risk_pct,
+            'sizing_method': self.sizing_method,
+            'sizing_explain': self.sizing_explain,
+        }
+
+
+@dataclass(frozen=True)
+class DecisionResult:
+    """决策结果（值对象）"""
+    action: DecisionAction
+    reason_codes: List[str]
+    reason_text: str
+    valid_until: Optional[datetime] = None
+    confidence: float = 1.0
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            'action': self.action.value,
+            'reason_codes': self.reason_codes,
+            'reason_text': self.reason_text,
+            'valid_until': self.valid_until.isoformat() if self.valid_until else None,
+            'confidence': self.confidence,
+        }
+
+
+@dataclass
+class OrderIntent:
+    """订单意图实体 - 策略决策与执行解耦的核心对象"""
+    # 唯一标识
+    intent_id: str                        # UUID，全局唯一
+    strategy_id: int                      # 关联策略
+    portfolio_id: int                     # 关联投资组合
+
+    # 订单基本信息
+    symbol: str                           # 资产代码
+    side: OrderSide                       # 买卖方向
+    qty: int                              # 数量
+    decision: DecisionResult              # 决策结果
+    sizing: SizingResult                  # 仓位计算结果
+    risk_snapshot: RiskSnapshot           # 风险快照
+    limit_price: Optional[float] = None   # 限价（None 表示市价单）
+    time_in_force: TimeInForce = TimeInForce.DAY
+
+    # 元数据
+    reason: str = ""                      # 下单原因
+    idempotency_key: str = ""             # 幂等键
+    status: OrderStatus = OrderStatus.DRAFT
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    def __post_init__(self):
+        """验证数据"""
+        if self.qty <= 0:
+            raise ValueError(f"qty 必须大于 0: {self.qty}")
+
+        if self.limit_price is not None and self.limit_price <= 0:
+            raise ValueError(f"limit_price 必须大于 0: {self.limit_price}")
+
+        if not self.intent_id:
+            raise ValueError("intent_id 不能为空")
+
+        if not self.idempotency_key:
+            # 默认使用 intent_id 作为幂等键
+            object.__setattr__(self, 'idempotency_key', self.intent_id)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典（用于序列化）"""
+        return {
+            'intent_id': self.intent_id,
+            'strategy_id': self.strategy_id,
+            'portfolio_id': self.portfolio_id,
+            'symbol': self.symbol,
+            'side': self.side.value,
+            'qty': self.qty,
+            'limit_price': self.limit_price,
+            'time_in_force': self.time_in_force.value,
+            'decision': self.decision.to_dict(),
+            'sizing': self.sizing.to_dict(),
+            'risk_snapshot': self.risk_snapshot.to_dict(),
+            'reason': self.reason,
+            'idempotency_key': self.idempotency_key,
+            'status': self.status.value,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }

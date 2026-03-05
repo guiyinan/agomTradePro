@@ -349,3 +349,82 @@ class StrategyExecutionLogListSerializer(serializers.ModelSerializer):
             'is_success', 'signals_count',
             'strategy_name', 'portfolio_name'
         ]
+
+
+# ========================================================================
+# M3: 执行评估 API Serializers
+# ========================================================================
+
+class ExecutionEvaluateInputSerializer(serializers.Serializer):
+    """执行评估输入序列化器"""
+
+    symbol = serializers.CharField(help_text="资产代码")
+    side = serializers.ChoiceField(choices=['buy', 'sell'], help_text="买卖方向")
+    portfolio_id = serializers.IntegerField(help_text="投资组合ID", required=False)
+
+    current_price = serializers.FloatField(help_text="当前价格", required=False)
+    signal_strength = serializers.FloatField(
+        help_text="信号强度 (0-1)",
+        default=0.6,
+        min_value=0.0,
+        max_value=1.0
+    )
+    signal_direction = serializers.ChoiceField(
+        choices=['bullish', 'bearish', 'neutral'],
+        help_text="信号方向",
+        default='bullish'
+    )
+    signal_confidence = serializers.FloatField(
+        help_text="信号置信度 (0-1)",
+        default=0.8,
+        min_value=0.0,
+        max_value=1.0
+    )
+    stop_loss_price = serializers.FloatField(help_text="止损价", required=False)
+    atr = serializers.FloatField(help_text="ATR值", required=False)
+    target_regime = serializers.CharField(help_text="目标Regime", required=False)
+    account_equity = serializers.FloatField(help_text="账户权益", default=100000.0)
+    current_position_value = serializers.FloatField(help_text="当前持仓市值", default=0.0)
+    daily_pnl_pct = serializers.FloatField(help_text="当日盈亏比例", default=0.0)
+    daily_trade_count = serializers.IntegerField(help_text="当日交易次数", default=0)
+    volatility_z = serializers.FloatField(help_text="波动率Z分数", required=False)
+    avg_volume = serializers.FloatField(help_text="平均成交量", required=False)
+    sizing_method = serializers.ChoiceField(
+        choices=['fixed_fraction', 'atr_risk'],
+        help_text="仓位计算方法",
+        default='fixed_fraction'
+    )
+
+
+class ExecutionEvaluateOutputSerializer(serializers.Serializer):
+    """执行评估输出序列化器"""
+
+    # 决策结果
+    decision_action = serializers.ChoiceField(
+        choices=['allow', 'deny', 'watch'],
+        help_text="决策动作"
+    )
+    decision_reasons = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="决策原因码列表"
+    )
+    decision_text = serializers.CharField(help_text="决策原因描述")
+    decision_confidence = serializers.FloatField(help_text="决策置信度")
+    valid_until_seconds = serializers.IntegerField(
+        help_text="决策有效期（秒）",
+        allow_null=True
+    )
+
+    # 仓位结果
+    target_notional = serializers.FloatField(help_text="目标名义金额")
+    qty = serializers.IntegerField(help_text="数量")
+    expected_risk_pct = serializers.FloatField(help_text="预期风险比例")
+    sizing_method = serializers.CharField(help_text="仓位计算方法")
+    sizing_explain = serializers.CharField(help_text="仓位计算说明")
+
+    # 风险快照
+    risk_snapshot = serializers.DictField(help_text="风险快照")
+
+    # 执行状态
+    can_execute = serializers.BooleanField(help_text="是否可以执行")
+    requires_confirmation = serializers.BooleanField(help_text="是否需要人工确认")

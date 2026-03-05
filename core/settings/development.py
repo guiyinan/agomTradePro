@@ -33,6 +33,11 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'filters': {
+        'trace_context': {
+            '()': 'core.logging_utils.TraceContextFilter',
+        },
+    },
     'formatters': {
         # 结构化 JSON 格式（用于生产环境日志收集）
         'structured': {
@@ -57,10 +62,12 @@ LOGGING = {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'simple_with_trace',
+            'filters': ['trace_context'],
         },
         'console_json': {
             'class': 'logging.StreamHandler',
             'formatter': 'structured',
+            'filters': ['trace_context'],
         },
         'in_memory': {
             'class': 'core.logging_handlers.InMemoryLogHandler',

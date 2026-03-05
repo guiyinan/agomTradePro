@@ -44,6 +44,32 @@ if not AGOMSAAF_ENCRYPTION_KEY:
 # When disabled, the unified recommendation API returns a fallback response
 DECISION_WORKSPACE_V2_ENABLED = env.bool('DECISION_WORKSPACE_V2_ENABLED', default=True)
 
+# ========================================================================
+# M3: 执行升级灰度开关
+# ========================================================================
+
+# 执行模式配置
+EXECUTION_MODE = env('EXECUTION_MODE', default='paper')  # paper | broker | canary
+BROKER_CANARY_RATIO = env.float('BROKER_CANARY_RATIO', default=0.1)  # 金丝雀比例 (0.0 - 1.0)
+
+REQUIRE_CONFIRMATION_FOR_WATCH = env.bool('REQUIRE_CONFIRMATION_FOR_WATCH', default=True)  # WATCH 状态是否需要人工确认
+
+# 决策引擎配置
+DECISION_SIGNAL_THRESHOLD = env.float('DECISION_SIGNAL_THRESHOLD', default=0.6)
+DECISION_CONFIDENCE_THRESHOLD = env.float('DECISION_CONFIDENCE_THRESHOLD', default=0.7)
+DECISION_REGIME_ALIGNMENT_REQUIRED = env.bool('DECISION_REGIME_ALIGNMENT_REQUIRED', default=True)
+# 仓位引擎配置
+SIZING_DEFAULT_METHOD = env('SIZING_DEFAULT_METHOD', default='fixed_fraction')
+SIZING_RISK_PER_TRADE_PCT = env.float('SIZING_RISK_PER_TRADE_PCT', default=1.0)
+SIZING_MAX_POSITION_PCT = env.float('SIZING_MAX_POSITION_PCT', default=20.0)
+# 錙仓限制
+SIZING_MIN_QTY = env.int('SIZING_MIN_QTY', default=1)
+# 风控配置
+RISK_MAX_SINGLE_POSITION_PCT = env.float('RISK_MAX_SINGLE_POSITION_PCT', default=20.0)
+RISK_MAX_DAILY_TRADES = env.int('RISK_MAX_DAILY_TRADES', default=10)
+RISK_MAX_DAILY_LOSS_PCT = env.float('RISK_MAX_DAILY_LOSS_PCT', default=5.0)
+RISK_MIN_VOLUME = env.int('RISK_MIN_VOLUME', default=100000)
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-change-this-in-production')
 
