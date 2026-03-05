@@ -33,6 +33,18 @@ def test_equity_fund_page_route_names_resolvable():
     assert reverse("fund:multidim_screen_page")
 
 
+def test_policy_workbench_and_rss_page_routes_resolvable():
+    assert reverse("policy:workbench") == "/policy/workbench/"
+    assert reverse("policy:rss-manage") == "/policy/rss/manage/"
+    assert reverse("policy:rss-source-create") == "/policy/rss/manage/new/"
+    assert reverse("policy:rss-reader") == "/policy/rss/reader/"
+    assert reverse("policy:rss-keywords") == "/policy/rss/keywords/"
+    assert reverse("policy:rss-logs") == "/policy/rss/logs/"
+
+    assert resolve("/policy/workbench/").view_name.endswith("workbench")
+    assert resolve("/policy/rss/manage/").view_name.endswith("rss-manage")
+
+
 def test_macro_legacy_and_new_api_routes_resolvable():
     assert reverse("api_macro:quick_sync")
     assert reverse("api_macro:get_indicator_data")

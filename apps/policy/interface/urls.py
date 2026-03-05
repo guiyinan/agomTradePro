@@ -15,6 +15,16 @@ from .views import (
     ReviewPolicyItemView,
     BulkReviewView,
     AutoAssignAuditsView,
+    PolicyEventsPageView,
+    PolicyEventCreateView,
+    RSSSourceListView,
+    RSSSourceCreateView,
+    RSSSourceUpdateView,
+    RSSReaderView,
+    RSSKeywordListView,
+    PolicyKeywordCreateView,
+    PolicyKeywordUpdateView,
+    RSSFetchLogListView,
     # 工作台页面视图
     WorkbenchView,
 )
@@ -35,19 +45,19 @@ urlpatterns = [
     # 政策状态
     path("status/", PolicyStatusView.as_view(), name="status"),
 
-    # ========== 301 重定向旧页面到工作台 ==========
-    path("events/", RedirectView.as_view(url='/policy/workbench/', permanent=True), name="events-page"),
-    path("events/new/", RedirectView.as_view(url='/policy/workbench/', permanent=True), name="event-create"),
+    # ========== 页面路由 ==========
+    path("events/", PolicyEventsPageView.as_view(), name="events-page"),
+    path("events/new/", PolicyEventCreateView.as_view(), name="event-create"),
     path("events/<str:event_date>/", RedirectView.as_view(url='/policy/workbench/', permanent=True), name="events-page-detail"),
     path("audit/queue/", RedirectView.as_view(url='/policy/workbench/', permanent=True), name="audit-queue"),
-    path("rss/manage/", RedirectView.as_view(url='/policy/workbench/', permanent=True), name="rss-manage"),
-    path("rss/manage/new/", RedirectView.as_view(url='/policy/workbench/', permanent=True), name="rss-source-create"),
-    path("rss/manage/<int:source_id>/edit/", RedirectView.as_view(url='/policy/workbench/', permanent=True), name="rss-source-edit"),
-    path("rss/reader/", RedirectView.as_view(url='/policy/workbench/', permanent=True), name="rss-reader"),
-    path("rss/keywords/", RedirectView.as_view(url='/policy/workbench/', permanent=True), name="rss-keywords"),
-    path("rss/keywords/new/", RedirectView.as_view(url='/policy/workbench/', permanent=True), name="rss-keyword-create"),
-    path("rss/keywords/<int:keyword_id>/edit/", RedirectView.as_view(url='/policy/workbench/', permanent=True), name="rss-keyword-edit"),
-    path("rss/logs/", RedirectView.as_view(url='/policy/workbench/', permanent=True), name="rss-logs"),
+    path("rss/manage/", RSSSourceListView.as_view(), name="rss-manage"),
+    path("rss/manage/new/", RSSSourceCreateView.as_view(), name="rss-source-create"),
+    path("rss/manage/<int:source_id>/edit/", RSSSourceUpdateView.as_view(), name="rss-source-edit"),
+    path("rss/reader/", RSSReaderView.as_view(), name="rss-reader"),
+    path("rss/keywords/", RSSKeywordListView.as_view(), name="rss-keywords"),
+    path("rss/keywords/new/", PolicyKeywordCreateView.as_view(), name="rss-keyword-create"),
+    path("rss/keywords/<int:keyword_id>/edit/", PolicyKeywordUpdateView.as_view(), name="rss-keyword-edit"),
+    path("rss/logs/", RSSFetchLogListView.as_view(), name="rss-logs"),
 
     # ========== 审核相关API ==========
     path("audit/review/<int:policy_log_id>/", ReviewPolicyItemView.as_view(), name="review-policy"),
