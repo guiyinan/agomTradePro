@@ -6,11 +6,14 @@
 {% block content %}
 <div class="strategy-container">
     <!-- 头部 -->
-    <div class="strategy-header">
+    <div class="strategy-header" id="execution-evaluate-guide">
         <h1>📊 策略管理</h1>
         <button class="btn-create" onclick="location.href='{% url 'strategy:create' %}'">
             <i class="bi bi-plus-lg"></i> 创建新策略
         </button>
+    </div>
+    <div style="margin: 12px 0 20px; padding: 10px 14px; border: 1px solid #dbeafe; background: #eff6ff; border-radius: 8px; color: #1e3a8a; font-size: 13px;">
+        执行评估入口：进入任一策略详情页后，切换到“执行测试”页签，使用“执行评估（M3）”面板。
     </div>
 
     <!-- 统计卡片 -->
@@ -119,6 +122,9 @@
                     </button>
                     <button class="btn-action" onclick="location.href='{% url 'strategy:edit' strategy.id %}'">
                         <i class="bi bi-pencil"></i> 编辑
+                    </button>
+                    <button class="btn-action" onclick="location.href='{% url 'strategy:detail' strategy.id %}#tab-test'">
+                        <i class="bi bi-speedometer2"></i> 评估
                     </button>
                     <button class="btn-action danger" onclick="deleteStrategy({{ strategy.id }}, '{{ strategy.name }}')">
                         <i class="bi bi-trash"></i>

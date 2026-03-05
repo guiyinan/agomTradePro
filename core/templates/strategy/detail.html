@@ -148,10 +148,10 @@
 
     <!-- 标签页导航 -->
     <div class="tabs">
-        <div class="tab active" onclick="switchTab('info')">基本信息</div>
-        <div class="tab" onclick="switchTab('rules')">规则配置</div>
-        <div class="tab" onclick="switchTab('test')">执行测试</div>
-        <div class="tab" onclick="switchTab('logs')">执行日志</div>
+        <div class="tab active" onclick="switchTab('info', this)">基本信息</div>
+        <div class="tab" onclick="switchTab('rules', this)">规则配置</div>
+        <div class="tab" onclick="switchTab('test', this)">执行测试</div>
+        <div class="tab" onclick="switchTab('logs', this)">执行日志</div>
     </div>
 
     <!-- 基本信息 -->
@@ -270,6 +270,41 @@
 
                 <div id="testResults" class="test-results">
                     <!-- 测试结果将在这里动态生成 -->
+                </div>
+
+                <div style="margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 18px;">
+                    <h3 style="margin-top: 0;">执行评估（M3）</h3>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px;">
+                        <input id="evalSymbol" class="test-input" placeholder="symbol，如 510300" value="510300">
+                        <select id="evalSide" class="test-select">
+                            <option value="buy">buy</option>
+                            <option value="sell">sell</option>
+                        </select>
+                        <input id="evalCurrentPrice" class="test-input" type="number" step="0.0001" placeholder="current_price" value="100">
+                        <input id="evalSignalStrength" class="test-input" type="number" step="0.01" min="0" max="1" placeholder="signal_strength" value="0.6">
+                        <input id="evalSignalConfidence" class="test-input" type="number" step="0.01" min="0" max="1" placeholder="signal_confidence" value="0.8">
+                        <select id="evalSignalDirection" class="test-select">
+                            <option value="bullish">bullish</option>
+                            <option value="bearish">bearish</option>
+                            <option value="neutral">neutral</option>
+                        </select>
+                        <input id="evalAccountEquity" class="test-input" type="number" step="0.01" placeholder="account_equity" value="100000">
+                        <input id="evalCurrentPositionValue" class="test-input" type="number" step="0.01" placeholder="current_position_value" value="0">
+                        <input id="evalDailyPnlPct" class="test-input" type="number" step="0.01" placeholder="daily_pnl_pct" value="0">
+                        <input id="evalDailyTradeCount" class="test-input" type="number" step="1" placeholder="daily_trade_count" value="0">
+                        <input id="evalStopLossPrice" class="test-input" type="number" step="0.0001" placeholder="stop_loss_price(可选)">
+                        <input id="evalAtr" class="test-input" type="number" step="0.0001" placeholder="atr(可选)">
+                        <input id="evalVolatilityZ" class="test-input" type="number" step="0.01" placeholder="volatility_z(可选)">
+                        <input id="evalAvgVolume" class="test-input" type="number" step="1" placeholder="avg_volume(可选)">
+                        <input id="evalTargetRegime" class="test-input" placeholder="target_regime(可选)">
+                        <select id="evalSizingMethod" class="test-select">
+                            <option value="fixed_fraction">fixed_fraction</option>
+                            <option value="atr_risk">atr_risk</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="runExecutionEvaluate()">执行评估</button>
+                    <div id="evalStatus" style="margin-top: 10px; color: #64748b;">点击“执行评估”调用 `/strategy/api/execution/evaluate/`</div>
+                    <pre id="evalResult" style="margin-top: 10px; background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 8px; font-size: 12px; max-height: 260px; overflow: auto;">暂无结果</pre>
                 </div>
             </div>
         </div>
@@ -446,18 +481,119 @@
 
 <script>
 // 标签页切换
-function switchTab(tabName) {
-    // 更新标签状态
+function switchTab(tabName, tabElement = null) {
+    const currentTab = tabElement || (window.event ? window.event.currentTarget : null);
+    activateTab(tabName, currentTab);
+}
+
+function activateTab(tabName, tabElement) {
     document.querySelectorAll('.tab').forEach(tab => {
         tab.classList.remove('active');
     });
-    event.currentTarget.classList.add('active');
+    if (tabElement) {
+        tabElement.classList.add('active');
+    } else {
+        const targetTab = Array.from(document.querySelectorAll('.tab')).find(
+            tab => tab.textContent.includes(
+                tabName === 'info' ? '基本信息' :
+                tabName === 'rules' ? '规则配置' :
+                tabName === 'test' ? '执行测试' : '执行日志'
+            )
+        );
+        if (targetTab) {
+            targetTab.classList.add('active');
+        }
+    }
 
-    // 更新内容显示
     document.querySelectorAll('.tab-content').forEach(content => {
         content.classList.remove('active');
     });
     document.getElementById('tab-' + tabName).classList.add('active');
+}
+
+function numberValue(id, defaultValue) {
+    const raw = document.getElementById(id).value;
+    if (raw === null || raw === undefined || raw === '') {
+        return defaultValue;
+    }
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : defaultValue;
+}
+
+function optionalNumberValue(id) {
+    const raw = document.getElementById(id).value;
+    if (raw === null || raw === undefined || raw === '') {
+        return null;
+    }
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+}
+
+async function runExecutionEvaluate() {
+    const symbol = document.getElementById('evalSymbol').value.trim();
+    const evalStatus = document.getElementById('evalStatus');
+    const evalResult = document.getElementById('evalResult');
+
+    if (!symbol) {
+        showToast('symbol 不能为空', 'error');
+        return;
+    }
+
+    const payload = {
+        symbol,
+        side: document.getElementById('evalSide').value,
+        current_price: numberValue('evalCurrentPrice', 100),
+        signal_strength: numberValue('evalSignalStrength', 0.6),
+        signal_confidence: numberValue('evalSignalConfidence', 0.8),
+        signal_direction: document.getElementById('evalSignalDirection').value,
+        account_equity: numberValue('evalAccountEquity', 100000),
+        current_position_value: numberValue('evalCurrentPositionValue', 0),
+        daily_pnl_pct: numberValue('evalDailyPnlPct', 0),
+        daily_trade_count: Math.trunc(numberValue('evalDailyTradeCount', 0)),
+        sizing_method: document.getElementById('evalSizingMethod').value,
+    };
+
+    const stopLossPrice = optionalNumberValue('evalStopLossPrice');
+    const atr = optionalNumberValue('evalAtr');
+    const volatilityZ = optionalNumberValue('evalVolatilityZ');
+    const avgVolume = optionalNumberValue('evalAvgVolume');
+    const targetRegime = document.getElementById('evalTargetRegime').value.trim();
+    if (stopLossPrice !== null) payload.stop_loss_price = stopLossPrice;
+    if (atr !== null) payload.atr = atr;
+    if (volatilityZ !== null) payload.volatility_z = volatilityZ;
+    if (avgVolume !== null) payload.avg_volume = avgVolume;
+    if (targetRegime) payload.target_regime = targetRegime;
+
+    evalStatus.style.color = '#2563eb';
+    evalStatus.textContent = '执行评估中...';
+    evalResult.textContent = '请求中...';
+
+    try {
+        const res = await fetch('/strategy/api/execution/evaluate/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken || '',
+            },
+            body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+            evalStatus.style.color = '#dc2626';
+            evalStatus.textContent = '评估失败';
+            evalResult.textContent = JSON.stringify(data, null, 2);
+            return;
+        }
+
+        const summary = data.data;
+        evalStatus.style.color = '#059669';
+        evalStatus.textContent = `评估完成 | action=${summary.decision_action} | qty=${summary.qty} | can_execute=${summary.can_execute}`;
+        evalResult.textContent = JSON.stringify(data, null, 2);
+    } catch (e) {
+        evalStatus.style.color = '#dc2626';
+        evalStatus.textContent = '评估失败';
+        evalResult.textContent = e.message;
+    }
 }
 
 async function toggleStatus() {
@@ -757,6 +893,10 @@ function showToast(message, type = 'success') {
 
 // 加载测试账户列表和投资组合筛选器
 document.addEventListener('DOMContentLoaded', async function() {
+    if (window.location.hash === '#tab-test') {
+        activateTab('test', null);
+    }
+
     // 加载测试账户
     const select = document.getElementById('testAccount');
     try {
