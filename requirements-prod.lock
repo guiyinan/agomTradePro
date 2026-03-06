@@ -67,7 +67,7 @@ click-plugins==1.1.1.2
     # via celery
 click-repl==0.3.0
     # via celery
-colorama==0.4.6
+colorama==0.4.6 ; sys_platform == "win32"
     # via
     #   click
     #   tqdm
@@ -155,7 +155,7 @@ lxml==6.0.2
     #   tushare
 markupsafe==3.0.3
     # via jinja2
-mini-racer==0.14.1
+py-mini-racer==0.6.0
     # via akshare
 narwhals==2.17.0
     # via

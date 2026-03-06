@@ -95,3 +95,4 @@ docs/
 *.lock
 poetry.lock
 Pipfile.lock
+!requirements-prod.lock
