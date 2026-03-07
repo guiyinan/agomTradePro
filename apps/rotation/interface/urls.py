@@ -17,6 +17,7 @@ from apps.rotation.interface.views import (
     rotation_configs_view,
     rotation_signals_view,
     rotation_generate_signal_view,
+    rotation_account_config_view,
 )
 
 app_name = 'rotation'
@@ -40,6 +41,7 @@ urlpatterns = [
     path('assets/', rotation_assets_view, name='assets'),
     path('configs/', rotation_configs_view, name='configs'),
     path('signals/', rotation_signals_view, name='signals'),
+    path('account-configs/', rotation_account_config_view, name='account_configs'),
 
     # Action routes
     path('generate-signal/', rotation_generate_signal_view, name='generate_signal'),

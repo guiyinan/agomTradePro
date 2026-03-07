@@ -5,9 +5,42 @@
     <h1>策略配置</h1>
     <div class="header-meta">
         <span class="meta-item">📅 {{ current_date|date:"Y-m-d" }}</span>
-        <button class="btn-primary" onclick="showCreateConfigModal()">+ 新建配置</button>
+        <a href="{% url 'rotation:account_configs' %}" class="btn-accent">账户轮动配置</a>
+        <button class="btn-primary" onclick="showCreateConfigModal()">+ 新建模板</button>
     </div>
 </div>
+
+<!-- 账户配置快览 -->
+{% if user_accounts %}
+<div class="section-card">
+    <div class="section-card-header">
+        <h3>我的账户轮动配置</h3>
+        <a href="{% url 'rotation:account_configs' %}" class="link-more">管理全部 →</a>
+    </div>
+    <div class="account-quick-list">
+        {% for account in user_accounts %}
+        <div class="account-quick-item">
+            <span class="aq-name">{{ account.account_name }}</span>
+            <span class="aq-type type-{{ account.account_type }}">{{ account.get_account_type_display }}</span>
+            {% if account.rotation_config %}
+                <span class="aq-risk risk-{{ account.rotation_config.risk_tolerance }}">
+                    {{ account.rotation_config.get_risk_tolerance_display }}
+                </span>
+                {% if account.rotation_config.is_enabled %}
+                <span class="aq-status on">轮动启用</span>
+                {% else %}
+                <span class="aq-status off">未启用</span>
+                {% endif %}
+            {% else %}
+            <span class="aq-status unconfigured">未配置</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<h2 class="section-title">全局策略模板</h2>
 
 <!-- Configs List -->
 <div class="configs-container">
@@ -353,6 +386,89 @@ window.addEventListener('click', function(e) {
 </script>
 
 <style>
+/* 账户快览区 */
+.section-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    margin-bottom: 24px;
+    overflow: hidden;
+}
+
+.section-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.section-card-header h3 { font-size: 14px; font-weight: 600; color: #374151; margin: 0; }
+.link-more { font-size: 13px; color: #3b82f6; text-decoration: none; }
+.link-more:hover { text-decoration: underline; }
+
+.account-quick-list { padding: 8px 0; }
+
+.account-quick-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    font-size: 13px;
+    border-bottom: 1px solid #f9fafb;
+}
+
+.account-quick-item:last-child { border-bottom: none; }
+
+.aq-name { font-weight: 500; color: #111827; min-width: 120px; }
+
+.aq-type {
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 999px;
+}
+
+.type-real { background: #fef3c7; color: #92400e; }
+.type-simulated { background: #ede9fe; color: #5b21b6; }
+
+.aq-risk {
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 999px;
+}
+
+.risk-conservative { background: #dbeafe; color: #1e40af; }
+.risk-moderate { background: #dcfce7; color: #166534; }
+.risk-aggressive { background: #fce7f3; color: #831843; }
+
+.aq-status {
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    margin-left: auto;
+}
+
+.aq-status.on { background: #d1fae5; color: #065f46; }
+.aq-status.off { background: #f3f4f6; color: #6b7280; }
+.aq-status.unconfigured { background: #fef9c3; color: #713f12; }
+
+.section-title { font-size: 16px; font-weight: 600; color: #111827; margin: 0 0 16px 0; }
+
+.btn-accent {
+    padding: 8px 16px;
+    background: #7c3aed;
+    color: white;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-accent:hover { background: #6d28d9; }
+
 .modal {
     position: fixed;
     top: 0;

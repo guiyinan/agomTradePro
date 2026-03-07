@@ -1,0 +1,613 @@
+{% extends "rotation/base.html" %}
+{% load static %}
+
+{% block rotation_content %}
+<div class="rotation-header">
+    <h1>账户轮动配置</h1>
+    <div class="header-meta">
+        <span class="meta-item">📅 {{ current_date|date:"Y-m-d" }}</span>
+        <a href="{% url 'rotation:configs' %}" class="btn-secondary-sm">查看全局模板</a>
+    </div>
+</div>
+
+<p class="page-desc">为每个投资组合账户独立配置风险偏好和各宏观象限的资产权重，配置互相独立，互不影响。</p>
+
+{% if not user_accounts %}
+<div class="empty-state">
+    <div class="empty-icon">📂</div>
+    <p>暂无投资组合账户</p>
+    <a href="/simulated-trading/" class="btn-primary">前往创建账户</a>
+</div>
+{% else %}
+
+<!-- 账户卡片列表 -->
+<div class="accounts-grid">
+    {% for account in user_accounts %}
+    <div class="account-card">
+        <div class="account-card-header">
+            <div class="account-title">
+                <span class="account-name">{{ account.account_name }}</span>
+                <span class="account-type-badge type-{{ account.account_type }}">
+                    {{ account.get_account_type_display }}
+                </span>
+            </div>
+            <div class="rotation-status">
+                {% if account.rotation_config %}
+                    {% if account.rotation_config.is_enabled %}
+                    <span class="status-pill enabled">轮动已启用</span>
+                    {% else %}
+                    <span class="status-pill disabled">轮动未启用</span>
+                    {% endif %}
+                    <span class="risk-pill risk-{{ account.rotation_config.risk_tolerance }}">
+                        {{ account.rotation_config.get_risk_tolerance_display }}
+                    </span>
+                {% else %}
+                <span class="status-pill unconfigured">未配置</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="account-card-body">
+            <div class="account-meta">
+                <span>总资产: ¥{{ account.total_value|floatformat:0 }}</span>
+                <span>现金: ¥{{ account.current_cash|floatformat:0 }}</span>
+            </div>
+
+            {% if account.rotation_config and account.rotation_config.regime_allocations %}
+            <div class="regime-summary">
+                {% for regime, allocs in account.rotation_config.regime_allocations.items %}
+                <div class="regime-chip">
+                    <span class="regime-name">{{ regime }}</span>
+                    <span class="regime-asset-count">{{ allocs|length }} 资产</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="account-card-footer">
+            <button class="btn-primary-sm"
+                    onclick="openConfigModal({{ account.id }}, '{{ account.account_name|escapejs }}',
+                             '{% if account.rotation_config %}{{ account.rotation_config.risk_tolerance }}{% else %}moderate{% endif %}',
+                             {% if account.rotation_config %}{{ account.rotation_config.is_enabled|lower }}{% else %}false{% endif %},
+                             {% if account.rotation_config %}{{ account.rotation_config.id }}{% else %}null{% endif %})">
+                {% if account.rotation_config %}编辑配置{% else %}+ 配置轮动{% endif %}
+            </button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- 配置 Modal -->
+<div id="accountConfigModal" class="modal" style="display:none;">
+    <div class="modal-content modal-lg">
+        <div class="modal-header">
+            <h3 id="modalAccountTitle">账户轮动配置</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+
+        <!-- 三 Tab 布局 -->
+        <div class="modal-tabs">
+            <button class="tab-btn active" onclick="switchTab('tab-basic', this)">基本信息</button>
+            <button class="tab-btn" onclick="switchTab('tab-quadrant', this)">象限配置</button>
+            <button class="tab-btn" onclick="switchTab('tab-preview', this)">配置预览</button>
+        </div>
+
+        <form id="accountConfigForm">
+            <input type="hidden" id="formAccountId" name="account_id">
+            <input type="hidden" id="formConfigId" name="config_id">
+
+            <!-- Tab 1: 基本信息 -->
+            <div id="tab-basic" class="tab-panel active modal-body">
+                <div class="form-group">
+                    <label>账户名称</label>
+                    <input type="text" id="displayAccountName" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label>风险偏好</label>
+                    <select id="riskTolerance" name="risk_tolerance" class="form-select">
+                        {% for value, label in risk_tolerance_choices %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="toggle-label">
+                        <span>启用轮动自动调仓</span>
+                        <div class="toggle-wrap">
+                            <input type="checkbox" id="isEnabled" name="is_enabled" class="toggle-input">
+                            <span class="toggle-slider"></span>
+                        </div>
+                    </label>
+                    <p class="form-hint">启用后，自动交易将在 Regime 切换时按照下方象限配置调仓。</p>
+                </div>
+
+                <div class="form-group">
+                    <label>快速应用预设模板</label>
+                    <div class="template-buttons">
+                        <button type="button" class="btn-template" onclick="applyTemplateToEditor('conservative')">保守型</button>
+                        <button type="button" class="btn-template" onclick="applyTemplateToEditor('moderate')">稳健型</button>
+                        <button type="button" class="btn-template" onclick="applyTemplateToEditor('aggressive')">激进型</button>
+                    </div>
+                    <p class="form-hint">模板数据从数据库读取，应用后可在「象限配置」Tab 中微调。</p>
+                </div>
+            </div>
+
+            <!-- Tab 2: 象限配置 -->
+            <div id="tab-quadrant" class="tab-panel modal-body" style="display:none;">
+                {% include "rotation/components/quadrant_editor.html" %}
+            </div>
+
+            <!-- Tab 3: 配置预览 -->
+            <div id="tab-preview" class="tab-panel modal-body" style="display:none;">
+                <p class="form-hint">当前配置的 JSON 格式（只读，保存前预览）：</p>
+                <pre id="configPreview" class="json-preview"></pre>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeModal()">取消</button>
+                <button type="button" class="btn-primary" onclick="saveConfig()">保存配置</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let currentAccountId = null;
+let currentConfigId = null;
+
+// 打开配置 Modal
+async function openConfigModal(accountId, accountName, riskTolerance, isEnabled, configId) {
+    currentAccountId = accountId;
+    currentConfigId = configId;
+
+    document.getElementById('formAccountId').value = accountId;
+    document.getElementById('formConfigId').value = configId || '';
+    document.getElementById('displayAccountName').value = accountName;
+    document.getElementById('riskTolerance').value = riskTolerance;
+    document.getElementById('isEnabled').checked = isEnabled;
+    document.getElementById('modalAccountTitle').textContent = accountName + ' - 轮动配置';
+
+    // 重置 Tab 到第一个
+    switchTab('tab-basic', document.querySelector('.tab-btn'));
+
+    // 等编辑器初始化后加载现有配置
+    await waitForEditor();
+
+    if (configId) {
+        try {
+            const res = await fetch(`/api/rotation/account-configs/${configId}/`, {
+                headers: { 'X-CSRFToken': window.csrfToken }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                window.quadrantEditor.loadFromJson(JSON.stringify(data.regime_allocations || {}));
+            }
+        } catch (e) {
+            console.warn('加载已有配置失败:', e);
+        }
+    } else {
+        window.quadrantEditor.loadFromJson('{}');
+    }
+
+    document.getElementById('accountConfigModal').style.display = 'flex';
+}
+
+async function waitForEditor(timeout = 5000) {
+    const start = Date.now();
+    while (!window.quadrantEditor || !window.quadrantEditor._initialized) {
+        if (Date.now() - start > timeout) break;
+        await new Promise(r => setTimeout(r, 100));
+    }
+}
+
+function closeModal() {
+    document.getElementById('accountConfigModal').style.display = 'none';
+}
+
+function switchTab(tabId, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(tabId).style.display = 'block';
+    btn.classList.add('active');
+
+    if (tabId === 'tab-preview') {
+        updatePreview();
+    }
+}
+
+function updatePreview() {
+    const allocations = window.quadrantEditor ? window.quadrantEditor.getData() : {};
+    const riskTolerance = document.getElementById('riskTolerance').value;
+    const isEnabled = document.getElementById('isEnabled').checked;
+    const preview = {
+        risk_tolerance: riskTolerance,
+        is_enabled: isEnabled,
+        regime_allocations: allocations,
+    };
+    document.getElementById('configPreview').textContent = JSON.stringify(preview, null, 2);
+}
+
+async function applyTemplateToEditor(templateKey) {
+    if (window.quadrantEditor) {
+        await window.quadrantEditor.applyTemplate(templateKey);
+        // 同步风险偏好下拉
+        const select = document.getElementById('riskTolerance');
+        if (select) select.value = templateKey;
+    }
+}
+
+async function saveConfig() {
+    const accountId = document.getElementById('formAccountId').value;
+    const configId = document.getElementById('formConfigId').value;
+    const riskTolerance = document.getElementById('riskTolerance').value;
+    const isEnabled = document.getElementById('isEnabled').checked;
+    const allocations = window.quadrantEditor ? window.quadrantEditor.getData() : {};
+
+    const payload = {
+        account: parseInt(accountId),
+        risk_tolerance: riskTolerance,
+        is_enabled: isEnabled,
+        regime_allocations: allocations,
+    };
+
+    const url = configId
+        ? `/api/rotation/account-configs/${configId}/`
+        : '/api/rotation/account-configs/';
+    const method = configId ? 'PUT' : 'POST';
+
+    try {
+        const res = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken,
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (res.ok) {
+            showToast(configId ? '配置已更新' : '配置已创建', 'success');
+            closeModal();
+            location.reload();
+        } else {
+            const err = await res.json();
+            const msg = err.regime_allocations || err.detail || JSON.stringify(err);
+            showToast('保存失败: ' + msg, 'error');
+        }
+    } catch (e) {
+        showToast('保存失败: ' + e.message, 'error');
+    }
+}
+
+// 点击 Modal 外部关闭
+window.addEventListener('click', function(e) {
+    const modal = document.getElementById('accountConfigModal');
+    if (e.target === modal) closeModal();
+});
+</script>
+
+<style>
+.page-desc {
+    color: #6b7280;
+    margin-bottom: 24px;
+    font-size: 14px;
+}
+
+.accounts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+}
+
+.account-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+}
+
+.account-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.account-card-header {
+    padding: 16px;
+    border-bottom: 1px solid #f3f4f6;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.account-title {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.account-name {
+    font-weight: 600;
+    font-size: 15px;
+    color: #111827;
+}
+
+.account-type-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 500;
+}
+
+.type-real { background: #fef3c7; color: #92400e; }
+.type-simulated { background: #ede9fe; color: #5b21b6; }
+
+.rotation-status {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.status-pill {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-weight: 500;
+}
+
+.status-pill.enabled { background: #d1fae5; color: #065f46; }
+.status-pill.disabled { background: #f3f4f6; color: #6b7280; }
+.status-pill.unconfigured { background: #fef9c3; color: #713f12; }
+
+.risk-pill {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+
+.risk-conservative { background: #dbeafe; color: #1e40af; }
+.risk-moderate { background: #dcfce7; color: #166534; }
+.risk-aggressive { background: #fce7f3; color: #831843; }
+
+.account-card-body {
+    padding: 12px 16px;
+}
+
+.account-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 10px;
+}
+
+.regime-summary {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.regime-chip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: #f3f4f6;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 11px;
+}
+
+.regime-name { font-weight: 500; color: #374151; }
+.regime-asset-count { color: #9ca3af; }
+
+.account-card-footer {
+    padding: 12px 16px;
+    border-top: 1px solid #f3f4f6;
+    text-align: right;
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-lg {
+    width: 90%;
+    max-width: 780px;
+    max-height: 90vh;
+    overflow-y: auto;
+    background: white;
+    border-radius: 12px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #e5e7eb;
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 10;
+}
+
+.modal-close {
+    background: none; border: none;
+    font-size: 24px; cursor: pointer; color: #6b7280;
+}
+
+.modal-tabs {
+    display: flex;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0 20px;
+    gap: 4px;
+}
+
+.tab-btn {
+    background: none; border: none;
+    padding: 12px 16px;
+    font-size: 14px;
+    color: #6b7280;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.15s;
+}
+
+.tab-btn.active {
+    color: #3b82f6;
+    border-bottom-color: #3b82f6;
+    font-weight: 500;
+}
+
+.modal-body { padding: 20px; }
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 20px;
+    border-top: 1px solid #e5e7eb;
+    position: sticky;
+    bottom: 0;
+    background: white;
+}
+
+.form-group { margin-bottom: 18px; }
+
+.form-group label {
+    display: block;
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.form-input, .form-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.form-input[readonly] { background: #f9fafb; color: #374151; }
+
+.form-hint {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 4px;
+}
+
+.toggle-label {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.toggle-wrap {
+    position: relative;
+    width: 44px;
+    height: 24px;
+}
+
+.toggle-input {
+    opacity: 0;
+    width: 0; height: 0;
+    position: absolute;
+}
+
+.toggle-slider {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: #d1d5db;
+    border-radius: 24px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.toggle-slider:before {
+    content: '';
+    position: absolute;
+    height: 18px; width: 18px;
+    left: 3px; bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.2s;
+}
+
+.toggle-input:checked + .toggle-slider { background: #3b82f6; }
+.toggle-input:checked + .toggle-slider:before { transform: translateX(20px); }
+
+.template-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.btn-template {
+    padding: 8px 16px;
+    border: 1px solid #3b82f6;
+    background: white;
+    color: #3b82f6;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+}
+
+.btn-template:hover { background: #3b82f6; color: white; }
+
+.json-preview {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 12px;
+    font-family: monospace;
+    white-space: pre-wrap;
+    max-height: 360px;
+    overflow-y: auto;
+    color: #374151;
+}
+
+.btn-primary, .btn-secondary {
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.btn-primary { background: #3b82f6; color: white; }
+.btn-primary:hover { background: #2563eb; }
+.btn-secondary { background: #e5e7eb; color: #374151; }
+
+.btn-primary-sm, .btn-secondary-sm {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-primary-sm { background: #3b82f6; color: white; }
+.btn-secondary-sm { background: #e5e7eb; color: #374151; }
+</style>
+{% endblock %}

@@ -1,0 +1,239 @@
+/* ============================================================
+   RotationQuadrantEditor – Stylesheet
+   Bootstrap-compatible, blue primary palette, no extra deps.
+   ============================================================ */
+
+/* Root container */
+.qe-editor {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 0.95rem;
+  color: #212529;
+  background: #ffffff;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+/* ============================================================
+   Template toolbar
+   ============================================================ */
+
+.qe-template-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.qe-template-label {
+  font-weight: 600;
+  color: #495057;
+  white-space: nowrap;
+}
+
+.qe-template-btn {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #0d6efd;
+  background-color: #e7f1ff;
+  border: 1px solid #b6d4fe;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.qe-template-btn:hover {
+  background-color: #0d6efd;
+  color: #ffffff;
+  border-color: #0d6efd;
+}
+
+.qe-template-btn:active {
+  background-color: #0a58ca;
+  border-color: #0a58ca;
+  color: #ffffff;
+}
+
+/* ============================================================
+   Tab bar
+   ============================================================ */
+
+.qe-tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  border-bottom: 2px solid #dee2e6;
+  margin-bottom: 1rem;
+}
+
+.qe-tab {
+  padding: 0.5rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #6c757d;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;   /* Overlap the tab-bar border */
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.qe-tab:hover {
+  color: #0d6efd;
+  background-color: #f8f9fa;
+}
+
+.qe-tab--active {
+  color: #0d6efd;
+  border-bottom-color: #0d6efd;
+  background-color: #ffffff;
+  font-weight: 600;
+}
+
+/* ============================================================
+   Panels
+   ============================================================ */
+
+.qe-panel {
+  display: none;
+}
+
+.qe-panel--visible {
+  display: block;
+}
+
+/* ============================================================
+   Asset list and rows
+   ============================================================ */
+
+.qe-asset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.qe-asset-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Asset name label */
+.qe-asset-label {
+  flex: 0 0 140px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  color: #343a40;
+  cursor: default;
+}
+
+/* Range slider */
+.qe-slider {
+  flex: 1 1 0;
+  min-width: 80px;
+  accent-color: #0d6efd;
+  cursor: pointer;
+  height: 6px;
+}
+
+/* Number input */
+.qe-num-input {
+  flex: 0 0 70px;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: #212529;
+  background-color: #fff;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  text-align: right;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  -moz-appearance: textfield;
+}
+
+.qe-num-input::-webkit-inner-spin-button,
+.qe-num-input::-webkit-outer-spin-button {
+  opacity: 1;
+}
+
+.qe-num-input:focus {
+  outline: none;
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Percent sign */
+.qe-pct-sign {
+  flex: 0 0 auto;
+  font-size: 0.85rem;
+  color: #6c757d;
+  user-select: none;
+}
+
+/* ============================================================
+   Summary / validation bar
+   ============================================================ */
+
+.qe-summary-bar {
+  display: inline-block;
+  padding: 0.3rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.qe-summary--valid {
+  background-color: #d1e7dd;
+  color: #0f5132;
+  border: 1px solid #a3cfbb;
+}
+
+.qe-summary--invalid {
+  background-color: #f8d7da;
+  color: #842029;
+  border: 1px solid #f1aeb5;
+}
+
+/* ============================================================
+   Error state
+   ============================================================ */
+
+.qe-error {
+  padding: 0.75rem 1rem;
+  background-color: #f8d7da;
+  color: #842029;
+  border: 1px solid #f1aeb5;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+/* ============================================================
+   Responsive tweaks
+   ============================================================ */
+
+@media (max-width: 576px) {
+  .qe-asset-label {
+    flex: 0 0 90px;
+  }
+
+  .qe-num-input {
+    flex: 0 0 58px;
+  }
+
+  .qe-tab {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.82rem;
+  }
+}

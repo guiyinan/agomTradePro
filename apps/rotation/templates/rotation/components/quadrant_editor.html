@@ -1,0 +1,38 @@
+{% load static %}
+{# ============================================================
+   quadrant_editor.html – Reusable template fragment
+   Usage:  {% include "rotation/components/quadrant_editor.html" %}
+   Requires: no extra template context variables.
+   Pre-populated JSON can be injected from the parent template via JS:
+       window.quadrantEditor.loadFromJson('{{ existing_json|escapejs }}');
+   ============================================================ #}
+
+<link rel="stylesheet" href="{% static 'rotation/css/quadrant_editor.css' %}">
+
+{# Hidden input – carries the regime-allocation JSON on form submit #}
+<input type="hidden" id="regimeAllocationsJson" name="regime_allocations" value="">
+
+{# Editor mount point #}
+<div id="quadrantEditorContainer"></div>
+
+<script src="{% static 'rotation/js/quadrant_editor.js' %}"></script>
+<script>
+(function () {
+  /**
+   * Create and initialise the RotationQuadrantEditor.
+   * The instance is exposed as window.quadrantEditor so that parent
+   * templates can call:
+   *   window.quadrantEditor.loadFromJson(jsonStr)
+   *   window.quadrantEditor.applyTemplate(templateKey)
+   *   window.quadrantEditor.getData()
+   */
+  var editor = new RotationQuadrantEditor(
+    'quadrantEditorContainer',
+    'regimeAllocationsJson'
+  );
+
+  window.quadrantEditor = editor;
+
+  editor.init();
+})();
+</script>

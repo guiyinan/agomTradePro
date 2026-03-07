@@ -11,7 +11,8 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.utils import timezone
@@ -20,6 +21,8 @@ from apps.rotation.infrastructure.models import (
     AssetClassModel,
     RotationConfigModel,
     RotationSignalModel,
+    RotationTemplateModel,
+    PortfolioRotationConfigModel,
 )
 from apps.rotation.infrastructure.services import RotationIntegrationService
 from apps.rotation.interface.serializers import (
@@ -27,6 +30,8 @@ from apps.rotation.interface.serializers import (
     RotationConfigSerializer,
     RotationSignalSerializer,
     RotationSignalRequestSerializer,
+    RotationTemplateSerializer,
+    PortfolioRotationConfigSerializer,
 )
 from apps.rotation.application.use_cases import (
     GetAssetsForViewUseCase,
@@ -280,12 +285,24 @@ def rotation_configs_view(request):
     for config in response.configs:
         config['latest_signal'] = latest_signals_dict.get(config['id'])
 
+    # 当前用户所有账户及其轮动配置状态
+    user_accounts = []
+    if request.user.is_authenticated:
+        from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+        user_accounts = list(
+            SimulatedAccountModel.objects.filter(
+                user=request.user, is_active=True
+            ).select_related('rotation_config').order_by('account_type', 'account_name')
+        )
+
     context = {
         'configs': response.configs,
         'latest_signals': latest_signals_dict,
         'strategy_types': response.strategy_types,
         'frequencies': response.frequencies,
         'current_date': date.today(),
+        'user_accounts': user_accounts,
+        'assets': AssetClassModel.objects.filter(is_active=True).order_by('category', 'code'),
     }
 
     return render(request, 'rotation/configs.html', context)
@@ -319,6 +336,31 @@ def rotation_signals_view(request):
     }
 
     return render(request, 'rotation/signals.html', context)
+
+
+def rotation_account_config_view(request):
+    """账户轮动配置页面 - 每个账户独立配置风险偏好和象限配置"""
+    from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+
+    user_accounts = []
+    if request.user.is_authenticated:
+        user_accounts = list(
+            SimulatedAccountModel.objects.filter(
+                user=request.user, is_active=True
+            ).select_related('rotation_config').order_by('account_type', 'account_name')
+        )
+
+    assets = AssetClassModel.objects.filter(is_active=True).order_by('category', 'code')
+    templates = RotationTemplateModel.objects.filter(is_active=True).order_by('display_order')
+
+    context = {
+        'user_accounts': user_accounts,
+        'assets': assets,
+        'templates': templates,
+        'current_date': date.today(),
+        'risk_tolerance_choices': PortfolioRotationConfigModel.RISK_TOLERANCE_CHOICES,
+    }
+    return render(request, 'rotation/account_config.html', context)
 
 
 @require_http_methods(["POST"])
@@ -361,3 +403,133 @@ def rotation_generate_signal_view(request):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+# ============================================================================
+# Regime List API (dynamic, sourced from regime module — no hardcoding)
+# ============================================================================
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_regime_list(request):
+    """
+    返回系统支持的宏观象限名称列表。
+
+    前端编辑器用此接口动态渲染 Tab，不在 JS 中硬编码象限名称。
+    象限定义来自 regime 模块的 RegimeProbability 实体。
+
+    GET /api/rotation/regimes/
+    """
+    # Regime 名称由 regime 模块 RegimeProbability.to_dict() 定义
+    # 保持与 regime 模块一致，这里从 to_dict 的 key 集合读取
+    from apps.regime.domain.entities import RegimeProbability
+    dummy = RegimeProbability(
+        growth_reflation=0.25,
+        growth_disinflation=0.25,
+        stagnation_reflation=0.25,
+        stagnation_disinflation=0.25,
+    )
+    regimes = list(dummy.to_dict().keys())  # ['Overheat', 'Recovery', 'Stagflation', 'Deflation']
+    return Response(regimes)
+
+
+# ============================================================================
+# RotationTemplateViewSet — read-only presets from DB
+# ============================================================================
+
+class RotationTemplateViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    预设模板 API。
+
+    模板数据存储在数据库，由 init_rotation 命令初始化，不硬编码。
+    前端编辑器加载此接口填充模板下拉，用户选择后应用到象限编辑器。
+
+    GET /api/rotation/templates/
+    GET /api/rotation/templates/{id}/
+    """
+    queryset = RotationTemplateModel.objects.filter(is_active=True)
+    serializer_class = RotationTemplateSerializer
+    permission_classes = [IsAuthenticated]
+
+
+# ============================================================================
+# PortfolioRotationConfigViewSet — per-account rotation config CRUD
+# ============================================================================
+
+class PortfolioRotationConfigViewSet(viewsets.ModelViewSet):
+    """
+    账户级轮动配置 API。
+
+    每个投资组合账户独立一份配置，支持完整 CRUD。
+    MCP 可直接调用此接口读写任意账户的风险偏好和象限配置。
+
+    GET    /api/rotation/account-configs/                      — 当前用户所有账户配置
+    POST   /api/rotation/account-configs/                      — 新建账户配置
+    GET    /api/rotation/account-configs/{id}/                 — 查看单条
+    PUT    /api/rotation/account-configs/{id}/                 — 全量更新
+    PATCH  /api/rotation/account-configs/{id}/                 — 部分更新
+    DELETE /api/rotation/account-configs/{id}/                 — 删除
+    POST   /api/rotation/account-configs/{id}/apply-template/  — 应用预设模板
+    GET    /api/rotation/account-configs/by-account/{id}/      — 按账户 ID 查询（MCP 友好）
+    """
+    serializer_class = PortfolioRotationConfigSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return PortfolioRotationConfigModel.objects.filter(
+            account__user=self.request.user
+        ).select_related('account', 'base_config')
+
+    def perform_create(self, serializer: PortfolioRotationConfigSerializer) -> None:
+        account = serializer.validated_data['account']
+        if account.user != self.request.user:
+            raise PermissionDenied("无权配置他人账户")
+        serializer.save()
+
+    @action(detail=True, methods=['post'], url_path='apply-template')
+    def apply_template(self, request, pk=None):
+        """
+        将预设模板的 regime_allocations 应用到此账户配置。
+
+        POST /api/rotation/account-configs/{id}/apply-template/
+        Body: {"template_key": "conservative"}
+        """
+        config = self.get_object()
+        template_key = request.data.get('template_key')
+
+        if not template_key:
+            return Response({'error': 'template_key 不能为空'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            template = RotationTemplateModel.objects.get(key=template_key, is_active=True)
+        except RotationTemplateModel.DoesNotExist:
+            return Response(
+                {'error': f'模板 "{template_key}" 不存在'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        config.regime_allocations = template.regime_allocations
+        # 模板 key 与 risk_tolerance 一致（conservative/moderate/aggressive）
+        if template_key in ('conservative', 'moderate', 'aggressive'):
+            config.risk_tolerance = template_key
+        config.save()
+
+        return Response(PortfolioRotationConfigSerializer(config).data)
+
+    @action(detail=False, methods=['get'], url_path='by-account/(?P<account_id>[^/.]+)')
+    def by_account(self, request, account_id=None):
+        """
+        按账户 ID 查询该账户的轮动配置（MCP 友好接口）。
+
+        GET /api/rotation/account-configs/by-account/{account_id}/
+        若该账户尚未创建配置，返回 404。
+        """
+        try:
+            config = PortfolioRotationConfigModel.objects.get(
+                account_id=account_id,
+                account__user=request.user,
+            )
+        except PortfolioRotationConfigModel.DoesNotExist:
+            return Response({'detail': '该账户尚未配置轮动'}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response(PortfolioRotationConfigSerializer(config).data)

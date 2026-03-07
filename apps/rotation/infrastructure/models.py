@@ -5,6 +5,8 @@ Django ORM models for asset rotation system.
 Follows four-layer architecture.
 """
 
+from django.conf import settings
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from decimal import Decimal
 
@@ -374,3 +376,110 @@ class MomentumScoreModel(models.Model):
 
     def __str__(self):
         return f"{self.asset_code} - {self.calc_date}"
+
+
+class RotationTemplateModel(models.Model):
+    """
+    预设风险模板表
+
+    保守/稳健/激进三种模板的象限配置，存储在数据库。
+    通过 init_rotation 管理命令初始化，禁止在代码中硬编码权重数据。
+    """
+    name = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name="模板名称"
+    )
+    key = models.CharField(
+        max_length=20,
+        unique=True,
+        verbose_name="模板标识",
+        help_text="conservative / moderate / aggressive"
+    )
+    description = models.TextField(blank=True, verbose_name="模板描述")
+
+    # 格式：{regime_name: {asset_code: weight(0.0-1.0)}}
+    regime_allocations = models.JSONField(
+        default=dict,
+        verbose_name="象限配置"
+    )
+
+    display_order = models.IntegerField(default=0, verbose_name="展示顺序")
+    is_active = models.BooleanField(default=True, verbose_name="是否启用")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'rotation_template'
+        verbose_name = '轮动预设模板'
+        verbose_name_plural = '轮动预设模板'
+        ordering = ['display_order']
+
+    def __str__(self):
+        return self.name
+
+
+class PortfolioRotationConfigModel(models.Model):
+    """
+    账户级轮动配置表
+
+    每个投资组合账户（SimulatedAccountModel）独立一份配置。
+    保存该账户自己的风险偏好和各象限资产权重，不与其他账户共享。
+
+    架构说明：
+    - RotationConfigModel 是全局模板层（管理员维护）
+    - PortfolioRotationConfigModel 是账户实例层（每用户每账户独立）
+    - 两者通过 base_config 可选关联，账户可以从模板派生也可以完全自定义
+    """
+    account = models.OneToOneField(
+        'simulated_trading.SimulatedAccountModel',
+        on_delete=models.CASCADE,
+        related_name='rotation_config',
+        verbose_name="投资组合账户"
+    )
+    base_config = models.ForeignKey(
+        RotationConfigModel,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='account_instances',
+        verbose_name="基础模板（可选）"
+    )
+
+    RISK_TOLERANCE_CHOICES = [
+        ('conservative', '保守型'),
+        ('moderate', '稳健型'),
+        ('aggressive', '激进型'),
+    ]
+    risk_tolerance = models.CharField(
+        max_length=20,
+        choices=RISK_TOLERANCE_CHOICES,
+        default='moderate',
+        verbose_name="风险偏好"
+    )
+
+    # 格式：{regime_name: {asset_code: weight(0.0-1.0)}}
+    # 每个象限的权重之和必须为 1.0（后端序列化器验证）
+    regime_allocations = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="象限资产配置"
+    )
+
+    is_enabled = models.BooleanField(
+        default=False,
+        verbose_name="启用轮动",
+        help_text="启用后，自动交易将根据当前 Regime 使用此配置调仓"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'portfolio_rotation_config'
+        verbose_name = '账户轮动配置'
+        verbose_name_plural = '账户轮动配置'
+
+    def __str__(self):
+        return f"{self.account.account_name} - {self.risk_tolerance}"

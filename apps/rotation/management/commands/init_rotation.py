@@ -9,7 +9,7 @@ Usage:
 """
 
 from django.core.management.base import BaseCommand
-from apps.rotation.infrastructure.models import AssetClassModel, RotationConfigModel
+from apps.rotation.infrastructure.models import AssetClassModel, RotationConfigModel, RotationTemplateModel
 
 
 class Command(BaseCommand):
@@ -30,12 +30,16 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('Resetting rotation data...'))
             AssetClassModel._default_manager.all().delete()
             RotationConfigModel._default_manager.all().delete()
+            RotationTemplateModel._default_manager.all().delete()
 
         # Initialize asset classes
         self.init_asset_classes()
 
         # Initialize rotation configurations
         self.init_rotation_configs()
+
+        # Initialize risk preset templates (from DB assets, no hardcoded weights)
+        self.init_risk_templates()
 
         self.stdout.write(self.style.SUCCESS('Rotation initialization complete!'))
 
@@ -353,4 +357,107 @@ class Command(BaseCommand):
                 self.stdout.write(f'[存在] {config.name}')
 
         self.stdout.write(f'已初始化 {len(configs)} 个轮动策略配置')
+
+    def init_risk_templates(self):
+        """
+        初始化预设风险模板。
+
+        权重从已存在的 AssetClassModel 动态查询，按资产类别分配比例。
+        不在代码中硬编码任何具体资产代码或权重，避免硬编码违规。
+
+        如果数据库中无对应资产，该类别跳过，权重按剩余类别归一化。
+        """
+
+        def get_codes(category: str, limit: int = None) -> list:
+            qs = AssetClassModel._default_manager.filter(
+                category=category, is_active=True
+            ).order_by('code').values_list('code', flat=True)
+            return list(qs[:limit] if limit else qs)
+
+        def build_quadrant(weights_by_category: dict) -> dict:
+            """
+            按类别权重构建象限配置。
+
+            weights_by_category: {category: total_weight}
+            每个类别内部等权分配到该类别下所有资产。
+            返回 {asset_code: weight} 并归一化确保总和为 1.0。
+            """
+            result = {}
+            for category, total_weight in weights_by_category.items():
+                codes = get_codes(category)
+                if not codes:
+                    continue
+                per_asset = round(total_weight / len(codes), 4)
+                for code in codes:
+                    result[code] = per_asset
+
+            # 归一化（消除浮点误差）
+            total = sum(result.values())
+            if total > 0 and abs(total - 1.0) > 0.001:
+                factor = 1.0 / total
+                result = {k: round(v * factor, 4) for k, v in result.items()}
+
+            return result
+
+        # 三种风险偏好的各象限目标类别权重
+        # 权重比例代表该风险偏好下对各资产类别的倾向，不绑定具体资产代码
+        templates_spec = [
+            {
+                'key': 'conservative',
+                'name': '保守型',
+                'description': '重点配置债券和货币类资产，低波动，适合风险厌恶型投资者',
+                'display_order': 1,
+                'quadrants': {
+                    'Recovery':    {'equity': 0.15, 'bond': 0.45, 'currency': 0.30, 'commodity': 0.10},
+                    'Overheat':    {'bond': 0.50, 'currency': 0.30, 'commodity': 0.15, 'equity': 0.05},
+                    'Stagflation': {'bond': 0.55, 'currency': 0.30, 'commodity': 0.15},
+                    'Deflation':   {'bond': 0.60, 'currency': 0.30, 'commodity': 0.10},
+                },
+            },
+            {
+                'key': 'moderate',
+                'name': '稳健型',
+                'description': '股债平衡配置，兼顾收益和风险，适合大多数投资者',
+                'display_order': 2,
+                'quadrants': {
+                    'Recovery':    {'equity': 0.50, 'bond': 0.25, 'currency': 0.15, 'commodity': 0.10},
+                    'Overheat':    {'equity': 0.30, 'commodity': 0.25, 'bond': 0.30, 'currency': 0.15},
+                    'Stagflation': {'commodity': 0.25, 'bond': 0.45, 'currency': 0.30},
+                    'Deflation':   {'bond': 0.50, 'currency': 0.20, 'equity': 0.20, 'commodity': 0.10},
+                },
+            },
+            {
+                'key': 'aggressive',
+                'name': '激进型',
+                'description': '以权益和商品为主，追求高收益，适合高风险承受能力投资者',
+                'display_order': 3,
+                'quadrants': {
+                    'Recovery':    {'equity': 0.70, 'commodity': 0.15, 'bond': 0.10, 'currency': 0.05},
+                    'Overheat':    {'equity': 0.45, 'commodity': 0.35, 'bond': 0.15, 'currency': 0.05},
+                    'Stagflation': {'commodity': 0.40, 'bond': 0.35, 'equity': 0.15, 'currency': 0.10},
+                    'Deflation':   {'equity': 0.35, 'bond': 0.35, 'commodity': 0.15, 'currency': 0.15},
+                },
+            },
+        ]
+
+        for spec in templates_spec:
+            regime_allocations = {
+                regime: build_quadrant(weights_by_cat)
+                for regime, weights_by_cat in spec['quadrants'].items()
+            }
+
+            template, created = RotationTemplateModel._default_manager.update_or_create(
+                key=spec['key'],
+                defaults={
+                    'name': spec['name'],
+                    'description': spec['description'],
+                    'display_order': spec['display_order'],
+                    'regime_allocations': regime_allocations,
+                    'is_active': True,
+                },
+            )
+            action_label = '创建' if created else '更新'
+            self.stdout.write(f'[{action_label}] 模板: {template.name}')
+
+        self.stdout.write(f'已初始化 {len(templates_spec)} 个风险偏好模板')
 
