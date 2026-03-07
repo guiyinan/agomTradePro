@@ -1,6 +1,6 @@
 ---
 name: vps-deploy-agomsaaf
-description: Use when deploying this Django Docker stack to VPS 141.11.211.21, including full Docker cleanup, fresh/upgrade rollout, and both deployment modes: with local SQLite database restore or code-only without local DB.
+description: "Use when deploying this Django Docker stack to VPS 141.11.211.21, including full Docker cleanup, fresh/upgrade rollout, and both deployment modes: with local SQLite database restore or code-only without local DB."
 ---
 
 # Vps Deploy Agomsaaf
@@ -15,7 +15,7 @@ Support two release modes:
 ## Workflow
 
 1. Confirm deployment target and mode (`code-only` or `with-local-sqlite`).
-2. Build VPS bundle from latest workspace code.
+2. Choose local image packaging or remote source build on the VPS.
 3. Optionally inject local SQLite into bundle.
 4. Optionally wipe VPS Docker state before fresh rollout.
 5. Upload bundle and run remote deploy action (`fresh` or `upgrade`).
@@ -31,31 +31,61 @@ Support two release modes:
 
 ## Step 1: Build Latest Bundle
 
-Always rebuild from latest workspace code:
+Prefer the aggressive wrapper. It auto-retries common failure modes:
 
 ```powershell
 $tag = Get-Date -Format 'yyyyMMddHHmmss'
-pwsh -File scripts/package-for-vps.ps1 -Tag $tag -SkipData -SkipRedisData -DisableBuildKit
+pwsh -File scripts/package-for-vps-aggressive.ps1 -Tag $tag
+```
+
+When Windows disk I/O is the bottleneck, prefer WSL first:
+
+```powershell
+pwsh -File scripts/package-for-vps-aggressive.ps1 -Tag $tag -PreferWslBuild
 ```
 
 Expected output bundle:
 - `dist/agomsaaf-vps-bundle-$tag.tar.gz`
 
-If build fails with `requirements-prod.lock` missing from context, ensure `.dockerignore` includes:
-- `!requirements-prod.lock`
+Fallback entrypoint only when debugging a specific stage:
+- `scripts/package-for-vps.ps1`
+
+## Step 1B: Remote Source Build On VPS
+
+Prefer this path when local Windows or WSL disk I/O is the bottleneck:
+
+```powershell
+python .\scripts\remote_build_deploy_vps.py
+```
+
+This script:
+
+- prompts for VPS host, port, username, password
+- asks whether to include local SQLite
+- asks whether to wipe existing Docker resources first
+- uploads source instead of image tar files
+- builds and deploys on the VPS directly
+- downloads a deployment report to `dist/remote-build-reports`
+- deletes remote temporary upload/build files by default
 
 ## Step 2: Optional SQLite Injection (with-local-sqlite mode)
 
-For `with-local-sqlite`, inject local DB into the new bundle:
+For `with-local-sqlite`, prefer the wrapper flag:
+
+```powershell
+pwsh -File scripts/package-for-vps-aggressive.ps1 -Tag $tag -WithLocalSqlite
+```
+
+Use resulting bundle:
+- `dist/agomsaaf-vps-bundle-$tag-live.tar.gz`
+
+Manual fallback remains:
 
 ```powershell
 pwsh -File scripts/inject-sqlite-into-bundle.ps1 `
   -SourceBundle dist/agomsaaf-vps-bundle-$tag.tar.gz `
   -OutputTag "$tag-live"
 ```
-
-Use resulting bundle:
-- `dist/agomsaaf-vps-bundle-$tag-live.tar.gz`
 
 ## Step 3: Optional VPS Docker Full Cleanup
 

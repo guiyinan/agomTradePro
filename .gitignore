@@ -79,6 +79,8 @@ doc/passwords.md
 /screenshots
 sqlite-backup.json
 sqlite-backup-utf8.json
+/backups/vps-secrets/
+/docs/deployment/docker命令.txt
 
 # Celery beat schedule files
 celerybeat-schedule*
@@ -88,3 +90,4 @@ celerybeat-schedule*
 /.claude
 .claude/settings.local.json
 /output
+docs/deployment/docker命令-远端.txt
