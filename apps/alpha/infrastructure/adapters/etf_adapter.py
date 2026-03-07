@@ -72,8 +72,6 @@ class ETFFallbackProvider(BaseAlphaProvider):
         Returns:
             是否支持
         """
-        if universe_id in self.STATIC_UNIVERSE_FALLBACKS:
-            return True
         return self._resolve_etf_info(universe_id) is not None
 
     @provider_safe(default_success=False)
@@ -131,15 +129,8 @@ class ETFFallbackProvider(BaseAlphaProvider):
         )
 
         if not constituents:
-            fallback_codes = self.STATIC_UNIVERSE_FALLBACKS.get(universe_id, [])[:top_n]
-            constituents = [
-                (code, max(0.1, 100.0 / max(1, len(fallback_codes))))
-                for code in fallback_codes
-            ]
-
-        if not constituents:
             return self._create_error_result(
-                f"无法获取 ETF {etf_info['etf_code']} 的成分股"
+                f"无法获取 ETF {etf_info['etf_code']} 的真实成分股"
             )
 
         # 3. 创建评分
@@ -169,7 +160,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
                 "fallback_reason": (
                     "所有其他 Provider 不可用"
                     if etf_info.get("report_date")
-                    else "无最新ETF持仓，使用静态成分股兜底"
+                    else "所有其他 Provider 不可用，但当前 ETF 无可用持仓报告"
                 ),
             }
         )
@@ -293,29 +284,4 @@ class ETFFallbackProvider(BaseAlphaProvider):
                     "etf_name": fund.fund_name,
                     "report_date": latest_report.isoformat(),
                 }
-        if universe_id in self.STATIC_UNIVERSE_FALLBACKS:
-            default_code_map = {
-                "csi300": "510300.SH",
-                "csi500": "510500.SH",
-                "sse50": "510050.SH",
-            }
-            return {
-                "etf_code": default_code_map.get(universe_id, f"{universe_id.upper()}.ETF"),
-                "etf_name": f"{universe_id.upper()} ETF (static fallback)",
-                "report_date": None,
-            }
         return None
-    STATIC_UNIVERSE_FALLBACKS: Dict[str, List[str]] = {
-        "csi300": [
-            "600519.SH", "000333.SZ", "600036.SH", "601318.SH", "601166.SH",
-            "000858.SZ", "600887.SH", "601888.SH", "000651.SZ", "300750.SZ",
-        ],
-        "csi500": [
-            "600872.SH", "600989.SH", "603259.SH", "000066.SZ", "002142.SZ",
-            "600760.SH", "600161.SH", "601555.SH", "002352.SZ", "300124.SZ",
-        ],
-        "sse50": [
-            "600519.SH", "600036.SH", "601318.SH", "601166.SH", "601398.SH",
-            "600276.SH", "600000.SH", "601288.SH", "600030.SH", "601088.SH",
-        ],
-    }

@@ -261,7 +261,9 @@ class TestDailyNetValueService(TestCase):
             buy_use_case=buy_use_case,
             sell_use_case=sell_use_case,
             performance_use_case=performance_use_case,
-            market_data_provider=MockMarketDataProvider()
+            market_data_provider=MockMarketDataProvider(
+                prices={"000001.SZ": 10.50}
+            )
         )
 
         trade_date = date.today()

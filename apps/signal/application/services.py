@@ -30,8 +30,6 @@ class PolicyInfluenceService:
     """
 
     def __init__(self):
-        # 简化版本的股票到板块映射
-        # 实际应用中应该从数据库或配置文件获取
         self._sector_map = self._build_sector_mapping()
 
     def apply_policy_influences(
@@ -244,26 +242,46 @@ class PolicyInfluenceService:
 
     def _build_sector_mapping(self) -> Dict[str, List[str]]:
         """
-        构建股票到板块的映射
+        从板块成分股表构建股票到板块名称的映射。
 
         Returns:
             Dict: 股票代码到板块列表的映射
         """
-        # 简化版本：硬编码一些示例
-        # 实际应用中应该从数据库或配置文件获取
-        return {
-            '000001.SZ': ['银行', '金融'],
-            '000002.SZ': ['房地产'],
-            '600000.SH': ['银行', '金融'],
-            '600036.SH': ['银行', '金融'],
-            '000858.SZ': ['房地产'],
-            '600519.SH': ['白酒', '消费'],
-            '000333.SZ': ['家电', '消费'],
-            '300750.SZ': ['新能源汽车', '电池'],
-            '002594.SZ': ['新能源汽车'],
-            '601318.SH': ['保险', '金融'],
-            '601336.SH': ['保险', '金融'],
-        }
+        try:
+            from sector.infrastructure.models import SectorConstituentModel, SectorInfoModel
+
+            constituent_rows = list(
+                SectorConstituentModel._default_manager.filter(is_current=True).values(
+                    "stock_code",
+                    "sector_code",
+                )
+            )
+            if not constituent_rows:
+                return {}
+
+            sector_codes = {row["sector_code"] for row in constituent_rows if row.get("sector_code")}
+            sector_name_map = {
+                row["sector_code"]: row["sector_name"]
+                for row in SectorInfoModel._default_manager.filter(
+                    sector_code__in=list(sector_codes),
+                    is_active=True,
+                ).values("sector_code", "sector_name")
+            }
+
+            mapping: Dict[str, List[str]] = {}
+            for row in constituent_rows:
+                stock_code = row.get("stock_code")
+                sector_name = sector_name_map.get(row.get("sector_code"))
+                if not stock_code or not sector_name:
+                    continue
+                mapping.setdefault(stock_code, [])
+                if sector_name not in mapping[stock_code]:
+                    mapping[stock_code].append(sector_name)
+
+            return mapping
+        except Exception as exc:
+            logger.warning("构建股票板块映射失败，将跳过板块政策影响: %s", exc)
+            return {}
 
 
 def create_policy_influence_service() -> PolicyInfluenceService:

@@ -18,7 +18,6 @@ from django.test import override_settings
 
 from apps.alpha.application.tasks import (
     qlib_train_model,
-    _generate_mock_scores,
     _calculate_artifact_hash,
     _save_model_artifact,
 )
@@ -88,26 +87,6 @@ class TestQlibTrainingTasks:
 
 class TestQlibTrainingHelpers:
     """Qlib 训练辅助函数测试"""
-
-    def test_generate_mock_scores(self):
-        """测试生成模拟评分"""
-        scores = _generate_mock_scores(10)
-
-        assert len(scores) == 10
-        assert scores[0]["rank"] == 1
-        assert scores[0]["score"] > scores[-1]["score"]
-
-    def test_generate_mock_scores_format(self):
-        """测试模拟评分格式"""
-        scores = _generate_mock_scores(5)
-
-        required_fields = ["code", "score", "rank", "factors", "source", "confidence"]
-
-        for score in scores:
-            for field in required_fields:
-                assert field in score
-            assert score["source"] == "qlib"
-            assert isinstance(score["factors"], dict)
 
     def test_calculate_artifact_hash(self):
         """测试计算 artifact hash"""

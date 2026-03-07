@@ -581,13 +581,8 @@ class AutoTradingEngine:
 class MockMarketDataProvider:
     """模拟市场数据提供者(用于测试)"""
 
-    def __init__(self):
-        self._prices = {
-            "000001.SZ": 10.50,
-            "000002.SZ": 25.80,
-            "600000.SH": 7.20,
-            "600519.SH": 1850.00,
-        }
+    def __init__(self, prices: Optional[dict[str, float]] = None):
+        self._prices = prices or {}
 
     def get_price(self, asset_code: str, trade_date: date) -> Optional[float]:
         """获取指定日期的价格(模拟)"""

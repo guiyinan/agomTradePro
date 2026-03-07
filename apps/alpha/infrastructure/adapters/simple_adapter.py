@@ -173,7 +173,10 @@ class SimpleAlphaProvider(BaseAlphaProvider):
 
     def _get_universe_stocks(self, universe_id: str) -> List[str]:
         """
-        获取股票池列表
+        获取股票池列表。
+
+        简单 Provider 不再内置任何静态股票代码。股票池必须来自
+        真实数据源，否则直接返回空列表并让上层走失败/降级链路。
 
         Args:
             universe_id: 股票池标识
@@ -181,33 +184,8 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         Returns:
             股票代码列表
         """
-        # 简化的股票池定义
-        # 实际实现中应该从数据库或配置文件读取
-        universe_map = {
-            "csi300": self._get_csi300_stocks(),
-            "csi500": self._get_csi500_stocks(),
-            "sse50": self._get_sse50_stocks(),
-        }
-
-        return universe_map.get(universe_id, [])
-
-    def _get_csi300_stocks(self) -> List[str]:
-        """获取沪深300成分股（示例）"""
-        # 实际实现中应该从数据源获取
-        return [
-            "000001.SH", "000002.SH", "000063.SH", "000069.SH",
-            "000333.SH", "000338.SH", "000651.SH", "000725.SH",
-            "600000.SH", "600036.SH", "600519.SH", "600887.SH",
-            # ... 更多股票
-        ]
-
-    def _get_csi500_stocks(self) -> List[str]:
-        """获取中证500成分股（示例）"""
-        return []  # 实际实现
-
-    def _get_sse50_stocks(self) -> List[str]:
-        """获取上证50成分股（示例）"""
-        return []  # 实际实现
+        logger.warning("SimpleAlphaProvider 未配置真实股票池来源: universe=%s", universe_id)
+        return []
 
     def _get_fundamental_data(
         self,
@@ -215,7 +193,10 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         trade_date: date
     ) -> Dict[str, Dict[str, float]]:
         """
-        获取基本面数据
+        获取基本面数据。
+
+        当前实现不再生成任何模拟基本面数据；如果没有真实数据源，
+        直接返回空字典并让上层失败。
 
         Args:
             stock_list: 股票列表
@@ -224,19 +205,12 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         Returns:
             股票代码到基本面数据的映射
         """
-        # 简化的模拟数据
-        # 实际实现中应该从数据库或 API 获取
-        mock_data = {}
-
-        for stock in stock_list[:10]:  # 仅演示
-            mock_data[stock] = {
-                "pe": 15.0 + hash(stock) % 50,  # PE 15-65
-                "pb": 2.0 + hash(stock) % 8,   # PB 2-10
-                "roe": 0.10 + (hash(stock) % 200) / 1000,  # ROE 10%-30%
-                "dividend_yield": 0.01 + (hash(stock) % 50) / 1000,  # 股息率 1%-6%
-            }
-
-        return mock_data
+        logger.warning(
+            "SimpleAlphaProvider 未接入真实基本面数据源: trade_date=%s, stock_count=%s",
+            trade_date,
+            len(stock_list),
+        )
+        return {}
 
     def _compute_scores(
         self,

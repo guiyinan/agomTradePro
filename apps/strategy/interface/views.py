@@ -1127,17 +1127,11 @@ def test_script(request):
 
         class MockAssetPoolProvider:
             def get_investable_assets(self, min_score=60, limit=50):
-                return [
-                    {'asset_code': '000001.SH', 'asset_name': '上证指数', 'total_score': 75.5},
-                    {'asset_code': '000300.SH', 'asset_name': '沪深300', 'total_score': 78.2},
-                    {'asset_code': '000905.SH', 'asset_name': '中证500', 'total_score': 72.1},
-                ][:limit]
+                return []
 
         class MockSignalProvider:
             def get_valid_signals(self):
-                return [
-                    {'signal_id': 1, 'asset_code': '000001.SH', 'direction': 'LONG', 'logic_desc': '测试信号', 'target_regime': 'HG'},
-                ]
+                return []
 
         class MockPortfolioProvider:
             def get_positions(self, portfolio_id):
@@ -1220,21 +1214,11 @@ def test_strategy(request, strategy_id):
         # 模拟策略执行（使用模拟数据）
         start_time = time.time()
 
-        # 根据策略类型生成模拟信号
+        # 测试模式不再注入任何模拟证券代码；仅返回真实执行结果或空列表。
         mock_signals = []
 
         if strategy.strategy_type in ['rule_based', 'hybrid']:
-            # 规则驱动策略：模拟基于规则的信号
-            rules = strategy.rules.filter(is_enabled=True)
-            for rule in rules[:3]:  # 模拟前3条规则触发
-                mock_signals.append({
-                    'asset_code': '000001.SH',
-                    'asset_name': '上证指数',
-                    'action': rule.action,
-                    'weight': float(rule.weight),
-                    'reason': f"规则: {rule.rule_name}",
-                    'confidence': 0.75
-                })
+            mock_signals = []
 
         elif strategy.strategy_type in ['script_based', 'hybrid']:
             # 脚本驱动策略：模拟脚本执行结果
@@ -1260,10 +1244,7 @@ def test_strategy(request, strategy_id):
 
                 class MockAssetPoolProvider:
                     def get_investable_assets(self, min_score=60, limit=50):
-                        return [
-                            {'asset_code': '000001.SH', 'asset_name': '上证指数', 'total_score': 75.5},
-                            {'asset_code': '000300.SH', 'asset_name': '沪深300', 'total_score': 78.2},
-                        ][:limit]
+                        return []
 
                 class MockSignalProvider:
                     def get_valid_signals(self):
@@ -1292,30 +1273,10 @@ def test_strategy(request, strategy_id):
                         script_name=f'test_{strategy.id}'
                     )
             except Exception as e:
-                # 如果脚本执行失败，返回模拟信号
-                mock_signals = [
-                    {
-                        'asset_code': '000300.SH',
-                        'asset_name': '沪深300',
-                        'action': 'BUY',
-                        'weight': 0.15,
-                        'reason': f'模拟信号 (脚本执行错误: {str(e)[:50]}',
-                        'confidence': 0.5
-                    }
-                ]
+                mock_signals = []
 
         elif strategy.strategy_type == 'ai_driven':
-            # AI驱动策略：模拟 AI 决策
-            mock_signals = [
-                {
-                    'asset_code': '000001.SH',
-                    'asset_name': '上证指数',
-                    'action': 'BUY',
-                    'weight': 0.2,
-                    'reason': 'AI 建议: 当前市场环境适合配置权益资产',
-                    'confidence': 0.72
-                }
-            ]
+            mock_signals = []
 
         execution_time = int((time.time() - start_time) * 1000)
 

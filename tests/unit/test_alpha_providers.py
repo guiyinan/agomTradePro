@@ -314,6 +314,22 @@ class TestETFFallbackProvider:
         assert len(result.scores) == 2
         assert result.metadata["etf_code"] == "510300.SH"
 
+    @override_settings(ALPHA_UNIVERSE_ETF_MAP={"csi300": {"etf_code": "510300.SH"}})
+    def test_get_stock_scores_requires_real_holdings(self):
+        """测试没有真实持仓时不会回退到静态股票列表"""
+        FundInfoModel._default_manager.create(
+            fund_code="510300",
+            fund_name="沪深300ETF",
+            fund_type="指数型",
+            is_active=True,
+        )
+        provider = ETFFallbackProvider()
+
+        result = provider.get_stock_scores("csi300", date.today())
+
+        assert result.success is False
+        assert "真实成分股" in result.error_message
+
 
 class TestAlphaService:
     """测试 Alpha 服务"""

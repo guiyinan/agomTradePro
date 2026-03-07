@@ -441,7 +441,7 @@ def _execute_qlib_prediction(
         model_path = Path(active_model.model_path)
         if not model_path.exists():
             logger.error(f"模型文件不存在: {model_path}")
-            return _generate_mock_scores(top_n)
+            raise RuntimeError(f"模型文件不存在: {model_path}")
 
         with open(model_path, "rb") as f:
             model = pickle.load(f)
@@ -450,7 +450,7 @@ def _execute_qlib_prediction(
         instruments = D.instruments(market=universe_id)
         if not instruments:
             logger.warning(f"未找到股票池: {universe_id}")
-            return _generate_mock_scores(top_n)
+            raise RuntimeError(f"未找到股票池: {universe_id}")
 
         # 转换为列表（Qlib 返回可能是 Index）
         stock_list = list(instruments) if hasattr(instruments, '__iter__') else list(instruments)
@@ -477,7 +477,7 @@ def _execute_qlib_prediction(
                 # Qlib 返回 DataFrame，格式为 instrument -> score
                 if prediction.empty:
                     logger.warning(f"预测结果为空: {universe_id}@{trade_date}")
-                    return _generate_mock_scores(top_n)
+                    raise RuntimeError(f"预测结果为空: {universe_id}@{trade_date}")
 
                 # 获取最后一行的预测分数
                 scores_series = prediction.iloc[-1]
@@ -487,7 +487,7 @@ def _execute_qlib_prediction(
                 scores_series = pd.Series(prediction)
             else:
                 logger.warning(f"不支持的预测结果类型: {type(prediction)}")
-                return _generate_mock_scores(top_n)
+                raise RuntimeError(f"不支持的预测结果类型: {type(prediction)}")
 
             # 转换为评分格式
             scores_data = []
@@ -525,65 +525,6 @@ def _execute_qlib_prediction(
     except Exception as e:
         logger.error(f"Qlib 预测失败: {e}", exc_info=True)
         raise RuntimeError(f"Qlib 预测失败: {e}") from e
-
-
-def _generate_mock_scores(top_n: int) -> List[dict]:
-    """
-    生成模拟评分数据（仅用于测试环境）
-
-    ⚠️ 警告: 此函数仅用于单元测试，    生产环境不应调用此函数。
-
-    Args:
-        top_n: 生成数量
-
-    Returns:
-        模拟评分数据列表
-    """
-    import warnings
-    warnings.warn(
-        "_generate_mock_scores 仅用于测试环境，生产环境请配置 Qlib",
-        UserWarning
-    )
-
-
-def _generate_mock_scores(top_n: int) -> List[dict]:
-    """
-    生成模拟评分数据
-
-    Args:
-        top_n: 生成数量
-
-    Returns:
-        模拟评分数据列表
-    """
-    mock_stocks = [
-        "600519.SH", "000333.SH", "600036.SH", "601318.SH", "000858.SH",
-        "600887.SH", "000002.SH", "600000.SH", "601012.SH", "000001.SH",
-        "000063.SH", "600276.SH", "002594.SZ", "603259.SH", "600900.SH",
-        "601328.SH", "601166.SH", "000725.SH", "600030.SH", "601398.SH",
-        "600104.SH", "601888.SH", "002475.SZ", "600585.SH", "000651.SH",
-        "002304.SZ", "601888.SH", "600309.SH", "601601.SH", "601288.SH",
-    ]
-
-    scores_data = []
-    for i, stock in enumerate(mock_stocks[:top_n], 1):
-        # 生成模拟评分（0.3 到 0.9 之间）
-        score = 0.9 - (i * 0.02)
-
-        scores_data.append({
-            "code": stock,
-            "score": round(score, 4),
-            "rank": i,
-            "factors": {
-                "momentum": round(score * 0.8, 4),
-                "value": round(score * 0.6, 4),
-                "quality": round(score * 0.7, 4),
-            },
-            "source": "qlib",
-            "confidence": 0.8,
-        })
-
-    return scores_data
 
 
 def _calculate_artifact_hash(model_path: str) -> str:
@@ -837,19 +778,14 @@ def _create_mock_model(model_type: str):
             return self
 
         def predict(self, dataset=None):
-            """模拟预测，返回简单的分数"""
+            """模拟预测，返回合成 instrument 分数。"""
             import pandas as pd
             import numpy as np
 
-            # 生成一些随机但确定的分数
             np.random.seed(42)
-            mock_stocks = [
-                "600519.SH", "000333.SH", "600036.SH", "601318.SH", "000858.SH",
-                "600887.SH", "000002.SH", "600000.SH", "601012.SH", "000001.SH",
-            ]
-
-            scores = np.random.uniform(-0.5, 0.5, len(mock_stocks))
-            return pd.Series(scores, index=mock_stocks)
+            synthetic_instruments = [f"SYNTH{i:04d}" for i in range(10)]
+            scores = np.random.uniform(-0.5, 0.5, len(synthetic_instruments))
+            return pd.Series(scores, index=synthetic_instruments)
 
         def __repr__(self):
             return f"MockModel({self.model_type})"
@@ -1056,4 +992,3 @@ def _get_default_metrics() -> dict:
         "rank_icir": 0.6,
         "evaluation_method": "default",
     }
-

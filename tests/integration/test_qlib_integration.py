@@ -14,7 +14,7 @@ from pathlib import Path
 from django.test import override_settings
 
 from apps.alpha.application.services import AlphaService, AlphaProviderRegistry
-from apps.alpha.application.tasks import qlib_predict_scores, _generate_mock_scores
+from apps.alpha.application.tasks import qlib_predict_scores
 from apps.alpha.domain.entities import AlphaResult
 from apps.alpha.domain.interfaces import AlphaProviderStatus
 from apps.alpha.infrastructure.adapters.qlib_adapter import QlibAlphaProvider
@@ -82,33 +82,20 @@ class TestQlibAlphaProvider:
 class TestQlibCeleryTasks:
     """Qlib Celery 任务测试"""
 
-    def test_generate_mock_scores(self):
-        """测试生成模拟评分数据"""
-        scores = _generate_mock_scores(10)
-
-        assert len(scores) == 10
-        assert scores[0]["rank"] == 1
-        assert scores[0]["score"] > scores[1]["score"]
-        assert all("code" in s for s in scores)
-        assert all("score" in s for s in scores)
-        assert all("rank" in s for s in scores)
-
-    def test_generate_mock_scores_format(self):
-        """测试模拟评分数据格式"""
-        scores = _generate_mock_scores(5)
-
-        for score in scores:
-            assert "code" in score
-            assert isinstance(score["code"], str)
-            assert "score" in score
-            assert isinstance(score["score"], float)
-            assert "rank" in score
-            assert isinstance(score["rank"], int)
-            assert "factors" in score
-            assert isinstance(score["factors"], dict)
-            assert "source" in score
-            assert score["source"] == "qlib"
-            assert "confidence" in score
+    @staticmethod
+    def _sample_scores(top_n: int) -> list[dict]:
+        scores = []
+        for i in range(1, top_n + 1):
+            score = 1.0 - (i * 0.01)
+            scores.append({
+                "code": f"SYNTH{i:04d}",
+                "score": float(score),
+                "rank": i,
+                "factors": {},
+                "source": "qlib",
+                "confidence": 0.8,
+            })
+        return scores
 
     @pytest.mark.skipif(
         os.environ.get('CI') == 'true',
@@ -117,7 +104,7 @@ class TestQlibCeleryTasks:
     @patch("apps.alpha.application.tasks._execute_qlib_prediction")
     def test_qlib_predict_scores_task(self, mock_predict):
         """测试 Qlib 推理任务（同步执行，避免依赖外部 broker）"""
-        mock_predict.return_value = _generate_mock_scores(10)
+        mock_predict.return_value = self._sample_scores(10)
 
         QlibModelRegistryModel.objects.create(
             model_name="test_qlib_model",

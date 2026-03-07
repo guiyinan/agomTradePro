@@ -10,6 +10,8 @@ from typing import List, Dict, Optional, Tuple
 from datetime import date
 from decimal import Decimal
 
+from django.conf import settings
+
 from apps.strategy.domain.allocation_matrix import (
     get_allocation_target,
     AllocationTarget,
@@ -66,34 +68,6 @@ class AllocationService:
     根据当前Regime、用户风险偏好、Policy档位和当前持仓，
     计算目标配置和具体调仓操作。
     """
-
-    # 资产代码推荐映射（根据Regime推荐具体资产）
-    RECOMMENDED_ASSETS = {
-        "Recovery": {
-            "equity": ["000300.SH", "159915.SZ"],  # 沪深300ETF、创业板ETF
-            "fixed_income": ["511010.SH"],  # 国债ETF
-            "commodity": ["518880.SH"],  # 黄金ETF
-            "cash": ["511880.SH"],  # 银华日利（货币基金）
-        },
-        "Overheat": {
-            "equity": ["510300.SH"],  # 沪深300ETF
-            "fixed_income": ["511010.SH", "511220.SH"],  # 国债ETF、上证10年期国债
-            "commodity": ["518880.SH", "159937.SZ"],  # 黄金ETF、有色ETF
-            "cash": ["511880.SH"],
-        },
-        "Stagflation": {
-            "equity": [],  # 滞胀期不推荐股票
-            "fixed_income": ["511010.SH", "511220.SH"],  # 防御性债券
-            "commodity": ["518880.SH", "159937.SZ"],  # 黄金、商品
-            "cash": ["511880.SH", "511990.SH"],  # 货币基金
-        },
-        "Deflation": {
-            "equity": ["000300.SH"],  # 少量宽基ETF
-            "fixed_income": ["511010.SH", "511220.SH", "511270.SH"],  # 大量债券
-            "commodity": [],  # 衰退期不推荐商品
-            "cash": ["511880.SH"],
-        },
-    }
 
     @classmethod
     def calculate_allocation_advice(
@@ -236,8 +210,9 @@ class AllocationService:
         )
 
         priority = 1
+        recommended_assets_map = cls._get_recommended_assets()
         all_candidate_codes = {p.asset_code for p in positions}
-        for assets_by_class in cls.RECOMMENDED_ASSETS.get(regime, {}).values():
+        for assets_by_class in recommended_assets_map.get(regime, {}).values():
             all_candidate_codes.update(assets_by_class)
         asset_name_map = cls._resolve_asset_names(list(all_candidate_codes))
 
@@ -279,7 +254,7 @@ class AllocationService:
 
             elif diff > 0:  # 需要加仓
                 # 获取推荐的资产代码
-                recommended_codes = cls.RECOMMENDED_ASSETS.get(regime, {}).get(asset_class, [])
+                recommended_codes = recommended_assets_map.get(regime, {}).get(asset_class, [])
 
                 if not recommended_codes:
                     continue
@@ -304,6 +279,18 @@ class AllocationService:
                     diff_amount -= buy_amount
 
         return actions
+
+    @classmethod
+    def _get_recommended_assets(cls) -> Dict[str, Dict[str, List[str]]]:
+        """
+        从配置读取 Regime 到资产代码的映射。
+
+        未配置时默认返回空映射，避免在运行时注入硬编码证券代码。
+        """
+        configured = getattr(settings, "ALLOCATION_RECOMMENDED_ASSETS", {}) or {}
+        if not isinstance(configured, dict):
+            return {}
+        return configured
 
     @classmethod
     def _resolve_asset_names(cls, codes: List[str]) -> Dict[str, str]:
