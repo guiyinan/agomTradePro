@@ -29,6 +29,9 @@ def test_extended_mcp_tools_registered():
         "analyze_sentiment",
         "get_task_monitor_statistics",
         "list_filters",
+        "list_rotation_regimes",
+        "get_account_rotation_config",
+        "apply_rotation_template_to_account_config",
     }
 
     missing = expected - names

@@ -155,6 +155,7 @@ Three methods (priority order):
 | `client.sector` | Sector analysis - scoring, hot sectors, comparison |
 | `client.strategy` | Strategy management - create/execute strategy, bind/unbind portfolio strategy, DB-driven position rules |
 | `client.realtime` | Real-time prices - market data, alerts, top movers |
+| `client.rotation` | Rotation - recommendations, templates, per-account regime allocation configs |
 | `client.decision_workflow` | **Decision workflow (V3.4+)** - precheck, beta gate check, quota check, cooldown check |
 | `client.decision_rhythm` | **Decision rhythm (V3.4+)** - submit, execute, cancel, get decision requests |
 
@@ -179,10 +180,38 @@ Three methods (priority order):
 - **Fund**: `get_fund_score`, `list_funds`, `get_fund_performance`
 - **Sector**: `list_sectors`, `get_hot_sectors`, `compare_sectors`
 - **Strategy**: `list_strategies`, `create_strategy`, `execute_strategy`
+- **Rotation**: `list_rotation_regimes`, `list_rotation_templates`, `list_account_rotation_configs`, `get_account_rotation_config`, `create_account_rotation_config`, `update_account_rotation_config`, `apply_rotation_template_to_account_config`
 - **Strategy Assignment**: `bind_portfolio_strategy`, `unbind_portfolio_strategy`
 - **Decision Rhythm**: `submit_decision_request`, `list_decision_requests`, `decision_execute_request`, `decision_cancel_request`, `get_decision_request`
 - **Decision Workflow (V3.4+)**: `decision_workflow_precheck`, `decision_workflow_check_beta_gate`, `decision_workflow_check_quota`, `decision_workflow_check_cooldown`
 - **Realtime**: `get_realtime_price`, `get_market_summary`, `create_price_alert`
+
+## Rotation Account Config Examples
+
+```python
+from agomsaaf import AgomSAAFClient
+
+client = AgomSAAFClient(
+    base_url="http://localhost:8000",
+    api_token="your_token_here",
+)
+
+templates = client.rotation.list_templates()
+regimes = client.rotation.list_regimes()
+
+config = client.rotation.get_account_config_by_account(308)
+
+updated = client.rotation.update_account_config(
+    config["id"],
+    {
+        "risk_tolerance": "moderate",
+        "is_enabled": True,
+        "regime_allocations": config["regime_allocations"],
+    },
+)
+
+client.rotation.apply_template_to_account_config(updated["id"], "moderate")
+```
 
 ## Documentation
 

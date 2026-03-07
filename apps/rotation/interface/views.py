@@ -420,18 +420,21 @@ def get_regime_list(request):
 
     GET /api/rotation/regimes/
     """
-    # Regime 名称由 regime 模块 RegimeProbability.to_dict() 定义
-    # 保持与 regime 模块一致，这里从 to_dict 的 key 集合读取
-    from apps.regime.domain.entities import RegimeProbability
-    dummy = RegimeProbability(
+    # Regime 名称由 regime 模块 RegimeProbabilities.distribution 定义
+    from apps.regime.domain.entities import RegimeProbabilities
+    dummy = RegimeProbabilities(
         growth_reflation=0.25,
         growth_disinflation=0.25,
         stagnation_reflation=0.25,
         stagnation_disinflation=0.25,
+        confidence=1.0,
+        data_freshness_score=1.0,
+        predictive_power_score=1.0,
+        consistency_score=1.0,
     )
     regimes = [
         {'key': regime_name, 'label': regime_name}
-        for regime_name in dummy.to_dict().keys()
+        for regime_name in dummy.distribution.keys()
     ]
     return Response(regimes)
 

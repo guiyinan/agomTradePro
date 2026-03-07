@@ -124,6 +124,36 @@ def client():
         (lambda c: c.filter.update_filter(11, {"name": "f2"}), "PATCH", "/filter/api/11/", {"json": {"name": "f2"}}),
         (lambda c: c.filter.delete_filter(11), "DELETE", "/filter/api/11/"),
         (lambda c: c.filter.health(), "GET", "/filter/api/health/"),
+        (lambda c: c.rotation.list_regimes(), "GET", "/api/rotation/regimes/"),
+        (lambda c: c.rotation.list_templates(), "GET", "/api/rotation/templates/"),
+        (lambda c: c.rotation.list_account_configs(), "GET", "/api/rotation/account-configs/"),
+        (lambda c: c.rotation.get_account_config(5), "GET", "/api/rotation/account-configs/5/"),
+        (lambda c: c.rotation.get_account_config_by_account(308), "GET", "/api/rotation/account-configs/by-account/308/"),
+        (
+            lambda c: c.rotation.create_account_config({"account": 308, "risk_tolerance": "moderate"}),
+            "POST",
+            "/api/rotation/account-configs/",
+            {"json": {"account": 308, "risk_tolerance": "moderate"}},
+        ),
+        (
+            lambda c: c.rotation.update_account_config(5, {"is_enabled": True}, partial=False),
+            "PUT",
+            "/api/rotation/account-configs/5/",
+            {"json": {"is_enabled": True}},
+        ),
+        (
+            lambda c: c.rotation.update_account_config(5, {"is_enabled": True}, partial=True),
+            "PATCH",
+            "/api/rotation/account-configs/5/",
+            {"json": {"is_enabled": True}},
+        ),
+        (lambda c: c.rotation.delete_account_config(5), "DELETE", "/api/rotation/account-configs/5/"),
+        (
+            lambda c: c.rotation.apply_template_to_account_config(5, "moderate"),
+            "POST",
+            "/api/rotation/account-configs/5/apply-template/",
+            {"json": {"template_key": "moderate"}},
+        ),
     ],
 )
 def test_extended_module_endpoint_contract(client, case):

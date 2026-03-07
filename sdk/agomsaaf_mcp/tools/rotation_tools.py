@@ -16,6 +16,143 @@ def register_rotation_tools(server: FastMCP) -> None:
     """注册 Rotation 相关的 MCP 工具"""
 
     @server.tool()
+    def list_rotation_regimes() -> list[dict[str, Any]]:
+        """
+        列出轮动配置使用的宏观象限
+
+        Returns:
+            象限列表，元素包含 key 和 label
+        """
+        client = AgomSAAFClient()
+        return client.rotation.list_regimes()
+
+    @server.tool()
+    def list_rotation_templates() -> list[dict[str, Any]]:
+        """
+        列出可用的账户轮动模板
+
+        Returns:
+            模板列表
+        """
+        client = AgomSAAFClient()
+        return client.rotation.list_templates()
+
+    @server.tool()
+    def list_account_rotation_configs() -> list[dict[str, Any]]:
+        """
+        列出当前用户所有账户的轮动配置
+
+        Returns:
+            账户轮动配置列表
+        """
+        client = AgomSAAFClient()
+        return client.rotation.list_account_configs()
+
+    @server.tool()
+    def get_account_rotation_config(
+        config_id: int | None = None,
+        account_id: int | None = None,
+    ) -> dict[str, Any]:
+        """
+        查询账户轮动配置
+
+        Args:
+            config_id: 配置 ID，优先使用
+            account_id: 账户 ID；未提供 config_id 时按账户查询
+
+        Returns:
+            单条账户轮动配置
+        """
+        client = AgomSAAFClient()
+        if config_id is not None:
+            return client.rotation.get_account_config(config_id)
+        if account_id is not None:
+            return client.rotation.get_account_config_by_account(account_id)
+        return {
+            "error": "必须提供 config_id 或 account_id 之一",
+        }
+
+    @server.tool()
+    def create_account_rotation_config(
+        account_id: int,
+        risk_tolerance: str = "moderate",
+        is_enabled: bool = False,
+        regime_allocations: dict[str, dict[str, float]] | None = None,
+    ) -> dict[str, Any]:
+        """
+        新建账户轮动配置
+
+        Args:
+            account_id: 账户 ID
+            risk_tolerance: 风险偏好
+            is_enabled: 是否启用自动轮动
+            regime_allocations: 各象限资产权重配置
+
+        Returns:
+            新建后的账户轮动配置
+        """
+        client = AgomSAAFClient()
+        payload = {
+            "account": account_id,
+            "risk_tolerance": risk_tolerance,
+            "is_enabled": is_enabled,
+            "regime_allocations": regime_allocations or {},
+        }
+        return client.rotation.create_account_config(payload)
+
+    @server.tool()
+    def update_account_rotation_config(
+        config_id: int,
+        payload: dict[str, Any],
+        partial: bool = True,
+    ) -> dict[str, Any]:
+        """
+        更新账户轮动配置
+
+        Args:
+            config_id: 配置 ID
+            payload: 更新内容
+            partial: True 使用 PATCH，False 使用 PUT
+
+        Returns:
+            更新后的账户轮动配置
+        """
+        client = AgomSAAFClient()
+        return client.rotation.update_account_config(config_id, payload, partial=partial)
+
+    @server.tool()
+    def delete_account_rotation_config(config_id: int) -> dict[str, Any]:
+        """
+        删除账户轮动配置
+
+        Args:
+            config_id: 配置 ID
+
+        Returns:
+            删除响应
+        """
+        client = AgomSAAFClient()
+        return client.rotation.delete_account_config(config_id)
+
+    @server.tool()
+    def apply_rotation_template_to_account_config(
+        config_id: int,
+        template_key: str,
+    ) -> dict[str, Any]:
+        """
+        将预设模板应用到指定账户轮动配置
+
+        Args:
+            config_id: 配置 ID
+            template_key: 模板 key
+
+        Returns:
+            应用模板后的账户轮动配置
+        """
+        client = AgomSAAFClient()
+        return client.rotation.apply_template_to_account_config(config_id, template_key)
+
+    @server.tool()
     def get_rotation_recommendation(strategy: str = "momentum") -> dict[str, Any]:
         """
         获取资产轮动推荐

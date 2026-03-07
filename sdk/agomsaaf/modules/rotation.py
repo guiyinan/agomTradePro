@@ -161,3 +161,117 @@ class RotationModule:
     def clear_cache(self) -> dict[str, Any]:
         """清除价格缓存"""
         return self._client.post("rotation/api/clear-cache/")
+
+    def list_regimes(self) -> list[dict[str, Any]]:
+        """
+        获取宏观象限列表
+
+        Returns:
+            象限列表，元素形如 {"key": "Overheat", "label": "Overheat"}
+        """
+        return self._client.get("/api/rotation/regimes/")
+
+    def list_templates(self) -> list[dict[str, Any]]:
+        """
+        获取轮动模板列表
+
+        Returns:
+            模板列表
+        """
+        result = self._client.get("/api/rotation/templates/")
+        return result.get("results", result) if isinstance(result, dict) else result
+
+    def list_account_configs(self) -> list[dict[str, Any]]:
+        """
+        获取当前用户的账户轮动配置列表
+
+        Returns:
+            账户配置列表
+        """
+        result = self._client.get("/api/rotation/account-configs/")
+        return result.get("results", result) if isinstance(result, dict) else result
+
+    def get_account_config(self, config_id: int) -> dict[str, Any]:
+        """
+        按配置 ID 获取账户轮动配置
+
+        Args:
+            config_id: 配置 ID
+
+        Returns:
+            单条账户配置详情
+        """
+        return self._client.get(f"/api/rotation/account-configs/{config_id}/")
+
+    def get_account_config_by_account(self, account_id: int) -> dict[str, Any]:
+        """
+        按账户 ID 获取轮动配置
+
+        Args:
+            account_id: 账户 ID
+
+        Returns:
+            单条账户配置详情
+        """
+        return self._client.get(f"/api/rotation/account-configs/by-account/{account_id}/")
+
+    def create_account_config(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """
+        新建账户轮动配置
+
+        Args:
+            payload: 配置载荷，需包含 account/risk_tolerance/is_enabled/regime_allocations
+
+        Returns:
+            新建后的配置详情
+        """
+        return self._client.post("/api/rotation/account-configs/", json=payload)
+
+    def update_account_config(
+        self,
+        config_id: int,
+        payload: dict[str, Any],
+        partial: bool = False,
+    ) -> dict[str, Any]:
+        """
+        更新账户轮动配置
+
+        Args:
+            config_id: 配置 ID
+            payload: 更新内容
+            partial: 是否使用 PATCH 部分更新，默认 False 使用 PUT
+
+        Returns:
+            更新后的配置详情
+        """
+        if partial:
+            return self._client.patch(f"/api/rotation/account-configs/{config_id}/", json=payload)
+        return self._client.put(f"/api/rotation/account-configs/{config_id}/", json=payload)
+
+    def delete_account_config(self, config_id: int) -> dict[str, Any]:
+        """
+        删除账户轮动配置
+
+        Args:
+            config_id: 配置 ID
+
+        Returns:
+            删除响应
+        """
+        return self._client.delete(f"/api/rotation/account-configs/{config_id}/")
+
+    def apply_template_to_account_config(self, config_id: int, template_key: str) -> dict[str, Any]:
+        """
+        将预设模板应用到指定账户轮动配置
+
+        Args:
+            config_id: 配置 ID
+            template_key: 模板 key，如 conservative/moderate/aggressive
+
+        Returns:
+            应用后的配置详情
+        """
+        return self._client.post(
+            f"/api/rotation/account-configs/{config_id}/apply-template/",
+            json={"template_key": template_key},
+        )

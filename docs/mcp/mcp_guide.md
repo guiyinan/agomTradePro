@@ -174,6 +174,42 @@ get_top_movers(direction)
 get_sector_realtime_performance()
 ```
 
+### Rotation Account Config Tools
+
+```
+list_rotation_regimes()
+list_rotation_templates()
+list_account_rotation_configs()
+get_account_rotation_config(config_id, account_id)
+create_account_rotation_config(account_id, risk_tolerance, is_enabled, regime_allocations)
+update_account_rotation_config(config_id, payload, partial)
+delete_account_rotation_config(config_id)
+apply_rotation_template_to_account_config(config_id, template_key)
+```
+
+Notes:
+
+- `get_account_rotation_config` accepts either `config_id` or `account_id`; `config_id` wins if both are provided.
+- `template_key` usually uses `conservative`, `moderate`, or `aggressive`.
+- `regime_allocations` shape is `{regime_name: {asset_code: weight}}`, and each regime should sum to `1.0` within backend tolerance.
+
+Example:
+
+```json
+{
+  "account_id": 308,
+  "risk_tolerance": "moderate",
+  "is_enabled": true,
+  "regime_allocations": {
+    "Overheat": {
+      "510300": 0.4,
+      "518880": 0.2,
+      "511260": 0.4
+    }
+  }
+}
+```
+
 ### Strategy Position Management Tools
 
 ```

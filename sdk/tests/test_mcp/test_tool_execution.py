@@ -100,6 +100,17 @@ class _FakeClient:
             delete_filter=lambda filter_id: None,
             health=lambda: {"ok": True},
         )
+        self.rotation = SimpleNamespace(
+            list_regimes=lambda: [{"key": "Overheat", "label": "Overheat"}],
+            list_templates=lambda: [{"id": 1, "key": "moderate"}],
+            list_account_configs=lambda: [{"id": 2, "account": 308}],
+            get_account_config=lambda config_id: {"id": config_id, "account": 308},
+            get_account_config_by_account=lambda account_id: {"id": 2, "account": account_id},
+            create_account_config=lambda payload: {"id": 3, **payload},
+            update_account_config=lambda config_id, payload, partial=True: {"id": config_id, "partial": partial, **payload},
+            delete_account_config=lambda config_id: {"deleted": True, "id": config_id},
+            apply_template_to_account_config=lambda config_id, template_key: {"id": config_id, "template_key": template_key},
+        )
 
 
 def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -116,6 +127,7 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         "agomsaaf_mcp.tools.sentiment_tools",
         "agomsaaf_mcp.tools.task_monitor_tools",
         "agomsaaf_mcp.tools.filter_tools",
+        "agomsaaf_mcp.tools.rotation_tools",
     ]
     for module_name in module_names:
         mod = importlib.import_module(module_name)
@@ -192,6 +204,15 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("update_filter", {"filter_id": 1, "payload": {"name": "f2"}}),
         ("delete_filter", {"filter_id": 1}),
         ("get_filter_health", {}),
+        ("list_rotation_regimes", {}),
+        ("list_rotation_templates", {}),
+        ("list_account_rotation_configs", {}),
+        ("get_account_rotation_config", {"config_id": 2}),
+        ("get_account_rotation_config", {"account_id": 308}),
+        ("create_account_rotation_config", {"account_id": 308, "risk_tolerance": "moderate", "is_enabled": True, "regime_allocations": {"Overheat": {"510300": 1.0}}}),
+        ("update_account_rotation_config", {"config_id": 2, "payload": {"is_enabled": False}, "partial": True}),
+        ("delete_account_rotation_config", {"config_id": 2}),
+        ("apply_rotation_template_to_account_config", {"config_id": 2, "template_key": "moderate"}),
     ],
 )
 def test_extended_mcp_tools_can_execute(monkeypatch: pytest.MonkeyPatch, tool_name: str, arguments: dict):
