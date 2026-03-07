@@ -38,7 +38,7 @@ class RealtimePrice:
     """实时价格值对象
 
     Attributes:
-        asset_code: 资产代码（如 000001.SH）
+        asset_code: 资产代码（如 ASSET_CODE）
         asset_type: 资产类型
         price: 当前价格
         change: 价格变动（绝对值）

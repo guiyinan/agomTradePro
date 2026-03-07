@@ -54,7 +54,7 @@ class Migration(migrations.Migration):
                     "asset_code",
                     models.CharField(
                         db_index=True,
-                        help_text="如 000001.SH, 510300 等",
+                        help_text="如 ASSET_CODE、ETF_CODE 等",
                         max_length=20,
                         verbose_name="资产代码",
                     ),

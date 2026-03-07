@@ -236,7 +236,7 @@ class FactorActionViewSet(viewsets.ViewSet):
 
         Request body:
         {
-            "stock_code": "000001.SZ",
+            "stock_code": "ASSET_CODE",
             "factor_weights": {
                 "pe_ttm": -0.3,
                 "roe": 0.4,

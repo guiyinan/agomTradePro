@@ -58,7 +58,7 @@ class MarketPriceService:
         获取资产当前价格
 
         Args:
-            asset_code: 资产代码（如 '000001.SZ', '000001.SH'）
+            asset_code: 资产代码（如 'ASSET_CODE'）
             trade_date: 交易日期（None 表示最新）
 
         Returns:

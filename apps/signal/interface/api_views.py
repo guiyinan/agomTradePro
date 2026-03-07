@@ -95,7 +95,7 @@ class SignalViewSet(viewsets.ModelViewSet):
 
         POST /api/signal/check_eligibility/
         {
-            "asset_code": "000001.SH",
+            "asset_code": "ASSET_CODE",
             "logic_desc": "PMI 回升，看好大盘",
             "invalidation_logic": "PMI 跌破 50",
             "invalidation_threshold": 49.5

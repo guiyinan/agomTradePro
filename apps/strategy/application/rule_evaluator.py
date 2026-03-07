@@ -362,19 +362,19 @@ class SignalEvaluator(BaseEvaluator):
     {
         "operator": "AND",
         "conditions": [
-            {"field": "asset_code", "operator": "==", "value": "000001.SH"},
+            {"field": "asset_code", "operator": "==", "value": "ASSET_CODE"},
             {"field": "direction", "operator": "==", "value": "LONG"}
         ]
     }
 
     {
         "operator": "exists",
-        "asset_code": "000001.SH"
+        "asset_code": "ASSET_CODE"
     }
 
     {
         "operator": "score",
-        "asset_code": "000001.SH",
+        "asset_code": "ASSET_CODE",
         "min_score": 60
     }
     """
@@ -481,8 +481,8 @@ class CompositeEvaluator(BaseEvaluator):
                 "type": "composite",
                 "operator": "OR",
                 "conditions": [
-                    {"type": "signal", "operator": "exists", "asset_code": "000001.SH"},
-                    {"type": "signal", "operator": "exists", "asset_code": "510300.SH"}
+                    {"type": "signal", "operator": "exists", "asset_code": "ASSET_CODE_1"},
+                    {"type": "signal", "operator": "exists", "asset_code": "ASSET_CODE_2"}
                 ]
             }
         ]

@@ -271,7 +271,7 @@ class Migration(migrations.Migration):
             field=models.JSONField(
                 blank=True,
                 default=list,
-                help_text="JSON数组，如 ['000001.SH', '000300.SH']",
+                help_text="JSON数组，如 ['ASSET_CODE_1', 'ASSET_CODE_2']",
                 verbose_name="受影响资产范围",
             ),
         ),

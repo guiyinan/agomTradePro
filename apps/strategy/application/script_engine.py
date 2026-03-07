@@ -348,7 +348,7 @@ class ScriptAPI:
 
         示例：
         >>> calculate_signal(
-        ...     '000001.SH',
+        ...     'ASSET_CODE',
         ...     '上证指数',
         ...     'buy',
         ...     weight=0.3,

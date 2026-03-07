@@ -372,7 +372,7 @@ class MarketDataPort(Protocol):
         Get current price for an asset.
 
         Args:
-            asset_code: Asset code (e.g., '000001.SZ', '000001.SH')
+            asset_code: Asset code (e.g., 'ASSET_CODE')
 
         Returns:
             Decimal: Current price, or None if unavailable

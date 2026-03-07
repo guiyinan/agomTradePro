@@ -777,7 +777,7 @@ function renderCommonRuleFields(rule) {
         <div class="form-group">
             <label class="form-label">目标资产（可选，多个用逗号分隔）</label>
             <input type="text" class="form-input" value="${rule.target_assets.join(', ')}"
-                   placeholder="例如: 000001.SZ, 000002.SZ"
+                   placeholder="例如: ASSET_CODE_1, ASSET_CODE_2"
                    onchange="updateRuleAssets(${rule.id}, this.value)">
         </div>
         <div class="form-grid">

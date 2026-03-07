@@ -28,7 +28,7 @@ class InvestmentSignal:
 
     Attributes:
         id: 信号ID
-        asset_code: 资产代码（如 000001.SH）
+        asset_code: 资产代码（如 ASSET_CODE）
         asset_class: 资产类别（如 a_share_growth）
         direction: 方向（LONG/SHORT/NEUTRAL）
         logic_desc: 信号逻辑描述

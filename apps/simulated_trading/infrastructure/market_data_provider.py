@@ -71,7 +71,7 @@ class MarketDataProvider:
         获取资产价格（收盘价）
 
         Args:
-            asset_code: 资产代码（如 '000001.SZ'）
+            asset_code: 资产代码（如 'ASSET_CODE'）
             trade_date: 交易日期（None表示最新）
 
         Returns:

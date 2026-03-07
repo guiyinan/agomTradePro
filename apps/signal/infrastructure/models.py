@@ -318,7 +318,7 @@ class UnifiedSignalModel(models.Model):
         max_length=20,
         db_index=True,
         verbose_name="资产代码",
-        help_text="如 000001.SH, 510300 等"
+        help_text="如 ASSET_CODE、ETF_CODE 等"
     )
     asset_name = models.CharField(
         max_length=100,

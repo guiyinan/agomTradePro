@@ -196,7 +196,7 @@ class PolicyLog(models.Model):
         default=list,
         blank=True,
         verbose_name="受影响资产范围",
-        help_text="JSON数组，如 ['000001.SH', '000300.SH']"
+        help_text="JSON数组，如 ['ASSET_CODE_1', 'ASSET_CODE_2']"
     )
 
     # ========== 热点情绪评分 ==========

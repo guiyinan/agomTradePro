@@ -108,7 +108,7 @@ class AIResponseParser:
     将 AI 的响应解析为信号列表
 
     支持的响应格式：
-    1. JSON 数组：[{"asset_code": "000001.SH", "action": "buy", ...}, ...]
+    1. JSON 数组：[{"asset_code": "ASSET_CODE", "action": "buy", ...}, ...]
     2. JSON 对象：{"signals": [...], "reason": "..."}
     3. 纯文本：逐行解析
     """

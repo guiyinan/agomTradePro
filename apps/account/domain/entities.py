@@ -88,8 +88,8 @@ class AssetMetadata:
     这是系统的资产数据库，由管理员维护，用户查看。
 
     示例：
-    - 000001.SH: 上证指数 -> Equity, CN, Domestic, Growth
-    - 510300.SH: 沪深300ETF -> Fund, CN, Domestic, Blend
+    - INDEX_CODE: 宽基指数 -> Equity, CN, Domestic, Growth
+    - ETF_CODE: 市场ETF -> Fund, CN, Domestic, Blend
     - VN_QDII: 越南QDII基金 -> Fund, EM, QDII, Growth
     - TSLA.US: 特斯拉股票 -> Equity, US, DirectForeign, Growth
     """
@@ -174,7 +174,7 @@ class Position:
     id: Optional[int]  # 数据库ID，新建时为None
     portfolio_id: int
     user_id: int
-    asset_code: str          # 资产代码，如 "000001.SH"
+    asset_code: str          # 资产代码，如 "ASSET_CODE"
     shares: float            # 持仓数量
     avg_cost: Decimal        # 平均成本价
     current_price: Decimal   # 当前市价

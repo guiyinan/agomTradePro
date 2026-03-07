@@ -42,7 +42,7 @@ class RealtimePriceView(View):
                 "timestamp": "2024-01-13T10:30:00",
                 "prices": [
                     {
-                        "asset_code": "000001.SZ",
+                        "asset_code": "ASSET_CODE",
                         "price": 10.50,
                         "change": 0.10,
                         "change_pct": 0.96,
@@ -107,7 +107,7 @@ class SingleAssetPriceView(View):
 
         Returns:
             {
-                "asset_code": "000001.SZ",
+                "asset_code": "ASSET_CODE",
                 "price": 10.50,
                 "change": 0.10,
                 "change_pct": 0.96,
