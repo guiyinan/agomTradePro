@@ -429,7 +429,10 @@ def get_regime_list(request):
         stagnation_reflation=0.25,
         stagnation_disinflation=0.25,
     )
-    regimes = list(dummy.to_dict().keys())  # ['Overheat', 'Recovery', 'Stagflation', 'Deflation']
+    regimes = [
+        {'key': regime_name, 'label': regime_name}
+        for regime_name in dummy.to_dict().keys()
+    ]
     return Response(regimes)
 
 

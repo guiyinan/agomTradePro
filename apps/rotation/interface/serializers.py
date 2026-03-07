@@ -98,10 +98,11 @@ class RotationSignalRequestSerializer(serializers.Serializer):
 
 class RotationTemplateSerializer(serializers.ModelSerializer):
     """Serializer for RotationTemplate (read-only presets from DB)"""
+    allocations = serializers.JSONField(source='regime_allocations', read_only=True)
 
     class Meta:
         model = RotationTemplateModel
-        fields = ['id', 'key', 'name', 'description', 'regime_allocations', 'display_order']
+        fields = ['id', 'key', 'name', 'description', 'regime_allocations', 'allocations', 'display_order']
 
 
 class PortfolioRotationConfigSerializer(serializers.ModelSerializer):

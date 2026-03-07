@@ -33,6 +33,10 @@ class RotationQuadrantEditor {
     this._data = {};
 
     this._activeRegime = null;
+    this._initialized = false;
+    this._pendingJsonStr = null;
+    this._pendingTemplateKey = null;
+    this._readyPromise = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -41,18 +45,48 @@ class RotationQuadrantEditor {
 
   /** Initialise: fetch data from API, render UI. */
   async init() {
-    try {
-      await Promise.all([
-        this._fetchRegimes(),
-        this._fetchAssets(),
-        this._fetchTemplates(),
-      ]);
-      this._initState();
-      this._render();
-    } catch (err) {
-      console.error('[RotationQuadrantEditor] init failed:', err);
-      this._renderError(err.message);
+    if (this._readyPromise) {
+      return this._readyPromise;
     }
+
+    this._readyPromise = (async () => {
+      try {
+        await Promise.all([
+          this._fetchRegimes(),
+          this._fetchAssets(),
+          this._fetchTemplates(),
+        ]);
+        this._initState();
+        this._render();
+        this._initialized = true;
+
+        if (this._pendingJsonStr !== null) {
+          const pendingJson = this._pendingJsonStr;
+          this._pendingJsonStr = null;
+          this.loadFromJson(pendingJson);
+        }
+
+        if (this._pendingTemplateKey !== null) {
+          const pendingTemplateKey = this._pendingTemplateKey;
+          this._pendingTemplateKey = null;
+          this.applyTemplate(pendingTemplateKey);
+        }
+      } catch (err) {
+        console.error('[RotationQuadrantEditor] init failed:', err);
+        this._renderError(err.message);
+        throw err;
+      }
+    })();
+
+    try {
+      await this._readyPromise;
+    } catch (_) {
+      // Error already rendered above.
+    }
+  }
+
+  ready() {
+    return this._readyPromise || Promise.resolve();
   }
 
   /**
@@ -60,6 +94,10 @@ class RotationQuadrantEditor {
    * @param {string} templateKey
    */
   applyTemplate(templateKey) {
+    if (!this._initialized) {
+      this._pendingTemplateKey = templateKey;
+      return;
+    }
     const tpl = this._templates.find(t => t.key === templateKey);
     if (!tpl) {
       console.warn('[RotationQuadrantEditor] unknown template key:', templateKey);
@@ -83,6 +121,10 @@ class RotationQuadrantEditor {
    */
   loadFromJson(jsonStr) {
     if (!jsonStr) return;
+    if (!this._initialized) {
+      this._pendingJsonStr = jsonStr;
+      return;
+    }
     let parsed;
     try {
       parsed = JSON.parse(jsonStr);
@@ -120,10 +162,16 @@ class RotationQuadrantEditor {
     const json = await resp.json();
     // Support both { results: [...] } (DRF pagination) and plain array
     const list = Array.isArray(json) ? json : (json.results || []);
-    this._regimes = list.map(item => ({
-      key: item.key || item.id || String(item.pk),
-      label: item.label || item.name || item.key,
-    }));
+    this._regimes = list.map(item => {
+      if (typeof item === 'string') {
+        return { key: item, label: item };
+      }
+      const key = item.key || item.id || item.name || String(item.pk);
+      return {
+        key: key,
+        label: item.label || item.name || key,
+      };
+    });
   }
 
   async _fetchAssets() {
@@ -145,7 +193,7 @@ class RotationQuadrantEditor {
     this._templates = list.map(item => ({
       key: item.key || item.id || String(item.pk),
       label: item.label || item.name || item.key,
-      allocations: item.allocations || {},
+      allocations: item.allocations || item.regime_allocations || {},
     }));
   }
 

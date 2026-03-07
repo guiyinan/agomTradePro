@@ -196,9 +196,15 @@ async function openConfigModal(accountId, accountName, riskTolerance, isEnabled,
 
 async function waitForEditor(timeout = 5000) {
     const start = Date.now();
-    while (!window.quadrantEditor || !window.quadrantEditor._initialized) {
+    while (!window.quadrantEditor) {
         if (Date.now() - start > timeout) break;
         await new Promise(r => setTimeout(r, 100));
+    }
+    if (window.quadrantEditor && typeof window.quadrantEditor.ready === 'function') {
+        await Promise.race([
+            window.quadrantEditor.ready(),
+            new Promise(resolve => setTimeout(resolve, timeout)),
+        ]);
     }
 }
 
