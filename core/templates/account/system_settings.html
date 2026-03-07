@@ -74,6 +74,25 @@
             </div>
         </div>
 
+        <div class="settings-section">
+            <h2>运行时市场配置</h2>
+            <div class="form-group">
+                <label for="benchmark_code_map">基准代码映射（JSON）:</label>
+                <textarea id="benchmark_code_map" name="benchmark_code_map" class="form-control code-editor" rows="10">{{ benchmark_code_map_json }}</textarea>
+                <p class="help-text">示例键：equity_default_index、equity_market_benchmark、factor_beta_benchmark</p>
+            </div>
+            <div class="form-group">
+                <label for="asset_proxy_code_map">资产代理代码映射（JSON）:</label>
+                <textarea id="asset_proxy_code_map" name="asset_proxy_code_map" class="form-control code-editor" rows="12">{{ asset_proxy_code_map_json }}</textarea>
+                <p class="help-text">用于资产大类到价格/交易代理标的的数据库配置映射</p>
+            </div>
+            <div class="form-group">
+                <label for="macro_index_catalog">宏观指数目录（JSON）:</label>
+                <textarea id="macro_index_catalog" name="macro_index_catalog" class="form-control code-editor" rows="16">{{ macro_index_catalog_json }}</textarea>
+                <p class="help-text">每项至少包含 code、name、unit、publication_lag_days，可选 name_en、description</p>
+            </div>
+        </div>
+
         <!-- 提交按钮 -->
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">保存配置</button>

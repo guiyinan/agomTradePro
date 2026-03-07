@@ -16,6 +16,7 @@ from django.db import models, transaction
 from django.utils import timezone
 from rest_framework.authtoken.models import Token
 from decimal import Decimal
+import json
 import logging
 
 from apps.account.infrastructure.models import AccountProfileModel, PortfolioModel, CapitalFlowModel, SystemSettingsModel
@@ -920,19 +921,38 @@ def system_settings_view(request):
     system_settings = SystemSettingsModel.get_settings()
 
     if request.method == "POST":
-        # 更新配置
-        system_settings.require_user_approval = request.POST.get("require_user_approval") == "on"
-        system_settings.auto_approve_first_admin = request.POST.get("auto_approve_first_admin") == "on"
-        system_settings.user_agreement_content = request.POST.get("user_agreement_content", "")
-        system_settings.risk_warning_content = request.POST.get("risk_warning_content", "")
-        system_settings.notes = request.POST.get("notes", "")
-        system_settings.save()
+        try:
+            benchmark_code_map = json.loads(request.POST.get("benchmark_code_map", "{}") or "{}")
+            asset_proxy_code_map = json.loads(request.POST.get("asset_proxy_code_map", "{}") or "{}")
+            macro_index_catalog = json.loads(request.POST.get("macro_index_catalog", "[]") or "[]")
 
-        messages.success(request, "系统配置已更新")
-        return redirect("/account/admin/settings/")
+            if not isinstance(benchmark_code_map, dict):
+                raise ValueError("基准代码映射必须是 JSON 对象")
+            if not isinstance(asset_proxy_code_map, dict):
+                raise ValueError("资产代理代码映射必须是 JSON 对象")
+            if not isinstance(macro_index_catalog, list):
+                raise ValueError("宏观指数目录必须是 JSON 数组")
+
+            system_settings.require_user_approval = request.POST.get("require_user_approval") == "on"
+            system_settings.auto_approve_first_admin = request.POST.get("auto_approve_first_admin") == "on"
+            system_settings.user_agreement_content = request.POST.get("user_agreement_content", "")
+            system_settings.risk_warning_content = request.POST.get("risk_warning_content", "")
+            system_settings.notes = request.POST.get("notes", "")
+            system_settings.benchmark_code_map = benchmark_code_map
+            system_settings.asset_proxy_code_map = asset_proxy_code_map
+            system_settings.macro_index_catalog = macro_index_catalog
+            system_settings.save()
+
+            messages.success(request, "系统配置已更新")
+            return redirect("/account/admin/settings/")
+        except (json.JSONDecodeError, ValueError) as exc:
+            messages.error(request, f"系统配置未保存：{exc}")
 
     context = {
         "system_settings": system_settings,
+        "benchmark_code_map_json": json.dumps(system_settings.benchmark_code_map or {}, ensure_ascii=False, indent=2),
+        "asset_proxy_code_map_json": json.dumps(system_settings.asset_proxy_code_map or {}, ensure_ascii=False, indent=2),
+        "macro_index_catalog_json": json.dumps(system_settings.macro_index_catalog or [], ensure_ascii=False, indent=2),
     }
     return render(request, "account/system_settings.html", context)
 

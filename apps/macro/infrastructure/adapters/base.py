@@ -28,7 +28,7 @@ class PublicationLag:
 
 
 # 各指标发布延迟配置（天）
-PUBLICATION_LAGS: dict[str, PublicationLag] = {
+BASE_PUBLICATION_LAGS: dict[str, PublicationLag] = {
     # 中国宏观数据
     "CN_PMI": PublicationLag(days=1, description="PMI 次月1日发布"),
     "CN_NON_MAN_PMI": PublicationLag(days=1, description="非制造业PMI 次月1日发布"),
@@ -77,10 +77,29 @@ PUBLICATION_LAGS: dict[str, PublicationLag] = {
     "SHIBOR": PublicationLag(days=0, description="SHIBOR 每日发布"),
     "LPR": PublicationLag(days=1, description="LPR 每月20日发布"),
 
-    # 指数行情
-    "000001.SH": PublicationLag(days=0, description="上证指数 实时"),
-    "399001.SZ": PublicationLag(days=0, description="深证成指 实时"),
 }
+
+
+def get_publication_lags() -> dict[str, PublicationLag]:
+    """获取发布延迟配置，动态合并数据库中的指数配置。"""
+    lags = dict(BASE_PUBLICATION_LAGS)
+
+    try:
+        from apps.account.infrastructure.models import SystemSettingsModel
+
+        dynamic_lags = SystemSettingsModel.get_runtime_macro_publication_lags()
+        for code, item in dynamic_lags.items():
+            lags[code] = PublicationLag(
+                days=int(item.get("days", 0) or 0),
+                description=item.get("description", "实时"),
+            )
+    except Exception:
+        pass
+
+    return lags
+
+
+PUBLICATION_LAGS = BASE_PUBLICATION_LAGS
 
 
 @dataclass
@@ -98,7 +117,7 @@ class MacroDataPoint:
         """自动填充发布时间和计算延迟"""
         if self.published_at is None:
             # 如果未指定发布时间，根据配置延迟计算
-            lag = PUBLICATION_LAGS.get(self.code)
+            lag = get_publication_lags().get(self.code)
             if lag:
                 from datetime import timedelta
                 self.published_at = self.observed_at + timedelta(days=lag.days)

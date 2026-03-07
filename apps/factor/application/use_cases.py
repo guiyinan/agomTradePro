@@ -667,17 +667,12 @@ class CalculateScoresUseCase:
             # Get factor weights from config
             factor_weights = config.factor_weights or {}
 
-            # Get universe
-            universe = []
-            if config.universe == 'csi_300':
-                universe = ['000001.SH', '399001.SZ']  # Simplified
-            elif config.universe == 'all_a':
-                universe = []  # Empty means all
+            universe = self.integration_service.resolve_universe_stocks(config.universe)
 
             # Calculate scores
             trade_date = request.trade_date or date.today()
             scores = self.integration_service.calculate_factor_scores(
-                universe=universe if universe else None,
+                universe=universe,
                 factor_weights=factor_weights,
                 trade_date=trade_date,
                 top_n=request.top_n,

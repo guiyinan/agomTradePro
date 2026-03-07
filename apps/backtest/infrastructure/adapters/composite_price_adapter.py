@@ -12,21 +12,13 @@ from .base import (
     AssetPriceAdapterProtocol,
     AssetPricePoint,
     AssetPriceUnavailableError,
-    ASSET_CLASS_TICKERS,
+    get_asset_class_tickers,
 )
 
 logger = logging.getLogger(__name__)
 
 
-# 默认价格配置（当所有数据源都不可用时使用）
-DEFAULT_PRICES = {
-    "a_share_growth": 3000.0,    # 沪深300 默认价格
-    "a_share_value": 2500.0,     # 中证500 默认价格
-    "china_bond": 100.0,         # 债券指数默认价格
-    "gold": 500.0,               # 黄金默认价格
-    "commodity": 200.0,          # 商品指数默认价格
-    "cash": 1.0,                 # 现金固定价格
-}
+DEFAULT_PRICES: dict[str, float] = {}
 
 
 class CompositeAssetPriceAdapter:
@@ -34,7 +26,7 @@ class CompositeAssetPriceAdapter:
     组合资产价格适配器
 
     支持多个数据源的 failover 机制，当主数据源失败时自动切换到备用数据源。
-    如果所有数据源都失败，返回默认价格（用于回测模拟）。
+    如果所有数据源都失败，仅在显式注入 default_prices 时才返回默认价格。
     """
 
     source_name = "composite"
@@ -42,7 +34,7 @@ class CompositeAssetPriceAdapter:
     def __init__(
         self,
         adapters: list[AssetPriceAdapterProtocol],
-        use_defaults: bool = True,
+        use_defaults: bool = False,
         default_prices: dict[str, float] | None = None
     ):
         """
@@ -50,7 +42,7 @@ class CompositeAssetPriceAdapter:
 
         Args:
             adapters: 数据源适配器列表（按优先级排序）
-            use_defaults: 当所有数据源都失败时，是否使用默认价格
+        use_defaults: 当所有数据源都失败时，是否使用注入的默认价格
             default_prices: 默认价格配置
         """
         self._adapters = adapters
@@ -190,7 +182,7 @@ class CompositeAssetPriceAdapter:
         """获取支持的资产类别列表"""
         assets = set(self._default_prices.keys())
         for adapter in self._adapters:
-            assets.update(ASSET_CLASS_TICKERS.keys())
+            assets.update(get_asset_class_tickers().keys())
         return list(assets)
 
 
@@ -217,6 +209,6 @@ def create_default_price_adapter(tushare_token: str | None = None) -> CompositeA
 
     return CompositeAssetPriceAdapter(
         adapters=adapters,
-        use_defaults=True,  # 使用默认价格作为后备
+        use_defaults=False,
         default_prices=DEFAULT_PRICES.copy()
     )

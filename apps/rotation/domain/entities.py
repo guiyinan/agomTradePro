@@ -218,101 +218,8 @@ class RotationPortfolio:
 # Domain factory functions
 
 def get_common_etf_assets() -> List[AssetClass]:
-    """Get list of commonly traded ETF assets for rotation"""
-    return [
-        # Equity ETFs
-        AssetClass(
-            code="510300",
-            name="沪深300ETF",
-            category=AssetCategory.EQUITY,
-            description="跟踪沪深300指数，代表A股核心资产",
-            underlying_index="000300.SH",
-        ),
-        AssetClass(
-            code="510500",
-            name="中证500ETF",
-            category=AssetCategory.EQUITY,
-            description="跟踪中证500指数，代表中盘成长股",
-            underlying_index="000905.SH",
-        ),
-        AssetClass(
-            code="159915",
-            name="创业板ETF",
-            category=AssetCategory.EQUITY,
-            description="跟踪创业板指数，代表新兴成长股",
-            underlying_index="399006.SZ",
-        ),
-        AssetClass(
-            code="512100",
-            name="中证1000ETF",
-            category=AssetCategory.EQUITY,
-            description="跟踪中证1000指数，代表小盘股",
-            underlying_index="000852.SH",
-        ),
-        AssetClass(
-            code="588000",
-            name="科创50ETF",
-            category=AssetCategory.EQUITY,
-            description="跟踪科创50指数，代表科技创新企业",
-            underlying_index="000688.SH",
-        ),
-
-        # Bond ETFs
-        AssetClass(
-            code="511260",
-            name="十年国债ETF",
-            category=AssetCategory.BOND,
-            description="跟踪10年期国债指数",
-            underlying_index="净价10年国债",
-        ),
-        AssetClass(
-            code="511010",
-            name="国债ETF",
-            category=AssetCategory.BOND,
-            description="跟踪国债指数",
-            underlying_index="上证国债",
-        ),
-        AssetClass(
-            code="511270",
-            name="十年地方债ETF",
-            category=AssetCategory.BOND,
-            description="跟踪10年期地方债指数",
-        ),
-
-        # Commodity ETFs
-        AssetClass(
-            code="159985",
-            name="豆粕ETF",
-            category=AssetCategory.COMMODITY,
-            description="跟踪大商所豆粕期货价格",
-        ),
-        AssetClass(
-            code="159980",
-            name="黄金ETF",
-            category=AssetCategory.COMMODITY,
-            description="跟踪上海黄金现货价格",
-        ),
-        AssetClass(
-            code="515180",
-            name="新能源ETF",
-            category=AssetCategory.EQUITY,
-            description="跟踪中证新能源指数",
-        ),
-
-        # Currency/Money Market
-        AssetClass(
-            code="511880",
-            name="银华日利",
-            category=AssetCategory.CURRENCY,
-            description="货币市场基金，短期现金管理工具",
-        ),
-        AssetClass(
-            code="511990",
-            name="华宝添益",
-            category=AssetCategory.CURRENCY,
-            description="货币市场基金，短期现金管理工具",
-        ),
-    ]
+    """Rotation 资产应从数据库读取，Domain 层不再内置默认资产。"""
+    return []
 
 
 def create_default_regime_allocation() -> Dict[str, Dict[str, float]]:
@@ -322,73 +229,14 @@ def create_default_regime_allocation() -> Dict[str, Dict[str, float]]:
     Returns:
         {regime: {asset_code: weight}}
     """
-    return {
-        "Recovery": {  # 复苏期
-            "510300": 0.30,  # 沪深300 - 大盘蓝筹
-            "510500": 0.20,  # 中证500 - 中盘成长
-            "159985": 0.15,  # 豆粕 - 商品
-            "511260": 0.20,  # 10年国债 - 债券
-            "511880": 0.15,  # 货币 - 现金
-        },
-        "Overheat": {  # 过热期
-            "510300": 0.20,
-            "159985": 0.25,  # 增加商品
-            "159980": 0.15,  # 黄金
-            "511260": 0.25,  # 增加债券
-            "511880": 0.15,  # 现金
-        },
-        "Stagflation": {  # 滞胀期
-            "159985": 0.20,  # 商品
-            "159980": 0.20,  # 黄金
-            "511260": 0.35,  # 大幅增加债券
-            "511880": 0.25,  # 大幅增加现金
-            "510300": 0.0,   # 清空股票
-            "510500": 0.0,
-        },
-        "Deflation": {  # 通缩期
-            "511260": 0.50,  # 大幅增加债券
-            "511880": 0.30,  # 现金
-            "159980": 0.10,  # 少量黄金
-            "510300": 0.10,  # 少量高质量股票
-        },
-    }
+    return {}
 
 
 def create_default_momentum_config() -> RotationConfig:
     """Create default momentum-based rotation configuration"""
-    assets = get_common_etf_assets()
-    asset_codes = [a.code for a in assets[:10]]  # Top 10 assets
-
-    return RotationConfig(
-        name="动量轮动策略",
-        description="基于价格动量的资产轮动策略，选择近期表现最好的资产",
-        strategy_type=RotationStrategyType.MOMENTUM,
-        asset_universe=asset_codes,
-        params={
-            "momentum_periods": [20, 60, 120],
-            "weight_method": "equal_weight",
-        },
-        rebalance_frequency="monthly",
-        min_weight=0.0,
-        max_weight=1.0,
-        lookback_period=120,
-        top_n=3,
-    )
+    raise ValueError("默认轮动配置已移除，请从数据库中的 RotationConfigModel 读取配置")
 
 
 def create_default_regime_config() -> RotationConfig:
     """Create default regime-based rotation configuration"""
-    assets = get_common_etf_assets()
-    asset_codes = [a.code for a in assets]
-
-    return RotationConfig(
-        name="宏观象限轮动策略",
-        description="根据宏观象限进行资产配置，复苏期配股票，滞胀期配债券和黄金",
-        strategy_type=RotationStrategyType.REGIME_BASED,
-        asset_universe=asset_codes,
-        regime_allocations=create_default_regime_allocation(),
-        rebalance_frequency="monthly",
-        min_weight=0.0,
-        max_weight=0.5,
-        lookback_period=60,
-    )
+    raise ValueError("默认轮动配置已移除，请从数据库中的 RotationConfigModel 读取配置")

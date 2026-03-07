@@ -226,10 +226,6 @@ class IndicatorUnitService:
         'USDCNY': '',
         'USDCNH': '',
 
-        # 股票指数
-        '000001.SH': '点',
-        '399001.SZ': '点',
-
         # 期货
         'TS_FUT': '元',
         'T_FUT': '元',
@@ -248,7 +244,13 @@ class IndicatorUnitService:
         Returns:
             str: 单位，如果没有配置则返回空字符串
         """
-        return cls.INDICATOR_UNITS.get(indicator_code, "")
+        if indicator_code in cls.INDICATOR_UNITS:
+            return cls.INDICATOR_UNITS[indicator_code]
+
+        from apps.account.infrastructure.models import SystemSettingsModel
+
+        metadata = SystemSettingsModel.get_runtime_macro_index_metadata_map().get(indicator_code, {})
+        return metadata.get("unit", "")
 
     @classmethod
     def get_normalized_unit_and_value(cls, indicator_code: str, value: float) -> tuple[float, str]:
@@ -454,21 +456,6 @@ class IndicatorService:
             'unit': '',
             'description': '美元兑离岸人民币汇率',
         },
-        # 股票指数
-        '000001.SH': {
-            'name': '上证指数',
-            'name_en': 'SSE Composite',
-            'category': '股票',
-            'unit': '点',
-            'description': '上海证券交易所综合指数',
-        },
-        '399001.SZ': {
-            'name': '深证成指',
-            'name_en': 'SZSE Component',
-            'category': '股票',
-            'unit': '点',
-            'description': '深圳证券交易所成分指数',
-        },
         # 国债期货
         'TS_FUT': {
             'name': '2年期国债期货',
@@ -502,6 +489,14 @@ class IndicatorService:
     }
 
     @classmethod
+    def get_indicator_metadata_map(cls) -> Dict[str, Dict]:
+        from apps.account.infrastructure.models import SystemSettingsModel
+
+        metadata = dict(cls.INDICATOR_METADATA)
+        metadata.update(SystemSettingsModel.get_runtime_macro_index_metadata_map())
+        return metadata
+
+    @classmethod
     def get_available_indicators(cls, include_stats: bool = True) -> List[Dict]:
         """
         获取所有可用的指标列表
@@ -520,7 +515,7 @@ class IndicatorService:
                 continue
 
             # 获取元数据
-            metadata = cls.INDICATOR_METADATA.get(code, {})
+            metadata = cls.get_indicator_metadata_map().get(code, {})
 
             # 转换最新值为展示值
             display_value, display_unit = UnitDisplayService.convert_for_display(
@@ -579,7 +574,7 @@ class IndicatorService:
             if not latest:
                 return None
 
-            metadata = cls.INDICATOR_METADATA.get(code, {})
+            metadata = cls.get_indicator_metadata_map().get(code, {})
 
             # 转换为展示值
             display_value, display_unit = UnitDisplayService.convert_for_display(
@@ -615,7 +610,7 @@ class IndicatorService:
         ).order_by('-reporting_period')[:periods]
 
         # 获取元数据中的单位配置
-        metadata = cls.INDICATOR_METADATA.get(code, {})
+        metadata = cls.get_indicator_metadata_map().get(code, {})
         default_unit = metadata.get('unit', '')
 
         return [
@@ -654,7 +649,7 @@ def get_available_indicators_for_frontend(include_stats: bool = False) -> List[D
 
     # Lightweight path for UI dropdowns:
     # avoid scanning all historical indicator codes and per-code aggregation.
-    metadata = IndicatorService.INDICATOR_METADATA
+    metadata = IndicatorService.get_indicator_metadata_map()
     known_codes = list(metadata.keys())
     latest_by_code: Dict[str, float] = {}
 
@@ -688,4 +683,3 @@ def get_available_indicators_for_frontend(include_stats: bool = False) -> List[D
 
     indicators.sort(key=lambda x: (x['category'], x['code']))
     return indicators
-

@@ -17,6 +17,7 @@ from .base import (
     DataValidationError,
     PublicationLag,
     PUBLICATION_LAGS,
+    get_publication_lags,
 )
 
 from .tushare_adapter import TushareAdapter
@@ -37,6 +38,7 @@ __all__ = [
     "MacroDataPoint",
     "PublicationLag",
     "PUBLICATION_LAGS",
+    "get_publication_lags",
     # Exceptions
     "DataSourceUnavailableError",
     "DataValidationError",

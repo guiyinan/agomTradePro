@@ -70,9 +70,11 @@ class MarketDataRepositoryAdapter(MarketDataPort):
     def __init__(self):
         # 延迟导入，避免循环依赖
         from apps.macro.infrastructure.models import MacroIndicator
+        from apps.account.infrastructure.models import SystemSettingsModel
         self._model = MacroIndicator
-        # 默认使用沪深 300 作为市场基准
-        self._default_index_code = "000300.SH"
+        self._default_index_code = SystemSettingsModel.get_runtime_benchmark_code(
+            "equity_default_index"
+        )
 
     def get_index_daily_returns(
         self,

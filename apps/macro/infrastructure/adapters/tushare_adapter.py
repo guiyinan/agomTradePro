@@ -31,15 +31,6 @@ class TushareAdapter(BaseMacroAdapter):
 
     source_name = "tushare"
 
-    # 支持的指标代码
-    SUPPORTED_INDICATORS = {
-        "SHIBOR",
-        "000001.SH",  # 上证指数
-        "399001.SZ",  # 深证成指
-        "000300.SH",  # 沪深300
-        "000905.SH",  # 中证500
-    }
-
     def __init__(self, token: Optional[str] = None):
         """
         Args:
@@ -67,7 +58,18 @@ class TushareAdapter(BaseMacroAdapter):
 
     def supports(self, indicator_code: str) -> bool:
         """检查是否支持指定指标"""
-        return indicator_code in self.SUPPORTED_INDICATORS
+        return indicator_code in self._get_supported_indicators()
+
+    def _get_supported_indicators(self) -> set[str]:
+        """从数据库配置读取支持的指数指标。"""
+        supported = {"SHIBOR"}
+        try:
+            from apps.account.infrastructure.models import SystemSettingsModel
+
+            supported.update(SystemSettingsModel.get_settings().get_macro_index_codes())
+        except Exception:
+            pass
+        return supported
 
     def fetch(
         self,
@@ -89,7 +91,7 @@ class TushareAdapter(BaseMacroAdapter):
         if not self.supports(indicator_code):
             raise DataSourceUnavailableError(
                 f"Tushare 不支持的指标: {indicator_code}，"
-                f"支持的指标: {self.SUPPORTED_INDICATORS}"
+                f"支持的指标: {self._get_supported_indicators()}"
             )
 
         try:

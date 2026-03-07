@@ -307,6 +307,8 @@ class CachedFactorAdapter(FactorDataSource):
     ) -> Optional[float]:
         """Calculate factor from price data"""
         try:
+            from apps.account.infrastructure.models import SystemSettingsModel
+
             # Determine period from factor code
             if '1m' in factor_code:
                 days = 20
@@ -329,8 +331,12 @@ class CachedFactorAdapter(FactorDataSource):
             elif factor_code.startswith('volatility_'):
                 return self._calculate_volatility(prices, days)
             elif factor_code == 'beta':
-                # Need benchmark prices
-                benchmark_prices = self.price_service.get_prices('000300.SH', trade_date, days)
+                benchmark_code = SystemSettingsModel.get_runtime_benchmark_code(
+                    "factor_beta_benchmark"
+                )
+                if not benchmark_code:
+                    return None
+                benchmark_prices = self.price_service.get_prices(benchmark_code, trade_date, days)
                 if benchmark_prices:
                     return self._calculate_beta(prices, benchmark_prices, days)
 

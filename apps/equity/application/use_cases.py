@@ -582,7 +582,7 @@ class AnalyzeRegimeCorrelationUseCase:
         """
         获取市场指数收益率
 
-        使用沪深 300（000300.SH）作为市场基准。
+        使用数据库配置的市场基准。
 
         Args:
             start_date: 起始日期
@@ -592,12 +592,17 @@ class AnalyzeRegimeCorrelationUseCase:
             {日期: 收益率}
         """
         from apps.equity.infrastructure.adapters import MarketDataRepositoryAdapter
+        from apps.account.infrastructure.models import SystemSettingsModel
 
         try:
             market_adapter = MarketDataRepositoryAdapter()
-            # 使用沪深 300 作为市场基准
+            benchmark_code = SystemSettingsModel.get_runtime_benchmark_code(
+                "equity_market_benchmark"
+            )
+            if not benchmark_code:
+                return {}
             return market_adapter.get_index_daily_returns(
-                index_code="000300.SH",
+                index_code=benchmark_code,
                 start_date=start_date,
                 end_date=end_date
             )

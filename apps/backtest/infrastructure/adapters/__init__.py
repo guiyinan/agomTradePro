@@ -8,7 +8,7 @@ from .base import (
     AssetPricePoint,
     AssetPriceUnavailableError,
     AssetPriceValidationError,
-    ASSET_CLASS_TICKERS,
+    get_asset_class_tickers,
 )
 from .tushare_price_adapter import TushareAssetPriceAdapter
 from .composite_price_adapter import CompositeAssetPriceAdapter
@@ -19,7 +19,7 @@ __all__ = [
     'AssetPricePoint',
     'AssetPriceUnavailableError',
     'AssetPriceValidationError',
-    'ASSET_CLASS_TICKERS',
+    'get_asset_class_tickers',
     'TushareAssetPriceAdapter',
     'CompositeAssetPriceAdapter',
 ]

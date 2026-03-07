@@ -19,21 +19,23 @@ from .base import (
     AssetPricePoint,
     AssetPriceUnavailableError,
     AssetPriceValidationError,
-    ASSET_CLASS_TICKERS,
+    get_asset_class_tickers,
 )
 
 logger = logging.getLogger(__name__)
 
 
-# 资产类别到 Tushare 标的代码映射
-TUSHARE_ASSET_TICKERS = {
-    "a_share_growth": "000300.SH",      # 沪深300
-    "a_share_value": "000905.SH",       # 中证500
-    "china_bond": None,                 # Tushare 暂不支持债券指数，需使用其他数据源
-    "gold": None,                       # Tushare 暂不支持黄金现货
-    "commodity": None,                  # Tushare 暂不支持商品指数
-    "cash": "CASH",                     # 现金
-}
+def get_tushare_asset_tickers() -> dict[str, Optional[str]]:
+    """Tushare 可支持的资产代理代码映射。"""
+    configured = get_asset_class_tickers()
+    return {
+        "a_share_growth": configured.get("a_share_growth"),
+        "a_share_value": configured.get("a_share_value"),
+        "china_bond": None,
+        "gold": None,
+        "commodity": None,
+        "cash": "CASH",
+    }
 
 
 class TushareAssetPriceAdapter(BaseAssetPriceAdapter):
@@ -73,7 +75,7 @@ class TushareAssetPriceAdapter(BaseAssetPriceAdapter):
         if asset_class == "cash":
             return True
         # 检查是否在支持列表中且有对应的 ticker
-        ticker = TUSHARE_ASSET_TICKERS.get(asset_class)
+        ticker = get_tushare_asset_tickers().get(asset_class)
         return ticker is not None
 
     def get_price(
@@ -100,7 +102,7 @@ class TushareAssetPriceAdapter(BaseAssetPriceAdapter):
             logger.warning(f"Tushare 不支持资产类别: {asset_class}")
             return None
 
-        ticker = TUSHARE_ASSET_TICKERS[asset_class]
+        ticker = get_tushare_asset_tickers()[asset_class]
 
         try:
             pro = self._get_pro()
@@ -167,7 +169,7 @@ class TushareAssetPriceAdapter(BaseAssetPriceAdapter):
             logger.warning(f"Tushare 不支持资产类别: {asset_class}")
             return []
 
-        ticker = TUSHARE_ASSET_TICKERS[asset_class]
+        ticker = get_tushare_asset_tickers()[asset_class]
 
         try:
             pro = self._get_pro()

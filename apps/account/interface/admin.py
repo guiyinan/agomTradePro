@@ -281,6 +281,9 @@ class SystemSettingsModelAdmin(admin.ModelAdmin):
         ('备注', {
             'fields': ('notes',)
         }),
+        ('运行时市场配置', {
+            'fields': ('benchmark_code_map', 'asset_proxy_code_map', 'macro_index_catalog')
+        }),
         ('时间戳', {
             'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)

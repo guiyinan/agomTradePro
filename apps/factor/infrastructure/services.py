@@ -149,7 +149,7 @@ class FactorIntegrationService:
             return None
 
         # Determine universe
-        universe = self._get_universe_stocks(config.universe)
+        universe = self.resolve_universe_stocks(config.universe)
 
         # Calculate scores
         scores = self.calculate_factor_scores(
@@ -279,7 +279,7 @@ class FactorIntegrationService:
 
         return explanation
 
-    def _get_universe_stocks(self, universe: str) -> List[str]:
+    def resolve_universe_stocks(self, universe: str) -> List[str]:
         """Get stock list for a universe"""
         # Map universe codes to actual stock lists
         from apps.equity.infrastructure.repositories import StockInfoRepository
@@ -445,7 +445,7 @@ class FactorIntegrationService:
             factor_weights = {k: abs(v) / total_weight for k, v in factor_weights.items()}
 
         # Get universe
-        universe = self._get_universe_stocks('all_a')
+        universe = self.resolve_universe_stocks('all_a')
 
         # Calculate scores
         scores = self.calculate_factor_scores(

@@ -38,15 +38,11 @@ class AssetPricePoint:
             raise AssetPriceValidationError(f"价格不能为负数: {self.price}")
 
 
-# 资产类别与对应标的代码映射
-ASSET_CLASS_TICKERS = {
-    "a_share_growth": "000300.SH",      # 沪深300 (成长风格 proxy)
-    "a_share_value": "000905.SH",       # 中证500 (价值风格 proxy)
-    "china_bond": "TS01.CS",            # 中债财富总指数
-    "gold": "AU9999.SGE",               # 上海黄金现货
-    "commodity": "NHCI.NH",             # 南华商品指数
-    "cash": "CASH",                     # 现金 (固定价格 1.0)
-}
+def get_asset_class_tickers() -> dict[str, str]:
+    """从系统配置读取资产类别代理代码。"""
+    from apps.account.infrastructure.models import SystemSettingsModel
+
+    return SystemSettingsModel.get_runtime_asset_proxy_map()
 
 
 class AssetPriceAdapterProtocol(Protocol):
@@ -126,7 +122,7 @@ class BaseAssetPriceAdapter(ABC):
 
     def supports(self, asset_class: str) -> bool:
         """默认实现：子类应覆盖"""
-        return asset_class in ASSET_CLASS_TICKERS
+        return asset_class in get_asset_class_tickers()
 
     def get_price(
         self,
@@ -159,8 +155,9 @@ class BaseAssetPriceAdapter(ABC):
         Raises:
             AssetPriceValidationError: 不支持的资产类别
         """
-        if asset_class not in ASSET_CLASS_TICKERS:
+        tickers = get_asset_class_tickers()
+        if asset_class not in tickers:
             raise AssetPriceValidationError(
                 f"不支持的资产类别: {asset_class}，"
-                f"支持的类别: {list(ASSET_CLASS_TICKERS.keys())}"
+                f"支持的类别: {list(tickers.keys())}"
             )

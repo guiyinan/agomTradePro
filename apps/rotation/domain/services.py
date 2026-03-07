@@ -22,8 +22,6 @@ from apps.rotation.domain.entities import (
     RotationSignal,
     RotationPortfolio,
     MomentumScore,
-    get_common_etf_assets,
-    create_default_regime_allocation,
 )
 
 

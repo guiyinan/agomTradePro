@@ -565,22 +565,10 @@ class CreatePositionFromBacktestUseCase:
         1. 用户选择具体ETF或基金
         2. 或者使用系统默认的标的映射表
         """
-        # 默认映射表（可扩展）
-        mapping = {
-            'A_SHARE_GROWTH': '000001.SH',   # 沪深300成长
-            'A_SHARE_VALUE': '000905.SH',   # 中证500价值
-            'CHINA_BOND': '000012.SH',      # 国债指数
-            'GOLD': 'AU9999.SGE',           # 黄金现货
-            'COMMODITY': '002040.SH',       # 商品ETF
-            'CASH': 'CNY',
-            'a_share_growth': '000001.SH',
-            'a_share_value': '000905.SH',
-            'china_bond': '000012.SH',
-            'gold': 'AU9999.SGE',
-            'commodity': '002040.SH',
-            'cash': 'CNY',
-        }
-        return mapping.get(asset_class, asset_class)
+        from apps.account.infrastructure.models import SystemSettingsModel
+
+        mapped_code = SystemSettingsModel.get_runtime_asset_proxy_code(asset_class, "")
+        return mapped_code or asset_class
 
     def _infer_asset_class_type(self, asset_class: str) -> AssetClassType:
         """从资产大类推断资产类型"""

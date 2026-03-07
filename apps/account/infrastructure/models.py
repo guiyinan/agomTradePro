@@ -1128,6 +1128,27 @@ class SystemSettingsModel(models.Model):
         verbose_name="备注"
     )
 
+    benchmark_code_map = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="基准代码映射",
+        help_text="系统运行时使用的基准/默认指数代码映射"
+    )
+
+    asset_proxy_code_map = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="资产代理代码映射",
+        help_text="资产类别到实际交易/价格代理代码的映射"
+    )
+
+    macro_index_catalog = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="宏观指数目录",
+        help_text="宏观模块使用的指数代码、名称、单位和发布时间配置"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
 
@@ -1149,9 +1170,92 @@ class SystemSettingsModel(models.Model):
                 'auto_approve_first_admin': True,
                 'user_agreement_content': cls._get_default_agreement(),
                 'risk_warning_content': cls._get_default_risk_warning(),
+                'benchmark_code_map': cls._get_default_benchmark_code_map(),
+                'asset_proxy_code_map': cls._get_default_asset_proxy_code_map(),
+                'macro_index_catalog': cls._get_default_macro_index_catalog(),
             }
         )
+        update_fields = []
+        if not settings.benchmark_code_map:
+            settings.benchmark_code_map = cls._get_default_benchmark_code_map()
+            update_fields.append("benchmark_code_map")
+        if not settings.asset_proxy_code_map:
+            settings.asset_proxy_code_map = cls._get_default_asset_proxy_code_map()
+            update_fields.append("asset_proxy_code_map")
+        if not settings.macro_index_catalog:
+            settings.macro_index_catalog = cls._get_default_macro_index_catalog()
+            update_fields.append("macro_index_catalog")
+        if update_fields:
+            update_fields.append("updated_at")
+            settings.save(update_fields=update_fields)
         return settings
+
+    def get_benchmark_code(self, key: str, default: str = "") -> str:
+        """读取基准/默认指数代码配置。"""
+        value = (self.benchmark_code_map or {}).get(key, default)
+        return value if isinstance(value, str) else default
+
+    def get_asset_proxy_code(self, asset_class: str, default: str = "") -> str:
+        """读取资产类别代理代码配置。"""
+        value = (self.asset_proxy_code_map or {}).get(asset_class, default)
+        return value if isinstance(value, str) else default
+
+    def get_macro_index_configs(self) -> list[dict]:
+        """返回宏观指数配置列表。"""
+        configs = self.macro_index_catalog or []
+        return [item for item in configs if isinstance(item, dict) and item.get("code")]
+
+    def get_macro_index_codes(self) -> list[str]:
+        """返回已配置的宏观指数代码列表。"""
+        return [item["code"] for item in self.get_macro_index_configs()]
+
+    def get_macro_index_metadata_map(self) -> dict:
+        """返回按代码索引的宏观指数元数据。"""
+        metadata = {}
+        for item in self.get_macro_index_configs():
+            metadata[item["code"]] = {
+                "name": item.get("name", item["code"]),
+                "name_en": item.get("name_en", item["code"]),
+                "category": item.get("category", "股票"),
+                "unit": item.get("unit", ""),
+                "description": item.get("description", ""),
+                "publication_lag_days": int(item.get("publication_lag_days", 0) or 0),
+            }
+        return metadata
+
+    def get_macro_publication_lags(self) -> dict:
+        """返回宏观指数发布时间延迟配置。"""
+        return {
+            code: {
+                "days": item.get("publication_lag_days", 0),
+                "description": item.get("publication_lag_description", "实时"),
+            }
+            for code, item in self.get_macro_index_metadata_map().items()
+        }
+
+    @classmethod
+    def get_runtime_benchmark_code(cls, key: str, default: str = "") -> str:
+        return cls.get_settings().get_benchmark_code(key, default)
+
+    @classmethod
+    def get_runtime_asset_proxy_code(cls, asset_class: str, default: str = "") -> str:
+        return cls.get_settings().get_asset_proxy_code(asset_class, default)
+
+    @classmethod
+    def get_runtime_asset_proxy_map(cls) -> dict:
+        return cls.get_settings().asset_proxy_code_map or {}
+
+    @classmethod
+    def get_runtime_macro_index_configs(cls) -> list[dict]:
+        return cls.get_settings().get_macro_index_configs()
+
+    @classmethod
+    def get_runtime_macro_index_metadata_map(cls) -> dict:
+        return cls.get_settings().get_macro_index_metadata_map()
+
+    @classmethod
+    def get_runtime_macro_publication_lags(cls) -> dict:
+        return cls.get_settings().get_macro_publication_lags()
 
     @staticmethod
     def _get_default_agreement():
@@ -1183,7 +1287,77 @@ class SystemSettingsModel(models.Model):
 
 <h3>五、协议修改</h3>
 <p>本系统有权随时修改本协议，修改后的协议一经公布即生效。</p>
-        """
+"""
+
+    @staticmethod
+    def _get_default_benchmark_code_map():
+        return {
+            "equity_default_index": "000300.SH",
+            "equity_market_benchmark": "000300.SH",
+            "factor_beta_benchmark": "000300.SH",
+        }
+
+    @staticmethod
+    def _get_default_asset_proxy_code_map():
+        return {
+            "A_SHARE_GROWTH": "000300.SH",
+            "A_SHARE_VALUE": "000905.SH",
+            "CHINA_BOND": "TS01.CS",
+            "GOLD": "AU9999.SGE",
+            "COMMODITY": "NHCI.NH",
+            "CASH": "CASH",
+            "a_share_growth": "000300.SH",
+            "a_share_value": "000905.SH",
+            "china_bond": "TS01.CS",
+            "gold": "AU9999.SGE",
+            "commodity": "NHCI.NH",
+            "cash": "CASH",
+        }
+
+    @staticmethod
+    def _get_default_macro_index_catalog():
+        return [
+            {
+                "code": "000001.SH",
+                "name": "上证指数",
+                "name_en": "SSE Composite",
+                "category": "股票",
+                "unit": "点",
+                "description": "上海证券交易所综合指数",
+                "publication_lag_days": 0,
+                "publication_lag_description": "实时",
+            },
+            {
+                "code": "399001.SZ",
+                "name": "深证成指",
+                "name_en": "SZSE Component",
+                "category": "股票",
+                "unit": "点",
+                "description": "深圳证券交易所成分指数",
+                "publication_lag_days": 0,
+                "publication_lag_description": "实时",
+            },
+            {
+                "code": "000300.SH",
+                "name": "沪深300",
+                "name_en": "CSI 300",
+                "category": "股票",
+                "unit": "点",
+                "description": "沪深300指数",
+                "publication_lag_days": 0,
+                "publication_lag_description": "实时",
+            },
+            {
+                "code": "000905.SH",
+                "name": "中证500",
+                "name_en": "CSI 500",
+                "category": "股票",
+                "unit": "点",
+                "description": "中证500指数",
+                "publication_lag_days": 0,
+                "publication_lag_description": "实时",
+            },
+        ]
 
     @staticmethod
     def _get_default_risk_warning():
