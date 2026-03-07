@@ -15,11 +15,17 @@ param(
     [switch]$WipeDocker,
     [switch]$KeepRemoteTemp,
     [switch]$DownloadReport,
+    [switch]$DownloadBuiltImage,
+    [switch]$NoDownloadBuiltImage,
     [string]$ReportDir,
+    [string]$BuiltImageDir,
     [int]$Timeout,
     [switch]$EnableRsshub,
     [switch]$DisableRsshub,
     [switch]$EnableCelery,
+    [switch]$PromptBeforeDeploy,
+    [switch]$NoPromptBeforeDeploy,
+    [switch]$SkipDeployAfterBuild,
     [switch]$Help,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$RemainingArgs
@@ -76,10 +82,20 @@ else {
     if ($KeepRemoteTemp) { $pyArgs.Add("--keep-remote-temp") }
     if ($DownloadReport) { $pyArgs.Add("--download-report") }
     Add-Arg -ArgsList $pyArgs -Name "--report-dir" -Value $ReportDir
+    $shouldDownloadBuiltImage = $true
+    if ($NoDownloadBuiltImage) { $shouldDownloadBuiltImage = $false }
+    if ($DownloadBuiltImage) { $shouldDownloadBuiltImage = $true }
+    if ($shouldDownloadBuiltImage) { $pyArgs.Add("--download-built-image") }
+    Add-Arg -ArgsList $pyArgs -Name "--built-image-dir" -Value $BuiltImageDir
     if ($PSBoundParameters.ContainsKey("Timeout")) { Add-Arg -ArgsList $pyArgs -Name "--timeout" -Value $Timeout }
     if ($EnableRsshub) { $pyArgs.Add("--enable-rsshub") }
     if ($DisableRsshub) { $pyArgs.Add("--disable-rsshub") }
     if ($EnableCelery) { $pyArgs.Add("--enable-celery") }
+    $shouldPromptBeforeDeploy = $true
+    if ($NoPromptBeforeDeploy) { $shouldPromptBeforeDeploy = $false }
+    if ($PromptBeforeDeploy) { $shouldPromptBeforeDeploy = $true }
+    if ($shouldPromptBeforeDeploy) { $pyArgs.Add("--prompt-before-deploy") }
+    if ($SkipDeployAfterBuild) { $pyArgs.Add("--skip-deploy-after-build") }
 
     foreach ($arg in $RemainingArgs) {
         if (-not [string]::IsNullOrWhiteSpace($arg)) {

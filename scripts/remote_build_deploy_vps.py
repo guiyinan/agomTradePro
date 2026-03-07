@@ -148,35 +148,18 @@ def _make_source_bundle(
             tar.add(sqlite_file, arcname=db_arcname, recursive=False)
 
 
-def _build_remote_script() -> str:
+def _build_remote_build_script() -> str:
     return r"""set -eu
 
-HOST="${HOST:-}"
-PORT="${PORT:-8000}"
 TARGET_DIR="${TARGET_DIR:-/opt/agomsaaf}"
 REMOTE_TARBALL="${REMOTE_TARBALL:?missing REMOTE_TARBALL}"
 RELEASE_TAG="${RELEASE_TAG:?missing RELEASE_TAG}"
-ACTION="${ACTION:-fresh}"
-DOMAIN="${DOMAIN:-}"
-ALLOWED_HOSTS_INPUT="${ALLOWED_HOSTS_INPUT:-}"
-WIPE_DOCKER="${WIPE_DOCKER:-0}"
-INCLUDE_SQLITE="${INCLUDE_SQLITE:-0}"
 KEEP_REMOTE_TEMP="${KEEP_REMOTE_TEMP:-0}"
-DOWNLOAD_REPORT="${DOWNLOAD_REPORT:-1}"
-ENABLE_RSSHUB="${ENABLE_RSSHUB:-1}"
-ENABLE_CELERY="${ENABLE_CELERY:-0}"
+EXPORT_IMAGE_TAR="${EXPORT_IMAGE_TAR:-1}"
+REMOTE_IMAGE_TAR="${REMOTE_IMAGE_TAR:?missing REMOTE_IMAGE_TAR}"
 
 command -v docker >/dev/null 2>&1 || { echo "[ERROR] docker is required" >&2; exit 1; }
 command -v tar >/dev/null 2>&1 || { echo "[ERROR] tar is required" >&2; exit 1; }
-
-if docker compose version >/dev/null 2>&1; then
-  COMPOSE="docker compose"
-elif command -v docker-compose >/dev/null 2>&1; then
-  COMPOSE="docker-compose"
-else
-  echo "[ERROR] docker compose is required" >&2
-  exit 1
-fi
 
 REMOTE_BASE="$(dirname "$REMOTE_TARBALL")"
 WORK_ROOT="$REMOTE_BASE/build-$RELEASE_TAG"
@@ -190,12 +173,6 @@ cd "$SRC_DIR"
 if [ -f docker/entrypoint.prod.sh ]; then sed -i 's/\r$//' docker/entrypoint.prod.sh || true; fi
 if [ -f deploy/.env.vps.example ]; then sed -i 's/\r$//' deploy/.env.vps.example || true; fi
 
-if [ "$WIPE_DOCKER" = "1" ]; then
-  docker ps -aq | xargs -r docker rm -f || true
-  docker system prune -af --volumes || true
-  rm -rf "$TARGET_DIR/current" "$TARGET_DIR/releases" || true
-fi
-
 mkdir -p "$TARGET_DIR/releases"
 RELEASE_DIR="$TARGET_DIR/releases/source-$RELEASE_TAG"
 rm -rf "$RELEASE_DIR"
@@ -205,6 +182,85 @@ cd "$RELEASE_DIR"
 
 if [ ! -f deploy/.env ]; then
   cp deploy/.env.vps.example deploy/.env
+fi
+
+AVAILABLE_CPUS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || echo 1)"
+case "$AVAILABLE_CPUS" in
+  ''|*[!0-9]*)
+    AVAILABLE_CPUS=1
+    ;;
+esac
+if [ "$AVAILABLE_CPUS" -le 1 ]; then
+  sed -i 's/cpus: 1.5/cpus: 1.0/g' docker/docker-compose.vps.yml
+fi
+
+if ! docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg BUILDKIT_INLINE_CACHE=1 -f docker/Dockerfile.prod -t "agomsaaf-web:$RELEASE_TAG" .; then
+  DOCKER_BUILDKIT=0 docker build --build-arg PIP_OFFLINE_ONLY=0 -f docker/Dockerfile.prod -t "agomsaaf-web:$RELEASE_TAG" .
+fi
+
+if [ "$EXPORT_IMAGE_TAR" = "1" ]; then
+  mkdir -p "$(dirname "$REMOTE_IMAGE_TAR")"
+  rm -f "$REMOTE_IMAGE_TAR"
+  docker save -o "$REMOTE_IMAGE_TAR" "agomsaaf-web:$RELEASE_TAG"
+fi
+
+python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+report = {
+    "release_tag": os.environ["RELEASE_TAG"],
+    "release_dir": str(Path(".").resolve()),
+    "target_dir": Path(".").resolve().parents[1].as_posix(),
+    "image_tag": f"agomsaaf-web:{os.environ['RELEASE_TAG']}",
+    "remote_image_tar": os.environ.get("REMOTE_IMAGE_TAR", ""),
+    "deployed": False,
+}
+Path("/tmp/agomsaaf-build-report.json").write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
+PY
+
+if [ "$KEEP_REMOTE_TEMP" != "1" ]; then
+  rm -rf "$WORK_ROOT" "$REMOTE_TARBALL"
+fi
+
+echo "BUILD_REPORT_PATH=/tmp/agomsaaf-build-report.json"
+echo "REMOTE_IMAGE_TAR=$REMOTE_IMAGE_TAR"
+"""
+
+
+def _build_remote_deploy_script() -> str:
+    return r"""set -eu
+
+HOST="${HOST:-}"
+PORT="${PORT:-8000}"
+TARGET_DIR="${TARGET_DIR:-/opt/agomsaaf}"
+RELEASE_TAG="${RELEASE_TAG:?missing RELEASE_TAG}"
+ACTION="${ACTION:-fresh}"
+DOMAIN="${DOMAIN:-}"
+ALLOWED_HOSTS_INPUT="${ALLOWED_HOSTS_INPUT:-}"
+WIPE_DOCKER="${WIPE_DOCKER:-0}"
+INCLUDE_SQLITE="${INCLUDE_SQLITE:-0}"
+ENABLE_RSSHUB="${ENABLE_RSSHUB:-1}"
+ENABLE_CELERY="${ENABLE_CELERY:-0}"
+
+command -v docker >/dev/null 2>&1 || { echo "[ERROR] docker is required" >&2; exit 1; }
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+  COMPOSE="docker-compose"
+else
+  echo "[ERROR] docker compose is required" >&2
+  exit 1
+fi
+
+RELEASE_DIR="$TARGET_DIR/releases/source-$RELEASE_TAG"
+[ -d "$RELEASE_DIR" ] || { echo "[ERROR] release dir not found: $RELEASE_DIR" >&2; exit 1; }
+cd "$RELEASE_DIR"
+
+if [ "$WIPE_DOCKER" = "1" ]; then
+  docker ps -aq | xargs -r docker rm -f || true
+  docker system prune -af --volumes || true
+  rm -rf "$TARGET_DIR/current" || true
 fi
 
 SECRET_KEY="$(grep '^SECRET_KEY=' deploy/.env | cut -d '=' -f2- || true)"
@@ -312,20 +368,6 @@ fi
 
 sed "s|__SITE_ADDRESS__|$SITE_ADDR|g" docker/Caddyfile.template > docker/Caddyfile
 
-AVAILABLE_CPUS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || echo 1)"
-case "$AVAILABLE_CPUS" in
-  ''|*[!0-9]*)
-    AVAILABLE_CPUS=1
-    ;;
-esac
-if [ "$AVAILABLE_CPUS" -le 1 ]; then
-  sed -i 's/cpus: 1.5/cpus: 1.0/g' docker/docker-compose.vps.yml
-fi
-
-if ! docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg BUILDKIT_INLINE_CACHE=1 -f docker/Dockerfile.prod -t "agomsaaf-web:$RELEASE_TAG" .; then
-  DOCKER_BUILDKIT=0 docker build --build-arg PIP_OFFLINE_ONLY=0 -f docker/Dockerfile.prod -t "agomsaaf-web:$RELEASE_TAG" .
-fi
-
 compose() {
   $COMPOSE -p agomsaaf -f docker/docker-compose.vps.yml --env-file deploy/.env "$@"
 }
@@ -394,13 +436,10 @@ report = {
     "target_dir": Path(".").resolve().parents[1].as_posix(),
     "health_json": Path("/tmp/agomsaaf-health.json").read_text(encoding="utf-8"),
     "compose_ps": Path("/tmp/agomsaaf-compose-ps.txt").read_text(encoding="utf-8"),
+    "deployed": True,
 }
 Path("/tmp/agomsaaf-deploy-report.json").write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
 PY
-
-if [ "$KEEP_REMOTE_TEMP" != "1" ]; then
-  rm -rf "$WORK_ROOT" "$REMOTE_TARBALL"
-fi
 
 echo "REPORT_PATH=/tmp/agomsaaf-deploy-report.json"
 """
@@ -423,6 +462,10 @@ def main() -> int:
     ap.add_argument("--keep-remote-temp", action="store_true", default=False)
     ap.add_argument("--download-report", action="store_true", default=True)
     ap.add_argument("--report-dir", default=os.environ.get("AGOM_VPS_REPORT_DIR", "dist/remote-build-reports"))
+    ap.add_argument("--download-built-image", action="store_true", default=False)
+    ap.add_argument("--built-image-dir", default=os.environ.get("AGOM_VPS_IMAGE_DIR", "dist/remote-built-images"))
+    ap.add_argument("--skip-deploy-after-build", action="store_false", dest="deploy_after_build", default=True)
+    ap.add_argument("--prompt-before-deploy", action="store_true", default=False)
     ap.add_argument("--timeout", type=int, default=int(os.environ.get("AGOM_VPS_TIMEOUT", "1800")))
     ap.add_argument("--enable-rsshub", action="store_true", default=True)
     ap.add_argument("--disable-rsshub", action="store_true", default=False)
@@ -465,6 +508,8 @@ def main() -> int:
     bundle_name = f"agomsaaf-source-deploy-{tag}.tar.gz"
     local_bundle = project_root / "dist" / bundle_name
     local_bundle.parent.mkdir(parents=True, exist_ok=True)
+    local_image_path = (project_root / args.built_image_dir / f"agomsaaf-web-{tag}.tar").resolve()
+    remote_image_tar = posixpath.join(args.remote_dir.rstrip("/"), f"agomsaaf-web-{tag}.tar")
     sqlite_file = _latest_sqlite(project_root) if include_sqlite else None
 
     _info(f"Creating source bundle: {local_bundle}")
@@ -498,37 +543,76 @@ def main() -> int:
         finally:
             sftp.close()
 
-        remote_script = _build_remote_script()
-        env = {
-            "HOST": host,
-            "PORT": str(http_port),
+        remote_build_script = _build_remote_build_script()
+        build_env = {
             "TARGET_DIR": args.target_dir,
             "REMOTE_TARBALL": remote_bundle,
             "RELEASE_TAG": tag,
-            "ACTION": action,
-            "DOMAIN": domain,
-            "ALLOWED_HOSTS_INPUT": allowed_hosts,
-            "WIPE_DOCKER": _bool_env(wipe_docker),
-            "INCLUDE_SQLITE": _bool_env(include_sqlite),
             "KEEP_REMOTE_TEMP": _bool_env(args.keep_remote_temp),
-            "DOWNLOAD_REPORT": _bool_env(args.download_report),
-            "ENABLE_RSSHUB": _bool_env(enable_rsshub),
-            "ENABLE_CELERY": _bool_env(enable_celery),
+            "EXPORT_IMAGE_TAR": _bool_env(True),
+            "REMOTE_IMAGE_TAR": remote_image_tar,
         }
 
-        exports = " ".join(f"{key}={shlex.quote(value)}" for key, value in env.items())
-        remote_cmd = f"{exports} bash -lc {shlex.quote(remote_script)}"
+        exports = " ".join(f"{key}={shlex.quote(value)}" for key, value in build_env.items())
+        remote_cmd = f"{exports} bash -lc {shlex.quote(remote_build_script)}"
 
-        _info("Running remote build and deploy")
+        _info("Running remote build")
         code, out, err = _run(ssh, remote_cmd, timeout=args.timeout)
         if code != 0:
             _warn(out.strip())
-            _die(f"Remote build/deploy failed. Exit={code}. Stderr={err.strip()}")
+            _die(f"Remote build failed. Exit={code}. Stderr={err.strip()}")
 
+        build_report_path = None
         report_path = None
         for line in out.splitlines():
+            if line.startswith("BUILD_REPORT_PATH="):
+                build_report_path = line.split("=", 1)[1].strip()
             if line.startswith("REPORT_PATH="):
                 report_path = line.split("=", 1)[1].strip()
+            if line.startswith("REMOTE_IMAGE_TAR="):
+                remote_image_tar = line.split("=", 1)[1].strip()
+
+        if args.download_built_image and remote_image_tar:
+            local_image_path.parent.mkdir(parents=True, exist_ok=True)
+            _info(f"Downloading built image tar: {local_image_path}")
+            sftp = ssh.open_sftp()
+            try:
+                sftp.get(remote_image_tar, str(local_image_path))
+            finally:
+                sftp.close()
+            if not args.keep_remote_temp:
+                _run(ssh, f"rm -f {shlex.quote(remote_image_tar)}", timeout=args.timeout)
+
+        deploy_after_build = args.deploy_after_build
+        if args.prompt_before_deploy:
+            deploy_after_build = _prompt_bool("Remote build completed. Deploy to VPS now?", False)
+
+        if deploy_after_build:
+            remote_deploy_script = _build_remote_deploy_script()
+            deploy_env = {
+                "HOST": host,
+                "PORT": str(http_port),
+                "TARGET_DIR": args.target_dir,
+                "RELEASE_TAG": tag,
+                "ACTION": action,
+                "DOMAIN": domain,
+                "ALLOWED_HOSTS_INPUT": allowed_hosts,
+                "WIPE_DOCKER": _bool_env(wipe_docker),
+                "INCLUDE_SQLITE": _bool_env(include_sqlite),
+                "ENABLE_RSSHUB": _bool_env(enable_rsshub),
+                "ENABLE_CELERY": _bool_env(enable_celery),
+            }
+            deploy_exports = " ".join(f"{key}={shlex.quote(value)}" for key, value in deploy_env.items())
+            deploy_cmd = f"{deploy_exports} bash -lc {shlex.quote(remote_deploy_script)}"
+            _info("Running remote deploy")
+            code, deploy_out, deploy_err = _run(ssh, deploy_cmd, timeout=args.timeout)
+            if code != 0:
+                _warn(deploy_out.strip())
+                _die(f"Remote deploy failed. Exit={code}. Stderr={deploy_err.strip()}")
+            out = f"{out.rstrip()}\n{deploy_out.strip()}".strip()
+            for line in deploy_out.splitlines():
+                if line.startswith("REPORT_PATH="):
+                    report_path = line.split("=", 1)[1].strip()
 
         if args.download_report and report_path:
             report_dir = (project_root / args.report_dir).resolve()
@@ -538,6 +622,16 @@ def main() -> int:
             sftp = ssh.open_sftp()
             try:
                 sftp.get(report_path, str(local_report))
+            finally:
+                sftp.close()
+        elif args.download_report and build_report_path:
+            report_dir = (project_root / args.report_dir).resolve()
+            report_dir.mkdir(parents=True, exist_ok=True)
+            local_report = report_dir / f"remote-build-report-{tag}.json"
+            _info(f"Downloading build-only report: {local_report}")
+            sftp = ssh.open_sftp()
+            try:
+                sftp.get(build_report_path, str(local_report))
             finally:
                 sftp.close()
 
