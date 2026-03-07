@@ -237,6 +237,39 @@ else
   site_addr=":80"
 fi
 
+if [ -n "$domain" ]; then
+  ssl_redirect="True"
+  session_cookie_secure="True"
+  csrf_cookie_secure="True"
+  secure_hsts_seconds="31536000"
+  secure_hsts_include_subdomains="True"
+  secure_hsts_preload="True"
+else
+  ssl_redirect="False"
+  session_cookie_secure="False"
+  csrf_cookie_secure="False"
+  secure_hsts_seconds="0"
+  secure_hsts_include_subdomains="False"
+  secure_hsts_preload="False"
+fi
+
+set_env_kv() {
+  key="$1"
+  value="$2"
+  if grep -q "^${key}=" deploy/.env; then
+    sed -i "s|^${key}=.*|${key}=${value}|" deploy/.env
+  else
+    printf '\n%s=%s\n' "$key" "$value" >> deploy/.env
+  fi
+}
+
+set_env_kv "SECURE_SSL_REDIRECT" "$ssl_redirect"
+set_env_kv "SESSION_COOKIE_SECURE" "$session_cookie_secure"
+set_env_kv "CSRF_COOKIE_SECURE" "$csrf_cookie_secure"
+set_env_kv "SECURE_HSTS_SECONDS" "$secure_hsts_seconds"
+set_env_kv "SECURE_HSTS_INCLUDE_SUBDOMAINS" "$secure_hsts_include_subdomains"
+set_env_kv "SECURE_HSTS_PRELOAD" "$secure_hsts_preload"
+
 sed "s|__SITE_ADDRESS__|$site_addr|g" docker/Caddyfile.template > docker/Caddyfile
 
 # ALLOWED_HOSTS is required for IP access; default template only allows localhost.

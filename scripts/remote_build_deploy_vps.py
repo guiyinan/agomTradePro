@@ -304,6 +304,32 @@ else
   SITE_ADDR=":80"
 fi
 
+set_env_kv() {
+  key="$1"
+  value="$2"
+  if grep -q "^${key}=" deploy/.env; then
+    sed -i "s|^${key}=.*|${key}=${value}|" deploy/.env
+  else
+    printf '\n%s=%s\n' "$key" "$value" >> deploy/.env
+  fi
+}
+
+if [ -n "$DOMAIN" ]; then
+  set_env_kv "SECURE_SSL_REDIRECT" "True"
+  set_env_kv "SESSION_COOKIE_SECURE" "True"
+  set_env_kv "CSRF_COOKIE_SECURE" "True"
+  set_env_kv "SECURE_HSTS_SECONDS" "31536000"
+  set_env_kv "SECURE_HSTS_INCLUDE_SUBDOMAINS" "True"
+  set_env_kv "SECURE_HSTS_PRELOAD" "True"
+else
+  set_env_kv "SECURE_SSL_REDIRECT" "False"
+  set_env_kv "SESSION_COOKIE_SECURE" "False"
+  set_env_kv "CSRF_COOKIE_SECURE" "False"
+  set_env_kv "SECURE_HSTS_SECONDS" "0"
+  set_env_kv "SECURE_HSTS_INCLUDE_SUBDOMAINS" "False"
+  set_env_kv "SECURE_HSTS_PRELOAD" "False"
+fi
+
 if [ -z "$ALLOWED_HOSTS_INPUT" ]; then
   if [ -n "$DOMAIN" ]; then
     ALLOWED_HOSTS_INPUT="$DOMAIN,127.0.0.1,localhost,$HOST"
