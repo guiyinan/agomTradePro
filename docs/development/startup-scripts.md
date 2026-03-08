@@ -24,6 +24,7 @@ start.bat
 | `scripts/stop-dev.bat` | 停止所有服务 | 停止 Docker 容器和后台进程 |
 | `scripts/start-dev.ps1` | PowerShell 版本 | 功能同 docker-dev.bat |
 | `scripts/stop-dev.ps1` | PowerShell 版本 | 功能同 stop-dev.bat |
+| `scripts/package-portable-project.ps1` | 便携打包 | 打包到上层目录，默认排除缓存、数据库、VPS/bundle 文件 |
 | `venv.bat` | 激活虚拟环境 | 仅激活 venv，不启动服务 |
 
 ### 已废弃的脚本（保留用于兼容）
@@ -148,6 +149,38 @@ scripts\stop-dev.bat
 3. 清理临时文件
 
 **注意：** Django 服务器需要在主窗口按 Ctrl+C 停止。
+
+---
+
+## 便携打包
+
+适用场景：把项目拷到另一台 Windows 电脑上，尽快重新跑起来。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-portable-project.ps1
+```
+
+无参数执行时会进入交互式向导。
+
+默认行为：
+
+- 输出到项目上层目录
+- 文件名：`项目名-时间戳.7z` 或 `项目名-时间戳.zip`
+- 自动排除虚拟环境、缓存、日志、`dist/`、本地数据库、`.env`
+- 自动排除 VPS bundle / 远端部署脚本
+
+可选参数：
+
+```powershell
+# 强制 zip
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-portable-project.ps1 -Format zip
+
+# 包含 .env 和本地 SQLite
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-portable-project.ps1 -IncludeEnv -IncludeDatabase
+
+# 只看排除列表，不实际打包
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-portable-project.ps1 -DryRun
+```
 
 ---
 
