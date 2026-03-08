@@ -64,14 +64,19 @@ DATABASES = {
 
 ### 1. 启动 PostgreSQL
 
-```bash
-# 进入项目目录
-cd D:/githv/agomSAAF
+#### Windows PowerShell
 
-# 启动 PostgreSQL 和 Redis
+```powershell
+cd .
 docker compose -f docker-compose-dev.yml up -d
+docker ps
+```
 
-# 检查状态
+#### Linux/macOS / Git Bash
+
+```bash
+cd .
+docker compose -f docker-compose-dev.yml up -d
 docker ps | grep agomsaaf
 ```
 
@@ -87,11 +92,17 @@ docker exec -it agomsaaf_postgres_dev psql -U agomsaaf -d agomsaaf
 
 ### 3. 运行 Django 迁移（如需要）
 
-```bash
-# 设置环境变量（如果使用本地 Python）
-export DATABASE_URL="postgres://agomsaaf:changeme@localhost:5433/agomsaaf"
+#### Windows PowerShell
 
-# 运行迁移
+```powershell
+$env:DATABASE_URL="postgres://agomsaaf:changeme@localhost:5433/agomsaaf"
+python manage.py migrate
+```
+
+#### Linux/macOS (bash)
+
+```bash
+export DATABASE_URL="postgres://agomsaaf:changeme@localhost:5433/agomsaaf"
 python manage.py migrate
 ```
 
@@ -114,11 +125,17 @@ DATABASE_URL=postgresql://agomsaaf:changeme@localhost:5434/agomsaaf
 
 ### 方案 B：停止占用端口的服务
 
-```bash
-# 查找占用端口的进程
-netstat -ano | findstr :5433
+#### Windows PowerShell
 
-# 停止对应的服务
+```powershell
+netstat -ano | findstr :5433
+docker stop <container_name>
+```
+
+#### Linux/macOS (bash)
+
+```bash
+lsof -i :5433
 docker stop <container_name>
 ```
 

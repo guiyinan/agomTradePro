@@ -9,7 +9,7 @@ This checklist verifies that the local backend, SDK, and MCP server work end-to-
 - SDK installed:
 
 ```bash
-cd D:/githv/agomSAAF/sdk
+cd sdk
 pip install -e .
 ```
 
@@ -18,17 +18,28 @@ pip install -e .
 Generate or fetch a DRF token for an active user:
 
 ```bash
-cd D:/githv/agomSAAF
+cd .
 python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','core.settings.development'); import django; django.setup(); from django.contrib.auth.models import User; from rest_framework.authtoken.models import Token; u=User.objects.get(username='admin'); t,_=Token.objects.get_or_create(user=u); print(t.key)"
 ```
 
 Set env vars:
 
+#### Windows PowerShell
+
+```powershell
+$env:AGOMSAAF_BASE_URL="http://127.0.0.1:8000"
+$env:AGOMSAAF_API_TOKEN="<paste_token_here>"
+$env:NO_PROXY="127.0.0.1,localhost"
+$env:no_proxy="127.0.0.1,localhost"
+```
+
+#### Linux/macOS (bash)
+
 ```bash
-set AGOMSAAF_BASE_URL=http://127.0.0.1:8000
-set AGOMSAAF_API_TOKEN=<paste_token_here>
-set NO_PROXY=127.0.0.1,localhost
-set no_proxy=127.0.0.1,localhost
+export AGOMSAAF_BASE_URL="http://127.0.0.1:8000"
+export AGOMSAAF_API_TOKEN="<paste_token_here>"
+export NO_PROXY="127.0.0.1,localhost"
+export no_proxy="127.0.0.1,localhost"
 ```
 
 If you prefer UI management, as admin open `/account/admin/tokens/` and generate/rotate token there.

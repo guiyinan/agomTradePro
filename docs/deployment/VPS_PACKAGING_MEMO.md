@@ -43,6 +43,8 @@
 
 ## 3. 推荐升级流程（生产）
 
+### Windows PowerShell：本地打包与验包
+
 1. 本地打包（默认只打代码包）
 ```powershell
 pwsh ./scripts/package-for-vps.ps1
@@ -52,6 +54,8 @@ pwsh ./scripts/package-for-vps.ps1
 ```powershell
 pwsh ./scripts/verify-vps-bundle.ps1 -Bundle ./dist/agomsaaf-vps-bundle-<tag>.tar.gz -NoDockerLoad
 ```
+
+### Linux VPS Shell：远端升级与备份
 
 3. 上传到 VPS 后执行升级
 ```bash
@@ -88,6 +92,8 @@ bash /opt/agomsaaf/current/scripts/vps-backup.sh --target-dir /opt/agomsaaf/curr
 ## 6. 生产 SQLite “临时带库上线”
 
 如果你需要“镜像不变，但 bundle 里临时带上本机 `db.sqlite3`”快速上线，不建议重跑耗时的 `docker save`，可以用注入脚本：
+
+平台：Windows PowerShell
 
 ```powershell
 pwsh ./scripts/inject-sqlite-into-bundle.ps1 `

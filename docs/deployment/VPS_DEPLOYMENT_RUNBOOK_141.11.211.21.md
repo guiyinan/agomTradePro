@@ -167,6 +167,8 @@ bash /opt/agomsaaf/current/scripts/vps-backup.sh --target-dir /opt/agomsaaf/curr
 
 ## Upgrade Flow (Recommended)
 
+### Windows PowerShell：本地打包与触发发布
+
 On your local machine:
 
 1. Build bundle (default: code upgrade bundle; no local SQLite/Redis data):
@@ -190,6 +192,8 @@ python ./scripts/deploy-bundle-to-vps.py `
   --action upgrade `
   --password-file "$HOME\\.agomsaaf\\vps.pass"
 ```
+
+### Linux VPS Shell：远端执行升级
 
 On the VPS:
 
@@ -241,6 +245,8 @@ These were hotfixed on the VPS image tag at the time. The repo-side fix is to in
 
 ## Troubleshooting
 
+### Linux VPS Shell：查看 Web 日志
+
 If `web` is unhealthy:
 
 ```sh
@@ -256,6 +262,8 @@ export COMPOSE_PROJECT_NAME=agomsaaf
 cd /opt/agomsaaf/current
 docker compose -f docker/docker-compose.vps.yml --env-file deploy/.env logs --tail=200 caddy
 ```
+
+### Linux VPS Shell：端口占用排查
 
 If ports are occupied:
 

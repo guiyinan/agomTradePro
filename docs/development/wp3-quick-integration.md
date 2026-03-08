@@ -8,14 +8,14 @@ Copy these files to your project:
 
 ```bash
 # From WP-3 deliverables to your project
-cp static/css/main-workflow.css D:\githv\agomSAAF\static\css\
-cp static/js/main-workflow.js D:\githv\agomSAAF\static\js\
-cp core/templates/dashboard/main_workflow_panel.html D:\githv\agomSAAF\core\templates\dashboard\
+cp static/css/main-workflow.css static/css/
+cp static/js/main-workflow.js static/js/
+cp core/templates/dashboard/main_workflow_panel.html core/templates/dashboard/
 ```
 
 ## Step 2: Update Base Template
 
-**File**: `D:\githv\agomSAAF\core\templates\base.html`
+**File**: `core/templates/base.html`
 
 Add to the `<head>` section (after existing CSS):
 
@@ -40,7 +40,7 @@ Add before closing `</body>` tag (after existing JS):
 
 ## Step 3: Include Workflow Panel in Dashboard
 
-**File**: `D:\githv\agomSAAF\core\templates\dashboard\index.html`
+**File**: `core/templates/dashboard/index.html`
 
 Find line ~303 (after the decision plane section closing tag):
 
@@ -56,7 +56,7 @@ Find line ~303 (after the decision plane section closing tag):
 
 ## Step 4: Verify Workspace Changes
 
-**File**: `D:\githv\agomSAAF\core\templates\decision\workspace.html`
+**File**: `core/templates/decision/workspace.html`
 
 The following changes have already been applied:
 
@@ -84,7 +84,7 @@ To:
 
 ## Step 5: Verify View Changes
 
-**File**: `D:\githv\agomSAAF\core\views.py`
+**File**: `core/views.py`
 
 The following change has already been applied in the `decision_workspace_view` function:
 
@@ -114,7 +114,7 @@ pending_requests = list(
 
 ## Step 6: Verify Candidate Detail Changes
 
-**File**: `D:\githv\agomSAAF\apps\alpha_trigger\templates\alpha_trigger\candidate_detail.html`
+**File**: `apps/alpha_trigger/templates/alpha_trigger/candidate_detail.html`
 
 The following changes have already been applied:
 
@@ -268,3 +268,4 @@ For detailed documentation, see:
 **Integration Time**: ~15 minutes
 **Complexity**: Low
 **Risk**: Low (easily reversible)
+

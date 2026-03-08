@@ -37,7 +37,7 @@ Recommendation:
 - Bundle includes `backups/db.sqlite3`
 - Deploy will restore it into the VPS volume (overwrites production database)
 
-## Local Build (Windows)
+## Local Build (Windows PowerShell)
 
 Build bundle (interactive quick mode):
 
@@ -60,7 +60,7 @@ pwsh ./scripts/inject-sqlite-into-bundle.ps1 `
   -SqliteFile ./db.sqlite3
 ```
 
-## VPS Deploy (Linux)
+## VPS Deploy (Linux Shell)
 
 Use one fixed Compose project name everywhere:
 
@@ -76,7 +76,9 @@ Deploy (interactive):
 bash ./scripts/deploy-on-vps.sh --bundle /tmp/agomsaaf-vps-bundle-<tag>.tar.gz
 ```
 
-Deploy from your local machine (recommended; uploads + runs deploy script on VPS):
+## Remote Deploy From Local Machine (Windows PowerShell)
+
+Recommended when you want to upload and trigger deployment from your local machine:
 
 ```powershell
 # Create a local password file once (do not commit it)
@@ -100,6 +102,8 @@ After deploy, the canonical working directory is:
 
 ## Ports (When 80/443 Are Occupied)
 
+Platform: Linux VPS shell
+
 Set host ports in:
 - `/opt/agomsaaf/current/deploy/.env`
 
@@ -117,6 +121,8 @@ docker compose -p agomsaaf -f /opt/agomsaaf/current/docker/docker-compose.vps.ym
 ```
 
 ## Access & Health Check
+
+Platform: Linux VPS shell
 
 ```bash
 HTTP_PORT=$(grep '^CADDY_HTTP_PORT=' /opt/agomsaaf/current/deploy/.env | cut -d '=' -f2- | tail -n 1)

@@ -40,6 +40,8 @@ Target scripts:
 
 ## 3. Build Bundle on Local Machine
 
+Platform: Windows PowerShell
+
 Run from project root:
 
 ```powershell
@@ -89,6 +91,8 @@ pwsh ./scripts/verify-vps-bundle.ps1 -Bundle ./dist/agomsaaf-vps-bundle-20260208
 
 ## 4. Upload Bundle to VPS
 
+Platform: cross-platform shell from local machine
+
 Use SCP (example):
 
 ```bash
@@ -98,6 +102,8 @@ scp dist/agomsaaf-vps-bundle-20260208153000.tar.gz user@your-vps:/tmp/
 ---
 
 ## 5. Deploy on Linux VPS (Recommended)
+
+Platform: Linux VPS shell
 
 SSH to VPS:
 
@@ -219,6 +225,8 @@ Critical values to set:
 ---
 
 ## 9. Verify Deployment
+
+Platform: Linux VPS shell
 
 Check service status:
 

@@ -38,6 +38,8 @@ Last updated: 2026-02-17
 
 ### Step A. 本地测试（强制）
 
+平台：Windows PowerShell
+
 1. 启动自动巡检
 ```powershell
 start.bat
@@ -55,6 +57,8 @@ python manage.py check
 
 ### Step B. 打包（强制）
 
+平台：Windows PowerShell
+
 1. 交互打包（推荐）
 ```powershell
 pwsh ./scripts/package-for-vps.ps1
@@ -71,6 +75,8 @@ pwsh ./scripts/package-for-vps.ps1 -Tag <yyyyMMddHHmmss> -SkipData -SkipRedisDat
 
 ### Step C. 验包（强制）
 
+平台：Windows PowerShell
+
 ```powershell
 pwsh ./scripts/verify-vps-bundle.ps1 -Bundle ./dist/agomsaaf-vps-bundle-<tag>.tar.gz -NoDockerLoad
 ```
@@ -83,6 +89,9 @@ pwsh ./scripts/verify-vps-bundle.ps1 -Bundle ./dist/agomsaaf-vps-bundle-<tag>.ta
 ### Step D. 发布到 VPS（强制）
 
 #### D1. 升级前备份（在 VPS 上）
+
+平台：Linux VPS Shell
+
 ```bash
 bash /opt/agomsaaf/current/scripts/vps-backup.sh \
   --target-dir /opt/agomsaaf/current \
@@ -92,7 +101,10 @@ bash /opt/agomsaaf/current/scripts/vps-backup.sh \
 
 #### D2. 上传并执行升级
 
-方式 1（推荐，本地一键）：
+方式 1（推荐，本地一键）
+
+平台：Windows PowerShell
+
 ```powershell
 python ./scripts/deploy-bundle-to-vps.py `
   --host 141.11.211.21 `
@@ -101,7 +113,10 @@ python ./scripts/deploy-bundle-to-vps.py `
   --password-file "$HOME\\.agomsaaf\\vps.pass"
 ```
 
-方式 2（手工 SSH 到 VPS）：
+方式 2（手工 SSH 到 VPS）
+
+平台：Linux VPS Shell
+
 ```bash
 bash /opt/agomsaaf/current/scripts/deploy-on-vps.sh \
   --bundle /tmp/agomsaaf-vps-bundle-<tag>.tar.gz \
@@ -110,6 +125,8 @@ bash /opt/agomsaaf/current/scripts/deploy-on-vps.sh \
 ```
 
 ### Step E. 发布后验证（强制）
+
+平台：Linux VPS Shell
 
 1. 健康检查
 ```bash
@@ -138,6 +155,8 @@ docker compose -f docker/docker-compose.vps.yml --env-file deploy/.env logs --ta
 回滚步骤：
 
 1. 切回上一发布目录（如果保留 release 目录/软链接）
+平台：Linux VPS Shell
+
 ```bash
 ln -sfn /opt/agomsaaf/releases/<previous_release> /opt/agomsaaf/current
 ```

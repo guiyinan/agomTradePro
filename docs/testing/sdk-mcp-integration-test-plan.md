@@ -289,7 +289,7 @@ python manage.py runserver 8000
 ### 6.1 SDK 安装测试
 
 ```powershell
-cd D:\githv\agomSAAF\sdk
+cd sdk
 
 # 安装 SDK
 pip install -e .
@@ -386,7 +386,7 @@ python test_mcp_server.py
 **步骤 2：手动测试 MCP 服务器启动**
 
 ```powershell
-cd D:\githv\agomSAAF\sdk
+cd sdk
 
 # 测试 MCP 服务器启动
 python -m agomsaaf_mcp.server
@@ -999,4 +999,5 @@ python tests/integration/test_realtime_monitoring_flow.py
 | 测试结果模板 | `docs/testing/test-results-template.md` |
 | SDK 文档 | `docs/sdk/` |
 | 测试指南 | `tests/README.md` |
+
 

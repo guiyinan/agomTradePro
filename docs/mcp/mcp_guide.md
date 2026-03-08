@@ -7,7 +7,7 @@ The MCP (Model Context Protocol) Server enables AI agents like Claude Code to in
 ### 1. Install the SDK
 
 ```bash
-cd D:/githv/agomSAAF/sdk
+cd sdk
 pip install -e .
 ```
 
@@ -36,8 +36,28 @@ Auth format on backend is DRF Token (`Authorization: Token <token>`).
 Create token for an existing user:
 
 ```bash
-cd D:/githv/agomSAAF
+cd .
 python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','core.settings.development'); import django; django.setup(); from django.contrib.auth.models import User; from rest_framework.authtoken.models import Token; u=User.objects.get(username='admin'); t,_=Token.objects.get_or_create(user=u); print(t.key)"
+```
+
+### Runtime Setup by Platform
+
+#### Windows PowerShell
+
+```powershell
+$env:AGOMSAAF_BASE_URL="http://127.0.0.1:8000"
+$env:AGOMSAAF_API_TOKEN="your_token_here"
+$env:NO_PROXY="127.0.0.1,localhost"
+$env:no_proxy="127.0.0.1,localhost"
+```
+
+#### Linux/macOS (bash)
+
+```bash
+export AGOMSAAF_BASE_URL="http://127.0.0.1:8000"
+export AGOMSAAF_API_TOKEN="your_token_here"
+export NO_PROXY="127.0.0.1,localhost"
+export no_proxy="127.0.0.1,localhost"
 ```
 
 ### Admin Token Management Page (Recommended)
@@ -57,13 +77,35 @@ From the page, click "生成Token" or "重置Token" for target user. The new tok
 
 Edit `~/.config/claude-code/mcp_servers.json`:
 
+Windows path example:
+
 ```json
 {
   "mcpServers": {
     "agomsaaf": {
       "command": "python",
       "args": ["-m", "agomsaaf_mcp.server"],
-      "cwd": "D:/githv/agomSAAF/sdk",
+      "cwd": "D:/path/to/agomSAAF/sdk",
+      "env": {
+        "AGOMSAAF_BASE_URL": "http://localhost:8000",
+        "AGOMSAAF_API_TOKEN": "your_token_here",
+        "AGOMSAAF_MCP_ENFORCE_RBAC": "true",
+        "AGOMSAAF_MCP_ROLE": "投资经理"
+      }
+    }
+  }
+}
+```
+
+Linux/macOS path example:
+
+```json
+{
+  "mcpServers": {
+    "agomsaaf": {
+      "command": "python",
+      "args": ["-m", "agomsaaf_mcp.server"],
+      "cwd": "/path/to/agomSAAF/sdk",
       "env": {
         "AGOMSAAF_BASE_URL": "http://localhost:8000",
         "AGOMSAAF_API_TOKEN": "your_token_here",
@@ -391,7 +433,7 @@ check_signal_eligibility     # Check if signal is eligible
 
 ```bash
 # Test manually
-cd D:/githv/agomSAAF/sdk
+cd sdk
 agomsaaf-mcp
 ```
 

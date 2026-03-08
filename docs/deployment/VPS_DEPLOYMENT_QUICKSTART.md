@@ -9,7 +9,9 @@
 
 ## 1. 打包并上传 bundle
 
-本机（Windows）在项目根目录执行：
+### Windows PowerShell：本地打包
+
+本机在项目根目录执行：
 
 ```powershell
 pwsh ./scripts/package-for-vps.ps1
@@ -18,6 +20,8 @@ pwsh ./scripts/package-for-vps.ps1
 生成文件在 `dist/`，例如：
 - `dist/agomsaaf-vps-bundle-YYYYmmddHHMMSS.tar.gz`
 
+### 跨平台 Shell：上传到 VPS
+
 上传到 VPS（示例）：
 
 ```bash
@@ -25,6 +29,8 @@ scp dist/agomsaaf-vps-bundle-*.tar.gz root@your-vps-ip:/root/
 ```
 
 ## 2. 在 VPS 上部署（推荐）
+
+### Linux VPS Shell：登录并部署
 
 登录 VPS：
 
@@ -56,6 +62,8 @@ bash ./scripts/deploy-on-vps.sh --bundle /root/agomsaaf-vps-bundle-*.tar.gz
 
 ## 3. 配置端口（VPS 的 80 被占用时）
 
+### Linux VPS Shell：修改并重启
+
 不要改 `docker-compose.vps.yml` 的端口映射；端口靠 `deploy/.env` 配置：
 
 - `CADDY_HTTP_PORT=8000`（HTTP 对外端口）
@@ -72,6 +80,8 @@ docker compose -f /opt/agomsaaf/current/docker/docker-compose.vps.yml --env-file
 
 ## 4. 访问与验证
 
+### Linux VPS Shell：健康检查
+
 健康检查：
 
 ```bash
@@ -86,6 +96,8 @@ curl -fsS http://your-vps-ip:8000/api/health/
   ```
 
 ## 5. 常用维护命令
+
+### Linux VPS Shell：日常运维
 
 ```bash
 docker compose -f /opt/agomsaaf/current/docker/docker-compose.vps.yml --env-file /opt/agomsaaf/current/deploy/.env ps

@@ -363,7 +363,7 @@ CELERY_BEAT_SCHEDULE = {
 **Windows自启动方案**：
 ```powershell
 # start_celery.ps1
-cd D:\githv\agomSAAF
+cd .
 .\agomsaaf\Scripts\activate
 celery -A core worker -l info --pool=solo
 ```
@@ -562,3 +562,4 @@ python manage.py showmigrations
 ---
 
 **总结**：本改进方案将AgomSAAF从"需手动查看、响应慢、无指引"转变为"自动推送、秒级响应、直接给出配置建议"的自动化决策助手，核心聚焦用户痛点，分阶段实施，风险可控。
+

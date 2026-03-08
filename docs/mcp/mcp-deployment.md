@@ -38,14 +38,18 @@ pip install mcp
 
 ### 1. 设置环境变量
 
+#### Linux/macOS (bash)
+
 ```bash
-# Linux/macOS
 export AGOMSAAF_API_BASE_URL="http://127.0.0.1:8000"
 export AGOMSAAF_API_TOKEN="your-api-token"
 export AGOMSAAF_MCP_ROLE="admin"  # 可选: viewer, analyst, admin
 export AGOMSAAF_DEFAULT_PORTFOLIO_ID="1"  # 可选
+```
 
-# Windows PowerShell
+#### Windows PowerShell
+
+```powershell
 $env:AGOMSAAF_API_BASE_URL="http://127.0.0.1:8000"
 $env:AGOMSAAF_API_TOKEN="your-api-token"
 $env:AGOMSAAF_MCP_ROLE="admin"
@@ -221,10 +225,16 @@ Connection refused: [Errno 111] Connection refused
 ```bash
 # 检查服务状态
 curl http://127.0.0.1:8000/api/health/
+```
 
-# 检查端口占用
-lsof -i :8000  # Linux/macOS
-netstat -ano | findstr :8000  # Windows
+```bash
+# Linux/macOS: 检查端口占用
+lsof -i :8000
+```
+
+```powershell
+# Windows: 检查端口占用
+netstat -ano | findstr :8000
 ```
 
 ### 问题 2：认证失败
@@ -317,11 +327,17 @@ The system cannot find the path specified
 
 启用详细日志：
 
-```bash
-# 设置日志级别
-export AGOMSAAF_MCP_LOG_LEVEL=DEBUG
+#### Linux/macOS (bash)
 
-# 启动服务器
+```bash
+export AGOMSAAF_MCP_LOG_LEVEL=DEBUG
+python -m agomsaaf_mcp
+```
+
+#### Windows PowerShell
+
+```powershell
+$env:AGOMSAAF_MCP_LOG_LEVEL="DEBUG"
 python -m agomsaaf_mcp
 ```
 

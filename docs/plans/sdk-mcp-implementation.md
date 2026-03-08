@@ -5,7 +5,7 @@
 ## 项目概述
 
 - **目标**: 创建 `agomsaaf-sdk` 项目，包含 Python SDK 和 MCP Server
-- **位置**: `D:\githv\agomSAAF\sdk\`（AgomSAAF 项目内部）
+- **位置**: `sdk/`（AgomSAAF 项目内部）
 - **原则**: 不修改 AgomSAAF 系统代码，只通过 HTTP API 调用
 - **功能**: 支持完整操作（查询 + 写入）
 - **架构**: MCP Server（快速操作）+ Python SDK（完整功能）
@@ -477,4 +477,5 @@ pytest tests/ -v
 2. 更多模块：simulated_trading, equity, fund, sector, strategy, realtime
 3. OpenAPI 代码生成工具
 4. 版本同步验证工具
+
 

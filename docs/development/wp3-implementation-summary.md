@@ -8,7 +8,7 @@ Implementation of frontend changes for the main workflow closed-loop transformat
 ### 1. New Files Created
 
 #### CSS Styling
-- **File**: `D:\githv\agomSAAF\static\css\main-workflow.css`
+- **File**: `static/css/main-workflow.css`
 - **Purpose**: Styles for main workflow panel, execution modal, and responsive design
 - **Features**:
   - 5-step workflow navigation
@@ -19,7 +19,7 @@ Implementation of frontend changes for the main workflow closed-loop transformat
   - Responsive layout for mobile/tablet/desktop
 
 #### JavaScript Logic
-- **File**: `D:\githv\agomSAAF\static\js\main-workflow.js`
+- **File**: `static/js/main-workflow.js`
 - **Purpose**: Client-side interaction logic
 - **Features**:
   - `performPrecheck()` - Execute precheck API call
@@ -32,7 +32,7 @@ Implementation of frontend changes for the main workflow closed-loop transformat
   - `showToast()` - Display notifications
 
 #### Template Snippet
-- **File**: `D:\githv\agomSAAF\core\templates\dashboard\main_workflow_panel.html`
+- **File**: `core/templates/dashboard/main_workflow_panel.html`
 - **Purpose**: Reusable main workflow panel component
 - **Features**:
   - Step navigation (Environment → Candidate → Decision → Execution → Feedback)
@@ -43,7 +43,7 @@ Implementation of frontend changes for the main workflow closed-loop transformat
 ### 2. Modified Files
 
 #### Decision Workspace Template
-- **File**: `D:\githv\agomSAAF\core\templates\decision\workspace.html`
+- **File**: `core/templates/decision/workspace.html`
 - **Changes**:
   - Line 211: Changed "待系统处理" to "待执行落地"
   - Added Execute, Cancel, and Retry buttons based on execution_status
@@ -52,7 +52,7 @@ Implementation of frontend changes for the main workflow closed-loop transformat
     - FAILED: Show "重试" button
 
 #### Decision Workspace View
-- **File**: `D:\githv\agomSAAF\core\views.py`
+- **File**: `core/views.py`
 - **Changes**:
   - Lines 216-231: Updated pending request query
   - Old: `response__isnull=True` (no response record)
@@ -60,7 +60,7 @@ Implementation of frontend changes for the main workflow closed-loop transformat
   - This ensures only actionable approved requests appear in the todo list
 
 #### Alpha Candidate Detail Template
-- **File**: `D:\githv\agomSAAF\apps\alpha_trigger\templates\alpha_trigger\candidate_detail.html`
+- **File**: `apps/alpha_trigger/templates/alpha_trigger/candidate_detail.html`
 - **Changes**:
   - Removed "直接标记已执行" button
   - Added "去执行" button (disabled if no decision request exists)
@@ -71,7 +71,7 @@ Implementation of frontend changes for the main workflow closed-loop transformat
 ### 3. Documentation
 
 #### Integration Guide
-- **File**: `D:\githv\agomSAAF\docs\development\wp3-frontend-integration-guide.md`
+- **File**: `docs/development/wp3-frontend-integration-guide.md`
 - **Purpose**: Step-by-step integration instructions
 - **Contents**:
   - Integration steps
@@ -280,3 +280,4 @@ Total: 7 files, ~1,700 lines of code/documentation
 **Developer**: Claude (AI Assistant)
 **Review Status**: Ready for integration testing
 **Next Steps**: Backend API implementation (WP-2), Event linkage (WP-4), Documentation (WP-5)
+

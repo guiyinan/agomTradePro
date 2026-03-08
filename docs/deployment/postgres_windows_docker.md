@@ -4,6 +4,11 @@
 
 本项目使用 PostgreSQL 作为主数据库，Redis 作为缓存和消息队列。在 Windows 本地开发中，推荐通过 Docker Desktop 运行这些服务。
 
+## 适用平台
+
+- Windows PowerShell：`.env` 初始化、虚拟环境激活、Docker Desktop、本地迁移
+- 跨平台命令：`docker exec`、`psql`、容器健康检查
+
 ## 系统架构
 
 ```
@@ -152,6 +157,8 @@ notepad .env
 
 ### 2. 启动 Docker 容器
 
+#### Windows PowerShell
+
 ```powershell
 # 检查容器状态
 docker ps -a --filter "name=agomsaaf"
@@ -165,7 +172,7 @@ docker start agomsaaf_redis_dev
 
 ```powershell
 # 激活虚拟环境
-agomsaaf\Scripts\Activate.ps1
+agomsaaf/Scripts/Activate.ps1
 
 # 创建数据库表
 python manage.py migrate
@@ -175,6 +182,8 @@ python manage.py createsuperuser
 ```
 
 ### 4. 验证连接
+
+#### Windows PowerShell
 
 ```powershell
 # 测试数据库连接
@@ -208,13 +217,13 @@ python manage.py loaddata sqlite_backup.json
 
 #### 进入容器
 
-```powershell
+```bash
 docker exec -it agomsaaf_postgres_dev sh
 ```
 
 #### 连接数据库
 
-```powershell
+```bash
 # 通过容器
 docker exec -it agomsaaf_postgres_dev psql -U agomsaaf -d agomsaaf
 

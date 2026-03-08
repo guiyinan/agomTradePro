@@ -11,16 +11,20 @@
 
 ## 快速开始
 
+### 适用平台
+
+- Windows 专用：`Docker Desktop`、`deploy-docker-dev.ps1`、`migrate-to-postgres.ps1`
+- 跨平台命令：`docker compose`、`python manage.py ...`、`docker exec ...`
+
 ### 前置要求
 
 1. **Docker Desktop for Windows**
    - 下载：https://www.docker.com/products/docker-desktop/
    - 安装后启动 Docker Desktop
 
-2. **Python 虚拟环境**
+2. **Python 虚拟环境（Windows PowerShell）**
    ```powershell
-   # 激活虚拟环境
-   agomsaaf\Scripts\activate
+   agomsaaf/Scripts/Activate.ps1
    ```
 
 ### 一键部署
@@ -28,7 +32,7 @@
 运行 PowerShell 部署脚本（自动检测代理、启动服务）：
 
 ```powershell
-cd D:\githv\agomSAAF
+cd .
 .\scripts\deploy-docker-dev.ps1
 ```
 
@@ -42,9 +46,11 @@ cd D:\githv\agomSAAF
 
 ### 首次部署后操作
 
+#### Windows PowerShell
+
 ```powershell
 # 1. 激活虚拟环境
-agomsaaf\Scripts\activate
+agomsaaf/Scripts/Activate.ps1
 
 # 2. 运行数据库迁移
 python manage.py migrate
@@ -53,6 +59,16 @@ python manage.py migrate
 python manage.py createsuperuser
 
 # 4. 启动 Django 开发服务器
+python manage.py runserver
+```
+
+#### 跨平台 Shell
+
+```bash
+# Windows Git Bash / WSL / Linux / macOS
+source agomsaaf/Scripts/activate 2>/dev/null || source agomsaaf/bin/activate
+python manage.py migrate
+python manage.py createsuperuser
 python manage.py runserver
 ```
 
@@ -149,25 +165,39 @@ Get-Content backup.sql | docker exec -i agomsaaf_postgres_dev psql -U agomsaaf -
 
 ### Docker 容器管理
 
+#### Windows PowerShell
+
 ```powershell
 # 启动服务
-docker-compose -f docker-compose-dev.yml up -d
+docker compose -f docker-compose-dev.yml up -d
 
 # 停止服务
-docker-compose -f docker-compose-dev.yml down
+docker compose -f docker-compose-dev.yml down
 
 # 重启服务
-docker-compose -f docker-compose-dev.yml restart
+docker compose -f docker-compose-dev.yml restart
 
 # 查看服务状态
-docker-compose -f docker-compose-dev.yml ps
+docker compose -f docker-compose-dev.yml ps
 
 # 查看日志（所有服务）
-docker-compose -f docker-compose-dev.yml logs -f
+docker compose -f docker-compose-dev.yml logs -f
 
 # 查看特定服务日志
-docker-compose -f docker-compose-dev.yml logs -f postgres
-docker-compose -f docker-compose-dev.yml logs -f redis
+docker compose -f docker-compose-dev.yml logs -f postgres
+docker compose -f docker-compose-dev.yml logs -f redis
+```
+
+#### 跨平台 Shell
+
+```bash
+docker compose -f docker-compose-dev.yml up -d
+docker compose -f docker-compose-dev.yml down
+docker compose -f docker-compose-dev.yml restart
+docker compose -f docker-compose-dev.yml ps
+docker compose -f docker-compose-dev.yml logs -f
+docker compose -f docker-compose-dev.yml logs -f postgres
+docker compose -f docker-compose-dev.yml logs -f redis
 ```
 
 ### 数据库操作
@@ -183,8 +213,8 @@ docker exec agomsaaf_postgres_dev psql -U agomsaaf -d agomsaaf -c "\l"
 docker exec agomsaaf_postgres_dev psql -U agomsaaf -d agomsaaf -c "\dt"
 
 # 重置数据库（危险操作！）
-docker-compose -f docker-compose-dev.yml down -v
-docker-compose -f docker-compose-dev.yml up -d
+docker compose -f docker-compose-dev.yml down -v
+docker compose -f docker-compose-dev.yml up -d
 python manage.py migrate
 ```
 
@@ -382,3 +412,4 @@ docker exec -it agomsaaf_redis_dev sh
 - 项目文档：`docs/` 目录
 - Django 文档：https://docs.djangoproject.com/
 - Docker 文档：https://docs.docker.com/
+
