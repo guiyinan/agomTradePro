@@ -210,6 +210,21 @@ Example:
 }
 ```
 
+### Alpha Upload And User-Isolation Tools
+
+```
+get_alpha_stock_scores(universe, trade_date, top_n, user_id)
+upload_alpha_scores(universe_id, asof_date, intended_trade_date, scores, model_id, model_artifact_hash, scope)
+```
+
+Notes:
+
+- `get_alpha_stock_scores` now supports optional `user_id`; only admin-backed tokens should use it to inspect another user's personal cache.
+- Read priority is `personal > system`.
+- `upload_alpha_scores(..., scope="user")` writes personal scores for the token owner.
+- `upload_alpha_scores(..., scope="system")` writes system-level scores and requires an admin-capable backend user/token.
+- This makes MCP suitable for "local Qlib inference -> upload to VPS -> isolated visibility" workflows.
+
 ### Strategy Position Management Tools
 
 ```

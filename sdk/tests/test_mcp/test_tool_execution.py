@@ -114,6 +114,25 @@ class _FakeClient:
             delete_account_config=lambda config_id: {"deleted": True, "id": config_id},
             apply_template_to_account_config=lambda config_id, template_key: {"id": config_id, "template_key": template_key},
         )
+        self.alpha = SimpleNamespace(
+            get_stock_scores=lambda universe="csi300", trade_date=None, top_n=20, user_id=None: {
+                "success": True,
+                "source": "cache",
+                "status": "available",
+                "stocks": [{"code": "000001.SZ", "score": 0.9, "rank": 1}],
+                "user_id": user_id,
+                "trade_date": trade_date,
+                "universe": universe,
+                "top_n": top_n,
+            },
+            upload_scores=lambda **payload: {
+                "success": True,
+                "count": len(payload.get("scores", [])),
+                "scope": payload.get("scope", "user"),
+                "id": 99,
+                "created": True,
+            },
+        )
 
 
 def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -132,6 +151,7 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         "agomsaaf_mcp.tools.task_monitor_tools",
         "agomsaaf_mcp.tools.filter_tools",
         "agomsaaf_mcp.tools.rotation_tools",
+        "agomsaaf_mcp.tools.alpha_tools",
     ]
     for module_name in module_names:
         mod = importlib.import_module(module_name)
@@ -225,6 +245,8 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("update_account_rotation_config", {"config_id": 2, "payload": {"is_enabled": False}, "partial": True}),
         ("delete_account_rotation_config", {"config_id": 2}),
         ("apply_rotation_template_to_account_config", {"config_id": 2, "template_key": "moderate"}),
+        ("get_alpha_stock_scores", {"universe": "csi300", "trade_date": "2026-03-10", "top_n": 10, "user_id": 12}),
+        ("upload_alpha_scores", {"universe_id": "csi300", "asof_date": "2026-03-08", "intended_trade_date": "2026-03-10", "scores": [{"code": "000001.SZ", "score": 0.9, "rank": 1}], "scope": "user"}),
     ],
 )
 def test_extended_mcp_tools_can_execute(monkeypatch: pytest.MonkeyPatch, tool_name: str, arguments: dict):

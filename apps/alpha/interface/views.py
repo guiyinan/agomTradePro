@@ -7,6 +7,7 @@ Django REST Framework 视图定义。
 import logging
 from datetime import date
 
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -16,14 +17,17 @@ from rest_framework.response import Response
 
 from core.cache_utils import cached_api, CACHE_TTL
 from ..application.services import AlphaService
+from ..infrastructure.models import AlphaScoreCacheModel
 from .serializers import (
     GetStockScoresRequestSerializer,
     AlphaResultSerializer,
     ProviderStatusSerializer,
+    UploadScoresSerializer,
 )
 
 
 logger = logging.getLogger(__name__)
+User = get_user_model()
 
 
 @api_view(["GET"])
@@ -56,10 +60,37 @@ def get_stock_scores(request: Request) -> Response:
         universe = params.validated_data.get("universe", "csi300")
         trade_date = params.validated_data.get("trade_date", date.today())
         top_n = params.validated_data.get("top_n", 30)
+        requested_user = request.user
+        requested_user_id = params.validated_data.get("user_id")
 
-        # 获取评分
+        if requested_user_id is not None:
+            if not request.user.is_staff:
+                return Response(
+                    {
+                        "success": False,
+                        "error": "只有管理员可以通过 user_id 查看其他用户的 Alpha 评分",
+                        "source": "none",
+                        "status": "forbidden",
+                        "stocks": [],
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            requested_user = User.objects.filter(pk=requested_user_id).first()
+            if requested_user is None:
+                return Response(
+                    {
+                        "success": False,
+                        "error": f"用户 {requested_user_id} 不存在",
+                        "source": "none",
+                        "status": "not_found",
+                        "stocks": [],
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        # 获取评分（传入 user 实现用户隔离）
         service = AlphaService()
-        result = service.get_stock_scores(universe, trade_date, top_n)
+        result = service.get_stock_scores(universe, trade_date, top_n, user=requested_user)
 
         # 序列化响应
         serializer = AlphaResultSerializer(result)
@@ -209,4 +240,80 @@ def health_check(request: Request) -> Response:
                 "error": str(e),
             },
             status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def upload_scores(request: Request) -> Response:
+    """
+    上传本地 Qlib 推理结果
+
+    POST /api/alpha/scores/upload/
+
+    Body:
+        universe_id: 股票池标识
+        asof_date: 信号真实生成日期（ISO）
+        intended_trade_date: 计划交易日期（ISO）
+        model_id: 模型标识（默认 local_qlib）
+        model_artifact_hash: 模型哈希（可选）
+        scope: "user"（个人）或 "system"（全局，仅 admin）
+        scores: [{code, score, rank, factors, confidence, source}, ...]
+
+    Returns:
+        {"success": true, "count": N, "scope": "user"|"system", "id": pk}
+    """
+    serializer = UploadScoresSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+
+    scope = data.get("scope", "user")
+
+    # 权限检查：只有 admin 能写系统级评分
+    if scope == "system" and not request.user.is_staff:
+        return Response(
+            {"success": False, "error": "只有管理员可以上传系统级评分（scope=system）"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    # 确定写入的 user：system 级别 user=None，否则 user=当前用户
+    write_user = None if scope == "system" else request.user
+
+    try:
+        cache_obj, created = AlphaScoreCacheModel.objects.update_or_create(
+            user=write_user,
+            universe_id=data["universe_id"],
+            intended_trade_date=data["intended_trade_date"],
+            provider_source="qlib",
+            model_artifact_hash=data.get("model_artifact_hash", "") or "",
+            defaults={
+                "asof_date": data["asof_date"],
+                "model_id": data.get("model_id", "local_qlib"),
+                "scores": data["scores"],
+                "status": AlphaScoreCacheModel.STATUS_AVAILABLE,
+            },
+        )
+
+        logger.info(
+            f"上传评分成功: user={write_user}, universe={data['universe_id']}, "
+            f"date={data['intended_trade_date']}, count={len(data['scores'])}, "
+            f"created={created}"
+        )
+
+        return Response(
+            {
+                "success": True,
+                "count": len(data["scores"]),
+                "scope": scope,
+                "id": cache_obj.pk,
+                "created": created,
+            },
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    except Exception as e:
+        logger.error(f"上传评分失败: {e}", exc_info=True)
+        return Response(
+            {"success": False, "error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )

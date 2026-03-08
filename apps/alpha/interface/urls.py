@@ -18,6 +18,7 @@ urlpatterns = [
         "module": "alpha",
         "endpoints": [
             "/api/alpha/scores/",
+            "/api/alpha/scores/upload/",
             "/api/alpha/stocks/",
             "/api/alpha/providers/status/",
             "/api/alpha/universes/",
@@ -27,6 +28,9 @@ urlpatterns = [
 
     # 获取股票评分
     path("scores/", views.get_stock_scores, name="get_stock_scores"),
+
+    # 上传本地 Qlib 推理结果（支持用户隔离）
+    path("scores/upload/", views.upload_scores, name="upload_scores"),
 
     # 兼容旧路径
     path("stocks/", views.get_stock_scores, name="get_stock_scores_legacy"),

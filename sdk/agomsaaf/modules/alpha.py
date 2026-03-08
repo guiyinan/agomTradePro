@@ -35,7 +35,8 @@ class AlphaModule(BaseModule):
         self,
         universe: str = "csi300",
         trade_date: Optional[str] = None,
-        top_n: int = 30
+        top_n: int = 30,
+        user_id: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         获取股票评分
@@ -67,7 +68,60 @@ class AlphaModule(BaseModule):
         }
         if trade_date is not None:
             params["trade_date"] = trade_date
+        if user_id is not None:
+            params["user_id"] = user_id
         return self._get("scores/", params=params)
+
+    def upload_scores(
+        self,
+        scores: List[Dict[str, Any]],
+        universe_id: str,
+        asof_date: str,
+        intended_trade_date: str,
+        model_id: str = "local_qlib",
+        model_artifact_hash: str = "",
+        scope: str = "user",
+    ) -> Dict[str, Any]:
+        """
+        上传本地 Qlib 推理结果到 VPS
+
+        Args:
+            scores: 评分列表，每条格式：{code, score, rank, factors, confidence, source}
+            universe_id: 股票池标识（如 "csi300"）
+            asof_date: 信号真实生成日期（ISO 格式，如 "2026-03-08"）
+            intended_trade_date: 计划交易日期（ISO 格式）
+            model_id: 模型标识（默认 "local_qlib"）
+            model_artifact_hash: 模型文件哈希（可选）
+            scope: 写入范围，"user" = 个人，"system" = 全局（仅 admin）
+
+        Returns:
+            {"success": true, "count": N, "scope": "user"|"system", "id": pk, "created": bool}
+
+        Example:
+            >>> scores = [
+            ...     {"code": "000001.SZ", "score": 0.85, "rank": 1,
+            ...      "factors": {"momentum": 0.8}, "confidence": 0.9},
+            ... ]
+            >>> result = client.alpha.upload_scores(
+            ...     scores=scores,
+            ...     universe_id="csi300",
+            ...     asof_date="2026-03-08",
+            ...     intended_trade_date="2026-03-10",
+            ... )
+            >>> print(f"上传 {result['count']} 条，scope={result['scope']}")
+        """
+        return self._post(
+            "scores/upload/",
+            json={
+                "universe_id": universe_id,
+                "asof_date": asof_date,
+                "intended_trade_date": intended_trade_date,
+                "model_id": model_id,
+                "model_artifact_hash": model_artifact_hash,
+                "scope": scope,
+                "scores": scores,
+            },
+        )
 
     def get_provider_status(self) -> Dict[str, Any]:
         """

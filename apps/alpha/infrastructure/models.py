@@ -10,6 +10,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from django.conf import settings
 from django.db import models, transaction
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -217,6 +218,16 @@ class AlphaScoreCacheModel(models.Model):
         help_text="指标快照"
     )
 
+    # 用户隔离（None = 系统级，全局可见；非 None = 用户个人，仅本人和 admin 可见）
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="alpha_score_caches",
+        verbose_name="上传用户（None=系统级）",
+    )
+
     # 审计字段
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -235,9 +246,9 @@ class AlphaScoreCacheModel(models.Model):
         verbose_name = "Alpha 评分缓存"
         verbose_name_plural = "Alpha 评分缓存"
         ordering = ["-intended_trade_date", "-created_at"]
-        # 唯一键：支持多模型同日共存
+        # 唯一键：支持多用户、多模型同日共存
         unique_together = [
-            ["universe_id", "intended_trade_date", "provider_source", "model_artifact_hash"]
+            ["user", "universe_id", "intended_trade_date", "provider_source", "model_artifact_hash"]
         ]
         indexes = [
             models.Index(fields=["universe_id", "intended_trade_date"]),

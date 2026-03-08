@@ -33,6 +33,8 @@ def test_extended_mcp_tools_registered():
         "list_rotation_regimes",
         "get_account_rotation_config",
         "apply_rotation_template_to_account_config",
+        "get_alpha_stock_scores",
+        "upload_alpha_scores",
     }
 
     missing = expected - names

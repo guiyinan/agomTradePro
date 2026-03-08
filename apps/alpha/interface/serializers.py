@@ -142,6 +142,11 @@ class GetStockScoresRequestSerializer(serializers.Serializer):
         max_value=500,
         help_text="返回前 N 只股票"
     )
+    user_id = serializers.IntegerField(
+        required=False,
+        min_value=1,
+        help_text="管理员可选：指定查看某个用户的个人评分"
+    )
 
 
 class ProviderStatusSerializer(serializers.Serializer):
@@ -158,3 +163,51 @@ class ProviderStatusSerializer(serializers.Serializer):
         required=False,
         allow_null=True
     )
+
+
+class UploadScoreItemSerializer(serializers.Serializer):
+    """单条评分上传序列化器"""
+
+    code = serializers.CharField(help_text="股票代码")
+    score = serializers.FloatField(help_text="评分")
+    rank = serializers.IntegerField(help_text="排名")
+    factors = serializers.DictField(
+        child=serializers.FloatField(),
+        required=False,
+        default=dict,
+        help_text="因子暴露"
+    )
+    confidence = serializers.FloatField(
+        required=False,
+        default=1.0,
+        help_text="置信度"
+    )
+    source = serializers.CharField(
+        required=False,
+        default="local_qlib",
+        help_text="来源标识"
+    )
+
+
+class UploadScoresSerializer(serializers.Serializer):
+    """批量评分上传序列化器"""
+
+    universe_id = serializers.CharField(help_text="股票池标识")
+    asof_date = serializers.DateField(help_text="信号真实生成日期")
+    intended_trade_date = serializers.DateField(help_text="计划交易日期")
+    model_id = serializers.CharField(
+        required=False,
+        default="local_qlib",
+        help_text="模型标识"
+    )
+    model_artifact_hash = serializers.CharField(
+        required=False,
+        default="",
+        help_text="模型文件哈希"
+    )
+    scope = serializers.ChoiceField(
+        choices=["user", "system"],
+        default="user",
+        help_text="写入范围：user=个人，system=全局（仅 admin）"
+    )
+    scores = UploadScoreItemSerializer(many=True, help_text="评分列表")

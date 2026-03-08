@@ -148,7 +148,8 @@ class AlphaProviderRegistry:
         self,
         universe_id: str,
         intended_trade_date: date,
-        top_n: int = 30
+        top_n: int = 30,
+        user=None,
     ) -> AlphaResult:
         """
         带降级的评分获取
@@ -207,8 +208,11 @@ class AlphaProviderRegistry:
                     logger.debug(f"Provider {provider.name} 不支持 {universe_id}")
                     continue
 
-                # 获取评分
-                result = provider.get_stock_scores(universe_id, intended_trade_date, top_n)
+                # 获取评分（Cache Provider 支持 user 参数）
+                if provider.name == "cache":
+                    result = provider.get_stock_scores(universe_id, intended_trade_date, top_n, user=user)
+                else:
+                    result = provider.get_stock_scores(universe_id, intended_trade_date, top_n)
 
                 # 计算延迟
                 latency_ms = (time.time() - provider_start_time) * 1000
@@ -404,7 +408,8 @@ class AlphaService:
         self,
         universe_id: str = "csi300",
         intended_trade_date: Optional[date] = None,
-        top_n: int = 30
+        top_n: int = 30,
+        user=None,
     ) -> AlphaResult:
         """
         获取股票评分（带自动降级）
@@ -435,7 +440,8 @@ class AlphaService:
         result = self._registry.get_scores_with_fallback(
             universe_id,
             intended_trade_date,
-            top_n
+            top_n,
+            user=user,
         )
 
         logger.info(

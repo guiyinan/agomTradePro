@@ -23,9 +23,32 @@ Alpha 模块是 AgomSAAF 的 AI 选股信号抽象层，与 Qlib 深度集成，
 | 端点 | 说明 |
 |------|------|
 | `GET /api/alpha/scores/` | 获取股票评分 |
+| `GET /api/alpha/scores/?user_id=<id>` | 管理员按用户查看个人评分 |
+| `POST /api/alpha/scores/upload/` | 上传本地 Qlib / 离线评分 |
 | `GET /api/alpha/providers/status/` | Provider 状态 |
 | `GET /api/alpha/universes/` | 股票池 |
 | `GET /api/alpha/health/` | 健康检查 |
+
+## 用户隔离与本地上传
+
+- `user=NULL`：系统级评分，所有用户可回退读取
+- `user=<当前用户>`：个人评分，仅本人和 admin 可见
+- 读取优先级：个人评分优先，找不到再回退到系统级
+
+### 本地上传方式
+
+- SDK：`client.alpha.upload_scores(...)`
+- CLI：`python tools/qlib_uploader.py --input scores.json ...`
+- MCP：`upload_alpha_scores(...)`
+
+### MCP 支持
+
+MCP 现已支持这条工作流：
+
+- `get_alpha_stock_scores(...)`
+- `upload_alpha_scores(...)`
+
+其中 admin 可通过 `user_id` 参数查看指定用户的个人评分。
 
 ## 管理命令
 

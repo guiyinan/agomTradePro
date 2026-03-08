@@ -6,7 +6,6 @@ Model Context Protocol (MCP) 工具定义。
 """
 
 import logging
-from datetime import date
 from typing import Any
 
 from agomsaaf import AgomSAAFClient
@@ -27,7 +26,8 @@ def register_alpha_tools(server) -> None:
     def get_alpha_stock_scores(
         universe: str = "csi300",
         trade_date: str | None = None,
-        top_n: int = 20
+        top_n: int = 20,
+        user_id: int | None = None,
     ) -> dict[str, Any]:
         """
         获取 AI 选股评分
@@ -67,31 +67,14 @@ def register_alpha_tools(server) -> None:
             >>> for stock in result['stocks']:
             ...     print(f"{stock['rank']}. {stock['code']}: {stock['score']:.3f}")
         """
-        from apps.alpha.application.services import AlphaService
-
         try:
-            service = AlphaService()
-
-            # 解析日期
-            parsed_date = None
-            if trade_date:
-                try:
-                    parsed_date = date.fromisoformat(trade_date)
-                except ValueError as e:
-                    return {
-                        "success": False,
-                        "error": f"无效的日期格式: {trade_date}, 应使用 ISO 格式 (YYYY-MM-DD)",
-                        "source": "none",
-                        "status": "error",
-                        "stocks": [],
-                    }
-            else:
-                parsed_date = date.today()
-
-            # 获取评分
-            result = service.get_stock_scores(universe, parsed_date, top_n)
-
-            return result.to_dict()
+            client = AgomSAAFClient()
+            return client.alpha.get_stock_scores(
+                universe=universe,
+                trade_date=trade_date,
+                top_n=top_n,
+                user_id=user_id,
+            )
 
         except Exception as e:
             logger.error(f"获取 Alpha 评分失败: {e}", exc_info=True)
@@ -101,6 +84,51 @@ def register_alpha_tools(server) -> None:
                 "source": "none",
                 "status": "error",
                 "stocks": [],
+            }
+
+    @server.tool()
+    def upload_alpha_scores(
+        universe_id: str,
+        asof_date: str,
+        intended_trade_date: str,
+        scores: list[dict[str, Any]],
+        model_id: str = "local_qlib",
+        model_artifact_hash: str = "",
+        scope: str = "user",
+    ) -> dict[str, Any]:
+        """
+        上传本地 Qlib 或离线生成的 Alpha 评分
+
+        Args:
+            universe_id: 股票池标识，如 csi300
+            asof_date: 信号生成日期（YYYY-MM-DD）
+            intended_trade_date: 计划交易日期（YYYY-MM-DD）
+            scores: 评分列表，每条包含 code/score/rank/confidence/factors/source
+            model_id: 模型标识
+            model_artifact_hash: 模型文件哈希
+            scope: user=个人评分，system=系统级评分（仅 admin token 可用）
+
+        Returns:
+            上传结果，包含 success/count/scope/id/created 等字段
+        """
+        try:
+            client = AgomSAAFClient()
+            return client.alpha.upload_scores(
+                scores=scores,
+                universe_id=universe_id,
+                asof_date=asof_date,
+                intended_trade_date=intended_trade_date,
+                model_id=model_id,
+                model_artifact_hash=model_artifact_hash,
+                scope=scope,
+            )
+        except Exception as e:
+            logger.error(f"上传 Alpha 评分失败: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": str(e),
+                "count": 0,
+                "scope": scope,
             }
 
     @server.tool()

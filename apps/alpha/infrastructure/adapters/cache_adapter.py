@@ -104,36 +104,62 @@ class CacheAlphaProvider(BaseAlphaProvider):
         self,
         universe_id: str,
         intended_trade_date: date,
-        top_n: int = 30
+        top_n: int = 30,
+        user=None,
     ) -> AlphaResult:
         """
-        从缓存获取股票评分
+        从缓存获取股票评分（支持用户隔离）
 
-        1. 首先尝试精确匹配日期
-        2. 如果没有，尝试最近的有效缓存
-        3. 检查 staleness，如果过期返回 degraded
+        读取优先级：用户个人评分 > 系统级评分（user=None）
+
+        1. 优先查找用户个人评分（精确日期匹配）
+        2. 若无，fallback 到系统级评分（精确日期匹配）
+        3. 若无精确匹配，向前查找最近的有效缓存
+        4. 检查 staleness，如果过期返回 degraded
 
         Args:
             universe_id: 股票池标识
             intended_trade_date: 计划交易日期
             top_n: 返回前 N 只
+            user: 当前用户（None 表示匿名或仅查系统级）
 
         Returns:
             AlphaResult
         """
         cache_model = _get_cache_model()
 
-        # 1. 尝试精确匹配
-        cache = cache_model.objects.filter(
-            universe_id=universe_id,
-            intended_trade_date=intended_trade_date
-        ).order_by("-created_at").first()
+        cache = None
 
-        # 2. 如果没有精确匹配，尝试最近的有效缓存（向前查找）
+        # 1. 优先查用户个人评分（精确匹配）
+        if user is not None and user.is_authenticated:
+            cache = cache_model.objects.filter(
+                user=user,
+                universe_id=universe_id,
+                intended_trade_date=intended_trade_date,
+            ).order_by("-created_at").first()
+
+            # 精确匹配不到，向前查找用户个人最近缓存
+            if not cache:
+                cache = cache_model.objects.filter(
+                    user=user,
+                    universe_id=universe_id,
+                    intended_trade_date__lte=intended_trade_date,
+                ).order_by("-intended_trade_date", "-created_at").first()
+
+        # 2. Fallback 到系统级评分（user=None，精确匹配）
         if not cache:
             cache = cache_model.objects.filter(
+                user=None,
                 universe_id=universe_id,
-                intended_trade_date__lte=intended_trade_date
+                intended_trade_date=intended_trade_date,
+            ).order_by("-created_at").first()
+
+        # 3. 系统级向前查找
+        if not cache:
+            cache = cache_model.objects.filter(
+                user=None,
+                universe_id=universe_id,
+                intended_trade_date__lte=intended_trade_date,
             ).order_by("-intended_trade_date", "-created_at").first()
 
         if not cache:
