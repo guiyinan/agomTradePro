@@ -22,6 +22,7 @@ def test_extended_mcp_tools_registered():
         "get_audit_summary",
         "publish_event",
         "submit_decision_request",
+        "decision_workflow_precheck",
         "list_beta_gate_configs",
         "list_alpha_triggers",
         "get_dashboard_summary_v1",

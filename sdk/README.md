@@ -156,7 +156,8 @@ Three methods (priority order):
 | `client.strategy` | Strategy management - create/execute strategy, bind/unbind portfolio strategy, DB-driven position rules |
 | `client.realtime` | Real-time prices - market data, alerts, top movers |
 | `client.rotation` | Rotation - recommendations, templates, per-account regime allocation configs |
-| `client.decision_workflow` | **Decision workflow (V3.4+)** - precheck, beta gate check, quota check, cooldown check |
+| `client.alpha` | Alpha scoring - scores, provider status, universes, health, factor exposure |
+| `client.decision_workflow` | **Decision workflow (V3.4+)** - precheck |
 | `client.decision_rhythm` | **Decision rhythm (V3.4+)** - submit, execute, cancel, get decision requests |
 
 ## MCP Tools (60+)
@@ -183,7 +184,7 @@ Three methods (priority order):
 - **Rotation**: `list_rotation_regimes`, `list_rotation_templates`, `list_account_rotation_configs`, `get_account_rotation_config`, `create_account_rotation_config`, `update_account_rotation_config`, `apply_rotation_template_to_account_config`
 - **Strategy Assignment**: `bind_portfolio_strategy`, `unbind_portfolio_strategy`
 - **Decision Rhythm**: `submit_decision_request`, `list_decision_requests`, `decision_execute_request`, `decision_cancel_request`, `get_decision_request`
-- **Decision Workflow (V3.4+)**: `decision_workflow_precheck`, `decision_workflow_check_beta_gate`, `decision_workflow_check_quota`, `decision_workflow_check_cooldown`
+- **Decision Workflow (V3.4+)**: `decision_workflow_precheck`
 - **Realtime**: `get_realtime_price`, `get_market_summary`, `create_price_alert`
 
 ## Rotation Account Config Examples

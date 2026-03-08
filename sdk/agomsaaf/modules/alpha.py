@@ -4,10 +4,15 @@ Alpha SDK Module
 提供 Python SDK 访问 Alpha 信号功能。
 """
 
-from datetime import date
 from typing import Any, Dict, List, Optional
 
 from .base import BaseModule
+
+
+def _get_alpha_service() -> Any:
+    from apps.alpha.application.services import AlphaService
+
+    return AlphaService()
 
 
 class AlphaModule(BaseModule):
@@ -22,6 +27,9 @@ class AlphaModule(BaseModule):
         >>> for stock in scores['stocks'][:5]:
         ...     print(f"{stock['rank']}. {stock['code']}: {stock['score']:.3f}")
     """
+
+    def __init__(self, client: Any) -> None:
+        super().__init__(client, "/api/alpha")
 
     def get_stock_scores(
         self,
@@ -53,12 +61,13 @@ class AlphaModule(BaseModule):
             >>> result = client.alpha.get_stock_scores("csi300", "2026-02-05", 10)
             >>> print(f"数据源: {result['source']}")
         """
-        return self._call(
-            "get_alpha_stock_scores",
-            universe=universe,
-            trade_date=trade_date,
-            top_n=top_n
-        )
+        params: dict[str, Any] = {
+            "universe": universe,
+            "top_n": top_n,
+        }
+        if trade_date is not None:
+            params["trade_date"] = trade_date
+        return self._get("scores/", params=params)
 
     def get_provider_status(self) -> Dict[str, Any]:
         """
@@ -74,7 +83,7 @@ class AlphaModule(BaseModule):
             >>> for name, info in status.items():
             ...     print(f"{name}: {info['status']}")
         """
-        return self._call("get_alpha_provider_status")
+        return self._get("providers/status/")
 
     def get_available_universes(self) -> Dict[str, Any]:
         """
@@ -87,7 +96,7 @@ class AlphaModule(BaseModule):
             >>> result = client.alpha.get_available_universes()
             >>> print(result['universes'])
         """
-        return self._call("get_alpha_available_universes")
+        return self._get("universes/")
 
     def get_factor_exposure(
         self,
@@ -110,12 +119,30 @@ class AlphaModule(BaseModule):
             >>> result = client.alpha.get_factor_exposure("000001.SH")
             >>> print(result['factors'])
         """
-        return self._call(
-            "get_alpha_factor_exposure",
-            stock_code=stock_code,
-            trade_date=trade_date,
-            provider=provider
-        )
+        from datetime import date
+
+        parsed_date = date.today()
+        if trade_date:
+            parsed_date = date.fromisoformat(trade_date)
+
+        service = _get_alpha_service()
+        provider_instance = service._registry.get_provider(provider)
+        if not provider_instance:
+            return {
+                "success": False,
+                "error": f"Provider '{provider}' 不存在",
+                "stock_code": stock_code,
+                "factors": {},
+            }
+
+        factors = provider_instance.get_factor_exposure(stock_code, parsed_date)
+        return {
+            "success": True,
+            "stock_code": stock_code,
+            "trade_date": parsed_date.isoformat(),
+            "provider": provider,
+            "factors": factors,
+        }
 
     def check_health(self) -> Dict[str, Any]:
         """
@@ -128,7 +155,7 @@ class AlphaModule(BaseModule):
             >>> health = client.alpha.check_health()
             >>> print(f"状态: {health['status']}")
         """
-        return self._call("check_alpha_health")
+        return self._get("health/")
 
     def get_top_stocks(
         self,

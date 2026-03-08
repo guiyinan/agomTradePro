@@ -6,6 +6,7 @@ AgomSAAF SDK 业务模块
 
 from .account import AccountModule
 from .ai_provider import AIProviderModule
+from .alpha import AlphaModule
 from .alpha_trigger import AlphaTriggerModule
 from .asset_analysis import AssetAnalysisModule
 from .audit import AuditModule
@@ -14,6 +15,7 @@ from .base import BaseModule
 from .beta_gate import BetaGateModule
 from .dashboard import DashboardModule
 from .decision_rhythm import DecisionRhythmModule
+from .decision_workflow import DecisionWorkflowModule
 from .equity import EquityModule
 from .events import EventsModule
 from .factor import FactorModule
@@ -41,6 +43,7 @@ __all__ = [
     "PolicyModule",
     "BacktestModule",
     "AccountModule",
+    "AlphaModule",
     "SimulatedTradingModule",
     "EquityModule",
     "FactorModule",
@@ -55,6 +58,7 @@ __all__ = [
     "AuditModule",
     "EventsModule",
     "DecisionRhythmModule",
+    "DecisionWorkflowModule",
     "BetaGateModule",
     "AlphaTriggerModule",
     "DashboardModule",

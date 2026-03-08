@@ -47,6 +47,9 @@ class _FakeClient:
             summary=lambda payload=None: {"summary": True, "payload": payload},
             reset_quota=lambda payload: {"reset": True, "payload": payload},
         )
+        self.decision_workflow = SimpleNamespace(
+            precheck=lambda candidate_id: {"candidate_id": candidate_id, "ok": True},
+        )
         self.beta_gate = SimpleNamespace(
             list_configs=lambda: [{"config_id": "c1"}],
             create_config=lambda payload: {"config_id": "c2", "payload": payload},
@@ -120,6 +123,7 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         "agomsaaf_mcp.tools.audit_tools",
         "agomsaaf_mcp.tools.events_tools",
         "agomsaaf_mcp.tools.decision_rhythm_tools",
+        "agomsaaf_mcp.tools.decision_workflow_tools",
         "agomsaaf_mcp.tools.beta_gate_tools",
         "agomsaaf_mcp.tools.alpha_trigger_tools",
         "agomsaaf_mcp.tools.dashboard_tools",
@@ -132,6 +136,13 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
     for module_name in module_names:
         mod = importlib.import_module(module_name)
         monkeypatch.setattr(mod, "AgomSAAFClient", _FakeClient)
+
+    audit_mod = importlib.import_module("agomsaaf_mcp.audit")
+    monkeypatch.setattr(
+        audit_mod,
+        "get_audit_logger",
+        lambda: SimpleNamespace(log_mcp_call=lambda **kwargs: None),
+    )
 
 
 @pytest.mark.parametrize(
@@ -165,6 +176,7 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("submit_batch_decision_request", {"payload": {"requests": [{"request_type": "rebalance"}]}}),
         ("get_decision_rhythm_summary", {"payload": {"window_days": 7}}),
         ("reset_decision_quota", {"payload": {"user_id": "u1"}}),
+        ("decision_workflow_precheck", {"candidate_id": "cand-1"}),
         ("list_beta_gate_configs", {}),
         ("create_beta_gate_config", {"payload": {"name": "cfg1"}}),
         ("test_beta_gate", {"payload": {"config_id": "cfg1"}}),
