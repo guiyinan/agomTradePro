@@ -8,8 +8,10 @@ from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError
 from celery.utils.log import get_task_logger
 from django.core.mail import send_mail
+from django.core.mail import EmailMessage
 from django.conf import settings
 from django.db import DatabaseError
+from django.utils import timezone
 from typing import Dict, List
 
 from apps.account.application.stop_loss_use_cases import (
@@ -23,8 +25,72 @@ from apps.account.application.volatility_use_cases import (
 
 from core.exceptions import DataFetchError, BusinessLogicError, ExternalServiceError
 from core.metrics import record_exception
+from apps.account.infrastructure.backup_service import (
+    build_backup_download_url,
+    describe_backup_package,
+    generate_download_token,
+    get_backup_email_connection,
+)
 
 logger = get_task_logger(__name__)
+
+
+@shared_task(
+    bind=True,
+    max_retries=2,
+    default_retry_delay=300,
+    time_limit=300,
+    soft_time_limit=270,
+)
+def send_database_backup_email_task(self):
+    """按系统配置定期发送数据库全量备份下载链接。"""
+    try:
+        from apps.account.infrastructure.models import SystemSettingsModel
+
+        config = SystemSettingsModel.get_settings()
+        if not config.is_backup_due():
+            return {"status": "skipped", "reason": "not_due"}
+
+        token = generate_download_token(config)
+        download_url = build_backup_download_url(token)
+        package_meta = describe_backup_package()
+
+        subject = "【AgomSAAF】数据库全量备份下载链接"
+        message = f"""
+管理员您好：
+
+数据库全量备份已准备好，请在链接有效期内下载。
+
+下载链接：
+{download_url}
+
+备份周期：每 {config.backup_interval_days} 天
+链接有效期：{config.backup_link_ttl_days} 天
+文件格式：{package_meta['extension']} ({package_meta['format']})
+密码提示：{config.backup_password_hint or '未设置提示'}
+
+说明：
+1. 下载得到的是压缩后并加密的备份文件。
+2. SQLite 环境导出原始数据库文件；其他数据库环境导出 Django 全量 JSON 数据。
+3. 如非本人操作，请立即检查系统后台配置。
+        """.strip()
+
+        email = EmailMessage(
+            subject=subject,
+            body=message,
+            from_email=config.backup_mail_from_email or getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomsaaf.com'),
+            to=[config.backup_email],
+            connection=get_backup_email_connection(config),
+        )
+        email.send(fail_silently=False)
+
+        config.backup_last_sent_at = timezone.now()
+        config.save(update_fields=["backup_last_sent_at", "updated_at"])
+        logger.info("数据库备份下载链接已发送至 %s", config.backup_email)
+        return {"status": "sent", "email": config.backup_email}
+    except Exception as exc:
+        logger.exception("数据库备份邮件发送失败: %s", exc)
+        raise self.retry(exc=exc)
 
 
 @shared_task(

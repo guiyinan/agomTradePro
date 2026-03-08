@@ -260,6 +260,7 @@ ADMIN_INDEX_TITLE = '欢迎使用 AgomSAAF 管理后台'
 # Email / Notification settings
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@agomsaaf.com')
 DAILY_INSPECTION_EMAIL_ENABLED = env.bool('DAILY_INSPECTION_EMAIL_ENABLED', default=True)
+APP_BASE_URL = env('APP_BASE_URL', default='')
 
 # REST Framework settings
 REST_FRAMEWORK = {
@@ -402,6 +403,10 @@ CELERY_BEAT_SCHEDULE = {
     'check-data-freshness': {
         'task': 'apps.macro.application.tasks.check_data_freshness',
         'schedule': crontab(minute='*/30'),  # 每 30 分钟执行一次
+    },
+    'send-database-backup-email': {
+        'task': 'apps.account.application.tasks.send_database_backup_email_task',
+        'schedule': crontab(hour=8, minute=10),
     },
     'check-regime-health': {
         'task': 'apps.regime.application.tasks.check_regime_health',

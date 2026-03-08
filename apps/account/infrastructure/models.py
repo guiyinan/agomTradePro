@@ -8,11 +8,16 @@ Django ORM 模型定义，负责数据持久化。
 from django.db import models
 from django.db.models import Sum, F
 from django.contrib.auth.models import User
+from django.conf import settings
 from decimal import Decimal
 from apps.account.application.rbac import ROLE_CHOICES
 import uuid
 from django.core.exceptions import ValidationError
 from datetime import datetime, timezone
+import base64
+import hashlib
+
+from cryptography.fernet import Fernet, InvalidToken
 
 
 # ============================================================
@@ -1149,6 +1154,94 @@ class SystemSettingsModel(models.Model):
         help_text="宏观模块使用的指数代码、名称、单位和发布时间配置"
     )
 
+    backup_email = models.EmailField(
+        blank=True,
+        verbose_name="数据库备份接收邮箱",
+        help_text="启用后按周期发送数据库全量备份下载链接到该邮箱"
+    )
+
+    backup_app_base_url = models.URLField(
+        blank=True,
+        verbose_name="备份下载站点地址",
+        help_text="用于生成邮件中的绝对下载链接，如 https://example.com"
+    )
+
+    backup_mail_from_email = models.EmailField(
+        blank=True,
+        verbose_name="备份邮件发件人",
+        help_text="留空则回退到系统默认发件人"
+    )
+
+    backup_smtp_host = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="SMTP 主机"
+    )
+
+    backup_smtp_port = models.PositiveIntegerField(
+        default=587,
+        verbose_name="SMTP 端口"
+    )
+
+    backup_smtp_username = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="SMTP 用户名"
+    )
+
+    backup_smtp_password_encrypted = models.TextField(
+        blank=True,
+        verbose_name="SMTP 密码（密文）",
+        help_text="系统内部加密存储"
+    )
+
+    backup_smtp_use_tls = models.BooleanField(
+        default=True,
+        verbose_name="SMTP 使用 TLS"
+    )
+
+    backup_smtp_use_ssl = models.BooleanField(
+        default=False,
+        verbose_name="SMTP 使用 SSL"
+    )
+
+    backup_enabled = models.BooleanField(
+        default=False,
+        verbose_name="启用数据库备份邮件",
+        help_text="开启后系统会按设定周期发送备份下载链接"
+    )
+
+    backup_interval_days = models.PositiveIntegerField(
+        default=7,
+        verbose_name="备份周期（天）",
+        help_text="每隔多少天发送一次数据库备份下载链接"
+    )
+
+    backup_link_ttl_days = models.PositiveIntegerField(
+        default=3,
+        verbose_name="下载链接有效期（天）",
+        help_text="邮件中的备份下载链接有效天数"
+    )
+
+    backup_password_encrypted = models.TextField(
+        blank=True,
+        verbose_name="备份压缩密码（密文）",
+        help_text="系统内部加密存储，用于生成加密备份文件"
+    )
+
+    backup_password_hint = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="备份密码提示",
+        help_text="可选，用于管理员识别当前使用的备份密码"
+    )
+
+    backup_last_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="上次备份邮件发送时间"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
 
@@ -1159,6 +1252,30 @@ class SystemSettingsModel(models.Model):
 
     def __str__(self):
         return f"系统配置 (审批:{'开启' if self.require_user_approval else '关闭'})"
+
+    def clean(self):
+        super().clean()
+        if self.backup_enabled:
+            if not self.backup_email:
+                raise ValidationError({"backup_email": "启用数据库备份邮件时必须配置接收邮箱。"})
+            if not self.backup_password_encrypted:
+                raise ValidationError({"backup_password_encrypted": "启用数据库备份邮件时必须设置备份密码。"})
+            if not self.backup_app_base_url:
+                raise ValidationError({"backup_app_base_url": "启用数据库备份邮件时必须配置下载站点地址。"})
+            if not self.backup_smtp_host:
+                raise ValidationError({"backup_smtp_host": "启用数据库备份邮件时必须配置 SMTP 主机。"})
+            if not self.backup_smtp_port:
+                raise ValidationError({"backup_smtp_port": "启用数据库备份邮件时必须配置 SMTP 端口。"})
+            if not self.backup_mail_from_email:
+                raise ValidationError({"backup_mail_from_email": "启用数据库备份邮件时必须配置发件人邮箱。"})
+            if not self.get_backup_smtp_password():
+                raise ValidationError({"backup_smtp_password_encrypted": "启用数据库备份邮件时必须设置 SMTP 密码。"})
+        if self.backup_smtp_use_tls and self.backup_smtp_use_ssl:
+            raise ValidationError("SMTP TLS 和 SSL 不能同时开启。")
+        if self.backup_interval_days < 1:
+            raise ValidationError({"backup_interval_days": "备份周期必须大于等于 1 天。"})
+        if self.backup_link_ttl_days < 1:
+            raise ValidationError({"backup_link_ttl_days": "下载链接有效期必须大于等于 1 天。"})
 
     @classmethod
     def get_settings(cls):
@@ -1189,6 +1306,62 @@ class SystemSettingsModel(models.Model):
             update_fields.append("updated_at")
             settings.save(update_fields=update_fields)
         return settings
+
+    @staticmethod
+    def _get_secret_fernet() -> Fernet:
+        secret = (
+            getattr(settings, "AGOMSAAF_ENCRYPTION_KEY", "") or
+            getattr(settings, "SECRET_KEY", "")
+        )
+        digest = hashlib.sha256(secret.encode("utf-8")).digest()
+        key = base64.urlsafe_b64encode(digest)
+        return Fernet(key)
+
+    def set_backup_password(self, raw_password: str):
+        raw_password = (raw_password or "").strip()
+        if not raw_password:
+            self.backup_password_encrypted = ""
+            return
+        self.backup_password_encrypted = self._get_secret_fernet().encrypt(
+            raw_password.encode("utf-8")
+        ).decode("utf-8")
+
+    def get_backup_password(self) -> str:
+        if not self.backup_password_encrypted:
+            return ""
+        try:
+            return self._get_secret_fernet().decrypt(
+                self.backup_password_encrypted.encode("utf-8")
+            ).decode("utf-8")
+        except (InvalidToken, ValueError, TypeError):
+            return ""
+
+    def set_backup_smtp_password(self, raw_password: str):
+        raw_password = (raw_password or "").strip()
+        if not raw_password:
+            self.backup_smtp_password_encrypted = ""
+            return
+        self.backup_smtp_password_encrypted = self._get_secret_fernet().encrypt(
+            raw_password.encode("utf-8")
+        ).decode("utf-8")
+
+    def get_backup_smtp_password(self) -> str:
+        if not self.backup_smtp_password_encrypted:
+            return ""
+        try:
+            return self._get_secret_fernet().decrypt(
+                self.backup_smtp_password_encrypted.encode("utf-8")
+            ).decode("utf-8")
+        except (InvalidToken, ValueError, TypeError):
+            return ""
+
+    def is_backup_due(self, now=None) -> bool:
+        if not self.backup_enabled or not self.backup_email or not self.get_backup_password():
+            return False
+        now = now or datetime.now(timezone.utc)
+        if self.backup_last_sent_at is None:
+            return True
+        return (now - self.backup_last_sent_at).days >= self.backup_interval_days
 
     def get_benchmark_code(self, key: str, default: str = "") -> str:
         """读取基准/默认指数代码配置。"""

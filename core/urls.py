@@ -20,6 +20,7 @@ from apps.account.infrastructure.views import (
     doc_export_all,
     doc_import,
 )
+from apps.account.interface.backup_views import admin_db_backup_download_view
 
 # 核心视图
 from core.views import (
@@ -102,6 +103,7 @@ core_patterns = [
 ]
 
 admin_docs_patterns = [
+    path('admin/db-backup/<str:token>/', admin_db_backup_download_view, name='admin-db-backup-download'),
     path('admin/server-logs/', server_logs_page, name='admin-server-logs'),
     path('admin/server-logs/stream/', server_logs_stream, name='admin-server-logs-stream'),
     path('admin/server-logs/export/', server_logs_export, name='admin-server-logs-export'),

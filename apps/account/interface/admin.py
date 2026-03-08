@@ -4,6 +4,7 @@ Django Admin for Account Module.
 提供 Account 模块所有模型的 Admin 管理界面。
 """
 from django.contrib import admin
+from django import forms
 from django.utils.html import format_html
 from django.db.models import Sum, F, DecimalField
 from decimal import Decimal
@@ -26,6 +27,62 @@ from ..infrastructure.models import (
     InvestmentRuleModel,
     PortfolioDailySnapshotModel,
 )
+
+
+class SystemSettingsAdminForm(forms.ModelForm):
+    backup_password = forms.CharField(
+        required=False,
+        label="备份压缩密码",
+        widget=forms.PasswordInput(render_value=False),
+        help_text="留空表示保持当前密码不变；如需清空，请先关闭备份功能后保存。"
+    )
+    backup_smtp_password = forms.CharField(
+        required=False,
+        label="SMTP 密码",
+        widget=forms.PasswordInput(render_value=False),
+        help_text="留空表示保持当前密码不变。"
+    )
+
+    class Meta:
+        model = SystemSettingsModel
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk and self.instance.backup_password_encrypted:
+            self.fields["backup_password"].help_text = (
+                "已设置备份密码。留空表示保持当前密码不变；输入新值会覆盖旧密码。"
+            )
+        if self.instance and self.instance.pk and self.instance.backup_smtp_password_encrypted:
+            self.fields["backup_smtp_password"].help_text = (
+                "已设置 SMTP 密码。留空表示保持当前密码不变；输入新值会覆盖旧密码。"
+            )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        raw_password = (cleaned_data.get("backup_password") or "").strip()
+        raw_smtp_password = (cleaned_data.get("backup_smtp_password") or "").strip()
+        backup_enabled = cleaned_data.get("backup_enabled")
+        has_existing_password = bool(getattr(self.instance, "backup_password_encrypted", ""))
+        has_existing_smtp_password = bool(getattr(self.instance, "backup_smtp_password_encrypted", ""))
+        if backup_enabled and not (raw_password or has_existing_password):
+            self.add_error("backup_password", "启用数据库备份邮件时必须设置备份密码。")
+        if backup_enabled and not (raw_smtp_password or has_existing_smtp_password):
+            self.add_error("backup_smtp_password", "启用数据库备份邮件时必须设置 SMTP 密码。")
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        raw_password = (self.cleaned_data.get("backup_password") or "").strip()
+        raw_smtp_password = (self.cleaned_data.get("backup_smtp_password") or "").strip()
+        if raw_password:
+            instance.set_backup_password(raw_password)
+        if raw_smtp_password:
+            instance.set_backup_smtp_password(raw_smtp_password)
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
 
 
 @admin.register(CurrencyModel)
@@ -260,6 +317,7 @@ class TakeProfitConfigModelAdmin(admin.ModelAdmin):
 @admin.register(SystemSettingsModel)
 class SystemSettingsModelAdmin(admin.ModelAdmin):
     """系统配置管理（单例模式）"""
+    form = SystemSettingsAdminForm
 
     def has_add_permission(self, request):
         """禁止手动添加（单例模式）"""
@@ -269,11 +327,30 @@ class SystemSettingsModelAdmin(admin.ModelAdmin):
         """禁止删除配置"""
         return False
 
-    list_display = ['require_user_approval', 'auto_approve_first_admin']
+    list_display = ['require_user_approval', 'auto_approve_first_admin', 'backup_enabled', 'backup_email', 'backup_last_sent_at']
 
     fieldsets = (
         ('用户审批', {
             'fields': ('require_user_approval', 'auto_approve_first_admin')
+        }),
+        ('数据库备份邮件', {
+            'fields': (
+                'backup_enabled',
+                'backup_email',
+                'backup_app_base_url',
+                'backup_mail_from_email',
+                'backup_interval_days',
+                'backup_link_ttl_days',
+                'backup_password',
+                'backup_password_hint',
+                'backup_smtp_host',
+                'backup_smtp_port',
+                'backup_smtp_username',
+                'backup_smtp_password',
+                'backup_smtp_use_tls',
+                'backup_smtp_use_ssl',
+                'backup_last_sent_at',
+            )
         }),
         ('协议内容', {
             'fields': ('user_agreement_content', 'risk_warning_content')
@@ -289,7 +366,7 @@ class SystemSettingsModelAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-    readonly_fields = ['created_at', 'updated_at']
+    readonly_fields = ['created_at', 'updated_at', 'backup_last_sent_at']
 
     def changelist_view(self, request, extra_context=None):
         """自定义列表页（单例模式）"""
