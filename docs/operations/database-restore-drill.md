@@ -14,7 +14,7 @@
 ### 1.1 测试备份命令
 
 ```bash
-cd D:/githv/agomSAAF
+cd .
 python manage.py backup_database --keep 7
 ```
 

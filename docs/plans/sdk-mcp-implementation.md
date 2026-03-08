@@ -441,21 +441,21 @@ print(f"年化收益: {result.annual_return:.2%}")
 ### 安装 SDK
 
 ```bash
-cd D:/githv/agomSAAF/sdk
+cd sdk
 pip install -e .
 ```
 
 ### 运行 MCP 服务器
 
 ```bash
-cd D:/githv/agomSAAF/sdk
+cd sdk
 python -m agomsaaf_mcp.server
 ```
 
 ### 运行测试
 
 ```bash
-cd D:/githv/agomSAAF/sdk
+cd sdk
 pytest tests/ -v
 ```
 
