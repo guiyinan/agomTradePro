@@ -5,7 +5,7 @@
       "args": ["-m", "agomsaaf_mcp"],
       "cwd": "/path/to/agomSAAF/sdk",
       "env": {
-        "AGOMSAAF_API_BASE_URL": "http://127.0.0.1:8000",
+        "AGOMSAAF_BASE_URL": "http://127.0.0.1:8000",
         "AGOMSAAF_API_TOKEN": "your-api-token-here",
         "AGOMSAAF_MCP_ROLE": "viewer",
         "AGOMSAAF_DEFAULT_PORTFOLIO_ID": "1",

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "agomsaaf": {
+      "command": "python",
+      "args": ["-m", "agomsaaf_mcp.server"],
+      "cwd": "D:/githv/agomSAAF/sdk",
+      "env": {
+        "AGOMSAAF_BASE_URL": "http://141.11.211.21:8000",
+        "AGOMSAAF_API_TOKEN": "44be77ed81018d08e22a050272f9bd19abdac948",
+        "AGOMSAAF_MCP_ENFORCE_RBAC": "true"
+      }
+    }
+  }
+}
