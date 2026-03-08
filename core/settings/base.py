@@ -200,9 +200,8 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [
-    # Keep core static assets ahead of project-level static to avoid accidental
-    # shadowing by duplicated filenames (e.g. css/main.css, css/home.css).
-    os.path.join(BASE_DIR, 'core', 'static'),
+    # Project-level assets live here. App-level assets (including core/static)
+    # are discovered via AppDirectoriesFinder from INSTALLED_APPS.
     os.path.join(BASE_DIR, 'static'),
 ]
 
