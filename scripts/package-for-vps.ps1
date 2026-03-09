@@ -167,9 +167,9 @@ function Ensure-LinuxWheelCache {
         [bool]$ForceRefresh
     )
 
-    $reqFile = Join-Path $ProjectRootPath "requirements-prod.txt"
+    $reqFile = Join-Path $ProjectRootPath "requirements-prod.lock"
     if (-not (Test-Path $reqFile)) {
-        Throw-Err "requirements-prod.txt not found: $reqFile"
+        Throw-Err "requirements-prod.lock not found: $reqFile"
     }
 
     $cacheRoot = Join-Path $ProjectRootPath ".cache\pip-wheels\linux-py311"
@@ -208,7 +208,7 @@ function Ensure-LinuxWheelCache {
             "-e", "PIP_DISABLE_PIP_VERSION_CHECK=1",
             "python:3.11-slim",
             "sh", "-lc",
-            "pip download --prefer-binary --index-url http://mirrors.aliyun.com/pypi/simple/ -r /workspace/requirements-prod.txt -d /wheelhouse"
+            "pip download --prefer-binary --index-url http://mirrors.aliyun.com/pypi/simple/ -r /workspace/requirements-prod.lock -d /wheelhouse"
         )
 
         & docker @downloadCmd
@@ -221,7 +221,7 @@ function Ensure-LinuxWheelCache {
         Write-Info "Linux wheelhouse ready: $newCount files cached"
     }
 
-    # Strict offline check: fail fast if wheelhouse cannot satisfy requirements-prod.txt.
+    # Strict offline check: fail fast if wheelhouse cannot satisfy requirements-prod.lock.
     $verifyCmd = @(
         "run", "--rm",
         "-v", "${projectMount}:/workspace",
@@ -229,12 +229,12 @@ function Ensure-LinuxWheelCache {
     ) + $ProxyEnvClear + @(
         "python:3.11-slim",
         "sh", "-lc",
-        "pip install --no-index --find-links=/wheelhouse -r /workspace/requirements-prod.txt --dry-run"
+        "pip install --no-index --find-links=/wheelhouse -r /workspace/requirements-prod.lock --dry-run"
     )
 
     & docker @verifyCmd
     if ($LASTEXITCODE -ne 0) {
-        Throw-Err "Linux wheel cache is incomplete for requirements-prod.txt (offline verification failed). Run with -RefreshWheelCache, or pass -AllowOnlinePipFallback if you accept network install."
+        Throw-Err "Linux wheel cache is incomplete for requirements-prod.lock (offline verification failed). Run with -RefreshWheelCache, or pass -AllowOnlinePipFallback if you accept network install."
     }
     Write-Info "Offline wheelhouse verification passed"
 }

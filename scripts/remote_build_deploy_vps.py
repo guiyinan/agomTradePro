@@ -167,6 +167,7 @@ RELEASE_TAG="${RELEASE_TAG:?missing RELEASE_TAG}"
 KEEP_REMOTE_TEMP="${KEEP_REMOTE_TEMP:-0}"
 EXPORT_IMAGE_TAR="${EXPORT_IMAGE_TAR:-1}"
 REMOTE_IMAGE_TAR="${REMOTE_IMAGE_TAR:?missing REMOTE_IMAGE_TAR}"
+DEPLOY_AFTER_BUILD="${DEPLOY_AFTER_BUILD:-1}"
 
 command -v docker >/dev/null 2>&1 || { echo "[ERROR] docker is required" >&2; exit 1; }
 command -v tar >/dev/null 2>&1 || { echo "[ERROR] tar is required" >&2; exit 1; }
@@ -209,6 +210,14 @@ if ! docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg BUILDKIT_INLINE_CAC
 fi
 
 if [ "$EXPORT_IMAGE_TAR" = "1" ]; then
+  IMAGE_BYTES="$(docker image inspect "agomsaaf-web:$RELEASE_TAG" --format '{{.Size}}' 2>/dev/null || echo 0)"
+  AVAIL_BYTES="$(df -Pk "$(dirname "$REMOTE_IMAGE_TAR")" | awk 'NR==2 {print $4 * 1024}')"
+  HEADROOM_BYTES=$((2 * 1024 * 1024 * 1024))
+  REQUIRED_BYTES=$((IMAGE_BYTES + HEADROOM_BYTES))
+  if [ "$AVAIL_BYTES" -lt "$REQUIRED_BYTES" ]; then
+    echo "[ERROR] insufficient disk space for docker save. available=${AVAIL_BYTES} required=${REQUIRED_BYTES}" >&2
+    exit 1
+  fi
   mkdir -p "$(dirname "$REMOTE_IMAGE_TAR")"
   rm -f "$REMOTE_IMAGE_TAR"
   docker save -o "$REMOTE_IMAGE_TAR" "agomsaaf-web:$RELEASE_TAG"
@@ -225,9 +234,14 @@ report = {
     "image_tag": f"agomsaaf-web:{os.environ['RELEASE_TAG']}",
     "remote_image_tar": os.environ.get("REMOTE_IMAGE_TAR", ""),
     "deployed": False,
+    "deploy_after_build": os.environ.get("DEPLOY_AFTER_BUILD", "1") == "1",
 }
 Path("/tmp/agomsaaf-build-report.json").write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
 PY
+
+if [ "$DEPLOY_AFTER_BUILD" != "1" ] && [ "$KEEP_REMOTE_TEMP" != "1" ]; then
+  rm -rf "$RELEASE_DIR"
+fi
 
 if [ "$KEEP_REMOTE_TEMP" != "1" ]; then
   rm -rf "$WORK_ROOT" "$REMOTE_TARBALL"
@@ -600,6 +614,7 @@ def main() -> int:
             "KEEP_REMOTE_TEMP": _bool_env(args.keep_remote_temp),
             "EXPORT_IMAGE_TAR": _bool_env(True),
             "REMOTE_IMAGE_TAR": remote_image_tar,
+            "DEPLOY_AFTER_BUILD": _bool_env(deploy_after_build),
         }
 
         exports = " ".join(f"{key}={shlex.quote(value)}" for key, value in build_env.items())
