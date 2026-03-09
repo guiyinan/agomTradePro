@@ -191,9 +191,13 @@ def _local_start_ps1(image_filename: str, include_sqlite: bool) -> str:
 if (Test-Path ".\data\db.sqlite3") {
     $webCid = docker compose ps -q web
     if ($webCid) {
-        docker cp ".\data\db.sqlite3" "$webCid`:/app/data/db.sqlite3" | Out-Null
-        docker exec -u root $webCid chown appuser:appuser /app/data/db.sqlite3 | Out-Null
-        docker compose restart web | Out-Null
+        $dbExists = docker exec $webCid sh -lc "test -s /app/data/db.sqlite3"
+        if ($LASTEXITCODE -ne 0) {
+            docker exec -u root $webCid sh -lc "mkdir -p /app/data && chown -R appuser:appuser /app/data" | Out-Null
+            docker cp ".\data\db.sqlite3" "$webCid`:/app/data/db.sqlite3" | Out-Null
+            docker exec -u root $webCid chown -R appuser:appuser /app/data | Out-Null
+            docker compose restart web | Out-Null
+        }
     }
 }
 """
@@ -232,9 +236,12 @@ def _local_start_sh(image_filename: str, include_sqlite: bool) -> str:
 if [ -f ./data/db.sqlite3 ]; then
   web_cid="$(docker compose ps -q web)"
   if [ -n "$web_cid" ]; then
-    docker cp ./data/db.sqlite3 "$web_cid:/app/data/db.sqlite3"
-    docker exec -u root "$web_cid" chown appuser:appuser /app/data/db.sqlite3
-    docker compose restart web
+    if ! docker exec "$web_cid" sh -lc 'test -s /app/data/db.sqlite3'; then
+      docker exec -u root "$web_cid" sh -lc 'mkdir -p /app/data && chown -R appuser:appuser /app/data'
+      docker cp ./data/db.sqlite3 "$web_cid:/app/data/db.sqlite3"
+      docker exec -u root "$web_cid" chown -R appuser:appuser /app/data
+      docker compose restart web
+    fi
   fi
 fi
 """
@@ -361,6 +368,11 @@ def _create_local_runtime_bundle(
                     "1. unzip this bundle",
                     "2. open the extracted folder",
                     "3. run scripts/start-local.ps1",
+                    "",
+                    "Persistence:",
+                    "- sqlite data is stored in the docker named volume sqlite_data",
+                    "- bundled data/db.sqlite3 is only seeded on first start when the volume is empty",
+                    "- scripts/stop-local.ps1 uses docker compose down and does not remove volumes",
                     "",
                     "Default URL:",
                     "- http://127.0.0.1:8000/",
