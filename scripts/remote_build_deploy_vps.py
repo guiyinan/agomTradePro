@@ -192,6 +192,7 @@ if (Test-Path ".\data\db.sqlite3") {
     $webCid = docker compose ps -q web
     if ($webCid) {
         docker cp ".\data\db.sqlite3" "$webCid`:/app/data/db.sqlite3" | Out-Null
+        docker exec -u root $webCid chown appuser:appuser /app/data/db.sqlite3 | Out-Null
         docker compose restart web | Out-Null
     }
 }
@@ -232,6 +233,7 @@ if [ -f ./data/db.sqlite3 ]; then
   web_cid="$(docker compose ps -q web)"
   if [ -n "$web_cid" ]; then
     docker cp ./data/db.sqlite3 "$web_cid:/app/data/db.sqlite3"
+    docker exec -u root "$web_cid" chown appuser:appuser /app/data/db.sqlite3
     docker compose restart web
   fi
 fi
