@@ -31,6 +31,10 @@ param(
     [string[]]$RemainingArgs
 )
 
+# Notes:
+# - Interactive mode now asks whether to deploy after remote build.
+# - For build-only usage, answer "No" to that prompt or pass -SkipDeployAfterBuild.
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -101,7 +105,7 @@ else {
     if ($EnableRsshub) { $pyArgs.Add("--enable-rsshub") }
     if ($DisableRsshub) { $pyArgs.Add("--disable-rsshub") }
     if ($EnableCelery) { $pyArgs.Add("--enable-celery") }
-    $shouldPromptBeforeDeploy = $true
+    $shouldPromptBeforeDeploy = $false
     if ($NoPromptBeforeDeploy) { $shouldPromptBeforeDeploy = $false }
     if ($PromptBeforeDeploy) { $shouldPromptBeforeDeploy = $true }
     if ($shouldPromptBeforeDeploy) { $pyArgs.Add("--prompt-before-deploy") }

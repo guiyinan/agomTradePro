@@ -526,13 +526,22 @@ def main() -> int:
     _validate_ssh_credentials(host=host, port=args.port, username=user, password=password, timeout=min(args.timeout, 30))
     _info("SSH credentials validated")
 
+    deploy_after_build = args.deploy_after_build
     if args.host is None:
         include_sqlite = _prompt_bool("Include local SQLite database?", False)
-        wipe_docker = _prompt_bool("Wipe existing Docker resources first?", False)
-        action = _prompt("Deploy action", args.action)
-        http_port = int(_prompt("Public HTTP port", str(args.http_port)))
-        domain = _prompt("Domain (blank for HTTP-only)", args.domain)
-        allowed_hosts = _prompt("ALLOWED_HOSTS (blank for auto)", args.allowed_hosts)
+        deploy_after_build = _prompt_bool("Deploy to VPS after remote build?", False)
+        if deploy_after_build:
+            wipe_docker = _prompt_bool("Wipe existing Docker resources first?", False)
+            action = _prompt("Deploy action", args.action)
+            http_port = int(_prompt("Public HTTP port", str(args.http_port)))
+            domain = _prompt("Domain (blank for HTTP-only)", args.domain)
+            allowed_hosts = _prompt("ALLOWED_HOSTS (blank for auto)", args.allowed_hosts)
+        else:
+            wipe_docker = False
+            action = args.action
+            http_port = args.http_port
+            domain = args.domain
+            allowed_hosts = args.allowed_hosts
     else:
         include_sqlite = args.include_sqlite
         wipe_docker = args.wipe_docker
@@ -623,7 +632,6 @@ def main() -> int:
             if not args.keep_remote_temp:
                 _run(ssh, f"rm -f {shlex.quote(remote_image_tar)}", timeout=args.timeout)
 
-        deploy_after_build = args.deploy_after_build
         if args.prompt_before_deploy:
             deploy_after_build = _prompt_bool("Remote build completed. Deploy to VPS now?", False)
 
