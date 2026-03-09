@@ -785,6 +785,7 @@ def main() -> int:
     _info("SSH credentials validated")
 
     deploy_after_build = args.deploy_after_build
+    cleanup_build_only_after_download = False
     if args.host is None:
         include_sqlite = _prompt_bool("Include local SQLite database?", False)
         deploy_after_build = _prompt_bool("Deploy to VPS after remote build?", False)
@@ -899,15 +900,7 @@ def main() -> int:
             )
             _info(f"Created local runtime bundle: {runtime_bundle_path}")
             if (not deploy_after_build) and (not args.keep_remote_temp):
-                _info("Cleaning remote build-only artifacts")
-                _cleanup_remote_build_artifacts(
-                    ssh,
-                    tag=tag,
-                    remote_image_tar=remote_image_tar,
-                    remote_dir=remote_dir,
-                    target_dir=args.target_dir,
-                    timeout=args.timeout,
-                )
+                cleanup_build_only_after_download = True
             elif not args.keep_remote_temp:
                 _run(ssh, f"rm -f {shlex.quote(remote_image_tar)}", timeout=args.timeout)
 
@@ -958,9 +951,23 @@ def main() -> int:
             _info(f"Downloading build-only report: {local_report}")
             sftp = ssh.open_sftp()
             try:
-                sftp.get(build_report_path, str(local_report))
+                try:
+                    sftp.get(build_report_path, str(local_report))
+                except FileNotFoundError:
+                    _warn(f"Remote build report missing, skipped download: {build_report_path}")
             finally:
                 sftp.close()
+
+        if cleanup_build_only_after_download:
+            _info("Cleaning remote build-only artifacts")
+            _cleanup_remote_build_artifacts(
+                ssh,
+                tag=tag,
+                remote_image_tar=remote_image_tar,
+                remote_dir=remote_dir,
+                target_dir=args.target_dir,
+                timeout=args.timeout,
+            )
 
         print(out.strip())
         return 0
