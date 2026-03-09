@@ -39,7 +39,17 @@ $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $ProjectRoot
 
-Require-Command python
+$ProjectPython = Join-Path $ProjectRoot "agomsaaf\Scripts\python.exe"
+$PythonExe = $null
+
+if (Test-Path $ProjectPython) {
+    $PythonExe = $ProjectPython
+}
+else {
+    Require-Command python
+    $PythonExe = (Get-Command python).Source
+    Write-Warn "Project virtualenv python not found, falling back to: $PythonExe"
+}
 
 $pythonScript = Join-Path $PSScriptRoot "remote_build_deploy_vps.py"
 if (-not (Test-Path $pythonScript)) {
@@ -104,6 +114,6 @@ else {
     }
 }
 
-Write-Info ("Running remote build helper: python " + ($pyArgs -join " "))
-& python @pyArgs
+Write-Info ("Running remote build helper: " + $PythonExe + " " + ($pyArgs -join " "))
+& $PythonExe @pyArgs
 exit $LASTEXITCODE
