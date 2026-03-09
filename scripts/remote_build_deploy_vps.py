@@ -13,6 +13,7 @@ import io
 import json
 import os
 import posixpath
+import re
 import secrets
 import shlex
 import sys
@@ -277,6 +278,33 @@ docker compose down
 """
 
 
+def _redact_sensitive_text(text: str) -> str:
+    text = re.sub(r"(Authorization:\s*Token\s+)[A-Za-z0-9]+", r"\1<REDACTED_TOKEN>", text)
+    text = re.sub(r"(AGOMSAAF_API_TOKEN[\"']?\s*[:=]\s*[\"'])[A-Za-z0-9]+([\"'])", r"\1<REDACTED_TOKEN>\2", text)
+    text = re.sub(r"(token[\"']?\s*[:=]\s*[\"'])[A-Za-z0-9]{20,}([\"'])", r"\1<REDACTED_TOKEN>\2", text, flags=re.IGNORECASE)
+    text = re.sub(r"(API Token\**:\s*`?)[A-Za-z0-9]{20,}(`?)", r"\1<REDACTED_TOKEN>\2", text, flags=re.IGNORECASE)
+    return text
+
+
+def _add_runtime_docs(zf: zipfile.ZipFile, bundle_root_name: str, project_root: Path) -> None:
+    doc_paths = [
+        project_root / "docs" / "mcp" / "mcp-deployment.md",
+        project_root / "docs" / "mcp" / "mcp_guide.md",
+        project_root / "docs" / "development" / "startup-scripts.md",
+        project_root / "docs" / "deployment" / "DOCKER_DEPLOYMENT.md",
+    ]
+
+    for path in doc_paths:
+        if path.exists():
+            rel_name = path.relative_to(project_root).as_posix()
+            zf.writestr(f"{bundle_root_name}/{rel_name}", path.read_text(encoding="utf-8"))
+
+    skill_src = project_root / ".agents" / "skills" / "mcp-remote-agomsaaf" / "SKILL.md"
+    if skill_src.exists():
+        skill_text = _redact_sensitive_text(skill_src.read_text(encoding="utf-8"))
+        zf.writestr(f"{bundle_root_name}/skills/mcp-remote-agomsaaf/SKILL.redacted.md", skill_text)
+
+
 def _create_local_runtime_bundle(
     project_root: Path,
     dist_dir: Path,
@@ -307,6 +335,7 @@ def _create_local_runtime_bundle(
         zf.writestr(f"{bundle_root_name}/scripts/start-local.ps1", _local_start_ps1(image_filename, include_sqlite))
         zf.writestr(f"{bundle_root_name}/scripts/start-local.sh", _local_start_sh(image_filename, include_sqlite))
         zf.writestr(f"{bundle_root_name}/scripts/stop-local.ps1", _local_stop_ps1())
+        _add_runtime_docs(zf, bundle_root_name, project_root)
         zf.writestr(
             f"{bundle_root_name}/README.txt",
             "\n".join(
@@ -319,6 +348,8 @@ def _create_local_runtime_bundle(
                     "- .env.example",
                     "- Caddyfile",
                     "- start/stop scripts",
+                    "- selected MCP/deployment docs",
+                    "- redacted MCP skill reference",
                     "",
                     "What is not included:",
                     "- redis/caddy images (docker compose will pull them automatically)",
