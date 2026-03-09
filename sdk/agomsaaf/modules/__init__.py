@@ -23,6 +23,7 @@ from .filter import FilterModule
 from .fund import FundModule
 from .hedge import HedgeModule
 from .macro import MacroModule
+from .market_data import MarketDataModule
 from .policy import PolicyModule
 from .prompt import PromptModule
 from .realtime import RealtimeModule
@@ -66,4 +67,5 @@ __all__ = [
     "SentimentModule",
     "TaskMonitorModule",
     "FilterModule",
+    "MarketDataModule",
 ]

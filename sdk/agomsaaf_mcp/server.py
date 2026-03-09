@@ -20,6 +20,7 @@ from agomsaaf_mcp.tools.events_tools import register_events_tools
 from agomsaaf_mcp.tools.filter_tools import register_filter_tools
 from agomsaaf_mcp.tools.fund_tools import register_fund_tools
 from agomsaaf_mcp.tools.macro_tools import register_macro_tools
+from agomsaaf_mcp.tools.market_data_tools import register_market_data_tools
 from agomsaaf_mcp.tools.policy_tools import register_policy_tools
 from agomsaaf_mcp.tools.prompt_tools import register_prompt_tools
 from agomsaaf_mcp.tools.realtime_tools import register_realtime_tools
@@ -87,6 +88,9 @@ def register_all_tools() -> None:
 
     # Decision Workflow module
     register_decision_workflow_tools(server)
+
+    # Market Data 统一数据源模块
+    register_market_data_tools(server)
 
 
 def apply_tool_rbac_guards() -> None:

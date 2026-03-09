@@ -39,6 +39,7 @@ from .modules.filter import FilterModule
 from .modules.fund import FundModule
 from .modules.hedge import HedgeModule
 from .modules.macro import MacroModule
+from .modules.market_data import MarketDataModule
 from .modules.policy import PolicyModule
 from .modules.prompt import PromptModule
 from .modules.realtime import RealtimeModule
@@ -97,6 +98,7 @@ class AgomSAAFClient:
     _sentiment: Optional[SentimentModule] = None
     _task_monitor: Optional[TaskMonitorModule] = None
     _filter: Optional[FilterModule] = None
+    _market_data: Optional[MarketDataModule] = None
     _decision_workflow: Optional[DecisionWorkflowModule] = None
 
     def __init__(
@@ -557,6 +559,13 @@ class AgomSAAFClient:
         if self._filter is None:
             self._filter = FilterModule(self)
         return self._filter
+
+    @property
+    def market_data(self) -> MarketDataModule:
+        """市场数据统一接入层模块"""
+        if self._market_data is None:
+            self._market_data = MarketDataModule(self)
+        return self._market_data
 
     @property
     def decision_workflow(self) -> DecisionWorkflowModule:

@@ -137,6 +137,9 @@ INSTALLED_APPS = [
     'apps.rotation',       # 资产轮动模块（新增）
     'apps.hedge',          # 对冲组合模块（新增）
 
+    # ========== 新模块：统一数据源接入层 ==========
+    'apps.market_data',    # 市场数据统一接入层（新增）
+
     # ========== 新模块：任务监控 ==========
     'apps.task_monitor',   # 任务监控模块（新增）
 
@@ -703,3 +706,15 @@ QUERY_PROFILER_ENABLED = env.bool('QUERY_PROFILER_ENABLED', default=False)
 SLOW_QUERY_THRESHOLD_MS = env.int('SLOW_QUERY_THRESHOLD_MS', default=100)
 # 每个请求的查询数量阈值（超过则警告）
 QUERY_COUNT_WARNING_THRESHOLD = env.int('QUERY_COUNT_WARNING_THRESHOLD', default=50)
+
+# ========== Market Data 统一数据源配置 ==========
+# 东方财富 provider 开关
+MARKET_DATA_EASTMONEY_ENABLED = env.bool('MARKET_DATA_EASTMONEY_ENABLED', default=True)
+# 东方财富请求间隔（秒）
+MARKET_DATA_EASTMONEY_INTERVAL_SEC = env.float('MARKET_DATA_EASTMONEY_INTERVAL_SEC', default=0.5)
+# 东方财富 provider 优先级（数字越小越优先）
+MARKET_DATA_EASTMONEY_PRIORITY = env.int('MARKET_DATA_EASTMONEY_PRIORITY', default=10)
+# 是否保存原始 payload
+MARKET_DATA_ENABLE_RAW_PAYLOAD = env.bool('MARKET_DATA_ENABLE_RAW_PAYLOAD', default=True)
+# Fail open 模式（provider 失败时是否允许降级）
+MARKET_DATA_FAILOPEN = env.bool('MARKET_DATA_FAILOPEN', default=True)

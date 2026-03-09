@@ -5,6 +5,9 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/equity.css' %}">
+<style>
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
 {% endblock %}
 
 {% block extra_js %}
@@ -177,6 +180,45 @@
                 <div class="metric-value" id="dcfUpside">-</div>
             </div>
         </div>
+    </div>
+
+    <!-- 资金流向（来自 market_data 统一数据源） -->
+    <div class="card" id="capitalFlowCard">
+        <h2 class="card-title">资金流向 <span style="font-size: 12px; color: var(--color-text-muted); font-weight: normal;">（东方财富）</span></h2>
+        <div id="capitalFlowLoading" style="text-align: center; padding: 20px; color: var(--color-text-muted);">
+            <i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite;"></i> 加载中...
+        </div>
+        <div id="capitalFlowEmpty" style="display: none; text-align: center; padding: 20px; color: var(--color-text-muted);">
+            暂无资金流向数据
+        </div>
+        <div class="table-container" id="capitalFlowTable" style="display: none;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>主力净流入</th>
+                        <th>主力占比</th>
+                        <th>超大单</th>
+                        <th>大单</th>
+                        <th>中单</th>
+                        <th>小单</th>
+                    </tr>
+                </thead>
+                <tbody id="capitalFlowBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 个股新闻（来自 market_data 统一数据源） -->
+    <div class="card" id="stockNewsCard">
+        <h2 class="card-title">最新新闻 <span style="font-size: 12px; color: var(--color-text-muted); font-weight: normal;">（东方财富）</span></h2>
+        <div id="stockNewsLoading" style="text-align: center; padding: 20px; color: var(--color-text-muted);">
+            <i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite;"></i> 加载中...
+        </div>
+        <div id="stockNewsEmpty" style="display: none; text-align: center; padding: 20px; color: var(--color-text-muted);">
+            暂无新闻数据
+        </div>
+        <div id="stockNewsList" style="display: none;"></div>
     </div>
 
     <!-- Regime 相关性 -->
@@ -355,8 +397,103 @@ function formatMoney(value) {
     return value.toFixed(2);
 }
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function safeExternalUrl(url) {
+    if (!url) return '';
+    try {
+        const parsed = new URL(url, window.location.origin);
+        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+            return parsed.toString();
+        }
+    } catch (_) {
+    }
+    return '';
+}
+
+// ========== 资金流向 ==========
+async function loadCapitalFlow() {
+    const loading = document.getElementById('capitalFlowLoading');
+    const empty = document.getElementById('capitalFlowEmpty');
+    const table = document.getElementById('capitalFlowTable');
+    try {
+        const resp = await fetch(`/api/market-data/capital-flows/?code=${stockCode}&period=10d`);
+        const result = await resp.json();
+        loading.style.display = 'none';
+        if (!result.data || result.data.length === 0) {
+            empty.style.display = 'block';
+            return;
+        }
+        table.style.display = 'block';
+        const tbody = document.getElementById('capitalFlowBody');
+        tbody.innerHTML = result.data.map(row => {
+            const cls = v => v >= 0 ? 'text-green' : 'text-red';
+            const fmt = v => {
+                const n = parseFloat(v);
+                if (isNaN(n)) return '-';
+                return (n >= 0 ? '+' : '') + formatMoney(Math.abs(n));
+            };
+            return `<tr>
+                <td>${row.trade_date}</td>
+                <td class="${cls(row.main_net_inflow)}">${fmt(row.main_net_inflow)}</td>
+                <td class="${cls(row.main_net_ratio)}">${parseFloat(row.main_net_ratio).toFixed(2)}%</td>
+                <td class="${cls(row.super_large_net_inflow)}">${fmt(row.super_large_net_inflow)}</td>
+                <td class="${cls(row.large_net_inflow)}">${fmt(row.large_net_inflow)}</td>
+                <td class="${cls(row.medium_net_inflow)}">${fmt(row.medium_net_inflow)}</td>
+                <td class="${cls(row.small_net_inflow)}">${fmt(row.small_net_inflow)}</td>
+            </tr>`;
+        }).join('');
+    } catch (e) {
+        loading.style.display = 'none';
+        empty.style.display = 'block';
+        console.warn('加载资金流向失败:', e);
+    }
+}
+
+// ========== 个股新闻 ==========
+async function loadStockNews() {
+    const loading = document.getElementById('stockNewsLoading');
+    const empty = document.getElementById('stockNewsEmpty');
+    const list = document.getElementById('stockNewsList');
+    try {
+        const resp = await fetch(`/api/market-data/news/?code=${stockCode}&limit=10`);
+        const result = await resp.json();
+        loading.style.display = 'none';
+        if (!result.data || result.data.length === 0) {
+            empty.style.display = 'block';
+            return;
+        }
+        list.style.display = 'block';
+        list.innerHTML = result.data.map(item => {
+            const time = item.published_at ? new Date(item.published_at).toLocaleString('zh-CN') : '';
+            const safeTitle = escapeHtml(item.title);
+            const safeContent = escapeHtml(item.content || '');
+            const safeUrl = safeExternalUrl(item.url);
+            const link = safeUrl ? `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" style="color: var(--color-primary); margin-left: 8px; font-size: 12px;">原文</a>` : '';
+            return `<div style="padding: 12px 0; border-bottom: 1px solid var(--color-border);">
+                <div style="font-weight: 500; color: var(--color-text-primary);">${safeTitle}${link}</div>
+                <div style="font-size: 12px; color: var(--color-text-muted); margin-top: 4px;">${escapeHtml(time)}</div>
+                ${safeContent ? `<div style="font-size: 13px; color: var(--color-text-secondary); margin-top: 6px; line-height: 1.5;">${safeContent.substring(0, 200)}${safeContent.length > 200 ? '...' : ''}</div>` : ''}
+            </div>`;
+        }).join('');
+    } catch (e) {
+        loading.style.display = 'none';
+        empty.style.display = 'block';
+        console.warn('加载新闻失败:', e);
+    }
+}
+
 // 页面加载时执行
 loadStockDetail();
+loadCapitalFlow();
+loadStockNews();
 </script>
 
 <!-- Floating Widget Config -->

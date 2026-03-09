@@ -66,6 +66,7 @@ def api_root_view(request):
             'regime': '/api/regime/',
             'rotation': '/api/rotation/',
             'sector': '/api/sector/',
+            'market-data': '/api/market-data/',
             'sentiment': '/api/sentiment/',
             'signal': '/api/signal/',
             'signals': '/api/signals/',
@@ -201,6 +202,9 @@ module_patterns = [
     path('api/factor/', include(('apps.factor.interface.api_urls', 'api_factor'), namespace='api_factor')),
     path('api/rotation/', include(('apps.rotation.interface.api_urls', 'api_rotation'), namespace='api_rotation')),
     path('api/hedge/', include(('apps.hedge.interface.api_urls', 'api_hedge'), namespace='api_hedge')),
+    # Market Data 统一数据源接入层
+    path('market-data/', include(('apps.market_data.interface.urls', 'market_data'), namespace='market_data')),
+    path('api/market-data/', include(('apps.market_data.interface.api_urls', 'market_data'), namespace='api_market_data')),
     # Sentiment API routes (separate from page routes to avoid conflicts)
     path('api/sentiment/', include(('apps.sentiment.interface.api_urls', 'api_sentiment'), namespace='api_sentiment')),
     # Task Monitor

@@ -246,12 +246,27 @@ class PricePollingUseCase:
         # 初始化依赖
         self.price_repository = RedisRealtimePriceRepository()
 
-        # 创建数据提供者（AKShare 优先，因为它是免费的）
-        akshare_provider = AKSharePriceDataProvider()  # 主数据源（免费）
-        tushare_provider = TusharePriceDataProvider()     # 备用数据源
+        # 构建数据提供者链：统一 Market Data 层 → AKShare → Tushare
+        providers = []
+
+        try:
+            from apps.market_data.application.bridge_providers import (
+                MarketDataBridgePriceProvider,
+            )
+            from apps.market_data.application.registry_factory import get_registry
+
+            bridge = MarketDataBridgePriceProvider(get_registry())
+            if bridge.is_available():
+                providers.append(bridge)
+        except Exception:
+            pass  # market_data 模块不可用时跳过
+
+        akshare_provider = AKSharePriceDataProvider()
+        tushare_provider = TusharePriceDataProvider()
+        providers.extend([akshare_provider, tushare_provider])
 
         # 创建组合数据提供者（按顺序尝试）
-        self.price_provider = CompositePriceDataProvider([akshare_provider, tushare_provider])
+        self.price_provider = CompositePriceDataProvider(providers)
 
         self.watchlist_provider = DatabaseWatchlistProvider()
 

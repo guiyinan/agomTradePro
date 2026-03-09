@@ -105,6 +105,13 @@
 | [api/decision-workspace-v2.md](api/decision-workspace-v2.md) | **决策工作台 V2 API 草稿（统一推荐/参数）** | ✅ 2026-03-02 新增 |
 | [decision-workspace-v2-acceptance.md](testing/decision-workspace-v2-acceptance.md) | **决策工作台 V2 验收测试清单（功能/数据/测试/性能/回归）** | ✅ 2026-03-03 新增 |
 
+### 3.0 实施计划 (`plan/`)
+
+| 文档 | 说明 | 状态 |
+|------|------|------|
+| [qlib-local-upload-user-isolation.md](plan/qlib-local-upload-user-isolation.md) | Qlib 本地上传用户隔离方案 | 完整 |
+| [eastmoney-integration.md](plan/eastmoney-integration.md) | **东方财富数据源集成计划（资金流向/新闻情感/实时行情/技术指标）** | ✅ 2026-03-09 新增 |
+
 ### 3.1 开发技术专题 (`development/`)
 
 | 文档 | 说明 | 状态 |
@@ -259,13 +266,16 @@
 - `realtime` - 实时价格监控
 - `strategy` - 策略系统
 
+#### 数据接入模块 (1个)
+- `market_data` - 统一数据源接入层（东方财富/AKShare/Tushare 自动 failover + 交叉校验）（✅ 新增）
+
 #### 工具模块 (6个)
 - `ai_provider` - AI 服务商管理
 - `prompt` - AI Prompt 模板
 - `dashboard` - 仪表盘
 - `backtest` - 回测引擎
 - `events` - 事件系统
-- `task_monitor` - 定时任务监控（✅ 新增）
+- `task_monitor` - 定时任务监控
 
 ---
 

@@ -247,6 +247,53 @@ client.realtime.create_alert(asset_code, condition, threshold, message) -> dict
 client.realtime.delete_alert(alert_id) -> None
 ```
 
+## Market Data Module
+
+```python
+client.market_data.get_realtime_quotes(codes) -> list[dict]
+client.market_data.get_capital_flows(code, period) -> list[dict]
+client.market_data.sync_capital_flow(stock_code, period) -> dict
+client.market_data.get_stock_news(code, limit) -> list[dict]
+client.market_data.ingest_stock_news(stock_code, limit) -> dict
+client.market_data.get_provider_health() -> list[dict]
+client.market_data.cross_validate(codes) -> dict
+```
+
+### Quote Snapshot (dict)
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `stock_code` | `str` | Stock code (Tushare format) |
+| `price` | `str` | Current price |
+| `change` | `str \| None` | Price change |
+| `change_pct` | `float \| None` | Change percentage |
+| `volume` | `int \| None` | Volume |
+| `amount` | `str \| None` | Turnover amount |
+| `turnover_rate` | `float \| None` | Turnover rate |
+| `source` | `str` | Provider name (eastmoney/akshare_general/tushare) |
+
+### Provider Status (dict)
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `provider_name` | `str` | Provider name |
+| `capability` | `str` | realtime_quote/capital_flow/stock_news/technical_factors |
+| `is_healthy` | `bool` | Health status |
+| `consecutive_failures` | `int` | Consecutive failure count |
+| `avg_latency_ms` | `float \| None` | Average latency |
+
+### Cross Validation Result (dict)
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `quotes_count` | `int` | Quotes fetched from primary |
+| `validation` | `dict \| None` | Validation detail (null if only 1 provider) |
+| `validation.total_checked` | `int` | Stocks compared |
+| `validation.matches` | `int` | Matching count |
+| `validation.deviations` | `list` | 1-5% deviation list |
+| `validation.alerts` | `list` | >5% deviation alerts |
+| `validation.is_clean` | `bool` | True if no deviations |
+
 ## Exceptions
 
 | Exception | Description | HTTP Status |
