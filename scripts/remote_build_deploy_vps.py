@@ -513,7 +513,7 @@ def main() -> int:
     ap.add_argument("--download-report", action="store_true", default=True)
     ap.add_argument("--report-dir", default=os.environ.get("AGOM_VPS_REPORT_DIR", "dist/remote-build-reports"))
     ap.add_argument("--download-built-image", action="store_true", default=False)
-    ap.add_argument("--built-image-dir", default=os.environ.get("AGOM_VPS_IMAGE_DIR", "dist/remote-built-images"))
+    ap.add_argument("--built-image-dir", default=os.environ.get("AGOM_VPS_IMAGE_DIR", "dist"))
     ap.add_argument("--skip-deploy-after-build", action="store_false", dest="deploy_after_build", default=True)
     ap.add_argument("--prompt-before-deploy", action="store_true", default=False)
     ap.add_argument("--timeout", type=int, default=int(os.environ.get("AGOM_VPS_TIMEOUT", "1800")))
