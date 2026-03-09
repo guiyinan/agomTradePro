@@ -19,6 +19,7 @@ import sys
 import tarfile
 import tempfile
 import time
+import zipfile
 from pathlib import Path
 
 
@@ -156,6 +157,188 @@ def _make_source_bundle(
         if include_sqlite and sqlite_file is not None:
             db_arcname = posixpath.join(top_name, "backups", "db.sqlite3")
             tar.add(sqlite_file, arcname=db_arcname, recursive=False)
+
+
+def _render_local_env(env_example_text: str, image_tag: str) -> str:
+    lines: list[str] = []
+    for line in env_example_text.splitlines():
+        if line.startswith("WEB_IMAGE="):
+            lines.append(f"WEB_IMAGE={image_tag}")
+        elif line.startswith("ALLOWED_HOSTS="):
+            lines.append("ALLOWED_HOSTS=127.0.0.1,localhost")
+        elif line.startswith("CORS_ALLOWED_ORIGINS="):
+            lines.append("CORS_ALLOWED_ORIGINS=http://127.0.0.1:8000,http://localhost:8000")
+        elif line.startswith("CSRF_TRUSTED_ORIGINS="):
+            lines.append("CSRF_TRUSTED_ORIGINS=http://127.0.0.1:8000,http://localhost:8000")
+        elif line.startswith("ENABLE_RSSHUB="):
+            lines.append("ENABLE_RSSHUB=false")
+        elif line.startswith("ENABLE_CELERY="):
+            lines.append("ENABLE_CELERY=false")
+        else:
+            lines.append(line)
+    return "\n".join(lines) + "\n"
+
+
+def _render_local_caddy(template_text: str) -> str:
+    return template_text.replace("__SITE_ADDRESS__", ":80")
+
+
+def _local_start_ps1(image_filename: str, include_sqlite: bool) -> str:
+    sqlite_block = ""
+    if include_sqlite:
+        sqlite_block = r"""
+if (Test-Path ".\data\db.sqlite3") {
+    $webCid = docker compose ps -q web
+    if ($webCid) {
+        docker cp ".\data\db.sqlite3" "$webCid`:/app/data/db.sqlite3" | Out-Null
+        docker compose restart web | Out-Null
+    }
+}
+"""
+    return rf"""$ErrorActionPreference = 'Stop'
+Set-Location $PSScriptRoot\..
+$env:COMPOSE_PROJECT_NAME = 'agomsaaflocal'
+
+if (-not (Test-Path '.env')) {{
+    Copy-Item '.env.example' '.env'
+}}
+
+$envText = Get-Content '.env' -Raw
+if ($envText -match 'SECRET_KEY=change-this-to-a-strong-secret') {{
+    $secret = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([guid]::NewGuid().ToString() + [guid]::NewGuid().ToString()))
+    $envText = $envText -replace 'SECRET_KEY=change-this-to-a-strong-secret', ('SECRET_KEY=' + $secret)
+}}
+if ($envText -match 'AGOMSAAF_ENCRYPTION_KEY=$') {{
+    $bytes = New-Object byte[] 32
+    [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+    $key = [Convert]::ToBase64String($bytes).TrimEnd('=').Replace('+','-').Replace('/','_')
+    $envText = $envText -replace 'AGOMSAAF_ENCRYPTION_KEY=$', ('AGOMSAAF_ENCRYPTION_KEY=' + $key)
+}}
+Set-Content '.env' $envText -Encoding UTF8
+
+docker load -i ".\images\{image_filename}"
+docker compose up -d redis web caddy
+{sqlite_block}
+Write-Host 'Started: http://127.0.0.1:8000/' -ForegroundColor Green
+"""
+
+
+def _local_start_sh(image_filename: str, include_sqlite: bool) -> str:
+    sqlite_block = ""
+    if include_sqlite:
+        sqlite_block = f"""
+if [ -f ./data/db.sqlite3 ]; then
+  web_cid="$(docker compose ps -q web)"
+  if [ -n "$web_cid" ]; then
+    docker cp ./data/db.sqlite3 "$web_cid:/app/data/db.sqlite3"
+    docker compose restart web
+  fi
+fi
+"""
+    return f"""#!/usr/bin/env sh
+set -eu
+cd "$(dirname "$0")/.."
+export COMPOSE_PROJECT_NAME=agomsaaflocal
+
+if [ ! -f .env ]; then
+  cp .env.example .env
+fi
+
+if grep -q '^SECRET_KEY=change-this-to-a-strong-secret' .env; then
+  secret="$(python3 - <<'PY'
+import secrets
+print(secrets.token_urlsafe(50))
+PY
+)"
+  sed -i "s|^SECRET_KEY=.*|SECRET_KEY=$secret|" .env
+fi
+
+if grep -q '^AGOMSAAF_ENCRYPTION_KEY=$' .env; then
+  key="$(python3 - <<'PY'
+from cryptography.fernet import Fernet
+print(Fernet.generate_key().decode())
+PY
+)"
+  sed -i "s|^AGOMSAAF_ENCRYPTION_KEY=$|AGOMSAAF_ENCRYPTION_KEY=$key|" .env
+fi
+
+docker load -i "./images/{image_filename}"
+docker compose up -d redis web caddy
+{sqlite_block}
+echo "Started: http://127.0.0.1:8000/"
+"""
+
+
+def _local_stop_ps1() -> str:
+    return """$ErrorActionPreference = 'Stop'
+Set-Location $PSScriptRoot\\..
+$env:COMPOSE_PROJECT_NAME = 'agomsaaflocal'
+docker compose down
+"""
+
+
+def _create_local_runtime_bundle(
+    project_root: Path,
+    dist_dir: Path,
+    tag: str,
+    image_tag: str,
+    local_image_path: Path,
+    include_sqlite: bool,
+    sqlite_file: Path | None,
+) -> Path:
+    bundle_root_name = f"agomsaaf-local-runtime-{tag}"
+    bundle_zip_path = dist_dir / f"{bundle_root_name}.zip"
+    compose_src = project_root / "docker" / "docker-compose.vps.yml"
+    env_src = project_root / "deploy" / ".env.vps.example"
+    caddy_src = project_root / "docker" / "Caddyfile.template"
+
+    if not compose_src.exists() or not env_src.exists() or not caddy_src.exists():
+        _die("Missing local runtime bundle source files (compose/env/caddy template)")
+
+    env_text = _render_local_env(env_src.read_text(encoding="utf-8"), image_tag=image_tag)
+    caddy_text = _render_local_caddy(caddy_src.read_text(encoding="utf-8"))
+    image_filename = local_image_path.name
+
+    with zipfile.ZipFile(bundle_zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.write(local_image_path, arcname=f"{bundle_root_name}/images/{image_filename}")
+        zf.writestr(f"{bundle_root_name}/docker-compose.yml", compose_src.read_text(encoding="utf-8"))
+        zf.writestr(f"{bundle_root_name}/.env.example", env_text)
+        zf.writestr(f"{bundle_root_name}/Caddyfile", caddy_text)
+        zf.writestr(f"{bundle_root_name}/scripts/start-local.ps1", _local_start_ps1(image_filename, include_sqlite))
+        zf.writestr(f"{bundle_root_name}/scripts/start-local.sh", _local_start_sh(image_filename, include_sqlite))
+        zf.writestr(f"{bundle_root_name}/scripts/stop-local.ps1", _local_stop_ps1())
+        zf.writestr(
+            f"{bundle_root_name}/README.txt",
+            "\n".join(
+                [
+                    "AgomSAAF local runtime bundle",
+                    "",
+                    "What is included:",
+                    "- web image tar",
+                    "- docker-compose.yml",
+                    "- .env.example",
+                    "- Caddyfile",
+                    "- start/stop scripts",
+                    "",
+                    "What is not included:",
+                    "- redis/caddy images (docker compose will pull them automatically)",
+                    "- full source tree",
+                    "",
+                    "Quick start on another machine:",
+                    "1. unzip this bundle",
+                    "2. open the extracted folder",
+                    "3. run scripts/start-local.ps1",
+                    "",
+                    "Default URL:",
+                    "- http://127.0.0.1:8000/",
+                ]
+            )
+            + "\n",
+        )
+        if include_sqlite and sqlite_file is not None and sqlite_file.exists():
+            zf.write(sqlite_file, arcname=f"{bundle_root_name}/data/db.sqlite3")
+
+    return bundle_zip_path
 
 
 def _build_remote_build_script() -> str:
@@ -644,6 +827,16 @@ def main() -> int:
                 sftp.get(remote_image_tar, str(local_image_path))
             finally:
                 sftp.close()
+            runtime_bundle_path = _create_local_runtime_bundle(
+                project_root=project_root,
+                dist_dir=local_image_path.parent,
+                tag=tag,
+                image_tag=f"agomsaaf-web:{tag}",
+                local_image_path=local_image_path,
+                include_sqlite=include_sqlite,
+                sqlite_file=sqlite_file,
+            )
+            _info(f"Created local runtime bundle: {runtime_bundle_path}")
             if not args.keep_remote_temp:
                 _run(ssh, f"rm -f {shlex.quote(remote_image_tar)}", timeout=args.timeout)
 
