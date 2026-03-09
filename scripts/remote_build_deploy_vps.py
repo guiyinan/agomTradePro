@@ -87,6 +87,16 @@ def _run(ssh, cmd: str, timeout: int) -> tuple[int, str, str]:
     return stdout.channel.recv_exit_status(), out, err
 
 
+def _validate_ssh_credentials(host: str, port: int, username: str, password: str, timeout: int) -> None:
+    ssh = _ssh_connect(host=host, port=port, username=username, password=password, timeout=timeout)
+    try:
+        code, _out, err = _run(ssh, "true", timeout=timeout)
+        if code != 0:
+            _die(f"SSH login succeeded but remote shell check failed. Stderr={err.strip()}")
+    finally:
+        ssh.close()
+
+
 def _bool_env(value: bool) -> str:
     return "1" if value else "0"
 
@@ -511,6 +521,10 @@ def main() -> int:
         password = getpass.getpass("SSH password: ")
     if not password:
         _die("Empty password")
+
+    _info(f"Validating SSH credentials for {user}@{host}:{args.port}")
+    _validate_ssh_credentials(host=host, port=args.port, username=user, password=password, timeout=min(args.timeout, 30))
+    _info("SSH credentials validated")
 
     if args.host is None:
         include_sqlite = _prompt_bool("Include local SQLite database?", False)
