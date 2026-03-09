@@ -435,6 +435,36 @@ echo "REMOTE_IMAGE_TAR=$REMOTE_IMAGE_TAR"
 """
 
 
+def _cleanup_remote_build_artifacts(
+    ssh,
+    *,
+    tag: str,
+    remote_image_tar: str | None,
+    remote_dir: str,
+    target_dir: str,
+    timeout: int,
+) -> None:
+    cleanup_lines = [
+        "set -eu",
+    ]
+
+    if remote_image_tar:
+        cleanup_lines.append(f"rm -f {shlex.quote(remote_image_tar)} 2>/dev/null || true")
+
+    cleanup_lines.extend(
+        [
+            "rm -f /tmp/agomsaaf-build-report.json /tmp/agomsaaf-deploy-report.json /tmp/agomsaaf-health.json /tmp/agomsaaf-compose-ps.txt 2>/dev/null || true",
+            f"docker image rm -f {shlex.quote(f'agomsaaf-web:{tag}')} 2>/dev/null || true",
+            "dangling=$(docker images -f dangling=true -q 2>/dev/null || true)",
+            "if [ -n \"$dangling\" ]; then docker rmi -f $dangling 2>/dev/null || true; fi",
+            f"rmdir {shlex.quote(remote_dir)} 2>/dev/null || true",
+            f"if [ -d {shlex.quote(target_dir)} ] && [ -z \"$(find {shlex.quote(target_dir)} -mindepth 1 -maxdepth 1 2>/dev/null)\" ]; then rmdir {shlex.quote(target_dir)} 2>/dev/null || true; fi",
+        ]
+    )
+
+    _run(ssh, "bash -lc " + shlex.quote("\n".join(cleanup_lines)), timeout=timeout)
+
+
 def _build_remote_deploy_script() -> str:
     return r"""set -eu
 
@@ -837,7 +867,17 @@ def main() -> int:
                 sqlite_file=sqlite_file,
             )
             _info(f"Created local runtime bundle: {runtime_bundle_path}")
-            if not args.keep_remote_temp:
+            if (not deploy_after_build) and (not args.keep_remote_temp):
+                _info("Cleaning remote build-only artifacts")
+                _cleanup_remote_build_artifacts(
+                    ssh,
+                    tag=tag,
+                    remote_image_tar=remote_image_tar,
+                    remote_dir=remote_dir,
+                    target_dir=args.target_dir,
+                    timeout=args.timeout,
+                )
+            elif not args.keep_remote_temp:
                 _run(ssh, f"rm -f {shlex.quote(remote_image_tar)}", timeout=args.timeout)
 
         if args.prompt_before_deploy:

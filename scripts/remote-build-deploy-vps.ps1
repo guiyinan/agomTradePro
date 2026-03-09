@@ -34,6 +34,7 @@ param(
 # Notes:
 # - Interactive mode now asks whether to deploy after remote build.
 # - For build-only usage, answer "No" to that prompt or pass -SkipDeployAfterBuild.
+# - In build-only mode, after a successful download the script cleans remote image tar, build image, dangling images, and temp reports by default.
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
