@@ -782,7 +782,8 @@
 }
 
 /* ==================== 弹窗 ==================== */
-.modal {
+#templateModal,
+#chainModal {
     display: none;
     position: fixed;
     top: 0;
@@ -795,11 +796,13 @@
     justify-content: center;
 }
 
-.modal.active {
+#templateModal.active,
+#chainModal.active {
     display: flex;
 }
 
-.modal-content {
+#templateModal .modal-content,
+#chainModal .modal-content {
     background: white;
     border-radius: 8px;
     width: 90%;
@@ -808,11 +811,13 @@
     overflow-y: auto;
 }
 
-.modal-large {
+#templateModal .modal-large,
+#chainModal .modal-large {
     max-width: 700px;
 }
 
-.modal-header {
+#templateModal .modal-header,
+#chainModal .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -820,12 +825,14 @@
     border-bottom: 1px solid var(--color-border, #d0d7de);
 }
 
-.modal-header h3 {
+#templateModal .modal-header h3,
+#chainModal .modal-header h3 {
     font-size: 16px;
     font-weight: 600;
 }
 
-.modal-close {
+#templateModal .modal-close,
+#chainModal .modal-close {
     background: none;
     border: none;
     font-size: 24px;
@@ -833,7 +840,8 @@
     color: var(--color-text-muted);
 }
 
-.modal-body {
+#templateModal .modal-body,
+#chainModal .modal-body {
     padding: 20px;
 }
 

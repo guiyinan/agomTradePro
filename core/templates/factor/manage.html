@@ -141,13 +141,13 @@
     <div class="modal-content">
         <div class="modal-header">
             <h3 id="modalTitle">因子详情</h3>
-            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <button class="modal-close" onclick="closeFactorModal()">&times;</button>
         </div>
         <div class="modal-body" id="modalBody">
             <!-- Content loaded dynamically -->
         </div>
         <div class="modal-footer">
-            <button class="btn-modal secondary" onclick="closeModal()">关闭</button>
+            <button class="btn-modal secondary" onclick="closeFactorModal()">关闭</button>
         </div>
     </div>
 </div>
@@ -299,13 +299,13 @@ async function deleteFactor(id) {
     showToast('删除功能待实现', 'info');
 }
 
-function closeModal() {
+function closeFactorModal() {
     document.getElementById('factorModal').style.display = 'none';
 }
 
 // Close modal on outside click
 document.getElementById('factorModal').addEventListener('click', function(e) {
-    if (e.target === this) closeModal();
+    if (e.target === this) closeFactorModal();
 });
 </script>
 {% endblock %}

@@ -213,7 +213,7 @@
     <div class="modal-content">
         <div class="modal-header">
             <h3 id="modalTitle">入金</h3>
-            <button type="button" class="modal-close" onclick="closeModal()">&times;</button>
+            <button type="button" class="modal-close" onclick="closeFlowModal()">&times;</button>
         </div>
         <form id="flowForm" method="post" action="{% url 'account:capital_flow' %}">
             {% csrf_token %}
@@ -238,7 +238,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button type="button" class="btn btn-secondary" onclick="closeFlowModal()">取消</button>
                 <button type="submit" class="btn btn-primary">确认</button>
             </div>
         </form>
@@ -449,7 +449,7 @@
 .negative { color: #D33; }
 
 /* 弹窗 */
-.modal {
+#flowModal {
     position: fixed;
     top: 0;
     left: 0;
@@ -462,14 +462,14 @@
     z-index: 1000;
 }
 
-.modal-content {
+#flowModal .modal-content {
     background: #FFFFFF;
     border-radius: 8px;
     width: 400px;
     max-width: 90%;
 }
 
-.modal-header {
+#flowModal .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -477,13 +477,13 @@
     border-bottom: 1px solid #E0E0E0;
 }
 
-.modal-header h3 {
+#flowModal .modal-header h3 {
     font-size: 16px;
     font-weight: 600;
     margin: 0;
 }
 
-.modal-close {
+#flowModal .modal-close {
     background: none;
     border: none;
     font-size: 24px;
@@ -493,11 +493,11 @@
     height: 24px;
 }
 
-.modal-body {
+#flowModal .modal-body {
     padding: 16px;
 }
 
-.modal-footer {
+#flowModal .modal-footer {
     display: flex;
     gap: 12px;
     padding: 16px;
@@ -521,7 +521,7 @@ function showFlowModal(type) {
     document.getElementById('flowAmount').focus();
 }
 
-function closeModal() {
+function closeFlowModal() {
     document.getElementById('flowModal').style.display = 'none';
     document.getElementById('flowForm').reset();
 }
@@ -539,7 +539,7 @@ function copySelfToken() {
 // 点击弹窗外部关闭
 document.getElementById('flowModal').addEventListener('click', function(e) {
     if (e.target === this) {
-        closeModal();
+        closeFlowModal();
     }
 });
 

@@ -442,18 +442,18 @@ document.addEventListener('DOMContentLoaded', () => {
 function setupEventListeners() {
     // 添加按钮
     document.getElementById('btn-add-provider').addEventListener('click', () => {
-        openModal();
+        openProviderModal();
     });
 
     // 关闭模态窗口
-    document.querySelector('.ai-modal-close').addEventListener('click', closeModal);
-    document.getElementById('btn-cancel').addEventListener('click', closeModal);
+    document.querySelector('.ai-modal-close').addEventListener('click', closeProviderModal);
+    document.getElementById('btn-cancel').addEventListener('click', closeProviderModal);
     document.querySelector('.delete-modal-close').addEventListener('click', closeDeleteModal);
     document.getElementById('btn-delete-cancel').addEventListener('click', closeDeleteModal);
 
     // 点击外部关闭
     modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal();
+        if (e.target === modal) closeProviderModal();
     });
     deleteModal.addEventListener('click', (e) => {
         if (e.target === deleteModal) closeDeleteModal();
@@ -491,7 +491,7 @@ function renderProviders(providers) {
         providersContainer.innerHTML = `
             <div class="card" style="text-align: center; padding: 40px;">
                 <p style="color: var(--text-secondary);">暂无AI提供商配置</p>
-                <button onclick="openModal()" class="tag" style="display: inline-block; margin-top: 16px; background: var(--success-color); color: white; border: none; cursor: pointer;">+ 添加第一个配置</button>
+                <button onclick="openProviderModal()" class="tag" style="display: inline-block; margin-top: 16px; background: var(--success-color); color: white; border: none; cursor: pointer;">+ 添加第一个配置</button>
             </div>
         `;
         return;
@@ -597,7 +597,7 @@ async function loadOverallStats() {
 }
 
 // 打开模态窗口
-function openModal(provider = null) {
+function openProviderModal(provider = null) {
     currentEditId = provider ? provider.id : null;
 
     if (provider) {
@@ -625,7 +625,7 @@ function openModal(provider = null) {
 }
 
 // 关闭模态窗口
-function closeModal() {
+function closeProviderModal() {
     modal.classList.remove('show');
     currentEditId = null;
     form.reset();
@@ -704,7 +704,7 @@ async function handleSubmit(e) {
         });
 
         if (response.ok) {
-            closeModal();
+            closeProviderModal();
             loadProviders();
             loadOverallStats();
         } else {
@@ -725,7 +725,7 @@ async function editProvider(id) {
     try {
         const response = await fetch(`${API_BASE}${id}/`);
         const provider = await response.json();
-        openModal(provider);
+        openProviderModal(provider);
     } catch (error) {
         console.error('加载提供商详情失败:', error);
         alert('加载失败，请重试');

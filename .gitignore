@@ -91,3 +91,4 @@ celerybeat-schedule*
 .claude/settings.local.json
 /output
 docs/deployment/docker命令-远端.txt
+docs/docs.7z

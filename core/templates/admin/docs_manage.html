@@ -271,7 +271,7 @@
 }
 
 /* Import modal styles */
-.modal {
+#importModal {
     display: none;
     position: fixed;
     top: 0;
@@ -284,11 +284,11 @@
     justify-content: center;
 }
 
-.modal.active {
+#importModal.active {
     display: flex;
 }
 
-.modal-content {
+#importModal .modal-content {
     background: white;
     border-radius: 8px;
     padding: 24px;
@@ -296,19 +296,19 @@
     max-width: 500px;
 }
 
-.modal-header {
+#importModal .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 16px;
 }
 
-.modal-title {
+#importModal .modal-title {
     font-size: 18px;
     font-weight: 600;
 }
 
-.modal-close {
+#importModal .modal-close {
     background: none;
     border: none;
     font-size: 24px;
@@ -316,7 +316,7 @@
     color: #72777D;
 }
 
-.modal-body {
+#importModal .modal-body {
     margin-bottom: 16px;
 }
 

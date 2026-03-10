@@ -195,7 +195,7 @@
     <div class="modal-content large">
         <div class="modal-header">
             <h3 id="modalTitle">新建因子组合</h3>
-            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <button class="modal-close" onclick="closePortfolioModal()">&times;</button>
         </div>
         <div class="modal-body">
             <form id="portfolioForm">
@@ -297,7 +297,7 @@
 
                 <div class="form-actions">
                     <button type="submit" class="btn-modal primary">保存配置</button>
-                    <button type="button" class="btn-modal secondary" onclick="closeModal()">取消</button>
+                    <button type="button" class="btn-modal secondary" onclick="closePortfolioModal()">取消</button>
                 </div>
             </form>
         </div>
@@ -420,7 +420,7 @@ async function deletePortfolio(id) {
     }
 }
 
-function closeModal() {
+function closePortfolioModal() {
     document.getElementById('portfolioModal').style.display = 'none';
 }
 
@@ -451,7 +451,7 @@ document.getElementById('portfolioForm').addEventListener('submit', async functi
 
         if (data.success) {
             showToast(data.message, 'success');
-            closeModal();
+            closePortfolioModal();
             location.reload();
         } else {
             showToast('创建失败: ' + data.error, 'error');
@@ -463,7 +463,7 @@ document.getElementById('portfolioForm').addEventListener('submit', async functi
 
 // Close modal on outside click
 document.getElementById('portfolioModal').addEventListener('click', function(e) {
-    if (e.target === this) closeModal();
+    if (e.target === this) closePortfolioModal();
 });
 </script>
 {% endblock %}

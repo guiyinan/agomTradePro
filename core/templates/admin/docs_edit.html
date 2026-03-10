@@ -369,7 +369,7 @@
 </div>
 
 <style>
-.modal {
+#previewModal {
     display: none;
     position: fixed;
     top: 0;
@@ -382,30 +382,30 @@
     justify-content: center;
 }
 
-.modal.active {
+#previewModal.active {
     display: flex;
 }
 
-.modal-content {
+#previewModal .modal-content {
     background: white;
     border-radius: 8px;
     padding: 24px;
     width: 90%;
 }
 
-.modal-header {
+#previewModal .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 16px;
 }
 
-.modal-title {
+#previewModal .modal-title {
     font-size: 18px;
     font-weight: 600;
 }
 
-.modal-close {
+#previewModal .modal-close {
     background: none;
     border: none;
     font-size: 24px;
@@ -413,7 +413,7 @@
     color: #72777D;
 }
 
-.modal-body {
+#previewModal .modal-body {
     line-height: 1.7;
 }
 

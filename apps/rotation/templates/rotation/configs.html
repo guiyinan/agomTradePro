@@ -169,7 +169,7 @@
     <div class="modal-content">
         <div class="modal-header">
             <h3 id="modalTitle">新建策略配置</h3>
-            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <button class="modal-close" onclick="closeConfigModal()">&times;</button>
         </div>
         <form id="configForm" class="modal-body">
             <input type="hidden" name="config_id" id="configId">
@@ -236,7 +236,7 @@
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeModal()">取消</button>
+                <button type="button" class="btn-secondary" onclick="closeConfigModal()">取消</button>
                 <button type="submit" class="btn-primary">保存配置</button>
             </div>
         </form>
@@ -322,7 +322,7 @@ function showCreateConfigModal() {
 }
 
 // Close modal
-function closeModal() {
+function closeConfigModal() {
     document.getElementById('configModal').style.display = 'none';
 }
 
@@ -365,7 +365,7 @@ document.getElementById('configForm').addEventListener('submit', async function(
 
         if (res.ok) {
             showToast(configId ? '配置已更新' : '配置已创建', 'success');
-            closeModal();
+            closeConfigModal();
             location.reload();
         } else {
             const err = await res.json();
@@ -380,7 +380,7 @@ document.getElementById('configForm').addEventListener('submit', async function(
 window.addEventListener('click', function(e) {
     const modal = document.getElementById('configModal');
     if (e.target === modal) {
-        closeModal();
+        closeConfigModal();
     }
 });
 </script>
@@ -469,7 +469,7 @@ window.addEventListener('click', function(e) {
 
 .btn-accent:hover { background: #6d28d9; }
 
-.modal {
+#configModal {
     position: fixed;
     top: 0;
     left: 0;
@@ -482,7 +482,7 @@ window.addEventListener('click', function(e) {
     z-index: 1000;
 }
 
-.modal-content {
+#configModal .modal-content {
     background: white;
     border-radius: 12px;
     width: 90%;
@@ -491,7 +491,7 @@ window.addEventListener('click', function(e) {
     overflow-y: auto;
 }
 
-.modal-header {
+#configModal .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -499,18 +499,18 @@ window.addEventListener('click', function(e) {
     border-bottom: 1px solid #e5e7eb;
 }
 
-.modal-close {
+#configModal .modal-close {
     background: none;
     border: none;
     font-size: 24px;
     cursor: pointer;
 }
 
-.modal-body {
+#configModal .modal-body {
     padding: 20px;
 }
 
-.modal-footer {
+#configModal .modal-footer {
     display: flex;
     justify-content: flex-end;
     gap: 12px;

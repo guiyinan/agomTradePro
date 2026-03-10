@@ -154,11 +154,11 @@
 
 <!-- 新增/编辑弹窗 -->
 <div class="modal" id="record-modal">
-    <div class="modal-overlay" onclick="closeModal()"></div>
+    <div class="modal-overlay" onclick="closeRecordModal()"></div>
     <div class="modal-content">
         <div class="modal-header">
             <h3 id="modal-title">新增数据</h3>
-            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <button class="modal-close" onclick="closeRecordModal()">&times;</button>
         </div>
         <div class="modal-body">
             <form id="record-form" onsubmit="saveRecord(event)">
@@ -235,7 +235,7 @@
 
                 <div class="form-actions">
                     <button type="submit" class="btn-primary">保存</button>
-                    <button type="button" class="btn-secondary" onclick="closeModal()">取消</button>
+                    <button type="button" class="btn-secondary" onclick="closeRecordModal()">取消</button>
                 </div>
             </form>
         </div>
@@ -739,18 +739,22 @@
     font-size: 14px;
 }
 
-/* 弹窗 */
-.modal {
+/* 弹窗 — 用 #record-modal / #fetch-modal 提升优先级，避免被 components.css 的
+   全局 .modal 样式覆盖（全局用 .show，本页用 .active，两套冲突） */
+#record-modal,
+#fetch-modal {
     display: none;
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 1000;
+    z-index: 2100;
+    background: none;
 }
 
-.modal.active {
+#record-modal.active,
+#fetch-modal.active {
     display: block;
 }
 
@@ -761,6 +765,7 @@
     right: 0;
     bottom: 0;
     background: rgba(0, 0, 0, 0.5);
+    z-index: 0;
 }
 
 .modal-content {
@@ -771,6 +776,7 @@
     background: white;
     border-radius: 12px;
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+    z-index: 1;
 }
 
 .modal-header {
@@ -1352,7 +1358,7 @@ async function openEditModal(id) {
 }
 
 // 关闭弹窗
-function closeModal() {
+function closeRecordModal() {
     document.getElementById('record-modal').classList.remove('active');
 }
 
@@ -1394,7 +1400,7 @@ async function saveRecord(event) {
         const result = await response.json();
 
         if (result.success) {
-            closeModal();
+            closeRecordModal();
             loadData();
         } else {
             alert('保存失败: ' + result.message);

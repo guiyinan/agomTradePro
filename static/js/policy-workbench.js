@@ -319,7 +319,7 @@ async function rejectEvent(eventId) {
         });
         const data = await response.json();
         if (data.success) {
-            closeModal();
+            closeReviewModal();
             loadEvents();
             loadSummary();
         } else {
@@ -362,7 +362,7 @@ async function rollbackEvent(eventId) {
         });
         const data = await response.json();
         if (data.success) {
-            closeModal();
+            closeReviewModal();
             loadEvents();
             loadSummary();
         } else {
@@ -488,14 +488,14 @@ async function executeBatchReject() {
         });
     }
 
-    closeModal();
+    closeReviewModal();
     selectedIds.clear();
     loadEvents();
     loadSummary();
 }
 
 // 工具函数
-function closeModal() {
+function closeReviewModal() {
     document.getElementById('review-modal').classList.remove('active');
 }
 
