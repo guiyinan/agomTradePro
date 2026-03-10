@@ -317,7 +317,8 @@
 }
 
 /* Modal 样式 */
-.modal {
+#agreementModal,
+#riskModal {
     display: none;
     position: fixed;
     z-index: 1000;
@@ -328,7 +329,8 @@
     background-color: rgba(0, 0, 0, 0.75);
 }
 
-.modal-content {
+#agreementModal .modal-content,
+#riskModal .modal-content {
     background-color: var(--color-bg);
     margin: 2% auto;
     border-radius: var(--radius-md);
@@ -339,11 +341,13 @@
     flex-direction: column;
 }
 
-.modal-large {
+#agreementModal .modal-large,
+#riskModal .modal-large {
     max-width: 800px;
 }
 
-.modal-header {
+#agreementModal .modal-header,
+#riskModal .modal-header {
     padding: 20px;
     border-bottom: 1px solid var(--color-border);
     display: flex;
@@ -351,60 +355,71 @@
     align-items: center;
 }
 
-.modal-header h2 {
+#agreementModal .modal-header h2,
+#riskModal .modal-header h2 {
     margin: 0;
     font-size: 20px;
 }
 
-.close {
+#agreementModal .close,
+#riskModal .close {
     font-size: 28px;
     font-weight: bold;
     color: var(--color-text-secondary);
     cursor: pointer;
 }
 
-.close:hover {
+#agreementModal .close:hover,
+#riskModal .close:hover {
     color: var(--color-text-primary);
 }
 
-.modal-body {
+#agreementModal .modal-body,
+#riskModal .modal-body {
     padding: 20px;
     overflow-y: auto;
     flex: 1;
 }
 
-.modal-body h2 {
+#agreementModal .modal-body h2,
+#riskModal .modal-body h2 {
     font-size: 18px;
     margin-top: 20px;
     margin-bottom: 10px;
 }
 
-.modal-body h3 {
+#agreementModal .modal-body h3,
+#riskModal .modal-body h3 {
     font-size: 16px;
     margin-top: 16px;
     margin-bottom: 8px;
 }
 
-.modal-body p {
+#agreementModal .modal-body p,
+#riskModal .modal-body p {
     line-height: 1.6;
     margin-bottom: 10px;
 }
 
-.modal-body ul {
+#agreementModal .modal-body ul,
+#riskModal .modal-body ul {
     margin-left: 20px;
     margin-bottom: 10px;
 }
 
-.modal-body li {
+#agreementModal .modal-body li,
+#riskModal .modal-body li {
     margin-bottom: 6px;
     line-height: 1.6;
 }
 
-.modal-body strong {
+#agreementModal .modal-body strong,
+#riskModal .modal-body strong {
     font-weight: 600;
 }
 
-.modal-footer {
+#agreementModal .modal-footer,
+#riskModal .modal-footer {
     padding: 20px;
     border-top: 1px solid var(--color-border);
     display: flex;

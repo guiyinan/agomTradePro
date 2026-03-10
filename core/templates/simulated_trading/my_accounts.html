@@ -476,7 +476,8 @@
 }
 
 /* 弹窗样式 */
-.modal {
+#createModal,
+#bindStrategyModal {
     display: none;
     position: fixed;
     z-index: 1000;
@@ -488,7 +489,8 @@
     background-color: rgba(0, 0, 0, 0.5);
 }
 
-.modal-content {
+#createModal .modal-content,
+#bindStrategyModal .modal-content {
     background-color: #fefefe;
     margin: 10% auto;
     padding: 0;
@@ -499,7 +501,8 @@
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
-.modal-header {
+#createModal .modal-header,
+#bindStrategyModal .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -507,20 +510,23 @@
     border-bottom: 1px solid #e0e0e0;
 }
 
-.modal-header h2 {
+#createModal .modal-header h2,
+#bindStrategyModal .modal-header h2 {
     margin: 0;
     font-size: 18px;
     font-weight: 600;
 }
 
-.close {
+#createModal .close,
+#bindStrategyModal .close {
     color: #aaa;
     font-size: 28px;
     font-weight: bold;
     cursor: pointer;
 }
 
-.close:hover {
+#createModal .close:hover,
+#bindStrategyModal .close:hover {
     color: #000;
 }
 
@@ -576,7 +582,8 @@
     background: #e0e0e0;
 }
 
-.modal-footer {
+#createModal .modal-footer,
+#bindStrategyModal .modal-footer {
     display: flex;
     justify-content: flex-end;
     gap: 12px;
@@ -585,7 +592,7 @@
 }
 
 /* 策略绑定相关样式 */
-.modal-body {
+#bindStrategyModal .modal-body {
     padding: 16px 24px;
     max-height: 400px;
     overflow-y: auto;

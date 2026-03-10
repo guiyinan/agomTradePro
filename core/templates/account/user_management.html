@@ -439,7 +439,7 @@
 }
 
 /* Modal 样式 */
-.modal {
+#rejectModal {
     display: none;
     position: fixed;
     z-index: 1000;
@@ -450,7 +450,7 @@
     background-color: rgba(0, 0, 0, 0.5);
 }
 
-.modal-content {
+#rejectModal .modal-content {
     background-color: var(--color-bg);
     margin: 10% auto;
     border-radius: var(--radius-md);
@@ -458,7 +458,7 @@
     max-width: 500px;
 }
 
-.modal-header {
+#rejectModal .modal-header {
     padding: 16px 20px;
     border-bottom: 1px solid var(--color-border);
     display: flex;
@@ -466,27 +466,27 @@
     align-items: center;
 }
 
-.modal-header h2 {
+#rejectModal .modal-header h2 {
     margin: 0;
     font-size: 18px;
 }
 
-.close {
+#rejectModal .close {
     font-size: 24px;
     font-weight: bold;
     color: var(--color-text-secondary);
     cursor: pointer;
 }
 
-.close:hover {
+#rejectModal .close:hover {
     color: var(--color-text-primary);
 }
 
-.modal-body {
+#rejectModal .modal-body {
     padding: 20px;
 }
 
-.modal-footer {
+#rejectModal .modal-footer {
     padding: 16px 20px;
     border-top: 1px solid var(--color-border);
     display: flex;

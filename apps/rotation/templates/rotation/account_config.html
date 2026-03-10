@@ -334,11 +334,11 @@ window.addEventListener('click', event => {
 .btn-primary, .btn-primary-sm { background: #2563eb; color: #fff; }
 .btn-secondary, .btn-secondary-sm { background: #e5e7eb; color: #374151; }
 .btn-template { padding: 8px 14px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
-.modal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); align-items: center; justify-content: center; z-index: 1000; }
-.modal-content { background: #fff; border-radius: 16px; width: min(960px, 92vw); max-height: 92vh; overflow: auto; }
-.modal-header, .modal-footer { padding: 20px; border-bottom: 1px solid #e5e7eb; }
-.modal-footer { border-top: 1px solid #e5e7eb; border-bottom: none; display: flex; justify-content: flex-end; gap: 12px; }
-.modal-close { background: none; border: none; font-size: 28px; cursor: pointer; }
+#accountConfigModal { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); align-items: center; justify-content: center; z-index: 1000; }
+#accountConfigModal .modal-content { background: #fff; border-radius: 16px; width: min(960px, 92vw); max-height: 92vh; overflow: auto; }
+#accountConfigModal .modal-header, #accountConfigModal .modal-footer { padding: 20px; border-bottom: 1px solid #e5e7eb; }
+#accountConfigModal .modal-footer { border-top: 1px solid #e5e7eb; border-bottom: none; display: flex; justify-content: flex-end; gap: 12px; }
+#accountConfigModal .modal-close { background: none; border: none; font-size: 28px; cursor: pointer; }
 .modal-tabs { display: flex; gap: 8px; padding: 0 20px; border-bottom: 1px solid #e5e7eb; }
 .tab-btn { background: none; border: none; padding: 14px 8px; color: #6b7280; border-bottom: 2px solid transparent; cursor: pointer; }
 .tab-btn.active { color: #2563eb; border-bottom-color: #2563eb; }
@@ -353,7 +353,7 @@ window.addEventListener('click', event => {
 @media (max-width: 640px) {
     .account-card-header { flex-direction: column; }
     .badges { align-items: flex-start; }
-    .modal-content { width: 96vw; }
+    #accountConfigModal .modal-content { width: 96vw; }
 }
 </style>
 {% endblock %}

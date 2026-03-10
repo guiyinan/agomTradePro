@@ -190,35 +190,35 @@
                     添加证伪条件
                 </div>
                 <div class="condition-types">
-                    <div class="condition-type-btn" onclick="openModal('threshold')">
+                    <div class="condition-type-btn" onclick="openConditionModal('threshold')">
                         <i class="bi bi-sliders"></i>
                         <span>阈值穿越</span>
                     </div>
-                    <div class="condition-type-btn" onclick="openModal('trend')">
+                    <div class="condition-type-btn" onclick="openConditionModal('trend')">
                         <i class="bi bi-graph-up-arrow"></i>
                         <span>趋势变化</span>
                     </div>
-                    <div class="condition-type-btn" onclick="openModal('regime')">
+                    <div class="condition-type-btn" onclick="openConditionModal('regime')">
                         <i class="bi bi-diagram-3"></i>
                         <span>Regime 匹配</span>
                     </div>
-                    <div class="condition-type-btn" onclick="openModal('time')">
+                    <div class="condition-type-btn" onclick="openConditionModal('time')">
                         <i class="bi bi-clock"></i>
                         <span>时间衰减</span>
                     </div>
-                    <div class="condition-type-btn" onclick="openModal('policy')">
+                    <div class="condition-type-btn" onclick="openConditionModal('policy')">
                         <i class="bi bi-gear"></i>
                         <span>Policy 变化</span>
                     </div>
-                    <div class="condition-type-btn" onclick="openModal('price')">
+                    <div class="condition-type-btn" onclick="openConditionModal('price')">
                         <i class="bi bi-currency-dollar"></i>
                         <span>价格变动</span>
                     </div>
-                    <div class="condition-type-btn" onclick="openModal('volume')">
+                    <div class="condition-type-btn" onclick="openConditionModal('volume')">
                         <i class="bi bi-bar-chart"></i>
                         <span>成交量异动</span>
                     </div>
-                    <div class="condition-type-btn" onclick="openModal('custom')">
+                    <div class="condition-type-btn" onclick="openConditionModal('custom')">
                         <i class="bi bi-code-slash"></i>
                         <span>自定义 JSON</span>
                     </div>
@@ -331,7 +331,7 @@
     <div class="modal-content">
         <div class="modal-header">
             <h3>添加阈值穿越条件</h3>
-            <button class="btn-close" onclick="closeModal('threshold')">&times;</button>
+            <button class="btn-close" onclick="closeConditionModal('threshold')">&times;</button>
         </div>
         <div class="form-group">
             <label class="form-label">指标</label>
@@ -371,7 +371,7 @@
     <div class="modal-content">
         <div class="modal-header">
             <h3>添加 Regime 匹配条件</h3>
-            <button class="btn-close" onclick="closeModal('regime')">&times;</button>
+            <button class="btn-close" onclick="closeConditionModal('regime')">&times;</button>
         </div>
         <div class="form-group">
             <label class="form-label">Regime 象限</label>
@@ -400,7 +400,7 @@
     <div class="modal-content">
         <div class="modal-header">
             <h3>添加时间衰减条件</h3>
-            <button class="btn-close" onclick="closeModal('time')">&times;</button>
+            <button class="btn-close" onclick="closeConditionModal('time')">&times;</button>
         </div>
         <div class="form-group">
             <label class="form-label">最大持仓天数</label>
@@ -421,7 +421,7 @@
     <div class="modal-content">
         <div class="modal-header">
             <h3>添加 Policy 变化条件</h3>
-            <button class="btn-close" onclick="closeModal('policy')">&times;</button>
+            <button class="btn-close" onclick="closeConditionModal('policy')">&times;</button>
         </div>
         <div class="form-group">
             <label class="form-label">触发条件</label>
@@ -453,7 +453,7 @@
     <div class="modal-content">
         <div class="modal-header">
             <h3>添加价格变动条件</h3>
-            <button class="btn-close" onclick="closeModal('price')">&times;</button>
+            <button class="btn-close" onclick="closeConditionModal('price')">&times;</button>
         </div>
         <div class="form-group">
             <label class="form-label">变动类型</label>
@@ -478,7 +478,7 @@
     <div class="modal-content">
         <div class="modal-header">
             <h3>添加自定义 JSON 条件</h3>
-            <button class="btn-close" onclick="closeModal('custom')">&times;</button>
+            <button class="btn-close" onclick="closeConditionModal('custom')">&times;</button>
         </div>
         <div class="form-group">
             <label class="form-label">条件名称</label>
@@ -577,7 +577,7 @@ function loadTemplate(templateKey) {
 }
 
 // 打开模态框
-function openModal(type) {
+function openConditionModal(type) {
     const modal = document.getElementById(`modal${type.charAt(0).toUpperCase() + type.slice(1)}`);
     if (modal) {
         modal.classList.add('show');
@@ -585,7 +585,7 @@ function openModal(type) {
 }
 
 // 关闭模态框
-function closeModal(type) {
+function closeConditionModal(type) {
     const modal = document.getElementById(`modal${type.charAt(0).toUpperCase() + type.slice(1)}`);
     if (modal) {
         modal.classList.remove('show');
@@ -611,7 +611,7 @@ function addThresholdRule() {
         config: { indicator, operator, threshold, consecutive }
     });
 
-    closeModal('threshold');
+    closeConditionModal('threshold');
     renderRules();
     updatePreview();
 }
@@ -628,7 +628,7 @@ function addRegimeRule() {
         config: { regime: value, mode }
     });
 
-    closeModal('regime');
+    closeConditionModal('regime');
     renderRules();
     updatePreview();
 }
@@ -650,7 +650,7 @@ function addTimeRule() {
         config: { max_days: maxDays, warning_days: warningDays }
     });
 
-    closeModal('time');
+    closeConditionModal('time');
     renderRules();
     updatePreview();
 }
@@ -667,7 +667,7 @@ function addPolicyRule() {
         config: { condition, level }
     });
 
-    closeModal('policy');
+    closeConditionModal('policy');
     renderRules();
     updatePreview();
 }
@@ -689,7 +689,7 @@ function addPriceRule() {
         config: { change_type: changeType, threshold }
     });
 
-    closeModal('price');
+    closeConditionModal('price');
     renderRules();
     updatePreview();
 }
@@ -719,7 +719,7 @@ function addCustomRule() {
         config
     });
 
-    closeModal('custom');
+    closeConditionModal('custom');
     renderRules();
     updatePreview();
 }
