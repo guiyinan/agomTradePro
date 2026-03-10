@@ -55,6 +55,49 @@ def _regime_context() -> Dict[str, Any]:
         }
 
 
+def _build_valuation_repair_map(security_codes: list[str]) -> Dict[str, Dict[str, Any]]:
+    """批量查询估值修复快照，供决策工作台展示辅助信息。"""
+    codes = [(code or "").upper() for code in security_codes if code]
+    if not codes:
+        return {}
+
+    try:
+        from apps.equity.infrastructure.models import ValuationRepairTrackingModel
+
+        records = ValuationRepairTrackingModel._default_manager.filter(
+            stock_code__in=codes,
+            is_active=True,
+        ).values(
+            "stock_code",
+            "current_phase",
+            "signal",
+            "composite_percentile",
+            "repair_progress",
+            "repair_speed_per_30d",
+            "estimated_days_to_target",
+            "confidence",
+            "as_of_date",
+            "is_stalled",
+        )
+        return {
+            str(row["stock_code"]).upper(): {
+                "phase": row.get("current_phase"),
+                "signal": row.get("signal"),
+                "composite_percentile": row.get("composite_percentile"),
+                "repair_progress": row.get("repair_progress"),
+                "repair_speed_per_30d": row.get("repair_speed_per_30d"),
+                "estimated_days_to_target": row.get("estimated_days_to_target"),
+                "confidence": row.get("confidence"),
+                "is_stalled": row.get("is_stalled"),
+                "as_of_date": row["as_of_date"].isoformat() if row.get("as_of_date") else None,
+            }
+            for row in records
+        }
+    except Exception as exc:
+        logger.warning(f"Failed to build valuation repair map for decision workspace: {exc}")
+        return {}
+
+
 def _risk_checks(recommendation, market_price: Optional[Decimal]) -> Dict[str, Any]:
     result: Dict[str, Any] = {}
 
@@ -630,6 +673,7 @@ class UnifiedRecommendationsView(APIView):
             )
 
         status_filter = request.query_params.get("status")
+        recommendation_id = request.query_params.get("recommendation_id")
         try:
             page = int(request.query_params.get("page", 1))
             page_size = int(request.query_params.get("page_size", 20))
@@ -657,6 +701,9 @@ class UnifiedRecommendationsView(APIView):
             if status_filter:
                 queryset = queryset.filter(status=status_filter)
 
+            if recommendation_id:
+                queryset = queryset.filter(recommendation_id=recommendation_id)
+
             # 排序
             queryset = queryset.order_by("-composite_score", "-created_at")
 
@@ -665,6 +712,7 @@ class UnifiedRecommendationsView(APIView):
             start = (page - 1) * page_size
             end = start + page_size
             models = queryset[start:end]
+            valuation_repair_map = _build_valuation_repair_map([model.security_code for model in models])
 
             # 转换为 DTO
             recommendations = []
@@ -699,6 +747,7 @@ class UnifiedRecommendationsView(APIView):
                     source_signal_ids=model.source_signal_ids or [],
                     source_candidate_ids=model.source_candidate_ids or [],
                     feature_snapshot_id=model.feature_snapshot.snapshot_id if model.feature_snapshot else "",
+                    valuation_repair=valuation_repair_map.get((model.security_code or "").upper()),
                     status=model.status,
                     created_at=model.created_at,
                     updated_at=model.updated_at,

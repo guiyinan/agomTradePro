@@ -136,6 +136,115 @@
     opacity: 1;
 }
 
+.rec-valuation-repair {
+    margin-top: var(--spacing-sm);
+}
+
+.repair-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: #f8fafc;
+}
+
+.repair-summary.empty {
+    color: var(--color-text-muted);
+}
+
+.repair-summary-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+}
+
+.repair-summary-title {
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-semibold);
+}
+
+.repair-summary-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.repair-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.repair-chip.phase {
+    background: #e8f0ff;
+    color: #1d4ed8;
+}
+
+.repair-chip.signal {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.repair-chip.stalled {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.repair-summary-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+.valuation-repair-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.valuation-repair-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.valuation-repair-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: #f8fafc;
+}
+
+.valuation-repair-label {
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+.valuation-repair-value {
+    font-size: 14px;
+    font-weight: var(--font-weight-semibold);
+}
+
+.valuation-repair-note {
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    background: #fff7ed;
+    color: #9a3412;
+    font-size: 13px;
+}
+
 /* 模块概览 */
 .modules-overview {
     display: grid;
@@ -560,6 +669,15 @@
 
     .review-modal .form-row {
         grid-template-columns: 1fr;
+    }
+
+    .valuation-repair-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .repair-summary-header {
+        flex-direction: column;
+        align-items: flex-start;
     }
 }
 

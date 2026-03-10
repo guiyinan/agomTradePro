@@ -12,6 +12,7 @@ from apps.decision_rhythm.infrastructure.models import (
     UnifiedRecommendationModel,
     DecisionModelParamConfigModel,
 )
+from apps.equity.infrastructure.models import ValuationRepairTrackingModel
 
 
 @pytest.fixture
@@ -68,6 +69,68 @@ class TestUnifiedRecommendationsAPI:
         assert data["success"] is True
         assert data["data"]["total_count"] == 1
         assert len(data["data"]["recommendations"]) == 1
+
+    def test_recommendations_list_includes_valuation_repair_summary(self, authenticated_client):
+        """测试推荐列表返回估值修复摘要"""
+        UnifiedRecommendationModel.objects.create(
+            recommendation_id="urec_valuation_001",
+            account_id="account_001",
+            security_code="000001.SZ",
+            side="BUY",
+            composite_score=0.8,
+            confidence=0.85,
+        )
+        ValuationRepairTrackingModel.objects.create(
+            stock_code="000001.SZ",
+            stock_name="平安银行",
+            as_of_date="2026-03-10",
+            current_phase="repairing",
+            signal="in_progress",
+            composite_percentile=0.22,
+            pe_percentile=0.18,
+            pb_percentile=0.26,
+            repair_progress=0.31,
+            repair_speed_per_30d=0.07,
+            estimated_days_to_target=120,
+            is_stalled=False,
+            stall_duration_trading_days=0,
+            repair_duration_trading_days=25,
+            lowest_percentile=0.11,
+            lowest_percentile_date="2026-01-15",
+            target_percentile=0.5,
+            composite_method="pe_pb_blend",
+            confidence=0.82,
+            source_universe="all_active",
+            is_active=True,
+        )
+
+        response = authenticated_client.get("/api/decision/workspace/recommendations/?account_id=account_001")
+
+        assert response.status_code == 200
+        data = response.json()
+        rec = data["data"]["recommendations"][0]
+        assert rec["valuation_repair"] is not None
+        assert rec["valuation_repair"]["phase"] == "repairing"
+        assert rec["valuation_repair"]["signal"] == "in_progress"
+        assert rec["valuation_repair"]["estimated_days_to_target"] == 120
+
+    def test_recommendations_list_returns_null_when_no_valuation_repair_snapshot(self, authenticated_client):
+        """测试没有估值修复快照时返回 null"""
+        UnifiedRecommendationModel.objects.create(
+            recommendation_id="urec_valuation_002",
+            account_id="account_001",
+            security_code="600519.SH",
+            side="BUY",
+            composite_score=0.9,
+            confidence=0.92,
+        )
+
+        response = authenticated_client.get("/api/decision/workspace/recommendations/?account_id=account_001")
+
+        assert response.status_code == 200
+        data = response.json()
+        rec = data["data"]["recommendations"][0]
+        assert rec["valuation_repair"] is None
 
     def test_recommendations_list_excludes_conflicts(self, authenticated_client):
         """测试推荐列表排除冲突"""

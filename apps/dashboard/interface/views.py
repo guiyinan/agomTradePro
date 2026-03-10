@@ -668,10 +668,11 @@ def _get_quota_usage_percent() -> float:
 
 
 def _get_actionable_candidates():
-    """首页主流程展示：可操作候选列表"""
+    """首页主流程展示：可操作候选列表（含估值修复信息）"""
     try:
         from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
         from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
+        from apps.equity.infrastructure.models import ValuationRepairTrackingModel
         pending_codes = set(
             (code or "").upper()
             for code in DecisionRequestModel._default_manager
@@ -686,6 +687,24 @@ def _get_actionable_candidates():
             .filter(status='ACTIONABLE')
             .order_by('-confidence', '-created_at')[:50]
         )
+        # 批量获取估值修复状态
+        candidate_codes = [
+            (getattr(item, "asset_code", "") or "").upper()
+            for item in candidates
+        ]
+        repair_map = {}
+        try:
+            repair_records = ValuationRepairTrackingModel._default_manager.filter(
+                stock_code__in=[c for c in candidate_codes if c],
+                is_active=True
+            ).values(
+                'stock_code', 'current_phase', 'signal', 'composite_percentile',
+                'repair_progress', 'repair_speed_per_30d', 'estimated_days_to_target'
+            )
+            repair_map = {r['stock_code']: r for r in repair_records}
+        except Exception as e:
+            logger.warning(f"Failed to get valuation repair info: {e}")
+
         deduped = []
         seen_codes = set()
         for item in candidates:
@@ -693,6 +712,22 @@ def _get_actionable_candidates():
             if not code or code in seen_codes or code in pending_codes:
                 continue
             seen_codes.add(code)
+            # Django template 无法访问以下划线开头的属性，这里挂到公开属性上。
+            if code in repair_map:
+                r = repair_map[code]
+                repair_payload = {
+                    'phase': r.get('current_phase'),
+                    'signal': r.get('signal'),
+                    'composite_percentile': r.get('composite_percentile'),
+                    'repair_progress': r.get('repair_progress'),
+                    'repair_speed_per_30d': r.get('repair_speed_per_30d'),
+                    'estimated_days_to_target': r.get('estimated_days_to_target'),
+                }
+                item.valuation_repair = repair_payload
+                item._valuation_repair = repair_payload
+            else:
+                item.valuation_repair = None
+                item._valuation_repair = None
             deduped.append(item)
             if len(deduped) >= 5:
                 break
@@ -893,4 +928,3 @@ def alpha_ic_trends_htmx(request):
         'success': True,
         'data': trends
     })
-

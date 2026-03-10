@@ -86,6 +86,7 @@ class UnifiedRecommendationDTO:
     source_signal_ids: List[str] = field(default_factory=list)
     source_candidate_ids: List[str] = field(default_factory=list)
     feature_snapshot_id: str = ""
+    valuation_repair: Optional[Dict[str, Any]] = None
     # 状态
     status: str = "NEW"
     created_at: Optional[datetime] = None
@@ -177,6 +178,7 @@ class UnifiedRecommendationDTO:
             "source_signal_ids": self.source_signal_ids,
             "source_candidate_ids": self.source_candidate_ids,
             "feature_snapshot_id": self.feature_snapshot_id,
+            "valuation_repair": self.valuation_repair,
             "status": self.status,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

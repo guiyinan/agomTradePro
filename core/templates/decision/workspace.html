@@ -312,6 +312,49 @@
                 <p class="human-rationale" id="modal-human-rationale">-</p>
             </div>
 
+            <div class="approval-section">
+                <h4 class="section-label">估值修复辅助信息</h4>
+                <div class="valuation-repair-panel">
+                    <div class="valuation-repair-grid">
+                        <div class="valuation-repair-item">
+                            <span class="valuation-repair-label">修复阶段</span>
+                            <span class="valuation-repair-value" id="modal-repair-phase">-</span>
+                        </div>
+                        <div class="valuation-repair-item">
+                            <span class="valuation-repair-label">信号</span>
+                            <span class="valuation-repair-value" id="modal-repair-signal">-</span>
+                        </div>
+                        <div class="valuation-repair-item">
+                            <span class="valuation-repair-label">综合分位</span>
+                            <span class="valuation-repair-value" id="modal-repair-percentile">-</span>
+                        </div>
+                        <div class="valuation-repair-item">
+                            <span class="valuation-repair-label">修复进度</span>
+                            <span class="valuation-repair-value" id="modal-repair-progress">-</span>
+                        </div>
+                        <div class="valuation-repair-item">
+                            <span class="valuation-repair-label">修复速度</span>
+                            <span class="valuation-repair-value" id="modal-repair-speed">-</span>
+                        </div>
+                        <div class="valuation-repair-item">
+                            <span class="valuation-repair-label">预计到目标</span>
+                            <span class="valuation-repair-value" id="modal-repair-eta">-</span>
+                        </div>
+                        <div class="valuation-repair-item">
+                            <span class="valuation-repair-label">修复置信度</span>
+                            <span class="valuation-repair-value" id="modal-repair-confidence">-</span>
+                        </div>
+                        <div class="valuation-repair-item">
+                            <span class="valuation-repair-label">数据日期</span>
+                            <span class="valuation-repair-value" id="modal-repair-asof">-</span>
+                        </div>
+                    </div>
+                    <div class="valuation-repair-note" id="modal-repair-note">
+                        未命中估值修复快照，仅作为可选辅助信息。
+                    </div>
+                </div>
+            </div>
+
             <!-- 审批表单 -->
             <div class="approval-section">
                 <h4 class="section-label">审批操作</h4>
@@ -393,6 +436,21 @@ let currentTab = 'recommendations';
 let currentRecommendation = null;
 let approvalRequestId = null;
 let userAccounts = [];
+
+function formatRepairPercent(value) {
+    if (value === null || value === undefined || value === '') return '-';
+    return `${(Number(value) * 100).toFixed(1)}%`;
+}
+
+function formatRepairFloat(value) {
+    if (value === null || value === undefined || value === '') return '-';
+    return Number(value).toFixed(2);
+}
+
+function formatRepairEta(value) {
+    if (value === null || value === undefined || value === '') return '-';
+    return `${value}d`;
+}
 
 // ===== 初始化 =====
 document.addEventListener('DOMContentLoaded', function() {
@@ -582,6 +640,9 @@ function renderRecommendations(recommendations, totalCount) {
                 <div class="rec-rationale">
                     ${rec.human_rationale || rec.reason_codes.join(', ')}
                 </div>
+                <div class="rec-valuation-repair">
+                    ${renderValuationRepairSummary(rec.valuation_repair)}
+                </div>
             </div>
             <div class="rec-footer">
                 <div class="rec-status status-${rec.status.toLowerCase()}">${getStatusText(rec.status)}</div>
@@ -617,6 +678,32 @@ function renderRecommendations(recommendations, totalCount) {
             </div>
         </div>
     `).join('');
+}
+
+function renderValuationRepairSummary(repair) {
+    if (!repair) {
+        return `<div class="repair-summary empty">估值修复: 未命中快照</div>`;
+    }
+
+    const badges = [
+        `<span class="repair-chip phase">${repair.phase || '-'}</span>`,
+        repair.signal ? `<span class="repair-chip signal">${repair.signal}</span>` : '',
+        repair.is_stalled ? `<span class="repair-chip stalled">stalled</span>` : '',
+    ].join('');
+
+    return `
+        <div class="repair-summary">
+            <div class="repair-summary-header">
+                <span class="repair-summary-title">估值修复</span>
+                <div class="repair-summary-badges">${badges}</div>
+            </div>
+            <div class="repair-summary-metrics">
+                <span>分位 ${formatRepairPercent(repair.composite_percentile)}</span>
+                <span>进度 ${formatRepairPercent(repair.repair_progress)}</span>
+                <span>ETA ${formatRepairEta(repair.estimated_days_to_target)}</span>
+            </div>
+        </div>
+    `;
 }
 
 // ===== 加载审批列表 =====
@@ -828,7 +915,8 @@ async function openApprovalModal(recommendationId) {
     // 如果传入的是 ID，需要先获取推荐详情
     if (typeof recommendationId === 'string') {
         try {
-            const res = await fetch(`/api/decision/workspace/recommendations/?recommendation_id=${recommendationId}`, {
+            const accountId = document.getElementById('account-selector')?.value || 'default';
+            const res = await fetch(`/api/decision/workspace/recommendations/?account_id=${encodeURIComponent(accountId)}&recommendation_id=${encodeURIComponent(recommendationId)}`, {
                 headers: { 'X-CSRFToken': window.csrfToken }
             });
             const data = await res.json();
@@ -930,6 +1018,7 @@ async function openApprovalModal(recommendationId) {
         reasonCodesEl.innerHTML = '<span class="no-reasons">无原因代码</span>';
     }
     document.getElementById('modal-human-rationale').textContent = currentRecommendation.human_rationale || '-';
+    fillValuationRepairPanel(currentRecommendation.valuation_repair);
 
     // 预填数量和价格
     document.getElementById('modal-quantity').value = currentRecommendation.suggested_quantity || '';
@@ -940,6 +1029,32 @@ async function openApprovalModal(recommendationId) {
 
     // 显示模态框
     document.getElementById('approvalModal').classList.add('active');
+}
+
+function fillValuationRepairPanel(repair) {
+    document.getElementById('modal-repair-phase').textContent = repair?.phase || '-';
+    document.getElementById('modal-repair-signal').textContent = repair?.signal || '-';
+    document.getElementById('modal-repair-percentile').textContent = formatRepairPercent(repair?.composite_percentile);
+    document.getElementById('modal-repair-progress').textContent = formatRepairPercent(repair?.repair_progress);
+    document.getElementById('modal-repair-speed').textContent = formatRepairFloat(repair?.repair_speed_per_30d);
+    document.getElementById('modal-repair-eta').textContent = formatRepairEta(repair?.estimated_days_to_target);
+    document.getElementById('modal-repair-confidence').textContent = formatRepairPercent(repair?.confidence);
+    document.getElementById('modal-repair-asof').textContent = repair?.as_of_date || '-';
+
+    const noteEl = document.getElementById('modal-repair-note');
+    if (!repair) {
+        noteEl.textContent = '未命中估值修复快照，仅作为可选辅助信息。';
+        return;
+    }
+    if (repair.is_stalled) {
+        noteEl.textContent = '当前处于修复停滞区间，建议人工复核基本面和价格驱动。';
+        return;
+    }
+    if (repair.phase === 'overshooting' || repair.phase === 'completed') {
+        noteEl.textContent = '当前已接近或达到修复兑现区，适合作为风险提示，不建议单独作为追价理由。';
+        return;
+    }
+    noteEl.textContent = '估值修复信息仅作为辅助决策信号，不构成硬门禁。';
 }
 
 // ===== 加载执行预览 =====

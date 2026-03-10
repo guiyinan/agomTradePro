@@ -60,6 +60,50 @@
                     <span class="candidate-confidence">置信度: {{ candidate.confidence|floatformat:2 }}</span>
                     <span class="candidate-asset-class">{{ candidate.asset_class }}</span>
                 </div>
+                {% if candidate.valuation_repair %}
+                <div class="candidate-valuation-repair">
+                    <div class="repair-badges">
+                        <span class="repair-phase-badge phase-{{ candidate.valuation_repair.phase }}">
+                            修复: {{ candidate.valuation_repair.phase }}
+                        </span>
+                        {% if candidate.valuation_repair.signal %}
+                        <span class="repair-signal-badge signal-{{ candidate.valuation_repair.signal }}">
+                            {{ candidate.valuation_repair.signal }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="repair-metrics">
+                        <span>
+                            综合分位:
+                            {% if candidate.valuation_repair.composite_percentile is not None %}
+                            {{ candidate.valuation_repair.composite_percentile|floatformat:2 }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </span>
+                        <span>
+                            修复进度:
+                            {% if candidate.valuation_repair.repair_progress is not None %}
+                            {{ candidate.valuation_repair.repair_progress|floatformat:2 }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </span>
+                        <span>
+                            ETA:
+                            {% if candidate.valuation_repair.estimated_days_to_target %}
+                            {{ candidate.valuation_repair.estimated_days_to_target }}d
+                            {% else %}
+                            -
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="candidate-valuation-repair candidate-valuation-repair-empty">
+                    <span class="repair-empty-text">未命中估值修复快照</span>
+                </div>
+                {% endif %}
             </div>
 
             <!-- 预检查按钮 -->
