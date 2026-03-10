@@ -149,7 +149,13 @@
       "Bash(agomsaafScriptspython.exe:*)",
       "Bash(TOKEN=\"ac4d84df913f5ae580358a8f754781f431e96667\" echo \"=== Policy Level ===\" curl -s -H \"Authorization: Token $TOKEN\" \"http://127.0.0.1:8000/api/policy/level/\" echo -e \"\\\\n\\\\n=== Signals ===\" curl -s -H \"Authorization: Token $TOKEN\" \"http://127.0.0.1:8000/api/signal/\")",
       "Bash(~/.config/claude-code/mcp_servers.json:*)",
-      "Bash(conda info:*)"
+      "Bash(conda info:*)",
+      "WebFetch(domain:skills.sh)",
+      "Bash(gh repo:*)"
     ]
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "agomsaaf"
+  ]
 }
