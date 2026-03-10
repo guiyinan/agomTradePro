@@ -28,6 +28,18 @@ os.environ["AGOMSAAF_BASE_URL"] = "http://localhost:8000"
 os.environ.setdefault("AGOMSAAF_API_TOKEN", "test-token")
 
 
+@pytest.fixture(scope="module", autouse=True)
+def require_acceptance_server() -> None:
+    """Skip acceptance SDK tests when the local target server is unavailable."""
+    try:
+        import requests
+
+        response = requests.get("http://localhost:8000/api/", timeout=3)
+        response.raise_for_status()
+    except Exception as exc:
+        pytest.skip(f"Acceptance SDK tests require a live server at http://localhost:8000: {exc}")
+
+
 def print_section(title: str) -> None:
     """Print a formatted section header"""
     print("\n" + "=" * 60)
@@ -59,7 +71,11 @@ def _assert_or_skip_endpoint_error(test_name: str, error: Exception) -> None:
     """For acceptance tests, skip when endpoint/data is unavailable in current env."""
     error_text = str(error)
     if (
-        "[404]" in error_text
+        "Connection refused" in error_text
+        or "Failed to establish a new connection" in error_text
+        or "Max retries exceeded" in error_text
+        or "actively refused" in error_text
+        or "[404]" in error_text
         or "Resource not found" in error_text
         or "[401]" in error_text
         or "[403]" in error_text

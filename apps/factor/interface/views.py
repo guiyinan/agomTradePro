@@ -54,6 +54,7 @@ class FactorDefinitionViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for FactorDefinition model"""
     queryset = FactorDefinitionModel._default_manager.filter(is_active=True)
     serializer_class = FactorDefinitionSerializer
+    permission_classes = [IsAuthenticated]
     filterset_fields = ['category', 'is_active']
     search_fields = ['code', 'name', 'description']
     ordering_fields = ['category', 'code']
@@ -70,6 +71,7 @@ class FactorPortfolioConfigViewSet(viewsets.ModelViewSet):
     """ViewSet for FactorPortfolioConfig model"""
     queryset = FactorPortfolioConfigModel._default_manager.all()
     serializer_class = FactorPortfolioConfigSerializer
+    permission_classes = [IsAuthenticated]
     filterset_fields = ['is_active', 'universe', 'rebalance_frequency']
     search_fields = ['name', 'description']
     ordering = ['-is_active', '-created_at']

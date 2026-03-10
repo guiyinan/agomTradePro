@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Generator, Optional
 
 import pytest
+import requests
 from playwright.sync_api import Browser, BrowserContext, Page
 
 from tests.playwright.config.test_config import config
@@ -56,6 +57,16 @@ def ensure_playwright_admin_user(django_db_setup, django_db_blocker) -> None:
             user.is_active = True
             user.set_password(config.admin_password)
             user.save(update_fields=["password", "is_staff", "is_superuser", "is_active"])
+
+
+@pytest.fixture(scope="session", autouse=True)
+def require_live_server(base_url: str) -> None:
+    """Skip Playwright suite when the target app server is not reachable."""
+    try:
+        response = requests.get(f"{base_url}/account/login/", timeout=5)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        pytest.skip(f"Playwright tests require a live app server at {base_url}: {exc}")
 
 
 @pytest.fixture(scope="session")

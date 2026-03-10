@@ -26,7 +26,7 @@ urlpatterns = [
             "/api/asset-analysis/current-weight/",
             "/api/asset-analysis/pool-summary/",
         ],
-    }), name="api_root"),
+    }), name="root"),
 
     # 多维度筛选 API
     path("multidim-screen/", MultiDimScreenAPIView.as_view(), name="multidim_screen"),

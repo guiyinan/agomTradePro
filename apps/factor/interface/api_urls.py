@@ -6,7 +6,9 @@ Provides API-only routes for /api/factor/.
 
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from django.http import JsonResponse
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.factor.interface.views import (
     FactorDefinitionViewSet,
@@ -22,21 +24,24 @@ router.register(r"configs", FactorPortfolioConfigViewSet, basename="factor-confi
 router.register(r"", FactorActionViewSet, basename="factor-action")
 
 
-def api_home(request):
-    return JsonResponse(
-        {
-            "message": "AgomSAAF Factor Module API",
-            "endpoints": {
-                "definitions": "/api/factor/definitions/",
-                "configs": "/api/factor/configs/",
-                "actions": "/api/factor/",
-            },
-        }
-    )
+class FactorApiHomeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(
+            {
+                "message": "AgomSAAF Factor Module API",
+                "endpoints": {
+                    "definitions": "/api/factor/definitions/",
+                    "configs": "/api/factor/configs/",
+                    "actions": "/api/factor/",
+                },
+            }
+        )
 
 
 urlpatterns = [
-    path("", api_home, name="home"),
+    path("", FactorApiHomeView.as_view(), name="home"),
     path("", include(router.urls)),
-    path("health/", api_home, name="health"),
+    path("health/", FactorApiHomeView.as_view(), name="health"),
 ]

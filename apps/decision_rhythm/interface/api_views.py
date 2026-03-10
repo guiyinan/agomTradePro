@@ -608,7 +608,7 @@ class UnifiedRecommendationsView(APIView):
         获取推荐列表
 
         Query params:
-            account_id: 账户 ID（可选，不传默认使用 default）
+            account_id: 账户 ID（必填）
             status: 状态过滤（可选）
             page: 页码（默认 1）
             page_size: 每页大小（默认 20）
@@ -622,7 +622,12 @@ class UnifiedRecommendationsView(APIView):
                 "feature_flag": "DECISION_WORKSPACE_V2_ENABLED",
             }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-        account_id = request.query_params.get("account_id") or "default"
+        account_id = request.query_params.get("account_id")
+        if not account_id:
+            return Response(
+                {"success": False, "error": "account_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         status_filter = request.query_params.get("status")
         try:
@@ -827,9 +832,14 @@ class ConflictsView(APIView):
         获取冲突列表
 
         Query params:
-            account_id: 账户 ID（可选，不传默认使用 default）
+            account_id: 账户 ID（必填）
         """
-        account_id = request.query_params.get("account_id") or "default"
+        account_id = request.query_params.get("account_id")
+        if not account_id:
+            return Response(
+                {"success": False, "error": "account_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             # 查询冲突推荐
