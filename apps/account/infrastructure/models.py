@@ -16,8 +16,19 @@ from django.core.exceptions import ValidationError
 from datetime import datetime, timezone
 import base64
 import hashlib
+import secrets
 
 from cryptography.fernet import Fernet, InvalidToken
+
+
+def _build_app_fernet() -> Fernet:
+    secret = (
+        getattr(settings, "AGOMSAAF_ENCRYPTION_KEY", "") or
+        getattr(settings, "SECRET_KEY", "")
+    )
+    digest = hashlib.sha256(secret.encode("utf-8")).digest()
+    key = base64.urlsafe_b64encode(digest)
+    return Fernet(key)
 
 
 # ============================================================
@@ -144,6 +155,12 @@ class AccountProfileModel(models.Model):
         default="owner",
         verbose_name="RBAC角色",
         help_text="系统统一角色（与 MCP 对齐）",
+    )
+
+    mcp_enabled = models.BooleanField(
+        default=True,
+        verbose_name="允许 MCP/SDK 访问",
+        help_text="关闭后，该用户所有 MCP/SDK Token 将立即失效"
     )
 
     # 波动率目标配置
@@ -1114,6 +1131,18 @@ class SystemSettingsModel(models.Model):
         help_text="系统无管理员时，首个注册的用户自动成为管理员并获得批准"
     )
 
+    default_mcp_enabled = models.BooleanField(
+        default=True,
+        verbose_name="新用户默认开启 MCP/SDK",
+        help_text="新注册或新批准用户默认是否允许 MCP/SDK 访问，由管理员决定"
+    )
+
+    allow_token_plaintext_view = models.BooleanField(
+        default=True,
+        verbose_name="允许查看 Token 明文",
+        help_text="关闭后，生成后不再显示完整 Token，历史 Token 也不可明文查看"
+    )
+
     # 用户协议内容配置
     user_agreement_content = models.TextField(
         blank=True,
@@ -1309,13 +1338,7 @@ class SystemSettingsModel(models.Model):
 
     @staticmethod
     def _get_secret_fernet() -> Fernet:
-        secret = (
-            getattr(settings, "AGOMSAAF_ENCRYPTION_KEY", "") or
-            getattr(settings, "SECRET_KEY", "")
-        )
-        digest = hashlib.sha256(secret.encode("utf-8")).digest()
-        key = base64.urlsafe_b64encode(digest)
-        return Fernet(key)
+        return _build_app_fernet()
 
     def set_backup_password(self, raw_password: str):
         raw_password = (raw_password or "").strip()
@@ -1570,6 +1593,116 @@ class SystemSettingsModel(models.Model):
 <h3>五、风险自担</h3>
 <p><strong>我已充分了解投资风险，理解本系统提供的所有信息仅供参考，将自行承担所有投资决策带来的风险和损失。</strong></p>
         """
+
+
+class UserAccessTokenModel(models.Model):
+    """支持多 Token 的 MCP/SDK 访问凭证。"""
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='access_tokens',
+        verbose_name='所属用户',
+    )
+    name = models.CharField(
+        max_length=100,
+        default='default',
+        verbose_name='Token名称',
+        help_text='例如：Claude Desktop / Local SDK / VPS Script',
+    )
+    key = models.CharField(
+        max_length=64,
+        unique=True,
+        db_index=True,
+        verbose_name='Token Key',
+    )
+    key_encrypted = models.TextField(
+        blank=True,
+        verbose_name='Token密文',
+        help_text='用于按系统配置决定是否允许明文查看',
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_access_tokens',
+        verbose_name='创建人',
+    )
+    last_used_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='最后使用时间',
+    )
+    revoked_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='撤销时间',
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name='是否有效',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='创建时间')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+
+    class Meta:
+        db_table = 'user_access_token'
+        verbose_name = '用户访问Token'
+        verbose_name_plural = '用户访问Token'
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'name'],
+                condition=models.Q(is_active=True),
+                name='uniq_active_access_token_name_per_user',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['user', 'is_active']),
+            models.Index(fields=['key']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username}:{self.name}"
+
+    @property
+    def preview(self) -> str:
+        if not self.key:
+            return '-'
+        return f"{self.key[:8]}...{self.key[-6:]}"
+
+    @classmethod
+    def generate_key(cls) -> str:
+        return secrets.token_hex(20)
+
+    @classmethod
+    def create_token(cls, *, user: User, name: str, created_by: User | None = None):
+        raw_name = (name or '').strip() or f"token-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+        raw_key = cls.generate_key()
+        token = cls._default_manager.create(
+            user=user,
+            name=raw_name,
+            key=raw_key,
+            key_encrypted=_build_app_fernet().encrypt(raw_key.encode('utf-8')).decode('utf-8'),
+            created_by=created_by,
+        )
+        return token, raw_key
+
+    def reveal_key(self) -> str:
+        if not self.key_encrypted:
+            return ''
+        try:
+            return _build_app_fernet().decrypt(
+                self.key_encrypted.encode('utf-8')
+            ).decode('utf-8')
+        except (InvalidToken, ValueError, TypeError):
+            return ''
+
+    def revoke(self):
+        self.is_active = False
+        self.revoked_at = datetime.now(timezone.utc)
+        self.save(update_fields=['is_active', 'revoked_at', 'updated_at'])
 
 
 # ============================================================

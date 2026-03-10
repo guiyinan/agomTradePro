@@ -42,6 +42,20 @@
                 </label>
                 <p class="help-text">系统无管理员时，首个注册的用户自动成为管理员并获得批准</p>
             </div>
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="default_mcp_enabled" {% if system_settings.default_mcp_enabled %}checked{% endif %}>
+                    <span>新用户默认开启 MCP/SDK</span>
+                </label>
+                <p class="help-text">决定新注册或新批准用户默认是否能使用 MCP/SDK</p>
+            </div>
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="allow_token_plaintext_view" {% if system_settings.allow_token_plaintext_view %}checked{% endif %}>
+                    <span>允许查看 Token 明文</span>
+                </label>
+                <p class="help-text">关闭后，生成后不再显示完整 Token，用户和管理员都只能看到预览</p>
+            </div>
         </div>
 
         <!-- 用户协议配置 -->

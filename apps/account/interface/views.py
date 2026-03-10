@@ -14,12 +14,17 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.http import JsonResponse
 from django.db import models, transaction
 from django.utils import timezone
-from rest_framework.authtoken.models import Token
 from decimal import Decimal
 import json
 import logging
 
-from apps.account.infrastructure.models import AccountProfileModel, PortfolioModel, CapitalFlowModel, SystemSettingsModel
+from apps.account.infrastructure.models import (
+    AccountProfileModel,
+    PortfolioModel,
+    CapitalFlowModel,
+    SystemSettingsModel,
+    UserAccessTokenModel,
+)
 from apps.account.infrastructure.repositories import (
     AccountRepository,
     PortfolioRepository,
@@ -35,6 +40,25 @@ logger = logging.getLogger(__name__)
 def is_admin_user(user):
     """检查用户是否是管理员"""
     return is_system_admin(user)
+
+
+def _build_token_payload(*, username: str, token_name: str, token_value: str):
+    settings_obj = SystemSettingsModel.get_settings()
+    if not settings_obj.allow_token_plaintext_view:
+        return None
+    return {
+        "username": username,
+        "token_name": token_name,
+        "token": token_value,
+        "generated_at": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+
+def _get_token_name_from_request(request, default_prefix: str = "token") -> str:
+    raw_name = (request.POST.get("token_name") or "").strip()
+    if raw_name:
+        return raw_name
+    return f"{default_prefix}-{timezone.now().strftime('%Y%m%d%H%M%S')}"
 
 
 @require_http_methods(["GET", "POST"])
@@ -133,6 +157,7 @@ def register_view(request):
                 display_name=display_name,
                 initial_capital=Decimal("1000000.00"),
                 risk_tolerance="moderate",
+                mcp_enabled=system_settings.default_mcp_enabled,
                 user_agreement_accepted=True,
                 risk_warning_acknowledged=True,
                 agreement_accepted_at=timezone.now(),
@@ -147,10 +172,6 @@ def register_view(request):
                 name="默认组合",
                 is_active=True
             )
-
-            # 创建API Token（仅已批准的用户）
-            if user.is_active:
-                Token._default_manager.create(user=user)
 
             # 根据审批状态显示不同消息
             if approval_status == "pending":
@@ -276,6 +297,7 @@ def settings_view(request):
     """
     profile = request.user.account_profile
     portfolio = request.user.portfolios.filter(is_active=True).first()
+    system_settings = SystemSettingsModel.get_settings()
 
     if request.method == "POST":
         # 更新配置
@@ -328,8 +350,62 @@ def settings_view(request):
         "total_deposit": total_deposit,
         "total_withdraw": total_withdraw,
         "net_capital": net_capital,
+        "system_settings": system_settings,
+        "access_tokens": request.user.access_tokens.filter(is_active=True).order_by("-created_at"),
+        "new_token_payload": request.session.pop("self_new_token_payload", None),
     }
     return render(request, "account/settings.html", context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def create_self_token_view(request):
+    """用户创建自己的 MCP/SDK Token。"""
+    profile = request.user.account_profile
+    if not profile.mcp_enabled:
+        messages.error(request, "管理员已关闭您的 MCP/SDK 权限，暂时不能创建 Token")
+        return redirect("/account/settings/")
+
+    try:
+        token_name = _get_token_name_from_request(request, default_prefix="self")
+        token, raw_key = UserAccessTokenModel.create_token(
+            user=request.user,
+            name=token_name,
+            created_by=request.user,
+        )
+        payload = _build_token_payload(
+            username=request.user.username,
+            token_name=token.name,
+            token_value=raw_key,
+        )
+        if payload:
+            request.session["self_new_token_payload"] = payload
+            messages.success(request, f"已创建 Token：{token.name}")
+        else:
+            messages.success(request, f"已创建 Token：{token.name}。当前系统禁止查看明文，请自行妥善管理。")
+    except Exception as e:
+        messages.error(request, f"创建 Token 失败：{str(e)}")
+
+    return redirect("/account/settings/")
+
+
+@login_required
+@require_http_methods(["POST"])
+def revoke_self_token_view(request, token_id):
+    """用户撤销自己的 Token。"""
+    try:
+        token = UserAccessTokenModel._default_manager.get(
+            id=token_id,
+            user=request.user,
+            is_active=True,
+        )
+        token.revoke()
+        messages.success(request, f"已撤销 Token：{token.name}")
+    except UserAccessTokenModel.DoesNotExist:
+        messages.error(request, "Token 不存在或已失效")
+    except Exception as e:
+        messages.error(request, f"撤销 Token 失败：{str(e)}")
+    return redirect("/account/settings/")
 
 
 @login_required
@@ -606,31 +682,34 @@ def token_management_view(request):
     """
     search_query = request.GET.get("q", "").strip()
     only_without_token = request.GET.get("without_token") == "1"
+    system_settings = SystemSettingsModel.get_settings()
 
-    users = User._default_manager.all().order_by("-date_joined")
+    users = User._default_manager.select_related("account_profile").all().order_by("-date_joined")
     if search_query:
         users = users.filter(
             models.Q(username__icontains=search_query) |
             models.Q(email__icontains=search_query)
         )
 
-    token_map = {
-        token.user_id: token
-        for token in Token._default_manager.select_related("user").all()
-    }
+    tokens = UserAccessTokenModel._default_manager.select_related("created_by").filter(
+        is_active=True
+    ).order_by("-created_at")
+    token_map = {}
+    for token in tokens:
+        token_map.setdefault(token.user_id, []).append(token)
 
     rows = []
     for user in users:
-        token_obj = token_map.get(user.id)
-        if only_without_token and token_obj:
+        user_tokens = token_map.get(user.id, [])
+        if only_without_token and user_tokens:
             continue
 
-        token_key = token_obj.key if token_obj else ""
         rows.append({
             "user": user,
-            "has_token": token_obj is not None,
-            "token_preview": f"{token_key[:8]}...{token_key[-6:]}" if token_key else "-",
-            "token_created": token_obj.created if token_obj else None,
+            "profile": getattr(user, "account_profile", None),
+            "tokens": user_tokens,
+            "has_token": bool(user_tokens),
+            "token_count": len(user_tokens),
         })
 
     new_token_payload = request.session.pop("new_token_payload", None)
@@ -642,7 +721,9 @@ def token_management_view(request):
         "total_users": len(rows),
         "with_token_count": sum(1 for r in rows if r["has_token"]),
         "without_token_count": sum(1 for r in rows if not r["has_token"]),
+        "total_token_count": sum(r["token_count"] for r in rows),
         "new_token_payload": new_token_payload,
+        "system_settings": system_settings,
     }
     return render(request, "account/token_management.html", context)
 
@@ -652,31 +733,42 @@ def token_management_view(request):
 @require_http_methods(["POST"])
 def rotate_user_token_view(request, user_id):
     """
-    为指定用户生成或重置 Token（仅管理员可用）。
+    为指定用户创建新 Token（仅管理员可用）。
     """
     try:
-        with transaction.atomic():
-            target_user = User._default_manager.get(id=user_id)
-            Token._default_manager.filter(user=target_user).delete()
-            new_token = Token._default_manager.create(user=target_user)
+        target_user = User._default_manager.select_related("account_profile").get(id=user_id)
+        if not target_user.account_profile.mcp_enabled:
+            messages.error(request, f"用户 {target_user.username} 的 MCP/SDK 权限已关闭，请先开启")
+            return redirect("/account/admin/tokens/")
 
-        request.session["new_token_payload"] = {
-            "username": target_user.username,
-            "token": new_token.key,
-            "generated_at": timezone.now().strftime("%Y-%m-%d %H:%M:%S"),
-        }
-        messages.success(request, f"已为用户 {target_user.username} 生成新 Token")
+        token_name = _get_token_name_from_request(request, default_prefix="admin")
+        token, raw_key = UserAccessTokenModel.create_token(
+            user=target_user,
+            name=token_name,
+            created_by=request.user,
+        )
+        payload = _build_token_payload(
+            username=target_user.username,
+            token_name=token.name,
+            token_value=raw_key,
+        )
+        if payload:
+            request.session["new_token_payload"] = payload
+            messages.success(request, f"已为用户 {target_user.username} 创建 Token：{token.name}")
+        else:
+            messages.success(request, f"已为用户 {target_user.username} 创建 Token：{token.name}。当前系统禁止查看明文。")
         logger.info(
-            "admin_action=rotate_token actor=%s target=%s result=success",
+            "admin_action=create_token actor=%s target=%s token_name=%s result=success",
             request.user.username,
             target_user.username,
+            token.name,
         )
     except User.DoesNotExist:
         messages.error(request, "用户不存在")
     except Exception as e:
-        messages.error(request, f"生成 Token 失败：{str(e)}")
+        messages.error(request, f"创建 Token 失败：{str(e)}")
         logger.exception(
-            "admin_action=rotate_token actor=%s target_user_id=%s result=failed",
+            "admin_action=create_token actor=%s target_user_id=%s result=failed",
             request.user.username,
             user_id,
         )
@@ -689,18 +781,20 @@ def rotate_user_token_view(request, user_id):
 @require_http_methods(["POST"])
 def revoke_user_token_view(request, user_id):
     """
-    撤销指定用户 Token（仅管理员可用）。
+    撤销指定用户全部 Token（兼容旧入口，仅管理员可用）。
     """
     try:
-        with transaction.atomic():
-            target_user = User._default_manager.get(id=user_id)
-            deleted_count, _ = Token._default_manager.filter(user=target_user).delete()
+        target_user = User._default_manager.get(id=user_id)
+        active_tokens = list(UserAccessTokenModel._default_manager.filter(user=target_user, is_active=True))
+        for token in active_tokens:
+            token.revoke()
+        deleted_count = len(active_tokens)
         if deleted_count > 0:
-            messages.success(request, f"已撤销用户 {target_user.username} 的 Token")
+            messages.success(request, f"已撤销用户 {target_user.username} 的全部 Token")
         else:
             messages.warning(request, f"用户 {target_user.username} 当前没有可撤销的 Token")
         logger.info(
-            "admin_action=revoke_token actor=%s target=%s deleted_count=%s",
+            "admin_action=revoke_all_tokens actor=%s target=%s deleted_count=%s",
             request.user.username,
             target_user.username,
             deleted_count,
@@ -715,6 +809,55 @@ def revoke_user_token_view(request, user_id):
             user_id,
         )
 
+    return redirect("/account/admin/tokens/")
+
+
+@login_required
+@user_passes_test(is_admin_user)
+@require_http_methods(["POST"])
+def revoke_access_token_view(request, token_id):
+    """撤销单个 Token。"""
+    try:
+        token = UserAccessTokenModel._default_manager.select_related("user").get(id=token_id, is_active=True)
+        token.revoke()
+        messages.success(request, f"已撤销 {token.user.username} 的 Token：{token.name}")
+    except UserAccessTokenModel.DoesNotExist:
+        messages.error(request, "Token 不存在或已失效")
+    except Exception as e:
+        messages.error(request, f"撤销 Token 失败：{str(e)}")
+        logger.exception(
+            "admin_action=revoke_token actor=%s token_id=%s result=failed",
+            request.user.username,
+            token_id,
+        )
+    return redirect("/account/admin/tokens/")
+
+
+@login_required
+@user_passes_test(is_admin_user)
+@require_http_methods(["POST"])
+def toggle_user_mcp_view(request, user_id):
+    """管理员切换用户 MCP 权限。"""
+    try:
+        settings_obj = SystemSettingsModel.get_settings()
+        target_user = User._default_manager.select_related("account_profile").get(id=user_id)
+        profile = target_user.account_profile
+        profile.mcp_enabled = not profile.mcp_enabled
+        profile.save(update_fields=["mcp_enabled", "updated_at"])
+
+        if not profile.mcp_enabled:
+            for token in UserAccessTokenModel._default_manager.filter(user=target_user, is_active=True):
+                token.revoke()
+
+        state = "开启" if profile.mcp_enabled else "关闭"
+        messages.success(
+            request,
+            f"已{state}用户 {target_user.username} 的 MCP/SDK 权限（系统默认：{'开启' if settings_obj.default_mcp_enabled else '关闭'}）"
+        )
+    except User.DoesNotExist:
+        messages.error(request, "用户不存在")
+    except Exception as e:
+        messages.error(request, f"MCP 权限切换失败：{str(e)}")
     return redirect("/account/admin/tokens/")
 
 
@@ -745,11 +888,9 @@ def approve_user_view(request, user_id):
                 profile.approval_status = 'approved'
                 profile.approved_at = timezone.now()
                 profile.approved_by = request.user
+                profile.mcp_enabled = SystemSettingsModel.get_settings().default_mcp_enabled
                 profile.rejection_reason = ""
-                profile.save(update_fields=["approval_status", "approved_at", "approved_by", "rejection_reason", "updated_at"])
-
-                # 创建API Token
-                Token._default_manager.get_or_create(user=target_user)
+                profile.save(update_fields=["approval_status", "approved_at", "approved_by", "mcp_enabled", "rejection_reason", "updated_at"])
 
                 messages.success(request, f"已批准用户 {target_user.username}")
                 logger.info(
@@ -803,7 +944,8 @@ def reject_user_view(request, user_id):
 
             target_user.is_active = False
             target_user.save(update_fields=["is_active"])
-            Token._default_manager.filter(user=target_user).delete()
+            for token in UserAccessTokenModel._default_manager.filter(user=target_user, is_active=True):
+                token.revoke()
 
             messages.success(request, f"已拒绝用户 {target_user.username}")
             logger.info(
@@ -886,8 +1028,8 @@ def reset_user_status_view(request, user_id):
             target_user.is_active = False
             target_user.save(update_fields=["is_active"])
 
-            # 删除API Token
-            Token._default_manager.filter(user=target_user).delete()
+            for token in UserAccessTokenModel._default_manager.filter(user=target_user, is_active=True):
+                token.revoke()
 
             messages.success(request, f"已重置用户 {target_user.username} 的状态")
             logger.info(
@@ -935,6 +1077,8 @@ def system_settings_view(request):
 
             system_settings.require_user_approval = request.POST.get("require_user_approval") == "on"
             system_settings.auto_approve_first_admin = request.POST.get("auto_approve_first_admin") == "on"
+            system_settings.default_mcp_enabled = request.POST.get("default_mcp_enabled") == "on"
+            system_settings.allow_token_plaintext_view = request.POST.get("allow_token_plaintext_view") == "on"
             system_settings.user_agreement_content = request.POST.get("user_agreement_content", "")
             system_settings.risk_warning_content = request.POST.get("risk_warning_content", "")
             system_settings.notes = request.POST.get("notes", "")

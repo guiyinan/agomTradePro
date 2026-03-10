@@ -273,7 +273,7 @@ REST_FRAMEWORK = {
     # 认证配置
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',  # Session 认证（Web界面）
-        'rest_framework.authentication.TokenAuthentication',     # Token 认证（API调用）
+        'apps.account.interface.authentication.MultiTokenAuthentication',  # Token 认证（API调用）
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',  # 默认需要登录

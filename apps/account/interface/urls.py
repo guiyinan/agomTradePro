@@ -32,6 +32,8 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('profile/', views.profile_view, name='profile'),
     path('settings/', views.settings_view, name='settings'),
+    path('settings/tokens/create/', views.create_self_token_view, name='create_self_token'),
+    path('settings/tokens/<int:token_id>/revoke/', views.revoke_self_token_view, name='revoke_self_token'),
     path('capital-flow/', views.capital_flow_view, name='capital_flow'),
     path('backtest/<int:backtest_id>/apply/', views.apply_backtest_results_view, name='apply_backtest'),
 
@@ -47,6 +49,8 @@ urlpatterns = [
     path('admin/tokens/', views.token_management_view, name='token_management'),
     path('admin/tokens/<int:user_id>/rotate/', views.rotate_user_token_view, name='rotate_user_token'),
     path('admin/tokens/<int:user_id>/revoke/', views.revoke_user_token_view, name='revoke_user_token'),
+    path('admin/access-tokens/<int:token_id>/revoke/', views.revoke_access_token_view, name='revoke_access_token'),
+    path('admin/tokens/<int:user_id>/mcp-toggle/', views.toggle_user_mcp_view, name='toggle_user_mcp'),
     path('admin/users/<int:user_id>/approve/', views.approve_user_view, name='approve_user'),
     path('admin/users/<int:user_id>/reject/', views.reject_user_view, name='reject_user'),
     path('admin/users/<int:user_id>/role/', views.set_user_role_view, name='set_user_role'),

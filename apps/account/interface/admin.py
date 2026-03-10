@@ -26,6 +26,7 @@ from ..infrastructure.models import (
     ExchangeRateModel,
     InvestmentRuleModel,
     PortfolioDailySnapshotModel,
+    UserAccessTokenModel,
 )
 
 
@@ -106,14 +107,14 @@ class AssetCategoryModelAdmin(admin.ModelAdmin):
 @admin.register(AccountProfileModel)
 class AccountProfileModelAdmin(admin.ModelAdmin):
     """用户账户配置管理"""
-    list_display = ['user', 'display_name', 'risk_tolerance', 'initial_capital', 'approval_status_badge', 'created_at']
-    list_filter = ['risk_tolerance', 'approval_status', 'user_agreement_accepted']
+    list_display = ['user', 'display_name', 'risk_tolerance', 'initial_capital', 'mcp_enabled', 'approval_status_badge', 'created_at']
+    list_filter = ['risk_tolerance', 'approval_status', 'mcp_enabled', 'user_agreement_accepted']
     search_fields = ['user__username', 'display_name']
     readonly_fields = ['created_at', 'updated_at', 'agreement_accepted_at', 'agreement_ip_address']
 
     fieldsets = (
         ('基本信息', {
-            'fields': ('user', 'display_name', 'initial_capital', 'risk_tolerance')
+            'fields': ('user', 'display_name', 'initial_capital', 'risk_tolerance', 'mcp_enabled')
         }),
         ('波动率控制', {
             'fields': ('target_volatility', 'volatility_tolerance', 'max_volatility_reduction')
@@ -327,11 +328,16 @@ class SystemSettingsModelAdmin(admin.ModelAdmin):
         """禁止删除配置"""
         return False
 
-    list_display = ['require_user_approval', 'auto_approve_first_admin', 'backup_enabled', 'backup_email', 'backup_last_sent_at']
+    list_display = ['require_user_approval', 'auto_approve_first_admin', 'default_mcp_enabled', 'allow_token_plaintext_view', 'backup_enabled', 'backup_email', 'backup_last_sent_at']
 
     fieldsets = (
         ('用户审批', {
-            'fields': ('require_user_approval', 'auto_approve_first_admin')
+            'fields': (
+                'require_user_approval',
+                'auto_approve_first_admin',
+                'default_mcp_enabled',
+                'allow_token_plaintext_view',
+            )
         }),
         ('数据库备份邮件', {
             'fields': (
@@ -415,4 +421,17 @@ class PortfolioDailySnapshotModelAdmin(admin.ModelAdmin):
     list_filter = ['snapshot_date']
     date_hierarchy = 'snapshot_date'
     readonly_fields = ['created_at']
+
+
+@admin.register(UserAccessTokenModel)
+class UserAccessTokenModelAdmin(admin.ModelAdmin):
+    list_display = ['user', 'name', 'token_preview', 'is_active', 'created_by', 'created_at', 'last_used_at', 'revoked_at']
+    list_filter = ['is_active', 'created_at', 'revoked_at']
+    search_fields = ['user__username', 'name']
+    readonly_fields = ['token_preview', 'created_at', 'updated_at', 'last_used_at', 'revoked_at']
+    exclude = ['key', 'key_encrypted']
+
+    def token_preview(self, obj):
+        return obj.preview
+    token_preview.short_description = 'Token预览'
 

@@ -7,7 +7,7 @@
     <div class="page-header">
         <div>
             <h1>MCP/SDK Token 管理</h1>
-            <p class="text-muted">管理员可为用户生成、重置或撤销 API Token（DRF Token）</p>
+            <p class="text-muted">支持每用户多 Token，自助配置 Token，并由管理员控制 MCP 开关</p>
         </div>
         <div>
             <a href="{% url 'account:user_management' %}" class="btn btn-secondary">返回用户管理</a>
@@ -16,12 +16,12 @@
 
     {% if new_token_payload %}
         <div class="alert alert-warning token-once-alert">
-            <div><strong>一次性Token（仅本次展示）</strong> - 用户: {{ new_token_payload.username }} - 生成时间: {{ new_token_payload.generated_at }}</div>
+            <div><strong>Token 明文</strong> - 用户: {{ new_token_payload.username }} - 名称: {{ new_token_payload.token_name }}</div>
             <div class="token-once-row">
                 <code id="newTokenValue">{{ new_token_payload.token }}</code>
                 <button type="button" class="btn btn-sm btn-secondary" onclick="copyNewToken()">复制</button>
             </div>
-            <div><small>请立即保存，刷新页面后将不再显示完整Token。</small></div>
+            <div><small>该展示受系统配置控制；管理员关闭后，后续不会再显示完整 Token。</small></div>
         </div>
     {% endif %}
 
@@ -31,6 +31,11 @@
         {% endfor %}
     {% endif %}
 
+    <div class="alert alert-info">
+        系统默认 MCP/SDK：<strong>{% if system_settings.default_mcp_enabled %}开启{% else %}关闭{% endif %}</strong>
+        ，Token 明文查看：<strong>{% if system_settings.allow_token_plaintext_view %}允许{% else %}关闭{% endif %}</strong>
+    </div>
+
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-value">{{ total_users }}</div>
@@ -38,11 +43,15 @@
         </div>
         <div class="stat-card stat-success">
             <div class="stat-value">{{ with_token_count }}</div>
-            <div class="stat-label">已配置Token</div>
+            <div class="stat-label">已配置Token用户</div>
         </div>
         <div class="stat-card stat-warning">
             <div class="stat-value">{{ without_token_count }}</div>
-            <div class="stat-label">未配置Token</div>
+            <div class="stat-label">无Token用户</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ total_token_count }}</div>
+            <div class="stat-label">有效Token总数</div>
         </div>
     </div>
 
@@ -54,7 +63,7 @@
             </div>
             <label class="checkbox-label">
                 <input type="checkbox" name="without_token" value="1" {% if only_without_token %}checked{% endif %}>
-                仅看未配置Token用户
+                仅看无 Token 用户
             </label>
             <button type="submit" class="btn btn-primary">筛选</button>
             <a href="{% url 'account:token_management' %}" class="btn btn-secondary">重置</a>
@@ -65,12 +74,12 @@
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>用户名</th>
+                    <th>用户</th>
                     <th>邮箱</th>
                     <th>状态</th>
-                    <th>Token预览</th>
-                    <th>Token创建时间</th>
-                    <th>操作</th>
+                    <th>MCP</th>
+                    <th>有效 Token</th>
+                    <th>创建新 Token</th>
                 </tr>
             </thead>
             <tbody>
@@ -91,36 +100,54 @@
                         {% endif %}
                     </td>
                     <td>
-                        {% if row.has_token %}
-                            <code>{{ row.token_preview }}</code>
-                        {% else %}
-                            <span class="text-muted">未配置</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if row.token_created %}
-                            {{ row.token_created|date:"Y-m-d H:i" }}
-                        {% else %}
-                            -
-                        {% endif %}
-                    </td>
-                    <td>
-                        <div class="action-buttons">
-                            <form method="post" action="{% url 'account:rotate_user_token' row.user.id %}">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-sm btn-primary" onclick="return confirm('确定为 {{ row.user.username }} 生成新Token吗？旧Token将失效。')">
-                                    {% if row.has_token %}重置Token{% else %}生成Token{% endif %}
-                                </button>
-                            </form>
-                            {% if row.has_token %}
-                            <form method="post" action="{% url 'account:revoke_user_token' row.user.id %}">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('确定撤销 {{ row.user.username }} 的Token吗？')">
-                                    撤销
-                                </button>
-                            </form>
+                        <div class="mcp-cell">
+                            {% if row.profile and row.profile.mcp_enabled %}
+                                <span class="status-badge status-active">已开启</span>
+                            {% else %}
+                                <span class="status-badge status-inactive">已关闭</span>
                             {% endif %}
+                            <form method="post" action="{% url 'account:toggle_user_mcp' row.user.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm {% if row.profile and row.profile.mcp_enabled %}btn-danger{% else %}btn-primary{% endif %}">
+                                    {% if row.profile and row.profile.mcp_enabled %}关闭MCP{% else %}开启MCP{% endif %}
+                                </button>
+                            </form>
                         </div>
+                    </td>
+                    <td>
+                        {% if row.tokens %}
+                            <div class="token-list">
+                                {% for token in row.tokens %}
+                                    <div class="token-item">
+                                        <div>
+                                            <strong>{{ token.name }}</strong>
+                                            <div class="token-meta">
+                                                <code>{{ token.preview }}</code>
+                                                <span>{{ token.created_at|date:"Y-m-d H:i" }}</span>
+                                                {% if token.created_by %}<span>创建人: {{ token.created_by.username }}</span>{% endif %}
+                                            </div>
+                                        </div>
+                                        <form method="post" action="{% url 'account:revoke_access_token' token.id %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('确定撤销 Token {{ token.name }} 吗？')">撤销</button>
+                                        </form>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <form method="post" action="{% url 'account:revoke_user_token' row.user.id %}" class="inline-form">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-secondary" onclick="return confirm('确定撤销 {{ row.user.username }} 的全部 Token 吗？')">全部撤销</button>
+                            </form>
+                        {% else %}
+                            <span class="text-muted">暂无</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form method="post" action="{% url 'account:rotate_user_token' row.user.id %}" class="create-token-form">
+                            {% csrf_token %}
+                            <input type="text" name="token_name" class="form-control form-control-sm" placeholder="例如: claude-desktop" maxlength="100">
+                            <button type="submit" class="btn btn-sm btn-primary">生成</button>
+                        </form>
                     </td>
                 </tr>
                 {% empty %}
@@ -134,233 +161,51 @@
 </div>
 
 <style>
-.page-container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 24px;
-}
-
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-}
-
-.page-header h1 {
-    margin: 0 0 8px 0;
-    font-size: 24px;
-}
-
-.text-muted {
-    color: var(--color-text-secondary);
-}
-
-.alert {
-    padding: 12px 16px;
-    margin-bottom: 16px;
-    border-radius: var(--radius-sm);
-    font-size: 14px;
-}
-
-.alert-success {
-    background: #D5FBDD;
-    color: #14866D;
-    border: 1px solid #9FE5B8;
-}
-
-.alert-error {
-    background: #FEE7E7;
-    color: #D33;
-    border: 1px solid #F8B4B4;
-}
-
-.alert-warning {
-    background: #FFF3CD;
-    color: #856404;
-    border: 1px solid #FFECB5;
-}
-
-.token-once-alert {
-    margin-bottom: 16px;
-}
-
-.token-once-row {
-    margin: 8px 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-    margin-bottom: 24px;
-}
-
-.stat-card {
-    background: var(--color-bg);
-    padding: 20px;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--color-border);
-    text-align: center;
-}
-
-.stat-value {
-    font-size: 32px;
-    font-weight: 600;
-    color: var(--color-primary);
-}
-
-.stat-label {
-    font-size: 14px;
-    color: var(--color-text-secondary);
-    margin-top: 4px;
-}
-
-.stat-success .stat-value {
-    color: #28A745;
-}
-
-.stat-warning .stat-value {
-    color: #FFA500;
-}
-
-.filter-bar {
-    background: var(--color-bg);
-    padding: 16px;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--color-border);
-    margin-bottom: 24px;
-}
-
-.filter-form {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.filter-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.form-control {
-    padding: 8px 10px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-}
-
-.checkbox-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 14px;
-}
-
-.table-container {
-    background: var(--color-bg);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--color-border);
-    overflow: hidden;
-}
-
-.data-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.data-table th,
-.data-table td {
-    padding: 12px 16px;
-    text-align: left;
-    border-bottom: 1px solid var(--color-border);
-}
-
-.data-table th {
-    background: var(--color-surface);
-    font-weight: 600;
-    font-size: 14px;
-}
-
-.data-table tbody tr:hover {
-    background: var(--color-surface);
-}
-
-.badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 500;
-}
-
-.badge-admin {
-    background: #6F42C1;
-    color: white;
-    margin-left: 4px;
-}
-
-.status-badge {
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 500;
-}
-
-.status-active {
-    background: #D5FBDD;
-    color: #14866D;
-}
-
-.status-inactive {
-    background: #FEE7E7;
-    color: #D33;
-}
-
-.btn {
-    padding: 8px 12px;
-    border: none;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    cursor: pointer;
-    text-decoration: none;
-    display: inline-block;
-}
-
-.btn-primary {
-    background: var(--color-primary);
-    color: white;
-}
-
-.btn-secondary {
-    background: #6c757d;
-    color: white;
-}
-
-.btn-danger {
-    background: #dc3545;
-    color: white;
-}
-
-.btn-sm {
-    padding: 6px 10px;
-    font-size: 12px;
-}
-
-.action-buttons {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-.action-buttons form {
-    margin: 0;
+.page-container { max-width: 1500px; margin: 0 auto; padding: 24px; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.page-header h1 { margin: 0 0 8px 0; font-size: 24px; }
+.text-muted { color: var(--color-text-secondary); }
+.text-center { text-align: center; }
+.alert { padding: 12px 16px; margin-bottom: 16px; border-radius: var(--radius-sm); font-size: 14px; }
+.alert-success { background: #D5FBDD; color: #14866D; border: 1px solid #9FE5B8; }
+.alert-error { background: #FEE7E7; color: #D33; border: 1px solid #F8B4B4; }
+.alert-warning { background: #FFF3CD; color: #856404; border: 1px solid #FFECB5; }
+.alert-info { background: #D5EDFB; color: #146698; border: 1px solid #9BC8F8; }
+.token-once-row { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.stat-card { background: var(--color-bg); padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border); text-align: center; }
+.stat-value { font-size: 32px; font-weight: 600; color: var(--color-primary); }
+.stat-label { font-size: 14px; color: var(--color-text-secondary); margin-top: 4px; }
+.stat-success .stat-value { color: #28A745; }
+.stat-warning .stat-value { color: #FFA500; }
+.filter-bar { background: var(--color-bg); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--color-border); margin-bottom: 24px; }
+.filter-form { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.filter-group { display: flex; align-items: center; gap: 8px; }
+.checkbox-label { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+.table-container { background: var(--color-bg); border-radius: var(--radius-md); border: 1px solid var(--color-border); overflow: hidden; }
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th, .data-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--color-border); vertical-align: top; }
+.data-table th { background: var(--color-surface); font-weight: 600; font-size: 14px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+.badge-admin { background: #6F42C1; color: white; margin-left: 4px; }
+.status-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+.status-active { background: #D5FBDD; color: #14866D; }
+.status-inactive { background: #FEE7E7; color: #D33; }
+.btn { padding: 8px 12px; border: none; border-radius: var(--radius-sm); font-size: 13px; cursor: pointer; text-decoration: none; display: inline-block; }
+.btn-primary { background: var(--color-primary); color: white; }
+.btn-secondary { background: #6c757d; color: white; }
+.btn-danger { background: #dc3545; color: white; }
+.btn-sm { padding: 6px 10px; font-size: 12px; }
+.form-control { padding: 8px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); width: 100%; }
+.form-control-sm { padding: 6px 8px; font-size: 12px; min-width: 180px; }
+.token-list { display: flex; flex-direction: column; gap: 10px; }
+.token-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 10px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); }
+.token-meta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; font-size: 12px; color: var(--color-text-secondary); }
+.mcp-cell { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.create-token-form { display: flex; gap: 8px; align-items: center; }
+.inline-form { margin-top: 10px; }
+@media (max-width: 960px) {
+    .create-token-form, .token-item, .page-header { flex-direction: column; align-items: stretch; }
 }
 </style>
 
@@ -368,19 +213,10 @@
 function copyNewToken() {
     const el = document.getElementById('newTokenValue');
     if (!el) return;
-    const text = el.textContent || '';
-    navigator.clipboard.writeText(text).then(() => {
-        if (window.showToast) {
-            window.showToast('Token 已复制到剪贴板', 'success');
-        } else {
-            alert('Token 已复制到剪贴板');
-        }
+    navigator.clipboard.writeText(el.textContent || '').then(() => {
+        if (window.showToast) window.showToast('Token 已复制到剪贴板', 'success');
     }).catch(() => {
-        if (window.showToast) {
-            window.showToast('复制失败，请手动复制', 'warning');
-        } else {
-            alert('复制失败，请手动复制');
-        }
+        if (window.showToast) window.showToast('复制失败，请手动复制', 'warning');
     });
 }
 </script>

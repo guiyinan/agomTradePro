@@ -12,12 +12,13 @@ from django.utils import timezone as django_timezone
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponseNotAllowed
 from django.conf import settings
-from rest_framework.authentication import SessionAuthentication, TokenAuthentication
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from core.cache_utils import cached_api, CACHE_TTL
+from apps.account.interface.authentication import MultiTokenAuthentication
 from apps.dashboard.application.use_cases import GetDashboardDataUseCase
 from apps.account.infrastructure.repositories import AccountRepository
 from apps.account.infrastructure.repositories import PortfolioRepository
@@ -460,7 +461,7 @@ def performance_chart_htmx(request):
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, TokenAuthentication])
+@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
 @permission_classes([IsAuthenticated])
 @cached_api(key_prefix='dashboard_summary', ttl_seconds=CACHE_TTL['dashboard_summary'], include_user=True)
 def dashboard_summary_v1(request):
@@ -492,7 +493,7 @@ def dashboard_summary_v1(request):
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, TokenAuthentication])
+@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
 @permission_classes([IsAuthenticated])
 @cached_api(key_prefix='regime_quadrant', ttl_seconds=CACHE_TTL['regime_current'], include_user=False)
 def regime_quadrant_v1(request):
@@ -515,7 +516,7 @@ def regime_quadrant_v1(request):
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, TokenAuthentication])
+@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
 @permission_classes([IsAuthenticated])
 def equity_curve_v1(request):
     """
@@ -547,7 +548,7 @@ def equity_curve_v1(request):
 
 
 @api_view(["GET"])
-@authentication_classes([SessionAuthentication, TokenAuthentication])
+@authentication_classes([SessionAuthentication, MultiTokenAuthentication])
 @permission_classes([IsAuthenticated])
 @cached_api(key_prefix='signal_status', ttl_seconds=CACHE_TTL['signal_list'], vary_on=['limit'], include_user=True)
 def signal_status_v1(request):
@@ -892,5 +893,4 @@ def alpha_ic_trends_htmx(request):
         'success': True,
         'data': trends
     })
-
 

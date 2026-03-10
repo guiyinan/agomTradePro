@@ -146,6 +146,66 @@
             <a href="/account/profile/" class="btn btn-secondary">取消</a>
         </div>
     </form>
+
+    <section class="settings-section">
+        <h2 class="section-title">MCP/SDK Token</h2>
+        <p class="subtitle">
+            当前 MCP/SDK 权限: <strong>{% if profile.mcp_enabled %}已开启{% else %}已关闭{% endif %}</strong>
+            {% if not system_settings.allow_token_plaintext_view %}，系统已关闭 Token 明文查看{% endif %}
+        </p>
+
+        {% if new_token_payload %}
+            <div class="token-banner">
+                <div><strong>新 Token</strong> - {{ new_token_payload.token_name }}</div>
+                <div class="token-banner-row">
+                    <code id="selfNewTokenValue">{{ new_token_payload.token }}</code>
+                    <button type="button" class="btn btn-secondary" onclick="copySelfToken()">复制</button>
+                </div>
+            </div>
+        {% endif %}
+
+        {% if profile.mcp_enabled %}
+            <form method="post" action="{% url 'account:create_self_token' %}" class="token-create-form">
+                {% csrf_token %}
+                <input type="text" name="token_name" class="form-control" placeholder="例如: my-local-sdk" maxlength="100">
+                <button type="submit" class="btn btn-primary">新建 Token</button>
+            </form>
+        {% endif %}
+
+        {% if access_tokens %}
+            <div class="flow-list">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>名称</th>
+                            <th>预览</th>
+                            <th>创建时间</th>
+                            <th>最后使用</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for token in access_tokens %}
+                        <tr>
+                            <td>{{ token.name }}</td>
+                            <td><code>{{ token.preview }}</code></td>
+                            <td>{{ token.created_at|date:"Y-m-d H:i" }}</td>
+                            <td>{% if token.last_used_at %}{{ token.last_used_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</td>
+                            <td>
+                                <form method="post" action="{% url 'account:revoke_self_token' token.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-secondary" onclick="return confirm('确定撤销 Token {{ token.name }} 吗？')">撤销</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="empty-state">暂无可用 Token</p>
+        {% endif %}
+    </section>
 </div>
 
 <!-- 入金/出金弹窗 -->
@@ -261,6 +321,28 @@
 
 .flow-list {
     margin-top: 16px;
+}
+
+.token-banner {
+    margin: 12px 0 16px;
+    padding: 12px;
+    border: 1px solid #FFECB5;
+    background: #FFF3CD;
+    border-radius: 4px;
+}
+
+.token-banner-row {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.token-create-form {
+    display: flex;
+    gap: 12px;
+    margin: 16px 0;
 }
 
 .tag-deposit {
@@ -442,6 +524,16 @@ function showFlowModal(type) {
 function closeModal() {
     document.getElementById('flowModal').style.display = 'none';
     document.getElementById('flowForm').reset();
+}
+
+function copySelfToken() {
+    const el = document.getElementById('selfNewTokenValue');
+    if (!el) return;
+    navigator.clipboard.writeText(el.textContent || '').then(() => {
+        if (window.showToast) {
+            window.showToast('Token 已复制到剪贴板', 'success');
+        }
+    });
 }
 
 // 点击弹窗外部关闭

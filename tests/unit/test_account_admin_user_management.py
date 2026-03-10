@@ -1,9 +1,8 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
-from rest_framework.authtoken.models import Token
 
-from apps.account.infrastructure.models import AccountProfileModel
+from apps.account.infrastructure.models import AccountProfileModel, UserAccessTokenModel
 
 
 class AccountAdminUserManagementTests(TestCase):
@@ -34,7 +33,7 @@ class AccountAdminUserManagementTests(TestCase):
         profile = self._create_profile(user, approval_status="approved")
         user.is_active = True
         user.save(update_fields=["is_active"])
-        Token.objects.create(user=user)
+        UserAccessTokenModel.create_token(user=user, name="default", created_by=self.admin)
 
         resp = self.client.post(
             reverse("account:reject_user", args=[user.id]),
@@ -46,14 +45,14 @@ class AccountAdminUserManagementTests(TestCase):
         user.refresh_from_db()
         self.assertEqual(profile.approval_status, "approved")
         self.assertTrue(user.is_active)
-        self.assertTrue(Token.objects.filter(user=user).exists())
+        self.assertTrue(UserAccessTokenModel.objects.filter(user=user, is_active=True).exists())
 
     def test_reject_pending_user_deactivates_and_revokes_token(self):
         user = User.objects.create_user(username="pending_u", password="x")
         profile = self._create_profile(user, approval_status="pending")
         user.is_active = True
         user.save(update_fields=["is_active"])
-        Token.objects.create(user=user)
+        UserAccessTokenModel.create_token(user=user, name="default", created_by=self.admin)
 
         resp = self.client.post(
             reverse("account:reject_user", args=[user.id]),
@@ -65,37 +64,55 @@ class AccountAdminUserManagementTests(TestCase):
         user.refresh_from_db()
         self.assertEqual(profile.approval_status, "rejected")
         self.assertFalse(user.is_active)
-        self.assertFalse(Token.objects.filter(user=user).exists())
+        self.assertFalse(UserAccessTokenModel.objects.filter(user=user, is_active=True).exists())
 
     def test_reset_self_is_blocked(self):
-        Token.objects.get_or_create(user=self.admin)
+        UserAccessTokenModel.create_token(user=self.admin, name="default", created_by=self.admin)
 
         resp = self.client.post(reverse("account:reset_user_status", args=[self.admin.id]))
         self.assertEqual(resp.status_code, 302)
 
         self.admin.refresh_from_db()
         self.assertTrue(self.admin.is_active)
-        self.assertTrue(Token.objects.filter(user=self.admin).exists())
+        self.assertTrue(UserAccessTokenModel.objects.filter(user=self.admin, is_active=True).exists())
 
     def test_rotate_token_uses_session_payload_instead_of_plain_message(self):
         user = User.objects.create_user(username="token_u", password="x")
         self._create_profile(user, approval_status="approved")
-        old_token = Token.objects.create(user=user).key
+        _, old_token = UserAccessTokenModel.create_token(user=user, name="old", created_by=self.admin)
 
         resp = self.client.post(
             reverse("account:rotate_user_token", args=[user.id]),
+            {"token_name": "new-one"},
             follow=True,
         )
         self.assertEqual(resp.status_code, 200)
 
-        new_token = Token.objects.get(user=user).key
+        new_token_obj = UserAccessTokenModel.objects.get(user=user, name="new-one", is_active=True)
+        new_token = new_token_obj.key
         self.assertNotEqual(old_token, new_token)
+        self.assertEqual(UserAccessTokenModel.objects.filter(user=user, is_active=True).count(), 2)
 
         payload = resp.context["new_token_payload"]
         self.assertIsNotNone(payload)
         self.assertEqual(payload["username"], user.username)
+        self.assertEqual(payload["token_name"], "new-one")
         self.assertEqual(payload["token"], new_token)
 
         messages = list(resp.context["messages"])
-        self.assertTrue(any("生成新 Token" in str(m) for m in messages))
+        self.assertTrue(any("创建 Token" in str(m) for m in messages))
         self.assertFalse(any(new_token in str(m) for m in messages))
+
+    def test_toggle_user_mcp_revokes_active_tokens(self):
+        user = User.objects.create_user(username="mcp_u", password="x")
+        profile = self._create_profile(user, approval_status="approved")
+        profile.mcp_enabled = True
+        profile.save(update_fields=["mcp_enabled", "updated_at"])
+        UserAccessTokenModel.create_token(user=user, name="default", created_by=self.admin)
+
+        resp = self.client.post(reverse("account:toggle_user_mcp", args=[user.id]))
+        self.assertEqual(resp.status_code, 302)
+
+        profile.refresh_from_db()
+        self.assertFalse(profile.mcp_enabled)
+        self.assertFalse(UserAccessTokenModel.objects.filter(user=user, is_active=True).exists())
