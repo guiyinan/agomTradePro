@@ -137,6 +137,24 @@ client.account.delete_position(position_id) -> None
 | `cash` | `float` | Cash |
 | `positions` | `list[Position]` | Positions |
 
+### Trading Cost Config
+
+```python
+client.account.get_trading_cost_configs(limit) -> list[dict]
+client.account.get_trading_cost_config(config_id) -> dict
+client.account.create_trading_cost_config(portfolio_id, commission_rate, min_commission, stamp_duty_rate, transfer_fee_rate) -> dict
+client.account.update_trading_cost_config(config_id, commission_rate, min_commission, stamp_duty_rate, transfer_fee_rate, is_active) -> dict
+client.account.delete_trading_cost_config(config_id) -> None
+client.account.calculate_trading_cost(config_id, action, amount, is_shanghai) -> dict
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `commission_rate` | `float` | 0.00025 | 佣金率（万2.5） |
+| `min_commission` | `float` | 5.0 | 最低佣金（元） |
+| `stamp_duty_rate` | `float` | 0.001 | 印花税率（千1，仅卖出） |
+| `transfer_fee_rate` | `float` | 0.00002 | 过户费率（万0.2，沪市双向） |
+
 ## Simulated Trading Module
 
 ```python

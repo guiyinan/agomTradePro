@@ -18,6 +18,7 @@ router.register(r'transactions', api_views.TransactionViewSet, basename='transac
 router.register(r'capital-flows', api_views.CapitalFlowViewSet, basename='capital_flow_api')
 router.register(r'assets', api_views.AssetMetadataViewSet, basename='asset_api')
 router.register(r'observer-grants', api_views.ObserverGrantViewSet, basename='observer_grant_api')
+router.register(r'trading-cost-configs', api_views.TradingCostConfigViewSet, basename='trading_cost_config_api')
 
 # Classification API Router
 classification_router = DefaultRouter()

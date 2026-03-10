@@ -73,6 +73,9 @@ class _FakeClient:
             positions=lambda: {"positions": []},
             allocation=lambda: {"allocation": []},
         )
+        self.account = SimpleNamespace(
+            get_trading_cost_configs=lambda limit=100: [{"id": 1, "portfolio": 1, "limit": limit}],
+        )
         self.asset_analysis = SimpleNamespace(
             multidim_screen=lambda payload: {"screen": True, "payload": payload},
             get_weight_configs=lambda: {"weights": []},
@@ -134,6 +137,17 @@ class _FakeClient:
             },
         )
 
+    def get(self, path, params=None):
+        if path == "account/api/trading-cost-configs/":
+            return {"results": [{"id": 1, "portfolio": params.get("portfolio_id", 1) if params else 1}]}
+        return {"ok": True, "path": path, "params": params}
+
+    def post(self, path, json=None):
+        return {"ok": True, "path": path, "json": json, "data": json or {}}
+
+    def patch(self, path, json=None):
+        return {"ok": True, "path": path, "json": json}
+
 
 def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
     module_names = [
@@ -146,6 +160,7 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         "agomsaaf_mcp.tools.beta_gate_tools",
         "agomsaaf_mcp.tools.alpha_trigger_tools",
         "agomsaaf_mcp.tools.dashboard_tools",
+        "agomsaaf_mcp.tools.account_tools",
         "agomsaaf_mcp.tools.asset_analysis_tools",
         "agomsaaf_mcp.tools.sentiment_tools",
         "agomsaaf_mcp.tools.task_monitor_tools",
@@ -215,7 +230,7 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("get_dashboard_positions", {}),
         ("get_dashboard_allocation", {}),
         ("asset_multidim_screen", {"payload": {"asset_type": "equity"}}),
-        ("get_asset_weight_configs", {}),
+        ("get_trading_cost_configs", {"portfolio_id": 1}),
         ("get_asset_current_weight", {}),
         ("asset_pool_screen", {"asset_type": "equity", "payload": {"top_n": 10}}),
         ("asset_pool_summary", {"payload": {"asset_type": "equity"}}),

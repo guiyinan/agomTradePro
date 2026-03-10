@@ -392,6 +392,75 @@ class StopLossTrigger:
 
 
 @dataclass(frozen=True)
+class TradingCostConfig:
+    """
+    交易费率配置
+
+    每个投资组合可独立配置交易费率，遵循中国A股市场规则。
+    """
+    id: Optional[int]
+    portfolio_id: int
+
+    # 佣金（双向）
+    commission_rate: float = 0.00025       # 佣金率（默认万2.5）
+    min_commission: float = 5.0            # 最低佣金（元）
+
+    # 印花税（仅卖出，A股特有）
+    stamp_duty_rate: float = 0.001         # 印花税率（默认千1）
+
+    # 过户费（双向，沪市股票）
+    transfer_fee_rate: float = 0.00002     # 过户费率（默认万0.2）
+
+    # 是否启用
+    is_active: bool = True
+
+    def calculate_buy_cost(self, amount: float, is_shanghai: bool = False) -> dict:
+        """
+        计算买入总费用
+
+        Args:
+            amount: 成交金额（元）
+            is_shanghai: 是否上海市场（影响过户费）
+
+        Returns:
+            各项费用明细
+        """
+        commission = max(amount * self.commission_rate, self.min_commission)
+        transfer_fee = amount * self.transfer_fee_rate if is_shanghai else 0.0
+        total = commission + transfer_fee
+
+        return {
+            "commission": round(commission, 2),
+            "stamp_duty": 0.0,
+            "transfer_fee": round(transfer_fee, 2),
+            "total": round(total, 2),
+        }
+
+    def calculate_sell_cost(self, amount: float, is_shanghai: bool = False) -> dict:
+        """
+        计算卖出总费用
+
+        Args:
+            amount: 成交金额（元）
+            is_shanghai: 是否上海市场
+
+        Returns:
+            各项费用明细
+        """
+        commission = max(amount * self.commission_rate, self.min_commission)
+        stamp_duty = amount * self.stamp_duty_rate
+        transfer_fee = amount * self.transfer_fee_rate if is_shanghai else 0.0
+        total = commission + stamp_duty + transfer_fee
+
+        return {
+            "commission": round(commission, 2),
+            "stamp_duty": round(stamp_duty, 2),
+            "transfer_fee": round(transfer_fee, 2),
+            "total": round(total, 2),
+        }
+
+
+@dataclass(frozen=True)
 class TakeProfitConfig:
     """
     止盈配置

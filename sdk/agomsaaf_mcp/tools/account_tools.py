@@ -946,7 +946,135 @@ def register_account_tools(server: FastMCP) -> None:
             },
         }
 
+    # ==================== Trading Cost Config ====================
+
     @server.tool()
+    def get_trading_cost_configs(
+        portfolio_id: int,
+    ) -> list[dict[str, Any]]:
+        """
+        获取投资组合的交易费率配置
+
+        Args:
+            portfolio_id: 投资组合 ID
+
+        Returns:
+            费率配置列表
+        """
+        client = AgomSAAFClient()
+        payload = client.get(
+            "account/api/trading-cost-configs/",
+            params={"limit": 100},
+        )
+        rows = _extract_results(payload)
+        return [
+            r for r in rows
+            if r.get("portfolio") == portfolio_id
+        ]
+
+    @server.tool()
+    def create_trading_cost_config(
+        portfolio_id: int,
+        commission_rate: float = 0.00025,
+        min_commission: float = 5.0,
+        stamp_duty_rate: float = 0.001,
+        transfer_fee_rate: float = 0.00002,
+    ) -> dict[str, Any]:
+        """
+        为投资组合创建交易费率配置
+
+        Args:
+            portfolio_id: 投资组合 ID
+            commission_rate: 佣金率（默认万2.5，如 0.00025）
+            min_commission: 最低佣金（元，默认5）
+            stamp_duty_rate: 印花税率（默认千1，如 0.001，卖出时收取）
+            transfer_fee_rate: 过户费率（默认万0.2，如 0.00002，沪市股票双向收取）
+
+        Returns:
+            创建的费率配置
+        """
+        client = AgomSAAFClient()
+        return client.post(
+            "account/api/trading-cost-configs/",
+            json={
+                "portfolio": portfolio_id,
+                "commission_rate": commission_rate,
+                "min_commission": min_commission,
+                "stamp_duty_rate": stamp_duty_rate,
+                "transfer_fee_rate": transfer_fee_rate,
+            },
+        )
+
+    @server.tool()
+    def update_trading_cost_config(
+        config_id: int,
+        commission_rate: float | None = None,
+        min_commission: float | None = None,
+        stamp_duty_rate: float | None = None,
+        transfer_fee_rate: float | None = None,
+        is_active: bool | None = None,
+    ) -> dict[str, Any]:
+        """
+        更新交易费率配置
+
+        Args:
+            config_id: 费率配置 ID
+            commission_rate: 佣金率（如 0.0001 表示万1）
+            min_commission: 最低佣金（元）
+            stamp_duty_rate: 印花税率（如 0.001 表示千1）
+            transfer_fee_rate: 过户费率
+            is_active: 是否启用
+
+        Returns:
+            更新后的费率配置
+        """
+        client = AgomSAAFClient()
+        data: dict[str, Any] = {}
+        if commission_rate is not None:
+            data["commission_rate"] = commission_rate
+        if min_commission is not None:
+            data["min_commission"] = min_commission
+        if stamp_duty_rate is not None:
+            data["stamp_duty_rate"] = stamp_duty_rate
+        if transfer_fee_rate is not None:
+            data["transfer_fee_rate"] = transfer_fee_rate
+        if is_active is not None:
+            data["is_active"] = is_active
+        return client.patch(
+            f"account/api/trading-cost-configs/{config_id}/",
+            json=data,
+        )
+
+    @server.tool()
+    def calculate_trading_cost(
+        config_id: int,
+        action: str,
+        amount: float,
+        is_shanghai: bool = False,
+    ) -> dict[str, Any]:
+        """
+        计算交易费用（基于已配置的费率）
+
+        Args:
+            config_id: 费率配置 ID
+            action: 交易方向（buy 或 sell）
+            amount: 成交金额（元）
+            is_shanghai: 是否上海市场（影响过户费）
+
+        Returns:
+            费用明细：commission（佣金）、stamp_duty（印花税）、transfer_fee（过户费）、total（总费用）、cost_ratio（费用占比%）
+        """
+        client = AgomSAAFClient()
+        result = client.post(
+            f"account/api/trading-cost-configs/{config_id}/calculate/",
+            json={
+                "action": action,
+                "amount": amount,
+                "is_shanghai": is_shanghai,
+            },
+        )
+        return result.get("data", result)
+
     def export_account_bundle_csv(
         portfolio_id: int,
         include_closed_positions: bool = False,
@@ -994,4 +1122,3 @@ def register_account_tools(server: FastMCP) -> None:
             "transactions_csv": transactions_pack.get("csv", ""),
             "capital_flows_csv": capital_flows_pack.get("csv", ""),
         }
-

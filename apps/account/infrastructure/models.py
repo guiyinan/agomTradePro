@@ -917,6 +917,69 @@ class ExchangeRateModel(models.Model):
 # 止损止盈模型
 # ============================================================
 
+class TradingCostConfigModel(models.Model):
+    """
+    交易费率配置表
+
+    每个投资组合可独立配置交易费率。
+    """
+    portfolio = models.OneToOneField(
+        PortfolioModel,
+        on_delete=models.CASCADE,
+        related_name='trading_cost_config',
+        verbose_name="投资组合"
+    )
+
+    commission_rate = models.FloatField(
+        default=0.00025,
+        verbose_name="佣金率",
+        help_text="默认万2.5，如 0.00025"
+    )
+    min_commission = models.FloatField(
+        default=5.0,
+        verbose_name="最低佣金（元）",
+        help_text="单笔佣金不足此金额按此收取"
+    )
+    stamp_duty_rate = models.FloatField(
+        default=0.001,
+        verbose_name="印花税率",
+        help_text="卖出时收取，默认千1，如 0.001"
+    )
+    transfer_fee_rate = models.FloatField(
+        default=0.00002,
+        verbose_name="过户费率",
+        help_text="沪市股票双向收取，默认万0.2，如 0.00002"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="是否启用"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = 'trading_cost_config'
+        verbose_name = '交易费率配置'
+        verbose_name_plural = '交易费率配置'
+
+    def __str__(self):
+        return f"{self.portfolio.name} - 佣金{self.commission_rate:.5%}"
+
+    def to_domain(self):
+        """转换为Domain实体"""
+        from apps.account.domain.entities import TradingCostConfig
+        return TradingCostConfig(
+            id=self.id,
+            portfolio_id=self.portfolio_id,
+            commission_rate=self.commission_rate,
+            min_commission=self.min_commission,
+            stamp_duty_rate=self.stamp_duty_rate,
+            transfer_fee_rate=self.transfer_fee_rate,
+            is_active=self.is_active,
+        )
+
+
 class StopLossConfigModel(models.Model):
     """
     止损配置表

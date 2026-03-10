@@ -24,6 +24,7 @@ from apps.account.infrastructure.models import (
     CapitalFlowModel,
     SystemSettingsModel,
     UserAccessTokenModel,
+    TradingCostConfigModel,
 )
 from apps.account.infrastructure.repositories import (
     AccountRepository,
@@ -33,6 +34,7 @@ from apps.account.infrastructure.repositories import (
 )
 from apps.account.application.use_cases import CreatePositionFromBacktestUseCase, CreatePositionFromBacktestInput
 from apps.account.application.rbac import ROLE_CHOICES, is_system_admin
+from apps.account.interface.serializers import TradingCostConfigCreateSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -318,6 +320,35 @@ def settings_view(request):
             messages.success(request, "密码已修改，请重新登录")
             return redirect("/account/login/")
 
+        # 保存交易费率配置
+        if portfolio and request.POST.get("save_trading_cost"):
+            try:
+                trading_cost_config = portfolio.trading_cost_config
+            except TradingCostConfigModel.DoesNotExist:
+                trading_cost_config = None
+            serializer = TradingCostConfigCreateSerializer(
+                instance=trading_cost_config,
+                data={
+                    "portfolio": portfolio.id,
+                    "commission_rate": request.POST.get("commission_rate", 0.00025),
+                    "min_commission": request.POST.get("min_commission", 5.0),
+                    "stamp_duty_rate": request.POST.get("stamp_duty_rate", 0.001),
+                    "transfer_fee_rate": request.POST.get("transfer_fee_rate", 0.00002),
+                    "is_active": trading_cost_config.is_active if trading_cost_config else True,
+                },
+            )
+            if serializer.is_valid():
+                serializer.save()
+                messages.success(request, "交易费率已保存")
+            else:
+                first_error = next(iter(serializer.errors.values()))
+                if isinstance(first_error, (list, tuple)):
+                    error_message = first_error[0]
+                else:
+                    error_message = first_error
+                messages.error(request, f"费率保存失败：{error_message}")
+            return redirect("/account/settings/")
+
         profile.save()
         messages.success(request, "设置已保存")
         return redirect("/account/settings/")
@@ -343,13 +374,23 @@ def settings_view(request):
         total_withdraw = Decimal('0')
         net_capital = Decimal('0')
 
+    # 交易费率配置
+    trading_cost_config = None
+    if portfolio:
+        try:
+            trading_cost_config = portfolio.trading_cost_config
+        except TradingCostConfigModel.DoesNotExist:
+            pass
+
     context = {
         "user": request.user,
         "profile": profile,
+        "portfolio": portfolio,
         "capital_flows": capital_flows,
         "total_deposit": total_deposit,
         "total_withdraw": total_withdraw,
         "net_capital": net_capital,
+        "trading_cost_config": trading_cost_config,
         "system_settings": system_settings,
         "access_tokens": request.user.access_tokens.filter(is_active=True).order_by("-created_at"),
         "new_token_payload": request.session.pop("self_new_token_payload", None),

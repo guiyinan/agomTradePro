@@ -281,6 +281,137 @@ class AccountModule(BaseModule):
             profit_loss=self._to_float(profit_loss_raw, default=0.0),
         )
 
+    # ==================== Trading Cost Config ====================
+
+    def get_trading_cost_configs(self, limit: int = 100) -> list[dict[str, Any]]:
+        """
+        获取交易费率配置列表
+
+        Args:
+            limit: 返回数量限制
+
+        Returns:
+            费率配置列表
+        """
+        response = self._get("trading-cost-configs/", params={"limit": limit})
+        results = response.get("results", response)
+        if isinstance(results, list):
+            return results
+        return []
+
+    def get_trading_cost_config(self, config_id: int) -> dict[str, Any]:
+        """
+        获取单个交易费率配置详情
+
+        Args:
+            config_id: 配置 ID
+
+        Returns:
+            费率配置详情
+        """
+        return self._get(f"trading-cost-configs/{config_id}/")
+
+    def create_trading_cost_config(
+        self,
+        portfolio_id: int,
+        commission_rate: float = 0.00025,
+        min_commission: float = 5.0,
+        stamp_duty_rate: float = 0.001,
+        transfer_fee_rate: float = 0.00002,
+    ) -> dict[str, Any]:
+        """
+        创建交易费率配置
+
+        Args:
+            portfolio_id: 投资组合 ID
+            commission_rate: 佣金率（默认万2.5）
+            min_commission: 最低佣金（元）
+            stamp_duty_rate: 印花税率（默认千1）
+            transfer_fee_rate: 过户费率（默认万0.2）
+
+        Returns:
+            创建的费率配置
+        """
+        data: dict[str, Any] = {
+            "portfolio": portfolio_id,
+            "commission_rate": commission_rate,
+            "min_commission": min_commission,
+            "stamp_duty_rate": stamp_duty_rate,
+            "transfer_fee_rate": transfer_fee_rate,
+        }
+        return self._post("trading-cost-configs/", json=data)
+
+    def update_trading_cost_config(
+        self,
+        config_id: int,
+        commission_rate: Optional[float] = None,
+        min_commission: Optional[float] = None,
+        stamp_duty_rate: Optional[float] = None,
+        transfer_fee_rate: Optional[float] = None,
+        is_active: Optional[bool] = None,
+    ) -> dict[str, Any]:
+        """
+        更新交易费率配置
+
+        Args:
+            config_id: 配置 ID
+            commission_rate: 佣金率
+            min_commission: 最低佣金
+            stamp_duty_rate: 印花税率
+            transfer_fee_rate: 过户费率
+            is_active: 是否启用
+
+        Returns:
+            更新后的费率配置
+        """
+        data: dict[str, Any] = {}
+        if commission_rate is not None:
+            data["commission_rate"] = commission_rate
+        if min_commission is not None:
+            data["min_commission"] = min_commission
+        if stamp_duty_rate is not None:
+            data["stamp_duty_rate"] = stamp_duty_rate
+        if transfer_fee_rate is not None:
+            data["transfer_fee_rate"] = transfer_fee_rate
+        if is_active is not None:
+            data["is_active"] = is_active
+        return self._patch(f"trading-cost-configs/{config_id}/", json=data)
+
+    def delete_trading_cost_config(self, config_id: int) -> None:
+        """
+        删除交易费率配置
+
+        Args:
+            config_id: 配置 ID
+        """
+        self._delete(f"trading-cost-configs/{config_id}/")
+
+    def calculate_trading_cost(
+        self,
+        config_id: int,
+        action: str,
+        amount: float,
+        is_shanghai: bool = False,
+    ) -> dict[str, Any]:
+        """
+        计算交易费用
+
+        Args:
+            config_id: 费率配置 ID
+            action: 交易方向（buy/sell）
+            amount: 成交金额（元）
+            is_shanghai: 是否上海市场
+
+        Returns:
+            费用明细
+        """
+        data: dict[str, Any] = {
+            "action": action,
+            "amount": amount,
+            "is_shanghai": is_shanghai,
+        }
+        return self._post(f"trading-cost-configs/{config_id}/calculate/", json=data)
+
     @staticmethod
     def _to_float(value: Any, default: float = 0.0) -> float:
         if value is None or value == "":

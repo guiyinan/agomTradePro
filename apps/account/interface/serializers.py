@@ -387,3 +387,80 @@ class ObserverGrantUpdateSerializer(serializers.ModelSerializer):
             if value <= timezone.now():
                 raise serializers.ValidationError("过期时间必须大于当前时间")
         return value
+
+
+# ==================== Trading Cost Config ====================
+
+class TradingCostConfigSerializer(serializers.ModelSerializer):
+    """交易费率配置序列化器"""
+
+    # 只读计算字段：以万为单位的佣金率（方便展示）
+    commission_rate_wan = serializers.SerializerMethodField()
+    stamp_duty_rate_qian = serializers.SerializerMethodField()
+
+    class Meta:
+        from apps.account.infrastructure.models import TradingCostConfigModel
+        model = TradingCostConfigModel
+        fields = [
+            'id', 'portfolio', 'commission_rate', 'min_commission',
+            'stamp_duty_rate', 'transfer_fee_rate', 'is_active',
+            'commission_rate_wan', 'stamp_duty_rate_qian',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_commission_rate_wan(self, obj) -> float:
+        """佣金率（万）"""
+        return round(obj.commission_rate * 10000, 2)
+
+    def get_stamp_duty_rate_qian(self, obj) -> float:
+        """印花税率（千）"""
+        return round(obj.stamp_duty_rate * 1000, 2)
+
+
+class TradingCostConfigCreateSerializer(serializers.ModelSerializer):
+    """交易费率配置创建/更新序列化器"""
+
+    class Meta:
+        from apps.account.infrastructure.models import TradingCostConfigModel
+        model = TradingCostConfigModel
+        fields = [
+            'portfolio', 'commission_rate', 'min_commission',
+            'stamp_duty_rate', 'transfer_fee_rate', 'is_active',
+        ]
+
+    def validate(self, attrs):
+        portfolio = attrs.get("portfolio")
+        if self.instance is not None and portfolio is not None and portfolio != self.instance.portfolio:
+            raise serializers.ValidationError({"portfolio": "更新时不允许修改所属投资组合"})
+        return attrs
+
+    def validate_commission_rate(self, value: float) -> float:
+        if value < 0 or value > 0.01:
+            raise serializers.ValidationError("佣金率应在 0 ~ 0.01（万0 ~ 万10）之间")
+        return value
+
+    def validate_min_commission(self, value: float) -> float:
+        if value < 0:
+            raise serializers.ValidationError("最低佣金不能为负数")
+        return value
+
+    def validate_stamp_duty_rate(self, value: float) -> float:
+        if value < 0 or value > 0.01:
+            raise serializers.ValidationError("印花税率应在 0 ~ 0.01 之间")
+        return value
+
+    def validate_transfer_fee_rate(self, value: float) -> float:
+        if value < 0 or value > 0.001:
+            raise serializers.ValidationError("过户费率应在 0 ~ 0.001 之间")
+        return value
+
+
+class TradingCostCalculationSerializer(serializers.Serializer):
+    """交易费率试算参数校验"""
+
+    ACTION_CHOICES = ("buy", "sell")
+
+    action = serializers.ChoiceField(choices=ACTION_CHOICES)
+    amount = serializers.FloatField(min_value=0.01)
+    is_shanghai = serializers.BooleanField(required=False, default=False)

@@ -23,6 +23,7 @@ from apps.account.infrastructure.models import (
     CapitalFlowModel,
     AssetMetadataModel,
     PortfolioObserverGrantModel,
+    TradingCostConfigModel,
 )
 from apps.account.infrastructure.repositories import (
     PortfolioRepository,
@@ -45,6 +46,9 @@ from .serializers import (
     ObserverGrantSerializer,
     ObserverGrantCreateSerializer,
     ObserverGrantUpdateSerializer,
+    TradingCostConfigSerializer,
+    TradingCostConfigCreateSerializer,
+    TradingCostCalculationSerializer,
 )
 from .permissions import TradingPermission, GeneralPermission, ObserverAccessPermission
 
@@ -1238,3 +1242,84 @@ class UserSearchView(APIView):
             "success": True,
             "results": results
         })
+
+
+# ==================== Trading Cost Config ViewSet ====================
+
+class TradingCostConfigViewSet(viewsets.ModelViewSet):
+    """
+    交易费率配置 API ViewSet
+
+    提供以下接口:
+    - GET /account/api/trading-cost-configs/ - 获取费率配置列表
+    - POST /account/api/trading-cost-configs/ - 创建费率配置
+    - GET /account/api/trading-cost-configs/{id}/ - 获取费率配置详情
+    - PUT /account/api/trading-cost-configs/{id}/ - 更新费率配置
+    - DELETE /account/api/trading-cost-configs/{id}/ - 删除费率配置
+    - POST /account/api/trading-cost-configs/{id}/calculate/ - 计算交易费用
+    """
+
+    permission_classes = [IsAuthenticated, TradingPermission]
+
+    def get_queryset(self):
+        """只返回当前用户投资组合的费率配置"""
+        user_portfolios = PortfolioModel._default_manager.filter(user=self.request.user)
+        return TradingCostConfigModel._default_manager.filter(
+            portfolio__in=user_portfolios
+        ).select_related('portfolio')
+
+    def get_serializer_class(self):
+        if self.action in ['create', 'update', 'partial_update']:
+            return TradingCostConfigCreateSerializer
+        return TradingCostConfigSerializer
+
+    def perform_create(self, serializer):
+        """创建时验证投资组合归属"""
+        portfolio = serializer.validated_data['portfolio']
+        if portfolio.user != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("无权为此投资组合配置费率")
+        serializer.save()
+
+    def perform_update(self, serializer):
+        """更新时禁止越权修改配置归属"""
+        portfolio = serializer.validated_data.get("portfolio", serializer.instance.portfolio)
+        if portfolio.user != self.request.user:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("无权修改此投资组合的费率")
+        serializer.save()
+
+    @action(detail=True, methods=['post'])
+    def calculate(self, request, pk=None):
+        """
+        计算交易费用
+
+        POST /account/api/trading-cost-configs/{id}/calculate/
+
+        Body:
+            {
+                "action": "buy" | "sell",
+                "amount": 10000.0,
+                "is_shanghai": true
+            }
+        """
+        config_model = self.get_object()
+        config = config_model.to_domain()
+
+        payload = TradingCostCalculationSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        action_type = payload.validated_data["action"]
+        amount = payload.validated_data["amount"]
+        is_shanghai = payload.validated_data["is_shanghai"]
+
+        if action_type == 'sell':
+            cost = config.calculate_sell_cost(amount, is_shanghai)
+        else:
+            cost = config.calculate_buy_cost(amount, is_shanghai)
+
+        cost['action'] = action_type
+        cost['amount'] = amount
+        cost['is_shanghai'] = is_shanghai
+        cost['cost_ratio'] = round(cost['total'] / amount * 100, 4) if amount > 0 else 0
+
+        return Response({'success': True, 'data': cost})

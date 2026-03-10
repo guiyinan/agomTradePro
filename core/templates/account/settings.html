@@ -77,6 +77,97 @@
         {% endif %}
     </section>
 
+    <!-- 交易费率配置 -->
+    {% if portfolio %}
+    <section class="settings-section">
+        <h2 class="section-title">交易费率配置</h2>
+        <p class="subtitle" style="margin-bottom: 16px;">配置您的券商佣金等交易成本，用于收益计算和模拟交易</p>
+
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="save_trading_cost" value="1">
+
+            <div class="fee-grid">
+                <div class="form-group">
+                    <label for="commission_rate">佣金率</label>
+                    <div class="input-with-unit">
+                        <input type="number" id="commission_rate" name="commission_rate"
+                               class="form-control"
+                               step="0.00001" min="0" max="0.01"
+                               value="{{ trading_cost_config.commission_rate|default:'0.00025' }}"
+                               placeholder="0.00025">
+                        <span class="unit-label" id="commission_wan"></span>
+                    </div>
+                    <small class="form-hint">如万2.5填 0.00025，万1填 0.0001</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="min_commission">最低佣金（元）</label>
+                    <input type="number" id="min_commission" name="min_commission"
+                           class="form-control"
+                           step="0.01" min="0"
+                           value="{{ trading_cost_config.min_commission|default:'5.0' }}"
+                           placeholder="5.0">
+                    <small class="form-hint">单笔佣金不足此金额按此收取</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="stamp_duty_rate">印花税率</label>
+                    <div class="input-with-unit">
+                        <input type="number" id="stamp_duty_rate" name="stamp_duty_rate"
+                               class="form-control"
+                               step="0.0001" min="0" max="0.01"
+                               value="{{ trading_cost_config.stamp_duty_rate|default:'0.001' }}"
+                               placeholder="0.001">
+                        <span class="unit-label" id="stamp_qian"></span>
+                    </div>
+                    <small class="form-hint">卖出时收取，A股当前为千1（0.001）</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="transfer_fee_rate">过户费率</label>
+                    <div class="input-with-unit">
+                        <input type="number" id="transfer_fee_rate" name="transfer_fee_rate"
+                               class="form-control"
+                               step="0.00001" min="0" max="0.001"
+                               value="{{ trading_cost_config.transfer_fee_rate|default:'0.00002' }}"
+                               placeholder="0.00002">
+                        <span class="unit-label" id="transfer_wan"></span>
+                    </div>
+                    <small class="form-hint">沪市股票双向收取，默认万0.2</small>
+                </div>
+            </div>
+
+            <!-- 费用预览 -->
+            <div class="fee-preview" id="feePreview">
+                <h4>费用预估（以10万元为例）</h4>
+                <div class="fee-preview-grid">
+                    <div class="preview-item">
+                        <span class="preview-label">买入费用</span>
+                        <span class="preview-value" id="previewBuy">-</span>
+                    </div>
+                    <div class="preview-item">
+                        <span class="preview-label">卖出费用</span>
+                        <span class="preview-value" id="previewSell">-</span>
+                    </div>
+                    <div class="preview-item">
+                        <span class="preview-label">一买一卖总费用</span>
+                        <span class="preview-value preview-total" id="previewTotal">-</span>
+                    </div>
+                    <div class="preview-item">
+                        <span class="preview-label">费用占比</span>
+                        <span class="preview-value" id="previewRatio">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-actions" style="margin-top: 16px;">
+                <button type="submit" class="btn btn-primary">保存费率</button>
+            </div>
+        </form>
+    </section>
+    {% endif %}
+
     <!-- 基本信息 -->
     <form method="post" class="settings-form">
         {% csrf_token %}
@@ -511,6 +602,80 @@
     color: #54595D;
     font-size: 13px;
 }
+
+/* 费率配置 */
+.fee-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.input-with-unit {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.input-with-unit .form-control {
+    flex: 1;
+}
+
+.unit-label {
+    font-size: 13px;
+    color: #54595D;
+    white-space: nowrap;
+    min-width: 50px;
+}
+
+.fee-preview {
+    margin-top: 20px;
+    padding: 16px;
+    background: #F8F9FA;
+    border-radius: 4px;
+    border: 1px solid #E0E0E0;
+}
+
+.fee-preview h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.fee-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.preview-item {
+    text-align: center;
+}
+
+.preview-label {
+    display: block;
+    font-size: 12px;
+    color: #54595D;
+    margin-bottom: 4px;
+}
+
+.preview-value {
+    display: block;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.preview-total {
+    color: #D33;
+}
+
+@media (max-width: 600px) {
+    .fee-grid {
+        grid-template-columns: 1fr;
+    }
+    .fee-preview-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
 </style>
 
 <script>
@@ -542,6 +707,50 @@ document.getElementById('flowModal').addEventListener('click', function(e) {
         closeFlowModal();
     }
 });
+
+// 费率实时预览
+function updateFeePreview() {
+    var commRate = parseFloat(document.getElementById('commission_rate').value) || 0;
+    var minComm = parseFloat(document.getElementById('min_commission').value) || 0;
+    var stampRate = parseFloat(document.getElementById('stamp_duty_rate').value) || 0;
+    var transferRate = parseFloat(document.getElementById('transfer_fee_rate').value) || 0;
+    var amount = 100000;
+
+    // 更新单位标签
+    document.getElementById('commission_wan').textContent = '(万' + (commRate * 10000).toFixed(1) + ')';
+    document.getElementById('stamp_qian').textContent = '(千' + (stampRate * 1000).toFixed(1) + ')';
+    document.getElementById('transfer_wan').textContent = '(万' + (transferRate * 10000).toFixed(2) + ')';
+
+    // 买入: 佣金 + 过户费(沪市)
+    var buyComm = Math.max(amount * commRate, minComm);
+    var buyCost = buyComm;
+
+    // 卖出: 佣金 + 印花税 + 过户费(沪市)
+    var sellComm = Math.max(amount * commRate, minComm);
+    var sellStamp = amount * stampRate;
+    var sellCost = sellComm + sellStamp;
+
+    var totalCost = buyCost + sellCost;
+    var ratio = (totalCost / amount * 100).toFixed(3);
+
+    document.getElementById('previewBuy').textContent = '\u00a5' + buyCost.toFixed(2);
+    document.getElementById('previewSell').textContent = '\u00a5' + sellCost.toFixed(2);
+    document.getElementById('previewTotal').textContent = '\u00a5' + totalCost.toFixed(2);
+    document.getElementById('previewRatio').textContent = ratio + '%';
+}
+
+// 监听费率输入变化
+['commission_rate', 'min_commission', 'stamp_duty_rate', 'transfer_fee_rate'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) {
+        el.addEventListener('input', updateFeePreview);
+    }
+});
+
+// 初始化预览
+if (document.getElementById('commission_rate')) {
+    updateFeePreview();
+}
 
 document.querySelector('.settings-form').addEventListener('submit', function(e) {
     const newPass = document.getElementById('new_password').value;
