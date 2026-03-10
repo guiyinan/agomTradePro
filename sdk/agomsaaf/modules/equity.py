@@ -249,3 +249,207 @@ class EquityModule(BaseModule):
             params["as_of_date"] = as_of_date.isoformat()
 
         return self._get(f"stocks/{stock_code}/valuation/", params=params)
+
+    # =========================================================================
+    # 估值修复跟踪 API
+    # =========================================================================
+
+    def get_valuation_repair_status(
+        self,
+        stock_code: str,
+        lookback_days: int = 756,
+    ) -> dict[str, Any]:
+        """
+        获取股票估值修复状态
+
+        实时计算单只股票的估值修复状态，包括当前阶段、修复进度、速度等。
+
+        Args:
+            stock_code: 股票代码（如 000001.SZ）
+            lookback_days: 回看窗口天数（默认 756 天，约 3 年）
+
+        Returns:
+            估值修复状态信息，包括：
+            - phase: 当前阶段（undervalued/repair_started/repairing/near_target/completed/stalled 等）
+            - composite_percentile: 综合估值分位数
+            - repair_progress: 修复进度（0-1）
+            - repair_speed_per_30d: 修复速度（每30天百分点）
+            - estimated_days_to_target: 预计到达目标天数
+            - is_stalled: 是否停滞
+            - description: 状态描述
+
+        Example:
+            >>> client = AgomSAAFClient()
+            >>> status = client.equity.get_valuation_repair_status("000001.SZ")
+            >>> print(f"阶段: {status['phase']}")
+            >>> print(f"修复进度: {status['repair_progress'] * 100:.1f}%")
+        """
+        params: dict[str, Any] = {"lookback_days": lookback_days}
+        return self._get(f"valuation-repair/{stock_code}/", params=params)
+
+    def get_valuation_repair_history(
+        self,
+        stock_code: str,
+        lookback_days: int = 252,
+    ) -> list[dict[str, Any]]:
+        """
+        获取估值修复历史百分位序列
+
+        返回指定股票的历史估值百分位时间序列，用于绘制图表。
+
+        Args:
+            stock_code: 股票代码（如 000001.SZ）
+            lookback_days: 回看窗口天数（默认 252 天，约 1 年）
+
+        Returns:
+            百分位历史点列表，每个点包含：
+            - trade_date: 交易日期
+            - pe_percentile: PE 分位数
+            - pb_percentile: PB 分位数
+            - composite_percentile: 综合分位数
+
+        Example:
+            >>> client = AgomSAAFClient()
+            >>> history = client.equity.get_valuation_repair_history("000001.SZ")
+            >>> for point in history[-10:]:
+            ...     print(f"{point['trade_date']}: {point['composite_percentile'] * 100:.1f}%")
+        """
+        params: dict[str, Any] = {"lookback_days": lookback_days}
+        response = self._get(f"valuation-repair/{stock_code}/history/", params=params)
+        return response.get("points", response)
+
+    def scan_valuation_repairs(
+        self,
+        universe: str = "all_active",
+        lookback_days: int = 756,
+        limit: Optional[int] = None,
+    ) -> dict[str, Any]:
+        """
+        批量扫描估值修复股票
+
+        对指定股票池进行批量扫描，识别估值修复股票并保存快照。
+
+        Args:
+            universe: 股票池标识（"all_active" 或 "current_pool"）
+            lookback_days: 回看窗口天数（默认 756 天）
+            limit: 扫描数量限制（可选）
+
+        Returns:
+            扫描结果，包括：
+            - scanned_count: 扫描数量
+            - saved_count: 保存数量
+            - failed_count: 失败数量
+            - phase_counts: 各阶段数量统计
+
+        Example:
+            >>> client = AgomSAAFClient()
+            >>> result = client.equity.scan_valuation_repairs(universe="all_active")
+            >>> print(f"扫描 {result['scanned_count']} 只，保存 {result['saved_count']} 只")
+        """
+        data: dict[str, Any] = {
+            "universe": universe,
+            "lookback_days": lookback_days,
+        }
+        if limit is not None:
+            data["limit"] = limit
+
+        return self._post("valuation-repair/scan/", json=data)
+
+    def list_valuation_repairs(
+        self,
+        universe: str = "all_active",
+        phase: Optional[str] = None,
+        limit: int = 50,
+    ) -> dict[str, Any]:
+        """
+        列出估值修复股票
+
+        从快照表读取活跃的估值修复股票列表。
+
+        Args:
+            universe: 股票池标识（"all_active" 或 "current_pool"）
+            phase: 阶段过滤（undervalued/repair_started/repairing/near_target/stalled）
+            limit: 返回数量限制
+
+        Returns:
+            修复股票列表，包括：
+            - count: 总数量
+            - results: 股票列表
+
+        Example:
+            >>> client = AgomSAAFClient()
+            >>> result = client.equity.list_valuation_repairs(phase="repairing")
+            >>> for stock in result['results']:
+            ...     print(f"{stock['stock_code']}: {stock['phase']}")
+        """
+        params: dict[str, Any] = {"universe": universe, "limit": limit}
+        if phase is not None:
+            params["phase"] = phase
+
+        return self._get("valuation-repair-list/", params=params)
+
+    # =========================================================================
+    # 估值数据可信链 API
+    # =========================================================================
+
+    def sync_valuation_data(
+        self,
+        days_back: int = 1,
+        stock_codes: Optional[list[str]] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+        primary_source: str = "akshare",
+        fallback_source: str = "tushare",
+    ) -> dict[str, Any]:
+        """
+        同步估值数据到本地估值表。
+
+        Args:
+            days_back: 回溯天数
+            stock_codes: 指定股票代码列表（可选）
+            start_date: 起始日期（可选）
+            end_date: 结束日期（可选）
+            primary_source: 主数据源
+            fallback_source: 备数据源
+
+        Returns:
+            同步统计结果
+        """
+        data: dict[str, Any] = {
+            "days_back": days_back,
+            "primary_source": primary_source,
+            "fallback_source": fallback_source,
+        }
+        if stock_codes is not None:
+            data["stock_codes"] = stock_codes
+        if start_date is not None:
+            data["start_date"] = start_date.isoformat()
+        if end_date is not None:
+            data["end_date"] = end_date.isoformat()
+
+        return self._post("valuation-data/sync/", json=data)
+
+    def validate_valuation_data(
+        self,
+        as_of_date: Optional[date] = None,
+        primary_source: str = "akshare",
+    ) -> dict[str, Any]:
+        """
+        对本地估值表生成质量快照并计算 gate 状态。
+        """
+        data: dict[str, Any] = {"primary_source": primary_source}
+        if as_of_date is not None:
+            data["as_of_date"] = as_of_date.isoformat()
+        return self._post("valuation-data/validate/", json=data)
+
+    def get_valuation_data_freshness(self) -> dict[str, Any]:
+        """
+        获取本地估值数据新鲜度。
+        """
+        return self._get("valuation-data/freshness/")
+
+    def get_valuation_data_quality_latest(self) -> dict[str, Any]:
+        """
+        获取最近一次估值数据质量快照。
+        """
+        return self._get("valuation-data/quality-latest/")

@@ -12,12 +12,14 @@ from datetime import date
 from decimal import Decimal
 
 from django.db import models
+from django.utils import timezone
 
 from .models import (
     StockInfoModel,
     StockDailyModel,
     FinancialDataModel,
-    ValuationModel
+    ValuationModel,
+    ValuationDataQualitySnapshotModel,
 )
 from apps.equity.domain.entities import (
     StockInfo,
@@ -143,7 +145,15 @@ class DjangoEquityAssetRepository:
                 ps=valuation.ps or 0.0,
                 total_mv=valuation.total_mv,
                 circ_mv=valuation.circ_mv,
-                dividend_yield=valuation.dividend_yield or 0.0
+                dividend_yield=valuation.dividend_yield or 0.0,
+                source_provider=valuation.source_provider,
+                source_updated_at=valuation.source_updated_at,
+                fetched_at=valuation.fetched_at,
+                pe_type=valuation.pe_type,
+                is_valid=valuation.is_valid,
+                quality_flag=valuation.quality_flag,
+                quality_notes=valuation.quality_notes,
+                raw_payload_hash=valuation.raw_payload_hash,
             ) if valuation else None
 
             financial_entity = FinancialData(
@@ -229,7 +239,15 @@ class DjangoEquityAssetRepository:
                 ps=valuation_model.ps or 0.0,
                 total_mv=valuation_model.total_mv,
                 circ_mv=valuation_model.circ_mv,
-                dividend_yield=valuation_model.dividend_yield or 0.0
+                dividend_yield=valuation_model.dividend_yield or 0.0,
+                source_provider=valuation_model.source_provider,
+                source_updated_at=valuation_model.source_updated_at,
+                fetched_at=valuation_model.fetched_at,
+                pe_type=valuation_model.pe_type,
+                is_valid=valuation_model.is_valid,
+                quality_flag=valuation_model.quality_flag,
+                quality_notes=valuation_model.quality_notes,
+                raw_payload_hash=valuation_model.raw_payload_hash,
             ) if valuation_model else None
 
             # 获取最新财务数据
@@ -355,7 +373,15 @@ class DjangoStockRepository:
                 ps=valuation_query.ps or 0.0,
                 total_mv=valuation_query.total_mv,
                 circ_mv=valuation_query.circ_mv,
-                dividend_yield=valuation_query.dividend_yield or 0.0
+                dividend_yield=valuation_query.dividend_yield or 0.0,
+                source_provider=valuation_query.source_provider,
+                source_updated_at=valuation_query.source_updated_at,
+                fetched_at=valuation_query.fetched_at,
+                pe_type=valuation_query.pe_type,
+                is_valid=valuation_query.is_valid,
+                quality_flag=valuation_query.quality_flag,
+                quality_notes=valuation_query.quality_notes,
+                raw_payload_hash=valuation_query.raw_payload_hash,
             )
 
             result.append((stock_info, financial, valuation))
@@ -453,7 +479,15 @@ class DjangoStockRepository:
                 ps=m.ps or 0.0,
                 total_mv=m.total_mv,
                 circ_mv=m.circ_mv,
-                dividend_yield=m.dividend_yield or 0.0
+                dividend_yield=m.dividend_yield or 0.0,
+                source_provider=m.source_provider,
+                source_updated_at=m.source_updated_at,
+                fetched_at=m.fetched_at,
+                pe_type=m.pe_type,
+                is_valid=m.is_valid,
+                quality_flag=m.quality_flag,
+                quality_notes=m.quality_notes,
+                raw_payload_hash=m.raw_payload_hash,
             )
             for m in models
         ]
@@ -527,7 +561,15 @@ class DjangoStockRepository:
                 'ps': valuation.ps,
                 'total_mv': valuation.total_mv,
                 'circ_mv': valuation.circ_mv,
-                'dividend_yield': valuation.dividend_yield
+                'dividend_yield': valuation.dividend_yield,
+                'source_provider': valuation.source_provider,
+                'source_updated_at': valuation.source_updated_at,
+                'fetched_at': valuation.fetched_at or timezone.now(),
+                'pe_type': valuation.pe_type,
+                'is_valid': valuation.is_valid,
+                'quality_flag': valuation.quality_flag,
+                'quality_notes': valuation.quality_notes,
+                'raw_payload_hash': valuation.raw_payload_hash,
             }
         )
 
@@ -649,6 +691,38 @@ class DjangoStockRepository:
 
         return list(sectors)
 
+    def list_active_stock_codes(self, limit: Optional[int] = None) -> List[str]:
+        """
+        获取所有活跃股票代码列表
+
+        用于批量扫描等场景，避免构造完整实体。
+
+        Args:
+            limit: 数量限制（可选）
+
+        Returns:
+            股票代码列表
+        """
+        queryset = StockInfoModel._default_manager.filter(
+            is_active=True
+        ).values_list('stock_code', flat=True).order_by('stock_code')
+
+        if limit:
+            queryset = queryset[:limit]
+
+        return list(queryset)
+
+    def get_latest_valuation_date(self) -> Optional[date]:
+        """获取最新估值日期。"""
+        latest = ValuationModel._default_manager.order_by("-trade_date").values_list("trade_date", flat=True).first()
+        return latest
+
+    def get_valuation_models_by_date(self, as_of_date: date) -> List[ValuationModel]:
+        """获取指定日期的原始估值模型记录。"""
+        return list(
+            ValuationModel._default_manager.filter(trade_date=as_of_date).order_by("stock_code")
+        )
+
 
 class ScoringWeightConfigRepository:
     """股票评分权重配置仓储"""
@@ -757,4 +831,230 @@ class ScoringWeightConfigRepository:
             revenue_growth_weight=0.5,
             profit_growth_weight=0.5
         )
+
+
+class DjangoValuationRepairRepository:
+    """Django ORM 估值修复仓储"""
+
+    def upsert_snapshot(
+        self,
+        status,
+        source_universe: str = "all_active"
+    ) -> None:
+        """
+        保存或更新估值修复快照
+
+        Args:
+            status: ValuationRepairStatus 实体
+            source_universe: 来源股票池
+        """
+        from .models import ValuationRepairTrackingModel
+
+        ValuationRepairTrackingModel._default_manager.update_or_create(
+            stock_code=status.stock_code,
+            source_universe=source_universe,
+            defaults={
+                "stock_name": status.stock_name,
+                "as_of_date": status.as_of_date,
+                "repair_start_date": status.repair_start_date,
+                "repair_start_percentile": status.repair_start_percentile,
+                "current_phase": status.phase,
+                "signal": status.signal,
+                "composite_percentile": status.composite_percentile,
+                "pe_percentile": status.pe_percentile,
+                "pb_percentile": status.pb_percentile,
+                "repair_progress": status.repair_progress,
+                "repair_speed_per_30d": status.repair_speed_per_30d,
+                "estimated_days_to_target": status.estimated_days_to_target,
+                "is_stalled": status.is_stalled,
+                "stall_start_date": status.stall_start_date,
+                "stall_duration_trading_days": status.stall_duration_trading_days,
+                "repair_duration_trading_days": status.repair_duration_trading_days,
+                "lowest_percentile": status.lowest_percentile,
+                "lowest_percentile_date": status.lowest_percentile_date,
+                "target_percentile": status.target_percentile,
+                "composite_method": status.composite_method,
+                "confidence": status.confidence,
+                "is_active": True,
+            }
+        )
+
+    def deactivate_snapshot(
+        self,
+        stock_code: str,
+        source_universe: str = "all_active"
+    ) -> None:
+        """
+        停用估值修复快照
+
+        Args:
+            stock_code: 股票代码
+            source_universe: 来源股票池
+        """
+        from .models import ValuationRepairTrackingModel
+
+        ValuationRepairTrackingModel._default_manager.filter(
+            stock_code=stock_code,
+            source_universe=source_universe
+        ).update(is_active=False)
+
+    def list_active_snapshots(
+        self,
+        source_universe: str = "all_active",
+        phase: Optional[str] = None,
+        limit: int = 50
+    ) -> List:
+        """
+        列出活跃的估值修复快照
+
+        Args:
+            source_universe: 来源股票池
+            phase: 阶段过滤（可选）
+            limit: 数量限制
+
+        Returns:
+            ORM Model 列表
+        """
+        from .models import ValuationRepairTrackingModel
+
+        queryset = ValuationRepairTrackingModel._default_manager.filter(
+            source_universe=source_universe,
+            is_active=True
+        )
+
+        if phase:
+            queryset = queryset.filter(current_phase=phase)
+
+        return list(queryset.order_by("-composite_percentile")[:limit])
+
+    def get_snapshot(
+        self,
+        stock_code: str,
+        source_universe: str = "all_active"
+    ) -> Optional:
+        """
+        获取单只股票的估值修复快照
+
+        Args:
+            stock_code: 股票代码
+            source_universe: 来源股票池
+
+        Returns:
+            ORM Model 或 None
+        """
+        from .models import ValuationRepairTrackingModel
+
+        try:
+            return ValuationRepairTrackingModel._default_manager.get(
+                stock_code=stock_code,
+                source_universe=source_universe,
+                is_active=True
+            )
+        except ValuationRepairTrackingModel.DoesNotExist:
+            return None
+
+
+class DjangoValuationDataQualityRepository:
+    """估值数据质量快照仓储"""
+
+    def upsert_snapshot(self, snapshot: Dict) -> None:
+        ValuationDataQualitySnapshotModel._default_manager.update_or_create(
+            as_of_date=snapshot["as_of_date"],
+            defaults=snapshot,
+        )
+
+    def get_snapshot(self, as_of_date: date) -> Optional[ValuationDataQualitySnapshotModel]:
+        try:
+            return ValuationDataQualitySnapshotModel._default_manager.get(as_of_date=as_of_date)
+        except ValuationDataQualitySnapshotModel.DoesNotExist:
+            return None
+
+    def get_latest_snapshot(self) -> Optional[ValuationDataQualitySnapshotModel]:
+        return ValuationDataQualitySnapshotModel._default_manager.order_by("-as_of_date").first()
+
+    def get_latest_gate_passed_snapshot(self) -> Optional[ValuationDataQualitySnapshotModel]:
+        return (
+            ValuationDataQualitySnapshotModel._default_manager
+            .filter(is_gate_passed=True)
+            .order_by("-as_of_date")
+            .first()
+        )
+
+
+def compute_valuation_quality_flag(
+    pb: Optional[float],
+    pe: Optional[float],
+    previous_pb: Optional[float] = None,
+    previous_pe: Optional[float] = None,
+) -> Tuple[bool, str, str]:
+    """根据估值字段计算基础质量标记。"""
+    if pb is None:
+        return False, "missing_pb", "PB is missing"
+    if pb <= 0:
+        return False, "invalid_pb", "PB must be greater than 0"
+    if pe is None:
+        return True, "missing_pe", "PE is missing"
+
+    if previous_pb and previous_pb > 0:
+        pb_jump = abs(pb - previous_pb) / previous_pb
+        if pb_jump > 0.60:
+            return True, "jump_alert", f"PB jump={pb_jump:.2f}"
+
+    if previous_pe and previous_pe > 0:
+        pe_jump = abs(pe - previous_pe) / previous_pe
+        if pe_jump > 0.80:
+            return True, "jump_alert", f"PE jump={pe_jump:.2f}"
+
+    return True, "ok", ""
+
+
+def build_quality_snapshot(
+    as_of_date: date,
+    expected_stock_count: int,
+    valuations: List[ValuationModel],
+    primary_source: str = "akshare",
+) -> Dict:
+    """根据指定日期估值记录构建质量快照。"""
+    synced_stock_count = len(valuations)
+    valid_stock_count = sum(1 for item in valuations if item.is_valid)
+    missing_pb_count = sum(1 for item in valuations if item.quality_flag == "missing_pb")
+    invalid_pb_count = sum(1 for item in valuations if item.quality_flag == "invalid_pb")
+    missing_pe_count = sum(1 for item in valuations if item.quality_flag == "missing_pe")
+    jump_alert_count = sum(1 for item in valuations if item.quality_flag == "jump_alert")
+    source_deviation_count = sum(1 for item in valuations if item.quality_flag == "source_deviation")
+    fallback_used_count = sum(1 for item in valuations if item.source_provider != primary_source)
+
+    coverage_ratio = (synced_stock_count / expected_stock_count) if expected_stock_count else 0.0
+    valid_ratio = (valid_stock_count / synced_stock_count) if synced_stock_count else 0.0
+
+    gate_reasons = []
+    if coverage_ratio < 0.95:
+        gate_reasons.append("coverage<0.95")
+    if valid_ratio < 0.90:
+        gate_reasons.append("valid<0.90")
+    if invalid_pb_count > 0:
+        gate_reasons.append("invalid_pb")
+    if synced_stock_count:
+        if jump_alert_count / synced_stock_count > 0.03:
+            gate_reasons.append("jump_alert_ratio>0.03")
+        if source_deviation_count / synced_stock_count > 0.05:
+            gate_reasons.append("source_deviation_ratio>0.05")
+
+    return {
+        "as_of_date": as_of_date,
+        "expected_stock_count": expected_stock_count,
+        "synced_stock_count": synced_stock_count,
+        "valid_stock_count": valid_stock_count,
+        "coverage_ratio": round(coverage_ratio, 4),
+        "valid_ratio": round(valid_ratio, 4),
+        "missing_pb_count": missing_pb_count,
+        "invalid_pb_count": invalid_pb_count,
+        "missing_pe_count": missing_pe_count,
+        "jump_alert_count": jump_alert_count,
+        "source_deviation_count": source_deviation_count,
+        "primary_source": primary_source,
+        "fallback_used_count": fallback_used_count,
+        "is_gate_passed": not gate_reasons,
+        "gate_reason": ", ".join(gate_reasons),
+    }
 

@@ -1,0 +1,691 @@
+{% extends "equity/base.html" %}
+{% load static %}
+
+{% block title %}估值修复跟踪 - AgomSAAF{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendor/js/echarts.min.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="equity-container">
+    <div class="equity-header">
+        <h1>估值修复跟踪</h1>
+        <p>跟踪低估值股票的估值修复进程，识别低估、修复中、接近完成、停滞等阶段</p>
+    </div>
+
+    <!-- 筛选栏 -->
+    <div class="card">
+        <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;">
+            <div style="flex: 0 0 auto;">
+                <label style="display: block; font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px;">
+                    股票池
+                </label>
+                <select id="universeSelect" class="form-select" style="min-width: 140px;">
+                    <option value="all_active">全部活跃股票</option>
+                    <option value="current_pool">当前股票池</option>
+                </select>
+            </div>
+            <div style="flex: 0 0 auto;">
+                <label style="display: block; font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px;">
+                    阶段筛选
+                </label>
+                <select id="phaseSelect" class="form-select" style="min-width: 140px;">
+                    <option value="">全部阶段</option>
+                    <option value="undervalued">低估</option>
+                    <option value="repair_started">启动修复</option>
+                    <option value="repairing">修复中</option>
+                    <option value="near_target">接近目标</option>
+                    <option value="stalled">停滞</option>
+                </select>
+            </div>
+            <div style="flex: 0 0 auto;">
+                <button class="btn btn-primary" id="scanBtn" onclick="scanValuationRepairs()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                        <path d="M23 4v6h-6"/>
+                        <path d="M1 20v-6h6"/>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                    扫描
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 摘要卡片 -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+        <div class="metric-card">
+            <div class="metric-label">低估</div>
+            <div class="metric-value" id="undervaluedCount" style="color: var(--primary-color);">-</div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">待启动修复</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">修复中</div>
+            <div class="metric-value" id="repairingCount" style="color: var(--success-color);">-</div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">正在进行</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">接近目标</div>
+            <div class="metric-value" id="nearTargetCount" style="color: var(--warning-color);">-</div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">准备止盈</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">停滞</div>
+            <div class="metric-value" id="stalledCount" style="color: var(--danger-color);">-</div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">修复停滞</div>
+        </div>
+    </div>
+
+    <!-- 数据表格 -->
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title" style="margin: 0;">估值修复列表</h2>
+            <div style="font-size: 13px; color: var(--text-muted);">
+                最后更新: <span id="lastUpdateTime">-</span>
+            </div>
+        </div>
+        <div class="table-container" style="overflow-x: auto;">
+            <table style="min-width: 900px;">
+                <thead>
+                    <tr>
+                        <th style="cursor: pointer;" onclick="sortTable('stock_code')">代码</th>
+                        <th style="cursor: pointer;" onclick="sortTable('stock_name')">名称</th>
+                        <th style="cursor: pointer;" onclick="sortTable('phase')">阶段</th>
+                        <th style="cursor: pointer;" onclick="sortTable('composite_percentile')">综合分位</th>
+                        <th style="cursor: pointer;" onclick="sortTable('repair_progress')">进度</th>
+                        <th style="cursor: pointer;" onclick="sortTable('repair_speed_per_30d')">速度</th>
+                        <th style="cursor: pointer;" onclick="sortTable('repair_duration_trading_days')">持续交易日</th>
+                        <th style="cursor: pointer;" onclick="sortTable('estimated_days_to_target')">ETA</th>
+                        <th>信号</th>
+                    </tr>
+                </thead>
+                <tbody id="repairTableBody">
+                    <tr>
+                        <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 40px;">
+                            点击"扫描"按钮获取数据
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="pagination" style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center; display: none;">
+            <div style="color: var(--text-muted); font-size: 13px;">
+                共 <span id="totalCount">0</span> 只股票
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn btn-secondary" style="padding: 6px 12px;" onclick="prevPage()">上一页</button>
+                <span style="padding: 6px 12px; color: var(--text-secondary);" id="pageInfo">第 1 页</span>
+                <button class="btn btn-secondary" style="padding: 6px 12px;" onclick="nextPage()">下一页</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 详情区域 -->
+    <div class="card" id="detailCard" style="display: none;">
+        <div class="card-header">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <h2 class="card-title" style="margin: 0;">
+                    <span id="detailStockCode">-</span>
+                    <span id="detailStockName" style="font-weight: 400; color: var(--text-secondary);"></span>
+                </h2>
+                <span class="badge" id="detailPhaseBadge"></span>
+            </div>
+            <button class="btn btn-secondary" onclick="closeDetail()">关闭</button>
+        </div>
+        <div style="margin-bottom: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
+            <div>
+                <div style="font-size: 12px; color: var(--text-muted);">当前 PE</div>
+                <div style="font-size: 16px; font-weight: 600;" id="detailCurrentPE">-</div>
+            </div>
+            <div>
+                <div style="font-size: 12px; color: var(--text-muted);">当前 PB</div>
+                <div style="font-size: 16px; font-weight: 600;" id="detailCurrentPB">-</div>
+            </div>
+            <div>
+                <div style="font-size: 12px; color: var(--text-muted);">PE 分位</div>
+                <div style="font-size: 16px; font-weight: 600;" id="detailPEPercentile">-</div>
+            </div>
+            <div>
+                <div style="font-size: 12px; color: var(--text-muted);">PB 分位</div>
+                <div style="font-size: 16px; font-weight: 600;" id="detailPBPercentile">-</div>
+            </div>
+            <div>
+                <div style="font-size: 12px; color: var(--text-muted);">综合分位</div>
+                <div style="font-size: 16px; font-weight: 600;" id="detailCompositePercentile">-</div>
+            </div>
+            <div>
+                <div style="font-size: 12px; color: var(--text-muted);">修复进度</div>
+                <div style="font-size: 16px; font-weight: 600;" id="detailProgress">-</div>
+            </div>
+            <div>
+                <div style="font-size: 12px; color: var(--text-muted);">修复起点</div>
+                <div style="font-size: 16px; font-weight: 600;" id="detailRepairStartDate">-</div>
+            </div>
+            <div>
+                <div style="font-size: 12px; color: var(--text-muted);">修复速度</div>
+                <div style="font-size: 16px; font-weight: 600;" id="detailRepairSpeed">-</div>
+            </div>
+        </div>
+        <div style="margin-bottom: 16px; padding: 12px; background: var(--bg-secondary); border-radius: 8px;">
+            <div style="font-size: 13px; color: var(--text-secondary);" id="detailDescription"></div>
+        </div>
+        <div>
+            <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">估值分位历史</h3>
+            <div id="historyChart" style="height: 350px;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 全局状态
+let repairList = [];
+let filteredList = [];
+let currentPage = 1;
+const pageSize = 20;
+let currentSort = { field: 'composite_percentile', order: 'asc' };
+let historyChart = null;
+let currentDetailStock = null;
+
+// Phase 显示映射
+const phaseLabels = {
+    'no_repair_needed': '无需修复',
+    'undervalued': '低估',
+    'repair_started': '启动修复',
+    'repairing': '修复中',
+    'near_target': '接近目标',
+    'completed': '已完成',
+    'overshooting': '超涨',
+    'stalled': '停滞'
+};
+
+// Phase 颜色映射
+const phaseColors = {
+    'no_repair_needed': 'var(--text-muted)',
+    'undervalued': 'var(--primary-color)',
+    'repair_started': '#8b5cf6',
+    'repairing': 'var(--success-color)',
+    'near_target': 'var(--warning-color)',
+    'completed': '#10b981',
+    'overshooting': '#ef4444',
+    'stalled': 'var(--danger-color)'
+};
+
+// Signal 显示映射
+const signalLabels = {
+    'none': '-',
+    'watch': '观察',
+    'opportunity': '机会',
+    'in_progress': '进行中',
+    'near_exit': '准备退出',
+    'take_profit': '止盈',
+    'stalled': '停滞'
+};
+
+// 获取 CSRF Token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// 扫描估值修复
+async function scanValuationRepairs() {
+    const btn = document.getElementById('scanBtn');
+    const universe = document.getElementById('universeSelect').value;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading" style="display: inline-block; margin-right: 8px;"></span>扫描中...';
+
+    try {
+        const response = await fetch('/api/equity/valuation-repair/scan/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                universe: universe,
+                lookback_days: 756
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showToast(`扫描完成：扫描 ${result.scanned_count} 只，保存 ${result.saved_count} 只`, 'success');
+            document.getElementById('lastUpdateTime').textContent = new Date().toLocaleString('zh-CN');
+            await loadRepairList();
+        } else {
+            showToast('扫描失败: ' + (result.error || '未知错误'), 'error');
+        }
+    } catch (error) {
+        console.error('扫描失败:', error);
+        showToast('扫描失败: ' + error.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>扫描';
+    }
+}
+
+// 加载估值修复列表
+async function loadRepairList() {
+    const universe = document.getElementById('universeSelect').value;
+    const phase = document.getElementById('phaseSelect').value;
+
+    try {
+        const params = new URLSearchParams({
+            universe: universe,
+            limit: 200
+        });
+        if (phase) {
+            params.append('phase', phase);
+        }
+
+        const response = await fetch(`/api/equity/valuation-repair-list/?${params}`);
+        const result = await response.json();
+
+        if (result.success) {
+            repairList = result.results || [];
+            filteredList = [...repairList];
+            updateSummaryCards();
+            displayTable();
+        } else {
+            showToast('加载失败: ' + (result.error || '未知错误'), 'error');
+        }
+    } catch (error) {
+        console.error('加载列表失败:', error);
+        showToast('加载失败: ' + error.message, 'error');
+    }
+}
+
+// 更新摘要卡片
+function updateSummaryCards() {
+    const counts = {
+        undervalued: 0,
+        repairing: 0,
+        repair_started: 0,
+        near_target: 0,
+        stalled: 0
+    };
+
+    filteredList.forEach(item => {
+        const phase = item.phase;
+        if (phase in counts) {
+            counts[phase]++;
+        }
+    });
+
+    document.getElementById('undervaluedCount').textContent = counts.undervalued + counts.repair_started;
+    document.getElementById('repairingCount').textContent = counts.repairing;
+    document.getElementById('nearTargetCount').textContent = counts.near_target;
+    document.getElementById('stalledCount').textContent = counts.stalled;
+}
+
+// 显示表格
+function displayTable() {
+    const tbody = document.getElementById('repairTableBody');
+    tbody.innerHTML = '';
+
+    if (filteredList.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 40px;">
+                    暂无数据，请先扫描或调整筛选条件
+                </td>
+            </tr>
+        `;
+        document.getElementById('pagination').style.display = 'none';
+        return;
+    }
+
+    // 排序
+    sortData();
+
+    // 分页
+    const start = (currentPage - 1) * pageSize;
+    const end = start + pageSize;
+    const pageData = filteredList.slice(start, end);
+
+    pageData.forEach(item => {
+        const row = document.createElement('tr');
+        row.style.cursor = 'pointer';
+        row.onclick = () => showDetail(item.stock_code);
+
+        const progress = item.repair_progress !== null && item.repair_progress !== undefined
+            ? (item.repair_progress * 100).toFixed(0) + '%'
+            : '-';
+
+        const speed = item.repair_speed_per_30d !== null && item.repair_speed_per_30d !== undefined
+            ? (item.repair_speed_per_30d * 100).toFixed(1) + '%'
+            : '-';
+
+        const eta = item.estimated_days_to_target !== null && item.estimated_days_to_target !== undefined
+            ? item.estimated_days_to_target + ' 天'
+            : '-';
+
+        row.innerHTML = `
+            <td><span class="stock-code">${item.stock_code}</span></td>
+            <td>${item.stock_name || '-'}</td>
+            <td><span class="badge" style="background-color: ${phaseColors[item.phase] || '#ccc'}20; color: ${phaseColors[item.phase] || '#666'};">${phaseLabels[item.phase] || item.phase}</span></td>
+            <td>${item.composite_percentile !== null ? (item.composite_percentile * 100).toFixed(1) + '%' : '-'}</td>
+            <td>
+                ${progress !== '-' ? `
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="flex: 1; height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden; max-width: 60px;">
+                            <div style="height: 100%; background: var(--success-color); width: ${progress};"></div>
+                        </div>
+                        <span style="font-size: 12px;">${progress}</span>
+                    </div>
+                ` : '-'}
+            </td>
+            <td>${speed}</td>
+            <td>${item.repair_duration_trading_days || '-'}</td>
+            <td>${eta}</td>
+            <td><span class="badge badge-${getSignalBadgeClass(item.signal)}">${signalLabels[item.signal] || item.signal}</span></td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    document.getElementById('totalCount').textContent = filteredList.length;
+    document.getElementById('pageInfo').textContent = `第 ${currentPage} 页 / 共 ${Math.ceil(filteredList.length / pageSize)} 页`;
+    document.getElementById('pagination').style.display = 'flex';
+}
+
+// 获取信号徽章样式
+function getSignalBadgeClass(signal) {
+    const classMap = {
+        'none': 'secondary',
+        'watch': 'warning',
+        'opportunity': 'primary',
+        'in_progress': 'success',
+        'near_exit': 'warning',
+        'take_profit': 'danger',
+        'stalled': 'danger'
+    };
+    return classMap[signal] || 'secondary';
+}
+
+// 排序数据
+function sortData() {
+    const { field, order } = currentSort;
+
+    filteredList.sort((a, b) => {
+        let aVal = a[field];
+        let bVal = b[field];
+
+        // 处理 null
+        if (aVal === null || aVal === undefined) aVal = -Infinity;
+        if (bVal === null || bVal === undefined) bVal = -Infinity;
+
+        if (typeof aVal === 'string') {
+            return order === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+        }
+
+        return order === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+}
+
+// 表格排序
+function sortTable(field) {
+    if (currentSort.field === field) {
+        currentSort.order = currentSort.order === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort.field = field;
+        currentSort.order = 'asc';
+    }
+    currentPage = 1;
+    displayTable();
+}
+
+// 分页
+function prevPage() {
+    if (currentPage > 1) {
+        currentPage--;
+        displayTable();
+    }
+}
+
+function nextPage() {
+    if (currentPage < Math.ceil(filteredList.length / pageSize)) {
+        currentPage++;
+        displayTable();
+    }
+}
+
+// 显示详情
+async function showDetail(stockCode) {
+    if (currentDetailStock === stockCode) {
+        return; // 已经加载
+    }
+
+    currentDetailStock = stockCode;
+    const detailCard = document.getElementById('detailCard');
+    detailCard.style.display = 'block';
+    detailCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    // 先显示加载状态
+    document.getElementById('detailStockCode').textContent = stockCode;
+    document.getElementById('detailStockName').textContent = '加载中...';
+
+    try {
+        const response = await fetch(`/api/equity/valuation-repair/${stockCode}/`);
+        const result = await response.json();
+
+        if (result.success) {
+            updateDetailContent(result);
+            await loadHistoryChart(stockCode);
+        } else {
+            showToast('加载详情失败: ' + (result.error || '未知错误'), 'error');
+            document.getElementById('detailStockName').textContent = '加载失败';
+        }
+    } catch (error) {
+        console.error('加载详情失败:', error);
+        showToast('加载详情失败: ' + error.message, 'error');
+        document.getElementById('detailStockName').textContent = '加载失败';
+    }
+}
+
+// 更新详情内容
+function updateDetailContent(data) {
+    document.getElementById('detailStockCode').textContent = data.stock_code;
+    document.getElementById('detailStockName').textContent = data.stock_name || '';
+
+    // Phase 徽章
+    const phaseBadge = document.getElementById('detailPhaseBadge');
+    phaseBadge.textContent = phaseLabels[data.phase] || data.phase;
+    phaseBadge.style.backgroundColor = (phaseColors[data.phase] || '#ccc') + '20';
+    phaseBadge.style.color = phaseColors[data.phase] || '#666';
+
+    // 数值字段
+    document.getElementById('detailCurrentPE').textContent = data.current_pe !== null ? data.current_pe.toFixed(2) : 'N/A';
+    document.getElementById('detailCurrentPB').textContent = data.current_pb.toFixed(2);
+    document.getElementById('detailPEPercentile').textContent = data.pe_percentile !== null ? (data.pe_percentile * 100).toFixed(1) + '%' : 'N/A';
+    document.getElementById('detailPBPercentile').textContent = (data.pb_percentile * 100).toFixed(1) + '%';
+    document.getElementById('detailCompositePercentile').textContent = (data.composite_percentile * 100).toFixed(1) + '%';
+    document.getElementById('detailProgress').textContent = data.repair_progress !== null ? (data.repair_progress * 100).toFixed(0) + '%' : '-';
+    document.getElementById('detailRepairStartDate').textContent = data.repair_start_date || '-';
+    document.getElementById('detailRepairSpeed').textContent = data.repair_speed_per_30d !== null ? (data.repair_speed_per_30d * 100).toFixed(1) + '%/30天' : '-';
+
+    // 描述
+    document.getElementById('detailDescription').textContent = data.description || '';
+
+    // 存储修复起点日期，用于图表标注
+    detailCard.dataset.repairStartDate = data.repair_start_date || '';
+}
+
+// 加载历史图表
+async function loadHistoryChart(stockCode) {
+    try {
+        const response = await fetch(`/api/equity/valuation-repair/${stockCode}/history/`);
+        const result = await response.json();
+
+        if (result.success && result.points && result.points.length > 0) {
+            renderHistoryChart(result.points);
+        } else {
+            document.getElementById('historyChart').innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-muted);">暂无历史数据</div>';
+        }
+    } catch (error) {
+        console.error('加载历史数据失败:', error);
+        document.getElementById('historyChart').innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--danger-color);">加载失败</div>';
+    }
+}
+
+// 渲染历史图表
+function renderHistoryChart(points) {
+    const chartDom = document.getElementById('historyChart');
+
+    if (historyChart) {
+        historyChart.dispose();
+    }
+
+    historyChart = echarts.init(chartDom);
+
+    const dates = points.map(p => p.trade_date);
+    const compositePercentiles = points.map(p => p.composite_percentile * 100);
+    const pbPercentiles = points.map(p => p.pb_percentile * 100);
+    const pePercentiles = points.map(p => p.pe_percentile !== null ? p.pe_percentile * 100 : null);
+
+    // 获取修复起点
+    const repairStartDate = document.getElementById('detailCard').dataset.repairStartDate;
+
+    // 构建修复区域标记
+    let markArea = {};
+    if (repairStartDate) {
+        const startIndex = dates.indexOf(repairStartDate);
+        if (startIndex >= 0 && startIndex < dates.length - 1) {
+            markArea = {
+                silent: true,
+                itemStyle: {
+                    color: 'rgba(16, 185, 129, 0.1)'
+                },
+                data: [[
+                    {
+                        xAxis: dates[startIndex]
+                    },
+                    {
+                        xAxis: dates[dates.length - 1]
+                    }
+                ]]
+            };
+        }
+    }
+
+    const option = {
+        tooltip: {
+            trigger: 'axis',
+            formatter: function(params) {
+                let result = params[0].axisValue + '<br/>';
+                params.forEach(param => {
+                    if (param.value !== null) {
+                        result += `${param.marker} ${param.seriesName}: ${param.value.toFixed(1)}%<br/>`;
+                    }
+                });
+                return result;
+            }
+        },
+        legend: {
+            data: ['综合分位', 'PB分位', 'PE分位'],
+            top: 0
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            top: '40px',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            data: dates,
+            boundaryGap: false
+        },
+        yAxis: {
+            type: 'value',
+            min: 0,
+            max: 100,
+            axisLabel: {
+                formatter: '{value}%'
+            }
+        },
+        series: [
+            {
+                name: '综合分位',
+                type: 'line',
+                data: compositePercentiles,
+                smooth: true,
+                lineStyle: {
+                    width: 2
+                },
+                itemStyle: {
+                    color: '#3b82f6'
+                },
+                markArea: Object.keys(markArea).length > 0 ? markArea : undefined
+            },
+            {
+                name: 'PB分位',
+                type: 'line',
+                data: pbPercentiles,
+                smooth: true,
+                lineStyle: {
+                    width: 2,
+                    type: 'dashed'
+                },
+                itemStyle: {
+                    color: '#f59e0b'
+                }
+            },
+            {
+                name: 'PE分位',
+                type: 'line',
+                data: pePercentiles,
+                smooth: true,
+                connectNulls: false,
+                lineStyle: {
+                    width: 2,
+                    type: 'dotted'
+                },
+                itemStyle: {
+                    color: '#10b981'
+                }
+            }
+        ]
+    };
+
+    historyChart.setOption(option);
+
+    // 响应式
+    window.addEventListener('resize', function() {
+        historyChart && historyChart.resize();
+    });
+}
+
+// 关闭详情
+function closeDetail() {
+    document.getElementById('detailCard').style.display = 'none';
+    currentDetailStock = null;
+}
+
+// 筛选变更事件
+document.getElementById('universeSelect').addEventListener('change', function() {
+    currentPage = 1;
+    loadRepairList();
+});
+
+document.getElementById('phaseSelect').addEventListener('change', function() {
+    currentPage = 1;
+    loadRepairList();
+});
+
+// 页面加载时自动加载数据
+loadRepairList();
+</script>
+{% endblock %}

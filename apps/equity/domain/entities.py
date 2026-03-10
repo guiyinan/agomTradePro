@@ -7,7 +7,7 @@
 """
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional, Dict
 
@@ -97,6 +97,16 @@ class ValuationMetrics:
 
         其他指标:
         dividend_yield: 股息率（%）
+    
+    可信数据元信息:
+        source_provider: 数据来源提供方
+        source_updated_at: 源端更新时间
+        fetched_at: 本系统抓取时间
+        pe_type: PE 口径（dynamic / ttm / mixed）
+        is_valid: 是否通过基础质量校验
+        quality_flag: 质量标记
+        quality_notes: 质量说明
+        raw_payload_hash: 原始载荷哈希
     """
     stock_code: str
     trade_date: date
@@ -107,6 +117,14 @@ class ValuationMetrics:
     total_mv: Decimal
     circ_mv: Decimal
     dividend_yield: float
+    source_provider: str = "unknown"
+    source_updated_at: Optional[datetime] = None
+    fetched_at: Optional[datetime] = None
+    pe_type: str = "dynamic"
+    is_valid: bool = True
+    quality_flag: str = "ok"
+    quality_notes: str = ""
+    raw_payload_hash: str = ""
 
 
 @dataclass(frozen=True)

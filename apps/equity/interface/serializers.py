@@ -253,3 +253,173 @@ class ComprehensiveValuationResponseSerializer(serializers.Serializer):
     confidence = serializers.FloatField(help_text="置信度（0-1）")
     scores = ValuationScoreSerializer(many=True, help_text="各方法评分详情")
     error = serializers.CharField(allow_null=True, required=False)
+
+
+# ============================================================================
+# 估值修复跟踪序列化器
+# ============================================================================
+
+class ValuationRepairStatusResponseSerializer(serializers.Serializer):
+    """估值修复状态响应序列化器"""
+    stock_code = serializers.CharField()
+    stock_name = serializers.CharField()
+    as_of_date = serializers.DateField()
+    phase = serializers.CharField()
+    signal = serializers.CharField()
+    current_pe = serializers.FloatField(allow_null=True)
+    current_pb = serializers.FloatField()
+    pe_percentile = serializers.FloatField(allow_null=True)
+    pb_percentile = serializers.FloatField()
+    composite_percentile = serializers.FloatField()
+    composite_method = serializers.CharField()
+    repair_start_date = serializers.DateField(allow_null=True)
+    repair_start_percentile = serializers.FloatField(allow_null=True)
+    lowest_percentile = serializers.FloatField()
+    lowest_percentile_date = serializers.DateField()
+    repair_progress = serializers.FloatField(allow_null=True)
+    target_percentile = serializers.FloatField()
+    repair_speed_per_30d = serializers.FloatField(allow_null=True)
+    estimated_days_to_target = serializers.IntegerField(allow_null=True)
+    is_stalled = serializers.BooleanField()
+    stall_start_date = serializers.DateField(allow_null=True)
+    stall_duration_trading_days = serializers.IntegerField()
+    repair_duration_trading_days = serializers.IntegerField()
+    lookback_trading_days = serializers.IntegerField()
+    confidence = serializers.FloatField()
+    description = serializers.CharField()
+    data_quality_flag = serializers.CharField(allow_null=True, required=False)
+    data_source_provider = serializers.CharField(required=False)
+    data_as_of_date = serializers.DateField(required=False)
+
+
+class ValuationRepairPointSerializer(serializers.Serializer):
+    """估值修复百分位点序列化器"""
+    trade_date = serializers.DateField()
+    pe_percentile = serializers.FloatField(allow_null=True)
+    pb_percentile = serializers.FloatField()
+    composite_percentile = serializers.FloatField()
+    composite_method = serializers.CharField()
+
+
+class ValuationRepairHistoryResponseSerializer(serializers.Serializer):
+    """估值修复历史响应序列化器"""
+    stock_code = serializers.CharField()
+    points = ValuationRepairPointSerializer(many=True)
+    data_quality_flag = serializers.CharField(allow_null=True, required=False)
+    data_source_provider = serializers.CharField(required=False)
+    data_as_of_date = serializers.DateField(required=False)
+
+
+class ScanValuationRepairsRequestSerializer(serializers.Serializer):
+    """扫描估值修复请求序列化器"""
+    universe = serializers.ChoiceField(
+        choices=["all_active", "current_pool"],
+        default="all_active"
+    )
+    lookback_days = serializers.IntegerField(
+        default=756,
+        min_value=120,
+        max_value=1260
+    )
+
+
+class ScanValuationRepairsResponseSerializer(serializers.Serializer):
+    """扫描估值修复响应序列化器"""
+    success = serializers.BooleanField()
+    universe = serializers.CharField()
+    as_of_date = serializers.DateField()
+    scanned_count = serializers.IntegerField()
+    saved_count = serializers.IntegerField()
+    phase_counts = serializers.DictField()
+    error = serializers.CharField(allow_null=True, required=False)
+
+
+class ListValuationRepairsRequestSerializer(serializers.Serializer):
+    """列出估值修复请求序列化器"""
+    universe = serializers.ChoiceField(
+        choices=["all_active", "current_pool"],
+        default="all_active"
+    )
+    phase = serializers.CharField(required=False, allow_null=True)
+    limit = serializers.IntegerField(default=50, min_value=1, max_value=200)
+
+
+class ListValuationRepairsItemSerializer(serializers.Serializer):
+    """估值修复列表项序列化器"""
+    stock_code = serializers.CharField()
+    stock_name = serializers.CharField()
+    phase = serializers.CharField()
+    signal = serializers.CharField()
+    composite_percentile = serializers.FloatField()
+    repair_progress = serializers.FloatField(allow_null=True)
+    repair_speed_per_30d = serializers.FloatField(allow_null=True)
+    repair_duration_trading_days = serializers.IntegerField()
+    estimated_days_to_target = serializers.IntegerField(allow_null=True)
+    is_stalled = serializers.BooleanField()
+    as_of_date = serializers.DateField()
+
+
+class ListValuationRepairsResponseSerializer(serializers.Serializer):
+    """列出估值修复响应序列化器"""
+    success = serializers.BooleanField()
+    results = ListValuationRepairsItemSerializer(many=True)
+
+
+class ValidateValuationDataRequestSerializer(serializers.Serializer):
+    """估值数据质量校验请求序列化器"""
+    as_of_date = serializers.DateField(required=False)
+    primary_source = serializers.CharField(required=False, default="akshare")
+
+
+class SyncValuationDataRequestSerializer(serializers.Serializer):
+    """估值数据同步请求序列化器"""
+    stock_codes = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        allow_empty=False,
+    )
+    start_date = serializers.DateField(required=False)
+    end_date = serializers.DateField(required=False)
+    days_back = serializers.IntegerField(required=False, default=1, min_value=1, max_value=3650)
+    primary_source = serializers.CharField(required=False, default="akshare")
+    fallback_source = serializers.CharField(required=False, default="tushare")
+
+
+class SyncValuationDataResponseSerializer(serializers.Serializer):
+    """估值数据同步响应序列化器"""
+    requested_count = serializers.IntegerField()
+    synced_count = serializers.IntegerField()
+    fallback_used_count = serializers.IntegerField()
+    skipped_count = serializers.IntegerField()
+    error_count = serializers.IntegerField()
+    start_date = serializers.DateField()
+    end_date = serializers.DateField()
+    errors = serializers.ListField(child=serializers.CharField())
+
+
+class ValuationQualitySnapshotResponseSerializer(serializers.Serializer):
+    """估值数据质量快照响应序列化器"""
+    as_of_date = serializers.DateField()
+    expected_stock_count = serializers.IntegerField()
+    synced_stock_count = serializers.IntegerField()
+    valid_stock_count = serializers.IntegerField()
+    coverage_ratio = serializers.FloatField()
+    valid_ratio = serializers.FloatField()
+    missing_pb_count = serializers.IntegerField()
+    invalid_pb_count = serializers.IntegerField()
+    missing_pe_count = serializers.IntegerField()
+    jump_alert_count = serializers.IntegerField()
+    source_deviation_count = serializers.IntegerField()
+    primary_source = serializers.CharField()
+    fallback_used_count = serializers.IntegerField()
+    is_gate_passed = serializers.BooleanField()
+    gate_reason = serializers.CharField(allow_blank=True)
+
+
+class ValuationFreshnessResponseSerializer(serializers.Serializer):
+    """估值数据新鲜度响应序列化器"""
+    latest_trade_date = serializers.DateField()
+    lag_days = serializers.IntegerField()
+    freshness_status = serializers.CharField()
+    coverage_ratio = serializers.FloatField(allow_null=True)
+    is_gate_passed = serializers.BooleanField(allow_null=True)

@@ -29,7 +29,31 @@ from apps.equity.application.use_cases import (
     AnalyzeRegimeCorrelationRequest,
     ComprehensiveValuationRequest,
 )
-from apps.equity.infrastructure.repositories import DjangoStockRepository
+from apps.equity.application.use_cases_valuation_repair import (
+    GetValuationRepairStatusUseCase,
+    GetValuationRepairStatusRequest,
+    GetValuationPercentileHistoryUseCase,
+    GetValuationPercentileHistoryRequest,
+    ScanValuationRepairsUseCase,
+    ScanValuationRepairsRequest,
+    ListValuationRepairsUseCase,
+    ListValuationRepairsRequest,
+)
+from apps.equity.application.use_cases_valuation_sync import (
+    SyncEquityValuationUseCase,
+    SyncEquityValuationRequest,
+    BackfillEquityValuationUseCase,
+    BackfillEquityValuationRequest,
+    ValidateEquityValuationQualityUseCase,
+    ValidateEquityValuationQualityRequest,
+    GetEquityValuationFreshnessUseCase,
+    GetLatestEquityValuationQualityUseCase,
+)
+from apps.equity.infrastructure.repositories import (
+    DjangoStockRepository,
+    DjangoValuationRepairRepository,
+    DjangoValuationDataQualityRepository,
+)
 from .serializers import (
     ScreenStocksRequestSerializer,
     ScreenStocksResponseSerializer,
@@ -41,6 +65,17 @@ from .serializers import (
     AnalyzeRegimeCorrelationResponseSerializer,
     ComprehensiveValuationRequestSerializer,
     ComprehensiveValuationResponseSerializer,
+    ValuationRepairStatusResponseSerializer,
+    ValuationRepairHistoryResponseSerializer,
+    ScanValuationRepairsRequestSerializer,
+    ScanValuationRepairsResponseSerializer,
+    ListValuationRepairsRequestSerializer,
+    ListValuationRepairsResponseSerializer,
+    SyncValuationDataRequestSerializer,
+    SyncValuationDataResponseSerializer,
+    ValidateValuationDataRequestSerializer,
+    ValuationQualitySnapshotResponseSerializer,
+    ValuationFreshnessResponseSerializer,
 )
 
 
@@ -81,15 +116,30 @@ def pool_page(request):
     return render(request, 'equity/pool.html')
 
 
+@require_http_methods(["GET"])
+def valuation_repair_page(request):
+    """
+    估值修复跟踪页面
+
+    GET /equity/valuation-repair/
+    """
+    return render(request, 'equity/valuation_repair.html')
+
+
 class EquityViewSet(viewsets.ViewSet):
     """个股分析 API"""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.stock_repo = DjangoStockRepository()
+        self.repair_repo = DjangoValuationRepairRepository()
+        self.quality_repo = DjangoValuationDataQualityRepository()
         # 注入 regime_repo（使用适配器）
         from apps.equity.infrastructure.adapters import RegimeRepositoryAdapter
         self.regime_repo = RegimeRepositoryAdapter()
+        # 注入 stock_pool_adapter（用于估值修复扫描）
+        from apps.equity.infrastructure.adapters import StockPoolRepositoryAdapter
+        self.pool_adapter = StockPoolRepositoryAdapter()
 
     @extend_schema(
         summary="筛选个股",
@@ -598,6 +648,399 @@ class EquityViewSet(viewsets.ViewSet):
             return Response({
                 'success': False,
                 'message': f'刷新股票池失败: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # ==================== 估值修复跟踪 API ====================
+
+    @extend_schema(
+        summary="获取估值修复状态",
+        description="获取单只股票的估值修复状态（实时计算）",
+        responses={200: ValuationRepairStatusResponseSerializer},
+    )
+    @action(detail=False, methods=['get'], url_path='valuation-repair/(?P<stock_code>(?!scan|list)[^/]+)')
+    def get_valuation_repair_status(self, request, stock_code):
+        """
+        GET /api/equity/valuation-repair/{stock_code}/
+
+        获取估值修复状态
+
+        实时计算估值修复状态，不依赖快照表。
+
+        Response:
+        {
+            "success": true,
+            "stock_code": "600030.SH",
+            "stock_name": "中信证券",
+            "as_of_date": "2026-03-10",
+            "phase": "repairing",
+            "signal": "hold",
+            "current_pe": 12.5,
+            "current_pb": 1.3,
+            "pe_percentile": 0.25,
+            "pb_percentile": 0.30,
+            "composite_percentile": 0.28,
+            "composite_method": "pb_weighted",
+            "repair_start_date": "2026-02-01",
+            "repair_start_percentile": 0.10,
+            "lowest_percentile": 0.08,
+            "lowest_percentile_date": "2026-01-15",
+            "repair_progress": 0.45,
+            "target_percentile": 0.50,
+            "repair_speed_per_30d": 0.08,
+            "estimated_days_to_target": 82,
+            "is_stalled": false,
+            "stall_start_date": null,
+            "stall_duration_trading_days": 0,
+            "repair_duration_trading_days": 30,
+            "lookback_trading_days": 756,
+            "confidence": 0.85,
+            "description": "估值修复进行中，已从底部修复约45%"
+        }
+        """
+        # 1. 获取并验证 lookback_days 参数
+        try:
+            lookback_days = int(request.query_params.get('lookback_days', 756))
+            if lookback_days < 30 or lookback_days > 2520:
+                return Response({
+                    'success': False,
+                    'error': 'lookback_days must be between 30 and 2520'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        except (ValueError, TypeError):
+            return Response({
+                'success': False,
+                'error': 'lookback_days must be a valid integer'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 2. 构造请求对象
+        use_case_request = GetValuationRepairStatusRequest(
+            stock_code=stock_code,
+            lookback_days=lookback_days
+        )
+
+        # 3. 执行用例
+        use_case = GetValuationRepairStatusUseCase(
+            stock_repository=self.stock_repo,
+            valuation_repair_repository=self.repair_repo,
+            valuation_quality_repository=self.quality_repo,
+        )
+        use_case_response = use_case.execute(use_case_request)
+
+        # 4. 返回响应
+        if use_case_response.success:
+            return Response(use_case_response.data, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'success': False,
+                'error': use_case_response.error
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(
+        summary="获取估值修复历史",
+        description="获取估值百分位历史序列（实时计算）",
+        responses={200: ValuationRepairHistoryResponseSerializer},
+    )
+    @action(detail=False, methods=['get'], url_path='valuation-repair/(?P<stock_code>(?!scan|list)[^/]+)/history')
+    def get_valuation_repair_history(self, request, stock_code):
+        """
+        GET /api/equity/valuation-repair/{stock_code}/history/
+
+        获取估值百分位历史
+
+        实时计算百分位历史序列，用于绘制修复曲线。
+
+        Response:
+        {
+            "stock_code": "600030.SH",
+            "points": [
+                {
+                    "trade_date": "2026-01-01",
+                    "pe_percentile": 0.15,
+                    "pb_percentile": 0.20,
+                    "composite_percentile": 0.18,
+                    "composite_method": "pb_weighted"
+                },
+                ...
+            ]
+        }
+        """
+        # 1. 获取并验证 lookback_days 参数
+        try:
+            lookback_days = int(request.query_params.get('lookback_days', 252))
+            if lookback_days < 30 or lookback_days > 2520:
+                return Response({
+                    'success': False,
+                    'error': 'lookback_days must be between 30 and 2520'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        except (ValueError, TypeError):
+            return Response({
+                'success': False,
+                'error': 'lookback_days must be a valid integer'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 2. 构造请求对象
+        use_case_request = GetValuationPercentileHistoryRequest(
+            stock_code=stock_code,
+            lookback_days=lookback_days
+        )
+
+        # 3. 执行用例
+        use_case = GetValuationPercentileHistoryUseCase(
+            stock_repository=self.stock_repo
+        )
+        use_case_response = use_case.execute(use_case_request)
+
+        # 4. 返回响应
+        if use_case_response.success:
+            latest_snapshot = self.quality_repo.get_latest_snapshot()
+            return Response({
+                'stock_code': stock_code,
+                'points': use_case_response.data,
+                'data_quality_flag': ("ok" if (latest_snapshot and latest_snapshot.is_gate_passed) else None),
+                'data_source_provider': 'local_db',
+                'data_as_of_date': (latest_snapshot.as_of_date.isoformat() if latest_snapshot else None),
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'success': False,
+                'error': use_case_response.error
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(
+        summary="批量扫描估值修复",
+        description="批量扫描股票池并保存快照",
+        request=ScanValuationRepairsRequestSerializer,
+        responses={200: ScanValuationRepairsResponseSerializer},
+    )
+    @action(detail=False, methods=['post'], url_path='valuation-repair/scan')
+    def scan_valuation_repairs(self, request):
+        """
+        POST /api/equity/valuation-repair/scan/
+
+        批量扫描估值修复
+
+        对指定股票池批量计算估值修复状态，并保存快照。
+
+        Request Body:
+        {
+            "universe": "all_active",  // 或 "current_pool"
+            "lookback_days": 756
+        }
+
+        Response:
+        {
+            "success": true,
+            "universe": "all_active",
+            "as_of_date": "2026-03-10",
+            "scanned_count": 100,
+            "saved_count": 45,
+            "phase_counts": {
+                "undervalued": 10,
+                "repair_started": 15,
+                "repairing": 18,
+                "near_target": 2
+            }
+        }
+        """
+        # 1. 验证请求
+        serializer = ScanValuationRepairsRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        # 2. 构造请求对象
+        use_case_request = ScanValuationRepairsRequest(
+            universe=data.get('universe', 'all_active'),
+            lookback_days=data.get('lookback_days', 756),
+            limit=None
+        )
+
+        # 3. 执行用例
+        use_case = ScanValuationRepairsUseCase(
+            stock_repository=self.stock_repo,
+            valuation_repair_repository=self.repair_repo,
+            stock_pool_adapter=self.pool_adapter,
+            valuation_quality_repository=self.quality_repo,
+        )
+        use_case_response = use_case.execute(use_case_request)
+
+        # 4. 返回响应
+        if use_case_response.success:
+            response_data = {
+                'success': True,
+                'universe': use_case_response.universe,
+                'as_of_date': use_case_response.as_of_date.isoformat(),
+                'scanned_count': use_case_response.scanned_count,
+                'saved_count': use_case_response.saved_count,
+                'phase_counts': use_case_response.phase_counts
+            }
+            return Response(response_data, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'success': False,
+                'error': use_case_response.error
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @extend_schema(
+        summary="同步估值数据",
+        description="从主备 provider 同步估值数据到本地估值表",
+        request=SyncValuationDataRequestSerializer,
+        responses={200: SyncValuationDataResponseSerializer},
+    )
+    @action(detail=False, methods=['post'], url_path='valuation-data/sync')
+    def sync_valuation_data(self, request):
+        serializer = SyncValuationDataRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        use_case = SyncEquityValuationUseCase(stock_repository=self.stock_repo)
+        response = use_case.execute(
+            SyncEquityValuationRequest(
+                stock_codes=data.get("stock_codes"),
+                start_date=data.get("start_date"),
+                end_date=data.get("end_date"),
+                days_back=data.get("days_back", 1),
+                primary_source=data.get("primary_source", "akshare"),
+                fallback_source=data.get("fallback_source", "tushare"),
+            )
+        )
+        if response.success:
+            return Response(response.data, status=status.HTTP_200_OK)
+        return Response({"success": False, "error": response.error}, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(
+        summary="校验估值数据质量",
+        description="对本地估值表生成质量快照并计算 gate 状态",
+        request=ValidateValuationDataRequestSerializer,
+        responses={200: ValuationQualitySnapshotResponseSerializer},
+    )
+    @action(detail=False, methods=['post'], url_path='valuation-data/validate')
+    def validate_valuation_data(self, request):
+        serializer = ValidateValuationDataRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        use_case = ValidateEquityValuationQualityUseCase(
+            stock_repository=self.stock_repo,
+            quality_repository=self.quality_repo,
+        )
+        response = use_case.execute(
+            ValidateEquityValuationQualityRequest(
+                as_of_date=data.get("as_of_date"),
+                primary_source=data.get("primary_source", "akshare"),
+            )
+        )
+        if response.success:
+            return Response(response.data, status=status.HTTP_200_OK)
+        return Response({"success": False, "error": response.error}, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(
+        summary="获取估值数据新鲜度",
+        description="返回本地估值表最新交易日和 freshness 状态",
+        responses={200: ValuationFreshnessResponseSerializer},
+    )
+    @action(detail=False, methods=['get'], url_path='valuation-data/freshness')
+    def valuation_data_freshness(self, request):
+        use_case = GetEquityValuationFreshnessUseCase(
+            stock_repository=self.stock_repo,
+            quality_repository=self.quality_repo,
+        )
+        response = use_case.execute()
+        if response.success:
+            return Response(response.data, status=status.HTTP_200_OK)
+        return Response({"success": False, "error": response.error}, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(
+        summary="获取最近估值数据质量快照",
+        description="返回最近一次估值数据质量快照",
+        responses={200: ValuationQualitySnapshotResponseSerializer},
+    )
+    @action(detail=False, methods=['get'], url_path='valuation-data/quality-latest')
+    def valuation_data_quality_latest(self, request):
+        use_case = GetLatestEquityValuationQualityUseCase(
+            quality_repository=self.quality_repo,
+        )
+        response = use_case.execute()
+        if response.success:
+            return Response(response.data, status=status.HTTP_200_OK)
+        return Response({"success": False, "error": response.error}, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(
+        summary="列出估值修复快照",
+        description="列出估值修复快照（不触发实时重算）",
+        request=ListValuationRepairsRequestSerializer,
+        responses={200: ListValuationRepairsResponseSerializer},
+    )
+    @action(detail=False, methods=['get'], url_path='valuation-repair-list')
+    def list_valuation_repairs(self, request):
+        """
+        GET /api/equity/valuation-repair-list/
+
+        列出估值修复快照
+
+        直接读取快照表，不触发实时重算。
+
+        Query Parameters:
+        - universe: all_active 或 current_pool（默认 all_active）
+        - phase: 阶段过滤（可选）
+        - limit: 返回数量限制（默认 50）
+
+        Response:
+        {
+            "success": true,
+            "results": [
+                {
+                    "stock_code": "600030.SH",
+                    "stock_name": "中信证券",
+                    "phase": "repairing",
+                    "signal": "hold",
+                    "composite_percentile": 0.28,
+                    "repair_progress": 0.45,
+                    "repair_speed_per_30d": 0.08,
+                    "repair_duration_trading_days": 30,
+                    "estimated_days_to_target": 82,
+                    "is_stalled": false,
+                    "as_of_date": "2026-03-10"
+                },
+                ...
+            ]
+        }
+        """
+        # 1. 验证并获取参数
+        try:
+            limit = int(request.query_params.get('limit', 50))
+            if limit < 1 or limit > 200:
+                return Response({
+                    'success': False,
+                    'error': 'limit must be between 1 and 200'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        except (ValueError, TypeError):
+            return Response({
+                'success': False,
+                'error': 'limit must be a valid integer'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # 2. 构造请求对象
+        use_case_request = ListValuationRepairsRequest(
+            universe=request.query_params.get('universe', 'all_active'),
+            phase=request.query_params.get('phase'),
+            limit=limit
+        )
+
+        # 2. 执行用例
+        use_case = ListValuationRepairsUseCase(
+            valuation_repair_repository=self.repair_repo
+        )
+        use_case_response = use_case.execute(use_case_request)
+
+        # 3. 返回响应
+        if use_case_response.success:
+            return Response({
+                'success': True,
+                'results': use_case_response.data
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'success': False,
+                'error': use_case_response.error
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

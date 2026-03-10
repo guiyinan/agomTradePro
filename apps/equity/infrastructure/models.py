@@ -7,6 +7,7 @@
 """
 
 from django.db import models
+from django.utils import timezone
 from decimal import Decimal
 
 
@@ -319,6 +320,53 @@ class ValuationModel(models.Model):
         verbose_name="股息率（%）"
     )
 
+    # 可信数据元信息
+    source_provider = models.CharField(
+        max_length=32,
+        default="unknown",
+        db_index=True,
+        verbose_name="数据提供方"
+    )
+    source_updated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="源端更新时间"
+    )
+    fetched_at = models.DateTimeField(
+        default=timezone.now,
+        db_index=True,
+        verbose_name="抓取时间"
+    )
+    pe_type = models.CharField(
+        max_length=16,
+        default="dynamic",
+        db_index=True,
+        verbose_name="PE口径"
+    )
+    is_valid = models.BooleanField(
+        default=True,
+        db_index=True,
+        verbose_name="是否有效"
+    )
+    quality_flag = models.CharField(
+        max_length=32,
+        default="ok",
+        db_index=True,
+        verbose_name="质量标记"
+    )
+    quality_notes = models.CharField(
+        max_length=255,
+        default="",
+        blank=True,
+        verbose_name="质量说明"
+    )
+    raw_payload_hash = models.CharField(
+        max_length=64,
+        default="",
+        blank=True,
+        verbose_name="原始载荷哈希"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -329,6 +377,9 @@ class ValuationModel(models.Model):
         indexes = [
             models.Index(fields=['stock_code', 'trade_date']),
             models.Index(fields=['trade_date']),
+            models.Index(fields=['stock_code', 'trade_date', 'is_valid']),
+            models.Index(fields=['trade_date', 'source_provider']),
+            models.Index(fields=['quality_flag', 'trade_date']),
         ]
         ordering = ['-trade_date']
 
@@ -504,3 +555,222 @@ class StockPoolSnapshot(models.Model):
 
     def __str__(self):
         return f"股票池 {self.regime} - {self.as_of_date} ({self.count} 只)"
+
+
+class ValuationRepairTrackingModel(models.Model):
+    """估值修复跟踪表
+
+    跟踪股票从低估值向合理估值修复的进程，包括修复阶段、进度、速度等指标。
+    支持识别修复停滞状态和预测修复完成时间。
+    """
+
+    # 股票标识
+    stock_code = models.CharField(
+        max_length=10,
+        db_index=True,
+        verbose_name="股票代码"
+    )
+    stock_name = models.CharField(
+        max_length=100,
+        default="",
+        blank=True,
+        verbose_name="股票名称"
+    )
+
+    # 日期信息
+    as_of_date = models.DateField(
+        db_index=True,
+        verbose_name="数据截止日期"
+    )
+    repair_start_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="修复开始日期"
+    )
+    repair_start_percentile = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="修复起始分位数"
+    )
+
+    # 修复状态
+    current_phase = models.CharField(
+        max_length=32,
+        db_index=True,
+        verbose_name="当前修复阶段"
+    )
+    signal = models.CharField(
+        max_length=32,
+        default="none",
+        db_index=True,
+        verbose_name="交易信号"
+    )
+
+    # 分位数指标
+    composite_percentile = models.FloatField(
+        verbose_name="综合分位数"
+    )
+    pe_percentile = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="PE分位数"
+    )
+    pb_percentile = models.FloatField(
+        verbose_name="PB分位数"
+    )
+
+    # 修复进度指标
+    repair_progress = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="修复进度(%)"
+    )
+    repair_speed_per_30d = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="修复速度(每30天百分点)"
+    )
+    estimated_days_to_target = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name="预计到达目标天数"
+    )
+
+    # 停滞检测
+    is_stalled = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="是否停滞"
+    )
+    stall_start_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="停滞开始日期"
+    )
+    stall_duration_trading_days = models.IntegerField(
+        default=0,
+        verbose_name="停滞持续交易日数"
+    )
+    repair_duration_trading_days = models.IntegerField(
+        default=0,
+        verbose_name="修复持续交易日数"
+    )
+
+    # 最低点记录
+    lowest_percentile = models.FloatField(
+        verbose_name="最低分位数"
+    )
+    lowest_percentile_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="最低分位数日期"
+    )
+
+    # 配置参数
+    target_percentile = models.FloatField(
+        default=0.5,
+        verbose_name="目标分位数"
+    )
+    composite_method = models.CharField(
+        max_length=20,
+        default="pb_only",
+        verbose_name="综合分位数方法"
+    )
+    confidence = models.FloatField(
+        default=0.0,
+        verbose_name="置信度"
+    )
+
+    # 股票池来源
+    source_universe = models.CharField(
+        max_length=32,
+        default="all_active",
+        db_index=True,
+        verbose_name="来源股票池"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+        verbose_name="是否活跃"
+    )
+
+    # 元数据
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="创建时间"
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="更新时间"
+    )
+
+    class Meta:
+        db_table = 'equity_valuation_repair_tracking'
+        verbose_name = '估值修复跟踪'
+        verbose_name_plural = '估值修复跟踪'
+        unique_together = [["stock_code", "source_universe"]]
+        indexes = [
+            models.Index(fields=["source_universe", "current_phase"]),
+            models.Index(fields=["source_universe", "signal"]),
+            models.Index(fields=["as_of_date"]),
+        ]
+        ordering = ["-composite_percentile", "stock_code"]
+
+    def __str__(self):
+        return f"{self.stock_code} - {self.current_phase} ({self.composite_percentile:.2f})"
+
+
+class ValuationDataQualitySnapshotModel(models.Model):
+    """估值数据质量快照表"""
+
+    as_of_date = models.DateField(
+        unique=True,
+        db_index=True,
+        verbose_name="数据日期"
+    )
+    expected_stock_count = models.IntegerField(default=0, verbose_name="预期股票数")
+    synced_stock_count = models.IntegerField(default=0, verbose_name="同步股票数")
+    valid_stock_count = models.IntegerField(default=0, verbose_name="有效股票数")
+
+    coverage_ratio = models.FloatField(default=0.0, verbose_name="覆盖率")
+    valid_ratio = models.FloatField(default=0.0, verbose_name="有效率")
+
+    missing_pb_count = models.IntegerField(default=0, verbose_name="PB缺失数")
+    invalid_pb_count = models.IntegerField(default=0, verbose_name="PB非法数")
+    missing_pe_count = models.IntegerField(default=0, verbose_name="PE缺失数")
+    jump_alert_count = models.IntegerField(default=0, verbose_name="跳变告警数")
+    source_deviation_count = models.IntegerField(default=0, verbose_name="源偏差数")
+
+    primary_source = models.CharField(
+        max_length=32,
+        default="akshare",
+        verbose_name="主数据源"
+    )
+    fallback_used_count = models.IntegerField(default=0, verbose_name="备源使用数")
+
+    is_gate_passed = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="是否通过门禁"
+    )
+    gate_reason = models.CharField(
+        max_length=255,
+        default="",
+        blank=True,
+        verbose_name="门禁原因"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = "equity_valuation_quality_snapshot"
+        verbose_name = "估值数据质量快照"
+        verbose_name_plural = "估值数据质量快照"
+        ordering = ["-as_of_date"]
+        indexes = [
+            models.Index(fields=["as_of_date", "is_gate_passed"]),
+        ]
+
+    def __str__(self):
+        return f"{self.as_of_date} gate={'pass' if self.is_gate_passed else 'fail'}"
