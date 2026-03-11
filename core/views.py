@@ -378,47 +378,10 @@ def decision_workspace_view(request):
 @login_required
 def ops_center_view(request):
     """Unified non-admin operations center for common configuration tasks."""
-    context = {
-        "sections": [
-            {
-                "title": "Policy 管理",
-                "items": [
-                    {"name": "政策事件列表", "url": "/policy/events/"},
-                    {"name": "新增政策事件", "url": "/policy/events/new/"},
-                    {"name": "RSS 源管理", "url": "/policy/rss/manage/"},
-                    {"name": "新增 RSS 源", "url": "/policy/rss/manage/new/"},
-                    {"name": "关键词规则", "url": "/policy/rss/keywords/"},
-                    {"name": "新增关键词规则", "url": "/policy/rss/keywords/new/"},
-                ],
-            },
-            {
-                "title": "Macro 管理",
-                "items": [
-                    {"name": "数据源配置", "url": "/macro/datasources/"},
-                    {"name": "新增数据源", "url": "/macro/datasources/new/"},
-                    {"name": "数据管理器", "url": "/macro/controller/"},
-                ],
-            },
-            {
-                "title": "Beta Gate",
-                "items": [
-                    {"name": "配置总览", "url": "/beta-gate/config/"},
-                    {"name": "新建配置", "url": "/beta-gate/config/new/"},
-                    {"name": "资产测试", "url": "/beta-gate/test/"},
-                    {"name": "版本管理", "url": "/beta-gate/version/"},
-                ],
-            },
-            {
-                "title": "系统配置",
-                "items": [
-                    {"name": "账户系统设置", "url": "/account/admin/settings/"},
-                    {"name": "文档管理", "url": "/admin/docs/manage/"},
-                    {"name": "服务端日志", "url": "/admin/server-logs/"},
-                    {"name": "AI 接口管理", "url": "/ai/manage/"},
-                    {"name": "AI 调用日志", "url": "/ai/logs/"},
-                    {"name": "Prompt 模板管理", "url": "/prompt/manage/"},
-                ],
-            },
-        ]
-    }
+    from core.application.config_center import build_config_center_snapshot
+
+    context = build_config_center_snapshot(request.user)
+    context["page_title"] = "配置中心"
+    context["page_subtitle"] = "统一查看系统、账户与策略参数配置状态。"
+    context["matrix_doc_path"] = "docs/business/config-center-matrix.md"
     return render(request, "ops/center.html", context)

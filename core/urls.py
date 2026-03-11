@@ -33,6 +33,7 @@ from core.views import (
     decision_workspace_view,
     ops_center_view,
 )
+from core.api_views import ConfigCenterSnapshotView, ConfigCapabilitiesView
 from core.admin_log_views import (
     server_logs_page,
     server_logs_stream,
@@ -73,6 +74,7 @@ def api_root_view(request):
             'simulated-trading': '/api/simulated-trading/',
             'strategy': '/api/strategy/',
             'system': '/api/system/',
+            'system-config-center': '/api/system/config-center/',
             'docs': '/api/docs/',
             'schema': '/api/schema/',
         }
@@ -84,6 +86,8 @@ core_patterns = [
     path('api/', api_root_view, name='api-root'),
     path('api/health/', health_view, name='health'),
     path('api/ready/', readiness_view, name='readiness'),
+    path('api/system/config-center/', ConfigCenterSnapshotView.as_view(), name='api-system-config-center'),
+    path('api/system/config-capabilities/', ConfigCapabilitiesView.as_view(), name='api-system-config-capabilities'),
     path('chat-example/', chat_example_view, name='chat-example'),
     # 301 重定向旧页面到统一工作台
     path('policy/dashboard/', RedirectView.as_view(url='/policy/workbench/', permanent=True), name='policy-dashboard'),

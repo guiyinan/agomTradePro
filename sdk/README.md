@@ -159,6 +159,7 @@ Three methods (priority order):
 | `client.alpha` | Alpha scoring - scores, provider status, universes, health, factor exposure |
 | `client.decision_workflow` | **Decision workflow (V3.4+)** - precheck |
 | `client.decision_rhythm` | **Decision rhythm (V3.4+)** - submit, execute, cancel, get decision requests |
+| `client.config_center` | **Config center** - unified config snapshot and capabilities |
 
 ## MCP Tools (60+)
 
@@ -186,6 +187,7 @@ Three methods (priority order):
 - **Decision Rhythm**: `submit_decision_request`, `list_decision_requests`, `decision_execute_request`, `decision_cancel_request`, `get_decision_request`
 - **Decision Workflow (V3.4+)**: `decision_workflow_precheck`
 - **Realtime**: `get_realtime_price`, `get_market_summary`, `create_price_alert`
+- **Config Center**: `list_config_capabilities`, `get_config_center_snapshot`
 
 ## Rotation Account Config Examples
 

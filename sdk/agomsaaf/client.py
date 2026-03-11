@@ -31,6 +31,7 @@ from .modules.audit import AuditModule
 from .modules.backtest import BacktestModule
 from .modules.beta_gate import BetaGateModule
 from .modules.dashboard import DashboardModule
+from .modules.config_center import ConfigCenterModule
 from .modules.decision_rhythm import DecisionRhythmModule
 from .modules.equity import EquityModule
 from .modules.events import EventsModule
@@ -94,6 +95,7 @@ class AgomSAAFClient:
     _beta_gate: Optional[BetaGateModule] = None
     _alpha_trigger: Optional[AlphaTriggerModule] = None
     _dashboard: Optional[DashboardModule] = None
+    _config_center: Optional[ConfigCenterModule] = None
     _asset_analysis: Optional[AssetAnalysisModule] = None
     _sentiment: Optional[SentimentModule] = None
     _task_monitor: Optional[TaskMonitorModule] = None
@@ -531,6 +533,13 @@ class AgomSAAFClient:
         if self._dashboard is None:
             self._dashboard = DashboardModule(self)
         return self._dashboard
+
+    @property
+    def config_center(self) -> ConfigCenterModule:
+        """配置中心模块"""
+        if self._config_center is None:
+            self._config_center = ConfigCenterModule(self)
+        return self._config_center
 
     @property
     def asset_analysis(self) -> AssetAnalysisModule:

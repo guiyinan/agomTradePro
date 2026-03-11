@@ -1,25 +1,146 @@
 {% extends "base.html" %}
 
-{% block title %}Operations Center - AgomSAAF{% endblock %}
+{% block title %}配置中心 - AgomSAAF{% endblock %}
 
 {% block content %}
-<div style="max-width: 1200px; margin: 0 auto; padding: 24px;">
-    <h1 style="margin-bottom: 10px;">Operations Center</h1>
-    <p style="color: #64748b; margin-bottom: 24px;">
-        常用配置与运营操作入口（非 Django Admin 日常路径）。
-    </p>
-
-    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px;">
-        {% for section in sections %}
-        <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px;">
-            <h3 style="margin: 0 0 12px 0;">{{ section.title }}</h3>
-            <ul style="margin: 0; padding-left: 16px; line-height: 1.9;">
-                {% for item in section.items %}
-                <li><a href="{{ item.url }}">{{ item.name }}</a></li>
-                {% endfor %}
-            </ul>
+<div style="max-width: 1320px; margin: 0 auto; padding: 24px;">
+    <div style="display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; margin-bottom: 20px;">
+        <div>
+            <h1 style="margin-bottom: 10px;">{{ page_title }}</h1>
+            <p style="color: #64748b; margin: 0;">{{ page_subtitle }}</p>
         </div>
-        {% endfor %}
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <a href="/api/docs/" class="btn btn-secondary" style="text-decoration:none;">API 文档</a>
+            <a href="{% url 'docs' %}" class="btn btn-secondary" style="text-decoration:none;">文档中心</a>
+        </div>
     </div>
+
+    <div style="display:grid; grid-template-columns: 1.3fr 1fr 1fr; gap:12px; margin-bottom: 24px;">
+        <input id="config-search" type="text" placeholder="搜索配置名或模块..." style="padding:10px 12px; border:1px solid #cbd5e1; border-radius:10px;">
+        <select id="config-section-filter" style="padding:10px 12px; border:1px solid #cbd5e1; border-radius:10px;">
+            <option value="">全部分类</option>
+            {% for section in sections %}
+            <option value="{{ section.key }}">{{ section.title }}</option>
+            {% endfor %}
+        </select>
+        <select id="config-status-filter" style="padding:10px 12px; border:1px solid #cbd5e1; border-radius:10px;">
+            <option value="">全部状态</option>
+            <option value="configured">已配置</option>
+            <option value="attention">需关注</option>
+            <option value="missing">缺失</option>
+            <option value="api_only">仅 API/MCP</option>
+        </select>
+    </div>
+
+    {% for section in sections %}
+    <section class="config-center-section" data-section-key="{{ section.key }}" style="margin-bottom: 28px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; gap:12px; flex-wrap:wrap;">
+            <h2 style="margin:0; font-size: 20px;">{{ section.title }}</h2>
+            <span style="font-size:13px; color:#64748b;">{{ section.items|length }} 项</span>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px;">
+            {% for item in section.items %}
+            <article
+                class="config-card"
+                data-section="{{ section.key }}"
+                data-status="{{ item.status }}"
+                data-search="{{ item.name|lower }} {{ item.module|lower }} {{ item.description|lower }}"
+                style="background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:18px; display:flex; flex-direction:column; gap:12px;"
+            >
+                <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+                    <div>
+                        <div style="font-size: 18px; font-weight: 700;">{{ item.name }}</div>
+                        <div style="font-size: 13px; color:#64748b; margin-top:4px;">{{ item.description }}</div>
+                    </div>
+                    <span style="
+                        padding:4px 10px;
+                        border-radius:999px;
+                        font-size:12px;
+                        font-weight:600;
+                        {% if item.status == 'configured' %}background:#dcfce7;color:#166534;{% elif item.status == 'attention' %}background:#fef3c7;color:#92400e;{% elif item.status == 'missing' %}background:#fee2e2;color:#991b1b;{% else %}background:#e2e8f0;color:#334155;{% endif %}
+                    ">
+                        {{ item.status }}
+                    </span>
+                </div>
+
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <span style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:999px; padding:3px 8px; font-size:12px;">模块 {{ item.module }}</span>
+                    <span style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:999px; padding:3px 8px; font-size:12px;">权限 {{ item.permission }}</span>
+                    {% if item.frontend_url %}<span style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:999px; padding:3px 8px; font-size:12px;">Frontend</span>{% endif %}
+                    {% if item.api_url %}<span style="background:#eef2ff; border:1px solid #c7d2fe; border-radius:999px; padding:3px 8px; font-size:12px;">API</span>{% endif %}
+                    {% if item.mcp_tools %}<span style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:999px; padding:3px 8px; font-size:12px;">MCP</span>{% endif %}
+                </div>
+
+                <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px;">
+                    {% for key, value in item.summary.items %}
+                    <div style="padding:10px 12px; background:#f8fafc; border-radius:10px;">
+                        <div style="font-size:12px; color:#64748b;">{{ key }}</div>
+                        <div style="font-size:13px; font-weight:600; word-break:break-word;">{{ value }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if item.mcp_tools %}
+                <div>
+                    <div style="font-size:12px; color:#64748b; margin-bottom:6px;">MCP 工具</div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        {% for tool in item.mcp_tools %}
+                        <code style="background:#0f172a; color:#e2e8f0; padding:4px 8px; border-radius:8px; font-size:11px;">{{ tool }}</code>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:auto;">
+                    {% if item.frontend_url %}
+                    <a href="{{ item.frontend_url }}" class="btn btn-primary" style="text-decoration:none;">查看{% if item.supports_edit %}/编辑{% endif %}</a>
+                    {% endif %}
+                    {% if item.api_url %}
+                    <a href="{{ item.api_url }}" class="btn btn-secondary" style="text-decoration:none;">API</a>
+                    {% endif %}
+                    <span style="font-size:12px; color:#64748b; align-self:center;">{{ item.docs_ref }}</span>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+    {% endfor %}
 </div>
+
+<script>
+(() => {
+    const searchInput = document.getElementById('config-search');
+    const sectionFilter = document.getElementById('config-section-filter');
+    const statusFilter = document.getElementById('config-status-filter');
+    const cards = Array.from(document.querySelectorAll('.config-card'));
+    const sections = Array.from(document.querySelectorAll('.config-center-section'));
+
+    function applyFilters() {
+        const keyword = (searchInput.value || '').trim().toLowerCase();
+        const sectionValue = sectionFilter.value;
+        const statusValue = statusFilter.value;
+
+        cards.forEach((card) => {
+            const section = card.dataset.section || '';
+            const status = card.dataset.status || '';
+            const haystack = card.dataset.search || '';
+            const visible =
+                (!keyword || haystack.includes(keyword)) &&
+                (!sectionValue || section === sectionValue) &&
+                (!statusValue || status === statusValue);
+            card.style.display = visible ? '' : 'none';
+        });
+
+        sections.forEach((section) => {
+            const visibleCards = section.querySelectorAll('.config-card:not([style*="display: none"])');
+            section.style.display = visibleCards.length > 0 ? '' : 'none';
+        });
+    }
+
+    [searchInput, sectionFilter, statusFilter].forEach((el) => {
+        if (el) el.addEventListener('input', applyFilters);
+        if (el && el.tagName === 'SELECT') el.addEventListener('change', applyFilters);
+    });
+})();
+</script>
 {% endblock %}

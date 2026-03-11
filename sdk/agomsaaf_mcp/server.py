@@ -14,6 +14,7 @@ from agomsaaf_mcp.tools.audit_tools import register_audit_tools
 from agomsaaf_mcp.tools.backtest_tools import register_backtest_tools
 from agomsaaf_mcp.tools.beta_gate_tools import register_beta_gate_tools
 from agomsaaf_mcp.tools.dashboard_tools import register_dashboard_tools
+from agomsaaf_mcp.tools.config_center_tools import register_config_center_tools
 from agomsaaf_mcp.tools.decision_rhythm_tools import register_decision_rhythm_tools
 from agomsaaf_mcp.tools.equity_tools import register_equity_tools
 from agomsaaf_mcp.tools.events_tools import register_events_tools
@@ -81,6 +82,7 @@ def register_all_tools() -> None:
     register_beta_gate_tools(server)
     register_alpha_trigger_tools(server)
     register_dashboard_tools(server)
+    register_config_center_tools(server)
     register_asset_analysis_tools(server)
     register_sentiment_tools(server)
     register_task_monitor_tools(server)
