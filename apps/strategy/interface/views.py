@@ -995,7 +995,7 @@ def bind_strategy(request):
         return JsonResponse({'success': False, 'error': '只支持 POST 请求'})
 
     import json
-    from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+    from apps.simulated_trading.application.facade import get_simulated_trading_facade
 
     try:
         data = json.loads(request.body)
@@ -1005,12 +1005,10 @@ def bind_strategy(request):
         if not portfolio_id or not strategy_id:
             return JsonResponse({'success': False, 'error': '缺少必要参数'})
 
-        # 获取账户和策略
-        account = get_object_or_404(
-            SimulatedAccountModel,
-            id=portfolio_id,
-            user=request.user
-        )
+        facade = get_simulated_trading_facade()
+        if not facade.user_owns_account(portfolio_id, request.user.id):
+            return JsonResponse({'success': False, 'error': '账户不存在或无权限访问'}, status=404)
+
         strategy = get_object_or_404(
             StrategyModel,
             id=strategy_id,
@@ -1019,13 +1017,13 @@ def bind_strategy(request):
 
         # 一个账户只保留一个激活策略分配：先停用旧分配
         PortfolioStrategyAssignmentModel._default_manager.filter(
-            portfolio=account,
+            portfolio_id=portfolio_id,
             is_active=True
         ).update(is_active=False)
 
         # 创建或激活新分配
         assignment, created = PortfolioStrategyAssignmentModel._default_manager.get_or_create(
-            portfolio=account,
+            portfolio_id=portfolio_id,
             strategy=strategy,
             defaults={
                 'assigned_by': request.user.account_profile,
@@ -1050,7 +1048,7 @@ def unbind_strategy(request):
         return JsonResponse({'success': False, 'error': '只支持 POST 请求'})
 
     import json
-    from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+    from apps.simulated_trading.application.facade import get_simulated_trading_facade
 
     try:
         data = json.loads(request.body)
@@ -1059,16 +1057,13 @@ def unbind_strategy(request):
         if not portfolio_id:
             return JsonResponse({'success': False, 'error': '缺少必要参数'})
 
-        # 获取账户
-        account = get_object_or_404(
-            SimulatedAccountModel,
-            id=portfolio_id,
-            user=request.user
-        )
+        facade = get_simulated_trading_facade()
+        if not facade.user_owns_account(portfolio_id, request.user.id):
+            return JsonResponse({'success': False, 'error': '账户不存在或无权限访问'}, status=404)
 
         # 停用该账户的全部激活策略分配
         PortfolioStrategyAssignmentModel._default_manager.filter(
-            portfolio=account,
+            portfolio_id=portfolio_id,
             is_active=True
         ).update(is_active=False)
 

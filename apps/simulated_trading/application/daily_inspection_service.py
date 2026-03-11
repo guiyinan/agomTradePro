@@ -17,14 +17,14 @@ from apps.simulated_trading.infrastructure.models import (
     RebalanceProposalModel,
     SimulatedAccountModel,
 )
-from apps.strategy.application.position_management_service import PositionManagementService
-from apps.strategy.infrastructure.models import PositionManagementRuleModel, StrategyModel
+from apps.strategy.application.execution_gateway import get_strategy_execution_gateway
 
 
 @dataclass(frozen=True)
 class InspectionSelection:
-    strategy: StrategyModel | None
-    rule: PositionManagementRuleModel | None
+    strategy_id: int | None
+    rule_id: int | None
+    rule_metadata: dict[str, Any]
 
 
 class DailyInspectionService:
@@ -46,7 +46,7 @@ class DailyInspectionService:
 
         checks = cls._build_checks(
             account=account,
-            rule=selection.rule,
+            selection=selection,
         )
         summary = cls._build_summary(account=account, checks=checks)
         status = "warning" if summary["rebalance_required_count"] > 0 else "ok"
@@ -55,8 +55,8 @@ class DailyInspectionService:
             account=account,
             inspection_date=as_of,
             defaults={
-                "strategy": selection.strategy,
-                "position_rule": selection.rule,
+                "strategy_id": selection.strategy_id,
+                "position_rule_id": selection.rule_id,
                 "status": status,
                 "macro_regime": cls._latest_regime(),
                 "policy_gear": cls._latest_policy_gear(),
@@ -75,8 +75,8 @@ class DailyInspectionService:
             "status": report.status,
             "macro_regime": report.macro_regime,
             "policy_gear": report.policy_gear,
-            "strategy_id": selection.strategy.id if selection.strategy else None,
-            "position_rule_id": selection.rule.id if selection.rule else None,
+            "strategy_id": selection.strategy_id,
+            "position_rule_id": selection.rule_id,
             "summary": summary,
             "checks": checks,
         }
@@ -87,43 +87,30 @@ class DailyInspectionService:
         account_id: int,
         strategy_id: int | None,
     ) -> InspectionSelection:
-        if strategy_id:
-            strategy = StrategyModel._default_manager.filter(id=strategy_id).first()
-            rule = (
-                PositionManagementRuleModel._default_manager.filter(
-                    strategy_id=strategy_id,
-                    is_active=True,
-                )
-                .order_by("-updated_at")
-                .first()
-            )
-            return InspectionSelection(strategy=strategy, rule=rule)
-
-        rule = (
-            PositionManagementRuleModel._default_manager.filter(
-                is_active=True,
-                metadata__account_id=account_id,
-            )
-            .select_related("strategy")
-            .order_by("-updated_at")
-            .first()
+        gateway = get_strategy_execution_gateway()
+        selection = gateway.get_inspection_selection(
+            account_id=account_id,
+            strategy_id=strategy_id,
         )
-        if rule:
-            return InspectionSelection(strategy=rule.strategy, rule=rule)
-        return InspectionSelection(strategy=None, rule=None)
+        return InspectionSelection(
+            strategy_id=selection.strategy_id,
+            rule_id=selection.position_rule_id,
+            rule_metadata=selection.rule_metadata,
+        )
 
     @classmethod
     def _build_checks(
         cls,
         account: SimulatedAccountModel,
-        rule: PositionManagementRuleModel | None,
+        selection: InspectionSelection,
     ) -> list[dict[str, Any]]:
         positions = PositionModel._default_manager.filter(account=account).order_by("-market_value")
         total_value = float(account.total_value or 0)
         checks: list[dict[str, Any]] = []
-        rebalance_cfg = (rule.metadata or {}).get("rebalance", {}) if rule else {}
+        rebalance_cfg = (selection.rule_metadata or {}).get("rebalance", {}) if selection.rule_id else {}
         target_weights = rebalance_cfg.get("target_weights", {})
         drift_threshold = float(rebalance_cfg.get("drift_threshold", 0.05))
+        gateway = get_strategy_execution_gateway()
 
         for pos in positions:
             current_price = float(pos.current_price)
@@ -137,13 +124,13 @@ class DailyInspectionService:
             rebalance_qty_suggest = int(((target_weight - weight) * total_value) / max(current_price, 0.01))
 
             rule_eval = None
-            if rule:
+            if selection.rule_id:
                 context = cls._build_context(
                     current_price=current_price,
                     entry_price=float(pos.avg_cost),
                     account_equity=total_value,
                 )
-                rule_eval = PositionManagementService.evaluate(rule=rule, context=context).to_dict()
+                rule_eval = gateway.evaluate_position_rule(selection.rule_id, context)
 
             checks.append(
                 {

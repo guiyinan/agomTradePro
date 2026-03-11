@@ -344,12 +344,9 @@ class HighFrequencySignalUseCase:
     def _evaluate_term_spread(self, as_of_date: date) -> Dict:
         """Evaluate term spread indicator"""
         try:
-            from apps.macro.infrastructure.repositories import DjangoMacroRepository
-
-            repo = DjangoMacroRepository()
-
+            # 重构说明 (2026-03-11): 使用注入的 repository 而非创建新实例
             # Get latest term spread data
-            spread_data = repo.get_latest_observation(
+            spread_data = self.repository.get_latest_observation(
                 code='CN_TERM_SPREAD_10Y2Y',
                 before_date=as_of_date
             )
@@ -384,12 +381,9 @@ class HighFrequencySignalUseCase:
     def _evaluate_nhci(self, as_of_date: date, lookback_days: int) -> Dict:
         """Evaluate NHCI (南华商品指数) indicator"""
         try:
-            from apps.macro.infrastructure.repositories import DjangoMacroRepository
-
-            repo = DjangoMacroRepository()
-
+            # 重构说明 (2026-03-11): 使用注入的 repository 而非创建新实例
             # Get current and historical NHCI
-            current_data = repo.get_latest_observation(
+            current_data = self.repository.get_latest_observation(
                 code='CN_NHCI',
                 before_date=as_of_date
             )
@@ -400,7 +394,7 @@ class HighFrequencySignalUseCase:
             # Get data from lookback_days ago
             from datetime import timedelta
             past_date = as_of_date - timedelta(days=lookback_days)
-            past_data = repo.get_latest_observation(
+            past_data = self.repository.get_latest_observation(
                 code='CN_NHCI',
                 before_date=past_date
             )
@@ -438,12 +432,9 @@ class HighFrequencySignalUseCase:
     def _evaluate_us_bond(self, as_of_date: date) -> Dict:
         """Evaluate US 10Y bond yield indicator"""
         try:
-            from apps.macro.infrastructure.repositories import DjangoMacroRepository
-
-            repo = DjangoMacroRepository()
-
+            # 重构说明 (2026-03-11): 使用注入的 repository 而非创建新实例
             # Get latest US 10Y bond
-            us_bond_data = repo.get_latest_observation(
+            us_bond_data = self.repository.get_latest_observation(
                 code='US_BOND_10Y',
                 before_date=as_of_date
             )

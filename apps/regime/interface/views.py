@@ -2,6 +2,11 @@
 Interface Views for Regime Calculation.
 
 DRF Views and page views for regime calculation.
+
+重构说明 (2026-03-11):
+- 使用 MacroRepositoryAdapter 替代直接导入 DjangoMacroRepository
+- 使用 DjangoDataSourceConfig 替代直接导入 macro 模块的 DataSourceConfig
+- 保持 API 完全兼容
 """
 
 from django.shortcuts import render
@@ -9,8 +14,10 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from datetime import date
 from apps.regime.application.use_cases import CalculateRegimeV2UseCase, CalculateRegimeV2Request
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
-from apps.macro.infrastructure.models import DataSourceConfig
+from apps.regime.infrastructure.macro_data_provider import (
+    MacroRepositoryAdapter,
+    DjangoDataSourceConfig,
+)
 
 # API Cache layer
 from core.cache_utils import cached_api, CACHE_TTL
@@ -21,12 +28,10 @@ def regime_dashboard_view(request):
     import json
 
     try:
-        # 获取可用的数据源列表
-        available_sources = DataSourceConfig._default_manager.filter(is_active=True).order_by('priority')
-
-        # 获取查询参数
-        first_source = available_sources.first()
-        default_source = first_source.source_type if first_source else 'akshare'
+        # 获取可用的数据源列表 - 使用本地配置
+        # 重构说明 (2026-03-11): 使用 DjangoDataSourceConfig 替代 macro 模块导入
+        config = DjangoDataSourceConfig()
+        default_source = 'akshare'  # 默认数据源
         data_source = request.GET.get('source', default_source)
 
         # 获取分析时点参数
@@ -41,7 +46,8 @@ def regime_dashboard_view(request):
         skip_cache = request.GET.get('force_refresh') == '1'
 
         # 统一使用 V2 算法（水平判定法）
-        repository = DjangoMacroRepository()
+        # 重构说明 (2026-03-11): 使用 MacroRepositoryAdapter 替代 DjangoMacroRepository
+        repository = MacroRepositoryAdapter()
         use_case = CalculateRegimeV2UseCase(repository)
         request_obj = CalculateRegimeV2Request(
             as_of_date=as_of_date,

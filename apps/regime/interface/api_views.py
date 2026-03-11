@@ -2,6 +2,10 @@
 DRF API Views for Regime Calculation.
 
 提供 RESTful API 接口用于 Regime 判定。
+
+重构说明 (2026-03-11):
+- 使用 MacroRepositoryAdapter 替代直接导入 DjangoMacroRepository
+- 保持 API 完全兼容
 """
 
 from rest_framework import viewsets, status
@@ -15,7 +19,7 @@ from django.utils import timezone
 
 from apps.regime.application.current_regime import resolve_current_regime
 from apps.regime.application.use_cases import CalculateRegimeV2UseCase, CalculateRegimeV2Request
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
+from apps.regime.infrastructure.macro_data_provider import MacroRepositoryAdapter
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from apps.regime.infrastructure.models import RegimeLog
 from .serializers import (
@@ -40,7 +44,8 @@ class RegimeViewSet(viewsets.ViewSet):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.repository = DjangoRegimeRepository()
-        self.use_case = CalculateRegimeV2UseCase(DjangoMacroRepository())
+        # 重构说明 (2026-03-11): 使用 MacroRepositoryAdapter 替代 DjangoMacroRepository
+        self.use_case = CalculateRegimeV2UseCase(MacroRepositoryAdapter())
 
     @action(detail=False, methods=['get'])
     def current(self, request):

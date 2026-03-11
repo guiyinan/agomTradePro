@@ -77,143 +77,69 @@ class EventBusInitializer:
         return self.event_bus
 
     def _register_all_handlers(self):
-        """注册所有事件处理器"""
-        # 注册 Beta Gate 处理器
-        self._register_beta_gate_handlers()
+        """
+        注册所有事件处理器
 
-        # 注册 Alpha Trigger 处理器
-        self._register_alpha_trigger_handlers()
+        重构说明 (2026-03-11):
+        - 从注册表加载业务模块订阅器
+        - 移除直接导入业务模块 handlers
+        - 保留内部处理器注册
+        """
+        # 从注册表加载业务模块订阅器
+        self._register_from_registry()
 
-        # 注册 Decision Rhythm 处理器
-        self._register_decision_rhythm_handlers()
-
-        # 注册其他处理器
+        # 注册内部处理器
         self._register_other_handlers()
 
-    def _register_beta_gate_handlers(self):
-        """注册 Beta Gate 处理器"""
+    def _register_from_registry(self):
+        """
+        从注册表加载订阅器
+
+        业务模块通过 registry.register() 注册自己的订阅器，
+        此方法从注册表读取并创建处理器。
+        """
+        import uuid
+        from ..domain.entities import EventSubscription
+        from ..domain.registry import get_event_subscriber_registry
+
         try:
-            from apps.beta_gate.application.handlers import (
-                BetaGateEventHandler,
-                GateInvalidationHandler,
-            )
-            from apps.beta_gate.domain.services import (
-                VisibilityUniverseBuilder,
-                GateConfigSelector,
-            )
-            from apps.beta_gate.domain.entities import get_default_configs
+            registry = get_event_subscriber_registry()
+            all_subscribers = registry.get_all_subscribers()
 
-            # 创建处理器
-            beta_gate_handler = BetaGateEventHandler(
-                universe_builder=VisibilityUniverseBuilder(),
-                config_selector=GateConfigSelector(get_default_configs()),
-                event_bus=self.event_bus,
-            )
-            gate_invalidation_handler = GateInvalidationHandler(
-                config_selector=GateConfigSelector(get_default_configs()),
-            )
+            for subscriber_info in all_subscribers:
+                try:
+                    # 调用工厂函数创建处理器
+                    handler = subscriber_info.handler_factory()
 
-            # 修复：使用 EventSubscription 包装 handler
-            from ..domain.entities import EventSubscription, EventType
-            import uuid
+                    # 注入事件总线（如果处理器需要）
+                    if hasattr(handler, 'event_bus'):
+                        handler.event_bus = self.event_bus
 
-            beta_subscription = EventSubscription(
-                subscription_id=f"beta_gate_{uuid.uuid4().hex[:8]}",
-                event_type=EventType.REGIME_CHANGED,
-                handler=beta_gate_handler,
-            )
-            gate_subscription = EventSubscription(
-                subscription_id=f"gate_invalid_{uuid.uuid4().hex[:8]}",
-                event_type=EventType.POLICY_LEVEL_CHANGED,
-                handler=gate_invalidation_handler,
-            )
+                    # 创建订阅
+                    subscription = EventSubscription(
+                        subscription_id=f"{subscriber_info.module_name}_{uuid.uuid4().hex[:8]}",
+                        event_type=subscriber_info.event_type,
+                        handler=handler,
+                    )
 
-            # 注册
-            self.event_bus.subscribe(beta_subscription)
-            self.event_bus.subscribe(gate_subscription)
+                    # 注册到事件总线
+                    self.event_bus.subscribe(subscription)
+                    self.handlers.append(handler)
 
-            self.handlers.extend([beta_gate_handler, gate_invalidation_handler])
+                    logger.info(
+                        f"Registered handler from registry: "
+                        f"{subscriber_info.module_name} -> {subscriber_info.event_type.value}"
+                    )
 
-            logger.info("Beta Gate handlers registered")
+                except Exception as e:
+                    logger.error(
+                        f"Failed to create handler for {subscriber_info.module_name}: {e}"
+                    )
 
-        except ImportError as e:
-            logger.warning(f"Failed to import Beta Gate handlers: {e}")
+            logger.info(f"Loaded {len(all_subscribers)} subscribers from registry")
 
-    def _register_alpha_trigger_handlers(self):
-        """注册 Alpha Trigger 处理器"""
-        try:
-            from apps.alpha_trigger.application.handlers import (
-                AlphaTriggerEventHandler,
-                TriggerInvalidationHandler,
-                CandidatePromotionHandler,
-            )
-
-            # Alpha Trigger 需要仓储，这里先注册空实现
-            # 实际使用时需要注入依赖
-            alpha_trigger_handler = AlphaTriggerEventHandler(
-                create_trigger_use_case=None,  # 需要注入
-                event_bus=self.event_bus,
-            )
-
-            # 修复：使用 EventSubscription 包装 handler
-            from ..domain.entities import EventSubscription, EventType
-            import uuid
-
-            subscription = EventSubscription(
-                subscription_id=f"alpha_trigger_{uuid.uuid4().hex[:8]}",
-                event_type=EventType.ALPHA_TRIGGER_ACTIVATED,
-                handler=alpha_trigger_handler,
-            )
-
-            # 注册
-            self.event_bus.subscribe(subscription)
-
-            self.handlers.append(alpha_trigger_handler)
-
-            logger.info("Alpha Trigger handlers registered")
-
-        except ImportError as e:
-            logger.warning(f"Failed to import Alpha Trigger handlers: {e}")
-
-    def _register_decision_rhythm_handlers(self):
-        """注册 Decision Rhythm 处理器"""
-        try:
-            from apps.decision_rhythm.application.handlers import (
-                DecisionRhythmEventHandler,
-                QuotaMonitorHandler,
-                CooldownEventHandler,
-            )
-            from apps.decision_rhythm.domain.services import (
-                QuotaManager,
-                CooldownManager,
-            )
-
-            # 创建处理器
-            rhythm_handler = DecisionRhythmEventHandler(
-                quota_manager=QuotaManager(),
-                cooldown_manager=CooldownManager(),
-                event_bus=self.event_bus,
-            )
-
-            # 修复：使用 EventSubscription 包装 handler
-            from ..domain.entities import EventSubscription, EventType
-            import uuid
-
-            subscription = EventSubscription(
-                subscription_id=f"decision_rhythm_{uuid.uuid4().hex[:8]}",
-                event_type=EventType.DECISION_APPROVED,
-                handler=rhythm_handler,
-            )
-
-            # 注册
-            self.event_bus.subscribe(subscription)
-
-            self.handlers.append(rhythm_handler)
-
-            logger.info("Decision Rhythm handlers registered")
-
-        except ImportError as e:
-            logger.warning(f"Failed to import Decision Rhythm handlers: {e}")
+        except Exception as e:
+            logger.error(f"Failed to load subscribers from registry: {e}")
 
     def _register_other_handlers(self):
         """注册其他处理器"""

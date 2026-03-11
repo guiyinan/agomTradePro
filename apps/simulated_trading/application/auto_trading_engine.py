@@ -159,6 +159,10 @@ class AutoTradingEngine:
         """
         获取账户绑定的策略ID
 
+        重构说明 (2026-03-11):
+        - 使用 SimulatedTradingFacade 替代直接 ORM 导入
+        - 保持 API 兼容
+
         Args:
             account_id: 账户ID
 
@@ -166,32 +170,10 @@ class AutoTradingEngine:
             策略ID，如果未绑定则返回 None
         """
         try:
-            from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
-            from apps.strategy.infrastructure.models import PortfolioStrategyAssignmentModel
+            from apps.simulated_trading.application.facade import get_simulated_trading_facade
 
-            account_model = SimulatedAccountModel._default_manager.filter(id=account_id).first()
-            if not account_model:
-                return None
-
-            # 兼容旧模型字段（如果存在）
-            legacy_strategy = getattr(account_model, "active_strategy", None)
-            if legacy_strategy:
-                return legacy_strategy.id
-
-            # 现行实现：通过 portfolio_strategy_assignment 关联表读取
-            assignment = (
-                PortfolioStrategyAssignmentModel._default_manager
-                .select_related("strategy")
-                .filter(
-                    portfolio_id=account_id,
-                    is_active=True,
-                    strategy__is_active=True,
-                )
-                .first()
-            )
-            if assignment:
-                return assignment.strategy_id
-            return None
+            facade = get_simulated_trading_facade()
+            return facade.get_active_strategy_id(account_id)
         except Exception as e:
             logger.warning(f"获取账户策略失败: {e}")
             return None
@@ -205,6 +187,10 @@ class AutoTradingEngine:
         """
         使用策略执行引擎进行交易
 
+        重构说明 (2026-03-11):
+        - 使用 StrategyExecutionGateway 替代直接导入 StrategyExecutor
+        - 保持 API 兼容
+
         Args:
             account: 账户实体
             strategy_id: 策略ID
@@ -217,11 +203,17 @@ class AutoTradingEngine:
         sell_count = 0
 
         try:
-            # 1. 执行策略，获取信号推荐
-            from apps.strategy.application.strategy_executor import StrategyExecutor
-            execution_result = self.strategy_executor.execute_strategy(strategy_id, account.account_id)
+            # 1. 执行策略，获取信号推荐 - 使用 Gateway 模式
+            from apps.strategy.application.execution_gateway import get_strategy_execution_gateway
 
-            if not execution_result.is_success:
+            gateway = get_strategy_execution_gateway()
+            execution_result = gateway.execute_for_account(
+                strategy_id=strategy_id,
+                account_id=account.account_id,
+                as_of_date=trade_date
+            )
+
+            if not execution_result.success:
                 logger.error(f"策略执行失败: {execution_result.error_message}")
                 return 0, 0
 
@@ -232,7 +224,8 @@ class AutoTradingEngine:
             held_codes = {p.asset_code for p in positions}
 
             for signal in execution_result.signals:
-                if signal.action.value == 'sell' and signal.asset_code in held_codes:
+                # SignalInfo.action 是字符串而非枚举
+                if signal.action == 'sell' and signal.asset_code in held_codes:
                     try:
                         price = self._get_current_price(signal.asset_code, trade_date)
                         if price is None:
@@ -256,7 +249,8 @@ class AutoTradingEngine:
 
             # 3. 处理买入信号
             for signal in execution_result.signals:
-                if signal.action.value == 'buy':
+                # SignalInfo.action 是字符串而非枚举
+                if signal.action == 'buy':
                     try:
                         # 检查是否已有持仓
                         if signal.asset_code in held_codes:
@@ -292,7 +286,7 @@ class AutoTradingEngine:
                             quantity=quantity,
                             price=price,
                             reason=f"策略信号: {signal.reason}",
-                            signal_id=None
+                            signal_id=signal.signal_id
                         )
                         buy_count += 1
                         logger.info(f"    ✓ 买入: {signal.asset_name} x{quantity} @ {price:.2f} (原因: {signal.reason})")

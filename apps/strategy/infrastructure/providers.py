@@ -254,7 +254,22 @@ class DjangoPortfolioDataProvider:
     Django ORM 实现的投资组合数据提供者
 
     从 simulated_trading 应用获取投资组合数据
+
+    重构说明 (2026-03-11):
+    - 改为使用 SimulatedTradingFacade
+    - 移除对 PositionModel 和 SimulatedAccountModel 的直接导入
     """
+
+    def __init__(self):
+        # 凶迟导入 Facade 避免 circular dependency
+        self._facade = None
+
+    def _get_facade(self):
+        """延迟获取 Facade 实例"""
+        if self._facade is None:
+            from apps.simulated_trading.application.facade import get_simulated_trading_facade
+            self._facade = get_simulated_trading_facade()
+        return self._facade
 
     def get_positions(self, portfolio_id: int) -> List[Dict[str, Any]]:
         """
@@ -267,23 +282,19 @@ class DjangoPortfolioDataProvider:
             持仓列表
         """
         try:
-            from apps.simulated_trading.infrastructure.models import PositionModel
-
-            positions = PositionModel.objects.filter(
-                account_id=portfolio_id,
-                quantity__gt=0  # 只返回有持仓的
-            ).all()
+            facade = self._get_facade()
+            position_summaries = facade.get_positions(portfolio_id)
 
             result = []
-            for pos in positions:
+            for pos in position_summaries:
                 result.append({
                     'asset_code': pos.asset_code,
-                    'asset_name': pos.asset_name or pos.asset_code,
-                    'quantity': int(pos.quantity),
-                    'avg_cost': float(pos.avg_cost) if pos.avg_cost else 0.0,
-                    'current_price': float(pos.current_price) if pos.current_price else 0.0,
-                    'market_value': float(pos.market_value) if pos.market_value else 0.0,
-                    'asset_type': pos.asset_type or 'equity'
+                    'asset_name': pos.asset_name,
+                    'quantity': pos.quantity,
+                    'avg_cost': float(pos.avg_cost),
+                    'current_price': float(pos.current_price),
+                    'market_value': float(pos.market_value),
+                    'asset_type': pos.asset_type
                 })
 
             return result
@@ -303,16 +314,9 @@ class DjangoPortfolioDataProvider:
             现金余额
         """
         try:
-            from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
-
-            account = SimulatedAccountModel.objects.filter(
-                id=portfolio_id
-            ).first()
-
-            if account:
-                return float(account.current_cash) if account.current_cash else 0.0
-
-            return 0.0
+            facade = self._get_facade()
+            cash = facade.get_cash(portfolio_id)
+            return float(cash)
 
         except Exception as e:
             logger.error(f"Error getting cash for portfolio {portfolio_id}: {e}")

@@ -1,7 +1,15 @@
 """
 Celery Tasks for Macro Data Synchronization.
 
-异步任务：宏观数据同步、Regime 计算、数据更新检查等。
+异步任务：宏观数据同步、数据更新检查等。
+
+重构说明 (2026-03-11):
+- 移除对 regime 模块的直接依赖
+- regime 相关任务已移至 apps/regime/application/orchestration.py
+- 使用 regime 模块的编排函数来协调完整工作流
+
+编排任务请使用:
+    from apps.regime.application.orchestration import sync_macro_then_refresh_regime
 """
 
 from celery import shared_task, chain
@@ -11,8 +19,6 @@ from datetime import date, timedelta
 
 from apps.macro.application.use_cases import SyncMacroDataUseCase
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
-from apps.regime.application.current_regime import resolve_current_regime
-from apps.regime.application.tasks import calculate_regime_task, notify_regime_change
 from shared.config.secrets import get_secrets
 
 logger = get_task_logger(__name__)
@@ -85,55 +91,8 @@ def sync_macro_data(
         raise
 
 
-@shared_task(
-    bind=True,
-    max_retries=3,
-    default_retry_delay=300,
-    autoretry_for=(Exception,),
-    retry_backoff=True,
-    time_limit=900,
-    soft_time_limit=850,
-)
-def calculate_regime(
-    self,
-    as_of_date: Optional[str] = None,
-    use_pit: bool = True
-) -> dict:
-    """
-    计算 Regime 判定任务
-
-    定时任务，基于最新宏观数据计算 Regime 象限。
-
-    Args:
-        as_of_date: 分析时点 (YYYY-MM-DD，None 表示今天)
-        use_pit: 是否使用 Point-in-Time 数据
-
-    Returns:
-        dict: Regime 计算结果
-    """
-    try:
-        logger.info(f"Starting regime calculation for date={as_of_date}, use_pit={use_pit}")
-
-        # 解析日期
-        target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
-
-        result = resolve_current_regime(as_of_date=target_date, use_pit=use_pit)
-        logger.info(f"Regime calculation completed: {result.dominant_regime}")
-
-        return {
-            'status': 'success',
-            'as_of_date': str(target_date),
-            'dominant_regime': result.dominant_regime,
-            'confidence': result.confidence,
-            'distribution': {},
-            'warnings': result.warnings,
-            'source': result.data_source,
-            'is_fallback': result.is_fallback,
-        }
-
-    except Exception as exc:
-        logger.error(f"Regime calculation failed: {exc}")
-        raise
+# 注意: calculate_regime 任务已移至 apps/regime/application/tasks.py
+# 使用 regime 模块的编排函数来协调 macro 同步和 regime 计算
 
 
 @shared_task(time_limit=300, soft_time_limit=280)
@@ -406,185 +365,50 @@ def sync_high_frequency_commodities(
         raise
 
 
-@shared_task(time_limit=900, soft_time_limit=850)
-def generate_daily_regime_signal(
-    as_of_date: Optional[str] = None
-) -> dict:
+# ============================================================================
+# Regime 相关任务已移至 regime 模块
+# ============================================================================
+#
+# 以下函数已移至 apps/regime/application/orchestration.py:
+# - generate_daily_regime_signal
+# - recalculate_regime_with_daily_signal
+# - sync_macro_then_refresh_regime
+#
+# 保留代理函数以向后兼容
+# ============================================================================
+
+
+def generate_daily_regime_signal(as_of_date: Optional[str] = None) -> dict:
     """
-    生成日度 Regime 信号任务
+    [已废弃] 请使用 apps.regime.application.orchestration.generate_daily_regime_signal
 
-    基于高频指标生成每日 Regime 信号，减少判定滞后。
-    建议运行时间：每个交易日 17:00（高频数据同步后）
-
-    Args:
-        as_of_date: 分析时点 (YYYY-MM-DD，None 表示今天)
-
-    Returns:
-        dict: 日度信号结果
+    此函数保留用于向后兼容，内部代理调用 regime 模块。
     """
-    try:
-        from apps.regime.application.use_cases import HighFrequencySignalRequest, HighFrequencySignalUseCase
-
-        target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
-
-        logger.info(f"Generating daily regime signal for {target_date}")
-
-        repository = DjangoMacroRepository()
-        use_case = HighFrequencySignalUseCase(repository)
-
-        request = HighFrequencySignalRequest(
-            as_of_date=target_date,
-            lookback_days=30
-        )
-
-        result = use_case.execute(request)
-
-        if result.success:
-            logger.info(
-                f"Daily regime signal generated: {result.signal_direction}, "
-                f"strength={result.signal_strength:.2f}, "
-                f"confidence={result.confidence:.2f}"
-            )
-
-            # 检查是否有警告信号
-            if result.warning_signals:
-                logger.warning(f"Warning signals detected: {result.warning_signals}")
-
-            return {
-                'status': 'success',
-                'as_of_date': str(target_date),
-                'signal_direction': result.signal_direction,
-                'signal_strength': result.signal_strength,
-                'confidence': result.confidence,
-                'contributing_indicators': result.contributing_indicators,
-                'warning_signals': result.warning_signals
-            }
-        else:
-            logger.error(f"Daily regime signal generation failed: {result.error}")
-            return {
-                'status': 'error',
-                'error': result.error
-            }
-
-    except Exception as exc:
-        logger.error(f"Daily regime signal generation failed: {exc}")
-        raise
+    from apps.regime.application.orchestration import generate_daily_regime_signal as _task
+    logger.warning(
+        "generate_daily_regime_signal is deprecated. "
+        "Use apps.regime.application.orchestration.generate_daily_regime_signal instead."
+    )
+    return _task(as_of_date)
 
 
-@shared_task(time_limit=900, soft_time_limit=850)
 def recalculate_regime_with_daily_signal(
     as_of_date: Optional[str] = None,
     use_pit: bool = True
 ) -> dict:
     """
-    重新计算 Regime（融合日度信号）
+    [已废弃] 请使用 apps.regime.application.orchestration.recalculate_regime_with_daily_signal
 
-    结合传统月度指标和高频日度指标重新计算 Regime。
-    建议运行时间：每个交易日 17:30
-
-    Args:
-        as_of_date: 分析时点 (YYYY-MM-DD，None 表示今天)
-        use_pit: 是否使用 Point-in-Time 数据
-
-    Returns:
-        dict: Regime 计算结果（融合日度信号）
+    此函数保留用于向后兼容，内部代理调用 regime 模块。
     """
-    try:
-        from apps.regime.application.use_cases import (
-            HighFrequencySignalUseCase, HighFrequencySignalRequest,
-            ResolveSignalConflictUseCase, ResolveSignalConflictRequest
-        )
-
-        target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
-
-        logger.info(f"Recalculating regime with daily signal for {target_date}")
-
-        repository = DjangoMacroRepository()
-        monthly_result = resolve_current_regime(as_of_date=target_date, use_pit=use_pit)
-
-        # 2. 生成日度信号
-        daily_use_case = HighFrequencySignalUseCase(repository)
-        daily_request = HighFrequencySignalRequest(
-            as_of_date=target_date,
-            lookback_days=30
-        )
-        daily_response = daily_use_case.execute(daily_request)
-
-        if not daily_response.success:
-            # 日度信号失败，直接返回月度结果
-            logger.warning("Daily signal generation failed, using monthly only: %s", daily_response.error)
-            return {
-                'status': 'success',
-                'as_of_date': str(target_date),
-                'final_regime': monthly_result.dominant_regime,
-                'final_confidence': monthly_result.confidence,
-                'source': 'MONTHLY_ONLY',
-                'monthly_signal': monthly_result.dominant_regime,
-                'daily_signal': None
-            }
-
-        # 3. 解决信号冲突
-        resolver = ResolveSignalConflictUseCase()
-        conflict_request = ResolveSignalConflictRequest(
-            daily_signal=daily_response.signal_direction,
-            daily_confidence=daily_response.confidence,
-            daily_duration_days=1,  # TODO: 追踪实际持续天数
-            monthly_signal=monthly_result.dominant_regime,
-            monthly_confidence=monthly_result.confidence
-        )
-        resolution = resolver.execute(conflict_request)
-
-        logger.info(
-            f"Regime recalculation completed: final={resolution.final_signal}, "
-            f"reason={resolution.resolution_reason}"
-        )
-
-        return {
-            'status': 'success',
-            'as_of_date': str(target_date),
-            'final_regime': resolution.final_signal,
-            'final_confidence': resolution.final_confidence,
-            'source': resolution.source,
-            'resolution_reason': resolution.resolution_reason,
-            'monthly_signal': monthly_result.dominant_regime,
-            'monthly_confidence': monthly_result.confidence,
-            'daily_signal': daily_response.signal_direction,
-            'daily_confidence': daily_response.confidence,
-            'daily_contributors': daily_response.contributing_indicators,
-            'warning_signals': daily_response.warning_signals
-        }
-
-    except Exception as exc:
-        logger.error(f"Regime recalculation with daily signal failed: {exc}")
-        raise
+    from apps.regime.application.orchestration import recalculate_regime_with_daily_signal as _task
+    logger.warning(
+        "recalculate_regime_with_daily_signal is deprecated. "
+        "Use apps.regime.application.orchestration.recalculate_regime_with_daily_signal instead."
+    )
+    return _task(as_of_date, use_pit)
 
 
-# Celery Beat 调度配置建议
-# 在 Django Admin 的 Periodic Tasks 中配置：
-#
-# 1. sync_macro_data:
-#    - Crontab: 每日 00:00
-#    - Args: {"source": "akshare"}
-#
-# 2. calculate_regime:
-#    - Crontab: 每日 00:30 (在数据同步后执行)
-#    - Args: {"use_pit": true}
-#
-# 3. check_data_freshness:
-#    - Interval: 每 6 小时
-#    - Args: {}
-#
-# 4. cleanup_old_data:
-#    - Crontab: 每月 1 日 02:00
-#    - Args: {"days_to_keep": 3650}
-#
-# 5. sync_and_calculate_regime (推荐使用):
-#    - Crontab: 每日 00:00
-#    - Args: {"source": "akshare", "use_pit": true}
-#    - 说明：这个编排任务会自动依次执行 sync -> calculate -> notify
-
-
-@shared_task(time_limit=900, soft_time_limit=850)
 def sync_and_calculate_regime(
     source: str = 'akshare',
     indicator: Optional[str] = None,
@@ -593,53 +417,39 @@ def sync_and_calculate_regime(
     as_of_date: Optional[str] = None
 ) -> dict:
     """
-    编排任务：宏观数据同步 + Regime 计算 + 通知
+    [已废弃] 请使用 apps.regime.application.orchestration.sync_macro_then_refresh_regime
 
-    使用 Celery chain 编排完整的任务流：
-    1. sync_macro_data - 同步宏观数据
-    2. calculate_regime_task - 计算 Regime（接收 sync 结果）
-    3. notify_regime_change - 发送变化通知
-
-    Args:
-        source: 数据源 ('akshare' 或 'tushare')
-        indicator: 指标代码 (None 表示同步所有)
-        days_back: 回溯天数（用于数据同步）
-        use_pit: 是否使用 Point-in-Time 数据
-        as_of_date: 分析时点 (YYYY-MM-DD，None 表示今天)
-
-    Returns:
-        dict: 编排任务的结果
+    此函数保留用于向后兼容，内部代理调用 regime 模块。
     """
-    try:
-        logger.info(
-            f"Starting orchestrated workflow: sync -> calculate -> notify, "
-            f"source={source}, use_pit={use_pit}"
-        )
+    from apps.regime.application.orchestration import sync_macro_then_refresh_regime as _task
+    logger.warning(
+        "sync_and_calculate_regime is deprecated. "
+        "Use apps.regime.application.orchestration.sync_macro_then_refresh_regime instead."
+    )
+    return _task(source, indicator, days_back, use_pit, as_of_date)
 
-        # 计算日期范围
-        target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
 
-        # 创建任务链
-        workflow = chain(
-            sync_macro_data.s(source=source, indicator=indicator, days_back=days_back),
-            calculate_regime_task.s(as_of_date=as_of_date or target_date.isoformat(), use_pit=use_pit),
-            notify_regime_change.s()
-        )
-
-        # 异步执行任务链
-        result = workflow.apply_async()
-
-        logger.info(f"Orchestrated workflow started, task ID: {result.id}")
-
-        return {
-            'status': 'started',
-            'task_id': result.id,
-            'workflow': 'sync_macro_data -> calculate_regime_task -> notify_regime_change',
-            'source': source,
-            'as_of_date': as_of_date or target_date.isoformat()
-        }
-
-    except Exception as exc:
-        logger.error(f"Failed to start orchestrated workflow: {exc}")
-        raise
+# ============================================================================
+# Celery Beat 调度配置建议
+# ============================================================================
+#
+# 在 Django Admin 的 Periodic Tasks 中配置:
+#
+# 1. sync_macro_data:
+#    - Crontab: 每日 00:00
+#    - Args: {"source": "akshare"}
+#
+# 2. check_data_freshness:
+#    - Interval: 每 6 小时
+#    - Args: {}
+#
+# 3. cleanup_old_data:
+#    - Crontab: 每月 1 日 02:00
+#    - Args: {"days_to_keep": 3650}
+#
+# 4. sync_macro_then_refresh_regime (推荐):
+#    - 位置: apps.regime.application.orchestration
+#    - Crontab: 每日 00:00
+#    - Args: {"source": "akshare", "use_pit": true}
+#    - 说明: 这个编排任务会自动依次执行 sync -> calculate -> notify
 

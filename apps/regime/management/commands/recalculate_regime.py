@@ -8,6 +8,14 @@
     python manage.py recalculate_regime
     python manage.py recalculate_regime --clear-cache-only
     python manage.py recalculate_regime --start-date=2020-01-01
+
+架构说明 (2026-03-11):
+- 此命令使用 legacy CalculateRegimeUseCase，需要完整 Repository 接口
+- 直接导入 DjangoMacroRepository 是可接受的，因为：
+  1. 管理命令属于 Infrastructure 层
+  2. 这是离线工具，不是应用热路径
+  3. legacy use case 需要 get_available_dates() 等完整接口
+- 主运行时链路（API/页面）使用 resolve_current_regime(V2)，已解耦
 """
 
 from django.core.management.base import BaseCommand
@@ -19,6 +27,7 @@ from typing import Optional
 # Legacy offline recalculation path; main runtime chain uses resolve_current_regime(V2).
 from apps.regime.application.use_cases import CalculateRegimeUseCase, CalculateRegimeRequest
 from apps.regime.infrastructure.models import RegimeLog
+# NOTE: Legacy tool - direct import acceptable for full repository interface
 from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from shared.infrastructure.cache_service import CacheService

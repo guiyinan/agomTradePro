@@ -24,3 +24,13 @@ class BetaGateConfig(AppConfig):
             from .application import handlers  # noqa
         except ImportError:
             pass
+        # 注册事件订阅器（通过 registry 实现反向依赖）
+        try:
+            from .application.subscribers import register_subscribers
+            register_subscribers()
+        except ImportError as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Could not import subscribers: {e}")
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Failed to register subscribers: {e}")

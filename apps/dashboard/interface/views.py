@@ -2,6 +2,11 @@
 Dashboard Interface Views
 
 首页仪表盘视图 - 用户投资指挥中心。
+
+重构说明 (2026-03-11):
+- 将跨模块数据获取逻辑从 views.py 移至 Query Services
+- views.py 调用 Query Services 获取数据
+- 隐藏 ORM 实现细节
 """
 
 import logging
@@ -20,11 +25,12 @@ from rest_framework.response import Response
 from core.cache_utils import cached_api, CACHE_TTL
 from apps.account.interface.authentication import MultiTokenAuthentication
 from apps.dashboard.application.use_cases import GetDashboardDataUseCase
-from apps.account.infrastructure.repositories import AccountRepository
-from apps.account.infrastructure.repositories import PortfolioRepository
-from apps.account.infrastructure.repositories import PositionRepository
-from apps.regime.infrastructure.repositories import DjangoRegimeRepository
-from apps.signal.infrastructure.repositories import DjangoSignalRepository
+from apps.dashboard.application.queries import (
+    get_alpha_visualization_query,
+    get_dashboard_detail_query,
+    get_decision_plane_query,
+    get_regime_summary_query,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -43,134 +49,53 @@ def _build_dashboard_data(user_id: int):
 
 
 # ========================================
-# Alpha 可视化数据获取函数
+# Alpha 可视化数据获取函数（委托至 Query Services）
 # ========================================
 
 def _get_alpha_stock_scores(top_n: int = 10) -> list:
-    """获取 Alpha 选股评分结果"""
+    """
+    获取 Alpha 选股评分结果
+
+    重构说明 (2026-03-11):
+    - 委托至 AlphaVisualizationQuery
+    - 隐藏跨模块导入细节
+    """
     try:
-        from apps.alpha.application.services import AlphaService
-
-        service = AlphaService()
-        result = service.get_stock_scores(
-            universe_id="csi300",
-            intended_trade_date=date.today(),
-            top_n=top_n
-        )
-
-        if result.success and result.scores:
-            code_to_name = _resolve_security_names([score.code for score in result.scores[:top_n]])
-            return [
-                {
-                    "code": score.code,
-                    "name": code_to_name.get(score.code, ""),
-                    "score": round(score.score, 4),
-                    "rank": score.rank,
-                    "source": score.source,
-                    "confidence": round(score.confidence, 3),
-                    "factors": score.factors,
-                    "asof_date": score.asof_date.isoformat() if score.asof_date else None,
-                }
-                for score in result.scores[:top_n]
-            ]
-        return []
+        query = get_alpha_visualization_query()
+        data = query.execute(top_n=top_n, ic_days=30)
+        return data.stock_scores
     except Exception as e:
         logger.warning(f"Failed to get alpha stock scores: {e}")
         return []
 
 
-def _resolve_security_names(codes: list[str]) -> dict[str, str]:
-    """根据代码解析证券名称（股票优先，其次基金），失败时返回空。"""
-    unique_codes = [c for c in {code for code in codes if code}]
-    if not unique_codes:
-        return {}
-
-    name_map: dict[str, str] = {}
-    try:
-        from apps.equity.infrastructure.models import StockInfoModel
-
-        stock_rows = StockInfoModel._default_manager.filter(stock_code__in=unique_codes).values("stock_code", "name")
-        for row in stock_rows:
-            name_map[row["stock_code"]] = row["name"]
-    except Exception as e:
-        logger.debug(f"Failed to resolve stock names on dashboard: {e}")
-
-    # ETF/基金代码通常无交易所后缀，尝试 strip 后匹配 fund_code
-    unresolved = [code for code in unique_codes if code not in name_map]
-    if not unresolved:
-        return name_map
-
-    try:
-        from apps.fund.infrastructure.models import FundInfoModel
-
-        code_to_fund_code = {code: code.split(".")[0] for code in unresolved}
-        fund_rows = FundInfoModel._default_manager.filter(
-            fund_code__in=list(set(code_to_fund_code.values()))
-        ).values("fund_code", "fund_name")
-        fund_map = {row["fund_code"]: row["fund_name"] for row in fund_rows}
-        for code, fund_code in code_to_fund_code.items():
-            if fund_code in fund_map:
-                name_map[code] = fund_map[fund_code]
-    except Exception as e:
-        logger.debug(f"Failed to resolve fund names on dashboard: {e}")
-
-    return name_map
-
-
 def _get_alpha_provider_status() -> dict:
-    """获取 Alpha Provider 状态"""
+    """
+    获取 Alpha Provider 状态
+
+    重构说明 (2026-03-11):
+    - 委托至 AlphaVisualizationQuery
+    """
     try:
-        from apps.alpha.application.services import AlphaService
-        from shared.infrastructure.metrics import get_alpha_metrics
-
-        service = AlphaService()
-        provider_status = service.get_provider_status()
-        metrics = get_alpha_metrics()
-
-        # 获取成功率指标
-        provider_metrics = {}
-        for provider_name in provider_status.keys():
-            success_rate = metrics.registry.get_metric(
-                "alpha_provider_success_rate",
-                {"provider": provider_name}
-            )
-            latency = metrics.registry.get_metric(
-                "alpha_provider_latency_ms",
-                {"provider": provider_name}
-            )
-
-            provider_metrics[provider_name] = {
-                "success_rate": round(success_rate.value, 3) if success_rate else 0.0,
-                "latency_ms": int(latency.value) if latency else 0,
-            }
-
-        return {
-            "providers": provider_status,
-            "metrics": provider_metrics,
-            "timestamp": django_timezone.now().isoformat(),
-        }
+        query = get_alpha_visualization_query()
+        data = query.execute(top_n=10, ic_days=30)
+        return data.provider_status
     except Exception as e:
         logger.warning(f"Failed to get alpha provider status: {e}")
         return {"providers": {}, "metrics": {}, "timestamp": None}
 
 
 def _get_alpha_coverage_metrics() -> dict:
-    """获取 Alpha 覆盖率指标"""
+    """
+    获取 Alpha 覆盖率指标
+
+    重构说明 (2026-03-11):
+    - 委托至 AlphaVisualizationQuery
+    """
     try:
-        from shared.infrastructure.metrics import get_alpha_metrics
-
-        metrics = get_alpha_metrics()
-
-        coverage = metrics.registry.get_metric("alpha_coverage_ratio")
-        request_count = metrics.registry.get_metric("alpha_score_request_count")
-        cache_hit_rate = metrics.registry.get_metric("alpha_cache_hit_rate")
-
-        return {
-            "coverage_ratio": round(coverage.value, 3) if coverage else 0.0,
-            "total_requests": int(request_count.value) if request_count else 0,
-            "cache_hit_rate": round(cache_hit_rate.value, 3) if cache_hit_rate else 0.0,
-            "timestamp": django_timezone.now().isoformat(),
-        }
+        query = get_alpha_visualization_query()
+        data = query.execute(top_n=10, ic_days=30)
+        return data.coverage_metrics
     except Exception as e:
         logger.warning(f"Failed to get alpha coverage metrics: {e}")
         return {
@@ -182,75 +107,19 @@ def _get_alpha_coverage_metrics() -> dict:
 
 
 def _get_alpha_ic_trends(days: int = 30) -> list:
-    """获取 Alpha IC/ICIR 趋势数据"""
+    """
+    获取 Alpha IC/ICIR 趋势数据
+
+    重构说明 (2026-03-11):
+    - 委托至 AlphaVisualizationQuery
+    """
     try:
-        from apps.alpha.infrastructure.models import QlibModelRegistryModel
-        from datetime import timedelta
-
-        # 获取激活的模型
-        active_models = QlibModelRegistryModel._default_manager.filter(is_active=True)
-
-        if not active_models.exists():
-            # 没有激活模型时返回模拟数据
-            return _generate_mock_ic_data(days)
-
-        # 从模型历史记录中获取 IC 数据
-        trends = []
-        base_date = date.today()
-
-        for i in range(days):
-            check_date = base_date - timedelta(days=i)
-
-            # 查找该日期附近的模型评估记录
-            model_metrics = QlibModelRegistryModel._default_manager.filter(
-                created_at__date=check_date
-            ).first()
-
-            if model_metrics:
-                trends.append({
-                    "date": check_date.isoformat(),
-                    "ic": round(float(model_metrics.ic), 4) if model_metrics.ic else None,
-                    "icir": round(float(model_metrics.icir), 4) if model_metrics.icir else None,
-                    "rank_ic": round(float(model_metrics.rank_ic), 4) if model_metrics.rank_ic else None,
-                })
-            else:
-                trends.append({
-                    "date": check_date.isoformat(),
-                    "ic": None,
-                    "icir": None,
-                    "rank_ic": None,
-                })
-
-        return list(reversed(trends))
-
+        query = get_alpha_visualization_query()
+        data = query.execute(top_n=10, ic_days=days)
+        return data.ic_trends
     except Exception as e:
         logger.warning(f"Failed to get alpha IC trends: {e}")
-        return _generate_mock_ic_data(days)
-
-
-def _generate_mock_ic_data(days: int) -> list:
-    """生成模拟 IC 数据（用于演示）"""
-    import random
-
-    trends = []
-    base_date = date.today()
-    base_ic = 0.05
-
-    for i in range(days):
-        check_date = base_date - timedelta(days=days - i)
-        # 模拟 IC 波动
-        ic = base_ic + random.uniform(-0.02, 0.02)
-        icir = ic * random.uniform(0.5, 1.5)
-        rank_ic = ic * random.uniform(0.8, 1.2)
-
-        trends.append({
-            "date": check_date.isoformat(),
-            "ic": round(ic, 4),
-            "icir": round(icir, 4),
-            "rank_ic": round(rank_ic, 4),
-        })
-
-    return trends
+        return []
 
 
 @login_required(login_url="/account/login/")
@@ -372,30 +241,10 @@ def position_detail_htmx(request, asset_code: str):
     - 历史价格走势
     - 相关投资信号
     """
-    from apps.account.infrastructure.models import PositionModel
-
-    try:
-        position = PositionModel._default_manager.get(
-            user=request.user,
-            asset_code=asset_code
-        )
-    except PositionModel.DoesNotExist:
-        context = {
-            'error': f'未找到持仓 {asset_code}'
-        }
-    else:
-        # 获取相关信号
-        from apps.signal.infrastructure.models import InvestmentSignalModel
-        related_signals = InvestmentSignalModel._default_manager.filter(
-            asset_code=asset_code,
-            status='active'
-        ).order_by('-created_at')[:5]
-
-        context = {
-            'position': position,
-            'related_signals': related_signals,
-            'asset_code': asset_code,
-        }
+    context = get_dashboard_detail_query().get_position_detail(
+        user_id=request.user.id,
+        asset_code=asset_code,
+    )
 
     return render(request, 'dashboard/partials/position_detail.html', context)
 
@@ -577,196 +426,138 @@ def signal_status_v1(request):
 
 
 # ========================================
-# 决策平面数据获取辅助函数
+# 决策平面数据获取辅助函数（委托至 Query Services）
 # ========================================
 
 def _get_beta_gate_visible_classes() -> str:
-    """获取 Beta Gate 允许的可见资产类别"""
+    """
+    获取 Beta Gate 允许的可见资产类别
+
+    重构说明 (2026-03-11):
+    - 委托至 DecisionPlaneQuery
+    """
     try:
-        from apps.beta_gate.infrastructure.models import GateConfigModel
-        config = GateConfigModel._default_manager.active().first()
-        if config:
-            regime_c = config.regime_constraints if isinstance(config.regime_constraints, dict) else {}
-            allowed_classes = regime_c.get('allowed_asset_classes', [])
-            if allowed_classes:
-                return ", ".join(allowed_classes[:3])
-        return "全部"
+        query = get_decision_plane_query()
+        data = query.execute()
+        return data.beta_gate_visible_classes
     except Exception as e:
         logger.warning(f"Failed to get beta gate visible classes: {e}")
         return "-"
 
 
 def _get_alpha_status_count(status: str) -> int:
-    """获取 Alpha 候选状态计数"""
+    """
+    获取 Alpha 候选状态计数
+
+    重构说明 (2026-03-11):
+    - 委托至 DecisionPlaneQuery
+    """
     try:
-        from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
-        return AlphaCandidateModel._default_manager.filter(status=status).count()
+        query = get_decision_plane_query()
+        data = query.execute()
+        if status == "WATCH":
+            return data.alpha_watch_count
+        elif status == "CANDIDATE":
+            return data.alpha_candidate_count
+        elif status == "ACTIONABLE":
+            return data.alpha_actionable_count
+        return 0
     except Exception as e:
         logger.warning(f"Failed to get alpha status count for {status}: {e}")
         return 0
 
 
 def _get_quota_total() -> int:
-    """获取决策配额总数"""
+    """
+    获取决策配额总数
+
+    重构说明 (2026-03-11):
+    - 委托至 DecisionPlaneQuery
+    """
     try:
-        from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
-        from apps.decision_rhythm.domain.entities import QuotaPeriod
-        quota = (
-            DecisionQuotaModel._default_manager
-            .filter(period=QuotaPeriod.WEEKLY.value)
-            .order_by('-period_start')
-            .first()
-        )
-        return getattr(quota, "max_decisions", 10) if quota else 10
+        query = get_decision_plane_query()
+        data = query.execute()
+        return data.quota_total
     except Exception as e:
         logger.warning(f"Failed to get quota total: {e}")
         return 10
 
 
 def _get_quota_used() -> int:
-    """获取已使用的决策配额"""
+    """
+    获取已使用的决策配额
+
+    重构说明 (2026-03-11):
+    - 委托至 DecisionPlaneQuery
+    """
     try:
-        from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
-        from apps.decision_rhythm.domain.entities import QuotaPeriod
-        quota = (
-            DecisionQuotaModel._default_manager
-            .filter(period=QuotaPeriod.WEEKLY.value)
-            .order_by('-period_start')
-            .first()
-        )
-        return getattr(quota, "used_decisions", 0) if quota else 0
+        query = get_decision_plane_query()
+        data = query.execute()
+        return data.quota_used
     except Exception as e:
         logger.warning(f"Failed to get quota used: {e}")
         return 0
 
 
 def _get_quota_remaining() -> int:
-    """获取剩余决策配额"""
+    """
+    获取剩余决策配额
+
+    重构说明 (2026-03-11):
+    - 委托至 DecisionPlaneQuery
+    """
     try:
-        from apps.decision_rhythm.infrastructure.models import DecisionQuotaModel
-        from apps.decision_rhythm.domain.entities import QuotaPeriod
-        quota = (
-            DecisionQuotaModel._default_manager
-            .filter(period=QuotaPeriod.WEEKLY.value)
-            .order_by('-period_start')
-            .first()
-        )
-        if quota:
-            max_decisions = getattr(quota, "max_decisions", 10)
-            used_decisions = getattr(quota, "used_decisions", 0)
-            return max(0, max_decisions - used_decisions)
-        return 10
+        query = get_decision_plane_query()
+        data = query.execute()
+        return data.quota_remaining
     except Exception as e:
         logger.warning(f"Failed to get quota remaining: {e}")
         return 10
 
 
 def _get_quota_usage_percent() -> float:
-    """获取决策配额使用百分比"""
+    """
+    获取决策配额使用百分比
+
+    重构说明 (2026-03-11):
+    - 委托至 DecisionPlaneQuery
+    """
     try:
-        total = _get_quota_total()
-        used = _get_quota_used()
-        if total > 0:
-            return round(used / total * 100, 1)
-        return 0.0
+        query = get_decision_plane_query()
+        data = query.execute()
+        return data.quota_usage_percent
     except Exception as e:
         logger.warning(f"Failed to get quota usage percent: {e}")
         return 0.0
 
 
 def _get_actionable_candidates():
-    """首页主流程展示：可操作候选列表（含估值修复信息）"""
-    try:
-        from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
-        from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
-        from apps.equity.infrastructure.models import ValuationRepairTrackingModel
-        pending_codes = set(
-            (code or "").upper()
-            for code in DecisionRequestModel._default_manager
-            .filter(
-                response__approved=True,
-                execution_status__in=['PENDING', 'FAILED']
-            )
-            .values_list('asset_code', flat=True)
-        )
-        candidates = list(
-            AlphaCandidateModel._default_manager
-            .filter(status='ACTIONABLE')
-            .order_by('-confidence', '-created_at')[:50]
-        )
-        # 批量获取估值修复状态
-        candidate_codes = [
-            (getattr(item, "asset_code", "") or "").upper()
-            for item in candidates
-        ]
-        repair_map = {}
-        try:
-            repair_records = ValuationRepairTrackingModel._default_manager.filter(
-                stock_code__in=[c for c in candidate_codes if c],
-                is_active=True
-            ).values(
-                'stock_code', 'current_phase', 'signal', 'composite_percentile',
-                'repair_progress', 'repair_speed_per_30d', 'estimated_days_to_target'
-            )
-            repair_map = {r['stock_code']: r for r in repair_records}
-        except Exception as e:
-            logger.warning(f"Failed to get valuation repair info: {e}")
+    """
+    首页主流程展示：可操作候选列表（含估值修复信息）
 
-        deduped = []
-        seen_codes = set()
-        for item in candidates:
-            code = (getattr(item, "asset_code", "") or "").upper()
-            if not code or code in seen_codes or code in pending_codes:
-                continue
-            seen_codes.add(code)
-            # Django template 无法访问以下划线开头的属性，这里挂到公开属性上。
-            if code in repair_map:
-                r = repair_map[code]
-                repair_payload = {
-                    'phase': r.get('current_phase'),
-                    'signal': r.get('signal'),
-                    'composite_percentile': r.get('composite_percentile'),
-                    'repair_progress': r.get('repair_progress'),
-                    'repair_speed_per_30d': r.get('repair_speed_per_30d'),
-                    'estimated_days_to_target': r.get('estimated_days_to_target'),
-                }
-                item.valuation_repair = repair_payload
-                item._valuation_repair = repair_payload
-            else:
-                item.valuation_repair = None
-                item._valuation_repair = None
-            deduped.append(item)
-            if len(deduped) >= 5:
-                break
-        return deduped
+    重构说明 (2026-03-11):
+    - 委托至 DecisionPlaneQuery
+    """
+    try:
+        query = get_decision_plane_query()
+        data = query.execute(max_candidates=5, max_pending=10)
+        return data.actionable_candidates
     except Exception as e:
         logger.warning(f"Failed to get actionable candidates: {e}")
         return []
 
 
 def _get_pending_requests():
-    """首页主流程展示：已批准但未执行/失败待重试请求"""
+    """
+    首页主流程展示：已批准但未执行/失败待重试请求
+
+    重构说明 (2026-03-11):
+    - 委托至 DecisionPlaneQuery
+    """
     try:
-        from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
-        requests = list(
-            DecisionRequestModel._default_manager
-            .filter(
-                response__approved=True,
-                execution_status__in=['PENDING', 'FAILED']
-            )
-            .order_by('-requested_at')[:50]
-        )
-        deduped = []
-        seen_codes = set()
-        for item in requests:
-            code = (getattr(item, "asset_code", "") or "").upper()
-            if not code or code in seen_codes:
-                continue
-            seen_codes.add(code)
-            deduped.append(item)
-            if len(deduped) >= 10:
-                break
-        return deduped
+        query = get_decision_plane_query()
+        data = query.execute(max_candidates=5, max_pending=10)
+        return data.pending_requests
     except Exception as e:
         logger.warning(f"Failed to get pending requests: {e}")
         return []
@@ -788,76 +579,11 @@ def workflow_refresh_candidates(request):
         return HttpResponseNotAllowed(["POST"])
 
     try:
-        from apps.alpha_trigger.application.use_cases import (
-            GenerateCandidateUseCase,
-            GenerateCandidateRequest,
-        )
-        from apps.alpha_trigger.domain.entities import CandidateStatus
-        from apps.alpha_trigger.infrastructure.models import AlphaTriggerModel, AlphaCandidateModel
-        from apps.alpha_trigger.infrastructure.repositories import (
-            get_trigger_repository,
-            get_candidate_repository,
-        )
-
-        trigger_repo = get_trigger_repository()
-        candidate_repo = get_candidate_repository()
-        use_case = GenerateCandidateUseCase(trigger_repo, candidate_repo)
-
-        active_triggers = list(
-            AlphaTriggerModel._default_manager
-            .filter(status__in=[AlphaTriggerModel.ACTIVE, AlphaTriggerModel.TRIGGERED])
-            .order_by('-created_at')[:50]
-        )
-        trigger_ids = [t.trigger_id for t in active_triggers]
-
-        existing_trigger_ids = set(
-            AlphaCandidateModel._default_manager
-            .filter(trigger_id__in=trigger_ids, status__in=['WATCH', 'CANDIDATE', 'ACTIONABLE'])
-            .values_list('trigger_id', flat=True)
-        )
-
-        generated = 0
-        promoted = 0
-        failed = 0
-        skipped = 0
-
-        for trigger in active_triggers:
-            if trigger.trigger_id in existing_trigger_ids:
-                skipped += 1
-                continue
-
-            resp = use_case.execute(
-                GenerateCandidateRequest(
-                    trigger_id=trigger.trigger_id,
-                    time_window_days=90,
-                )
-            )
-            if not resp.success or not resp.candidate:
-                failed += 1
-                continue
-
-            generated += 1
-
-            # 让用户一键后尽快进入“可执行”视图
-            if float(resp.candidate.confidence or 0) >= 0.70:
-                try:
-                    candidate_repo.update_status(resp.candidate.candidate_id, CandidateStatus.ACTIONABLE)
-                    promoted += 1
-                except Exception:
-                    pass
-
-        actionable_count = AlphaCandidateModel._default_manager.filter(status='ACTIONABLE').count()
+        result = get_dashboard_detail_query().generate_alpha_candidates()
 
         return JsonResponse({
             "success": True,
-            "result": {
-                "generated": generated,
-                "promoted_to_actionable": promoted,
-                "skipped_existing": skipped,
-                "failed": failed,
-                "active_trigger_count": len(active_triggers),
-                "actionable_count": actionable_count,
-            }
+            "result": result,
         })
 
     except Exception as e:

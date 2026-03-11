@@ -1,0 +1,393 @@
+"""
+Simulated Trading Facade.
+
+Application 层门面服务，为 strategy 模块和其他模块提供访问模拟交易数据的统一接口。
+
+重构说明 (2026-03-11):
+- 将 Position 和 Account 数据聚合到门面服务
+- 隐藏 Django ORM 实现细节
+- 提供简化的 API 给外部模块使用
+
+使用方式:
+    # 在 strategy 模块
+    from apps.simulated_trading.application.facade import SimulatedTradingFacade
+
+    facade = SimulatedTradingFacade()
+    positions = facade.get_positions(account_id)
+    cash = facade.get_cash(account_id)
+    account_summary = facade.get_account_summary(account_id)
+"""
+
+from dataclasses import dataclass
+from datetime import date
+from typing import List, Optional, Dict, Any
+from decimal import Decimal
+
+logger = __import__('logging').getLogger(__name__)
+
+
+# ============================================================================
+# Data Transfer Objects
+# ============================================================================
+
+@dataclass(frozen=True)
+class PositionSummary:
+    """持仓摘要"""
+    asset_code: str
+    asset_name: str
+    quantity: int
+    avg_cost: Decimal
+    current_price: Decimal
+    market_value: Decimal
+    unrealized_pnl: Decimal
+    unrealized_pnl_pct: Optional[Decimal] = None
+    asset_type: str = "equity"
+    is_closed: bool = False
+
+
+@dataclass(frozen=True)
+class AccountSummary:
+    """账户摘要"""
+    account_id: int
+    account_name: str
+    total_value: Decimal
+    current_cash: Decimal
+    market_value: Decimal
+    active_strategy_id: Optional[int]
+    position_count: int
+    is_active: bool
+
+
+@dataclass(frozen=True)
+class AccountOverview:
+    """账户概览（用于 dashboard）"""
+    account_id: int
+    account_name: str
+    initial_capital: Decimal
+    current_cash: Decimal
+    market_value: Decimal
+    total_value: Decimal
+    position_count: int
+    active_strategy_id: Optional[int] = None
+    total_return_pct: Optional[Decimal] = None
+
+
+@dataclass(frozen=True)
+class StrategyBindingSummary:
+    """账户绑定的策略摘要"""
+    strategy_id: int
+    name: str
+    strategy_type: str
+    is_active: bool
+
+
+# ============================================================================
+# Facade Service
+# ============================================================================
+
+class SimulatedTradingFacade:
+    """
+    模拟交易门面服务
+
+    提供统一的接口访问模拟交易数据， 隐藏 Django ORM 实现细节。
+    策略模块应使用此 Facade 而非直接导入 ORM 模型。
+
+    Example:
+        >>> facade = SimulatedTradingFacade()
+        >>> positions = facade.get_positions(account_id=1)
+        >>> for pos in positions:
+        ...     print(f"{pos.asset_code}: {pos.market_value}")
+    """
+
+    def get_account_summary(self, account_id: int) -> Optional[AccountSummary]:
+        """
+        获取账户摘要
+
+        Args:
+            account_id: 账户 ID
+
+        Returns:
+            AccountSummary 或 None
+        """
+        try:
+            # 延迟导入避免循环依赖
+            from apps.simulated_trading.infrastructure.models import (
+                SimulatedAccountModel,
+            )
+
+            account = SimulatedAccountModel._default_manager.filter(
+                id=account_id
+            ).select_related('positions').first()
+
+            if not account:
+                return None
+
+            # 计算市值
+            positions = account.positions.filter(quantity__gt=0)
+            market_value = sum(
+                pos.market_value or Decimal('0')
+                for pos in positions
+            )
+
+            # 获取活跃策略
+            active_strategy_id = self._get_active_strategy_id(account_id)
+
+            return AccountSummary(
+                account_id=account.id,
+                account_name=account.name,
+                total_value=account.current_cash + market_value,
+                current_cash=account.current_cash,
+                market_value=market_value,
+                active_strategy_id=active_strategy_id,
+                position_count=positions.count(),
+                is_active=account.auto_trading_enabled
+            )
+
+        except Exception as e:
+            logger.error(f"Error getting account summary: {e}")
+            return None
+
+    def get_positions(self, account_id: int) -> List[PositionSummary]:
+        """
+        获取账户持仓列表
+
+        Args:
+            account_id: 账户 ID
+
+        Returns:
+            PositionSummary 列表
+        """
+        try:
+            # 延迟导入避免循环依赖
+            from apps.simulated_trading.infrastructure.models import PositionModel
+
+            positions = PositionModel._default_manager.filter(
+                account_id=account_id,
+                quantity__gt=0  # 只返回有效持仓
+            ).all()
+
+            return [
+                PositionSummary(
+                    asset_code=pos.asset_code,
+                    asset_name=pos.asset_name or pos.asset_code,
+                    quantity=int(pos.quantity),
+                    avg_cost=pos.avg_cost or Decimal('0'),
+                    current_price=pos.current_price or Decimal('0'),
+                    market_value=pos.market_value or Decimal('0'),
+                    unrealized_pnl=pos.unrealized_pnl,
+                    unrealized_pnl_pct=pos.unrealized_pnl_pct,
+                    asset_type=pos.asset_type or 'equity',
+                    is_closed=pos.is_closed or False
+                )
+                for pos in positions
+            ]
+
+        except Exception as e:
+            logger.error(f"Error getting positions: {e}")
+            return []
+
+    def get_cash(self, account_id: int) -> Decimal:
+        """
+        获取账户现金余额
+
+        Args:
+            account_id: 账户 ID
+
+        Returns:
+            现金余额
+        """
+        try:
+            # 延迟导入避免循环依赖
+            from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+
+            account = SimulatedAccountModel._default_manager.filter(
+                id=account_id
+            ).first()
+
+            if account:
+                return account.current_cash or Decimal('0')
+            return Decimal('0')
+
+        except Exception as e:
+            logger.error(f"Error getting cash: {e}")
+            return Decimal('0')
+
+    def get_active_strategy_id(self, account_id: int) -> Optional[int]:
+        """
+        获取账户绑定的活跃策略 ID
+
+        Args:
+            account_id: 账户 ID
+
+        Returns:
+            策略 ID 或 None
+        """
+        try:
+            # 延迟导入避免循环依赖
+            from apps.strategy.infrastructure.models import PortfolioStrategyAssignmentModel
+
+            assignment = PortfolioStrategyAssignmentModel._default_manager.filter(
+                portfolio_id=account_id,
+                is_active=True
+            ).select_related('strategy').first()
+
+            if assignment and assignment.strategy and assignment.strategy.is_active:
+                return assignment.strategy_id
+            return None
+
+        except Exception as e:
+            logger.error(f"Error getting active strategy ID: {e}")
+            return None
+
+    def get_active_strategy_summary(self, account_id: int) -> Optional[StrategyBindingSummary]:
+        """获取账户当前绑定策略的摘要信息。"""
+        strategy_id = self.get_active_strategy_id(account_id)
+        if not strategy_id:
+            return None
+
+        try:
+            from apps.strategy.application.execution_gateway import get_strategy_execution_gateway
+
+            gateway = get_strategy_execution_gateway()
+            info = gateway.get_strategy_info(strategy_id)
+            if not info:
+                return None
+
+            return StrategyBindingSummary(
+                strategy_id=info["strategy_id"],
+                name=info["name"],
+                strategy_type=info["strategy_type"],
+                is_active=info["is_active"],
+            )
+        except Exception as e:
+            logger.error(f"Error getting active strategy summary: {e}")
+            return None
+
+    def user_owns_account(self, account_id: int, user_id: int) -> bool:
+        """判断账户是否属于指定用户。"""
+        try:
+            from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+
+            return SimulatedAccountModel._default_manager.filter(
+                id=account_id,
+                user_id=user_id,
+            ).exists()
+        except Exception as e:
+            logger.error(f"Error checking account ownership: {e}")
+            return False
+
+    def get_account_overview(self, account_id: int) -> Optional[AccountOverview]:
+        """
+        获取账户概览（用于 dashboard）
+
+        Args:
+            account_id: 账户 ID
+
+        Returns:
+            AccountOverview 或 None
+        """
+        try:
+            # 延迟导入避免循环依赖
+            from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+
+            account = SimulatedAccountModel._default_manager.filter(
+                id=account_id
+            ).first()
+
+            if not account:
+                return None
+
+            active_strategy_id = self._get_active_strategy_id(account_id)
+
+            # 计算总收益
+            initial_capital = account.initial_capital or Decimal('1000000')
+            total_value = account.current_cash + (account.current_market_value or Decimal('0'))
+            total_return_pct = None
+            if initial_capital and initial_capital > 0:
+                total_return_pct = (total_value - initial_capital) / initial_capital * 100
+
+            return AccountOverview(
+                account_id=account.id,
+                account_name=account.name,
+                initial_capital=initial_capital,
+                current_cash=account.current_cash,
+                market_value=account.current_market_value or Decimal('0'),
+                total_value=total_value,
+                total_return_pct=total_return_pct,
+                position_count=account.positions.filter(quantity__gt=0).count(),
+                active_strategy_id=active_strategy_id
+            )
+
+        except Exception as e:
+            logger.error(f"Error getting account overview: {e}")
+            return None
+
+    def get_all_active_accounts(self) -> List[AccountOverview]:
+        """
+        获取所有活跃账户概览
+
+        Returns:
+            AccountOverview 列表
+        """
+        try:
+            # 延迟导入避免循环依赖
+            from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+
+            accounts = SimulatedAccountModel._default_manager.filter(
+                auto_trading_enabled=True
+            ).all()
+
+            return [
+                overview
+                for account in accounts
+                if (overview := self.get_account_overview(account.id))
+            ]
+
+        except Exception as e:
+            logger.error(f"Error getting all active accounts: {e}")
+            return []
+
+    def position_exists(self, account_id: int, asset_code: str) -> bool:
+        """
+        检查账户是否持有指定资产
+
+        Args:
+            account_id: 账户 ID
+            asset_code: 资产代码
+
+        Returns:
+            是否存在持仓
+        """
+        try:
+            # 延迟导入避免循环依赖
+            from apps.simulated_trading.infrastructure.models import PositionModel
+
+            return PositionModel._default_manager.filter(
+                account_id=account_id,
+                asset_code=asset_code,
+                quantity__gt=0
+            ).exists()
+
+        except Exception as e:
+            logger.error(f"Error checking position exists: {e}")
+            return False
+
+
+# ============================================================================
+# 全局单例
+# ============================================================================
+
+_facade_instance: Optional[SimulatedTradingFacade] = None
+
+
+def get_simulated_trading_facade() -> SimulatedTradingFacade:
+    """
+    获取模拟交易门面服务单例
+
+    Returns:
+        SimulatedTradingFacade 实例
+    """
+    global _facade_instance
+    if _facade_instance is None:
+        _facade_instance = SimulatedTradingFacade()
+    return _facade_instance
