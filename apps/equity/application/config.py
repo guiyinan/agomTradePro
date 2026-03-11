@@ -13,7 +13,7 @@
 """
 
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 from django.conf import settings
 from django.core.cache import cache
@@ -123,6 +123,41 @@ def get_valuation_repair_config(use_cache: bool = True) -> ValuationRepairConfig
         cache.set(_CONFIG_CACHE_KEY, settings_config, _CONFIG_CACHE_TIMEOUT)
 
     return settings_config
+
+
+def get_valuation_repair_config_summary(use_cache: bool = True) -> dict[str, Any]:
+    """获取用于页面展示的估值修复配置摘要。"""
+    from apps.equity.domain.entities_valuation_repair import DEFAULT_VALUATION_REPAIR_CONFIG
+
+    runtime_config = get_valuation_repair_config(use_cache=use_cache)
+    active_version = 0
+    source = "settings"
+
+    try:
+        from apps.equity.infrastructure.models import ValuationRepairConfigModel
+
+        active_config = ValuationRepairConfigModel.get_active_config()
+        if active_config:
+            active_version = active_config.version
+            source = "database"
+    except Exception as e:
+        logger.warning(f"Failed to get config summary from DB: {e}")
+
+    if active_version == 0 and runtime_config == DEFAULT_VALUATION_REPAIR_CONFIG:
+        source = "default"
+
+    return {
+        "version": active_version,
+        "source": source,
+        "target_percentile": runtime_config.target_percentile,
+        "undervalued_threshold": runtime_config.undervalued_threshold,
+        "near_target_threshold": runtime_config.near_target_threshold,
+        "overvalued_threshold": runtime_config.overvalued_threshold,
+        "confirm_window": runtime_config.confirm_window,
+        "stall_window": runtime_config.stall_window,
+        "min_rebound": runtime_config.min_rebound,
+        "repairing_threshold": runtime_config.repairing_threshold,
+    }
 
 
 def clear_config_cache():

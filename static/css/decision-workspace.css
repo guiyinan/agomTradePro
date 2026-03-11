@@ -136,6 +136,33 @@
     opacity: 1;
 }
 
+.repair-config-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: 12px 14px;
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: #f8fafc;
+}
+
+.repair-config-banner-title {
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+}
+
+.repair-config-banner-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
 .rec-valuation-repair {
     margin-top: var(--spacing-sm);
 }
@@ -663,6 +690,11 @@
 }
 
 @media (max-width: 768px) {
+    .repair-config-banner {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
     .review-summary {
         grid-template-columns: 1fr;
     }

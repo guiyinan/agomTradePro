@@ -65,6 +65,20 @@
         </button>
     </div>
 
+    {% if valuation_repair_config_summary %}
+    <section class="repair-config-banner">
+        <div class="repair-config-banner-title">估值修复参数摘要</div>
+        <div class="repair-config-banner-metrics">
+            <span>v{{ valuation_repair_config_summary.version }}</span>
+            <span>来源 {{ valuation_repair_config_summary.source }}</span>
+            <span>目标 {{ valuation_repair_config_summary.target_percentile|floatformat:2 }}</span>
+            <span>低估 {{ valuation_repair_config_summary.undervalued_threshold|floatformat:2 }}</span>
+            <span>接近目标 {{ valuation_repair_config_summary.near_target_threshold|floatformat:2 }}</span>
+            <span>高估 {{ valuation_repair_config_summary.overvalued_threshold|floatformat:2 }}</span>
+        </div>
+    </section>
+    {% endif %}
+
     <!-- Tab 内容区域 -->
     <div class="workspace-content">
         <!-- 待决策建议（统一推荐列表） -->

@@ -125,7 +125,15 @@ def valuation_repair_page(request):
 
     GET /equity/valuation-repair/
     """
-    return render(request, 'equity/valuation_repair.html')
+    from apps.equity.application.config import get_valuation_repair_config_summary
+
+    return render(request, 'equity/valuation_repair.html', {
+        'valuation_repair_config_summary': get_valuation_repair_config_summary(use_cache=False),
+        'can_manage_valuation_repair_config': bool(
+            getattr(request.user, "is_authenticated", False)
+            and (getattr(request.user, "is_staff", False) or getattr(request.user, "is_superuser", False))
+        ),
+    })
 
 
 @require_http_methods(["GET"])

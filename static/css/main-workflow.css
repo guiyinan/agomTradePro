@@ -94,6 +94,25 @@
     margin-top: var(--spacing-lg);
 }
 
+.repair-config-inline-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: #f8fafc;
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+.repair-config-title {
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-secondary);
+}
+
 .candidate-action-row {
     display: grid;
     grid-template-columns: 1fr auto auto auto;
@@ -330,6 +349,10 @@
 @media (max-width: 960px) {
     .candidate-action-row {
         grid-template-columns: 1fr;
+    }
+
+    .repair-config-inline-summary {
+        gap: 8px;
     }
 }
 

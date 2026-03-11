@@ -45,6 +45,16 @@
     {% if actionable_candidates %}
     <div class="candidate-actions-section">
         <h3 class="subsection-title">可行动候选 ({{ actionable_candidates|length }})</h3>
+        {% if valuation_repair_config_summary %}
+        <div class="repair-config-inline-summary">
+            <span class="repair-config-title">估值修复参数</span>
+            <span>v{{ valuation_repair_config_summary.version }}</span>
+            <span>目标 {{ valuation_repair_config_summary.target_percentile|floatformat:2 }}</span>
+            <span>低估 {{ valuation_repair_config_summary.undervalued_threshold|floatformat:2 }}</span>
+            <span>接近目标 {{ valuation_repair_config_summary.near_target_threshold|floatformat:2 }}</span>
+            <span>高估 {{ valuation_repair_config_summary.overvalued_threshold|floatformat:2 }}</span>
+        </div>
+        {% endif %}
 
         {% for candidate in actionable_candidates %}
         <div class="candidate-action-row" data-candidate-id="{{ candidate.candidate_id }}">

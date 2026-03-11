@@ -200,6 +200,12 @@ def decision_workspace_view(request):
         'page_title': '决策工作台',
         'page_description': '统一管理投资决策流程',
     }
+    try:
+        from apps.equity.application.config import get_valuation_repair_config_summary
+        context['valuation_repair_config_summary'] = get_valuation_repair_config_summary(use_cache=False)
+    except Exception as e:
+        logger.warning(f"Failed to get valuation repair config summary: {e}")
+        context['valuation_repair_config_summary'] = None
 
     # ========== 获取当前 Regime（与 Regime 页面保持同口径） ==========
     try:

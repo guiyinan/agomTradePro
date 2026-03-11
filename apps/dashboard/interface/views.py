@@ -286,6 +286,12 @@ def dashboard_view(request):
 
     actionable_candidates = _get_actionable_candidates()
     pending_requests = _get_pending_requests()
+    try:
+        from apps.equity.application.config import get_valuation_repair_config_summary
+        valuation_repair_config_summary = get_valuation_repair_config_summary(use_cache=False)
+    except Exception as e:
+        logger.warning(f"Failed to get valuation repair config summary: {e}")
+        valuation_repair_config_summary = None
 
     context = {
         "user": request.user,
@@ -346,6 +352,7 @@ def dashboard_view(request):
         "alpha_provider_status": _get_alpha_provider_status(),
         "alpha_coverage_metrics": _get_alpha_coverage_metrics(),
         "alpha_ic_trends": _get_alpha_ic_trends(days=30),
+        "valuation_repair_config_summary": valuation_repair_config_summary,
     }
 
     return render(request, 'dashboard/index.html', context)

@@ -10,9 +10,38 @@
 {% block content %}
 <div class="equity-container">
     <div class="equity-header">
-        <h1>估值修复跟踪</h1>
-        <p>跟踪低估值股票的估值修复进程，识别低估、修复中、接近完成、停滞等阶段</p>
+        <div style="display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap;">
+            <div>
+                <h1>估值修复跟踪</h1>
+                <p>跟踪低估值股票的估值修复进程，识别低估、修复中、接近完成、停滞等阶段</p>
+            </div>
+            {% if can_manage_valuation_repair_config %}
+            <a href="{% url 'equity:valuation_repair_config' %}" class="btn btn-secondary" style="text-decoration: none; white-space: nowrap;">
+                策略参数
+            </a>
+            {% endif %}
+        </div>
     </div>
+
+    {% if can_manage_valuation_repair_config and valuation_repair_config_summary %}
+    <div class="card" style="margin-bottom: 24px;">
+        <div class="card-header">
+            <h2 class="card-title" style="margin: 0;">当前生效配置摘要</h2>
+            <div style="font-size: 13px; color: var(--text-muted);">
+                版本 v{{ valuation_repair_config_summary.version }} · 来源 {{ valuation_repair_config_summary.source }}
+            </div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; color: var(--text-secondary);">
+            <span>目标分位 {{ valuation_repair_config_summary.target_percentile|floatformat:2 }}</span>
+            <span>低估阈值 {{ valuation_repair_config_summary.undervalued_threshold|floatformat:2 }}</span>
+            <span>接近目标 {{ valuation_repair_config_summary.near_target_threshold|floatformat:2 }}</span>
+            <span>高估阈值 {{ valuation_repair_config_summary.overvalued_threshold|floatformat:2 }}</span>
+            <span>确认窗口 {{ valuation_repair_config_summary.confirm_window }}d</span>
+            <span>停滞窗口 {{ valuation_repair_config_summary.stall_window }}d</span>
+            <span>最小反弹 {{ valuation_repair_config_summary.min_rebound|floatformat:2 }}</span>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- 筛选栏 -->
     <div class="card">
