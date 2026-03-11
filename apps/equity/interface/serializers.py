@@ -423,3 +423,105 @@ class ValuationFreshnessResponseSerializer(serializers.Serializer):
     freshness_status = serializers.CharField()
     coverage_ratio = serializers.FloatField(allow_null=True)
     is_gate_passed = serializers.BooleanField(allow_null=True)
+
+
+# ============== 估值修复配置序列化器 ==============
+
+class ValuationRepairConfigSerializer(serializers.ModelSerializer):
+    """估值修复配置序列化器（读取）"""
+
+    class Meta:
+        from apps.equity.infrastructure.models import ValuationRepairConfigModel
+        model = ValuationRepairConfigModel
+        fields = [
+            'id', 'version', 'is_active', 'effective_from',
+            # 历史数据要求
+            'min_history_points', 'default_lookback_days',
+            # 修复确认参数
+            'confirm_window', 'min_rebound',
+            # 停滞检测参数
+            'stall_window', 'stall_min_progress',
+            # 阶段判定阈值
+            'target_percentile', 'undervalued_threshold',
+            'near_target_threshold', 'overvalued_threshold',
+            # 复合百分位权重
+            'pe_weight', 'pb_weight',
+            # 置信度计算参数
+            'confidence_base', 'confidence_sample_threshold',
+            'confidence_sample_bonus', 'confidence_blend_bonus',
+            'confidence_repair_start_bonus', 'confidence_not_stalled_bonus',
+            # 其他阈值
+            'repairing_threshold', 'eta_max_days',
+            # 审计字段
+            'change_reason', 'created_by', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'version', 'created_at', 'updated_at']
+
+
+class ValuationRepairConfigCreateSerializer(serializers.ModelSerializer):
+    """估值修复配置序列化器（创建/更新）"""
+
+    class Meta:
+        from apps.equity.infrastructure.models import ValuationRepairConfigModel
+        model = ValuationRepairConfigModel
+        fields = [
+            # 历史数据要求
+            'min_history_points', 'default_lookback_days',
+            # 修复确认参数
+            'confirm_window', 'min_rebound',
+            # 停滞检测参数
+            'stall_window', 'stall_min_progress',
+            # 阶段判定阈值
+            'target_percentile', 'undervalued_threshold',
+            'near_target_threshold', 'overvalued_threshold',
+            # 复合百分位权重
+            'pe_weight', 'pb_weight',
+            # 置信度计算参数
+            'confidence_base', 'confidence_sample_threshold',
+            'confidence_sample_bonus', 'confidence_blend_bonus',
+            'confidence_repair_start_bonus', 'confidence_not_stalled_bonus',
+            # 其他阈值
+            'repairing_threshold', 'eta_max_days',
+            # 变更原因
+            'change_reason',
+        ]
+
+    def validate(self, data):
+        """验证配置参数合理性"""
+        errors = []
+
+        # 权重和应该为 1
+        pe_weight = data.get('pe_weight', 0.6)
+        pb_weight = data.get('pb_weight', 0.4)
+        if abs(pe_weight + pb_weight - 1.0) > 0.01:
+            errors.append(f"PE + PB 权重和应为 1.0，当前为 {pe_weight + pb_weight}")
+
+        # 阈值范围检查
+        for field in ['target_percentile', 'undervalued_threshold',
+                      'near_target_threshold', 'overvalued_threshold',
+                      'min_rebound', 'stall_min_progress']:
+            value = data.get(field)
+            if value is not None and not (0 <= value <= 1):
+                errors.append(f"{field} 应在 0-1 范围内")
+
+        # 阈值逻辑检查
+        undervalued = data.get('undervalued_threshold', 0.20)
+        near_target = data.get('near_target_threshold', 0.45)
+        target = data.get('target_percentile', 0.50)
+        overvalued = data.get('overvalued_threshold', 0.80)
+
+        if not (undervalued < near_target < target < overvalued):
+            errors.append(
+                f"阈值应满足: undervalued({undervalued}) < "
+                f"near_target({near_target}) < target({target}) < "
+                f"overvalued({overvalued})"
+            )
+
+        if errors:
+            raise serializers.ValidationError({"config": errors})
+
+        return data
+
+
+# 别名，保持向后兼容
+ValuationRepairConfigCreateSerializer = ValuationRepairConfigCreateSerializer

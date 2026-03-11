@@ -1,0 +1,556 @@
+{% extends "equity/base.html" %}
+
+{% block title %}估值修复配置 - AgomSAAF{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-3">
+                <i class="fas fa-cog me-2"></i>估值修复策略参数配置
+            </h2>
+            <p class="text-muted">
+                在线调整估值修复检测参数。配置更改后需激活才能生效。
+            </p>
+        </div>
+    </div>
+
+    <!-- 当前激活配置 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-check-circle me-2"></i>当前激活配置
+                        <span id="active-version" class="badge bg-light text-primary ms-2">--</span>
+                    </h5>
+                </div>
+                <div class="card-body" id="active-config-body">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">加载中...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新建配置 -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-plus-circle me-2"></i>创建新配置
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="config-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="id" id="config-id" value="">
+
+                        <!-- 变更原因 -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <label for="change_reason" class="form-label fw-bold">变更原因 *</label>
+                                <textarea class="form-control" id="change_reason" name="change_reason"
+                                    rows="2" placeholder="请说明本次配置变更的原因..."
+                                    required></textarea>
+                            </div>
+                        </div>
+
+                        <!-- 参数分组 -->
+                        <div class="row">
+                            <!-- 历史数据要求 -->
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-header py-2 bg-light">
+                                        <small class="fw-bold">历史数据要求</small>
+                                    </div>
+                                    <div class="card-body py-2">
+                                        <div class="mb-2">
+                                            <label class="form-label small">最小历史样本数</label>
+                                            <input type="number" class="form-control form-control-sm"
+                                                name="min_history_points" value="120" min="60">
+                                        </div>
+                                        <div class="mb-0">
+                                            <label class="form-label small">默认回看交易日数</label>
+                                            <input type="number" class="form-control form-control-sm"
+                                                name="default_lookback_days" value="756" min="252">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 修复确认参数 -->
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-header py-2 bg-light">
+                                        <small class="fw-bold">修复确认参数</small>
+                                    </div>
+                                    <div class="card-body py-2">
+                                        <div class="mb-2">
+                                            <label class="form-label small">确认窗口（交易日）</label>
+                                            <input type="number" class="form-control form-control-sm"
+                                                name="confirm_window" value="20" min="5">
+                                        </div>
+                                        <div class="mb-0">
+                                            <label class="form-label small">最小反弹幅度（百分位）</label>
+                                            <input type="number" class="form-control form-control-sm"
+                                                name="min_rebound" value="0.05" min="0.01" max="0.5" step="0.01">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 停滞检测参数 -->
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-header py-2 bg-light">
+                                        <small class="fw-bold">停滞检测参数</small>
+                                    </div>
+                                    <div class="card-body py-2">
+                                        <div class="mb-2">
+                                            <label class="form-label small">停滞窗口（交易日）</label>
+                                            <input type="number" class="form-control form-control-sm"
+                                                name="stall_window" value="40" min="10">
+                                        </div>
+                                        <div class="mb-0">
+                                            <label class="form-label small">停滞最小进展阈值</label>
+                                            <input type="number" class="form-control form-control-sm"
+                                                name="stall_min_progress" value="0.02" min="0.01" max="0.1" step="0.01">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 阶段判定阈值 -->
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-header py-2 bg-light">
+                                        <small class="fw-bold">阶段判定阈值</small>
+                                    </div>
+                                    <div class="card-body py-2">
+                                        <div class="mb-2">
+                                            <label class="form-label small">目标百分位</label>
+                                            <input type="number" class="form-control form-control-sm"
+                                                name="target_percentile" value="0.50" min="0.3" max="0.7" step="0.01">
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label small">低估阈值</label>
+                                            <input type="number" class="form-control form-control-sm"
+                                                name="undervalued_threshold" value="0.20" min="0.05" max="0.4" step="0.01">
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label small">接近目标阈值</label>
+                                            <input type="number" class="form-control form-control-sm"
+                                                name="near_target_threshold" value="0.45" min="0.3" max="0.6" step="0.01">
+                                        </div>
+                                        <div class="mb-0">
+                                            <label class="form-label small">高估阈值</label>
+                                            <input type="number" class="form-control form-control-sm"
+                                                name="overvalued_threshold" value="0.80" min="0.6" max="0.95" step="0.01">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 复合百分位权重 -->
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-header py-2 bg-light">
+                                        <small class="fw-bold">复合百分位权重</small>
+                                    </div>
+                                    <div class="card-body py-2">
+                                        <div class="mb-2">
+                                            <label class="form-label small">PE 权重</label>
+                                            <input type="number" class="form-control form-control-sm"
+                                                name="pe_weight" id="pe_weight" value="0.6" min="0" max="1" step="0.1"
+                                                onchange="updatePbWeight()">
+                                        </div>
+                                        <div class="mb-0">
+                                            <label class="form-label small">PB 权重</label>
+                                            <input type="number" class="form-control form-control-sm"
+                                                name="pb_weight" id="pb_weight" value="0.4" min="0" max="1" step="0.1"
+                                                onchange="updatePeWeight()">
+                                        </div>
+                                        <small class="text-muted">权重和应为 1.0</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 置信度计算参数 -->
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-header py-2 bg-light">
+                                        <small class="fw-bold">置信度计算参数</small>
+                                    </div>
+                                    <div class="card-body py-2">
+                                        <div class="mb-2">
+                                            <label class="form-label small">基础置信度</label>
+                                            <input type="number" class="form-control form-control-sm"
+                                                name="confidence_base" value="0.4" min="0.1" max="0.8" step="0.05">
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label small">样本数阈值</label>
+                                            <input type="number" class="form-control form-control-sm"
+                                                name="confidence_sample_threshold" value="252" min="120">
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label small">样本数奖励</label>
+                                            <input type="number" class="form-control form-control-sm"
+                                                name="confidence_sample_bonus" value="0.2" min="0" max="0.5" step="0.05">
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label small">Blend 奖励</label>
+                                            <input type="number" class="form-control form-control-sm"
+                                                name="confidence_blend_bonus" value="0.15" min="0" max="0.3" step="0.05">
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label small">修复起点奖励</label>
+                                            <input type="number" class="form-control form-control-sm"
+                                                name="confidence_repair_start_bonus" value="0.15" min="0" max="0.3" step="0.05">
+                                        </div>
+                                        <div class="mb-0">
+                                            <label class="form-label small">非停滞奖励</label>
+                                            <input type="number" class="form-control form-control-sm"
+                                                name="confidence_not_stalled_bonus" value="0.1" min="0" max="0.2" step="0.05">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 其他阈值 -->
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-header py-2 bg-light">
+                                        <small class="fw-bold">其他阈值</small>
+                                    </div>
+                                    <div class="card-body py-2">
+                                        <div class="mb-2">
+                                            <label class="form-label small">REPAIRING 阈值（相对起点）</label>
+                                            <input type="number" class="form-control form-control-sm"
+                                                name="repairing_threshold" value="0.10" min="0.05" max="0.3" step="0.01">
+                                        </div>
+                                        <div class="mb-0">
+                                            <label class="form-label small">ETA 最大天数</label>
+                                            <input type="number" class="form-control form-control-sm"
+                                                name="eta_max_days" value="999" min="100" max="9999">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 提交按钮 -->
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i>保存配置
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary ms-2" onclick="resetForm()">
+                                    <i class="fas fa-undo me-1"></i>重置
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 历史版本 -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>历史版本
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="history-table">
+                            <thead>
+                                <tr>
+                                    <th>版本</th>
+                                    <th>状态</th>
+                                    <th>生效时间</th>
+                                    <th>变更原因</th>
+                                    <th>创建人</th>
+                                    <th>创建时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-tbody">
+                                <tr>
+                                    <td colspan="7" class="text-center">
+                                        <div class="spinner-border spinner-border-sm" role="status">
+                                            <span class="visually-hidden">加载中...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast 通知 -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <i class="fas fa-info-circle me-2" id="toast-icon"></i>
+            <strong class="me-auto" id="toast-title">提示</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body" id="toast-body"></div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const API_BASE = '/api/equity/config/valuation-repair';
+
+// 显示 Toast 通知
+function showToast(title, message, type = 'info') {
+    const toast = document.getElementById('toast');
+    const toastTitle = document.getElementById('toast-title');
+    const toastBody = document.getElementById('toast-body');
+    const toastIcon = document.getElementById('toast-icon');
+
+    toastTitle.textContent = title;
+    toastBody.textContent = message;
+
+    // 设置图标和颜色
+    toast.classList.remove('bg-success', 'bg-danger', 'bg-warning', 'text-white');
+    toastIcon.className = 'fas me-2';
+    if (type === 'success') {
+        toastIcon.classList.add('fa-check-circle', 'text-success');
+    } else if (type === 'error') {
+        toastIcon.classList.add('fa-exclamation-circle', 'text-danger');
+    } else {
+        toastIcon.classList.add('fa-info-circle', 'text-primary');
+    }
+
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+}
+
+// 加载当前激活配置
+async function loadActiveConfig() {
+    try {
+        const response = await fetch(`${API_BASE}/active/`);
+        const data = await response.json();
+
+        if (data.success) {
+            const config = data.data;
+            document.getElementById('active-version').textContent = `v${config.version || '默认'}`;
+
+            // 渲染配置详情
+            const body = document.getElementById('active-config-body');
+            body.innerHTML = `
+                <div class="row">
+                    <div class="col-md-3">
+                        <dl>
+                            <dt>历史数据要求</dt>
+                            <dd>最小样本: ${config.min_history_points}</dd>
+                            <dd>回看天数: ${config.default_lookback_days}</dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-3">
+                        <dl>
+                            <dt>修复确认</dt>
+                            <dd>确认窗口: ${config.confirm_window} 天</dd>
+                            <dd>最小反弹: ${(config.min_rebound * 100).toFixed(1)}%</dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-3">
+                        <dl>
+                            <dt>阶段阈值</dt>
+                            <dd>低估: ${(config.undervalued_threshold * 100).toFixed(0)}%</dd>
+                            <dd>目标: ${(config.target_percentile * 100).toFixed(0)}%</dd>
+                            <dd>高估: ${(config.overvalued_threshold * 100).toFixed(0)}%</dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-3">
+                        <dl>
+                            <dt>权重</dt>
+                            <dd>PE: ${(config.pe_weight * 100).toFixed(0)}%</dd>
+                            <dd>PB: ${(config.pb_weight * 100).toFixed(0)}%</dd>
+                        </dl>
+                    </div>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Failed to load active config:', error);
+    }
+}
+
+// 加载历史版本
+async function loadHistory() {
+    try {
+        const response = await fetch(API_BASE);
+        const data = await response.json();
+
+        const tbody = document.getElementById('history-tbody');
+        if (data.results && data.results.length > 0) {
+            tbody.innerHTML = data.results.map(config => `
+                <tr class="${config.is_active ? 'table-primary' : ''}">
+                    <td>v${config.version}</td>
+                    <td>
+                        ${config.is_active
+                            ? '<span class="badge bg-success">激活</span>'
+                            : '<span class="badge bg-secondary">草稿</span>'}
+                    </td>
+                    <td>${config.effective_from || '-'}</td>
+                    <td>${config.change_reason || '-'}</td>
+                    <td>${config.created_by || '-'}</td>
+                    <td>${new Date(config.created_at).toLocaleString()}</td>
+                    <td>
+                        ${!config.is_active ? `
+                            <button class="btn btn-sm btn-outline-primary"
+                                    onclick="activateConfig(${config.id})"
+                                    title="激活此配置">
+                                <i class="fas fa-check"></i>
+                            </button>
+                        ` : ''}
+                        <button class="btn btn-sm btn-outline-secondary"
+                                onclick="loadConfig(${config.id})"
+                                title="加载到表单">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">暂无配置记录</td></tr>';
+        }
+    } catch (error) {
+        console.error('Failed to load history:', error);
+    }
+}
+
+// 加载配置到表单
+async function loadConfig(id) {
+    try {
+        const response = await fetch(`${API_BASE}/${id}/`);
+        const config = await response.json();
+
+        // 填充表单
+        document.getElementById('config-id').value = config.id;
+        for (const [key, value] of Object.entries(config)) {
+            const input = document.querySelector(`[name="${key}"]`);
+            if (input) {
+                input.value = value;
+            }
+        }
+
+        showToast('已加载', `已加载配置 v${config.version} 到表单`, 'info');
+    } catch (error) {
+        showToast('错误', '加载配置失败', 'error');
+    }
+}
+
+// 激活配置
+async function activateConfig(id) {
+    if (!confirm('确定要激活此配置吗？这将停用当前激活的配置。')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/${id}/activate/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            showToast('成功', data.message, 'success');
+            loadActiveConfig();
+            loadHistory();
+        } else {
+            showToast('错误', data.message || '激活失败', 'error');
+        }
+    } catch (error) {
+        showToast('错误', '激活配置失败', 'error');
+    }
+}
+
+// 更新 PB 权重
+function updatePbWeight() {
+    const peWeight = parseFloat(document.getElementById('pe_weight').value) || 0;
+    document.getElementById('pb_weight').value = (1 - peWeight).toFixed(1);
+}
+
+// 更新 PE 权重
+function updatePeWeight() {
+    const pbWeight = parseFloat(document.getElementById('pb_weight').value) || 0;
+    document.getElementById('pe_weight').value = (1 - pbWeight).toFixed(1);
+}
+
+// 重置表单
+function resetForm() {
+    document.getElementById('config-form').reset();
+    document.getElementById('config-id').value = '';
+}
+
+// 提交表单
+document.getElementById('config-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const data = {};
+    for (const [key, value] of formData.entries()) {
+        if (value !== '') {
+            data[key] = isNaN(value) ? value : parseFloat(value);
+        }
+    }
+
+    const configId = data.id;
+    delete data.id;
+
+    const url = configId ? `${API_BASE}/${configId}/` : API_BASE;
+    const method = configId ? 'PATCH' : 'POST';
+
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            showToast('成功', '配置已保存', 'success');
+            resetForm();
+            loadHistory();
+        } else {
+            const errors = Object.entries(result).map(([k, v]) => `${k}: ${v}`).join('; ');
+            showToast('验证错误', errors, 'error');
+        }
+    } catch (error) {
+        showToast('错误', '保存配置失败', 'error');
+    }
+});
+
+// 初始化
+document.addEventListener('DOMContentLoaded', function() {
+    loadActiveConfig();
+    loadHistory();
+});
+</script>
+{% endblock %}

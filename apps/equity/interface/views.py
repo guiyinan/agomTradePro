@@ -8,12 +8,14 @@
 """
 
 from django.shortcuts import render
+from django.db import OperationalError, ProgrammingError
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 
@@ -124,6 +126,16 @@ def valuation_repair_page(request):
     GET /equity/valuation-repair/
     """
     return render(request, 'equity/valuation_repair.html')
+
+
+@require_http_methods(["GET"])
+def valuation_repair_config_page(request):
+    """
+    估值修复配置管理页面
+
+    GET /equity/valuation-repair/config/
+    """
+    return render(request, 'equity/config.html')
 
 
 class EquityViewSet(viewsets.ViewSet):
@@ -1130,4 +1142,162 @@ class EquityMultiDimScreenAPIView(APIView):
                 "message": f"筛选失败: {str(e)}",
                 "stocks": [],
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ============== 估值修复配置管理 API ==============
+
+class ValuationRepairConfigViewSet(viewsets.ModelViewSet):
+    """估值修复策略参数配置管理
+
+    支持在线调参，包含版本控制、生效时间和审计。
+
+    API 端点：
+    - GET /api/equity/config/valuation-repair/ - 列出所有配置版本
+    - GET /api/equity/config/valuation-repair/active/ - 获取当前激活的配置
+    - POST /api/equity/config/valuation-repair/ - 创建新配置
+    - POST /api/equity/config/valuation-repair/{id}/activate/ - 激活指定配置
+    - POST /api/equity/config/valuation-repair/{id}/rollback/ - 回滚到指定版本
+    """
+
+    from apps.equity.infrastructure.models import ValuationRepairConfigModel
+    queryset = ValuationRepairConfigModel.objects.all()
+    permission_classes = [IsAdminUser]
+
+    def get_serializer_class(self):
+        from apps.equity.interface.serializers import (
+            ValuationRepairConfigSerializer,
+            ValuationRepairConfigCreateSerializer,
+        )
+        if self.action in ['create', 'update', 'partial_update']:
+            return ValuationRepairConfigCreateSerializer
+        return ValuationRepairConfigSerializer
+
+    @extend_schema(
+        summary="获取当前激活配置",
+        description="返回当前生效中的估值修复策略参数",
+        responses={200: "ValuationRepairConfigSerializer"},
+    )
+    @action(detail=False, methods=['get'])
+    def active(self, request):
+        """GET /api/equity/config/valuation-repair/active/
+
+        获取当前激活的配置
+        """
+        from apps.equity.application.config import get_valuation_repair_config
+        from apps.equity.domain.entities_valuation_repair import DEFAULT_VALUATION_REPAIR_CONFIG
+
+        runtime_config = get_valuation_repair_config(use_cache=False)
+        try:
+            config = self.queryset.filter(is_active=True).first()
+        except (OperationalError, ProgrammingError):
+            config = None
+        if not config:
+            source = "settings"
+            if runtime_config == DEFAULT_VALUATION_REPAIR_CONFIG:
+                source = "default"
+            return Response({
+                "success": True,
+                "source": source,
+                "data": {
+                    "version": 0,
+                    "is_active": False,
+                    "min_history_points": runtime_config.min_history_points,
+                    "default_lookback_days": runtime_config.default_lookback_days,
+                    "confirm_window": runtime_config.confirm_window,
+                    "min_rebound": runtime_config.min_rebound,
+                    "stall_window": runtime_config.stall_window,
+                    "stall_min_progress": runtime_config.stall_min_progress,
+                    "target_percentile": runtime_config.target_percentile,
+                    "undervalued_threshold": runtime_config.undervalued_threshold,
+                    "near_target_threshold": runtime_config.near_target_threshold,
+                    "overvalued_threshold": runtime_config.overvalued_threshold,
+                    "pe_weight": runtime_config.pe_weight,
+                    "pb_weight": runtime_config.pb_weight,
+                    "confidence_base": runtime_config.confidence_base,
+                    "confidence_sample_threshold": runtime_config.confidence_sample_threshold,
+                    "confidence_sample_bonus": runtime_config.confidence_sample_bonus,
+                    "confidence_blend_bonus": runtime_config.confidence_blend_bonus,
+                    "confidence_repair_start_bonus": runtime_config.confidence_repair_start_bonus,
+                    "confidence_not_stalled_bonus": runtime_config.confidence_not_stalled_bonus,
+                    "repairing_threshold": runtime_config.repairing_threshold,
+                    "eta_max_days": runtime_config.eta_max_days,
+                }
+            })
+
+        serializer = self.get_serializer(config)
+        return Response({
+            "success": True,
+            "source": "database",
+            "data": serializer.data
+        })
+
+    @extend_schema(
+        summary="激活指定配置",
+        description="将指定版本的配置设置为激活状态（同时停用其他配置）",
+        responses={200: "ValuationRepairConfigSerializer"},
+    )
+    @action(detail=True, methods=['post'])
+    def activate(self, request, pk=None):
+        """POST /api/equity/config/valuation-repair/{id}/activate/
+
+        激活指定配置
+        """
+        config = self.get_object()
+        config.is_active = True
+        config.effective_from = timezone.now()
+        config.save()
+
+        # 清除缓存
+        from apps.equity.application.config import clear_config_cache
+        clear_config_cache()
+
+        serializer = self.get_serializer(config)
+        return Response({
+            "success": True,
+            "message": f"配置 v{config.version} 已激活",
+            "data": serializer.data
+        })
+
+    @extend_schema(
+        summary="回滚到指定版本",
+        description="激活指定版本的配置（activate 的别名）",
+        responses={200: "ValuationRepairConfigSerializer"},
+    )
+    @action(detail=True, methods=['post'])
+    def rollback(self, request, pk=None):
+        """POST /api/equity/config/valuation-repair/{id}/rollback/
+
+        回滚到指定版本（等同于 activate）
+        """
+        return self.activate(request, pk)
+
+    @extend_schema(
+        summary="清除配置缓存",
+        description="强制清除配置缓存，下次请求将从数据库或 settings 重新加载",
+        responses={200: dict},
+    )
+    @action(detail=False, methods=['post'])
+    def clear_cache(self, request):
+        """POST /api/equity/config/valuation-repair/clear_cache/
+
+        清除配置缓存
+        """
+        from apps.equity.application.config import clear_config_cache
+        clear_config_cache()
+        return Response({
+            "success": True,
+            "message": "配置缓存已清除"
+        })
+
+    def perform_create(self, serializer):
+        """创建时记录创建人"""
+        serializer.save(
+            created_by=self.request.user.username if self.request.user.is_authenticated else "api"
+        )
+
+    def perform_update(self, serializer):
+        """更新后清缓存，避免激活配置或草稿配置读到旧值。"""
+        serializer.save()
+        from apps.equity.application.config import clear_config_cache
+        clear_config_cache()
 

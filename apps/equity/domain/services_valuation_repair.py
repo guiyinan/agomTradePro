@@ -16,29 +16,9 @@ from .entities_valuation_repair import (
     ValuationRepairPhase,
     PercentilePoint,
     ValuationRepairStatus,
+    ValuationRepairConfig,
+    DEFAULT_VALUATION_REPAIR_CONFIG,
 )
-
-
-# ============== 常量定义 ==============
-
-MIN_HISTORY_POINTS = 120  # 最小历史样本数
-
-# 默认参数
-DEFAULT_LOOKBACK_DAYS = 756  # 默认回看交易日数
-DEFAULT_CONFIRM_WINDOW = 20  # 修复确认窗口（交易日）
-DEFAULT_MIN_REBOUND = 0.05  # 最小反弹幅度（百分位）
-DEFAULT_STALL_WINDOW = 40  # 停滞检测窗口（交易日）
-DEFAULT_STALL_MIN_PROGRESS = 0.02  # 停滞最小进展阈值
-DEFAULT_TARGET_PERCENTILE = 0.50  # 目标百分位
-
-# 阶段判定阈值
-UNDERVERLUED_THRESHOLD = 0.20
-NEAR_TARGET_THRESHOLD = 0.45
-OVERVALUED_THRESHOLD = 0.80
-
-# 复合百分位权重
-PE_WEIGHT = 0.6
-PB_WEIGHT = 0.4
 
 
 # ============== 异常定义 ==============
@@ -57,23 +37,25 @@ class InvalidValuationDataError(Exception):
 
 def compute_composite_percentile(
     pe: Optional[float],
-    pb: float
+    pb: float,
+    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
 ) -> Tuple[float, str]:
     """计算综合百分位
 
     Args:
         pe: PE 百分位（可能为 None 或负数）
         pb: PB 百分位
+        config: 策略参数配置
 
     Returns:
         (综合百分位, 方法名)
 
     规则：
-    - 若 pe > 0：composite = pe * 0.6 + pb * 0.4，method = "pe_pb_blend"
+    - 若 pe > 0：composite = pe * pe_weight + pb * pb_weight，method = "pe_pb_blend"
     - 若 pe <= 0 或 pe is None：composite = pb，method = "pb_only"
     """
     if pe is not None and pe > 0:
-        composite = pe * PE_WEIGHT + pb * PB_WEIGHT
+        composite = pe * config.pe_weight + pb * config.pb_weight
         return composite, "pe_pb_blend"
     else:
         return pb, "pb_only"
@@ -110,7 +92,8 @@ def _calculate_percentile(value: float, historical_values: List[float]) -> float
 
 def build_percentile_series(
     history: List[Dict],
-    lookback_days: int = DEFAULT_LOOKBACK_DAYS
+    lookback_days: Optional[int] = None,
+    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
 ) -> List[PercentilePoint]:
     """构建百分位时间序列
 
@@ -119,7 +102,8 @@ def build_percentile_series(
             - trade_date: date
             - pe: float
             - pb: float
-        lookback_days: 回看窗口（交易日样本数）
+        lookback_days: 回看窗口（交易日样本数），None 时使用 config 默认值
+        config: 策略参数配置
 
     Returns:
         PercentilePoint 列表，按日期升序
@@ -130,20 +114,23 @@ def build_percentile_series(
 
     算法：
     1. 截断到最近 lookback_days 条记录
-    2. 至少要求 MIN_HISTORY_POINTS 条
+    2. 至少要求 min_history_points 条
     3. 对第 i 个点，仅使用 [0:i] 数据计算百分位（扩张窗口，无前视偏差）
     4. pe <= 0 时该点 pe_percentile = None
     5. pb <= 0 视为无效数据，抛出异常
     """
+    if lookback_days is None:
+        lookback_days = config.default_lookback_days
+
     if not history:
         raise InsufficientHistoryError("历史数据为空")
 
     # 截断到最近 lookback_days 条
     truncated = history[-lookback_days:] if len(history) > lookback_days else history
 
-    if len(truncated) < MIN_HISTORY_POINTS:
+    if len(truncated) < config.min_history_points:
         raise InsufficientHistoryError(
-            f"历史数据不足：需要至少 {MIN_HISTORY_POINTS} 条，实际 {len(truncated)} 条"
+            f"历史数据不足：需要至少 {config.min_history_points} 条，实际 {len(truncated)} 条"
         )
 
     points: List[PercentilePoint] = []
@@ -170,7 +157,9 @@ def build_percentile_series(
             pe_percentile = _calculate_percentile(pe, pe_history)
 
         # 计算综合百分位
-        composite_percentile, composite_method = compute_composite_percentile(pe_percentile, pb_percentile)
+        composite_percentile, composite_method = compute_composite_percentile(
+            pe_percentile, pb_percentile, config
+        )
 
         points.append(PercentilePoint(
             trade_date=trade_date,
@@ -185,15 +174,17 @@ def build_percentile_series(
 
 def detect_repair_start(
     series: List[PercentilePoint],
-    confirm_window: int = DEFAULT_CONFIRM_WINDOW,
-    min_rebound: float = DEFAULT_MIN_REBOUND
+    confirm_window: Optional[int] = None,
+    min_rebound: Optional[float] = None,
+    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
 ) -> Tuple[Optional[date], Optional[float]]:
     """检测修复启动点
 
     Args:
         series: 百分位时间序列
-        confirm_window: 确认窗口（交易日）
-        min_rebound: 最小反弹幅度
+        confirm_window: 确认窗口（交易日），None 时使用 config 默认值
+        min_rebound: 最小反弹幅度，None 时使用 config 默认值
+        config: 策略参数配置
 
     Returns:
         (修复启动日期, 修复启动百分位)
@@ -204,6 +195,10 @@ def detect_repair_start(
     3. 若从最低点往后最多 confirm_window 个交易日内，
        任一日 composite - bottom >= min_rebound，则确认修复启动
     """
+    if confirm_window is None:
+        confirm_window = config.confirm_window
+    if min_rebound is None:
+        min_rebound = config.min_rebound
     if not series:
         return None, None
 
@@ -234,16 +229,18 @@ def detect_repair_start(
 def detect_stall(
     series: List[PercentilePoint],
     repair_start_date: date,
-    stall_window: int = DEFAULT_STALL_WINDOW,
-    stall_min_progress: float = DEFAULT_STALL_MIN_PROGRESS
+    stall_window: Optional[int] = None,
+    stall_min_progress: Optional[float] = None,
+    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
 ) -> Tuple[bool, Optional[date], int]:
     """检测修复停滞
 
     Args:
         series: 百分位时间序列
         repair_start_date: 修复启动日期
-        stall_window: 停滞检测窗口（交易日）
-        stall_min_progress: 停滞最小进展阈值
+        stall_window: 停滞检测窗口（交易日），None 时使用 config 默认值
+        stall_min_progress: 停滞最小进展阈值，None 时使用 config 默认值
+        config: 策略参数配置
 
     Returns:
         (是否停滞, 停滞开始日期, 停滞持续交易日数)
@@ -258,6 +255,11 @@ def detect_stall(
        - max - min < stall_min_progress 则为停滞
        - stall_start_date = 窗口起点
     """
+    if stall_window is None:
+        stall_window = config.stall_window
+    if stall_min_progress is None:
+        stall_min_progress = config.stall_min_progress
+
     if not repair_start_date:
         return False, None, 0
 
@@ -297,7 +299,8 @@ def determine_phase(
     composite_percentile: float,
     repair_start_date: Optional[date],
     repair_start_percentile: Optional[float],
-    is_stalled: bool
+    is_stalled: bool,
+    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
 ) -> str:
     """确定修复阶段
 
@@ -306,45 +309,46 @@ def determine_phase(
         repair_start_date: 修复启动日期
         repair_start_percentile: 修复启动百分位
         is_stalled: 是否停滞
+        config: 策略参数配置
 
     Returns:
         阶段字符串值
 
     状态优先级（从高到低）：
-    1. OVERSHOOTING: composite >= 0.80
-    2. COMPLETED: 0.50 <= composite < 0.80 且有 repair_start_date
-    3. NEAR_TARGET: 0.45 <= composite < 0.50 且有 repair_start_date
-    4. STALLED: 有 repair_start_date 且 is_stalled=True 且 composite < 0.45
-    5. REPAIRING: 有 repair_start_date 且 composite >= start + 0.10 且 < 0.45
-    6. REPAIR_STARTED: 有 repair_start_date 且 < start + 0.10
-    7. UNDERVALUED: 无 repair_start_date 且 composite < 0.20
+    1. OVERSHOOTING: composite >= overvalued_threshold
+    2. COMPLETED: target_percentile <= composite < overvalued_threshold 且有 repair_start_date
+    3. NEAR_TARGET: near_target_threshold <= composite < target_percentile 且有 repair_start_date
+    4. STALLED: 有 repair_start_date 且 is_stalled=True 且 composite < near_target_threshold
+    5. REPAIRING: 有 repair_start_date 且 composite >= start + repairing_threshold 且 < near_target_threshold
+    6. REPAIR_STARTED: 有 repair_start_date 且 < start + repairing_threshold
+    7. UNDERVALUED: 无 repair_start_date 且 composite < undervalued_threshold
     8. NO_REPAIR_NEEDED: 其余情况
     """
     # 1. OVERSHOOTING（最高优先级）
-    if composite_percentile >= OVERVALUED_THRESHOLD:
+    if composite_percentile >= config.overvalued_threshold:
         return ValuationRepairPhase.OVERSHOOTING.value
 
     # 2. COMPLETED
     if (repair_start_date is not None and
-        DEFAULT_TARGET_PERCENTILE <= composite_percentile < OVERVALUED_THRESHOLD):
+        config.target_percentile <= composite_percentile < config.overvalued_threshold):
         return ValuationRepairPhase.COMPLETED.value
 
     # 3. NEAR_TARGET
     if (repair_start_date is not None and
-        NEAR_TARGET_THRESHOLD <= composite_percentile < DEFAULT_TARGET_PERCENTILE):
+        config.near_target_threshold <= composite_percentile < config.target_percentile):
         return ValuationRepairPhase.NEAR_TARGET.value
 
     # 4. STALLED
     if (repair_start_date is not None and
         is_stalled and
-        composite_percentile < NEAR_TARGET_THRESHOLD):
+        composite_percentile < config.near_target_threshold):
         return ValuationRepairPhase.STALLED.value
 
     # 5. REPAIRING
     if (repair_start_date is not None and
         repair_start_percentile is not None and
-        composite_percentile >= repair_start_percentile + 0.10 and
-        composite_percentile < NEAR_TARGET_THRESHOLD):
+        composite_percentile >= repair_start_percentile + config.repairing_threshold and
+        composite_percentile < config.near_target_threshold):
         return ValuationRepairPhase.REPAIRING.value
 
     # 6. REPAIR_STARTED
@@ -352,7 +356,7 @@ def determine_phase(
         return ValuationRepairPhase.REPAIR_STARTED.value
 
     # 7. UNDERVALUED
-    if composite_percentile < UNDERVERLUED_THRESHOLD:
+    if composite_percentile < config.undervalued_threshold:
         return ValuationRepairPhase.UNDERVALUED.value
 
     # 8. NO_REPAIR_NEEDED
@@ -392,18 +396,23 @@ def _map_phase_to_signal(phase: str) -> str:
 def calculate_repair_progress(
     current_percentile: float,
     start_percentile: float,
-    target_percentile: float = DEFAULT_TARGET_PERCENTILE
+    target_percentile: Optional[float] = None,
+    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
 ) -> Optional[float]:
     """计算修复进度
 
     Args:
         current_percentile: 当前百分位
         start_percentile: 启动百分位
-        target_percentile: 目标百分位
+        target_percentile: 目标百分位，None 时使用 config 默认值
+        config: 策略参数配置
 
     Returns:
         进度（0-1），若分母 <= 0 则返回 None
     """
+    if target_percentile is None:
+        target_percentile = config.target_percentile
+
     denominator = target_percentile - start_percentile
 
     if denominator <= 0:
@@ -439,7 +448,8 @@ def calculate_repair_speed_per_30d(
 def estimate_days_to_target(
     current_percentile: float,
     target_percentile: float,
-    speed_per_30d: Optional[float]
+    speed_per_30d: Optional[float],
+    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
 ) -> Optional[int]:
     """估算到达目标的交易日数
 
@@ -447,9 +457,10 @@ def estimate_days_to_target(
         current_percentile: 当前百分位
         target_percentile: 目标百分位
         speed_per_30d: 修复速度（每 30 交易日）
+        config: 策略参数配置
 
     Returns:
-        预计交易日数，上限 999，若 speed <= 0 则返回 None
+        预计交易日数，上限 eta_max_days，若 speed <= 0 则返回 None
     """
     if speed_per_30d is None or speed_per_30d <= 0:
         return None
@@ -461,15 +472,16 @@ def estimate_days_to_target(
     speed_per_day = speed_per_30d / 30
     estimated_days = remaining / speed_per_day
 
-    # 向上取整，上限 999
-    return min(999, math.ceil(estimated_days))
+    # 向上取整，上限 eta_max_days
+    return min(config.eta_max_days, math.ceil(estimated_days))
 
 
 def calculate_confidence(
     sample_count: int,
     composite_method: str,
     has_repair_start: bool,
-    is_stalled: bool
+    is_stalled: bool,
+    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
 ) -> float:
     """计算置信度
 
@@ -478,30 +490,31 @@ def calculate_confidence(
         composite_method: 综合方法
         has_repair_start: 是否有修复起点
         is_stalled: 是否停滞
+        config: 策略参数配置
 
     Returns:
         置信度（0-1）
 
     启发式评分：
-    - 基础值 0.4
-    - 样本数 >= 252 加 0.2
-    - 使用 pe_pb_blend 加 0.15
-    - 已识别 repair start 加 0.15
-    - 非 stalled 加 0.1
+    - 基础值 confidence_base
+    - 样本数 >= confidence_sample_threshold 加 confidence_sample_bonus
+    - 使用 pe_pb_blend 加 confidence_blend_bonus
+    - 已识别 repair start 加 confidence_repair_start_bonus
+    - 非 stalled 加 confidence_not_stalled_bonus
     """
-    confidence = 0.4
+    confidence = config.confidence_base
 
-    if sample_count >= 252:
-        confidence += 0.2
+    if sample_count >= config.confidence_sample_threshold:
+        confidence += config.confidence_sample_bonus
 
     if composite_method == "pe_pb_blend":
-        confidence += 0.15
+        confidence += config.confidence_blend_bonus
 
     if has_repair_start:
-        confidence += 0.15
+        confidence += config.confidence_repair_start_bonus
 
     if not is_stalled:
-        confidence += 0.1
+        confidence += config.confidence_not_stalled_bonus
 
     return min(1.0, confidence)
 
@@ -567,11 +580,12 @@ def analyze_repair_status(
     stock_name: str,
     history: List[Dict],
     as_of_date: Optional[date] = None,
-    lookback_days: int = DEFAULT_LOOKBACK_DAYS,
-    confirm_window: int = DEFAULT_CONFIRM_WINDOW,
-    min_rebound: float = DEFAULT_MIN_REBOUND,
-    stall_window: int = DEFAULT_STALL_WINDOW,
-    stall_min_progress: float = DEFAULT_STALL_MIN_PROGRESS
+    lookback_days: Optional[int] = None,
+    confirm_window: Optional[int] = None,
+    min_rebound: Optional[float] = None,
+    stall_window: Optional[int] = None,
+    stall_min_progress: Optional[float] = None,
+    config: ValuationRepairConfig = DEFAULT_VALUATION_REPAIR_CONFIG
 ) -> ValuationRepairStatus:
     """分析估值修复状态（主入口）
 
@@ -583,11 +597,12 @@ def analyze_repair_status(
             - pe: float
             - pb: float
         as_of_date: 分析基准日期（默认使用最新记录日期）
-        lookback_days: 回看窗口（交易日样本数）
-        confirm_window: 修复确认窗口
-        min_rebound: 最小反弹幅度
-        stall_window: 停滞检测窗口
-        stall_min_progress: 停滞最小进展阈值
+        lookback_days: 回看窗口（交易日样本数），None 使用 config 默认值
+        confirm_window: 修复确认窗口，None 使用 config 默认值
+        min_rebound: 最小反弹幅度，None 使用 config 默认值
+        stall_window: 停滞检测窗口，None 使用 config 默认值
+        stall_min_progress: 停滞最小进展阈值，None 使用 config 默认值
+        config: 策略参数配置
 
     Returns:
         ValuationRepairStatus
@@ -597,7 +612,7 @@ def analyze_repair_status(
         InvalidValuationDataError: 估值数据无效
     """
     # 1. 构建百分位序列
-    series = build_percentile_series(history, lookback_days)
+    series = build_percentile_series(history, lookback_days, config)
 
     # 2. 获取当前状态（最新记录）
     latest = series[-1]
@@ -606,7 +621,7 @@ def analyze_repair_status(
 
     # 3. 检测修复起点
     repair_start_date, repair_start_percentile = detect_repair_start(
-        series, confirm_window, min_rebound
+        series, confirm_window, min_rebound, config
     )
 
     # 4. 找全局最低点
@@ -614,7 +629,7 @@ def analyze_repair_status(
 
     # 5. 检测停滞
     is_stalled, stall_start_date, stall_duration = detect_stall(
-        series, repair_start_date or as_of_date, stall_window, stall_min_progress
+        series, repair_start_date or as_of_date, stall_window, stall_min_progress, config
     )
 
     # 6. 确定阶段
@@ -622,7 +637,8 @@ def analyze_repair_status(
         latest.composite_percentile,
         repair_start_date,
         repair_start_percentile,
-        is_stalled
+        is_stalled,
+        config
     )
 
     # 7. 计算进度、速度、ETA
@@ -639,7 +655,9 @@ def analyze_repair_status(
 
         repair_progress = calculate_repair_progress(
             latest.composite_percentile,
-            repair_start_percentile
+            repair_start_percentile,
+            config.target_percentile,
+            config
         )
 
         repair_speed = calculate_repair_speed_per_30d(
@@ -650,8 +668,9 @@ def analyze_repair_status(
 
         eta = estimate_days_to_target(
             latest.composite_percentile,
-            DEFAULT_TARGET_PERCENTILE,
-            repair_speed
+            config.target_percentile,
+            repair_speed,
+            config
         )
     else:
         repair_duration = 0
@@ -661,7 +680,8 @@ def analyze_repair_status(
         len(series),
         latest.composite_method,
         repair_start_date is not None,
-        is_stalled
+        is_stalled,
+        config
     )
 
     # 9. 映射信号
@@ -700,7 +720,7 @@ def analyze_repair_status(
         lowest_percentile=lowest_point.composite_percentile,
         lowest_percentile_date=lowest_point.trade_date,
         repair_progress=repair_progress,
-        target_percentile=DEFAULT_TARGET_PERCENTILE,
+        target_percentile=config.target_percentile,
         repair_speed_per_30d=repair_speed,
         estimated_days_to_target=eta,
         is_stalled=is_stalled,

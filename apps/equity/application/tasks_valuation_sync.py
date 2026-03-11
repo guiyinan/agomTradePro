@@ -1,4 +1,5 @@
 from celery import shared_task
+from django.conf import settings
 
 from apps.equity.application.use_cases_valuation_repair import (
     ScanValuationRepairsRequest,
@@ -18,7 +19,10 @@ from apps.equity.infrastructure.repositories import (
 )
 
 
-@shared_task(time_limit=1800, soft_time_limit=1700)
+@shared_task(
+    time_limit=getattr(settings, 'EQUITY_VALUATION_SYNC_TASK_TIMEOUT', 1800),
+    soft_time_limit=getattr(settings, 'EQUITY_VALUATION_SYNC_TASK_SOFT_TIMEOUT', 1700)
+)
 def sync_equity_valuation_task(days_back: int = 1, primary_source: str = "akshare", fallback_source: str = "tushare") -> dict:
     use_case = SyncEquityValuationUseCase(stock_repository=DjangoStockRepository())
     response = use_case.execute(
@@ -31,7 +35,10 @@ def sync_equity_valuation_task(days_back: int = 1, primary_source: str = "akshar
     return response.data if response.success else {"success": False, "error": response.error}
 
 
-@shared_task(time_limit=600, soft_time_limit=570)
+@shared_task(
+    time_limit=getattr(settings, 'EQUITY_VALUATION_VALIDATE_TASK_TIMEOUT', 600),
+    soft_time_limit=getattr(settings, 'EQUITY_VALUATION_VALIDATE_TASK_SOFT_TIMEOUT', 570)
+)
 def validate_equity_valuation_quality_task(primary_source: str = "akshare") -> dict:
     use_case = ValidateEquityValuationQualityUseCase(
         stock_repository=DjangoStockRepository(),
@@ -43,17 +50,24 @@ def validate_equity_valuation_quality_task(primary_source: str = "akshare") -> d
     return response.data if response.success else {"success": False, "error": response.error}
 
 
-@shared_task(time_limit=2400, soft_time_limit=2300)
+@shared_task(
+    time_limit=getattr(settings, 'EQUITY_VALUATION_SCAN_TASK_TIMEOUT', 2400),
+    soft_time_limit=getattr(settings, 'EQUITY_VALUATION_SCAN_TASK_SOFT_TIMEOUT', 2300)
+)
 def sync_validate_scan_equity_valuation_task(
     days_back: int = 1,
     primary_source: str = "akshare",
     fallback_source: str = "tushare",
     universe: str = "all_active",
-    lookback_days: int = 756,
+    lookback_days: int | None = None,
 ) -> dict:
     """日常编排任务：同步 -> 质量校验 -> gate通过才scan。"""
     stock_repo = DjangoStockRepository()
     quality_repo = DjangoValuationDataQualityRepository()
+
+    # 从 settings 获取默认值
+    if lookback_days is None:
+        lookback_days = getattr(settings, 'EQUITY_VALUATION_DEFAULT_LOOKBACK_DAYS', 756)
 
     sync_response = SyncEquityValuationUseCase(stock_repository=stock_repo).execute(
         SyncEquityValuationRequest(

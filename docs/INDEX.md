@@ -46,6 +46,7 @@
 |------|------|------|
 | [AgomSAAF_V3.4.md](business/AgomSAAF_V3.4.md) | 核心业务需求文档（2650行） | 最新 |
 | [valuation-pricing-engine.md](business/valuation-pricing-engine.md) | **估值定价引擎业务文档** | ✅ 2026-03-02 新增 |
+| [valuation-repair-config.md](business/valuation-repair-config.md) | **估值修复策略参数配置（在线调参/版本管理/回滚）** | ✅ 2026-03-11 新增 |
 | [alpha-quickstart.md](business/alpha-quickstart.md) | Alpha 模块快速开始指南 | 完整 |
 | [equity-valuation-logic.md](business/equity-valuation-logic.md) | 个股估值逻辑 | 完整 |
 | [regime_calculation_logic.md](business/regime_calculation_logic.md) | Regime 计算逻辑 | 完整 |
@@ -328,7 +329,18 @@
 
 ---
 
-## 最近更新 (2026-02-20 ~ 2026-03-02)
+## 最近更新 (2026-02-20 ~ 2026-03-11)
+
+### 2026-03-11
+- ✅ **估值修复策略参数配置系统**
+  - 新增 Domain 层 `ValuationRepairConfig` dataclass（22 个参数）
+  - 新增 DB 模型 `ValuationRepairConfigModel`（版本管理 + 激活机制）
+  - 新增 Application 层配置工厂（缓存 + DB + Settings + 默认值优先级）
+  - 新增 API 端点 5 个（active/list/create/activate/rollback）
+  - 新增 Web UI 配置管理页面（`/equity/valuation-repair/config/`）
+  - 新增 SDK/MCP 工具 5 个（get/list/create/activate/rollback_valuation_repair_config）
+  - 新增配置文档（`docs/business/valuation-repair-config.md`）
+  - 移除 Domain 层所有硬编码阈值
 
 ### 2026-03-02
 - ✅ **估值定价引擎与执行审批闭环 - Phase 1 完成**

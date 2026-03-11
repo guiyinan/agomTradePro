@@ -20,21 +20,11 @@ from decimal import Decimal
 from apps.equity.domain.entities_valuation_repair import (
     ValuationRepairPhase,
     PercentilePoint,
-    ValuationRepairStatus
+    ValuationRepairStatus,
+    ValuationRepairConfig,
+    DEFAULT_VALUATION_REPAIR_CONFIG,
 )
 from apps.equity.domain.services_valuation_repair import (
-    # 常量
-    MIN_HISTORY_POINTS,
-    DEFAULT_LOOKBACK_DAYS,
-    DEFAULT_CONFIRM_WINDOW,
-    DEFAULT_MIN_REBOUND,
-    DEFAULT_STALL_WINDOW,
-    DEFAULT_STALL_MIN_PROGRESS,
-    DEFAULT_TARGET_PERCENTILE,
-    UNDERVERLUED_THRESHOLD,
-    NEAR_TARGET_THRESHOLD,
-    OVERVALUED_THRESHOLD,
-
     # 异常
     InsufficientHistoryError,
     InvalidValuationDataError,
@@ -192,7 +182,7 @@ class TestBuildPercentileSeries:
         """测试历史数据不足"""
         history = []
 
-        for i in range(100):  # 少于 MIN_HISTORY_POINTS (120)
+        for i in range(100):  # 少于 config.min_history_points (120)
             history.append(make_history_record(
                 make_date(i),
                 10.0 + i * 0.1,
@@ -1342,7 +1332,7 @@ class TestAnalyzeRepairStatus:
         """测试历史数据不足抛出异常"""
         history = []
 
-        for i in range(100):  # 少于 MIN_HISTORY_POINTS
+        for i in range(100):  # 少于 config.min_history_points (120)
             history.append(make_history_record(
                 make_date(i),
                 10.0 + i * 0.1,

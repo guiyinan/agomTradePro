@@ -23,6 +23,7 @@ from apps.equity.domain.entities_valuation_repair import (
     ValuationRepairStatus,
     PercentilePoint,
 )
+from apps.equity.application.config import get_valuation_repair_config
 
 logger = logging.getLogger(__name__)
 
@@ -162,7 +163,8 @@ class GetValuationRepairStatusUseCase:
                 stock_code=request.stock_code,
                 stock_name=stock_info.name,
                 history=history_dicts,
-                lookback_days=request.lookback_days
+                lookback_days=request.lookback_days,
+                config=get_valuation_repair_config(),
             )
 
             # 5. 转换为字典返回
@@ -283,7 +285,8 @@ class GetValuationPercentileHistoryUseCase:
             # 3. 调用 Domain 层构建百分位序列
             series = build_percentile_series(
                 history_dicts,
-                lookback_days=request.lookback_days
+                lookback_days=request.lookback_days,
+                config=get_valuation_repair_config(),
             )
 
             # 4. 转换为字典列表
@@ -527,7 +530,8 @@ class ScanValuationRepairsUseCase:
             stock_code=stock_code,
             stock_name=stock_info.name,
             history=history_dicts,
-            lookback_days=lookback_days
+            lookback_days=lookback_days,
+            config=get_valuation_repair_config(),
         )
 
 

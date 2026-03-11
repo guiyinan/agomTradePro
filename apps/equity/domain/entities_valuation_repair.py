@@ -6,10 +6,80 @@
 - 只使用 Python 标准库和 dataclasses
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
 from typing import Optional
+
+
+@dataclass(frozen=True)
+class ValuationRepairConfig:
+    """估值修复策略参数配置（不可变值对象）
+
+    所有阈值集中管理，便于：
+    - 单元测试注入不同配置
+    - 未来从 settings 覆盖
+    - 最终迁移到数据库配置表
+
+    Attributes:
+        min_history_points: 最小历史样本数（低于此值抛异常）
+        default_lookback_days: 默认回看交易日数
+        confirm_window: 修复确认窗口（交易日）
+        min_rebound: 最小反弹幅度（百分位点）
+        stall_window: 停滞检测窗口（交易日）
+        stall_min_progress: 停滞最小进展阈值
+        target_percentile: 目标百分位
+        undervalued_threshold: 低估阈值
+        near_target_threshold: 接近目标阈值
+        overvalued_threshold: 高估阈值
+        pe_weight: PE 权重
+        pb_weight: PB 权重
+        confidence_base: 置信度基础值
+        confidence_sample_bonus: 样本数达标奖励
+        confidence_sample_threshold: 样本数达标阈值
+        confidence_blend_bonus: 使用 pe_pb_blend 奖励
+        confidence_repair_start_bonus: 已识别修复起点奖励
+        confidence_not_stalled_bonus: 非停滞奖励
+        repairing_threshold: REPAIRING 阶段阈值（相对起点）
+        eta_max_days: ETA 最大天数
+    """
+    # 历史数据要求
+    min_history_points: int = 120
+    default_lookback_days: int = 756
+
+    # 修复确认参数
+    confirm_window: int = 20
+    min_rebound: float = 0.05
+
+    # 停滞检测参数
+    stall_window: int = 40
+    stall_min_progress: float = 0.02
+
+    # 阶段判定阈值
+    target_percentile: float = 0.50
+    undervalued_threshold: float = 0.20
+    near_target_threshold: float = 0.45
+    overvalued_threshold: float = 0.80
+
+    # 复合百分位权重
+    pe_weight: float = 0.6
+    pb_weight: float = 0.4
+
+    # 置信度计算参数
+    confidence_base: float = 0.4
+    confidence_sample_threshold: int = 252
+    confidence_sample_bonus: float = 0.2
+    confidence_blend_bonus: float = 0.15
+    confidence_repair_start_bonus: float = 0.15
+    confidence_not_stalled_bonus: float = 0.1
+
+    # 其他阈值
+    repairing_threshold: float = 0.10  # REPAIRING 阶段需要相对起点提升
+    eta_max_days: int = 999
+
+
+# 默认配置实例（单例）
+DEFAULT_VALUATION_REPAIR_CONFIG = ValuationRepairConfig()
 
 
 class ValuationRepairPhase(Enum):

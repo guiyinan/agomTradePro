@@ -774,3 +774,206 @@ class ValuationDataQualitySnapshotModel(models.Model):
 
     def __str__(self):
         return f"{self.as_of_date} gate={'pass' if self.is_gate_passed else 'fail'}"
+
+
+class ValuationRepairConfigModel(models.Model):
+    """估值修复策略参数配置表
+
+    支持在线调参，包含版本控制、生效时间和审计。
+    同一时间只能有一个 is_active=True 的配置生效。
+    """
+
+    # ============== 版本与状态 ==============
+    version = models.IntegerField(
+        default=1,
+        verbose_name="版本号"
+    )
+    is_active = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name="是否激活（生效中）"
+    )
+    effective_from = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="生效时间"
+    )
+
+    # ============== 历史数据要求 ==============
+    min_history_points = models.IntegerField(
+        default=120,
+        verbose_name="最小历史样本数"
+    )
+    default_lookback_days = models.IntegerField(
+        default=756,
+        verbose_name="默认回看交易日数"
+    )
+
+    # ============== 修复确认参数 ==============
+    confirm_window = models.IntegerField(
+        default=20,
+        verbose_name="修复确认窗口（交易日）"
+    )
+    min_rebound = models.FloatField(
+        default=0.05,
+        verbose_name="最小反弹幅度（百分位）"
+    )
+
+    # ============== 停滞检测参数 ==============
+    stall_window = models.IntegerField(
+        default=40,
+        verbose_name="停滞检测窗口（交易日）"
+    )
+    stall_min_progress = models.FloatField(
+        default=0.02,
+        verbose_name="停滞最小进展阈值"
+    )
+
+    # ============== 阶段判定阈值 ==============
+    target_percentile = models.FloatField(
+        default=0.50,
+        verbose_name="目标百分位"
+    )
+    undervalued_threshold = models.FloatField(
+        default=0.20,
+        verbose_name="低估阈值"
+    )
+    near_target_threshold = models.FloatField(
+        default=0.45,
+        verbose_name="接近目标阈值"
+    )
+    overvalued_threshold = models.FloatField(
+        default=0.80,
+        verbose_name="高估阈值"
+    )
+
+    # ============== 复合百分位权重 ==============
+    pe_weight = models.FloatField(
+        default=0.6,
+        verbose_name="PE 权重"
+    )
+    pb_weight = models.FloatField(
+        default=0.4,
+        verbose_name="PB 权重"
+    )
+
+    # ============== 置信度计算参数 ==============
+    confidence_base = models.FloatField(
+        default=0.4,
+        verbose_name="置信度基础值"
+    )
+    confidence_sample_threshold = models.IntegerField(
+        default=252,
+        verbose_name="置信度样本数阈值"
+    )
+    confidence_sample_bonus = models.FloatField(
+        default=0.2,
+        verbose_name="置信度样本数奖励"
+    )
+    confidence_blend_bonus = models.FloatField(
+        default=0.15,
+        verbose_name="置信度 pe_pb_blend 奖励"
+    )
+    confidence_repair_start_bonus = models.FloatField(
+        default=0.15,
+        verbose_name="置信度修复起点奖励"
+    )
+    confidence_not_stalled_bonus = models.FloatField(
+        default=0.1,
+        verbose_name="置信度非停滞奖励"
+    )
+
+    # ============== 其他阈值 ==============
+    repairing_threshold = models.FloatField(
+        default=0.10,
+        verbose_name="REPAIRING 阶段阈值"
+    )
+    eta_max_days = models.IntegerField(
+        default=999,
+        verbose_name="ETA 最大天数"
+    )
+
+    # ============== 审计字段 ==============
+    change_reason = models.TextField(
+        default="",
+        blank=True,
+        verbose_name="变更原因"
+    )
+    created_by = models.CharField(
+        max_length=64,
+        default="",
+        blank=True,
+        verbose_name="创建人"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="创建时间"
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="更新时间"
+    )
+
+    class Meta:
+        db_table = "equity_valuation_repair_config"
+        verbose_name = "估值修复策略参数"
+        verbose_name_plural = "估值修复策略参数"
+        ordering = ["-version"]
+        indexes = [
+            models.Index(fields=["is_active", "effective_from"]),
+            models.Index(fields=["version"]),
+        ]
+
+    def __str__(self):
+        status = "ACTIVE" if self.is_active else "DRAFT"
+        return f"Config v{self.version} [{status}]"
+
+    def save(self, *args, **kwargs):
+        """保存时自动处理版本号和激活状态"""
+        # 新建记录时自动计算版本号
+        if not self.pk:
+            max_version = ValuationRepairConfigModel.objects.aggregate(
+                max_v=models.Max('version')
+            )['max_v'] or 0
+            self.version = max_version + 1
+
+        # 如果设置为激活，先停用其他配置
+        if self.is_active:
+            ValuationRepairConfigModel.objects.filter(
+                is_active=True
+            ).exclude(pk=self.pk).update(is_active=False)
+            if not self.effective_from:
+                self.effective_from = timezone.now()
+
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_active_config(cls):
+        """获取当前激活的配置"""
+        return cls.objects.filter(is_active=True).first()
+
+    def to_domain_config(self):
+        """转换为 Domain 层配置对象"""
+        from apps.equity.domain.entities_valuation_repair import ValuationRepairConfig
+        return ValuationRepairConfig(
+            min_history_points=self.min_history_points,
+            default_lookback_days=self.default_lookback_days,
+            confirm_window=self.confirm_window,
+            min_rebound=self.min_rebound,
+            stall_window=self.stall_window,
+            stall_min_progress=self.stall_min_progress,
+            target_percentile=self.target_percentile,
+            undervalued_threshold=self.undervalued_threshold,
+            near_target_threshold=self.near_target_threshold,
+            overvalued_threshold=self.overvalued_threshold,
+            pe_weight=self.pe_weight,
+            pb_weight=self.pb_weight,
+            confidence_base=self.confidence_base,
+            confidence_sample_threshold=self.confidence_sample_threshold,
+            confidence_sample_bonus=self.confidence_sample_bonus,
+            confidence_blend_bonus=self.confidence_blend_bonus,
+            confidence_repair_start_bonus=self.confidence_repair_start_bonus,
+            confidence_not_stalled_bonus=self.confidence_not_stalled_bonus,
+            repairing_threshold=self.repairing_threshold,
+            eta_max_days=self.eta_max_days,
+        )

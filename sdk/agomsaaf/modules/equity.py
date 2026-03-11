@@ -453,3 +453,151 @@ class EquityModule(BaseModule):
         获取最近一次估值数据质量快照。
         """
         return self._get("valuation-data/quality-latest/")
+
+    # ============== 估值修复配置管理 ==============
+
+    def get_valuation_repair_config(self) -> dict[str, Any]:
+        """
+        获取当前激活的估值修复策略参数配置。
+
+        Returns:
+            当前激活的配置，包含所有阈值参数
+
+        Example:
+            >>> config = client.equity.get_valuation_repair_config()
+            >>> print(f"目标百分位: {config['target_percentile']}")
+        """
+        response = self._get("config/valuation-repair/active/")
+        return response.get("data", response)
+
+    def list_valuation_repair_configs(self, limit: int = 20) -> list[dict[str, Any]]:
+        """
+        列出所有估值修复配置版本。
+
+        Args:
+            limit: 返回数量限制
+
+        Returns:
+            配置版本列表
+
+        Example:
+            >>> configs = client.equity.list_valuation_repair_configs()
+        """
+        response = self._get("config/valuation-repair/", params={"limit": limit})
+        return response.get("results", response)
+
+    def create_valuation_repair_config(
+        self,
+        change_reason: str,
+        min_history_points: int = 120,
+        default_lookback_days: int = 756,
+        confirm_window: int = 20,
+        min_rebound: float = 0.05,
+        stall_window: int = 40,
+        stall_min_progress: float = 0.02,
+        target_percentile: float = 0.50,
+        undervalued_threshold: float = 0.20,
+        near_target_threshold: float = 0.45,
+        overvalued_threshold: float = 0.80,
+        pe_weight: float = 0.6,
+        pb_weight: float = 0.4,
+        confidence_base: float = 0.4,
+        confidence_sample_threshold: int = 252,
+        confidence_sample_bonus: float = 0.2,
+        confidence_blend_bonus: float = 0.15,
+        confidence_repair_start_bonus: float = 0.15,
+        confidence_not_stalled_bonus: float = 0.1,
+        repairing_threshold: float = 0.10,
+        eta_max_days: int = 999,
+    ) -> dict[str, Any]:
+        """
+        创建新的估值修复配置（草稿状态）。
+
+        Args:
+            change_reason: 变更原因（必填）
+            min_history_points: 最小历史样本数
+            default_lookback_days: 默认回看交易日数
+            confirm_window: 修复确认窗口（交易日）
+            min_rebound: 最小反弹幅度（百分位）
+            stall_window: 停滞检测窗口（交易日）
+            stall_min_progress: 停滞最小进展阈值
+            target_percentile: 目标百分位
+            undervalued_threshold: 低估阈值
+            near_target_threshold: 接近目标阈值
+            overvalued_threshold: 高估阈值
+            pe_weight: PE 权重
+            pb_weight: PB 权重
+            confidence_base: 置信度基础值
+            confidence_sample_threshold: 置信度样本数阈值
+            confidence_sample_bonus: 置信度样本数奖励
+            confidence_blend_bonus: 置信度 Blend 奖励
+            confidence_repair_start_bonus: 置信度修复起点奖励
+            confidence_not_stalled_bonus: 置信度非停滞奖励
+            repairing_threshold: REPAIRING 阶段阈值
+            eta_max_days: ETA 最大天数
+
+        Returns:
+            创建的配置
+
+        Example:
+            >>> config = client.equity.create_valuation_repair_config(
+            ...     change_reason="调高目标百分位",
+            ...     target_percentile=0.55,
+            ... )
+        """
+        data = {
+            "change_reason": change_reason,
+            "min_history_points": min_history_points,
+            "default_lookback_days": default_lookback_days,
+            "confirm_window": confirm_window,
+            "min_rebound": min_rebound,
+            "stall_window": stall_window,
+            "stall_min_progress": stall_min_progress,
+            "target_percentile": target_percentile,
+            "undervalued_threshold": undervalued_threshold,
+            "near_target_threshold": near_target_threshold,
+            "overvalued_threshold": overvalued_threshold,
+            "pe_weight": pe_weight,
+            "pb_weight": pb_weight,
+            "confidence_base": confidence_base,
+            "confidence_sample_threshold": confidence_sample_threshold,
+            "confidence_sample_bonus": confidence_sample_bonus,
+            "confidence_blend_bonus": confidence_blend_bonus,
+            "confidence_repair_start_bonus": confidence_repair_start_bonus,
+            "confidence_not_stalled_bonus": confidence_not_stalled_bonus,
+            "repairing_threshold": repairing_threshold,
+            "eta_max_days": eta_max_days,
+        }
+        return self._post("config/valuation-repair/", json=data)
+
+    def activate_valuation_repair_config(self, config_id: int) -> dict[str, Any]:
+        """
+        激活指定的估值修复配置。
+
+        激活后，新配置立即生效，同时停用其他配置。
+
+        Args:
+            config_id: 配置 ID
+
+        Returns:
+            激活结果
+
+        Example:
+            >>> result = client.equity.activate_valuation_repair_config(5)
+        """
+        return self._post(f"config/valuation-repair/{config_id}/activate/")
+
+    def rollback_valuation_repair_config(self, config_id: int) -> dict[str, Any]:
+        """
+        回滚到指定的估值修复配置版本。
+
+        Args:
+            config_id: 要回滚到的配置 ID
+
+        Returns:
+            回滚结果
+
+        Example:
+            >>> result = client.equity.rollback_valuation_repair_config(3)
+        """
+        return self._post(f"config/valuation-repair/{config_id}/rollback/")

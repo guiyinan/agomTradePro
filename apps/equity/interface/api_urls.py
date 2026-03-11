@@ -9,12 +9,17 @@ This module is mounted under:
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .views import EquityMultiDimScreenAPIView, EquityViewSet
+from .views import (
+    EquityMultiDimScreenAPIView,
+    EquityViewSet,
+    ValuationRepairConfigViewSet,
+)
 
 app_name = "equity_api"
 
 router = DefaultRouter()
 router.register(r"", EquityViewSet, basename="equity")
+router.register(r"config/valuation-repair", ValuationRepairConfigViewSet, basename="valuation-repair-config")
 
 urlpatterns = [
     path("", include(router.urls)),

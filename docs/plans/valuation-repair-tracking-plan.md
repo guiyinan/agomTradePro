@@ -400,6 +400,47 @@ list_valuation_repairs(phase="repairing", limit=20)
 - `scan_valuation_repairs` 只应在 `is_gate_passed=True` 后执行
 - 估值修复结果当前只适合作为候选池辅助信号，不应直接驱动自动交易
 
+## 配置参数管理
+
+估值修复策略参数已支持在线调整，无需修改代码。
+
+### 配置优先级
+
+1. 缓存（5 分钟 TTL）
+2. 数据库激活配置
+3. Django Settings
+4. 代码默认值
+
+### MCP 配置工具
+
+```python
+# 获取当前激活配置
+get_valuation_repair_config()
+
+# 列出历史版本
+list_valuation_repair_configs(limit=20)
+
+# 创建新配置
+create_valuation_repair_config(
+    change_reason=”调高目标百分位”,
+    target_percentile=0.55,
+)
+
+# 激活配置
+activate_valuation_repair_config(config_id=2)
+
+# 回滚到指定版本
+rollback_valuation_repair_config(config_id=1)
+```
+
+### Web UI
+
+访问 `/equity/valuation-repair/config/` 进行可视化配置管理。
+
+### 详细文档
+
+参见 [估值修复策略参数配置](../business/valuation-repair-config.md)。
+
 ## Assumptions And Defaults
 
 - 当前仓库允许继续在 `apps/equity` 内扩展，不新建独立 app
@@ -407,4 +448,5 @@ list_valuation_repairs(phase="repairing", limit=20)
 - 本期主源固定为 `AKShare`，备源固定为 `Tushare`
 - 本期已实现最小可用 provider 同步器，但生产级 Tushare 备源联调依赖实际 token 配置
 - gate 未通过时阻断 `scan`，但不阻断单股 `status/history`
-- 交易用途固定为“候选池辅助”
+- 交易用途固定为”候选池辅助”
+- 策略参数可通过 Web UI 或 API 在线调整，无需重启服务
