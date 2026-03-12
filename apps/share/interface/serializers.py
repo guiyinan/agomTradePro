@@ -34,6 +34,7 @@ class ShareLinkSerializer(serializers.ModelSerializer):
             "short_code",
             "title",
             "subtitle",
+            "theme",
             "share_level",
             "status",
             "has_password",
@@ -90,6 +91,10 @@ class CreateShareLinkSerializer(serializers.Serializer):
     account_id = serializers.IntegerField(min_value=1)
     title = serializers.CharField(max_length=100)
     subtitle = serializers.CharField(max_length=200, required=False, allow_null=True)
+    theme = serializers.ChoiceField(
+        choices=["bloomberg", "monopoly"],
+        default="bloomberg",
+    )
     share_level = serializers.ChoiceField(
         choices=["snapshot", "observer", "research"],
         default="snapshot",
@@ -125,6 +130,10 @@ class UpdateShareLinkSerializer(serializers.Serializer):
     """
     title = serializers.CharField(max_length=100, required=False)
     subtitle = serializers.CharField(max_length=200, required=False, allow_null=True)
+    theme = serializers.ChoiceField(
+        choices=["bloomberg", "monopoly"],
+        required=False,
+    )
     share_level = serializers.ChoiceField(
         choices=["snapshot", "observer", "research"],
         required=False,
@@ -211,6 +220,7 @@ class PublicShareLinkSerializer(serializers.ModelSerializer):
         fields = [
             "title",
             "subtitle",
+            "theme",
             "share_level",
             "visibility",
             "last_snapshot_at",

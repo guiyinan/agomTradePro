@@ -12,6 +12,7 @@ app_name = "share"
 
 urlpatterns = [
     path("share/manage/", share_manage_page, name="manage"),
+    path("share/manage/<int:share_link_id>/edit/", share_manage_page, name="edit"),
     path("share/manage/<int:share_link_id>/revoke/", revoke_share_link_page, name="revoke"),
     path("share/manage/<int:share_link_id>/refresh/", refresh_share_link_page, name="refresh"),
     path(

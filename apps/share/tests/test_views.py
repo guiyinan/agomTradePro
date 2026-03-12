@@ -10,7 +10,7 @@ from apps.decision_rhythm.infrastructure.models import (
     DecisionResponseModel,
     UnifiedRecommendationModel,
 )
-from apps.share.infrastructure.models import ShareSnapshotModel
+from apps.share.infrastructure.models import ShareLinkModel, ShareSnapshotModel
 from apps.simulated_trading.infrastructure.models import PositionModel, SimulatedTradeModel
 
 
@@ -41,6 +41,7 @@ def test_public_share_page_renders_snapshot_data(active_share_link, test_snapsho
     content = response.content.decode("utf-8")
     assert active_share_link.title in content
     assert "收益曲线" in content
+    assert "testuser" in content
 
 
 @pytest.mark.django_db
@@ -51,6 +52,92 @@ def test_share_manage_page_requires_login_and_renders(client, test_user):
 
     assert response.status_code == 200
     assert "账户分享管理" in response.content.decode("utf-8")
+
+
+@pytest.mark.django_db
+def test_share_manage_edit_page_renders_edit_state(client, test_user, active_share_link):
+    client.force_login(test_user)
+
+    response = client.get(f"/share/manage/{active_share_link.id}/edit/")
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "编辑分享链接" in content
+    assert "保存修改" in content
+    assert active_share_link.title in content
+    assert "模拟盘" in content
+    assert "彭博终端风格" in content
+    assert "大富翁游戏风格" in content
+
+
+@pytest.mark.django_db
+def test_share_manage_create_persists_selected_theme(client, test_user, test_account):
+    client.force_login(test_user)
+
+    response = client.post(
+        "/share/manage/",
+        {
+            "account_id": test_account.id,
+            "title": "客户围观页",
+            "subtitle": "主题测试",
+            "theme": "monopoly",
+            "share_level": "observer",
+            "show_positions": "on",
+            "show_transactions": "on",
+            "show_decision_summary": "on",
+        },
+    )
+
+    assert response.status_code == 302
+    latest = ShareLinkModel.objects.get(title="客户围观页")
+    assert latest.theme == "monopoly"
+
+
+@pytest.mark.django_db
+def test_public_share_page_renders_selected_theme_class(active_share_link, client):
+    active_share_link.theme = "monopoly"
+    active_share_link.save(update_fields=["theme"])
+
+    response = client.get(f"/share/{active_share_link.short_code}/")
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert 'class="share-page theme-monopoly"' in content
+
+
+@pytest.mark.django_db
+def test_share_manage_edit_updates_theme(client, test_user, active_share_link):
+    client.force_login(test_user)
+
+    response = client.post(
+        f"/share/manage/{active_share_link.id}/edit/",
+        {
+            "share_link_id": active_share_link.id,
+            "account_id": active_share_link.account_id,
+            "title": active_share_link.title,
+            "subtitle": active_share_link.subtitle or "",
+            "theme": "monopoly",
+            "share_level": active_share_link.share_level,
+            "show_positions": "on",
+            "show_transactions": "on",
+            "show_decision_summary": "on",
+        },
+    )
+
+    assert response.status_code == 302
+    active_share_link.refresh_from_db()
+    assert active_share_link.theme == "monopoly"
+
+
+@pytest.mark.django_db
+def test_public_snapshot_is_built_live_when_missing(active_share_link):
+    client = APIClient()
+
+    response = client.get(f"/api/share/public/{active_share_link.short_code}/snapshot/")
+
+    assert response.status_code == 200
+    assert response.data["summary"]["account_name"] == "Test Account"
+    assert ShareSnapshotModel.objects.filter(share_link=active_share_link).exists()
 
 
 @pytest.mark.django_db

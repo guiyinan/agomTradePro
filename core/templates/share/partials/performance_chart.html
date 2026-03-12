@@ -35,9 +35,23 @@
     if (!chartDom) return;
 
     const myChart = echarts.init(chartDom);
+    const pageStyles = getComputedStyle(document.body);
+    const chartPalette = {
+        accent: pageStyles.getPropertyValue('--terminal-accent').trim() || '#f59e0b',
+        benchmark: pageStyles.getPropertyValue('--chart-benchmark-color').trim() || '#6b7280',
+        axis: pageStyles.getPropertyValue('--chart-axis-color').trim() || '#2a3441',
+        grid: pageStyles.getPropertyValue('--chart-grid-color').trim() || '#1d2733',
+        label: pageStyles.getPropertyValue('--chart-label-color').trim() || '#8f9baa',
+        tooltipBg: pageStyles.getPropertyValue('--chart-tooltip-bg').trim() || 'rgba(12, 17, 24, 0.96)',
+        tooltipBorder: pageStyles.getPropertyValue('--chart-tooltip-border').trim() || '#3b4655',
+        tooltipText: pageStyles.getPropertyValue('--chart-tooltip-text').trim() || '#d7dde6',
+        areaStart: pageStyles.getPropertyValue('--chart-portfolio-area-start').trim() || 'rgba(245, 158, 11, 0.22)',
+        areaEnd: pageStyles.getPropertyValue('--chart-portfolio-area-end').trim() || 'rgba(245, 158, 11, 0.02)'
+    };
 
     // 图表配置（后续通过 API 获取实际数据）
     const option = {
+        backgroundColor: 'transparent',
         grid: {
             left: '3%',
             right: '4%',
@@ -48,7 +62,16 @@
         tooltip: {
             trigger: 'axis',
             axisPointer: {
-                type: 'cross'
+                type: 'cross',
+                lineStyle: {
+                    color: chartPalette.accent
+                }
+            },
+            backgroundColor: chartPalette.tooltipBg,
+            borderColor: chartPalette.tooltipBorder,
+            borderWidth: 1,
+            textStyle: {
+                color: chartPalette.tooltipText
             },
             formatter: function(params) {
                 let result = params[0].axisValue + '<br/>';
@@ -60,7 +83,10 @@
         },
         legend: {
             data: ['组合净值', '基准'],
-            top: 0
+            top: 0,
+            textStyle: {
+                color: chartPalette.label
+            }
         },
         xAxis: {
             type: 'category',
@@ -68,11 +94,11 @@
             data: {{ chart_dates|default:"[]"|safe }},
             axisLine: {
                 lineStyle: {
-                    color: '#e2e8f0'
+                    color: chartPalette.axis
                 }
             },
             axisLabel: {
-                color: '#64748b',
+                color: chartPalette.label,
                 fontSize: 12
             }
         },
@@ -80,17 +106,17 @@
             type: 'value',
             axisLine: {
                 lineStyle: {
-                    color: '#e2e8f0'
+                    color: chartPalette.axis
                 }
             },
             axisLabel: {
-                color: '#64748b',
+                color: chartPalette.label,
                 fontSize: 12,
                 formatter: '{value}%'
             },
             splitLine: {
                 lineStyle: {
-                    color: '#f1f5f9'
+                    color: chartPalette.grid
                 }
             }
         },
@@ -102,7 +128,7 @@
                 data: {{ portfolio_values|default:"[]"|safe }},
                 lineStyle: {
                     width: 2,
-                    color: '#2563eb'
+                    color: chartPalette.accent
                 },
                 areaStyle: {
                     color: {
@@ -112,8 +138,8 @@
                         x2: 0,
                         y2: 1,
                         colorStops: [
-                            { offset: 0, color: 'rgba(37, 99, 235, 0.3)' },
-                            { offset: 1, color: 'rgba(37, 99, 235, 0.05)' }
+                            { offset: 0, color: chartPalette.areaStart },
+                            { offset: 1, color: chartPalette.areaEnd }
                         ]
                     }
                 }
@@ -125,7 +151,7 @@
                 data: {{ benchmark_values|default:"[]"|safe }},
                 lineStyle: {
                     width: 2,
-                    color: '#94a3b8',
+                    color: chartPalette.benchmark,
                     type: 'dashed'
                 }
             }

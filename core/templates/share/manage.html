@@ -13,18 +13,40 @@
 .share-form-grid { display: grid; gap: 12px; }
 .share-form-grid label { font-weight: 600; font-size: 14px; display: block; margin-bottom: 6px; }
 .share-form-grid input, .share-form-grid select, .share-form-grid textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; }
-.checkbox-list { display: grid; gap: 8px; }
-.checkbox-list label { display: flex; gap: 8px; align-items: center; font-weight: 400; margin: 0; }
+.form-section { border-top: 1px solid #e2e8f0; padding-top: 16px; margin-top: 4px; }
+.form-section:first-of-type { border-top: 0; padding-top: 0; }
+.form-section-title { margin: 0 0 12px; font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: #475569; }
+.theme-choice-grid { display: grid; gap: 10px; }
+.theme-choice { display: block; cursor: pointer; }
+.theme-choice input { position: absolute; opacity: 0; pointer-events: none; }
+.theme-choice-card { display: flex; align-items: flex-start; gap: 10px; border: 1px solid #dbe2ea; border-radius: 12px; padding: 12px 14px; background: #f8fafc; transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease; }
+.theme-choice-indicator { width: 16px; height: 16px; margin-top: 2px; border-radius: 999px; border: 2px solid #94a3b8; background: #fff; flex: 0 0 auto; }
+.theme-choice-body { min-width: 0; }
+.theme-choice-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+.theme-choice-desc { color: #475569; font-size: 13px; line-height: 1.5; margin: 0; }
+.theme-choice input:checked + .theme-choice-card { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14); background: #eff6ff; }
+.theme-choice input:checked + .theme-choice-card .theme-choice-indicator { border-color: #2563eb; box-shadow: inset 0 0 0 4px #2563eb; }
+.checkbox-list { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.checkbox-list label { display: flex; gap: 8px; align-items: flex-start; font-weight: 400; margin: 0; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; line-height: 1.4; }
+.checkbox-list input { width: auto; margin-top: 2px; flex: 0 0 auto; }
 .share-links-list { display: grid; gap: 16px; }
 .share-link-card { border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; background: #f8fafc; }
+.share-link-card.is-editing { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14); background: #eff6ff; }
 .share-link-top { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
-.share-link-meta { color: #475569; font-size: 14px; margin-top: 8px; display: grid; gap: 4px; }
+.share-link-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.share-link-meta { color: #475569; font-size: 14px; margin-top: 12px; display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.share-link-meta-item { background: rgba(255,255,255,.6); border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px; min-height: 64px; }
+.share-link-meta-label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
+.share-link-meta-value { display: block; color: #0f172a; font-weight: 600; word-break: break-word; }
 .share-link-actions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.share-link-actions form { margin: 0; }
 .badge-inline { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: #e2e8f0; font-size: 12px; }
 .badge-inline.active { background: #dcfce7; color: #166534; }
 .badge-inline.revoked { background: #fee2e2; color: #991b1b; }
 .muted { color: #64748b; font-size: 13px; }
-@media (max-width: 960px) { .share-manage-grid { grid-template-columns: 1fr; } .share-manage-header { flex-direction: column; align-items: flex-start; } }
+.edit-state-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; padding: 12px 14px; border-radius: 14px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; }
+.edit-state-banner strong { color: #1e3a8a; }
+@media (max-width: 960px) { .share-manage-grid { grid-template-columns: 1fr; } .share-manage-header { flex-direction: column; align-items: flex-start; } .checkbox-list, .share-link-meta { grid-template-columns: 1fr; } }
 </style>
 {% endblock %}
 
@@ -41,59 +63,104 @@
     </div>
 
     <div class="share-manage-grid">
-        <section class="share-panel">
+        <section class="share-panel" id="share-editor">
             <h2 style="margin-bottom:16px;">{% if edit_share_link %}编辑分享链接{% else %}创建分享链接{% endif %}</h2>
+            {% if edit_share_link %}
+            <div class="edit-state-banner">
+                <div>
+                    <strong>正在编辑：</strong>{{ edit_share_link.title }}
+                    <span class="muted">短码 <code>{{ edit_share_link.short_code }}</code></span>
+                </div>
+                <a href="{% url 'share:manage' %}" class="btn btn-secondary">退出编辑</a>
+            </div>
+            {% else %}
+            <p class="muted" style="margin-bottom:12px;">公开页默认实时更新，这里主要配置展示范围、密码和分享文案。</p>
+            {% endif %}
             <form method="post" class="share-form-grid">
                 {% csrf_token %}
                 {% if edit_share_link %}
                 <input type="hidden" name="share_link_id" value="{{ edit_share_link.id }}">
                 {% endif %}
-                <div>
-                    <label for="account_id">选择账户</label>
-                    <select id="account_id" name="account_id" required>
-                        <option value="">请选择账户</option>
-                        {% for account in accounts %}
-                        <option value="{{ account.id }}" {% if selected_account_id == account.id %}selected{% endif %}>
-                            {{ account.account_name }}（{% if account.account_type == "real" %}实仓{% else %}模拟仓{% endif %}）
-                        </option>
-                        {% endfor %}
-                    </select>
+                <div class="form-section">
+                    <div class="form-section-title">基础信息</div>
+                    <div>
+                        <label for="account_id">选择账户</label>
+                        <select id="account_id" name="account_id" required>
+                            <option value="">请选择账户</option>
+                            {% for account in accounts %}
+                            <option value="{{ account.id }}" {% if selected_account_id == account.id %}selected{% endif %}>
+                                {{ account.account_name }}（{% if account.account_type|lower == "real" %}实盘{% else %}模拟盘{% endif %}）
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="title">分享标题</label>
+                        <input id="title" name="title" maxlength="100" placeholder="例如：AI 中盘成长实验账户" value="{{ edit_share_link.title|default:'' }}" required>
+                    </div>
+                    <div>
+                        <label for="subtitle">副标题</label>
+                        <input id="subtitle" name="subtitle" maxlength="200" placeholder="一句话说明账户风格和近况" value="{{ edit_share_link.subtitle|default:'' }}">
+                    </div>
+                    <div>
+                        <label for="share_level">披露级别</label>
+                        <select id="share_level" name="share_level">
+                            <option value="snapshot" {% if edit_share_link.share_level == 'snapshot' or not edit_share_link %}selected{% endif %}>snapshot</option>
+                            <option value="observer" {% if edit_share_link.share_level == 'observer' %}selected{% endif %}>observer</option>
+                            <option value="research" {% if edit_share_link.share_level == 'research' %}selected{% endif %}>research</option>
+                        </select>
+                    </div>
                 </div>
-                <div>
-                    <label for="title">分享标题</label>
-                    <input id="title" name="title" maxlength="100" placeholder="例如：AI 中盘成长实验账户" value="{{ edit_share_link.title|default:'' }}" required>
+                <div class="form-section">
+                    <div class="form-section-title">页面风格</div>
+                    <div class="theme-choice-grid">
+                        <label class="theme-choice">
+                            <input type="radio" name="theme" value="bloomberg" {% if edit_share_link.theme == 'bloomberg' or not edit_share_link %}checked{% endif %}>
+                            <div class="theme-choice-card">
+                                <span class="theme-choice-indicator" aria-hidden="true"></span>
+                                <div class="theme-choice-body">
+                                    <div class="theme-choice-title">彭博终端风格 <span class="badge-inline">稳重</span></div>
+                                    <p class="theme-choice-desc">深色终端、橙色强调、高信息密度，适合围观 AI 交易的专业感。</p>
+                                </div>
+                            </div>
+                        </label>
+                        <label class="theme-choice">
+                            <input type="radio" name="theme" value="monopoly" {% if edit_share_link.theme == 'monopoly' %}checked{% endif %}>
+                            <div class="theme-choice-card">
+                                <span class="theme-choice-indicator" aria-hidden="true"></span>
+                                <div class="theme-choice-body">
+                                    <div class="theme-choice-title">大富翁游戏风格 <span class="badge-inline">轻松</span></div>
+                                    <p class="theme-choice-desc">棋盘、金币、卡牌感更强，适合分享给更泛的客户和社交传播。</p>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
                 </div>
-                <div>
-                    <label for="subtitle">副标题</label>
-                    <input id="subtitle" name="subtitle" maxlength="200" placeholder="一句话说明账户风格和近况" value="{{ edit_share_link.subtitle|default:'' }}">
+                <div class="form-section">
+                    <div class="form-section-title">访问控制</div>
+                    <div>
+                        <label for="password">访问密码（可选）</label>
+                        <input id="password" name="password" type="password" placeholder="{% if edit_share_link and edit_share_link.password_hash %}留空则保留当前密码{% else %}不填则公开访问{% endif %}">
+                    </div>
+                    <div>
+                        <label for="expires_at">过期时间（可选）</label>
+                        <input id="expires_at" name="expires_at" type="datetime-local" value="{% if edit_share_link and edit_share_link.expires_at %}{{ edit_share_link.expires_at|date:'Y-m-d\\TH:i' }}{% endif %}">
+                    </div>
+                    <div>
+                        <label for="max_access_count">最大访问次数（可选）</label>
+                        <input id="max_access_count" name="max_access_count" type="number" min="1" placeholder="不填则不限" value="{{ edit_share_link.max_access_count|default:'' }}">
+                    </div>
                 </div>
-                <div>
-                    <label for="share_level">披露级别</label>
-                    <select id="share_level" name="share_level">
-                        <option value="snapshot" {% if edit_share_link.share_level == 'snapshot' or not edit_share_link %}selected{% endif %}>snapshot</option>
-                        <option value="observer" {% if edit_share_link.share_level == 'observer' %}selected{% endif %}>observer</option>
-                        <option value="research" {% if edit_share_link.share_level == 'research' %}selected{% endif %}>research</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="password">访问密码（可选）</label>
-                    <input id="password" name="password" type="password" placeholder="{% if edit_share_link and edit_share_link.password_hash %}留空则保留当前密码{% else %}不填则公开访问{% endif %}">
-                </div>
-                <div>
-                    <label for="expires_at">过期时间（可选）</label>
-                    <input id="expires_at" name="expires_at" type="datetime-local" value="{% if edit_share_link and edit_share_link.expires_at %}{{ edit_share_link.expires_at|date:'Y-m-d\\TH:i' }}{% endif %}">
-                </div>
-                <div>
-                    <label for="max_access_count">最大访问次数（可选）</label>
-                    <input id="max_access_count" name="max_access_count" type="number" min="1" placeholder="不填则不限" value="{{ edit_share_link.max_access_count|default:'' }}">
-                </div>
-                <div class="checkbox-list">
-                    <label><input type="checkbox" name="show_positions" {% if edit_share_link.show_positions or not edit_share_link %}checked{% endif %}> 展示持仓</label>
-                    <label><input type="checkbox" name="show_transactions" {% if edit_share_link.show_transactions or not edit_share_link %}checked{% endif %}> 展示交易记录</label>
-                    <label><input type="checkbox" name="show_decision_summary" {% if edit_share_link.show_decision_summary or not edit_share_link %}checked{% endif %}> 展示决策摘要</label>
-                    <label><input type="checkbox" name="show_decision_evidence" {% if edit_share_link.show_decision_evidence %}checked{% endif %}> 展示决策依据</label>
-                    <label><input type="checkbox" name="show_invalidation_logic" {% if edit_share_link.show_invalidation_logic %}checked{% endif %}> 展示证伪逻辑</label>
-                    <label><input type="checkbox" name="show_amounts" {% if edit_share_link.show_amounts %}checked{% endif %}> 展示金额</label>
+                <div class="form-section">
+                    <div class="form-section-title">展示内容</div>
+                    <div class="checkbox-list">
+                        <label><input type="checkbox" name="show_positions" {% if edit_share_link.show_positions or not edit_share_link %}checked{% endif %}> 展示持仓</label>
+                        <label><input type="checkbox" name="show_transactions" {% if edit_share_link.show_transactions or not edit_share_link %}checked{% endif %}> 展示交易记录</label>
+                        <label><input type="checkbox" name="show_decision_summary" {% if edit_share_link.show_decision_summary or not edit_share_link %}checked{% endif %}> 展示决策摘要</label>
+                        <label><input type="checkbox" name="show_decision_evidence" {% if edit_share_link.show_decision_evidence %}checked{% endif %}> 展示决策依据</label>
+                        <label><input type="checkbox" name="show_invalidation_logic" {% if edit_share_link.show_invalidation_logic %}checked{% endif %}> 展示证伪逻辑</label>
+                        <label><input type="checkbox" name="show_amounts" {% if edit_share_link.show_amounts %}checked{% endif %}> 展示金额</label>
+                    </div>
                 </div>
                 <div>
                     <button type="submit" class="btn btn-primary">{% if edit_share_link %}保存修改{% else %}创建分享链接{% endif %}</button>
@@ -108,31 +175,37 @@
             <h2 style="margin-bottom:16px;">我的分享链接</h2>
             <div class="share-links-list">
                 {% for link in share_links %}
-                <article class="share-link-card">
+                <article class="share-link-card {% if edit_share_link and edit_share_link.id == link.id %}is-editing{% endif %}">
                     <div class="share-link-top">
                         <div>
-                            <strong>{{ link.title }}</strong>
+                            <div class="share-link-title">
+                                <strong>{{ link.title }}</strong>
+                                <span class="badge-inline">{% if link.theme == 'monopoly' %}大富翁游戏风格{% else %}彭博终端风格{% endif %}</span>
+                            </div>
                             {% if link.subtitle %}<div class="muted">{{ link.subtitle }}</div>{% endif %}
                             <div class="share-link-meta">
-                                <div>账户：{{ link.account_name }}</div>
-                                <div>短码：<code>{{ link.short_code }}</code></div>
-                                <div>级别：{{ link.share_level }}</div>
-                                <div>创建时间：{{ link.created_at|date:"Y-m-d H:i" }}</div>
-                                <div>访问次数：{{ link.access_count }}</div>
-                                <div>最近快照：{{ link.last_snapshot_at|date:"Y-m-d H:i"|default:"未生成" }}</div>
+                                <div class="share-link-meta-item"><span class="share-link-meta-label">账户</span><span class="share-link-meta-value">{{ link.account_name }}</span></div>
+                                <div class="share-link-meta-item"><span class="share-link-meta-label">短码</span><span class="share-link-meta-value"><code>{{ link.short_code }}</code></span></div>
+                                <div class="share-link-meta-item"><span class="share-link-meta-label">披露级别</span><span class="share-link-meta-value">{{ link.share_level }}</span></div>
+                                <div class="share-link-meta-item"><span class="share-link-meta-label">创建时间</span><span class="share-link-meta-value">{{ link.created_at|date:"Y-m-d H:i" }}</span></div>
+                                <div class="share-link-meta-item"><span class="share-link-meta-label">访问次数</span><span class="share-link-meta-value">{{ link.access_count }}</span></div>
+                                <div class="share-link-meta-item"><span class="share-link-meta-label">最近同步</span><span class="share-link-meta-value">{{ link.last_snapshot_at|date:"Y-m-d H:i"|default:"未生成" }}</span></div>
                             </div>
                         </div>
                         <span class="badge-inline {% if link.status == 'active' %}active{% else %}revoked{% endif %}">
                             {{ link.status }}
                         </span>
                     </div>
+                    {% if edit_share_link and edit_share_link.id == link.id %}
+                    <div class="muted" style="margin-top:10px;">当前正在编辑这条分享链接，左侧表单内容已经切换为它的配置。</div>
+                    {% endif %}
                     <div class="share-link-actions">
                         <a href="{% url 'share:public_share' link.short_code %}" class="btn btn-secondary" target="_blank">打开公开页</a>
-                        <a href="{% url 'share:manage' %}?edit={{ link.id }}" class="btn btn-secondary">编辑</a>
+                        <a href="{% url 'share:edit' link.id %}" class="btn btn-secondary">编辑</a>
                         <button type="button" class="btn btn-secondary" onclick="navigator.clipboard.writeText('{{ request.scheme }}://{{ request.get_host }}{% url 'share:public_share' link.short_code %}')">复制链接</button>
                         <form method="post" action="{% url 'share:refresh' link.id %}">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-secondary">刷新快照</button>
+                            <button type="submit" class="btn btn-secondary">立即同步</button>
                         </form>
                         {% if link.status == "active" %}
                         <form method="post" action="{% url 'share:revoke' link.id %}">
@@ -149,4 +222,17 @@
         </section>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if edit_share_link %}
+<script>
+window.addEventListener("load", function () {
+  var editor = document.getElementById("share-editor");
+  if (editor) {
+    editor.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+});
+</script>
+{% endif %}
 {% endblock %}

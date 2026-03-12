@@ -13,6 +13,7 @@ from apps.share.domain.entities import (
     ShareLinkEntity,
     ShareLevel,
     ShareStatus,
+    ShareTheme,
     AccessResultStatus,
 )
 from apps.share.infrastructure.models import (
@@ -37,12 +38,13 @@ class ShareLinkUseCases:
         account_id: int,
         title: str,
         subtitle: Optional[str] = None,
+        theme: str = "bloomberg",
         share_level: str = "snapshot",
         password: Optional[str] = None,
         expires_at: Optional[datetime] = None,
         max_access_count: Optional[int] = None,
         allow_indexing: bool = False,
-        show_amounts: bool = True,
+        show_amounts: bool = False,
         show_positions: bool = True,
         show_transactions: bool = True,
         show_decision_summary: bool = True,
@@ -58,6 +60,7 @@ class ShareLinkUseCases:
             account_id: 关联的模拟账户 ID
             title: 标题
             subtitle: 副标题
+            theme: 页面风格
             share_level: 分享级别
             password: 访问密码（明文，将在方法内哈希）
             expires_at: 过期时间
@@ -120,6 +123,7 @@ class ShareLinkUseCases:
             short_code=short_code,
             title=title,
             subtitle=subtitle,
+            theme=theme,
             share_level=share_level,
             status="active",
             password_hash=password_hash,
@@ -207,6 +211,7 @@ class ShareLinkUseCases:
         owner_id: int,
         title: Optional[str] = None,
         subtitle: Optional[str] = None,
+        theme: Optional[str] = None,
         share_level: Optional[str] = None,
         password: Optional[str] = None,
         expires_at: Optional[datetime] = None,
@@ -251,6 +256,9 @@ class ShareLinkUseCases:
         if subtitle is not None:
             model.subtitle = subtitle
             update_fields.append("subtitle")
+        if theme is not None:
+            model.theme = theme
+            update_fields.append("theme")
         if share_level is not None:
             model.share_level = share_level
             update_fields.append("share_level")
@@ -363,6 +371,7 @@ class ShareLinkUseCases:
             short_code=model.short_code,
             title=model.title,
             subtitle=model.subtitle,
+            theme=ShareTheme(model.theme),
             share_level=ShareLevel(model.share_level),
             status=ShareStatus(model.status),
             password_hash=model.password_hash,

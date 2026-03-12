@@ -30,7 +30,7 @@
 
     {% block extra_css %}{% endblock %}
 </head>
-<body class="share-page">
+<body class="share-page theme-{{ share_theme|default:'bloomberg' }}">
     <!-- 密码验证模态框（如需要） -->
     {% if requires_password %}
         {% include "share/password_modal.html" %}

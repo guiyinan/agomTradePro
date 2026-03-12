@@ -46,6 +46,13 @@ DECISION_STATUS_DISPLAY = {
 }
 
 
+def _normalize_portfolio_type(value: str | None) -> str:
+    normalized = (value or "").strip().lower()
+    if normalized in {"real", "live", "实盘", "实仓"}:
+        return "real"
+    return "simulated"
+
+
 class ShareVisibilityMixin:
     """Shared helpers for public share access."""
 
@@ -169,10 +176,18 @@ class ShareVisibilityMixin:
         return {
             "portfolio_name": share_link.title,
             "portfolio_description": share_link.subtitle,
-            "portfolio_type": summary.get("portfolio_type", "simulated"),
+            "share_theme": share_link.theme,
+            "portfolio_type": _normalize_portfolio_type(summary.get("portfolio_type")),
             "is_private": share_link.requires_password(),
             "requires_password": requires_password,
             "password_error": password_error,
+            "owner_name": (
+                share_link.owner.get_full_name().strip()
+                or getattr(share_link.owner, "username", "")
+                or getattr(share_link.owner, "email", "")
+            ),
+            "created_at": share_link.created_at,
+            "is_simulated": _normalize_portfolio_type(summary.get("portfolio_type")) == "simulated",
             "last_updated": first_of("generated_at", default=share_link.last_snapshot_at, source=snapshot),
             "total_return": first_of("total_return", "total_return_pct", source=performance, default=summary.get("total_return")),
             "return_7d": first_of("return_7d", "seven_day_return", source=performance),
@@ -407,6 +422,7 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
                 account_id=data["account_id"],
                 title=data["title"],
                 subtitle=data.get("subtitle"),
+                theme=data.get("theme", "bloomberg"),
                 share_level=data.get("share_level", "snapshot"),
                 password=data.get("password"),
                 expires_at=data.get("expires_at"),
@@ -440,6 +456,7 @@ class ShareLinkViewSet(viewsets.ModelViewSet):
                 owner_id=request.user.id,
                 title=data.get("title"),
                 subtitle=data.get("subtitle"),
+                theme=data.get("theme"),
                 share_level=data.get("share_level"),
                 password=data.get("password"),
                 expires_at=data.get("expires_at"),
@@ -506,6 +523,9 @@ class PublicShareViewSet(ShareVisibilityMixin, viewsets.ViewSet):
             self._log_access(model.id, request, "password_required", is_verified=False)
             return Response({"requires_password": True, "title": entity.title}, status=status.HTTP_401_UNAUTHORIZED)
 
+        snapshot = _get_live_share_snapshot(model)
+        if snapshot:
+            snapshot = self._filter_snapshot_by_visibility(snapshot, model)
         return Response(PublicShareLinkSerializer(model).data)
 
     @action(detail=False, methods=["post"], url_path="(?P<short_code>[^/.]+)/access")
@@ -538,7 +558,7 @@ class PublicShareViewSet(ShareVisibilityMixin, viewsets.ViewSet):
 
         self._log_access(model.id, request, "success", is_verified=entity.requires_password())
         model.increment_access_count()
-        snapshot = ShareSnapshotUseCases().get_latest_snapshot(entity.id)
+        snapshot = _get_live_share_snapshot(model)
         if snapshot:
             snapshot = self._filter_snapshot_by_visibility(snapshot, model)
 
@@ -559,7 +579,7 @@ class PublicShareViewSet(ShareVisibilityMixin, viewsets.ViewSet):
             self._log_access(model.id, request, "password_required", is_verified=False)
             return Response({"error": "需要密码验证"}, status=status.HTTP_401_UNAUTHORIZED)
 
-        snapshot = ShareSnapshotUseCases().get_latest_snapshot(entity.id)
+        snapshot = _get_live_share_snapshot(model)
         if not snapshot:
             return Response({"error": "快照不存在"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -585,7 +605,7 @@ class PublicSharePageView(ShareVisibilityMixin, View):
             context = self._build_public_context(share_link, None, requires_password=True)
             return render(request, self.template_name, context, status=401)
 
-        snapshot = ShareSnapshotUseCases().get_latest_snapshot(share_link.id)
+        snapshot = _get_live_share_snapshot(share_link)
         filtered_snapshot = self._filter_snapshot_by_visibility(snapshot, share_link) if snapshot else None
         context = self._build_public_context(share_link, filtered_snapshot, requires_password=False)
         self._log_access(
@@ -689,7 +709,7 @@ def _build_share_snapshot_from_account(share_link: ShareLinkModel) -> int | None
 
     summary_payload = {
         "account_name": account.account_name,
-        "portfolio_type": "real" if account.account_type == "real" else "simulated",
+        "portfolio_type": _normalize_portfolio_type(account.account_type),
         "current_position": current_position,
         "inception_date": account.start_date.isoformat() if account.start_date else None,
         "total_assets": total_assets,
@@ -740,13 +760,21 @@ def _build_share_snapshot_from_account(share_link: ShareLinkModel) -> int | None
     )
 
 
+def _get_live_share_snapshot(share_link: ShareLinkModel) -> dict | None:
+    try:
+        _build_share_snapshot_from_account(share_link)
+    except Exception:
+        pass
+    return ShareSnapshotUseCases().get_latest_snapshot(share_link.id)
+
+
 @login_required
-def share_manage_page(request):
+def share_manage_page(request, share_link_id: int | None = None):
     """Management page for creating and reviewing share links."""
     accounts = SimulatedAccountModel.objects.filter(user=request.user).order_by("-created_at")
     selected_account_id = request.GET.get("account_id") or request.POST.get("account_id")
     edit_share_link = None
-    edit_share_link_id = request.GET.get("edit")
+    edit_share_link_id = share_link_id or request.GET.get("edit")
     if edit_share_link_id:
         edit_share_link = get_object_or_404(ShareLinkModel, id=edit_share_link_id, owner=request.user)
         selected_account_id = edit_share_link.account_id
@@ -757,6 +785,7 @@ def share_manage_page(request):
         title = (request.POST.get("title") or "").strip()
         subtitle = (request.POST.get("subtitle") or "").strip() or None
         share_level = request.POST.get("share_level") or "snapshot"
+        theme = request.POST.get("theme") or "bloomberg"
         password = request.POST.get("password") or None
         expires_at_raw = request.POST.get("expires_at") or None
         max_access_count_raw = request.POST.get("max_access_count") or None
@@ -777,6 +806,7 @@ def share_manage_page(request):
                     owner_id=request.user.id,
                     title=title,
                     subtitle=subtitle,
+                    theme=theme,
                     share_level=share_level,
                     password=password if password is not None else None,
                     expires_at=expires_at,
@@ -798,6 +828,7 @@ def share_manage_page(request):
                     account_id=int(account_id),
                     title=title,
                     subtitle=subtitle,
+                    theme=theme,
                     share_level=share_level,
                     password=password,
                     expires_at=expires_at,
@@ -854,14 +885,14 @@ def revoke_share_link_page(request, share_link_id: int):
 
 @login_required
 def refresh_share_link_page(request, share_link_id: int):
-    """Refresh a share link snapshot from current account data."""
+    """Sync the cached share snapshot from current account data."""
     if request.method != "POST":
         raise Http404()
 
     share_link = get_object_or_404(ShareLinkModel, id=share_link_id, owner=request.user)
     try:
         _build_share_snapshot_from_account(share_link)
-        messages.success(request, "分享快照已刷新")
+        messages.success(request, "分享页缓存已同步，公开页默认也会实时更新")
     except Exception as exc:
-        messages.error(request, f"刷新失败：{exc}")
+        messages.error(request, f"同步失败：{exc}")
     return redirect("share:manage")

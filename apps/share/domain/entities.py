@@ -63,6 +63,11 @@ class AccessResultStatus(Enum):
     NOT_FOUND = "not_found"
 
 
+class ShareTheme(Enum):
+    BLOOMBERG = "bloomberg"
+    MONOPOLY = "monopoly"
+
+
 @dataclass(frozen=True)
 class ShareLinkEntity:
     """
@@ -76,6 +81,7 @@ class ShareLinkEntity:
     short_code: str
     title: str
     subtitle: Optional[str]
+    theme: ShareTheme
     share_level: ShareLevel
     status: ShareStatus
     password_hash: Optional[str]
@@ -192,12 +198,13 @@ class ShareConfig:
     """
     title: str
     subtitle: Optional[str] = None
+    theme: ShareTheme = ShareTheme.BLOOMBERG
     share_level: ShareLevel = ShareLevel.SNAPSHOT
     password: Optional[str] = None
     expires_at: Optional[datetime] = None
     max_access_count: Optional[int] = None
     allow_indexing: bool = False
-    show_amounts: bool = True
+    show_amounts: bool = False
     show_positions: bool = True
     show_transactions: bool = True
     show_decision_summary: bool = True

@@ -48,6 +48,17 @@ class ShareLinkModel(models.Model):
     # 基本信息
     title = models.CharField("标题", max_length=100)
     subtitle = models.CharField("副标题", max_length=200, blank=True, null=True)
+    THEME_CHOICES = [
+        ("bloomberg", "彭博终端风格"),
+        ("monopoly", "大富翁游戏风格"),
+    ]
+    theme = models.CharField(
+        "页面风格",
+        max_length=20,
+        choices=THEME_CHOICES,
+        default="bloomberg",
+        help_text="公开分享页的展示风格"
+    )
 
     # 分享级别
     SHARE_LEVEL_CHOICES = [
