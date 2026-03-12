@@ -271,10 +271,8 @@ class AlphaCandidateRepositoryWrapper:
         from apps.alpha_trigger.infrastructure.repositories import (
             AlphaCandidateRepository as ActualRepository,
         )
-        from apps.alpha_trigger.infrastructure.models import AlphaCandidateModel
 
         self._actual_repo = ActualRepository()
-        self._model = AlphaCandidateModel
 
     def update_last_decision_request_id(
         self,
@@ -291,21 +289,7 @@ class AlphaCandidateRepositoryWrapper:
         Returns:
             是否更新成功
         """
-        try:
-            candidate = self._model.objects.get(candidate_id=candidate_id)
-            candidate.last_decision_request_id = request_id
-            candidate.save(update_fields=["last_decision_request_id", "updated_at"])
-
-            logger.info(
-                f"AlphaCandidate.last_decision_request_id updated: "
-                f"{candidate_id} -> {request_id}"
-            )
-
-            return True
-
-        except ObjectDoesNotExist:
-            logger.warning(f"AlphaCandidate not found: {candidate_id}")
-            return False
+        return self._actual_repo.update_last_decision_request_id(candidate_id, request_id)
 
     def update_status_to_rejected(
         self,
@@ -320,21 +304,7 @@ class AlphaCandidateRepositoryWrapper:
         Returns:
             是否更新成功
         """
-        try:
-            candidate = self._model.objects.get(candidate_id=candidate_id)
-            candidate.status = self._model.REJECTED
-            candidate.status_changed_at = datetime.now(timezone.utc)
-            candidate.save(
-                update_fields=["status", "status_changed_at", "updated_at"]
-            )
-
-            logger.info(f"AlphaCandidate.status updated to REJECTED: {candidate_id}")
-
-            return True
-
-        except ObjectDoesNotExist:
-            logger.warning(f"AlphaCandidate not found: {candidate_id}")
-            return False
+        return self._actual_repo.update_status_to_rejected(candidate_id)
 
     def update_status_to_executed(
         self,
@@ -349,27 +319,7 @@ class AlphaCandidateRepositoryWrapper:
         Returns:
             是否更新成功
         """
-        try:
-            candidate = self._model.objects.get(candidate_id=candidate_id)
-            candidate.status = self._model.EXECUTED
-            candidate.last_execution_status = self._model.EXECUTION_EXECUTED
-            candidate.status_changed_at = datetime.now(timezone.utc)
-            candidate.save(
-                update_fields=[
-                    "status",
-                    "last_execution_status",
-                    "status_changed_at",
-                    "updated_at",
-                ]
-            )
-
-            logger.info(f"AlphaCandidate.status updated to EXECUTED: {candidate_id}")
-
-            return True
-
-        except ObjectDoesNotExist:
-            logger.warning(f"AlphaCandidate not found: {candidate_id}")
-            return False
+        return self._actual_repo.update_status_to_executed(candidate_id)
 
     def update_execution_status_to_failed(
         self,
@@ -384,28 +334,7 @@ class AlphaCandidateRepositoryWrapper:
         Returns:
             是否更新成功
         """
-        try:
-            candidate = self._model.objects.get(candidate_id=candidate_id)
-            # 保留 ACTIONABLE 状态，允许重试
-            candidate.last_execution_status = self._model.EXECUTION_FAILED
-            candidate.status_changed_at = datetime.now(timezone.utc)
-            candidate.save(
-                update_fields=[
-                    "last_execution_status",
-                    "status_changed_at",
-                    "updated_at",
-                ]
-            )
-
-            logger.info(
-                f"AlphaCandidate.last_execution_status updated to FAILED: {candidate_id}"
-            )
-
-            return True
-
-        except ObjectDoesNotExist:
-            logger.warning(f"AlphaCandidate not found: {candidate_id}")
-            return False
+        return self._actual_repo.update_execution_status_to_failed(candidate_id)
 
 
 class DecisionRequestRepositoryWrapper:
@@ -422,11 +351,11 @@ class DecisionRequestRepositoryWrapper:
 
     def __init__(self):
         """初始化仓储包装器"""
-        from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
-        from apps.decision_rhythm.domain.entities import ExecutionStatus
+        from apps.decision_rhythm.infrastructure.repositories import (
+            DecisionRequestRepository as ActualRepository,
+        )
 
-        self._model = DecisionRequestModel
-        self._execution_status = ExecutionStatus
+        self._actual_repo = ActualRepository()
 
     def update_execution_status_to_executed(
         self,
@@ -443,25 +372,10 @@ class DecisionRequestRepositoryWrapper:
         Returns:
             是否更新成功
         """
-        try:
-            request = self._model.objects.get(request_id=request_id)
-            request.execution_status = self._execution_status.EXECUTED.value
-            request.executed_at = datetime.now(timezone.utc)
-
-            if execution_ref:
-                request.execution_ref = execution_ref
-
-            request.save(
-                update_fields=["execution_status", "executed_at", "execution_ref"]
-            )
-
-            logger.info(f"DecisionRequest.execution_status updated to EXECUTED: {request_id}")
-
-            return True
-
-        except ObjectDoesNotExist:
-            logger.warning(f"DecisionRequest not found: {request_id}")
-            return False
+        return self._actual_repo.update_execution_status_to_executed(
+            request_id,
+            execution_ref,
+        )
 
     def update_execution_status_to_failed(
         self,
@@ -476,18 +390,7 @@ class DecisionRequestRepositoryWrapper:
         Returns:
             是否更新成功
         """
-        try:
-            request = self._model.objects.get(request_id=request_id)
-            request.execution_status = self._execution_status.FAILED.value
-            request.save(update_fields=["execution_status"])
-
-            logger.info(f"DecisionRequest.execution_status updated to FAILED: {request_id}")
-
-            return True
-
-        except ObjectDoesNotExist:
-            logger.warning(f"DecisionRequest not found: {request_id}")
-            return False
+        return self._actual_repo.update_execution_status_to_failed(request_id)
 
 
 # 便捷函数

@@ -34,7 +34,19 @@ PY
 
 wait_for_port "${REDIS_HOST:-redis}" "${REDIS_PORT:-6379}" "redis"
 
+is_web_command=0
+if [ "$#" -eq 0 ] || [ "$1" = "gunicorn" ]; then
+  is_web_command=1
+fi
+
 python manage.py migrate --noinput
+if [ "$is_web_command" = "1" ]; then
+  if ! python manage.py setup_macro_daily_sync \
+    --hour "${MACRO_SYNC_HOUR:-8}" \
+    --minute "${MACRO_SYNC_MINUTE:-5}"; then
+    echo "WARNING: failed to configure macro periodic tasks" >&2
+  fi
+fi
 python manage.py collectstatic --noinput
 
 if [ -n "${DJANGO_SUPERUSER_USERNAME:-}" ] && [ -n "${DJANGO_SUPERUSER_PASSWORD:-}" ] && [ -n "${DJANGO_SUPERUSER_EMAIL:-}" ]; then
@@ -58,7 +70,7 @@ else:
 PY
 fi
 
-if [ "$#" -eq 0 ] || [ "$1" = "gunicorn" ]; then
+if [ "$is_web_command" = "1" ]; then
   exec gunicorn core.wsgi:application \
     --bind 0.0.0.0:8000 \
     --workers "${GUNICORN_WORKERS:-2}" \

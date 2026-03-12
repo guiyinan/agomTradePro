@@ -708,6 +708,10 @@ until compose exec -T web python manage.py migrate --noinput; do
   sleep 5
 done
 
+if ! compose exec -T web python manage.py setup_macro_daily_sync --hour 8 --minute 5; then
+  echo "[WARN] failed to configure macro periodic tasks automatically" >&2
+fi
+
 SERVICES="redis web caddy"
 if [ "$ENABLE_RSSHUB" = "1" ]; then
   SERVICES="$SERVICES rsshub"

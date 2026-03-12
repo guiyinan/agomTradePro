@@ -23,7 +23,6 @@ Application 层网关服务， 为 simulated_trading 模块提供策略执行的
 from dataclasses import dataclass
 from datetime import date
 from typing import List, Optional, Dict, Any, Protocol
-from decimal import Decimal
 
 logger = __import__('logging').getLogger(__name__)
 
@@ -239,6 +238,44 @@ class StrategyExecutionGateway:
 
         except Exception as e:
             logger.error(f"Error getting strategy info: {e}")
+            return None
+
+    def get_active_strategy_binding(self, account_id: int) -> Optional[Dict[str, Any]]:
+        """
+        获取账户当前激活的策略绑定信息。
+
+        Args:
+            account_id: 账户 ID
+
+        Returns:
+            绑定信息字典或 None
+        """
+        try:
+            from apps.strategy.infrastructure.models import PortfolioStrategyAssignmentModel
+
+            assignment = (
+                PortfolioStrategyAssignmentModel._default_manager.filter(
+                    portfolio_id=account_id,
+                    is_active=True,
+                    strategy__is_active=True,
+                )
+                .select_related("strategy")
+                .order_by("-updated_at", "-id")
+                .first()
+            )
+
+            if not assignment or not assignment.strategy:
+                return None
+
+            return {
+                "strategy_id": assignment.strategy_id,
+                "name": assignment.strategy.name,
+                "strategy_type": assignment.strategy.strategy_type,
+                "is_active": assignment.strategy.is_active,
+                "description": assignment.strategy.description,
+            }
+        except Exception as e:
+            logger.error(f"Error getting active strategy binding for account {account_id}: {e}")
             return None
 
     def is_strategy_active(self, strategy_id: int) -> bool:

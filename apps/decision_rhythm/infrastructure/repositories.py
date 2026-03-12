@@ -455,6 +455,45 @@ class DecisionRequestRepository:
         except ObjectDoesNotExist:
             raise ValueError(f"Request not found: {request_id}")
 
+    def update_execution_status_to_executed(
+        self,
+        request_id: str,
+        execution_ref: Optional[Dict[str, Any]],
+    ) -> bool:
+        """更新请求执行状态为已执行。"""
+        update_fields: Dict[str, Any] = {
+            "execution_status": ExecutionStatus.EXECUTED.value,
+            "executed_at": timezone.now(),
+        }
+        if execution_ref is not None:
+            update_fields["execution_ref"] = execution_ref
+
+        updated = self.model.objects.filter(request_id=request_id).update(**update_fields)
+        if updated:
+            logger.info(
+                "DecisionRequest.execution_status updated to EXECUTED: %s",
+                request_id,
+            )
+            return True
+
+        logger.warning(f"DecisionRequest not found: {request_id}")
+        return False
+
+    def update_execution_status_to_failed(self, request_id: str) -> bool:
+        """更新请求执行状态为失败。"""
+        updated = self.model.objects.filter(request_id=request_id).update(
+            execution_status=ExecutionStatus.FAILED.value,
+        )
+        if updated:
+            logger.info(
+                "DecisionRequest.execution_status updated to FAILED: %s",
+                request_id,
+            )
+            return True
+
+        logger.warning(f"DecisionRequest not found: {request_id}")
+        return False
+
     def get_statistics(
         self,
         days: int = 30,

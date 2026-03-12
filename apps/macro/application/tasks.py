@@ -12,7 +12,7 @@ Celery Tasks for Macro Data Synchronization.
     from apps.regime.application.orchestration import sync_macro_then_refresh_regime
 """
 
-from celery import shared_task, chain
+from celery import shared_task
 from celery.utils.log import get_task_logger
 from typing import Optional
 from datetime import date, timedelta
@@ -366,70 +366,6 @@ def sync_high_frequency_commodities(
 
 
 # ============================================================================
-# Regime 相关任务已移至 regime 模块
-# ============================================================================
-#
-# 以下函数已移至 apps/regime/application/orchestration.py:
-# - generate_daily_regime_signal
-# - recalculate_regime_with_daily_signal
-# - sync_macro_then_refresh_regime
-#
-# 保留代理函数以向后兼容
-# ============================================================================
-
-
-def generate_daily_regime_signal(as_of_date: Optional[str] = None) -> dict:
-    """
-    [已废弃] 请使用 apps.regime.application.orchestration.generate_daily_regime_signal
-
-    此函数保留用于向后兼容，内部代理调用 regime 模块。
-    """
-    from apps.regime.application.orchestration import generate_daily_regime_signal as _task
-    logger.warning(
-        "generate_daily_regime_signal is deprecated. "
-        "Use apps.regime.application.orchestration.generate_daily_regime_signal instead."
-    )
-    return _task(as_of_date)
-
-
-def recalculate_regime_with_daily_signal(
-    as_of_date: Optional[str] = None,
-    use_pit: bool = True
-) -> dict:
-    """
-    [已废弃] 请使用 apps.regime.application.orchestration.recalculate_regime_with_daily_signal
-
-    此函数保留用于向后兼容，内部代理调用 regime 模块。
-    """
-    from apps.regime.application.orchestration import recalculate_regime_with_daily_signal as _task
-    logger.warning(
-        "recalculate_regime_with_daily_signal is deprecated. "
-        "Use apps.regime.application.orchestration.recalculate_regime_with_daily_signal instead."
-    )
-    return _task(as_of_date, use_pit)
-
-
-def sync_and_calculate_regime(
-    source: str = 'akshare',
-    indicator: Optional[str] = None,
-    days_back: int = 30,
-    use_pit: bool = True,
-    as_of_date: Optional[str] = None
-) -> dict:
-    """
-    [已废弃] 请使用 apps.regime.application.orchestration.sync_macro_then_refresh_regime
-
-    此函数保留用于向后兼容，内部代理调用 regime 模块。
-    """
-    from apps.regime.application.orchestration import sync_macro_then_refresh_regime as _task
-    logger.warning(
-        "sync_and_calculate_regime is deprecated. "
-        "Use apps.regime.application.orchestration.sync_macro_then_refresh_regime instead."
-    )
-    return _task(source, indicator, days_back, use_pit, as_of_date)
-
-
-# ============================================================================
 # Celery Beat 调度配置建议
 # ============================================================================
 #
@@ -452,4 +388,3 @@ def sync_and_calculate_regime(
 #    - Crontab: 每日 00:00
 #    - Args: {"source": "akshare", "use_pit": true}
 #    - 说明: 这个编排任务会自动依次执行 sync -> calculate -> notify
-

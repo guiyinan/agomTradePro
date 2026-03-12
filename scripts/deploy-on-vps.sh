@@ -415,6 +415,11 @@ if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "upgrade" ] || [ "$ACTION" = "restor
     log_warn "Migration failed (web might not be ready yet). Retrying in 5s..."
     sleep 5
   done
+
+  log_info "Ensuring macro periodic tasks"
+  if ! compose_vps exec -T web python manage.py setup_macro_daily_sync --hour 8 --minute 5; then
+    log_warn "Failed to configure macro periodic tasks automatically"
+  fi
 fi
 
 mkdir -p "$TARGET_DIR"

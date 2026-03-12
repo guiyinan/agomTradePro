@@ -11,7 +11,7 @@ from typing import List, Optional
 from datetime import datetime
 from hashlib import sha256
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q, F, Prefetch, Max
 
 from apps.strategy.domain.entities import (
@@ -471,15 +471,12 @@ class DjangoStrategyExecutionLogRepository:
         Returns:
             日志ID
         """
-        from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
         from apps.strategy.infrastructure.models import StrategyModel
 
-        # 检查外键是否存在
-        try:
-            StrategyModel._default_manager.get(id=result.strategy_id)
-            SimulatedAccountModel._default_manager.get(id=result.portfolio_id)
-        except (StrategyModel.DoesNotExist, SimulatedAccountModel.DoesNotExist):
-            logger.warning(f"Cannot save execution log: strategy={result.strategy_id} or portfolio={result.portfolio_id} does not exist")
+        if not StrategyModel._default_manager.filter(id=result.strategy_id).exists():
+            logger.warning(
+                f"Cannot save execution log: strategy={result.strategy_id} does not exist"
+            )
             return 0  # 返回0表示保存失败
 
         # 转换信号列表为 JSON 格式
@@ -508,6 +505,12 @@ class DjangoStrategyExecutionLogRepository:
                 error_message=result.error_message
             )
             return orm_obj.id
+        except IntegrityError as e:
+            logger.warning(
+                "Cannot save execution log due to invalid foreign key: "
+                f"strategy={result.strategy_id}, portfolio={result.portfolio_id}, error={e}"
+            )
+            return 0
         except Exception as e:
             # 如果保存失败（如外键约束），记录日志但不抛出异常
             logger.error(f"Failed to save execution log: {e}")

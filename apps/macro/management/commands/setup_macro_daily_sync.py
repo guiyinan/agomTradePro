@@ -62,27 +62,33 @@ class Command(BaseCommand):
                 "days_back": 60,
                 "use_pit": True,
             }
-            sync_task, _ = PeriodicTask.objects.get_or_create(name="daily-sync-and-calculate")
-            sync_task.task = "apps.macro.application.tasks.sync_and_calculate_regime"
-            sync_task.enabled = enabled
-            sync_task.kwargs = json.dumps(sync_kwargs, ensure_ascii=True)
-            sync_task.description = "Daily macro sync + regime calculation for dashboard reliability"
-            sync_task.interval = None
-            sync_task.solar = None
-            sync_task.clocked = None
-            sync_task.crontab = daily_crontab
-            sync_task.save()
+            PeriodicTask.objects.update_or_create(
+                name="daily-sync-and-calculate",
+                defaults={
+                    "task": "apps.regime.application.orchestration.sync_macro_then_refresh_regime",
+                    "enabled": enabled,
+                    "kwargs": json.dumps(sync_kwargs, ensure_ascii=True),
+                    "description": "Daily macro sync + regime calculation for dashboard reliability",
+                    "interval": None,
+                    "solar": None,
+                    "clocked": None,
+                    "crontab": daily_crontab,
+                },
+            )
 
-            freshness_task, _ = PeriodicTask.objects.get_or_create(name="check-data-freshness")
-            freshness_task.task = "apps.macro.application.tasks.check_data_freshness"
-            freshness_task.enabled = enabled
-            freshness_task.kwargs = "{}"
-            freshness_task.description = "Check macro freshness every 6 hours and alert on stale inputs"
-            freshness_task.crontab = None
-            freshness_task.solar = None
-            freshness_task.clocked = None
-            freshness_task.interval = freshness_interval
-            freshness_task.save()
+            PeriodicTask.objects.update_or_create(
+                name="check-data-freshness",
+                defaults={
+                    "task": "apps.macro.application.tasks.check_data_freshness",
+                    "enabled": enabled,
+                    "kwargs": "{}",
+                    "description": "Check macro freshness every 6 hours and alert on stale inputs",
+                    "crontab": None,
+                    "solar": None,
+                    "clocked": None,
+                    "interval": freshness_interval,
+                },
+            )
 
         status = "enabled" if enabled else "disabled"
         self.stdout.write(self.style.SUCCESS("Macro periodic tasks configured"))

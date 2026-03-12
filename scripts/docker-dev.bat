@@ -118,6 +118,15 @@ if errorlevel 1 (
 echo [OK] Database ready
 echo.
 
+echo [INFO] Ensuring macro periodic tasks...
+"%PYTHON_EXEC%" manage.py setup_macro_daily_sync --hour 8 --minute 5
+if errorlevel 1 (
+    echo [WARN] Failed to configure macro periodic tasks
+) else (
+    echo [OK] Macro periodic tasks configured
+)
+echo.
+
 REM ========== 5. Start Celery Worker ==========
 if %START_CELERY%==1 (
     call :kill_existing_celery_worker

@@ -505,6 +505,78 @@ class AlphaCandidateRepository:
         except ObjectDoesNotExist:
             raise ValueError(f"Candidate not found: {candidate_id}")
 
+    def update_last_decision_request_id(
+        self,
+        candidate_id: str,
+        request_id: str,
+    ) -> bool:
+        """更新候选的最后决策请求 ID。"""
+        updated = self.model.objects.filter(candidate_id=candidate_id).update(
+            last_decision_request_id=request_id,
+            updated_at=timezone.now(),
+        )
+        if updated:
+            logger.info(
+                "Alpha candidate last_decision_request_id updated: %s -> %s",
+                candidate_id,
+                request_id,
+            )
+            return True
+
+        logger.warning(f"AlphaCandidate not found: {candidate_id}")
+        return False
+
+    def update_status_to_rejected(self, candidate_id: str) -> bool:
+        """更新候选状态为已拒绝。"""
+        try:
+            self.update_status(candidate_id, CandidateStatus.REJECTED)
+            logger.info(f"AlphaCandidate.status updated to REJECTED: {candidate_id}")
+            return True
+        except ValueError:
+            logger.warning(f"AlphaCandidate not found: {candidate_id}")
+            return False
+
+    def update_status_to_executed(self, candidate_id: str) -> bool:
+        """更新候选状态为已执行，并同步执行状态。"""
+        try:
+            model = self.model.objects.get(candidate_id=candidate_id)
+            model.status = CandidateStatus.EXECUTED.value
+            model.last_execution_status = self.model.EXECUTION_EXECUTED
+            model.status_changed_at = timezone.now()
+            if not model.promoted_to_signal_at:
+                model.promoted_to_signal_at = timezone.now()
+            model.save(
+                update_fields=[
+                    "status",
+                    "last_execution_status",
+                    "status_changed_at",
+                    "promoted_to_signal_at",
+                    "updated_at",
+                ]
+            )
+            logger.info(f"AlphaCandidate.status updated to EXECUTED: {candidate_id}")
+            return True
+        except ObjectDoesNotExist:
+            logger.warning(f"AlphaCandidate not found: {candidate_id}")
+            return False
+
+    def update_execution_status_to_failed(self, candidate_id: str) -> bool:
+        """更新候选执行状态为失败，保留当前候选状态。"""
+        updated = self.model.objects.filter(candidate_id=candidate_id).update(
+            last_execution_status=self.model.EXECUTION_FAILED,
+            status_changed_at=timezone.now(),
+            updated_at=timezone.now(),
+        )
+        if updated:
+            logger.info(
+                "AlphaCandidate.last_execution_status updated to FAILED: %s",
+                candidate_id,
+            )
+            return True
+
+        logger.warning(f"AlphaCandidate not found: {candidate_id}")
+        return False
+
     def get_statistics(
         self,
         days: int = 30,
