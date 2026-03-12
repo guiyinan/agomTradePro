@@ -24,6 +24,11 @@ from rest_framework.response import Response
 
 from core.cache_utils import cached_api, CACHE_TTL
 from apps.account.interface.authentication import MultiTokenAuthentication
+from apps.account.infrastructure.repositories import (
+    AccountRepository,
+    PortfolioRepository,
+    PositionRepository,
+)
 from apps.dashboard.application.use_cases import GetDashboardDataUseCase
 from apps.dashboard.application.queries import (
     get_alpha_visualization_query,
@@ -31,6 +36,8 @@ from apps.dashboard.application.queries import (
     get_decision_plane_query,
     get_regime_summary_query,
 )
+from apps.regime.infrastructure.repositories import DjangoRegimeRepository
+from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
 
 logger = logging.getLogger(__name__)

@@ -25,6 +25,31 @@ from apps.signal.infrastructure.repositories import DjangoSignalRepository
 logger = logging.getLogger(__name__)
 
 
+def _display_risk_tolerance(risk_tolerance) -> str:
+    """Return a human-readable risk tolerance label for domain or ORM values."""
+    value = getattr(risk_tolerance, "value", risk_tolerance)
+    labels = {
+        "conservative": "保守型",
+        "moderate": "稳健型",
+        "aggressive": "激进型",
+        "defensive": "防御型",
+    }
+    return labels.get(str(value), str(value))
+
+
+def _risk_tolerance_value(risk_tolerance) -> str:
+    """Normalize risk tolerance enum/value to the string expected by strategy layer."""
+    return str(getattr(risk_tolerance, "value", risk_tolerance))
+
+
+def _build_ai_api_url(base_url: str) -> str:
+    """Build a chat completion endpoint URL from a provider base URL."""
+    normalized = (base_url or "").rstrip("/")
+    if normalized.endswith("/chat/completions") or normalized.endswith("/responses"):
+        return normalized
+    return f"{normalized}/chat/completions"
+
+
 @dataclass
 class DashboardData:
     """首页数据DTO"""
@@ -487,10 +512,10 @@ class GetDashboardDataUseCase:
 
         # 3. 调用 AI API
         try:
-            # 获取 AI 提供商配置
-            from apps.prompt.infrastructure.models import AIProvider
+            from apps.ai_provider.infrastructure.repositories import AIProviderRepository
 
-            provider = AIProvider._default_manager.filter(is_active=True).first()
+            provider_repo = AIProviderRepository()
+            provider = next(iter(provider_repo.get_active_providers()), None)
 
             if not provider:
                 # 如果没有配置 AI，使用数据库规则作为后备
@@ -499,16 +524,16 @@ class GetDashboardDataUseCase:
                 )
 
             # 构建 API 请求
-            api_url = provider.get_api_url()
+            api_url = _build_ai_api_url(provider.base_url)
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {provider.api_key}"
+                "Authorization": f"Bearer {provider_repo.get_api_key(provider)}"
             }
 
             # 根据不同的提供商调整请求格式
             if provider.provider_type == 'openai':
                 payload = {
-                    "model": provider.model_name,
+                    "model": provider.default_model,
                     "messages": [
                         {"role": "system", "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。"},
                         {"role": "user", "content": prompt}
@@ -518,7 +543,7 @@ class GetDashboardDataUseCase:
                 }
             elif provider.provider_type == 'deepseek':
                 payload = {
-                    "model": provider.model_name,
+                    "model": provider.default_model,
                     "messages": [
                         {"role": "system", "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。"},
                         {"role": "user", "content": prompt}
@@ -528,7 +553,7 @@ class GetDashboardDataUseCase:
                 }
             else:  # 通用格式
                 payload = {
-                    "model": provider.model_name,
+                    "model": provider.default_model,
                     "messages": [
                         {"role": "system", "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。"},
                         {"role": "user", "content": prompt}
@@ -890,7 +915,7 @@ class GetDashboardDataUseCase:
             from apps.strategy.application.allocation_service import AllocationService
 
             # 获取用户风险偏好
-            risk_profile = profile.risk_tolerance  # conservative/moderate/aggressive
+            risk_profile = _risk_tolerance_value(profile.risk_tolerance)
 
             # 调用AllocationService计算建议
             advice = AllocationService.calculate_allocation_advice(
@@ -898,7 +923,7 @@ class GetDashboardDataUseCase:
                 risk_profile=risk_profile,
                 policy_level=policy_level,
                 total_assets=total_assets,
-                positions=positions,
+                current_positions=positions,
             )
 
             # 转换为字典格式
@@ -924,7 +949,7 @@ class GetDashboardDataUseCase:
                 "expected_volatility": advice.expected_volatility,
                 "sharpe_ratio": advice.sharpe_ratio,
                 "regime": advice.regime,
-                "risk_profile_display": profile.get_risk_tolerance_display(),
+                "risk_profile_display": _display_risk_tolerance(profile.risk_tolerance),
             }
         except Exception as e:
             logger.warning(f"生成资产配置建议失败: {e}")
