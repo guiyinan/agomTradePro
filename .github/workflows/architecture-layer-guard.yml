@@ -154,3 +154,9 @@ jobs:
 
           print("Layer guard passed: no violations in changed files.")
           PY
+
+      - name: Verify versioned architecture boundaries
+        run: |
+          python scripts/verify_architecture.py \
+            --rules-file governance/architecture_rules.json \
+            --format text

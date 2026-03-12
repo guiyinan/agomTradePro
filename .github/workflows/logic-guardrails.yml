@@ -55,7 +55,7 @@ jobs:
 
           if [ -z "$MODULES" ] || [ "$MODULES" = "none" ]; then
             # 无模块变更，仅运行核心 guardrail 测试
-            TEST_PATHS="tests/guardrails/test_logic_guardrails.py tests/guardrails/test_no_501_on_primary_paths.py tests/guardrails/test_security_hardening_guardrails.py tests/guardrails/test_api_contract_minimal.py"
+            TEST_PATHS="tests/guardrails/test_architecture_boundaries.py tests/guardrails/test_logic_guardrails.py tests/guardrails/test_no_501_on_primary_paths.py tests/guardrails/test_security_hardening_guardrails.py tests/guardrails/test_api_contract_minimal.py"
           else
             # 使用智能测试选择脚本
             TEST_PATHS=$(python scripts/select_tests.py --changed-modules "$MODULES" 2>/dev/null || echo "tests/guardrails/")
@@ -105,6 +105,7 @@ jobs:
         run: |
           # 验证关键 RTM 项的测试存在
           echo "Checking RTM requirements..."
+          test -f tests/guardrails/test_architecture_boundaries.py || exit 1
           test -f tests/guardrails/test_logic_guardrails.py || exit 1
           test -f tests/guardrails/test_no_501_on_primary_paths.py || exit 1
           test -f tests/integration/signal/test_signal_workflow.py || exit 1

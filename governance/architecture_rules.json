@@ -1,0 +1,82 @@
+{
+  "version": "2026-03-12.v1",
+  "boundary_rules": [
+    {
+      "id": "regime_runtime_no_macro_impl_imports",
+      "description": "Regime runtime layers must use Protocol/Adapter/Gateway abstractions instead of macro implementation imports.",
+      "source_module": "regime",
+      "source_layers": ["application", "interface", "management"],
+      "forbidden_import_prefixes": [
+        "apps.macro.application.tasks",
+        "apps.macro.infrastructure.models",
+        "apps.macro.infrastructure.repositories"
+      ],
+      "rationale": "Use MacroSyncTaskGateway, MacroSourceConfigGateway, and MacroRepositoryAdapter."
+    },
+    {
+      "id": "strategy_no_simulated_trading_orm_imports",
+      "description": "Strategy must not import simulated_trading ORM models directly.",
+      "source_module": "strategy",
+      "source_layers": ["application", "domain", "interface", "management"],
+      "forbidden_import_prefixes": [
+        "apps.simulated_trading.infrastructure.models"
+      ],
+      "rationale": "Use SimulatedTradingFacade or gateway contracts."
+    },
+    {
+      "id": "simulated_trading_no_strategy_orm_imports",
+      "description": "Simulated trading must not import strategy ORM models directly.",
+      "source_module": "simulated_trading",
+      "source_layers": ["application", "domain", "interface", "management"],
+      "forbidden_import_prefixes": [
+        "apps.strategy.infrastructure.models"
+      ],
+      "rationale": "Use StrategyExecutionGateway or strategy-side contracts."
+    },
+    {
+      "id": "events_no_direct_downstream_models_or_handlers",
+      "description": "Events must not import downstream handlers or ORM models directly.",
+      "source_module": "events",
+      "source_layers": ["application", "domain", "infrastructure", "interface", "management"],
+      "forbidden_import_prefixes": [
+        "apps.alpha_trigger.application.handlers",
+        "apps.alpha_trigger.infrastructure.models",
+        "apps.decision_rhythm.application.handlers",
+        "apps.decision_rhythm.infrastructure.models"
+      ],
+      "rationale": "Delegate via EventSubscriberRegistry and downstream repositories/gateways."
+    }
+  ],
+  "module_metadata": {
+    "regime": {
+      "role": "core",
+      "patterns": ["Protocol", "Adapter", "Gateway"],
+      "note": "Runtime access to macro is mediated by regime-owned abstractions."
+    },
+    "macro": {
+      "role": "core",
+      "patterns": ["Orchestration"],
+      "note": "Macro sync is invoked through regime orchestration boundaries."
+    },
+    "events": {
+      "role": "integration",
+      "patterns": ["Registry", "Repository wrapper"],
+      "note": "Event fan-out should stop at registry/repository boundaries."
+    },
+    "strategy": {
+      "role": "business",
+      "patterns": ["Facade", "Gateway"],
+      "note": "Strategy should not reach simulated_trading ORM directly."
+    },
+    "simulated_trading": {
+      "role": "business",
+      "patterns": ["Facade", "Gateway"],
+      "note": "Simulated trading should not reach strategy ORM directly."
+    },
+    "dashboard": {
+      "role": "aggregation",
+      "patterns": ["Query Service"],
+      "note": "Dashboard keeps cross-module reads in query/DTO boundaries."
+    }
+  }
+}

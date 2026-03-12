@@ -126,6 +126,7 @@ MODULE_TEST_MAP: Dict[str, List[str]] = {
 
 # 始终运行的核心测试（无论哪个模块变更）
 CORE_GUARDRAIL_TESTS = [
+    "tests/guardrails/test_architecture_boundaries.py",
     "tests/guardrails/test_logic_guardrails.py",
     "tests/guardrails/test_no_501_on_primary_paths.py",
     "tests/guardrails/test_security_hardening_guardrails.py",

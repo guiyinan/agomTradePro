@@ -31,6 +31,21 @@
    `rg -n "from .*infrastructure\\.models|\\.objects\\." apps/*/application -S`
 3. Interface 越层调用扫描：  
    `rg -n "from .*infrastructure\\.|from .*domain\\.(services|rules)" apps/*/interface -S`
+4. 版本化边界校验：  
+   `python scripts/verify_architecture.py --rules-file governance/architecture_rules.json --format text`
+5. 模块账本生成：  
+   `python scripts/verify_architecture.py --rules-file governance/architecture_rules.json --write-ledger docs/development/module-ledger.md`
+
+### 0.2) 架构账本与边界基线
+
+1. 边界规则单一来源：`governance/architecture_rules.json`
+2. 自动校验入口：`scripts/verify_architecture.py`
+3. 生成产物：`docs/development/module-ledger.md`
+4. 当前固化范围：
+   - `regime -> macro` 运行时实现导入禁令
+   - `strategy -> simulated_trading ORM` 禁令
+   - `simulated_trading -> strategy ORM` 禁令
+   - `events -> downstream handlers/models` 禁令
 
 ### 1) 配置唯一来源（Single Source of Truth）
 
