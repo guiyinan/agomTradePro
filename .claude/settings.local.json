@@ -151,7 +151,10 @@
       "Bash(~/.config/claude-code/mcp_servers.json:*)",
       "Bash(conda info:*)",
       "WebFetch(domain:skills.sh)",
-      "Bash(gh repo:*)"
+      "Bash(gh repo:*)",
+      "mcp__agomsaaf__check_alpha_health",
+      "mcp__agomsaaf__get_policy_status",
+      "Bash(cd D:/githv/agomSAAF && echo \"=== API 性能测试 ===\" && for endpoint in \"/api/health/\" \"/api/regime/current/\" \"/api/policy/events/\" \"/api/signal/\" \"/api/strategy/\" \"/api/audit/\" \"/api/backtest/\" \"/api/simulated-trading/accounts/\"; do echo -n \"$endpoint: \" && curl -s -o /dev/null -w \"%{http_code} %{time_total}s\\\\n\" \"http://localhost:8000$endpoint\"; done)"
     ]
   },
   "enableAllProjectMcpServers": true,
