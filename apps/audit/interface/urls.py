@@ -40,6 +40,8 @@ urlpatterns = [
     path('api/operation-logs/stats/', views.OperationLogStatsView.as_view(), name='operation-log-stats'),
     path('api/operation-logs/<str:log_id>/', views.OperationLogDetailView.as_view(), name='operation-log-detail'),
     path('api/internal/operation-logs/', views.OperationLogIngestView.as_view(), name='operation-log-ingest'),
+    path('api/decision-traces/', views.DecisionTraceListView.as_view(), name='decision-trace-list'),
+    path('api/decision-traces/<str:request_id>/', views.DecisionTraceDetailView.as_view(), name='decision-trace-detail'),
 
     # API routes - Health Check & Observability
     path('api/health/', views.AuditHealthCheckView.as_view(), name='audit-health-check'),
@@ -57,4 +59,6 @@ urlpatterns = [
     # HTML page routes - Operation Logs
     path('operation-logs/', views.OperationLogsAdminPageView.as_view(), name='operation_logs_admin'),
     path('my-logs/', views.MyOperationLogsPageView.as_view(), name='my_operation_logs'),
+    path('decision-traces/', views.DecisionTracesAdminPageView.as_view(), name='decision_traces_admin'),
+    path('my-decision-traces/', views.MyDecisionTracesPageView.as_view(), name='my_decision_traces'),
 ]

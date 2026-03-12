@@ -860,9 +860,12 @@ class DjangoAuditRepository:
                 request_method=log_entity.request_method,
                 request_path=log_entity.request_path,
                 request_params=log_entity.request_params,
+                response_payload=log_entity.response_payload,
+                response_text=log_entity.response_text,
                 response_status=log_entity.response_status,
                 response_message=log_entity.response_message,
                 error_code=log_entity.error_code,
+                exception_traceback=log_entity.exception_traceback,
                 duration_ms=log_entity.duration_ms,
                 checksum=log_entity.checksum,
             )
@@ -900,6 +903,7 @@ class DjangoAuditRepository:
         module: Optional[str] = None,
         action: Optional[str] = None,
         mcp_tool_name: Optional[str] = None,
+        mcp_client_id: Optional[str] = None,
         mcp_role: Optional[str] = None,
         response_status: Optional[int] = None,
         start_date: Optional[date] = None,
@@ -940,6 +944,8 @@ class DjangoAuditRepository:
             queryset = queryset.filter(action=action)
         if mcp_tool_name:
             queryset = queryset.filter(mcp_tool_name__icontains=mcp_tool_name)
+        if mcp_client_id:
+            queryset = queryset.filter(mcp_client_id__icontains=mcp_client_id)
         if mcp_role:
             queryset = queryset.filter(mcp_role=mcp_role)
         if response_status is not None:
@@ -986,9 +992,12 @@ class DjangoAuditRepository:
                 'request_method': log.request_method,
                 'request_path': log.request_path,
                 'request_params': log.request_params,
+                'response_payload': log.response_payload,
+                'response_text': log.response_text,
                 'response_status': log.response_status,
                 'response_message': log.response_message,
                 'error_code': log.error_code,
+                'exception_traceback': log.exception_traceback,
                 'timestamp': log.timestamp.isoformat(),
                 'duration_ms': log.duration_ms,
                 'checksum': log.checksum,
@@ -1033,9 +1042,12 @@ class DjangoAuditRepository:
                 'request_method': log.request_method,
                 'request_path': log.request_path,
                 'request_params': log.request_params,
+                'response_payload': log.response_payload,
+                'response_text': log.response_text,
                 'response_status': log.response_status,
                 'response_message': log.response_message,
                 'error_code': log.error_code,
+                'exception_traceback': log.exception_traceback,
                 'timestamp': log.timestamp.isoformat(),
                 'duration_ms': log.duration_ms,
                 'checksum': log.checksum,
@@ -1148,4 +1160,173 @@ class DjangoAuditRepository:
 
         count, _ = queryset.delete()
         return count
+
+    def list_decision_traces(
+        self,
+        current_user_id: Optional[int] = None,
+        is_admin: bool = False,
+        mcp_client_id: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[list[dict], int]:
+        """按 request_id 聚合 MCP/SDK 调用，生成决策链列表。"""
+        from .models import OperationLogModel
+        from django.db.models import Count, Max, Min
+
+        queryset = OperationLogModel._default_manager.exclude(request_id="")
+        if not is_admin and current_user_id is not None:
+            queryset = queryset.filter(user_id=current_user_id)
+        if mcp_client_id:
+            queryset = queryset.filter(mcp_client_id__icontains=mcp_client_id)
+
+        grouped = (
+            queryset
+            .values("request_id", "mcp_client_id")
+            .annotate(
+                started_at=Min("timestamp"),
+                finished_at=Max("timestamp"),
+                step_count=Count("id"),
+                last_status=Max("response_status"),
+            )
+            .order_by("-finished_at")
+        )
+
+        total_count = grouped.count()
+        offset = (page - 1) * page_size
+        rows = list(grouped[offset:offset + page_size])
+        trace_keys = [(row["request_id"], row["mcp_client_id"] or "") for row in rows]
+        trace_ids = [row["request_id"] for row in rows]
+        if not trace_keys:
+            return [], total_count
+
+        sample_logs = (
+            queryset
+            .filter(request_id__in=trace_ids)
+            .order_by("request_id", "timestamp")
+        )
+        samples_by_request: dict[tuple[str, str], list] = {}
+        for log in sample_logs:
+            samples_by_request.setdefault((log.request_id, log.mcp_client_id or ""), []).append(log)
+
+        traces = []
+        for row in rows:
+            request_id = row["request_id"]
+            client_key = row["mcp_client_id"] or ""
+            logs = samples_by_request.get((request_id, client_key), [])
+            first_log = logs[0] if logs else None
+            last_log = logs[-1] if logs else None
+            traces.append({
+                "request_id": request_id,
+                "mcp_client_id": client_key,
+                "username": first_log.username if first_log else "anonymous",
+                "user_id": first_log.user_id if first_log else None,
+                "source": first_log.source if first_log else "MCP",
+                "started_at": row["started_at"].isoformat() if row["started_at"] else None,
+                "finished_at": row["finished_at"].isoformat() if row["finished_at"] else None,
+                "step_count": row["step_count"],
+                "status": "failed" if (last_log and last_log.response_status >= 400) else "success",
+                "last_status": last_log.response_status if last_log else 200,
+                "modules": list(dict.fromkeys(log.module for log in logs if log.module)),
+                "tools": [log.mcp_tool_name or log.operation_type for log in logs],
+                "summary": self._build_decision_trace_summary(logs),
+            })
+
+        return traces, total_count
+
+    def get_decision_trace(
+        self,
+        request_id: str,
+        mcp_client_id: Optional[str] = None,
+        current_user_id: Optional[int] = None,
+        is_admin: bool = False,
+    ) -> Optional[dict]:
+        """获取单条决策链详情。"""
+        from .models import OperationLogModel
+
+        queryset = OperationLogModel._default_manager.filter(request_id=request_id).order_by("timestamp")
+        if not is_admin and current_user_id is not None:
+            queryset = queryset.filter(user_id=current_user_id)
+        if mcp_client_id:
+            queryset = queryset.filter(mcp_client_id=mcp_client_id)
+
+        logs = list(queryset)
+        if not logs:
+            return None
+
+        steps = []
+        for index, log in enumerate(logs, start=1):
+            steps.append({
+                "step_index": index,
+                "log_id": str(log.id),
+                "timestamp": log.timestamp.isoformat(),
+                "tool_name": log.mcp_tool_name or log.operation_type,
+                "module": log.module,
+                "action": log.action,
+                "request_path": log.request_path,
+                "response_status": log.response_status,
+                "duration_ms": log.duration_ms,
+                "summary": self._build_step_summary(log),
+                "response_message": log.response_message,
+            })
+
+        first_log = logs[0]
+        last_log = logs[-1]
+        return {
+            "request_id": request_id,
+            "mcp_client_id": first_log.mcp_client_id,
+            "username": first_log.username,
+            "user_id": first_log.user_id,
+            "source": first_log.source,
+            "started_at": first_log.timestamp.isoformat(),
+            "finished_at": last_log.timestamp.isoformat(),
+            "step_count": len(steps),
+            "status": "failed" if last_log.response_status >= 400 else "success",
+            "final_summary": self._build_step_summary(last_log),
+            "steps": steps,
+            "logs": [
+                {
+                    "id": str(log.id),
+                    "timestamp": log.timestamp.isoformat(),
+                    "mcp_tool_name": log.mcp_tool_name,
+                    "module": log.module,
+                    "action": log.action,
+                    "request_path": log.request_path,
+                    "request_params": log.request_params,
+                    "response_payload": log.response_payload,
+                    "response_text": log.response_text,
+                    "response_status": log.response_status,
+                    "response_message": log.response_message,
+                    "error_code": log.error_code,
+                    "exception_traceback": log.exception_traceback,
+                    "duration_ms": log.duration_ms,
+                    "checksum": log.checksum,
+                }
+                for log in logs
+            ],
+        }
+
+    @staticmethod
+    def _build_decision_trace_summary(logs: list) -> str:
+        """构建决策链摘要。"""
+        if not logs:
+            return ""
+        final_log = logs[-1]
+        if final_log.response_status >= 400:
+            return f"{final_log.mcp_tool_name or final_log.operation_type} failed: {final_log.response_message or final_log.error_code}"
+        return DjangoAuditRepository._build_step_summary(final_log)
+
+    @staticmethod
+    def _build_step_summary(log) -> str:
+        """从单条日志提炼步骤摘要。"""
+        payload = log.response_payload
+        if isinstance(payload, dict):
+            for key in ("summary", "message", "decision", "status", "result", "recommendation"):
+                value = payload.get(key)
+                if value:
+                    return str(value)
+        if log.response_message:
+            return log.response_message
+        if log.response_text:
+            return log.response_text[:160]
+        return log.mcp_tool_name or log.operation_type
 

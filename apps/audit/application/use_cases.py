@@ -1170,9 +1170,12 @@ class LogOperationRequest:
     action: str = "READ"  # CREATE/READ/UPDATE/DELETE/EXECUTE
     mcp_tool_name: Optional[str] = None
     request_params: Optional[dict] = None
+    response_payload: Optional[object] = None
+    response_text: str = ""
     response_status: int = 200
     response_message: str = ""
     error_code: str = ""
+    exception_traceback: str = ""
     duration_ms: Optional[int] = None
     ip_address: Optional[str] = None
     user_agent: str = ""
@@ -1229,9 +1232,12 @@ class LogOperationUseCase:
                 module=request.module,
                 action=request.action,
                 request_params=request.request_params,
+                response_payload=request.response_payload,
+                response_text=request.response_text,
                 response_status=request.response_status,
                 response_message=request.response_message,
                 error_code=request.error_code,
+                exception_traceback=request.exception_traceback,
                 duration_ms=request.duration_ms,
                 ip_address=request.ip_address,
                 user_agent=request.user_agent,
@@ -1328,6 +1334,7 @@ class QueryOperationLogsRequest:
     module: Optional[str] = None
     action: Optional[str] = None
     mcp_tool_name: Optional[str] = None
+    mcp_client_id: Optional[str] = None
     mcp_role: Optional[str] = None
     response_status: Optional[int] = None
     start_date: Optional[date] = None
@@ -1383,6 +1390,7 @@ class QueryOperationLogsUseCase:
                 module=request.module,
                 action=request.action,
                 mcp_tool_name=request.mcp_tool_name,
+                mcp_client_id=request.mcp_client_id,
                 mcp_role=request.mcp_role,
                 response_status=request.response_status,
                 start_date=request.start_date,
@@ -1479,6 +1487,7 @@ class ExportOperationLogsRequest:
     module: Optional[str] = None
     action: Optional[str] = None
     mcp_tool_name: Optional[str] = None
+    mcp_client_id: Optional[str] = None
     response_status: Optional[int] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
@@ -1544,6 +1553,7 @@ class ExportOperationLogsUseCase:
                 module=request.module,
                 action=request.action,
                 mcp_tool_name=request.mcp_tool_name,
+                mcp_client_id=request.mcp_client_id,
                 response_status=request.response_status,
                 start_date=request.start_date,
                 end_date=request.end_date,

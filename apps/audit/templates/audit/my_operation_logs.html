@@ -31,6 +31,10 @@
                     <input type="text" class="form-control" id="tool-name" name="mcp_tool_name" placeholder="模糊匹配">
                 </div>
                 <div class="col-md-2">
+                    <label class="form-label">Token</label>
+                    <input type="text" class="form-control" id="mcp-client-id" name="mcp_client_id" placeholder="客户端ID">
+                </div>
+                <div class="col-md-2">
                     <label class="form-label">状态</label>
                     <select class="form-select" id="status" name="response_status">
                         <option value="">全部</option>
@@ -212,6 +216,9 @@ function showDetail(logId) {
         }
 
         var log = data.log;
+        var payloadHtml = log.response_payload !== null && log.response_payload !== undefined
+            ? `<pre class="bg-light p-2" style="max-height: 240px; overflow: auto;">${JSON.stringify(log.response_payload, null, 2)}</pre>`
+            : (log.response_text ? `<pre class="bg-light p-2" style="max-height: 240px; overflow: auto;">${log.response_text}</pre>` : '-');
         var html = `
             <table class="table table-sm">
                 <tr><th>请求 ID</th><td><code>${log.request_id}</code></td></tr>
@@ -219,11 +226,15 @@ function showDetail(logId) {
                 <tr><th>工具名</th><td><code>${log.mcp_tool_name || '-'}</code></td></tr>
                 <tr><th>模块</th><td>${log.module}</td></tr>
                 <tr><th>动作</th><td>${log.action}</td></tr>
+                <tr><th>请求路径</th><td><code>${log.request_path || '-'}</code></td></tr>
                 <tr><th>状态</th><td><span class="badge ${log.response_status >= 400 ? 'bg-danger' : 'bg-success'}">${log.response_status}</span></td></tr>
                 <tr><th>耗时</th><td>${log.duration_ms ? log.duration_ms + ' ms' : '-'}</td></tr>
                 <tr><th>请求参数</th><td><pre class="bg-light p-2" style="max-height: 200px; overflow: auto;">${JSON.stringify(log.request_params, null, 2)}</pre></td></tr>
+                <tr><th>响应内容</th><td>${payloadHtml}</td></tr>
                 ${log.response_message ? `<tr><th>响应消息</th><td>${log.response_message}</td></tr>` : ''}
                 ${log.error_code ? `<tr><th>错误代码</th><td><span class="text-danger">${log.error_code}</span></td></tr>` : ''}
+                ${log.exception_traceback ? `<tr><th>异常堆栈</th><td><pre class="bg-light p-2" style="max-height: 240px; overflow: auto;">${log.exception_traceback}</pre></td></tr>` : ''}
+                <tr><th>校验和</th><td><code>${log.checksum || '-'}</code></td></tr>
             </table>
         `;
 

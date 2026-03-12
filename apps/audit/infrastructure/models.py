@@ -720,6 +720,18 @@ class OperationLogModel(models.Model):
         verbose_name='请求参数',
         help_text='已脱敏'
     )
+    response_payload = models.JSONField(
+        null=True,
+        blank=True,
+        encoder=DjangoJSONEncoder,
+        verbose_name='响应载荷',
+        help_text='结构化响应内容，已脱敏'
+    )
+    response_text = models.TextField(
+        blank=True,
+        verbose_name='响应文本快照',
+        help_text='完整或截断后的文本响应'
+    )
     response_status = models.IntegerField(
         default=200,
         db_index=True,
@@ -733,6 +745,10 @@ class OperationLogModel(models.Model):
         max_length=50,
         blank=True,
         verbose_name='错误代码'
+    )
+    exception_traceback = models.TextField(
+        blank=True,
+        verbose_name='异常堆栈'
     )
 
     # 时间与性能

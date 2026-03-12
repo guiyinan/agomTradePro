@@ -7,7 +7,7 @@ Only uses Python standard library (no pandas/numpy).
 
 import math
 from datetime import date, timedelta
-from typing import List, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .entities import (
     LossSource,
@@ -1366,9 +1366,12 @@ class OperationLogFactory:
         module: Optional[str] = None,
         action: Optional[str] = None,
         request_params: Optional[Dict] = None,
+        response_payload: Optional[Any] = None,
+        response_text: str = "",
         response_status: int = 200,
         response_message: str = "",
         error_code: str = "",
+        exception_traceback: str = "",
         duration_ms: Optional[int] = None,
         ip_address: Optional[str] = None,
         user_agent: str = "",
@@ -1394,9 +1397,12 @@ class OperationLogFactory:
             module: 模块名，不传则自动推断
             action: 动作类型，不传则自动推断
             request_params: 请求参数（将被脱敏）
+            response_payload: 结构化响应内容（将被脱敏）
+            response_text: 响应文本快照
             response_status: 响应状态码
             response_message: 响应消息
             error_code: 错误代码
+            exception_traceback: 异常堆栈
             duration_ms: 耗时（毫秒）
             ip_address: IP 地址
             user_agent: User Agent
@@ -1458,9 +1464,12 @@ class OperationLogFactory:
             action=action_enum,
             mcp_tool_name=tool_name,
             request_params=request_params,
+            response_payload=response_payload,
+            response_text=response_text,
             response_status=response_status,
             response_message=response_message,
             error_code=error_code,
+            exception_traceback=exception_traceback,
             duration_ms=duration_ms,
             ip_address=ip_address,
             user_agent=user_agent,
@@ -1482,9 +1491,12 @@ class OperationLogFactory:
         request_method: str,
         request_path: str,
         request_params: Optional[Dict] = None,
+        response_payload: Optional[Any] = None,
+        response_text: str = "",
         response_status: int = 200,
         response_message: str = "",
         error_code: str = "",
+        exception_traceback: str = "",
         duration_ms: Optional[int] = None,
         ip_address: Optional[str] = None,
         user_agent: str = "",
@@ -1502,9 +1514,12 @@ class OperationLogFactory:
             request_method: 请求方法（GET/POST/PUT/DELETE）
             request_path: 请求路径
             request_params: 请求参数（将被脱敏）
+            response_payload: 结构化响应内容（将被脱敏）
+            response_text: 响应文本快照
             response_status: 响应状态码
             response_message: 响应消息
             error_code: 错误代码
+            exception_traceback: 异常堆栈
             duration_ms: 耗时（毫秒）
             ip_address: IP 地址
             user_agent: User Agent
@@ -1553,9 +1568,12 @@ class OperationLogFactory:
             request_method=request_method,
             request_path=request_path,
             request_params=request_params,
+            response_payload=response_payload,
+            response_text=response_text,
             response_status=response_status,
             response_message=response_message,
             error_code=error_code,
+            exception_traceback=exception_traceback,
             duration_ms=duration_ms,
             ip_address=ip_address,
             user_agent=user_agent,

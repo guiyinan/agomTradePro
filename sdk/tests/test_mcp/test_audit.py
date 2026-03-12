@@ -67,3 +67,32 @@ def test_log_mcp_call_non_blocking_on_network_error(monkeypatch) -> None:
         context=ctx,
     )
     assert result is None
+
+
+def test_log_mcp_call_includes_response_payload_and_traceback(monkeypatch) -> None:
+    logger = AuditLogger(secret_key="k")
+    ctx = AuditContext.create(request_id="req-2", username="u")
+    captured = {}
+
+    def fake_send(data):
+        captured.update(data)
+        return "log-1"
+
+    monkeypatch.setattr(logger, "_send_audit_log", fake_send)
+
+    try:
+        raise RuntimeError("boom")
+    except RuntimeError as exc:
+        result = logger.log_mcp_call(
+            tool_name="create_signal",
+            params={"asset_code": "000001.SH"},
+            result={"token": "secret", "ok": True},
+            error=exc,
+            context=ctx,
+        )
+
+    assert result == "log-1"
+    assert captured["response_payload"]["token"] == "***"
+    assert captured["response_payload"]["ok"] is True
+    assert '"token": "***"' in captured["response_text"]
+    assert "RuntimeError: boom" in captured["exception_traceback"]

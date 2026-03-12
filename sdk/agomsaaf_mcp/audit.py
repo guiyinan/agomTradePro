@@ -12,12 +12,15 @@ import json
 import logging
 import os
 import time
+import traceback
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Optional
 
 logger = logging.getLogger(__name__)
+
+MAX_RESPONSE_TEXT_LENGTH = 200000
 
 
 @dataclass
@@ -144,6 +147,9 @@ class AuditLogger:
 
         # 脱敏参数
         masked_params = self._mask_sensitive_params(params)
+        response_payload = self._serialize_payload(result)
+        response_text = self._build_response_text(result)
+        exception_traceback = self._format_exception_traceback(error)
 
         # 构建审计日志数据
         audit_data = {
@@ -156,9 +162,12 @@ class AuditLogger:
             'action': action,
             'mcp_tool_name': tool_name,
             'request_params': masked_params,
+            'response_payload': response_payload,
+            'response_text': response_text,
             'response_status': response_status,
             'response_message': response_message,
             'error_code': error_code,
+            'exception_traceback': exception_traceback,
             'duration_ms': duration_ms,
             'ip_address': context.ip_address,
             'user_agent': context.user_agent,
@@ -238,6 +247,9 @@ class AuditLogger:
 
         # 脱敏参数
         masked_params = self._mask_sensitive_params(params)
+        response_payload = self._serialize_payload(result)
+        response_text = self._build_response_text(result)
+        exception_traceback = self._format_exception_traceback(error)
 
         # 构建审计日志数据
         audit_data = {
@@ -250,9 +262,12 @@ class AuditLogger:
             'action': action,
             'mcp_tool_name': None,
             'request_params': masked_params,
+            'response_payload': response_payload,
+            'response_text': response_text,
             'response_status': response_status,
             'response_message': response_message,
             'error_code': error_code,
+            'exception_traceback': exception_traceback,
             'duration_ms': duration_ms,
             'ip_address': context.ip_address,
             'user_agent': context.user_agent,
@@ -420,6 +435,68 @@ class AuditLogger:
             return [AuditLogger._mask_sensitive_params(item, mask) for item in params]
         else:
             return params
+
+    @classmethod
+    def _serialize_payload(cls, payload: Any) -> Any:
+        """将返回值转换为适合 JSON 存储的结构，并做脱敏。"""
+        if payload is None:
+            return None
+
+        normalized = cls._normalize_for_json(payload)
+        return cls._mask_sensitive_params(normalized)
+
+    @classmethod
+    def _normalize_for_json(cls, value: Any) -> Any:
+        """将任意对象转换为 JSON 兼容结构。"""
+        if value is None or isinstance(value, (str, int, float, bool)):
+            return value
+        if isinstance(value, dict):
+            return {str(k): cls._normalize_for_json(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple, set)):
+            return [cls._normalize_for_json(item) for item in value]
+        if hasattr(value, "model_dump") and callable(value.model_dump):
+            try:
+                return cls._normalize_for_json(value.model_dump())
+            except Exception:
+                pass
+        if hasattr(value, "dict") and callable(value.dict):
+            try:
+                return cls._normalize_for_json(value.dict())
+            except Exception:
+                pass
+        if hasattr(value, "__dict__"):
+            try:
+                return cls._normalize_for_json(vars(value))
+            except Exception:
+                pass
+        return {"type": type(value).__name__, "repr": repr(value)}
+
+    @classmethod
+    def _build_response_text(cls, payload: Any) -> str:
+        """生成便于人工查看的响应文本快照。"""
+        if payload is None:
+            return ""
+
+        normalized = cls._serialize_payload(payload)
+        try:
+            text = json.dumps(normalized, ensure_ascii=False, indent=2, default=str)
+        except Exception:
+            text = repr(normalized)
+
+        if len(text) > MAX_RESPONSE_TEXT_LENGTH:
+            overflow = len(text) - MAX_RESPONSE_TEXT_LENGTH
+            text = f"{text[:MAX_RESPONSE_TEXT_LENGTH]}\n... [TRUNCATED {overflow} chars]"
+        return text
+
+    @staticmethod
+    def _format_exception_traceback(error: Optional[Exception]) -> str:
+        """提取异常堆栈，便于后续回溯。"""
+        if not error:
+            return ""
+        try:
+            return "".join(traceback.format_exception(type(error), error, error.__traceback__))
+        except Exception:
+            return str(error)
 
     @classmethod
     def get_failure_count(cls) -> int:

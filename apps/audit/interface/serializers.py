@@ -82,9 +82,12 @@ class OperationLogSerializer(serializers.Serializer):
     request_method = serializers.CharField()
     request_path = serializers.CharField()
     request_params = serializers.DictField()
+    response_payload = serializers.JSONField(allow_null=True)
+    response_text = serializers.CharField()
     response_status = serializers.IntegerField()
     response_message = serializers.CharField()
     error_code = serializers.CharField()
+    exception_traceback = serializers.CharField()
     timestamp = serializers.CharField()
     duration_ms = serializers.IntegerField(allow_null=True)
     checksum = serializers.CharField()
@@ -114,6 +117,7 @@ class OperationLogQuerySerializer(serializers.Serializer):
     module = serializers.CharField(required=False, allow_blank=True)
     action = serializers.CharField(required=False, allow_blank=True)
     mcp_tool_name = serializers.CharField(required=False, allow_blank=True)
+    mcp_client_id = serializers.CharField(required=False, allow_blank=True)
     mcp_role = serializers.CharField(required=False, allow_blank=True)
     response_status = serializers.IntegerField(required=False, allow_null=True)
     start_date = serializers.DateField(required=False, allow_null=True)
@@ -136,9 +140,12 @@ class OperationLogIngestSerializer(serializers.Serializer):
     action = serializers.CharField(required=False, default='READ')
     mcp_tool_name = serializers.CharField(required=False, allow_null=True)
     request_params = serializers.DictField(required=False, default=dict)
+    response_payload = serializers.JSONField(required=False, allow_null=True, default=None)
+    response_text = serializers.CharField(required=False, default='')
     response_status = serializers.IntegerField(required=False, default=200)
     response_message = serializers.CharField(required=False, default='')
     error_code = serializers.CharField(required=False, default='')
+    exception_traceback = serializers.CharField(required=False, default='')
     duration_ms = serializers.IntegerField(required=False, allow_null=True)
     ip_address = serializers.CharField(required=False, allow_null=True)
     user_agent = serializers.CharField(required=False, default='')
@@ -171,4 +178,52 @@ class ExportOperationLogsSerializer(serializers.Serializer):
     data = serializers.CharField(allow_null=True, required=False)
     filename = serializers.CharField(allow_null=True, required=False)
     row_count = serializers.IntegerField()
+    error = serializers.CharField(allow_null=True, required=False)
+
+
+class DecisionTraceStepSerializer(serializers.Serializer):
+    """决策链步骤序列化器"""
+    step_index = serializers.IntegerField()
+    log_id = serializers.CharField()
+    timestamp = serializers.CharField()
+    tool_name = serializers.CharField()
+    module = serializers.CharField()
+    action = serializers.CharField()
+    request_path = serializers.CharField()
+    response_status = serializers.IntegerField()
+    duration_ms = serializers.IntegerField(allow_null=True)
+    summary = serializers.CharField()
+    response_message = serializers.CharField()
+
+
+class DecisionTraceSummarySerializer(serializers.Serializer):
+    """决策链摘要序列化器"""
+    request_id = serializers.CharField()
+    mcp_client_id = serializers.CharField()
+    username = serializers.CharField()
+    user_id = serializers.IntegerField(allow_null=True)
+    source = serializers.CharField()
+    started_at = serializers.CharField(allow_null=True)
+    finished_at = serializers.CharField(allow_null=True)
+    step_count = serializers.IntegerField()
+    status = serializers.CharField()
+    last_status = serializers.IntegerField()
+    modules = serializers.ListField(child=serializers.CharField())
+    tools = serializers.ListField(child=serializers.CharField())
+    summary = serializers.CharField()
+
+
+class DecisionTraceListSerializer(serializers.Serializer):
+    """决策链列表响应序列化器"""
+    success = serializers.BooleanField()
+    traces = DecisionTraceSummarySerializer(many=True)
+    total_count = serializers.IntegerField()
+    page = serializers.IntegerField()
+    page_size = serializers.IntegerField()
+
+
+class DecisionTraceDetailSerializer(serializers.Serializer):
+    """决策链详情响应序列化器"""
+    success = serializers.BooleanField()
+    trace = serializers.DictField(required=False)
     error = serializers.CharField(allow_null=True, required=False)

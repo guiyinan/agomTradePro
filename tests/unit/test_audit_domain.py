@@ -183,3 +183,25 @@ class TestOperationLogEntity:
 
         assert log.request_params["password"] == "***"
         assert log.request_params["data"] == "value"
+
+    def test_response_payload_masked_on_create(self):
+        """测试响应载荷也会自动脱敏"""
+        log = OperationLog.create(
+            request_id="req-789",
+            user_id=1,
+            username="testuser",
+            source=OperationSource.MCP,
+            operation_type=OperationType.MCP_CALL,
+            module="signal",
+            action=OperationAction.READ,
+            response_payload={
+                "token": "secret-token",
+                "nested": {"api_key": "k", "value": 1},
+            },
+            response_text='{"token":"secret-token"}',
+        )
+
+        assert log.response_payload["token"] == "***"
+        assert log.response_payload["nested"]["api_key"] == "***"
+        assert log.response_payload["nested"]["value"] == 1
+        assert log.response_text == '{"token":"secret-token"}'

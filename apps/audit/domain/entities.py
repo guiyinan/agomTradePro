@@ -369,9 +369,12 @@ class OperationLog:
     request_method: str
     request_path: str
     request_params: Dict[str, Any]  # 已脱敏
+    response_payload: Optional[Any]
+    response_text: str
     response_status: int
     response_message: str
     error_code: str
+    exception_traceback: str
 
     # 时间与性能
     timestamp: str  # ISO 8601 格式
@@ -392,9 +395,12 @@ class OperationLog:
         action: OperationAction,
         mcp_tool_name: Optional[str] = None,
         request_params: Optional[Dict[str, Any]] = None,
+        response_payload: Optional[Any] = None,
+        response_text: str = "",
         response_status: int = 200,
         response_message: str = "",
         error_code: str = "",
+        exception_traceback: str = "",
         duration_ms: Optional[int] = None,
         ip_address: Optional[str] = None,
         user_agent: str = "",
@@ -419,9 +425,18 @@ class OperationLog:
 
         # 脱敏参数
         masked_params = mask_sensitive_params(request_params or {})
+        masked_response_payload = mask_sensitive_params(response_payload)
+        normalized_response_text = response_text or ""
 
         # 计算校验和
-        checksum = cls._compute_checksum(log_id, request_id, timestamp, masked_params)
+        checksum = cls._compute_checksum(
+            log_id,
+            request_id,
+            timestamp,
+            masked_params,
+            masked_response_payload,
+            normalized_response_text,
+        )
 
         return cls(
             id=log_id,
@@ -444,21 +459,33 @@ class OperationLog:
             request_method=request_method,
             request_path=request_path,
             request_params=masked_params,
+            response_payload=masked_response_payload,
+            response_text=normalized_response_text,
             response_status=response_status,
             response_message=response_message,
             error_code=error_code,
+            exception_traceback=exception_traceback or "",
             timestamp=timestamp,
             duration_ms=duration_ms,
             checksum=checksum,
         )
 
     @staticmethod
-    def _compute_checksum(log_id: str, request_id: str, timestamp: str, params: Dict) -> str:
+    def _compute_checksum(
+        log_id: str,
+        request_id: str,
+        timestamp: str,
+        params: Dict,
+        response_payload: Any,
+        response_text: str,
+    ) -> str:
         """计算校验和"""
         import hashlib
         import json
 
-        data = f"{log_id}:{request_id}:{timestamp}:{json.dumps(params, sort_keys=True)}"
+        payload_json = json.dumps(response_payload, sort_keys=True, ensure_ascii=False, default=str)
+        params_json = json.dumps(params, sort_keys=True, ensure_ascii=False, default=str)
+        data = f"{log_id}:{request_id}:{timestamp}:{params_json}:{payload_json}:{response_text}"
         return hashlib.sha256(data.encode()).hexdigest()
 
 

@@ -89,6 +89,10 @@
                     <label class="form-label">工具名</label>
                     <input type="text" class="form-control" id="tool-name" name="mcp_tool_name" placeholder="模糊匹配">
                 </div>
+                <div class="col-md-2">
+                    <label class="form-label">Token</label>
+                    <input type="text" class="form-control" id="mcp-client-id" name="mcp_client_id" placeholder="客户端ID">
+                </div>
                 <div class="col-12">
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-search"></i> 查询
@@ -96,9 +100,13 @@
                     <button type="button" class="btn btn-secondary" id="reset-btn">
                         <i class="fas fa-undo"></i> 重置
                     </button>
-                    <button type="button" class="btn btn-success" id="export-btn">
-                        <i class="fas fa-download"></i> 导出 CSV
+                    <button type="button" class="btn btn-success" id="export-csv-btn">
+                        <i class="fas fa-download"></i> 导出当前筛选 CSV
                     </button>
+                    <button type="button" class="btn btn-outline-success" id="export-json-btn">
+                        <i class="fas fa-file-code"></i> 导出当前筛选 JSON
+                    </button>
+                    <span class="text-muted ms-2">导出会带上当前 token、日期、模块和状态筛选条件</span>
                 </div>
             </form>
         </div>
@@ -177,8 +185,12 @@ $(document).ready(function() {
     });
 
     // 导出按钮
-    $('#export-btn').on('click', function() {
-        exportLogs();
+    $('#export-csv-btn').on('click', function() {
+        exportLogs('csv');
+    });
+
+    $('#export-json-btn').on('click', function() {
+        exportLogs('json');
     });
 });
 
@@ -268,6 +280,9 @@ function showDetail(logId) {
         }
 
         var log = data.log;
+        var payloadHtml = log.response_payload !== null && log.response_payload !== undefined
+            ? `<pre>${JSON.stringify(log.response_payload, null, 2)}</pre>`
+            : (log.response_text ? `<pre>${log.response_text}</pre>` : '-');
         var html = `
             <table class="table table-sm">
                 <tr><th>请求 ID</th><td>${log.request_id}</td></tr>
@@ -277,11 +292,15 @@ function showDetail(logId) {
                 <tr><th>工具名</th><td><code>${log.mcp_tool_name || '-'}</code></td></tr>
                 <tr><th>模块</th><td>${log.module}</td></tr>
                 <tr><th>动作</th><td>${log.action}</td></tr>
+                <tr><th>请求路径</th><td><code>${log.request_path || '-'}</code></td></tr>
                 <tr><th>状态码</th><td>${log.response_status}</td></tr>
                 <tr><th>耗时</th><td>${log.duration_ms ? log.duration_ms + ' ms' : '-'}</td></tr>
                 <tr><th>请求参数</th><td><pre>${JSON.stringify(log.request_params, null, 2)}</pre></td></tr>
+                <tr><th>响应内容</th><td>${payloadHtml}</td></tr>
                 <tr><th>响应消息</th><td>${log.response_message || '-'}</td></tr>
                 <tr><th>错误代码</th><td>${log.error_code || '-'}</td></tr>
+                ${log.exception_traceback ? `<tr><th>异常堆栈</th><td><pre>${log.exception_traceback}</pre></td></tr>` : ''}
+                <tr><th>校验和</th><td><code>${log.checksum || '-'}</code></td></tr>
                 <tr><th>User Agent</th><td><small>${log.user_agent || '-'}</small></td></tr>
             </table>
         `;
@@ -292,9 +311,10 @@ function showDetail(logId) {
     });
 }
 
-function exportLogs() {
+function exportLogs(format) {
     var params = $('#filter-form').serialize();
-    window.location.href = '/audit/api/operation-logs/export/?' + params + '&format=csv';
+    var query = params ? params + '&format=' + encodeURIComponent(format) : 'format=' + encodeURIComponent(format);
+    window.location.href = '/audit/api/operation-logs/export/?' + query;
 }
 
 function formatTime(isoString) {

@@ -803,6 +803,35 @@ class MyOperationLogsPageView(LoginRequiredMixin, TemplateView):
         return context
 
 
+class DecisionTracesAdminPageView(LoginRequiredMixin, TemplateView):
+    """决策链管理页 - HTML 视图（仅管理员）"""
+    template_name = 'audit/decision_traces_admin.html'
+    login_url = '/account/login/'
+
+    def dispatch(self, request, *args, **kwargs):
+        if not IsAuditAdmin().has_permission(request, self):
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden("需要审计管理员权限")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = 'MCP 决策链 - 管理员'
+        return context
+
+
+class MyDecisionTracesPageView(LoginRequiredMixin, TemplateView):
+    """用户决策链页面 - HTML 视图"""
+    template_name = 'audit/my_decision_traces.html'
+    login_url = '/account/login/'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = '我的 MCP 决策链'
+        context['current_user_id'] = self.request.user.id
+        return context
+
+
 # ============ MCP/SDK 操作审计日志 API Views ============
 
 from rest_framework.permissions import IsAuthenticated
@@ -823,6 +852,8 @@ from .serializers import (
     OperationLogIngestSerializer,
     OperationStatsSerializer,
     ExportOperationLogsSerializer,
+    DecisionTraceListSerializer,
+    DecisionTraceDetailSerializer,
 )
 
 
@@ -877,6 +908,13 @@ class OperationLogListView(APIView):
                 type=str,
                 required=False,
                 description='MCP 工具名',
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='mcp_client_id',
+                type=str,
+                required=False,
+                description='MCP Token/客户端 ID',
                 location=OpenApiParameter.QUERY,
             ),
             OpenApiParameter(
@@ -951,6 +989,7 @@ class OperationLogListView(APIView):
                 module=data.get('module'),
                 action=data.get('action'),
                 mcp_tool_name=data.get('mcp_tool_name'),
+                mcp_client_id=data.get('mcp_client_id'),
                 mcp_role=data.get('mcp_role'),
                 response_status=data.get('response_status'),
                 start_date=data.get('start_date'),
@@ -1067,6 +1106,13 @@ class OperationLogExportView(APIView):
                 description='导出格式（csv 或 json）',
                 location=OpenApiParameter.QUERY,
             ),
+            OpenApiParameter(
+                name='mcp_client_id',
+                type=str,
+                required=False,
+                description='按 MCP token / 客户端 ID 过滤导出',
+                location=OpenApiParameter.QUERY,
+            ),
         ],
         responses={
             200: OpenApiTypes.STR,
@@ -1083,6 +1129,7 @@ class OperationLogExportView(APIView):
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
         export_format = request.query_params.get('format', 'csv')
+        mcp_client_id = request.query_params.get('mcp_client_id') or None
 
         # 解析日期
         try:
@@ -1102,6 +1149,7 @@ class OperationLogExportView(APIView):
             ExportOperationLogsRequest(
                 start_date=start,
                 end_date=end,
+                mcp_client_id=mcp_client_id,
                 format=export_format,
             )
         )
@@ -1248,9 +1296,12 @@ class OperationLogIngestView(APIView):
                 action=data.get('action', 'READ'),
                 mcp_tool_name=data.get('mcp_tool_name'),
                 request_params=data.get('request_params'),
+                response_payload=data.get('response_payload'),
+                response_text=data.get('response_text', ''),
                 response_status=data.get('response_status', 200),
                 response_message=data.get('response_message', ''),
                 error_code=data.get('error_code', ''),
+                exception_traceback=data.get('exception_traceback', ''),
                 duration_ms=data.get('duration_ms'),
                 ip_address=data.get('ip_address'),
                 user_agent=data.get('user_agent', ''),
@@ -1277,6 +1328,67 @@ class OperationLogIngestView(APIView):
                 {'success': False, 'error': response.error, 'log_id': None},
                 status=status.HTTP_202_ACCEPTED
             )
+
+
+class DecisionTraceListView(APIView):
+    """决策链列表 API"""
+
+    permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser]
+    renderer_classes = [JSONRenderer]
+
+    @extend_schema(
+        summary="查询 MCP 决策链",
+        description="按 request_id 聚合 MCP/SDK 调用，展示决策链列表。",
+        responses={200: DecisionTraceListSerializer},
+    )
+    def get(self, request):
+        is_admin = IsAuditAdmin().has_permission(request, self)
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 20))
+        mcp_client_id = request.query_params.get('mcp_client_id') or None
+        repo = DjangoAuditRepository()
+        traces, total_count = repo.list_decision_traces(
+            current_user_id=request.user.id if request.user.is_authenticated else None,
+            is_admin=is_admin,
+            mcp_client_id=mcp_client_id,
+            page=page,
+            page_size=page_size,
+        )
+        return Response({
+            'success': True,
+            'traces': traces,
+            'total_count': total_count,
+            'page': page,
+            'page_size': page_size,
+        })
+
+
+class DecisionTraceDetailView(APIView):
+    """决策链详情 API"""
+
+    permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser]
+    renderer_classes = [JSONRenderer]
+
+    @extend_schema(
+        summary="获取 MCP 决策链详情",
+        description="查看单次 request_id 下的完整 MCP 决策链与对应日志。",
+        responses={200: DecisionTraceDetailSerializer},
+    )
+    def get(self, request, request_id):
+        is_admin = IsAuditAdmin().has_permission(request, self)
+        mcp_client_id = request.query_params.get('mcp_client_id') or None
+        repo = DjangoAuditRepository()
+        trace = repo.get_decision_trace(
+            request_id=request_id,
+            mcp_client_id=mcp_client_id,
+            current_user_id=request.user.id if request.user.is_authenticated else None,
+            is_admin=is_admin,
+        )
+        if not trace:
+            return Response({'success': False, 'error': '决策链不存在或无权访问'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'success': True, 'trace': trace})
 
 
 # ============ Health Check API Views ============
