@@ -11,10 +11,8 @@
 
 架构说明 (2026-03-11):
 - 此命令使用 legacy CalculateRegimeUseCase，需要完整 Repository 接口
-- 直接导入 DjangoMacroRepository 是可接受的，因为：
-  1. 管理命令属于 Infrastructure 层
-  2. 这是离线工具，不是应用热路径
-  3. legacy use case 需要 get_available_dates() 等完整接口
+- 当前通过 regime 侧 `MacroRepositoryAdapter` 访问 macro 数据
+- legacy use case 仍需要 `get_available_dates()` 等完整接口，但不再直接导入 macro repository
 - 主运行时链路（API/页面）使用 resolve_current_regime(V2)，已解耦
 """
 
@@ -26,9 +24,8 @@ from typing import Optional
 
 # Legacy offline recalculation path; main runtime chain uses resolve_current_regime(V2).
 from apps.regime.application.use_cases import CalculateRegimeUseCase, CalculateRegimeRequest
+from apps.regime.infrastructure.macro_data_provider import MacroRepositoryAdapter
 from apps.regime.infrastructure.models import RegimeLog
-# NOTE: Legacy tool - direct import acceptable for full repository interface
-from apps.macro.infrastructure.repositories import DjangoMacroRepository
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from shared.infrastructure.cache_service import CacheService
 
@@ -136,7 +133,7 @@ class Command(BaseCommand):
         策略：按月计算，确保有足够的数据
         """
         # 初始化
-        macro_repository = DjangoMacroRepository()
+        macro_repository = MacroRepositoryAdapter()
         regime_repository = DjangoRegimeRepository()
 
         # 显式创建 RegimeCalculator，使用修复后的参数

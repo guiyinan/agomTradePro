@@ -13,7 +13,7 @@ IMPORTANT:
 
 from dataclasses import dataclass
 from datetime import date
-from typing import List, Optional, Protocol
+from typing import Any, List, Optional, Protocol
 
 
 @dataclass(frozen=True)
@@ -32,6 +32,14 @@ class IndicatorSeries:
     indicator_code: str
     values: List[float]
     dates: List[date]
+
+
+@dataclass(frozen=True)
+class MacroSourceSummary:
+    """宏观数据源摘要"""
+
+    source_type: str
+    name: str
 
 
 class MacroDataProviderProtocol(Protocol):
@@ -154,4 +162,34 @@ class DataSourceConfigProtocol(Protocol):
 
     def get_kalman_params(self) -> dict:
         """获取 Kalman 滤波参数"""
+        ...
+
+
+class MacroSyncTaskGatewayProtocol(Protocol):
+    """
+    宏观同步任务网关协议
+
+    定义 regime 模块触发 macro 同步任务时所需的最小接口。
+    """
+
+    def build_sync_signature(
+        self,
+        source: str,
+        indicator: Optional[str],
+        days_back: int,
+    ) -> Any:
+        """
+        构建宏观同步任务签名
+
+        Returns:
+            Celery signature 对象
+        """
+        ...
+
+
+class MacroSourceConfigGatewayProtocol(Protocol):
+    """宏观数据源配置网关协议。"""
+
+    def list_active_sources(self) -> List[MacroSourceSummary]:
+        """列出可用的数据源。"""
         ...

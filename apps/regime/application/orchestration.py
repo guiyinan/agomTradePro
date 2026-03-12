@@ -9,17 +9,12 @@ Regime Orchestration Module.
 使用方式:
     # Celery chain
     from celery import chain
-    from apps.macro.application.tasks import sync_macro_data
     from apps.regime.application.orchestration import (
         calculate_regime_after_sync,
         notify_regime_change_after_calculation,
     )
 
-    workflow = chain(
-        sync_macro_data.s(),
-        calculate_regime_after_sync.s(),
-        notify_regime_change_after_calculation.s(),
-    )
+    # sync_macro_data 通过 DjangoMacroSyncTaskGateway 延迟解析
 """
 
 from celery import shared_task, chain
@@ -371,12 +366,19 @@ def sync_macro_then_refresh_regime(
 
         target_date = date.fromisoformat(as_of_date) if as_of_date else date.today()
 
-        # 延迟导入 macro 任务
-        from apps.macro.application.tasks import sync_macro_data
+        from apps.regime.infrastructure.macro_sync_gateway import (
+            DjangoMacroSyncTaskGateway,
+        )
+
+        gateway = DjangoMacroSyncTaskGateway()
 
         # 创建任务链
         workflow = chain(
-            sync_macro_data.s(source=source, indicator=indicator, days_back=days_back),
+            gateway.build_sync_signature(
+                source=source,
+                indicator=indicator,
+                days_back=days_back,
+            ),
             calculate_regime_after_sync.s(as_of_date=as_of_date or target_date.isoformat(), use_pit=use_pit),
             notify_regime_change_after_calculation.s()
         )

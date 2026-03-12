@@ -13,11 +13,13 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from datetime import date
-from types import SimpleNamespace
 from apps.regime.application.use_cases import CalculateRegimeV2UseCase, CalculateRegimeV2Request
 from apps.regime.infrastructure.macro_data_provider import (
     MacroRepositoryAdapter,
     DjangoDataSourceConfig,
+)
+from apps.regime.infrastructure.macro_source_config_gateway import (
+    DjangoMacroSourceConfigGateway,
 )
 
 # API Cache layer
@@ -26,21 +28,8 @@ from core.cache_utils import cached_api, CACHE_TTL
 
 def _get_available_sources():
     """Return active data sources for template rendering."""
-    try:
-        from apps.macro.infrastructure.models import DataSourceConfig
-
-        sources = list(
-            DataSourceConfig._default_manager.filter(is_active=True).order_by("priority")
-        )
-        if sources:
-            return sources
-    except Exception:
-        pass
-
-    return [
-        SimpleNamespace(source_type="akshare", name="AKShare"),
-        SimpleNamespace(source_type="tushare", name="Tushare Pro"),
-    ]
+    gateway = DjangoMacroSourceConfigGateway()
+    return gateway.list_active_sources()
 
 
 def regime_dashboard_view(request):
