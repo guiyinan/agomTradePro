@@ -293,6 +293,18 @@ class MacroRepositoryAdapter:
     without knowing the underlying implementation.
     """
 
+    GROWTH_INDICATORS = {
+        "PMI": "CN_PMI",
+        "工业增加值": "CN_VALUE_ADDED",
+        "社会消费品零售": "CN_RETAIL_SALES",
+    }
+
+    INFLATION_INDICATORS = {
+        "CPI": "CN_CPI_NATIONAL_YOY",
+        "PPI": "CN_PPI",
+        "GDP平减指数": "CN_GDP_DEFLATOR",
+    }
+
     def __init__(self, provider: Optional[MacroDataProviderProtocol] = None):
         """
         初始化适配器
@@ -301,6 +313,14 @@ class MacroRepositoryAdapter:
             provider: 宏观数据提供者 (可选，默认使用全局单例)
         """
         self._provider = provider or get_default_macro_data_provider()
+        self._repository = None
+
+    def _get_repository(self):
+        if self._repository is None:
+            from apps.macro.infrastructure.repositories import DjangoMacroRepository
+
+            self._repository = DjangoMacroRepository()
+        return self._repository
 
     def get_observations_for_period(
         self,
@@ -321,61 +341,18 @@ class MacroRepositoryAdapter:
         Returns:
             观测数据列表
         """
-        from dataclasses import dataclass as dc
+        return self._get_repository().get_observations_for_period(
+            indicator_code=indicator_code,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
-        @dc
-        class ObservationAdapter:
-            """观测数据适配器"""
-            indicator_code: str
-            value: float
-            observed_at: date
-            published_at: Optional[date]
-            unit: Optional[str]
-
-        result = self._provider.get_indicator_value(indicator_code, end_date)
-        if result:
-            return [ObservationAdapter(
-                indicator_code=result.indicator_code,
-                value=result.value,
-                observed_at=result.observed_at,
-                published_at=result.published_at,
-                unit=result.unit
-            )]
-        return []
-
-    def get_latest_observation(self, indicator_code: str):
-        """
-        获取最新观测数据
-
-        将 Provider 接口适配为 Repository 接口
-
-        Args:
-            indicator_code: 指标代码
-
-        Returns:
-            观测数据或 None
-        """
-        from dataclasses import dataclass as dc
-
-        @dc
-        class ObservationAdapter:
-            """观测数据适配器"""
-            indicator_code: str
-            value: float
-            observed_at: date
-            published_at: Optional[date]
-            unit: Optional[str]
-
-        result = self._provider.get_indicator_value(indicator_code)
-        if result:
-            return ObservationAdapter(
-                indicator_code=result.indicator_code,
-                value=result.value,
-                observed_at=result.observed_at,
-                published_at=result.published_at,
-                unit=result.unit
-            )
-        return None
+    def get_latest_observation(self, code: str, before_date: Optional[date] = None):
+        """获取最新观测数据。"""
+        return self._get_repository().get_latest_observation(
+            code=code,
+            before_date=before_date,
+        )
 
     def get_recent_observations(
         self,
@@ -394,36 +371,10 @@ class MacroRepositoryAdapter:
         Returns:
             观测数据列表
         """
-        from dataclasses import dataclass as dc
-
-        @dc
-        class ObservationAdapter:
-            """观测数据适配器"""
-            indicator_code: str
-            value: float
-            observed_at: date
-            published_at: Optional[date]
-            unit: Optional[str]
-
-        series = self._provider.get_indicator_series(
+        return self._get_repository().get_recent_observations(
             indicator_code=indicator_code,
-            end_date=date.today(),
-            lookback_periods=limit
+            limit=limit,
         )
-
-        if not series:
-            return []
-
-        adapters = []
-        for i, (val, obs_date) in enumerate(zip(series.values, series.dates)):
-            adapters.append(ObservationAdapter(
-                indicator_code=indicator_code,
-                value=val,
-                observed_at=obs_date,
-                published_at=None,
-                unit=None
-            ))
-        return adapters
 
     def get_latest_observation_date(self, indicator_code: str) -> Optional[date]:
         """
@@ -435,4 +386,81 @@ class MacroRepositoryAdapter:
         Returns:
             最新观测日期或 None
         """
-        return self._provider.get_latest_observation_date(indicator_code)
+        return self._get_repository().get_latest_observation_date(indicator_code)
+
+    def get_by_code_and_date(self, code: str, observed_at: date):
+        return self._get_repository().get_by_code_and_date(
+            code=code,
+            observed_at=observed_at,
+        )
+
+    def get_growth_series(
+        self,
+        indicator_code: str = "PMI",
+        end_date: Optional[date] = None,
+        use_pit: bool = False,
+        source: Optional[str] = None,
+    ):
+        return self._get_repository().get_growth_series(
+            indicator_code=indicator_code,
+            end_date=end_date or date.today(),
+            use_pit=use_pit,
+            source=source,
+        )
+
+    def get_growth_series_full(
+        self,
+        indicator_code: str = "PMI",
+        end_date: Optional[date] = None,
+        use_pit: bool = False,
+        source: Optional[str] = None,
+    ):
+        return self._get_repository().get_growth_series_full(
+            indicator_code=indicator_code,
+            end_date=end_date or date.today(),
+            use_pit=use_pit,
+            source=source,
+        )
+
+    def get_inflation_series(
+        self,
+        indicator_code: str = "CPI",
+        end_date: Optional[date] = None,
+        use_pit: bool = False,
+        source: Optional[str] = None,
+    ):
+        return self._get_repository().get_inflation_series(
+            indicator_code=indicator_code,
+            end_date=end_date or date.today(),
+            use_pit=use_pit,
+            source=source,
+        )
+
+    def get_inflation_series_full(
+        self,
+        indicator_code: str = "CPI",
+        end_date: Optional[date] = None,
+        use_pit: bool = False,
+        source: Optional[str] = None,
+    ):
+        return self._get_repository().get_inflation_series_full(
+            indicator_code=indicator_code,
+            end_date=end_date or date.today(),
+            use_pit=use_pit,
+            source=source,
+        )
+
+    def get_available_dates(
+        self,
+        codes: Optional[List[str]] = None,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+    ) -> List[date]:
+        return self._get_repository().get_available_dates(
+            codes=codes,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+    def __getattr__(self, item):
+        return getattr(self._get_repository(), item)

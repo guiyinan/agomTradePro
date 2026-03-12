@@ -12,6 +12,7 @@ Uses only:
 from dataclasses import dataclass
 from datetime import date
 from typing import Dict, List, Optional, Tuple, Callable
+from bisect import bisect_right
 import statistics
 import math
 
@@ -50,6 +51,12 @@ class FactorEngine:
     def __init__(self, context: FactorCalculationContext):
         self.context = context
         self._factor_def_map = {f.code: f for f in context.factor_definitions}
+        self._common_factor_map = {f.code: f for f in get_common_factors()}
+        self._factor_value_cache: Dict[Tuple[str, str], Optional[float]] = {}
+        self._factor_distribution_cache: Dict[str, List[float]] = {}
+        self._factor_stats_cache: Dict[str, Tuple[float, float]] = {}
+        self._factor_exposure_cache: Dict[Tuple[str, str], Optional[FactorExposure]] = {}
+        self._stock_info_cache: Dict[str, Optional[Dict]] = {}
 
     def calculate_factor_exposure(
         self,
@@ -65,24 +72,30 @@ class FactorEngine:
         if factor_code not in self._factor_def_map:
             return None
 
+        cache_key = (stock_code, factor_code)
+        if cache_key in self._factor_exposure_cache:
+            return self._factor_exposure_cache[cache_key]
+
         factor_def = self._factor_def_map[factor_code]
-        raw_value = self.context.get_factor_value(stock_code, factor_code, self.context.trade_date)
+        raw_value = self._get_factor_value(stock_code, factor_code)
 
         if raw_value is None:
             if factor_def.allow_missing:
+                self._factor_exposure_cache[cache_key] = None
                 return None
             raise ValueError(f"Missing factor value for {stock_code} {factor_code}")
 
         # Calculate cross-sectional statistics
         all_values = self._get_all_factor_values(factor_code)
         if not all_values:
+            self._factor_exposure_cache[cache_key] = None
             return None
 
         # Calculate percentile rank
         percentile_rank = self._calculate_percentile(raw_value, all_values)
 
         # Calculate z-score
-        mean, std = self._calculate_mean_std(all_values)
+        mean, std = self._get_factor_stats(factor_code)
         z_score = (raw_value - mean) / std if std > 0 else 0.0
 
         # Normalize to 0-100 scale
@@ -94,7 +107,7 @@ class FactorEngine:
             z_score = -z_score
             normalized_score = 100.0 - normalized_score
 
-        return FactorExposure(
+        exposure = FactorExposure(
             stock_code=stock_code,
             trade_date=self.context.trade_date,
             factor_code=factor_code,
@@ -103,6 +116,8 @@ class FactorEngine:
             z_score=z_score,
             normalized_score=normalized_score,
         )
+        self._factor_exposure_cache[cache_key] = exposure
+        return exposure
 
     def calculate_factor_scores(
         self,
@@ -166,11 +181,16 @@ class FactorEngine:
 
     def _get_all_factor_values(self, factor_code: str) -> List[float]:
         """Get all factor values for the universe"""
+        if factor_code in self._factor_distribution_cache:
+            return self._factor_distribution_cache[factor_code]
+
         values = []
         for stock_code in self.context.universe:
-            value = self.context.get_factor_value(stock_code, factor_code, self.context.trade_date)
+            value = self._get_factor_value(stock_code, factor_code)
             if value is not None:
                 values.append(value)
+        values.sort()
+        self._factor_distribution_cache[factor_code] = values
         return values
 
     def _calculate_percentile(self, value: float, all_values: List[float]) -> float:
@@ -178,12 +198,26 @@ class FactorEngine:
         if not all_values:
             return 0.5
 
-        sorted_values = sorted(all_values)
-        n = len(sorted_values)
-
-        # Count values less than or equal to current value
-        count_le = sum(1 for v in sorted_values if v <= value)
+        n = len(all_values)
+        count_le = bisect_right(all_values, value)
         return count_le / n
+
+    def _get_factor_value(self, stock_code: str, factor_code: str) -> Optional[float]:
+        cache_key = (stock_code, factor_code)
+        if cache_key not in self._factor_value_cache:
+            self._factor_value_cache[cache_key] = self.context.get_factor_value(
+                stock_code,
+                factor_code,
+                self.context.trade_date,
+            )
+        return self._factor_value_cache[cache_key]
+
+    def _get_factor_stats(self, factor_code: str) -> Tuple[float, float]:
+        if factor_code not in self._factor_stats_cache:
+            self._factor_stats_cache[factor_code] = self._calculate_mean_std(
+                self._get_all_factor_values(factor_code)
+            )
+        return self._factor_stats_cache[factor_code]
 
     def _calculate_mean_std(self, values: List[float]) -> Tuple[float, float]:
         """Calculate mean and standard deviation"""
@@ -234,7 +268,7 @@ class FactorEngine:
     ) -> Optional[FactorScore]:
         """Calculate composite score for a single stock"""
         factor_scores = {}
-        stock_info = self.context.get_stock_info(stock_code)
+        stock_info = self._get_stock_info(stock_code)
 
         if not stock_info:
             return None
@@ -270,8 +304,6 @@ class FactorEngine:
     def _calculate_category_scores(self, factor_scores: Dict[str, float]) -> Dict[str, float]:
         """Calculate scores by factor category"""
         # Map factors to categories
-        common_factors = {f.code: f for f in get_common_factors()}
-
         category_scores = {
             "value_score": 0.0,
             "quality_score": 0.0,
@@ -284,8 +316,8 @@ class FactorEngine:
         category_counts = {k: 0 for k in category_scores.keys()}
 
         for factor_code, score in factor_scores.items():
-            if factor_code in common_factors:
-                factor_def = common_factors[factor_code]
+            if factor_code in self._common_factor_map:
+                factor_def = self._common_factor_map[factor_code]
                 category_key = f"{factor_def.category.value}_score"
                 if category_key in category_scores:
                     category_scores[category_key] += score
@@ -297,6 +329,11 @@ class FactorEngine:
                 category_scores[key] /= category_counts[key]
 
         return category_scores
+
+    def _get_stock_info(self, stock_code: str) -> Optional[Dict]:
+        if stock_code not in self._stock_info_cache:
+            self._stock_info_cache[stock_code] = self.context.get_stock_info(stock_code)
+        return self._stock_info_cache[stock_code]
 
     def _assign_percentile_ranks(self, scores: List[FactorScore]) -> List[FactorScore]:
         """Assign percentile ranks based on composite scores"""

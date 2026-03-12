@@ -171,6 +171,7 @@ module_patterns = [
     # ========== 统一 API 路由挂载（新规范） ==========
     # 这些路由提供 /api/{module}/ 模式的 API 端点
     # P0: Account 模块
+    path('api/account/', RedirectView.as_view(url='/api/account/api/', permanent=False), name='api-account-root'),
     path('api/account/', include(('apps.account.interface.urls', 'account'), namespace='api_account')),
     # P1: Simulated Trading 模块
     path('api/simulated-trading/accounts/', RedirectView.as_view(url='/api/simulated-trading/api/accounts/', permanent=False), name='api-simulated-trading-accounts-legacy'),

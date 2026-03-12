@@ -10,6 +10,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
+from django.db import transaction
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
 
@@ -20,6 +21,7 @@ def large_macro_dataset(db):
     from apps.macro.infrastructure.models import MacroIndicator
 
     indicators = []
+    pending_rows = []
     indicator_configs = [
         ("CN_PMI_MANUFACTURING", "指数", 50.0),
         ("CN_CPI_YOY", "%", 2.0),
@@ -41,18 +43,26 @@ def large_macro_dataset(db):
             variation = math.sin(i * 0.3) * 2.0
             value = base_value + variation
 
-            MacroIndicator.objects.get_or_create(
-                code=code,
-                reporting_period=data_date,
-                defaults={
-                    "value": round(value, 2),
-                    "unit": unit,
-                    "source": "fixture",
-                    "period_type": "M",
-                },
+            pending_rows.append(
+                MacroIndicator(
+                    code=code,
+                    reporting_period=data_date,
+                    revision_number=1,
+                    value=round(value, 2),
+                    unit=unit,
+                    source="fixture",
+                    period_type="M",
+                )
             )
 
         indicators.append(code)
+
+    with transaction.atomic():
+        MacroIndicator.objects.bulk_create(
+            pending_rows,
+            batch_size=500,
+            ignore_conflicts=True,
+        )
 
     return indicators
 
@@ -62,9 +72,8 @@ def large_signal_dataset(db):
     """Create 500+ investment signals."""
     from apps.signal.infrastructure.models import InvestmentSignalModel
 
-    signals = []
-    for i in range(500):
-        signal = InvestmentSignalModel.objects.create(
+    signals = [
+        InvestmentSignalModel(
             asset_code=f"{(i % 50) + 1:06d}.{'SH' if i % 2 == 0 else 'SZ'}",
             asset_class="a_share",
             direction="LONG",
@@ -73,6 +82,10 @@ def large_signal_dataset(db):
             invalidation_threshold=float(i % 100),
             status="approved" if i % 3 != 0 else "pending",
         )
-        signals.append(signal)
+        for i in range(500)
+    ]
+
+    with transaction.atomic():
+        InvestmentSignalModel.objects.bulk_create(signals, batch_size=500)
 
     return signals

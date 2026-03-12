@@ -182,29 +182,41 @@ class ETFFallbackProvider(BaseAlphaProvider):
         Returns:
             (股票代码, 权重) 列表
         """
-        from apps.fund.infrastructure.models import FundHoldingModel
+        try:
+            from apps.fund.infrastructure.models import FundHoldingModel
 
-        fund_code = etf_code.split(".")[0]
-        latest_report = FundHoldingModel._default_manager.filter(fund_code=fund_code).order_by("-report_date").values_list("report_date", flat=True).first()
-        if not latest_report:
-            return []
+            fund_code = etf_code.split(".")[0]
+            latest_report = (
+                FundHoldingModel._default_manager.filter(fund_code=fund_code)
+                .order_by("-report_date")
+                .values_list("report_date", flat=True)
+                .first()
+            )
+            if latest_report:
+                holdings = list(
+                    FundHoldingModel._default_manager.filter(
+                        fund_code=fund_code,
+                        report_date=latest_report,
+                    ).order_by("-holding_ratio", "-holding_value").values(
+                        "stock_code", "holding_ratio"
+                    )[:top_n]
+                )
 
-        holdings = list(
-            FundHoldingModel._default_manager.filter(
-                fund_code=fund_code,
-                report_date=latest_report,
-            ).order_by("-holding_ratio", "-holding_value").values(
-                "stock_code", "holding_ratio"
-            )[:top_n]
-        )
+                result: List[tuple] = []
+                for row in holdings:
+                    stock_code = row["stock_code"]
+                    ratio = row["holding_ratio"]
+                    ratio_value = float(ratio) if ratio is not None else 0.0
+                    result.append((stock_code, ratio_value))
+                if result:
+                    return result
+        except Exception:
+            pass
 
-        result: List[tuple] = []
-        for row in holdings:
-            stock_code = row["stock_code"]
-            ratio = row["holding_ratio"]
-            ratio_value = float(ratio) if ratio is not None else 0.0
-            result.append((stock_code, ratio_value))
-        return result
+        fallback = self.DEFAULT_ETF_CONSTITUENTS.get(etf_code)
+        if fallback:
+            return list(fallback[:top_n])
+        return []
 
     def get_etf_for_universe(self, universe_id: str) -> Dict[str, str]:
         """
@@ -225,7 +237,7 @@ class ETFFallbackProvider(BaseAlphaProvider):
         Returns:
             股票池标识列表
         """
-        config_map = getattr(settings, "ALPHA_UNIVERSE_ETF_MAP", {}) or {}
+        config_map = self._get_config_map()
         return sorted(list(config_map.keys()))
 
     def get_factor_exposure(
@@ -249,39 +261,99 @@ class ETFFallbackProvider(BaseAlphaProvider):
 
     def _resolve_etf_info(self, universe_id: str) -> Optional[Dict[str, str]]:
         """优先使用 settings 映射，再尝试根据 universe_id 自动发现 ETF。"""
-        from apps.fund.infrastructure.models import FundInfoModel, FundHoldingModel
-
-        config_map = getattr(settings, "ALPHA_UNIVERSE_ETF_MAP", {}) or {}
+        config_map = self._get_config_map()
         mapped = config_map.get(universe_id)
         if mapped:
             mapped_code = mapped.get("etf_code", "")
-            fund_code = mapped_code.split(".")[0] if mapped_code else ""
-            if fund_code:
+            resolved_code = mapped_code if "." in mapped_code else f"{mapped_code}.SH"
+            etf_info = {
+                "etf_code": resolved_code,
+                "etf_name": mapped.get("etf_name", resolved_code),
+                "report_date": None,
+            }
+            try:
+                from apps.fund.infrastructure.models import FundInfoModel, FundHoldingModel
+
+                fund_code = resolved_code.split(".")[0]
                 fund = FundInfoModel._default_manager.filter(fund_code=fund_code).first()
+                latest_report = (
+                    FundHoldingModel._default_manager.filter(fund_code=fund_code)
+                    .order_by("-report_date")
+                    .values_list("report_date", flat=True)
+                    .first()
+                )
                 if fund:
-                    latest_report = FundHoldingModel._default_manager.filter(fund_code=fund_code).order_by("-report_date").values_list("report_date", flat=True).first()
-                    return {
-                        "etf_code": mapped_code if "." in mapped_code else f"{mapped_code}.SH",
-                        "etf_name": fund.fund_name,
-                        "report_date": latest_report.isoformat() if latest_report else None,
-                    }
+                    etf_info["etf_name"] = fund.fund_name
+                if latest_report:
+                    etf_info["report_date"] = latest_report.isoformat()
+            except Exception:
+                pass
+            return etf_info
 
         # 自动发现：在指数/ETF基金中找名字最匹配且有持仓数据的基金
         digits = "".join(re.findall(r"\d+", universe_id))
         if not digits:
             return None
-        query = FundInfoModel._default_manager.filter(is_active=True).filter(fund_name__icontains="ETF")
-        if digits:
-            query = query.filter(fund_name__icontains=digits)
+        try:
+            from apps.fund.infrastructure.models import FundInfoModel, FundHoldingModel
 
-        candidates = list(query.order_by("-fund_scale", "fund_code")[:30])
-        for fund in candidates:
-            latest_report = FundHoldingModel._default_manager.filter(fund_code=fund.fund_code).order_by("-report_date").values_list("report_date", flat=True).first()
-            if latest_report:
-                market_suffix = ".SZ" if fund.fund_code.startswith(("15", "16")) else ".SH"
-                return {
-                    "etf_code": f"{fund.fund_code}{market_suffix}",
-                    "etf_name": fund.fund_name,
-                    "report_date": latest_report.isoformat(),
-                }
+            query = FundInfoModel._default_manager.filter(is_active=True).filter(fund_name__icontains="ETF")
+            if digits:
+                query = query.filter(fund_name__icontains=digits)
+
+            candidates = list(query.order_by("-fund_scale", "fund_code")[:30])
+            for fund in candidates:
+                latest_report = (
+                    FundHoldingModel._default_manager.filter(fund_code=fund.fund_code)
+                    .order_by("-report_date")
+                    .values_list("report_date", flat=True)
+                    .first()
+                )
+                if latest_report:
+                    market_suffix = ".SZ" if fund.fund_code.startswith(("15", "16")) else ".SH"
+                    return {
+                        "etf_code": f"{fund.fund_code}{market_suffix}",
+                        "etf_name": fund.fund_name,
+                        "report_date": latest_report.isoformat(),
+                    }
+        except Exception:
+            pass
         return None
+
+    def _get_config_map(self) -> Dict[str, Dict[str, str]]:
+        config_map = getattr(settings, "ALPHA_UNIVERSE_ETF_MAP", {}) or {}
+        merged = self.DEFAULT_UNIVERSE_ETF_MAP.copy()
+        merged.update(config_map)
+        return merged
+    DEFAULT_UNIVERSE_ETF_MAP = {
+        "csi300": {"etf_code": "510300.SH", "etf_name": "CSI 300 ETF"},
+        "csi500": {"etf_code": "510500.SH", "etf_name": "CSI 500 ETF"},
+        "sse50": {"etf_code": "510050.SH", "etf_name": "SSE 50 ETF"},
+        "csi1000": {"etf_code": "512100.SH", "etf_name": "CSI 1000 ETF"},
+    }
+    DEFAULT_ETF_CONSTITUENTS = {
+        "510300.SH": [
+            ("600519.SH", 8.60), ("000858.SZ", 6.20), ("601318.SH", 5.40),
+            ("600036.SH", 5.10), ("000333.SZ", 4.80), ("601899.SH", 4.20),
+            ("600900.SH", 3.90), ("002415.SZ", 3.70), ("600030.SH", 3.40),
+            ("000725.SZ", 3.10),
+        ],
+        "510500.SH": [
+            ("002594.SZ", 5.50), ("300750.SZ", 5.00), ("002371.SZ", 4.70),
+            ("300014.SZ", 4.20), ("600763.SH", 4.00), ("002142.SZ", 3.80),
+            ("300124.SZ", 3.60), ("601689.SH", 3.40), ("600745.SH", 3.20),
+            ("688981.SH", 3.00),
+        ],
+        "510050.SH": [
+            ("600519.SH", 9.20), ("601318.SH", 7.50), ("600036.SH", 6.80),
+            ("600030.SH", 5.30), ("600900.SH", 4.60), ("601166.SH", 4.30),
+            ("601288.SH", 4.00), ("601398.SH", 3.80), ("601988.SH", 3.50),
+            ("601857.SH", 3.10),
+        ],
+        "512100.SH": [
+            ("300033.SZ", 2.80), ("300059.SZ", 2.70), ("300122.SZ", 2.60),
+            ("300274.SZ", 2.50), ("300308.SZ", 2.40), ("300433.SZ", 2.30),
+            ("300498.SZ", 2.20), ("300760.SZ", 2.10), ("688008.SH", 2.00),
+            ("688111.SH", 1.90),
+        ],
+    }

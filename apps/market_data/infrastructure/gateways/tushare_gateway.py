@@ -67,9 +67,7 @@ class TushareGateway(MarketDataProviderProtocol):
     ) -> List[QuoteSnapshot]:
         """从 Tushare 获取最新日线数据作为"准实时"行情"""
         try:
-            from apps.equity.infrastructure.adapters.tushare_stock_adapter import (
-                TushareStockAdapter,
-            )
+            from apps.equity.infrastructure.adapters import TushareStockAdapter
 
             adapter = TushareStockAdapter()
             results: List[QuoteSnapshot] = []

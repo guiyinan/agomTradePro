@@ -38,6 +38,7 @@ router.register(r'rss/logs', RSSFetchLogViewSet, basename='rss-log')
 router.register(r'rss/keywords', PolicyLevelKeywordViewSet, basename='rss-keyword')
 
 urlpatterns = [
+    path("", RedirectView.as_view(url='/policy/workbench/', permanent=False), name="root-redirect"),
     # 工作台页面 (HTML)
     path("workbench/", WorkbenchView.as_view(), name="workbench"),
     path("manage/", RedirectView.as_view(url='/policy/workbench/', permanent=True), name="manage-redirect"),

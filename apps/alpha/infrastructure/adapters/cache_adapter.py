@@ -9,6 +9,8 @@ import logging
 from datetime import date, timedelta
 from typing import List, Optional
 
+from django.utils import timezone
+
 from ...domain.entities import AlphaResult, StockScore
 from ...domain.interfaces import AlphaProviderStatus
 from .base import BaseAlphaProvider, provider_safe
@@ -87,7 +89,7 @@ class CacheAlphaProvider(BaseAlphaProvider):
 
             # 检查是否有缓存数据
             has_recent_cache = cache_model.objects.filter(
-                created_at__gte=date.today() - timedelta(days=7)
+                created_at__gte=timezone.now() - timedelta(days=7)
             ).exists()
 
             if has_recent_cache:
@@ -292,4 +294,3 @@ class CacheAlphaProvider(BaseAlphaProvider):
 
         logger.info(f"清理了 {deleted} 条过期缓存（{universe_id}）")
         return deleted
-

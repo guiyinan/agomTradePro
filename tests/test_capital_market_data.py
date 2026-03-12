@@ -106,7 +106,7 @@ def test_stock_data_adapters():
     # 测试 Tushare 股票适配器
     print("\n--- 测试 Tushare 股票适配器 ---")
     try:
-        from apps.equity.infrastructure.adapters.tushare_stock_adapter import TushareStockAdapter
+        from apps.equity.infrastructure.adapters import TushareStockAdapter
 
         adapter = TushareStockAdapter()
 

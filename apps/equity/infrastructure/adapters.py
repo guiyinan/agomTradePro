@@ -5,14 +5,127 @@
 遵循四层架构：Infrastructure 层可以导入其他模块的 ORM 和仓储。
 """
 
-from typing import Dict, List, Optional
-from datetime import date
+from typing import Dict, List, Optional, Union
+from datetime import date, datetime
 from decimal import Decimal
 import logging
+
+import pandas as pd
+
+from shared.config.secrets import get_secrets
 
 from ..domain.ports import RegimeDataPort, MarketDataPort, StockPoolPort
 
 logger = logging.getLogger(__name__)
+
+
+class TushareStockAdapter:
+    """兼容旧调用方的股票日线适配器。"""
+
+    def __init__(self):
+        self._pro = None
+
+    @property
+    def pro(self):
+        self._ensure_initialized()
+        return self._pro
+
+    def _ensure_initialized(self) -> None:
+        if self._pro is not None:
+            return
+
+        try:
+            import tushare as ts
+        except ImportError as exc:
+            raise ImportError("请安装 tushare: pip install tushare") from exc
+
+        token = get_secrets().data_sources.tushare_token
+        if not token:
+            raise ValueError("Tushare token 未配置")
+        self._pro = ts.pro_api(token)
+
+    def fetch_stock_list(self) -> pd.DataFrame:
+        """获取 A 股基础信息。"""
+        df = self.pro.stock_basic(
+            exchange="",
+            list_status="L",
+            fields="ts_code,symbol,name,area,industry,market,list_date",
+        )
+        if df is None or df.empty:
+            return pd.DataFrame()
+        if "list_date" in df.columns:
+            df["list_date"] = pd.to_datetime(
+                df["list_date"], format="%Y%m%d", errors="coerce"
+            )
+        df = df.rename(columns={"ts_code": "stock_code"})
+        return df
+
+    def fetch_daily_data(
+        self,
+        stock_code: str,
+        start_date: Union[str, date, datetime],
+        end_date: Union[str, date, datetime],
+    ) -> pd.DataFrame:
+        """获取股票日线行情。"""
+        df = self.pro.daily(
+            ts_code=self._normalize_stock_code(stock_code),
+            start_date=self._normalize_date(start_date),
+            end_date=self._normalize_date(end_date),
+            fields="ts_code,trade_date,open,high,low,close,pre_close,change,pct_chg,vol,amount",
+        )
+        if df is None or df.empty:
+            return pd.DataFrame()
+
+        df["trade_date"] = pd.to_datetime(
+            df["trade_date"], format="%Y%m%d", errors="coerce"
+        )
+        return df.sort_values("trade_date").reset_index(drop=True)
+
+    def fetch_stock_info(self, stock_code: str) -> Dict:
+        """获取单只股票基础信息。"""
+        normalized_code = self._normalize_stock_code(stock_code)
+        symbol = normalized_code.split(".")[0]
+
+        df = self.pro.stock_basic(
+            exchange="",
+            list_status="L",
+            fields="ts_code,symbol,name,area,industry,market,list_date",
+        )
+        if df is None or df.empty:
+            return {}
+
+        matched = df[(df["ts_code"] == normalized_code) | (df["symbol"] == symbol)]
+        if matched.empty:
+            return {}
+
+        info = matched.iloc[0].to_dict()
+        if info.get("list_date"):
+            info["list_date"] = pd.to_datetime(
+                info["list_date"], format="%Y%m%d", errors="coerce"
+            )
+        return info
+
+    def _normalize_stock_code(self, stock_code: str) -> str:
+        code = stock_code.strip().upper()
+        if "." in code:
+            return code
+        if code.startswith("6"):
+            return f"{code}.SH"
+        if code.startswith(("0", "3")):
+            return f"{code}.SZ"
+        if code.startswith(("4", "8")):
+            return f"{code}.BJ"
+        return code
+
+    def _normalize_date(self, value: Union[str, date, datetime]) -> str:
+        if isinstance(value, datetime):
+            return value.strftime("%Y%m%d")
+        if isinstance(value, date):
+            return value.strftime("%Y%m%d")
+        parsed = pd.to_datetime(value, errors="coerce")
+        if pd.isna(parsed):
+            raise ValueError(f"无效日期格式: {value}")
+        return parsed.strftime("%Y%m%d")
 
 
 class RegimeRepositoryAdapter(RegimeDataPort):

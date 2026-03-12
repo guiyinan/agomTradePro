@@ -54,7 +54,7 @@ class MarketDataProvider:
     def stock_adapter(self):
         """延迟初始化股票适配器"""
         if self._stock_adapter is None:
-            from apps.equity.infrastructure.adapters.tushare_stock_adapter import TushareStockAdapter
+            from apps.equity.infrastructure.adapters import TushareStockAdapter
             self._stock_adapter = TushareStockAdapter()
         return self._stock_adapter
 

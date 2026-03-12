@@ -15,6 +15,7 @@ from datetime import date, timedelta
 from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
 
+from django.db import close_old_connections, connections
 from django.utils import timezone
 
 from apps.alpha.application.services import AlphaService
@@ -221,10 +222,13 @@ class TestHighLoadScenarios:
 
         def get_scores():
             try:
+                close_old_connections()
                 result = service.get_stock_scores("csi300")
                 results.append(result)
             except Exception as e:
                 errors.append(e)
+            finally:
+                connections.close_all()
 
         # 创建多个线程
         threads = []
@@ -236,6 +240,8 @@ class TestHighLoadScenarios:
         # 等待所有线程完成
         for t in threads:
             t.join()
+
+        connections.close_all()
 
         # 验证：所有请求都应该成功，没有异常
         assert len(errors) == 0

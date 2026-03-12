@@ -76,6 +76,7 @@ SECRET_KEY = env('SECRET_KEY', default='django-insecure-change-this-in-productio
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 ALLOWED_HOSTS = []
+FORMS_URLFIELD_ASSUME_HTTPS = True
 
 # Application definition
 

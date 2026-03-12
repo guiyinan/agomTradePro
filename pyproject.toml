@@ -122,15 +122,3 @@ module = [
     "drf_spectacular.*",
 ]
 ignore_missing_imports = true
-
-[tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "core.settings.development"
-python_files = ["test_*.py", "*_test.py"]
-testpaths = ["tests"]
-addopts = [
-    "-v",
-    "--tb=short",
-    "--cov=apps",
-    "--cov-report=term-missing",
-    "--cov-report=html",
-]

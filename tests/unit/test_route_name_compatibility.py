@@ -46,6 +46,30 @@ def test_policy_workbench_and_rss_page_routes_resolvable():
     assert resolve("/policy/rss/manage/").view_name.endswith("rss-manage-legacy")
 
 
+def test_policy_and_account_root_redirects(db):
+    user = get_user_model().objects.create_user(username="route_root_user", password="x")
+    client = Client()
+    client.force_login(user)
+
+    policy_response = client.get("/policy/", follow=False)
+    account_response = client.get("/api/account/", follow=False)
+
+    assert policy_response.status_code in (301, 302)
+    assert policy_response["Location"].endswith("/policy/workbench/")
+
+    assert account_response.status_code in (301, 302)
+    assert account_response["Location"].endswith("/api/account/api/")
+
+
+def test_regime_dashboard_does_not_return_500(db):
+    user = get_user_model().objects.create_user(username="regime_route_user", password="x")
+    client = Client()
+    client.force_login(user)
+
+    response = client.get("/regime/dashboard/")
+    assert response.status_code < 500
+
+
 def test_macro_legacy_and_new_api_routes_resolvable():
     assert reverse("api_macro:quick_sync")
     assert reverse("api_macro:get_indicator_data")

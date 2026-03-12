@@ -115,7 +115,7 @@ class TusharePriceDataProvider(PriceDataProviderProtocol):
 
     def __init__(self):
         # 延迟导入，避免循环依赖
-        from apps.equity.infrastructure.adapters.tushare_stock_adapter import TushareStockAdapter
+        from apps.equity.infrastructure.adapters import TushareStockAdapter
         self.adapter = TushareStockAdapter()
         self._is_available = True
 

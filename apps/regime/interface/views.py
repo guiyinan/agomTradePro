@@ -13,6 +13,7 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from datetime import date
+from types import SimpleNamespace
 from apps.regime.application.use_cases import CalculateRegimeV2UseCase, CalculateRegimeV2Request
 from apps.regime.infrastructure.macro_data_provider import (
     MacroRepositoryAdapter,
@@ -23,15 +24,36 @@ from apps.regime.infrastructure.macro_data_provider import (
 from core.cache_utils import cached_api, CACHE_TTL
 
 
+def _get_available_sources():
+    """Return active data sources for template rendering."""
+    try:
+        from apps.macro.infrastructure.models import DataSourceConfig
+
+        sources = list(
+            DataSourceConfig._default_manager.filter(is_active=True).order_by("priority")
+        )
+        if sources:
+            return sources
+    except Exception:
+        pass
+
+    return [
+        SimpleNamespace(source_type="akshare", name="AKShare"),
+        SimpleNamespace(source_type="tushare", name="Tushare Pro"),
+    ]
+
+
 def regime_dashboard_view(request):
     """Regime 判定仪表板页面（统一使用 V2 水平法）"""
     import json
+
+    available_sources = _get_available_sources()
 
     try:
         # 获取可用的数据源列表 - 使用本地配置
         # 重构说明 (2026-03-11): 使用 DjangoDataSourceConfig 替代 macro 模块导入
         config = DjangoDataSourceConfig()
-        default_source = 'akshare'  # 默认数据源
+        default_source = available_sources[0].source_type if available_sources else 'akshare'
         data_source = request.GET.get('source', default_source)
 
         # 获取分析时点参数
@@ -118,8 +140,7 @@ def regime_dashboard_view(request):
         }
 
     except Exception as e:
-        available_sources = DataSourceConfig._default_manager.filter(is_active=True).order_by('priority')
-        default_source = available_sources.first().source_type if available_sources.exists() else 'akshare'
+        default_source = available_sources[0].source_type if available_sources else 'akshare'
         data_source = request.GET.get('source', default_source)
         as_of_date_str = request.GET.get('as_of_date')
         if as_of_date_str:
@@ -164,4 +185,3 @@ def clear_regime_cache(request):
             'status': 'error',
             'message': f'清除缓存失败: {str(e)}'
         }, status=500)
-
