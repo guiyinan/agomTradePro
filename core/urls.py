@@ -73,6 +73,7 @@ def api_root_view(request):
             'signals': '/api/signals/',
             'simulated-trading': '/api/simulated-trading/',
             'strategy': '/api/strategy/',
+            'share': '/api/share/',
             'system': '/api/system/',
             'system-config-center': '/api/system/config-center/',
             'docs': '/api/docs/',
@@ -216,6 +217,10 @@ module_patterns = [
     path('api/system/', include(('apps.task_monitor.interface.urls', 'task_monitor'), namespace='task_monitor')),
     # Dashboard API routes
     path('api/dashboard/', include(('apps.dashboard.interface.api_urls', 'api_dashboard'), namespace='api_dashboard')),
+    # Share API routes
+    path('api/share/', include(('apps.share.interface.api_urls', 'share_api'), namespace='share_api')),
+    # Share public routes
+    path('', include(('apps.share.interface.urls', 'share'), namespace='share')),
     # Portfolio API routes (alias for simulated-trading accounts)
     path('api/portfolio/', RedirectView.as_view(url='/api/simulated-trading/api/accounts/', permanent=False), name='api-portfolio'),
 ]

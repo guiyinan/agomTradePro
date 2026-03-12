@@ -1,0 +1,88 @@
+<!-- 持仓展示 -->
+<section class="share-section" id="positions">
+    <div class="section-container">
+        <div class="section-header">
+            <h2 class="section-title">当前持仓</h2>
+            <div class="section-summary">
+                共 {{ positions|length|default:0 }} 只标的
+            </div>
+        </div>
+
+        {% if positions %}
+        <div class="positions-table-wrapper">
+            <table class="positions-table">
+                <thead>
+                    <tr>
+                        <th>标的代码</th>
+                        <th>标的名称</th>
+                        <th>持仓数量</th>
+                        <th>成本价</th>
+                        <th>现价</th>
+                        <th>市值</th>
+                        <th>盈亏</th>
+                        <th>收益率</th>
+                        <th>权重</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for position in positions %}
+                    <tr class="position-row">
+                        <td class="position-code">{{ position.asset_code }}</td>
+                        <td class="position-name">{{ position.asset_name|default:"--" }}</td>
+                        <td class="position-quantity">{{ position.quantity|default:0|floatformat:0 }}</td>
+                        <td class="position-cost">{{ position.avg_cost|default:0|floatformat:2 }}</td>
+                        <td class="position-price">{{ position.current_price|default:0|floatformat:2 }}</td>
+                        <td class="position-value">{{ position.market_value|default:0|floatformat:2 }}</td>
+                        <td class="position-pnl {% if position.pnl >= 0 %}positive{% else %}negative{% endif %}">
+                            {{ position.pnl|default:0|floatformat:2 }}
+                        </td>
+                        <td class="position-return {% if position.return_pct >= 0 %}positive{% else %}negative{% endif %}">
+                            {% if position.return_pct is not None %}
+                                {{ position.return_pct|floatformat:2 }}%
+                            {% else %}
+                                --
+                            {% endif %}
+                        </td>
+                        <td class="position-weight">
+                            <div class="weight-bar">
+                                <div class="weight-fill" style="width: {{ position.weight|default:0 }}%"></div>
+                            </div>
+                            <span class="weight-value">{{ position.weight|default:0|floatformat:1 }}%</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-inbox empty-icon"></i>
+            <p class="empty-text">暂无持仓数据</p>
+        </div>
+        {% endif %}
+
+        <!-- 持仓汇总 -->
+        {% if position_summary %}
+        <div class="positions-summary">
+            <div class="summary-item">
+                <span class="summary-label">持仓总市值</span>
+                <span class="summary-value">{{ position_summary.total_value|default:0|floatformat:2 }}</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">总盈亏</span>
+                <span class="summary-value {% if position_summary.total_pnl >= 0 %}positive{% else %}negative{% endif %}">
+                    {{ position_summary.total_pnl|default:0|floatformat:2 }}
+                </span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">现金余额</span>
+                <span class="summary-value">{{ position_summary.cash_balance|default:0|floatformat:2 }}</span>
+            </div>
+            <div class="summary-item">
+                <span class="summary-label">总资产</span>
+                <span class="summary-value highlight">{{ position_summary.total_assets|default:0|floatformat:2 }}</span>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</section>

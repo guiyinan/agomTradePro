@@ -1,0 +1,48 @@
+<!-- 交易动态 -->
+<section class="share-section" id="transactions">
+    <div class="section-container">
+        <div class="section-header">
+            <h2 class="section-title">近期交易</h2>
+            <a href="#" class="view-all-link">查看全部 <i class="bi bi-arrow-right"></i></a>
+        </div>
+
+        {% if recent_transactions %}
+        <div class="transactions-list">
+            {% for tx in recent_transactions %}
+            <div class="transaction-item">
+                <div class="transaction-icon {% if tx.action == 'buy' %}buy{% else %}sell{% endif %}">
+                    <i class="bi bi-{% if tx.action == 'buy' %}arrow-down-left{% else %}arrow-up-right{% endif %}"></i>
+                </div>
+                <div class="transaction-content">
+                    <div class="transaction-header">
+                        <span class="transaction-asset">{{ tx.asset_code }} {{ tx.asset_name|default:"" }}</span>
+                        <span class="transaction-action {% if tx.action == 'buy' %}buy{% else %}sell{% endif %}">
+                            {% if tx.action == 'buy' %}买入{% else %}卖出{% endif %}
+                        </span>
+                    </div>
+                    <div class="transaction-details">
+                        <span class="transaction-detail">
+                            <i class="bi bi-currency-yen"></i> {{ tx.price|floatformat:2 }}
+                        </span>
+                        <span class="transaction-detail">
+                            <i class="bi bi-stack"></i> {{ tx.quantity|floatformat:0 }} 股
+                        </span>
+                        <span class="transaction-detail">
+                            <i class="bi bi-wallet2"></i> {{ tx.amount|floatformat:2 }}
+                        </span>
+                    </div>
+                    <div class="transaction-time">
+                        <i class="bi bi-clock"></i> {{ tx.created_at|date:"Y-m-d H:i" }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-arrow-left-right empty-icon"></i>
+            <p class="empty-text">暂无交易记录</p>
+        </div>
+        {% endif %}
+    </div>
+</section>

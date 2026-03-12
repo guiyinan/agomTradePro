@@ -1,0 +1,528 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>投资组合公开分享 - 示例预览</title>
+    <link rel="stylesheet" href="{% static 'css/design-tokens.css' %}">
+    <link rel="stylesheet" href="{% static 'css/share.css' %}">
+    <link rel="stylesheet" href="{% static 'vendor/css/bootstrap-icons.css' %}">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+</head>
+<body class="share-page">
+    <div class="share-container">
+        <!-- Hero 首屏 -->
+        <section class="share-hero">
+            <div class="hero-container">
+                <div class="hero-header">
+                    <div class="hero-badges">
+                        <span class="badge badge-simulated">模拟盘</span>
+                        <span class="badge badge-public"><i class="bi bi-globe"></i> 公开</span>
+                    </div>
+                    <div class="hero-updated">
+                        <i class="bi bi-clock"></i>
+                        <span>更新于 2026-03-12 15:30</span>
+                    </div>
+                </div>
+
+                <div class="hero-content">
+                    <h1 class="hero-title">稳健增长组合</h1>
+                    <p class="hero-description">基于宏观环境准入的动态配置策略，追求稳健收益</p>
+                </div>
+
+                <div class="hero-metrics">
+                    <div class="hero-metric primary">
+                        <div class="metric-label">累计收益率</div>
+                        <div class="metric-value positive">23.45%</div>
+                    </div>
+                    <div class="hero-metric">
+                        <div class="metric-label">近 7 日</div>
+                        <div class="metric-value positive">2.31%</div>
+                    </div>
+                    <div class="hero-metric">
+                        <div class="metric-label">近 30 日</div>
+                        <div class="metric-value negative">-1.24%</div>
+                    </div>
+                    <div class="hero-metric">
+                        <div class="metric-label">当前仓位</div>
+                        <div class="metric-value neutral">78.5%</div>
+                    </div>
+                </div>
+
+                <div class="hero-actions">
+                    <a href="#positions" class="btn btn-primary">
+                        <i class="bi bi-list-ul"></i>
+                        查看持仓
+                    </a>
+                    <a href="#performance" class="btn btn-secondary">
+                        <i class="bi bi-graph-up"></i>
+                        收益曲线
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- 核心指标 -->
+        <section class="share-section" id="metrics">
+            <div class="section-container">
+                <h2 class="section-title">核心指标</h2>
+
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-icon return">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </div>
+                        <div class="metric-content">
+                            <div class="metric-name">累计收益</div>
+                            <div class="metric-value positive">23.45%</div>
+                            <div class="metric-sub">自 2024-01-01 起</div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon annual">
+                            <i class="bi bi-percent"></i>
+                        </div>
+                        <div class="metric-content">
+                            <div class="metric-name">年化收益</div>
+                            <div class="metric-value positive">18.62%</div>
+                            <div class="metric-sub">年化收益率</div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon drawdown">
+                            <i class="bi bi-arrow-down-circle"></i>
+                        </div>
+                        <div class="metric-content">
+                            <div class="metric-name">最大回撤</div>
+                            <div class="metric-value negative">-8.32%</div>
+                            <div class="metric-sub">历史最大</div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon sharpe">
+                            <i class="bi bi-shield-check"></i>
+                        </div>
+                        <div class="metric-content">
+                            <div class="metric-name">夏普比率</div>
+                            <div class="metric-value neutral">1.85</div>
+                            <div class="metric-sub">风险调整后收益</div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon winrate">
+                            <i class="bi bi-trophy"></i>
+                        </div>
+                        <div class="metric-content">
+                            <div class="metric-name">胜率</div>
+                            <div class="metric-value neutral">62.5%</div>
+                            <div class="metric-sub">48 笔交易</div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-icon positions">
+                            <i class="bi bi-layers"></i>
+                        </div>
+                        <div class="metric-content">
+                            <div class="metric-name">持仓数量</div>
+                            <div class="metric-value neutral">6</div>
+                            <div class="metric-sub">当前持仓</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 收益曲线 -->
+        <section class="share-section" id="performance">
+            <div class="section-container">
+                <div class="section-header">
+                    <h2 class="section-title">收益曲线</h2>
+                    <div class="chart-controls">
+                        <button class="chart-period-btn" data-period="1m">1月</button>
+                        <button class="chart-period-btn active" data-period="3m">3月</button>
+                        <button class="chart-period-btn" data-period="6m">6月</button>
+                        <button class="chart-period-btn" data-period="1y">1年</button>
+                        <button class="chart-period-btn" data-period="all">全部</button>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div id="performanceChart" class="performance-chart" style="width: 100%; height: 400px;"></div>
+                </div>
+
+                <div class="chart-legend">
+                    <div class="legend-item">
+                        <span class="legend-color portfolio"></span>
+                        <span class="legend-label">组合净值</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color benchmark"></span>
+                        <span class="legend-label">基准 (沪深300)</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 持仓展示 -->
+        <section class="share-section" id="positions">
+            <div class="section-container">
+                <div class="section-header">
+                    <h2 class="section-title">当前持仓</h2>
+                    <div class="section-summary">共 6 只标的</div>
+                </div>
+
+                <div class="positions-table-wrapper">
+                    <table class="positions-table">
+                        <thead>
+                            <tr>
+                                <th>标的代码</th>
+                                <th>标的名称</th>
+                                <th>持仓数量</th>
+                                <th>成本价</th>
+                                <th>现价</th>
+                                <th>市值</th>
+                                <th>盈亏</th>
+                                <th>收益率</th>
+                                <th>权重</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="position-row">
+                                <td class="position-code">510300</td>
+                                <td class="position-name">沪深300ETF</td>
+                                <td class="position-quantity">5000</td>
+                                <td class="position-cost">3.85</td>
+                                <td class="position-price">4.12</td>
+                                <td class="position-value">20,600.00</td>
+                                <td class="position-pnl positive">1,350.00</td>
+                                <td class="position-return positive">7.01%</td>
+                                <td class="position-weight">
+                                    <div class="weight-bar"><div class="weight-fill" style="width: 35%"></div></div>
+                                    <span class="weight-value">35.0%</span>
+                                </td>
+                            </tr>
+                            <tr class="position-row">
+                                <td class="position-code">511260</td>
+                                <td class="position-name">十年国债ETF</td>
+                                <td class="position-quantity">8000</td>
+                                <td class="position-cost">102.50</td>
+                                <td class="position-price">103.20</td>
+                                <td class="position-value">8,256.00</td>
+                                <td class="position-pnl positive">560.00</td>
+                                <td class="position-return positive">0.68%</td>
+                                <td class="position-weight">
+                                    <div class="weight-bar"><div class="weight-fill" style="width: 14%"></div></div>
+                                    <span class="weight-value">14.0%</span>
+                                </td>
+                            </tr>
+                            <tr class="position-row">
+                                <td class="position-code">159915</td>
+                                <td class="position-name">创业板ETF</td>
+                                <td class="position-quantity">3000</td>
+                                <td class="position-cost">2.05</td>
+                                <td class="position-price">1.92</td>
+                                <td class="position-value">5,760.00</td>
+                                <td class="position-pnl negative">-390.00</td>
+                                <td class="position-return negative">-6.34%</td>
+                                <td class="position-weight">
+                                    <div class="weight-bar"><div class="weight-fill" style="width: 10%"></div></div>
+                                    <span class="weight-value">9.8%</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="positions-summary">
+                    <div class="summary-item">
+                        <span class="summary-label">持仓总市值</span>
+                        <span class="summary-value">58,800.00</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">总盈亏</span>
+                        <span class="summary-value positive">8,450.00</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">现金余额</span>
+                        <span class="summary-value">16,200.00</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">总资产</span>
+                        <span class="summary-value highlight">75,000.00</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 交易动态 -->
+        <section class="share-section" id="transactions">
+            <div class="section-container">
+                <div class="section-header">
+                    <h2 class="section-title">近期交易</h2>
+                    <a href="#" class="view-all-link">查看全部 <i class="bi bi-arrow-right"></i></a>
+                </div>
+
+                <div class="transactions-list">
+                    <div class="transaction-item">
+                        <div class="transaction-icon buy">
+                            <i class="bi bi-arrow-down-left"></i>
+                        </div>
+                        <div class="transaction-content">
+                            <div class="transaction-header">
+                                <span class="transaction-asset">510300 沪深300ETF</span>
+                                <span class="transaction-action buy">买入</span>
+                            </div>
+                            <div class="transaction-details">
+                                <span class="transaction-detail"><i class="bi bi-currency-yen"></i> 4.08</span>
+                                <span class="transaction-detail"><i class="bi bi-stack"></i> 1000 股</span>
+                                <span class="transaction-detail"><i class="bi bi-wallet2"></i> 4,080.00</span>
+                            </div>
+                            <div class="transaction-time"><i class="bi bi-clock"></i> 2026-03-12 10:30</div>
+                        </div>
+                    </div>
+
+                    <div class="transaction-item">
+                        <div class="transaction-icon sell">
+                            <i class="bi bi-arrow-up-right"></i>
+                        </div>
+                        <div class="transaction-content">
+                            <div class="transaction-header">
+                                <span class="transaction-asset">159980 黄金ETF</span>
+                                <span class="transaction-action sell">卖出</span>
+                            </div>
+                            <div class="transaction-details">
+                                <span class="transaction-detail"><i class="bi bi-currency-yen"></i> 5.25</span>
+                                <span class="transaction-detail"><i class="bi bi-stack"></i> 500 股</span>
+                                <span class="transaction-detail"><i class="bi bi-wallet2"></i> 2,625.00</span>
+                            </div>
+                            <div class="transaction-time"><i class="bi bi-clock"></i> 2026-03-10 14:20</div>
+                        </div>
+                    </div>
+
+                    <div class="transaction-item">
+                        <div class="transaction-icon buy">
+                            <i class="bi bi-arrow-down-left"></i>
+                        </div>
+                        <div class="transaction-content">
+                            <div class="transaction-header">
+                                <span class="transaction-asset">511260 十年国债</span>
+                                <span class="transaction-action buy">买入</span>
+                            </div>
+                            <div class="transaction-details">
+                                <span class="transaction-detail"><i class="bi bi-currency-yen"></i> 102.80</span>
+                                <span class="transaction-detail"><i class="bi bi-stack"></i> 2000 股</span>
+                                <span class="transaction-detail"><i class="bi bi-wallet2"></i> 20,560.00</span>
+                            </div>
+                            <div class="transaction-time"><i class="bi bi-clock"></i> 2026-03-08 09:45</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- AI 决策摘要 -->
+        <section class="share-section" id="decisions">
+            <div class="section-container">
+                <div class="section-header">
+                    <h2 class="section-title">AI 决策摘要</h2>
+                    <span class="decision-badge">
+                        <i class="bi bi-robot"></i> 由 AgomSAAF 驱动
+                    </span>
+                </div>
+
+                <div class="decisions-list">
+                    <div class="decision-card status-executed">
+                        <div class="decision-header">
+                            <div class="decision-title">增加权益类资产配置</div>
+                            <div class="decision-status">
+                                <span class="status-dot status-executed"></span>
+                                已执行
+                            </div>
+                        </div>
+                        <div class="decision-body">
+                            <p class="decision-description">当前宏观环境进入复苏象限，建议增加权益类资产配置比例</p>
+                            <div class="decision-rationale">
+                                <strong>决策依据：</strong>PMI 连续回升至扩张区间，通胀温和，货币政策保持宽松
+                            </div>
+                        </div>
+                        <div class="decision-footer">
+                            <div class="decision-time"><i class="bi bi-clock"></i> 2026-03-12 09:00</div>
+                            <div class="decision-asset"><i class="bi bi-tag"></i> 510300</div>
+                        </div>
+                    </div>
+
+                    <div class="decision-card status-approved">
+                        <div class="decision-header">
+                            <div class="decision-title">降低黄金持仓比例</div>
+                            <div class="decision-status">
+                                <span class="status-dot status-approved"></span>
+                                待执行
+                            </div>
+                        </div>
+                        <div class="decision-body">
+                            <p class="decision-description">黄金价格接近历史高位，建议适度止盈</p>
+                            <div class="decision-rationale">
+                                <strong>决策依据：</strong>避险情绪降温，实际利率上升对黄金构成压力
+                            </div>
+                        </div>
+                        <div class="decision-footer">
+                            <div class="decision-time"><i class="bi bi-clock"></i> 2026-03-10 15:30</div>
+                            <div class="decision-asset"><i class="bi bi-tag"></i> 159980</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 宏观环境状态 -->
+                <div class="regime-info">
+                    <div class="regime-header">
+                        <i class="bi bi-compass"></i>
+                        <span>当前宏观环境</span>
+                    </div>
+                    <div class="regime-content">
+                        <div class="regime-item">
+                            <span class="regime-label">增长象限</span>
+                            <span class="regime-value growth-up">上升</span>
+                        </div>
+                        <div class="regime-item">
+                            <span class="regime-label">通胀象限</span>
+                            <span class="regime-value inflation-neutral">中性</span>
+                        </div>
+                        <div class="regime-item">
+                            <span class="regime-label">主导状态</span>
+                            <span class="regime-value regime-recovery">复苏</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 风险提示 -->
+        <section class="share-section disclaimer-section">
+            <div class="section-container">
+                <div class="disclaimer-card">
+                    <div class="disclaimer-header">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <span>风险提示</span>
+                    </div>
+                    <div class="disclaimer-content">
+                        <p>1. 本页面展示的投资组合数据仅供参考，不构成任何投资建议。</p>
+                        <p>2. 历史业绩不代表未来表现，投资有风险，入市需谨慎。</p>
+                        <p>3. 数据可能存在延迟，请以实际交易数据为准。</p>
+                        <p>4. 本账户为模拟交易账户，非真实资金运作。</p>
+                        <p>5. AgomSAAF 系统提供的分析和建议基于历史数据和算法模型，不保证准确性。</p>
+                    </div>
+                    <div class="disclaimer-footer">
+                        <p>本分享由 示例用户 创建于 2024-01-01</p>
+                        <p>数据来源: AgomSAAF 宏观环境准入系统</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="share-footer">
+        <div class="footer-content">
+            <p>数据更新于: 2026-03-12 15:30:00</p>
+            <p class="footer-brand">Powered by <a href="https://agomsaaf.com" target="_blank">AgomSAAF</a> - 宏观环境准入系统</p>
+        </div>
+    </footer>
+
+    <script>
+    // 初始化收益曲线图表
+    (function() {
+        const chartDom = document.getElementById('performanceChart');
+        if (!chartDom) return;
+
+        const myChart = echarts.init(chartDom);
+
+        // 模拟数据
+        const dates = ['2025-12-15', '2025-12-22', '2025-12-29', '2026-01-05', '2026-01-12',
+                       '2026-01-19', '2026-01-26', '2026-02-02', '2026-02-09', '2026-02-16',
+                       '2026-02-23', '2026-03-02', '2026-03-09', '2026-03-12'];
+        const portfolioValues = [0, 1.2, 2.8, 4.5, 6.2, 8.1, 10.5, 12.3, 14.8, 16.2,
+                                 18.5, 20.1, 21.8, 23.45];
+        const benchmarkValues = [0, 0.8, 1.5, 2.2, 3.5, 4.8, 6.2, 7.5, 8.8, 10.2,
+                                11.5, 12.8, 14.2, 15.8];
+
+        const option = {
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '10%',
+                top: '10%',
+                containLabel: true
+            },
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'cross' }
+            },
+            legend: {
+                data: ['组合净值', '基准'],
+                top: 0
+            },
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: dates,
+                axisLine: { lineStyle: { color: '#e2e8f0' } },
+                axisLabel: { color: '#64748b', fontSize: 12 }
+            },
+            yAxis: {
+                type: 'value',
+                axisLine: { lineStyle: { color: '#e2e8f0' } },
+                axisLabel: { color: '#64748b', fontSize: 12, formatter: '{value}%' },
+                splitLine: { lineStyle: { color: '#f1f5f9' } }
+            },
+            series: [
+                {
+                    name: '组合净值',
+                    type: 'line',
+                    smooth: true,
+                    data: portfolioValues,
+                    lineStyle: { width: 2, color: '#2563eb' },
+                    areaStyle: {
+                        color: {
+                            type: 'linear',
+                            x: 0, y: 0, x2: 0, y2: 1,
+                            colorStops: [
+                                { offset: 0, color: 'rgba(37, 99, 235, 0.3)' },
+                                { offset: 1, color: 'rgba(37, 99, 235, 0.05)' }
+                            ]
+                        }
+                    }
+                },
+                {
+                    name: '基准',
+                    type: 'line',
+                    smooth: true,
+                    data: benchmarkValues,
+                    lineStyle: { width: 2, color: '#94a3b8', type: 'dashed' }
+                }
+            ]
+        };
+
+        myChart.setOption(option);
+
+        window.addEventListener('resize', function() {
+            myChart.resize();
+        });
+    })();
+
+    // 时间周期切换
+    const periodBtns = document.querySelectorAll('.chart-period-btn');
+    periodBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            periodBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+    </script>
+</body>
+</html>

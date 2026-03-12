@@ -210,6 +210,11 @@ def my_account_detail_page(request, account_id):
     # 获取持仓和交易记录
     positions = account.positions.all()[:10]  # 最近10条持仓
     trades = account.trades.all()[:20]  # 最近20条交易
+    from apps.share.infrastructure.models import ShareLinkModel
+    share_links = ShareLinkModel.objects.filter(
+        owner=request.user,
+        account_id=account.id,
+    ).order_by('-created_at')
 
     context = {
         'account': account,
@@ -217,6 +222,7 @@ def my_account_detail_page(request, account_id):
         'account_type_code': account.account_type,
         'positions': positions,
         'trades': trades,
+        'share_links': share_links,
         'user': request.user,
     }
     return render(request, 'simulated_trading/my_account_detail.html', context)

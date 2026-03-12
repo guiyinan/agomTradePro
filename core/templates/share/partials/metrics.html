@@ -1,0 +1,112 @@
+<!-- 核心指标卡片 -->
+<section class="share-section" id="metrics">
+    <div class="section-container">
+        <h2 class="section-title">核心指标</h2>
+
+        <div class="metrics-grid">
+            <!-- 收益指标 -->
+            <div class="metric-card">
+                <div class="metric-icon return">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-name">累计收益</div>
+                    <div class="metric-value {% if total_return >= 0 %}positive{% else %}negative{% endif %}">
+                        {% if total_return is not None %}
+                            {{ total_return|floatformat:2 }}%
+                        {% else %}
+                            --
+                        {% endif %}
+                    </div>
+                    <div class="metric-sub">自 {{ inception_date|default:"--" }} 起</div>
+                </div>
+            </div>
+
+            <!-- 年化收益 -->
+            <div class="metric-card">
+                <div class="metric-icon annual">
+                    <i class="bi bi-percent"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-name">年化收益</div>
+                    <div class="metric-value {% if annualized_return >= 0 %}positive{% else %}negative{% endif %}">
+                        {% if annualized_return is not None %}
+                            {{ annualized_return|floatformat:2 }}%
+                        {% else %}
+                            --
+                        {% endif %}
+                    </div>
+                    <div class="metric-sub">年化收益率</div>
+                </div>
+            </div>
+
+            <!-- 最大回撤 -->
+            <div class="metric-card">
+                <div class="metric-icon drawdown">
+                    <i class="bi bi-arrow-down-circle"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-name">最大回撤</div>
+                    <div class="metric-value negative">
+                        {% if max_drawdown is not None %}
+                            {{ max_drawdown|floatformat:2 }}%
+                        {% else %}
+                            --
+                        {% endif %}
+                    </div>
+                    <div class="metric-sub">历史最大</div>
+                </div>
+            </div>
+
+            <!-- 夏普比率 -->
+            <div class="metric-card">
+                <div class="metric-icon sharpe">
+                    <i class="bi bi-shield-check"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-name">夏普比率</div>
+                    <div class="metric-value neutral">
+                        {% if sharpe_ratio is not None %}
+                            {{ sharpe_ratio|floatformat:2 }}
+                        {% else %}
+                            --
+                        {% endif %}
+                    </div>
+                    <div class="metric-sub">风险调整后收益</div>
+                </div>
+            </div>
+
+            <!-- 胜率 -->
+            <div class="metric-card">
+                <div class="metric-icon winrate">
+                    <i class="bi bi-trophy"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-name">胜率</div>
+                    <div class="metric-value neutral">
+                        {% if win_rate is not None %}
+                            {{ win_rate|floatformat:1 }}%
+                        {% else %}
+                            --
+                        {% endif %}
+                    </div>
+                    <div class="metric-sub">{{ total_trades|default:0 }} 笔交易</div>
+                </div>
+            </div>
+
+            <!-- 持仓数量 -->
+            <div class="metric-card">
+                <div class="metric-icon positions">
+                    <i class="bi bi-layers"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-name">持仓数量</div>
+                    <div class="metric-value neutral">
+                        {{ position_count|default:0 }}
+                    </div>
+                    <div class="metric-sub">当前持仓</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

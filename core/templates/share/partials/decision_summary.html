@@ -1,0 +1,80 @@
+<!-- AI 决策摘要 -->
+<section class="share-section" id="decisions">
+    <div class="section-container">
+        <div class="section-header">
+            <h2 class="section-title">AI 决策摘要</h2>
+            <span class="decision-badge">
+                <i class="bi bi-robot"></i> 由 AgomSAAF 驱动
+            </span>
+        </div>
+
+        {% if decisions %}
+        <div class="decisions-list">
+            {% for decision in decisions %}
+            <div class="decision-card status-{{ decision.status }}">
+                <div class="decision-header">
+                    <div class="decision-title">{{ decision.title }}</div>
+                    <div class="decision-status">
+                        <span class="status-dot status-{{ decision.status }}"></span>
+                        {{ decision.get_status_display }}
+                    </div>
+                </div>
+                <div class="decision-body">
+                    <p class="decision-description">{{ decision.description }}</p>
+                    {% if decision.rationale %}
+                    <div class="decision-rationale">
+                        <strong>决策依据：</strong>{{ decision.rationale }}
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="decision-footer">
+                    <div class="decision-time">
+                        <i class="bi bi-clock"></i> {{ decision.created_at|date:"Y-m-d H:i" }}
+                    </div>
+                    {% if decision.asset_code %}
+                    <div class="decision-asset">
+                        <i class="bi bi-tag"></i> {{ decision.asset_code }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-robot empty-icon"></i>
+            <p class="empty-text">暂无决策记录</p>
+        </div>
+        {% endif %}
+
+        <!-- 宏观环境状态 -->
+        {% if regime_info %}
+        <div class="regime-info">
+            <div class="regime-header">
+                <i class="bi bi-compass"></i>
+                <span>当前宏观环境</span>
+            </div>
+            <div class="regime-content">
+                <div class="regime-item">
+                    <span class="regime-label">增长象限</span>
+                    <span class="regime-value growth-{{ regime_info.growth_level }}">
+                        {{ regime_info.get_growth_level_display }}
+                    </span>
+                </div>
+                <div class="regime-item">
+                    <span class="regime-label">通胀象限</span>
+                    <span class="regime-value inflation-{{ regime_info.inflation_level }}">
+                        {{ regime_info.get_inflation_level_display }}
+                    </span>
+                </div>
+                <div class="regime-item">
+                    <span class="regime-label">主导状态</span>
+                    <span class="regime-value regime-{{ regime_info.dominant_regime|lower }}">
+                        {{ regime_info.get_dominant_regime_display }}
+                    </span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</section>

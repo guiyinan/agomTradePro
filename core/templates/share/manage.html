@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}账户分享管理 - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/share.css' %}">
+<style>
+.share-manage-container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+.share-manage-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
+.share-manage-grid { display: grid; grid-template-columns: minmax(320px, 420px) 1fr; gap: 24px; }
+.share-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; }
+.share-form-grid { display: grid; gap: 12px; }
+.share-form-grid label { font-weight: 600; font-size: 14px; display: block; margin-bottom: 6px; }
+.share-form-grid input, .share-form-grid select, .share-form-grid textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; }
+.checkbox-list { display: grid; gap: 8px; }
+.checkbox-list label { display: flex; gap: 8px; align-items: center; font-weight: 400; margin: 0; }
+.share-links-list { display: grid; gap: 16px; }
+.share-link-card { border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; background: #f8fafc; }
+.share-link-top { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+.share-link-meta { color: #475569; font-size: 14px; margin-top: 8px; display: grid; gap: 4px; }
+.share-link-actions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.badge-inline { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: #e2e8f0; font-size: 12px; }
+.badge-inline.active { background: #dcfce7; color: #166534; }
+.badge-inline.revoked { background: #fee2e2; color: #991b1b; }
+.muted { color: #64748b; font-size: 13px; }
+@media (max-width: 960px) { .share-manage-grid { grid-template-columns: 1fr; } .share-manage-header { flex-direction: column; align-items: flex-start; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="share-manage-container">
+    <div class="share-manage-header">
+        <div>
+            <h1>账户分享管理</h1>
+            <p class="muted">创建公开围观链接，管理已有分享链接。</p>
+        </div>
+        <div class="share-link-actions">
+            <a href="{% url 'simulated_trading:my-accounts' %}" class="btn btn-secondary">返回我的账户</a>
+        </div>
+    </div>
+
+    <div class="share-manage-grid">
+        <section class="share-panel">
+            <h2 style="margin-bottom:16px;">{% if edit_share_link %}编辑分享链接{% else %}创建分享链接{% endif %}</h2>
+            <form method="post" class="share-form-grid">
+                {% csrf_token %}
+                {% if edit_share_link %}
+                <input type="hidden" name="share_link_id" value="{{ edit_share_link.id }}">
+                {% endif %}
+                <div>
+                    <label for="account_id">选择账户</label>
+                    <select id="account_id" name="account_id" required>
+                        <option value="">请选择账户</option>
+                        {% for account in accounts %}
+                        <option value="{{ account.id }}" {% if selected_account_id == account.id %}selected{% endif %}>
+                            {{ account.account_name }}（{% if account.account_type == "real" %}实仓{% else %}模拟仓{% endif %}）
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="title">分享标题</label>
+                    <input id="title" name="title" maxlength="100" placeholder="例如：AI 中盘成长实验账户" value="{{ edit_share_link.title|default:'' }}" required>
+                </div>
+                <div>
+                    <label for="subtitle">副标题</label>
+                    <input id="subtitle" name="subtitle" maxlength="200" placeholder="一句话说明账户风格和近况" value="{{ edit_share_link.subtitle|default:'' }}">
+                </div>
+                <div>
+                    <label for="share_level">披露级别</label>
+                    <select id="share_level" name="share_level">
+                        <option value="snapshot" {% if edit_share_link.share_level == 'snapshot' or not edit_share_link %}selected{% endif %}>snapshot</option>
+                        <option value="observer" {% if edit_share_link.share_level == 'observer' %}selected{% endif %}>observer</option>
+                        <option value="research" {% if edit_share_link.share_level == 'research' %}selected{% endif %}>research</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="password">访问密码（可选）</label>
+                    <input id="password" name="password" type="password" placeholder="{% if edit_share_link and edit_share_link.password_hash %}留空则保留当前密码{% else %}不填则公开访问{% endif %}">
+                </div>
+                <div>
+                    <label for="expires_at">过期时间（可选）</label>
+                    <input id="expires_at" name="expires_at" type="datetime-local" value="{% if edit_share_link and edit_share_link.expires_at %}{{ edit_share_link.expires_at|date:'Y-m-d\\TH:i' }}{% endif %}">
+                </div>
+                <div>
+                    <label for="max_access_count">最大访问次数（可选）</label>
+                    <input id="max_access_count" name="max_access_count" type="number" min="1" placeholder="不填则不限" value="{{ edit_share_link.max_access_count|default:'' }}">
+                </div>
+                <div class="checkbox-list">
+                    <label><input type="checkbox" name="show_positions" {% if edit_share_link.show_positions or not edit_share_link %}checked{% endif %}> 展示持仓</label>
+                    <label><input type="checkbox" name="show_transactions" {% if edit_share_link.show_transactions or not edit_share_link %}checked{% endif %}> 展示交易记录</label>
+                    <label><input type="checkbox" name="show_decision_summary" {% if edit_share_link.show_decision_summary or not edit_share_link %}checked{% endif %}> 展示决策摘要</label>
+                    <label><input type="checkbox" name="show_decision_evidence" {% if edit_share_link.show_decision_evidence %}checked{% endif %}> 展示决策依据</label>
+                    <label><input type="checkbox" name="show_invalidation_logic" {% if edit_share_link.show_invalidation_logic %}checked{% endif %}> 展示证伪逻辑</label>
+                    <label><input type="checkbox" name="show_amounts" {% if edit_share_link.show_amounts %}checked{% endif %}> 展示金额</label>
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-primary">{% if edit_share_link %}保存修改{% else %}创建分享链接{% endif %}</button>
+                    {% if edit_share_link %}
+                    <a href="{% url 'share:manage' %}" class="btn btn-secondary">取消编辑</a>
+                    {% endif %}
+                </div>
+            </form>
+        </section>
+
+        <section class="share-panel">
+            <h2 style="margin-bottom:16px;">我的分享链接</h2>
+            <div class="share-links-list">
+                {% for link in share_links %}
+                <article class="share-link-card">
+                    <div class="share-link-top">
+                        <div>
+                            <strong>{{ link.title }}</strong>
+                            {% if link.subtitle %}<div class="muted">{{ link.subtitle }}</div>{% endif %}
+                            <div class="share-link-meta">
+                                <div>账户：{{ link.account_name }}</div>
+                                <div>短码：<code>{{ link.short_code }}</code></div>
+                                <div>级别：{{ link.share_level }}</div>
+                                <div>创建时间：{{ link.created_at|date:"Y-m-d H:i" }}</div>
+                                <div>访问次数：{{ link.access_count }}</div>
+                                <div>最近快照：{{ link.last_snapshot_at|date:"Y-m-d H:i"|default:"未生成" }}</div>
+                            </div>
+                        </div>
+                        <span class="badge-inline {% if link.status == 'active' %}active{% else %}revoked{% endif %}">
+                            {{ link.status }}
+                        </span>
+                    </div>
+                    <div class="share-link-actions">
+                        <a href="{% url 'share:public_share' link.short_code %}" class="btn btn-secondary" target="_blank">打开公开页</a>
+                        <a href="{% url 'share:manage' %}?edit={{ link.id }}" class="btn btn-secondary">编辑</a>
+                        <button type="button" class="btn btn-secondary" onclick="navigator.clipboard.writeText('{{ request.scheme }}://{{ request.get_host }}{% url 'share:public_share' link.short_code %}')">复制链接</button>
+                        <form method="post" action="{% url 'share:refresh' link.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-secondary">刷新快照</button>
+                        </form>
+                        {% if link.status == "active" %}
+                        <form method="post" action="{% url 'share:revoke' link.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger">撤销</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </article>
+                {% empty %}
+                <div class="muted">还没有分享链接，先在左侧创建一个。</div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

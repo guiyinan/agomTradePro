@@ -1,0 +1,73 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ portfolio_name|default:"投资组合" }} - 公开分享{% endblock %}</title>
+
+    <!-- Open Graph Meta Information -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ portfolio_name|default:"投资组合" }}">
+    <meta property="og:description" content="{{ portfolio_description|default:"查看投资组合表现和持仓详情" }}">
+    <meta property="og:image" content="{% block og_image %}{% static 'images/agomsaaf-og-default.png' %}{% endblock %}">
+    <meta property="og:url" content="{{ request.build_absolute_uri }}">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ portfolio_name|default:"投资组合" }}">
+    <meta name="twitter:description" content="{{ portfolio_description|default:"查看投资组合表现和持仓详情" }}">
+
+    <!-- Design Tokens -->
+    <link rel="stylesheet" href="{% static 'css/design-tokens.css' %}">
+    <link rel="stylesheet" href="{% static 'css/share.css' %}">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="{% static 'vendor/css/bootstrap-icons.css' %}">
+
+    <!-- ECharts CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="share-page">
+    <!-- 密码验证模态框（如需要） -->
+    {% if requires_password %}
+        {% include "share/password_modal.html" %}
+    {% endif %}
+
+    <!-- 主容器 -->
+    <div class="share-container">
+        <!-- Hero 首屏 -->
+        {% include "share/partials/hero.html" %}
+
+        <!-- 核心指标卡片 -->
+        {% include "share/partials/metrics.html" %}
+
+        <!-- 收益曲线图 -->
+        {% include "share/partials/performance_chart.html" %}
+
+        <!-- 持仓展示 -->
+        {% include "share/partials/positions.html" %}
+
+        <!-- 交易动态 -->
+        {% include "share/partials/transactions.html" %}
+
+        <!-- AI 决策摘要 -->
+        {% include "share/partials/decision_summary.html" %}
+
+        <!-- 风险提示 -->
+        {% include "share/partials/disclaimer.html" %}
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="share-footer">
+        <div class="footer-content">
+            <p>数据更新于: {{ last_updated|default:"--" }}</p>
+            <p class="footer-brand">Powered by <a href="https://agomsaaf.com" target="_blank">AgomSAAF</a> - 宏观环境准入系统</p>
+        </div>
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!-- Hero 首屏 -->
+<section class="share-hero">
+    <div class="hero-container">
+        <div class="hero-header">
+            <!-- 账户类型标签 -->
+            <div class="hero-badges">
+                {% if portfolio_type %}
+                    <span class="badge badge-{{ portfolio_type }}">
+                        {% if portfolio_type == 'simulated' %}模拟盘{% elif portfolio_type == 'real' %}实盘{% else %}观察组合{% endif %}
+                    </span>
+                {% endif %}
+                {% if is_private %}
+                    <span class="badge badge-private">
+                        <i class="bi bi-lock-fill"></i> 私密分享
+                    </span>
+                {% else %}
+                    <span class="badge badge-public">
+                        <i class="bi bi-globe"></i> 公开
+                    </span>
+                {% endif %}
+            </div>
+
+            <!-- 更新时间 -->
+            <div class="hero-updated">
+                <i class="bi bi-clock"></i>
+                <span>更新于 {{ last_updated|default:"--" }}</span>
+            </div>
+        </div>
+
+        <!-- 标题和描述 -->
+        <div class="hero-content">
+            <h1 class="hero-title">{{ portfolio_name|default:"投资组合" }}</h1>
+            {% if portfolio_description %}
+            <p class="hero-description">{{ portfolio_description }}</p>
+            {% endif %}
+        </div>
+
+        <!-- 核心收益指标 -->
+        <div class="hero-metrics">
+            <div class="hero-metric primary">
+                <div class="metric-label">累计收益率</div>
+                <div class="metric-value {% if total_return >= 0 %}positive{% else %}negative{% endif %}">
+                    {% if total_return is not None %}
+                        {{ total_return|floatformat:2 }}%
+                    {% else %}
+                        --
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="hero-metric">
+                <div class="metric-label">近 7 日</div>
+                <div class="metric-value {% if return_7d >= 0 %}positive{% else %}negative{% endif %}">
+                    {% if return_7d is not None %}
+                        {{ return_7d|floatformat:2 }}%
+                    {% else %}
+                        --
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="hero-metric">
+                <div class="metric-label">近 30 日</div>
+                <div class="metric-value {% if return_30d >= 0 %}positive{% else %}negative{% endif %}">
+                    {% if return_30d is not None %}
+                        {{ return_30d|floatformat:2 }}%
+                    {% else %}
+                        --
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="hero-metric">
+                <div class="metric-label">当前仓位</div>
+                <div class="metric-value neutral">
+                    {% if current_position is not None %}
+                        {{ current_position|floatformat:1 }}%
+                    {% else %}
+                        --
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- CTA 按钮 -->
+        <div class="hero-actions">
+            <a href="#positions" class="btn btn-primary">
+                <i class="bi bi-list-ul"></i>
+                查看持仓
+            </a>
+            <a href="#performance" class="btn btn-secondary">
+                <i class="bi bi-graph-up"></i>
+                收益曲线
+            </a>
+        </div>
+    </div>
+</section>

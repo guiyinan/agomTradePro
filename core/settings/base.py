@@ -144,6 +144,9 @@ INSTALLED_APPS = [
     # ========== 新模块：任务监控 ==========
     'apps.task_monitor',   # 任务监控模块（新增）
 
+    # ========== 新模块：账户分享 ==========
+    'apps.share',          # 账户分享模块（新增）
+
     # ========== Prometheus 指标 ==========
     'django_prometheus',   # Prometheus 指标导出（新增）
 ]

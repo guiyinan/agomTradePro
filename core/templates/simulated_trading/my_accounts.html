@@ -97,6 +97,9 @@
                     <a href="{% url 'simulated_trading:my-account-detail' account.id %}" class="btn btn-primary">
                         查看详情
                     </a>
+                    <a href="{% url 'share:manage' %}?account_id={{ account.id }}" class="btn btn-secondary">
+                        分享链接
+                    </a>
                     <a href="{% url 'simulated_trading:my-positions' account.id %}" class="btn btn-secondary">
                         持仓
                     </a>

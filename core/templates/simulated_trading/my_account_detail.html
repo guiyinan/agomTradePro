@@ -18,6 +18,7 @@
             </div>
             <div class="header-actions">
                 <a href="{% url 'simulated_trading:my-accounts' %}" class="btn btn-secondary">返回账户列表</a>
+                <a href="{% url 'share:manage' %}?account_id={{ account.id }}" class="btn btn-primary">创建分享链接</a>
                 <a href="{% url 'simulated_trading:my-inspection-notify' account.id %}" class="btn btn-secondary">巡检邮件配置</a>
             </div>
         </div>
@@ -146,6 +147,51 @@
         {% else %}
         <div class="empty-state">
             <p>暂无交易记录</p>
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="account-section">
+        <div class="header-title-row" style="margin-bottom: 16px;">
+            <h2 class="section-title" style="margin-bottom: 0;">分享链接</h2>
+            <a href="{% url 'share:manage' %}?account_id={{ account.id }}" class="btn btn-primary">新建分享链接</a>
+        </div>
+        {% if share_links %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>标题</th>
+                    <th>短码</th>
+                    <th>级别</th>
+                    <th>状态</th>
+                    <th>访问次数</th>
+                    <th>最近快照</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for link in share_links %}
+                <tr>
+                    <td>
+                        <strong>{{ link.title }}</strong>
+                        {% if link.subtitle %}<div class="subtitle">{{ link.subtitle }}</div>{% endif %}
+                    </td>
+                    <td><code>{{ link.short_code }}</code></td>
+                    <td>{{ link.share_level }}</td>
+                    <td>{{ link.status }}</td>
+                    <td>{{ link.access_count }}</td>
+                    <td>{% if link.last_snapshot_at %}{{ link.last_snapshot_at|date:"Y-m-d H:i" }}{% else %}-{% endif %}</td>
+                    <td>
+                        <a href="{% url 'share:public_share' link.short_code %}" target="_blank" class="btn btn-secondary">打开</a>
+                        <a href="{% url 'share:manage' %}?edit={{ link.id }}" class="btn btn-secondary">编辑</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+            <p>该账户还没有分享链接</p>
         </div>
         {% endif %}
     </section>

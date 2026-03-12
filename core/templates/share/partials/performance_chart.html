@@ -1,0 +1,160 @@
+<!-- 收益曲线图 -->
+<section class="share-section" id="performance">
+    <div class="section-container">
+        <div class="section-header">
+            <h2 class="section-title">收益曲线</h2>
+            <div class="chart-controls">
+                <button class="chart-period-btn active" data-period="1m">1月</button>
+                <button class="chart-period-btn" data-period="3m">3月</button>
+                <button class="chart-period-btn" data-period="6m">6月</button>
+                <button class="chart-period-btn" data-period="1y">1年</button>
+                <button class="chart-period-btn" data-period="all">全部</button>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div id="performanceChart" class="performance-chart" style="width: 100%; height: 400px;"></div>
+        </div>
+
+        <div class="chart-legend">
+            <div class="legend-item">
+                <span class="legend-color portfolio"></span>
+                <span class="legend-label">组合净值</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color benchmark"></span>
+                <span class="legend-label">基准 ({{ benchmark_name|default:"沪深300" }})</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+(function() {
+    const chartDom = document.getElementById('performanceChart');
+    if (!chartDom) return;
+
+    const myChart = echarts.init(chartDom);
+
+    // 图表配置（后续通过 API 获取实际数据）
+    const option = {
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '10%',
+            top: '10%',
+            containLabel: true
+        },
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: {
+                type: 'cross'
+            },
+            formatter: function(params) {
+                let result = params[0].axisValue + '<br/>';
+                params.forEach(param => {
+                    result += `${param.marker} ${param.seriesName}: ${param.value}%<br/>`;
+                });
+                return result;
+            }
+        },
+        legend: {
+            data: ['组合净值', '基准'],
+            top: 0
+        },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: {{ chart_dates|default:"[]"|safe }},
+            axisLine: {
+                lineStyle: {
+                    color: '#e2e8f0'
+                }
+            },
+            axisLabel: {
+                color: '#64748b',
+                fontSize: 12
+            }
+        },
+        yAxis: {
+            type: 'value',
+            axisLine: {
+                lineStyle: {
+                    color: '#e2e8f0'
+                }
+            },
+            axisLabel: {
+                color: '#64748b',
+                fontSize: 12,
+                formatter: '{value}%'
+            },
+            splitLine: {
+                lineStyle: {
+                    color: '#f1f5f9'
+                }
+            }
+        },
+        series: [
+            {
+                name: '组合净值',
+                type: 'line',
+                smooth: true,
+                data: {{ portfolio_values|default:"[]"|safe }},
+                lineStyle: {
+                    width: 2,
+                    color: '#2563eb'
+                },
+                areaStyle: {
+                    color: {
+                        type: 'linear',
+                        x: 0,
+                        y: 0,
+                        x2: 0,
+                        y2: 1,
+                        colorStops: [
+                            { offset: 0, color: 'rgba(37, 99, 235, 0.3)' },
+                            { offset: 1, color: 'rgba(37, 99, 235, 0.05)' }
+                        ]
+                    }
+                }
+            },
+            {
+                name: '基准',
+                type: 'line',
+                smooth: true,
+                data: {{ benchmark_values|default:"[]"|safe }},
+                lineStyle: {
+                    width: 2,
+                    color: '#94a3b8',
+                    type: 'dashed'
+                }
+            }
+        ]
+    };
+
+    myChart.setOption(option);
+
+    // 响应式调整
+    window.addEventListener('resize', function() {
+        myChart.resize();
+    });
+
+    // 时间周期切换
+    const periodBtns = document.querySelectorAll('.chart-period-btn');
+    periodBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            periodBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+
+            const period = this.dataset.period;
+            // TODO: 根据 period 加载对应数据
+            loadPerformanceData(period);
+        });
+    });
+
+    function loadPerformanceData(period) {
+        // 后续实现
+        console.log('Loading data for period:', period);
+    }
+})();
+</script>
