@@ -23,11 +23,16 @@
 .md-empty { text-align: center; padding: 60px 20px; color: var(--color-text-muted); }
 .md-test-section { background: var(--color-surface); border-radius: var(--radius-lg, 12px); padding: var(--spacing-lg, 16px); box-shadow: var(--shadow-sm); border: 1px solid var(--color-border); }
 .md-test-section h2 { font-size: 1.125rem; margin: 0 0 16px 0; }
+.md-test-guidance { margin: 0 0 14px; padding: 12px 14px; border-radius: var(--radius-md, 8px); background: rgba(15, 23, 42, 0.04); color: var(--color-text-secondary); font-size: 13px; line-height: 1.6; border: 1px solid var(--color-border); }
 .md-test-input { display: flex; gap: 8px; margin-bottom: 12px; }
 .md-test-input input { flex: 1; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md, 8px); font-size: 14px; }
 .md-test-input button { padding: 8px 16px; border: none; border-radius: var(--radius-md, 8px); background: var(--color-primary, #2563eb); color: #fff; cursor: pointer; font-size: 14px; white-space: nowrap; }
 .md-test-input button:hover { opacity: 0.9; }
 .md-test-result { background: var(--color-surface-alt, #f9fafb); border-radius: var(--radius-md, 8px); padding: 12px; font-family: monospace; font-size: 13px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+.md-test-note { margin-top: 10px; padding: 10px 12px; border-radius: var(--radius-md, 8px); font-size: 13px; display: none; }
+.md-test-note.info { display: block; background: rgba(37, 99, 235, 0.08); color: #1d4ed8; border: 1px solid rgba(37, 99, 235, 0.16); }
+.md-test-note.warn { display: block; background: rgba(245, 158, 11, 0.1); color: #b45309; border: 1px solid rgba(245, 158, 11, 0.22); }
+.md-test-note.error { display: block; background: rgba(239, 68, 68, 0.08); color: #b91c1c; border: 1px solid rgba(239, 68, 68, 0.18); }
 </style>
 {% endblock %}
 
@@ -51,6 +56,7 @@
     <!-- 快速测试 -->
     <div class="md-test-section">
         <h2><i class="bi bi-lightning"></i> 快速测试</h2>
+        <p class="md-test-guidance">A 股收盘后，行情测试应优先回退到最近一个交易日收盘价；如果东方财富不可用且未配置 <code>TUSHARE_TOKEN</code>，这里会明确提示备用源不可用，而不是只显示“实时行情失败”。</p>
         <div class="md-test-input">
             <input type="text" id="testStockCode" placeholder="输入股票代码（如 000001.SZ）" value="000001.SZ">
             <button onclick="testQuote()">行情</button>
@@ -58,6 +64,7 @@
             <button onclick="testNews()">新闻</button>
             <button onclick="testCrossValidate()" style="background: #7c3aed;">交叉校验</button>
         </div>
+        <div class="md-test-note" id="testNote"></div>
         <div class="md-test-result" id="testResult">输入股票代码并点击按钮测试数据源...</div>
     </div>
 </div>
@@ -114,9 +121,27 @@ async function loadProviders() {
 async function testQuote() {
     const code = document.getElementById('testStockCode').value.trim();
     const el = document.getElementById('testResult');
+    const note = document.getElementById('testNote');
+    note.className = 'md-test-note';
+    note.textContent = '';
     el.textContent = '请求中...';
     try {
         const result = await apiFetch(`/api/market-data/quotes/?codes=${code}`);
+        if (result.error) {
+            note.className = 'md-test-note error';
+            note.textContent = result.error + (result.hint ? `：${result.hint}` : '');
+            el.textContent = JSON.stringify(result, null, 2);
+            return;
+        }
+        if (result.fallback_mode === 'close_fallback') {
+            note.className = 'md-test-note warn';
+            note.textContent = result.message || '当前展示的是最近收盘价。';
+        } else if (result.fallback_mode === 'realtime') {
+            note.className = 'md-test-note info';
+            note.textContent = result.market_closed
+                ? '当前已收盘，但仍拿到了可用行情源返回的数据。请注意核对是否为盘后快照。'
+                : '当前展示的是实时行情快照。';
+        }
         el.textContent = JSON.stringify(result, null, 2);
     } catch (e) { el.textContent = '错误: ' + e.message; }
 }

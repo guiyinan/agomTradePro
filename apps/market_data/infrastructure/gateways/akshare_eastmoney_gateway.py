@@ -8,7 +8,10 @@ AKShare 东方财富 Gateway
 
 import logging
 import time
-from typing import Dict, List, Optional
+from decimal import Decimal, InvalidOperation
+from typing import List, Optional
+
+import requests
 
 from apps.market_data.domain.entities import (
     CapitalFlowSnapshot,
@@ -24,11 +27,15 @@ from apps.market_data.infrastructure.parsers.eastmoney_capital_flow_parser impor
 from apps.market_data.infrastructure.parsers.eastmoney_news_parser import (
     parse_akshare_news_rows,
 )
-from apps.market_data.infrastructure.parsers.eastmoney_quote_parser import (
-    parse_akshare_spot_row,
-)
 
 logger = logging.getLogger(__name__)
+
+_QUOTE_FIELDS = (
+    "f19,f39,f43,f44,f45,f46,f47,f48,f49,f50,f57,f58,f59,f60,"
+    "f71,f84,f85,f86,f92,f108,f116,f117,f152,f154,f161,f164,"
+    "f167,f168,f169,f170,f171,f532,f600,f601"
+)
+_EASTMONEY_QUOTE_URL = "https://push2.eastmoney.com/api/qt/stock/get"
 
 # 支持的能力集合
 _SUPPORTED_CAPABILITIES = {
@@ -75,6 +82,42 @@ def _to_market_arg(stock_code: str) -> str:
     return "sz"
 
 
+def _to_secid(stock_code: str) -> str:
+    """将 Tushare 股票代码转换为东方财富 secid。"""
+    code = _to_akshare_code(stock_code)
+    if stock_code.endswith(".SH"):
+        return f"1.{code}"
+    if stock_code.endswith(".BJ"):
+        return f"0.{code}"
+    return f"0.{code}"
+
+
+def _safe_decimal(value: object, scale: int = 1) -> Optional[Decimal]:
+    if value in (None, ""):
+        return None
+    try:
+        decimal_value = Decimal(str(value))
+        if scale != 1:
+            decimal_value /= Decimal(str(scale))
+        return decimal_value
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+
+
+def _safe_float(value: object, scale: int = 1) -> Optional[float]:
+    decimal_value = _safe_decimal(value, scale=scale)
+    return float(decimal_value) if decimal_value is not None else None
+
+
+def _safe_int(value: object) -> Optional[int]:
+    if value in (None, ""):
+        return None
+    try:
+        return int(float(value))
+    except (ValueError, TypeError):
+        return None
+
+
 class AKShareEastMoneyGateway(MarketDataProviderProtocol):
     """通过 AKShare 封装访问东方财富的 Provider
 
@@ -107,42 +150,33 @@ class AKShareEastMoneyGateway(MarketDataProviderProtocol):
     def get_quote_snapshots(
         self, stock_codes: List[str]
     ) -> List[QuoteSnapshot]:
-        """批量获取实时行情（东方财富实时行情接口）"""
+        """批量获取实时行情（东方财富单股接口）"""
         self._throttle()
-        try:
-            import akshare as ak
-
-            df = ak.stock_zh_a_spot_em()
-            if df is None or df.empty:
-                logger.warning("AKShare stock_zh_a_spot_em 返回空数据")
-                return []
-
-            df["代码"] = df["代码"].astype(str).str.strip()
-
-            # 构建 AKShare 代码 → Tushare 代码映射
-            ak_to_ts: Dict[str, str] = {
-                _to_akshare_code(c): c for c in stock_codes
-            }
-
-            results: List[QuoteSnapshot] = []
-            for ak_code, ts_code in ak_to_ts.items():
-                matched = df[df["代码"] == ak_code]
-                if matched.empty:
-                    continue
-                snapshot = parse_akshare_spot_row(matched.iloc[0], ts_code)
+        results: List[QuoteSnapshot] = []
+        with requests.Session() as session:
+            session.headers.update(
+                {
+                    "User-Agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/133.0.0.0 Safari/537.36"
+                    ),
+                    "Accept": "application/json,text/plain,*/*",
+                    "Referer": "https://quote.eastmoney.com/",
+                }
+            )
+            for stock_code in stock_codes:
+                snapshot = self._fetch_quote_snapshot(session, stock_code)
                 if snapshot is not None:
                     results.append(snapshot)
+                self._throttle()
 
-            logger.info(
-                "东方财富行情: 请求 %d 只, 成功 %d 只",
-                len(stock_codes),
-                len(results),
-            )
-            return results
-
-        except Exception:
-            logger.exception("获取东方财富实时行情失败")
-            return []
+        logger.info(
+            "东方财富行情: 请求 %d 只, 成功 %d 只",
+            len(stock_codes),
+            len(results),
+        )
+        return results
 
     # ------------------------------------------------------------------
     # CAPITAL_FLOW
@@ -243,6 +277,51 @@ class AKShareEastMoneyGateway(MarketDataProviderProtocol):
         if elapsed < self._request_interval:
             time.sleep(self._request_interval - elapsed)
         self._last_request_time = time.monotonic()
+
+    def _fetch_quote_snapshot(
+        self,
+        session: requests.Session,
+        stock_code: str,
+    ) -> Optional[QuoteSnapshot]:
+        """通过东财单股接口获取一只股票的行情。"""
+        params = {
+            "secid": _to_secid(stock_code),
+            "fields": _QUOTE_FIELDS,
+            "invt": "2",
+            "fltt": "1",
+        }
+        try:
+            response = session.get(
+                _EASTMONEY_QUOTE_URL,
+                params=params,
+                timeout=15,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except Exception:
+            logger.warning("获取东方财富单股行情失败: %s", stock_code, exc_info=True)
+            return None
+
+        data = payload.get("data") or {}
+        price = _safe_decimal(data.get("f43"), scale=100)
+        if price is None or price <= 0:
+            return None
+
+        return QuoteSnapshot(
+            stock_code=stock_code,
+            price=price,
+            change=_safe_decimal(data.get("f169"), scale=100),
+            change_pct=_safe_float(data.get("f170"), scale=100),
+            volume=_safe_int(data.get("f47")),
+            amount=_safe_decimal(data.get("f48")),
+            turnover_rate=_safe_float(data.get("f168"), scale=100),
+            volume_ratio=_safe_float(data.get("f50"), scale=100),
+            high=_safe_decimal(data.get("f44"), scale=100),
+            low=_safe_decimal(data.get("f45"), scale=100),
+            open=_safe_decimal(data.get("f46"), scale=100),
+            pre_close=_safe_decimal(data.get("f60"), scale=100),
+            source="eastmoney",
+        )
 
     @staticmethod
     def _parse_period_days(period: str) -> Optional[int]:

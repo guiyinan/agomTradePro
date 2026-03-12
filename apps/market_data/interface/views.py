@@ -5,7 +5,9 @@ Market Data 模块 - Interface 层视图
 """
 
 import logging
+from datetime import time
 
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -29,8 +31,26 @@ from apps.market_data.interface.serializers import (
     StockNewsItemSerializer,
     SyncCapitalFlowResponseSerializer,
 )
+from shared.config.secrets import get_secrets
 
 logger = logging.getLogger(__name__)
+
+
+def _is_cn_a_share_market_closed(now) -> bool:
+    """粗略判断 A 股是否处于收盘时段。"""
+    local_now = timezone.localtime(now)
+    if local_now.weekday() >= 5:
+        return True
+
+    current = local_now.time()
+    morning_open = time(9, 30)
+    morning_close = time(11, 30)
+    afternoon_open = time(13, 0)
+    afternoon_close = time(15, 0)
+
+    in_morning = morning_open <= current <= morning_close
+    in_afternoon = afternoon_open <= current <= afternoon_close
+    return not (in_morning or in_afternoon)
 
 
 def _parse_positive_int(raw_value, field_name: str, default: int) -> int:
@@ -47,6 +67,23 @@ def _parse_positive_int(raw_value, field_name: str, default: int) -> int:
         raise ValueError(f"{field_name} 必须大于 0")
 
     return value
+
+
+def _build_market_data_unavailable_hint(market_closed: bool) -> str:
+    """构造更可执行的不可用提示。"""
+    hint_parts = []
+    if market_closed:
+        hint_parts.append("当前已收盘，正常应优先展示最近一个交易日收盘价。")
+    else:
+        hint_parts.append("当前应优先展示盘中实时行情。")
+
+    try:
+        get_secrets()
+    except EnvironmentError:
+        hint_parts.append("检测到未配置 Tushare Token，收盘价备用源当前不可用。")
+
+    hint_parts.append("请检查东方财富连接状态，或在后台/环境变量中补齐 TUSHARE_TOKEN。")
+    return " ".join(hint_parts)
 
 
 @api_view(["GET"])
@@ -70,20 +107,46 @@ def get_realtime_quotes(request: Request) -> Response:
         )
 
     registry = get_registry()
+    now = timezone.now()
+    market_closed = _is_cn_a_share_market_closed(now)
     snapshots = registry.call_with_failover(
         DataCapability.REALTIME_QUOTE,
         lambda p: p.get_quote_snapshots(stock_codes),
     )
     if snapshots is None:
+        message = "所有实时行情 provider 均不可用"
+        if market_closed:
+            message = "当前已收盘，实时行情不可用，且收盘价备用源也不可用"
         return Response(
-            {"error": "所有实时行情 provider 均不可用"},
+            {
+                "error": message,
+                "market_closed": market_closed,
+                "fallback_mode": "unavailable",
+                "hint": _build_market_data_unavailable_hint(market_closed),
+            },
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
+
+    fallback_mode = (
+        "close_fallback"
+        if snapshots and all((s.source or "").lower() == "tushare" for s in snapshots)
+        else "realtime"
+    )
+    message = None
+    if fallback_mode == "close_fallback":
+        message = "当前展示的是最近一个交易日收盘价，非盘中实时行情"
 
     serializer = QuoteSnapshotSerializer(
         [s.to_dict() for s in snapshots], many=True
     )
-    return Response({"data": serializer.data})
+    return Response(
+        {
+            "data": serializer.data,
+            "market_closed": market_closed,
+            "fallback_mode": fallback_mode,
+            "message": message,
+        }
+    )
 
 
 @api_view(["GET"])
