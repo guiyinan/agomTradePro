@@ -1,7 +1,8 @@
 # AgomSAAF 系统说明书
 
-> **版本**: V3.4
+> **版本**: V3.4.1
 > **生成日期**: 2026-03-05
+> **更新日期**: 2026-03-12
 > **项目状态**: 生产就绪（RC2 阶段）
 > **文档性质**: 技术与功能完整说明
 
@@ -1129,6 +1130,19 @@ def check_invalidation(
 | `/api/simulated-trading/accounts/{id}/trades/` | GET | 交易记录 | 需要 |
 | `/api/simulated-trading/accounts/{id}/performance/` | GET | 账户绩效 | 需要 |
 | `/api/simulated-trading/manual-trade/` | POST | 手动交易 | 需要 |
+
+#### 5.2.7 Dashboard API
+
+| 端点 | 方法 | 说明 | 认证 |
+|------|------|------|------|
+| `/dashboard/api/performance/` | GET | 获取首页收益趋势图历史数据 | 需要 |
+| `/dashboard/api/v1/equity-curve/` | GET | 获取 Streamlit 净值曲线序列 | 需要 |
+
+**实现说明**：
+- 数据来源：`account.PortfolioDailySnapshotModel`
+- 输出字段：`date`、`portfolio_value`、`return_pct`，并附带 `cash_balance`、`invested_value`、`position_count`
+- 口径对齐：历史序列以当前组合 `total_return_pct` 锚定，确保最新点与首页总收益一致
+- 无历史数据时：接口仍保留单点兜底，避免前端空图
 
 ### 5.3 错误处理
 

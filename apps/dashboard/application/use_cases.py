@@ -7,7 +7,7 @@ Dashboard Application Use Cases
 import logging
 from dataclasses import dataclass
 from typing import List, Dict, Optional
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from apps.account.domain.entities import (
     Position,
@@ -255,7 +255,10 @@ class GetDashboardDataUseCase:
 
         # 11. 生成图表数据
         allocation_data = self._generate_allocation_chart_data(asset_allocation)
-        performance_data = self._generate_performance_chart_data(portfolio_id)
+        performance_data = self._generate_performance_chart_data(
+            portfolio_id=portfolio_id,
+            current_total_return_pct=snapshot.total_return_pct,
+        )
 
         return DashboardData(
             user_id=user_id,
@@ -975,6 +978,7 @@ class GetDashboardDataUseCase:
     def _generate_performance_chart_data(
         self,
         portfolio_id: int,
+        current_total_return_pct: float,
         days: int = 30
     ) -> List[Dict]:
         """
@@ -982,15 +986,57 @@ class GetDashboardDataUseCase:
 
         Args:
             portfolio_id: 投资组合ID
+            current_total_return_pct: 当前组合收益率（用于锚定历史序列）
             days: 获取最近N天的数据
 
         Returns:
             List[Dict]: [{"date": "2026-01-01", "return_pct": 5.2}, ...]
-
-        Note: 当前版本暂不支持历史快照，返回空列表
-              前端会显示"暂无收益数据"的占位提示
         """
-        # 暂时返回空列表，等待历史快照功能实现
-        # TODO: 实现历史快照存储后，从数据库读取历史收益数据
-        return []
+        from apps.account.infrastructure.models import PortfolioDailySnapshotModel
+
+        if days <= 0:
+            return []
+
+        end_date = date.today()
+        start_date = end_date - timedelta(days=max(days - 1, 0))
+
+        snapshots = list(
+            PortfolioDailySnapshotModel._default_manager.filter(
+                portfolio_id=portfolio_id,
+                snapshot_date__gte=start_date,
+                snapshot_date__lte=end_date,
+            ).order_by("snapshot_date")
+        )
+
+        if not snapshots:
+            return []
+
+        latest_value = float(snapshots[-1].total_value)
+        denominator = 1 + (float(current_total_return_pct) / 100.0)
+        baseline_value = 0.0
+        if latest_value > 0 and denominator > 0:
+            baseline_value = latest_value / denominator
+
+        if baseline_value <= 0:
+            baseline_value = float(snapshots[0].total_value)
+
+        performance_data = []
+        for snapshot in snapshots:
+            portfolio_value = float(snapshot.total_value)
+            return_pct = 0.0
+            if baseline_value > 0:
+                return_pct = ((portfolio_value - baseline_value) / baseline_value) * 100
+
+            performance_data.append(
+                {
+                    "date": snapshot.snapshot_date.isoformat(),
+                    "portfolio_value": portfolio_value,
+                    "return_pct": round(return_pct, 2),
+                    "cash_balance": float(snapshot.cash_balance),
+                    "invested_value": float(snapshot.invested_value),
+                    "position_count": snapshot.position_count,
+                }
+            )
+
+        return performance_data
 

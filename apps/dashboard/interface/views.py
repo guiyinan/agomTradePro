@@ -384,15 +384,13 @@ def regime_quadrant_v1(request):
 def equity_curve_v1(request):
     """
     Equity curve data for Streamlit.
-
-    Note: historical snapshots are not fully implemented in current backend.
     """
     requested_range = request.GET.get("range", "ALL").upper()
     data = _build_dashboard_data(request.user.id)
     series = data.performance_data if hasattr(data, "performance_data") else []
 
     if not series:
-        # Fallback keeps chart usable until snapshot history is implemented.
+        # Defensive fallback for first-load or empty-history edge cases.
         series = [
             {
                 "date": date.today().isoformat(),

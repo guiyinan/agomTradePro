@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 
 from apps.account.domain.entities import AccountProfile, RiskTolerance
+from apps.account.infrastructure.models import PortfolioDailySnapshotModel
 from apps.account.infrastructure.repositories import (
     AccountRepository,
     PortfolioRepository,
@@ -133,3 +134,68 @@ def test_dashboard_ai_insights_uses_ai_provider_config_model(monkeypatch):
 
     assert insights
     assert "保持均衡配置" in insights[0]
+
+
+@pytest.mark.django_db
+def test_dashboard_performance_chart_uses_portfolio_snapshot_history():
+    user = get_user_model().objects.create_user(
+        username="performance_history_user",
+        password="x",
+    )
+    account_repo = AccountRepository()
+    portfolio_id = account_repo.get_or_create_default_portfolio(user.id)
+
+    today = date.today()
+    PortfolioDailySnapshotModel.objects.bulk_create(
+        [
+            PortfolioDailySnapshotModel(
+                portfolio_id=portfolio_id,
+                snapshot_date=today - timedelta(days=2),
+                total_value=Decimal("1000.00"),
+                cash_balance=Decimal("300.00"),
+                invested_value=Decimal("700.00"),
+                position_count=2,
+            ),
+            PortfolioDailySnapshotModel(
+                portfolio_id=portfolio_id,
+                snapshot_date=today - timedelta(days=1),
+                total_value=Decimal("1100.00"),
+                cash_balance=Decimal("250.00"),
+                invested_value=Decimal("850.00"),
+                position_count=3,
+            ),
+            PortfolioDailySnapshotModel(
+                portfolio_id=portfolio_id,
+                snapshot_date=today,
+                total_value=Decimal("1200.00"),
+                cash_balance=Decimal("200.00"),
+                invested_value=Decimal("1000.00"),
+                position_count=4,
+            ),
+        ]
+    )
+
+    use_case = GetDashboardDataUseCase(
+        account_repo=account_repo,
+        portfolio_repo=PortfolioRepository(),
+        position_repo=PositionRepository(),
+        regime_repo=DjangoRegimeRepository(),
+        signal_repo=DjangoSignalRepository(),
+    )
+
+    performance_data = use_case._generate_performance_chart_data(
+        portfolio_id=portfolio_id,
+        current_total_return_pct=20.0,
+        days=30,
+    )
+
+    assert [point["date"] for point in performance_data] == [
+        (today - timedelta(days=2)).isoformat(),
+        (today - timedelta(days=1)).isoformat(),
+        today.isoformat(),
+    ]
+    assert [point["portfolio_value"] for point in performance_data] == [1000.0, 1100.0, 1200.0]
+    assert [point["return_pct"] for point in performance_data] == [0.0, 10.0, 20.0]
+    assert performance_data[-1]["cash_balance"] == 200.0
+    assert performance_data[-1]["invested_value"] == 1000.0
+    assert performance_data[-1]["position_count"] == 4

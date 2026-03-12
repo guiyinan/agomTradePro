@@ -1,16 +1,17 @@
 # AgomSAAF 系统全景概览
 
-> **文档版本**: V1.5
+> **文档版本**: V1.6
 > **生成日期**: 2026-01-04
-> **最后更新**: 2026-02-26
+> **最后更新**: 2026-03-12
 > **系统版本**: AgomSAAF V3.4
 > **项目状态**: 持续迭代（以代码与发布说明为准）
 > **文档目的**: 基于现有文档和代码库,梳理系统的模块、功能(应然和实然)及后续实施建议
 
-> **自动校验状态（2026-02-26）**
+> **自动校验状态（2026-03-12）**
 > - `python manage.py check`: 通过
 > - 模块口径：`apps/` 业务模块 27 个（不含 `shared`）
-> - 四层目录完整性：26/27（`ai_provider` 缺少 `application/`）
+> - 四层目录完整性：27/27 ✅
+> - 循环依赖：0（已全部解耦）✅
 
 ---
 
@@ -608,6 +609,8 @@ allocation = allocation_service.calculate_allocation(
 - ✅ Interface层: HTMX视图 + DRF序列化器 + 5个HTMX端点
 - ✅ 支持用户个性化配置(隐藏卡片、折叠状态、卡片顺序)
 - ✅ Alpha可视化集成(选股评分、Provider状态、IC趋势)
+- ✅ 收益趋势图历史数据已接入，基于 `account.PortfolioDailySnapshotModel` 输出真实组合曲线
+- ✅ `GET /dashboard/api/performance/` 与 `GET /dashboard/api/v1/equity-curve/` 已返回历史收益序列
 
 **待优化**:
 - ⚠️ 图表交互待完善(ECharts集成)
@@ -798,7 +801,7 @@ workflow = chain(
 | **simulated_trading** | ✅ | ✅ | 100% | 四层架构+自动交易+绩效计算实现 |
 | **ai_provider** | ✅ | ✅ | 100% | 多源管理+预算控制实现 |
 | **prompt** | ✅ | ✅ | 100% | 模板+Chain+日志实现 |
-| **dashboard** | ✅ | ✅ | 95% | 四层架构完整,图表交互待优化 |
+| **dashboard** | ✅ | ✅ | 98% | 四层架构完整，历史收益曲线已接入，图表交互仍可优化 |
 | **events** | ✅ | ✅ | 100% | 事件总线+规则引擎+持久化重放实现 |
 
 **总体完成度**: **100%** (核心功能) / **96%** (包含可选优化)
@@ -917,10 +920,11 @@ workflow = chain(
 - Infrastructure层: 5个ORM模型 + 5个Repository + Admin后台
 - Application层: 用例编排
 - Interface层: HTMX视图 + DRF序列化器
+- 收益趋势图历史数据：已基于 `PortfolioDailySnapshotModel` 接入
+- 接口：`/dashboard/api/performance/`、`/dashboard/api/v1/equity-curve/`
 
 **待优化**:
 - Regime象限图可视化
-- 历史回测曲线图
 - 实时数据刷新机制
 
 **预估工作量**: 3-5天
