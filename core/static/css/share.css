@@ -527,6 +527,18 @@
     color: var(--terminal-accent);
 }
 
+.position-type,
+.position-notes {
+    color: var(--terminal-text-muted);
+}
+
+.position-notes {
+    min-width: 180px;
+    max-width: 240px;
+    white-space: normal;
+    line-height: 1.5;
+}
+
 .position-pnl.positive,
 .position-return.positive {
     color: var(--terminal-positive);

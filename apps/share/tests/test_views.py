@@ -41,7 +41,43 @@ def test_public_share_page_renders_snapshot_data(active_share_link, test_snapsho
     content = response.content.decode("utf-8")
     assert active_share_link.title in content
     assert "收益曲线" in content
-    assert "testuser" in content
+    assert "Powered by" in content
+
+
+@pytest.mark.django_db
+def test_public_share_page_renders_position_details_without_duplicate_risk_notice(
+    active_share_link,
+    test_account,
+    client,
+):
+    PositionModel.objects.create(
+        account=test_account,
+        asset_code="000001.SH",
+        asset_name="平安银行",
+        asset_type="equity",
+        quantity=100,
+        available_quantity=100,
+        avg_cost=Decimal("10.0000"),
+        total_cost=Decimal("1000.00"),
+        current_price=Decimal("10.5000"),
+        market_value=Decimal("1050.00"),
+        unrealized_pnl=Decimal("50.00"),
+        unrealized_pnl_pct=5.0,
+        first_buy_date=timezone.now().date(),
+        entry_reason="政策回暖后试仓",
+        invalidation_description="跌破 9.80 重新评估",
+    )
+
+    response = client.get(f"/share/{active_share_link.short_code}/")
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "平安银行" in content
+    assert "股票" in content
+    assert "政策回暖后试仓" in content
+    assert "跌破 9.80 重新评估" in content
+    assert "本分享由" not in content
+    assert "数据来源: AgomSAAF 宏观环境准入系统" not in content
 
 
 @pytest.mark.django_db

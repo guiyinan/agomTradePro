@@ -15,6 +15,7 @@
                     <tr>
                         <th>标的代码</th>
                         <th>标的名称</th>
+                        <th>资产类型</th>
                         <th>持仓数量</th>
                         <th>成本价</th>
                         <th>现价</th>
@@ -22,6 +23,8 @@
                         <th>盈亏</th>
                         <th>收益率</th>
                         <th>权重</th>
+                        <th>建仓逻辑</th>
+                        <th>失效条件</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -29,6 +32,7 @@
                     <tr class="position-row">
                         <td class="position-code">{{ position.asset_code }}</td>
                         <td class="position-name">{{ position.asset_name|default:"--" }}</td>
+                        <td class="position-type">{{ position.asset_type_label|default:"--" }}</td>
                         <td class="position-quantity">{{ position.quantity|default:0|floatformat:0 }}</td>
                         <td class="position-cost">{{ position.avg_cost|default:0|floatformat:2 }}</td>
                         <td class="position-price">{{ position.current_price|default:0|floatformat:2 }}</td>
@@ -49,6 +53,8 @@
                             </div>
                             <span class="weight-value">{{ position.weight|default:0|floatformat:1 }}%</span>
                         </td>
+                        <td class="position-notes">{{ position.entry_reason|default:"--" }}</td>
+                        <td class="position-notes">{{ position.invalidation_logic|default:"--" }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
