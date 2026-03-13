@@ -5,6 +5,7 @@ Django Admin 配置。
 """
 from django.contrib import admin
 from apps.share.infrastructure.models import (
+    ShareDisclaimerConfigModel,
     ShareLinkModel,
     ShareSnapshotModel,
     ShareAccessLogModel,
@@ -113,3 +114,21 @@ class ShareAccessLogAdmin(admin.ModelAdmin):
     search_fields = ["share_link__short_code", "ip_hash"]
     readonly_fields = ["accessed_at"]
     date_hierarchy = "accessed_at"
+
+
+@admin.register(ShareDisclaimerConfigModel)
+class ShareDisclaimerConfigAdmin(admin.ModelAdmin):
+    list_display = ["singleton_key", "is_enabled", "modal_enabled", "updated_at"]
+    readonly_fields = ["singleton_key", "created_at", "updated_at"]
+    fieldsets = (
+        ("显示开关", {"fields": ("singleton_key", "is_enabled", "modal_enabled")}),
+        ("标题与按钮", {"fields": ("modal_title", "modal_confirm_text")}),
+        ("提示内容", {"fields": ("lines",)}),
+        ("时间信息", {"fields": ("created_at", "updated_at")}),
+    )
+
+    def has_add_permission(self, request):
+        return not ShareDisclaimerConfigModel.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False

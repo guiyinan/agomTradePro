@@ -1,0 +1,43 @@
+{% if not requires_password and disclaimer_modal_enabled and disclaimer_lines %}
+<div class="share-modal-overlay" id="shareDisclaimerModal" hidden>
+    <div class="share-modal" role="dialog" aria-modal="true" aria-labelledby="shareDisclaimerTitle">
+        <div class="modal-header">
+            <h2 class="modal-title" id="shareDisclaimerTitle">{{ disclaimer_modal_title|default:"重要声明" }}</h2>
+        </div>
+        <div class="modal-body">
+            <ol class="disclaimer-list">
+                {% for line in disclaimer_lines %}
+                <li>{{ line }}</li>
+                {% endfor %}
+            </ol>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-primary disclaimer-confirm-btn" id="shareDisclaimerConfirm">
+                {{ disclaimer_modal_confirm_text|default:"我已知悉" }}
+            </button>
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    const key = "agomsaaf_share_disclaimer_ack";
+    const modal = document.getElementById("shareDisclaimerModal");
+    const confirmBtn = document.getElementById("shareDisclaimerConfirm");
+    if (!modal || !confirmBtn) {
+        return;
+    }
+    if (window.sessionStorage && window.sessionStorage.getItem(key) === "1") {
+        return;
+    }
+    modal.hidden = false;
+    document.body.classList.add("modal-open");
+    confirmBtn.addEventListener("click", function() {
+        modal.hidden = true;
+        document.body.classList.remove("modal-open");
+        if (window.sessionStorage) {
+            window.sessionStorage.setItem(key, "1");
+        }
+    });
+})();
+</script>
+{% endif %}

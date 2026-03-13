@@ -105,6 +105,8 @@ def regime_dashboard_view(request):
             regime_result = {
                 # 模板兼容字段（历史模板使用 regime_result）
                 'quadrant': result_v2.regime.value,
+                'confidence': round(float(result_v2.confidence), 4),
+                'distribution': dict(result_v2.distribution or {}),
                 'pmi_value': round(float(result_v2.growth_level), 2),
                 'cpi_value': round(float(result_v2.inflation_level), 2),
                 'pmi_trend': _trend(growth_values),

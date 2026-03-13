@@ -12,7 +12,7 @@ All business modules should use this resolver to avoid divergent regime chains.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from apps.regime.application.use_cases import CalculateRegimeV2Request, CalculateRegimeV2UseCase
 from apps.regime.infrastructure.repositories import get_regime_repository
@@ -28,6 +28,7 @@ class CurrentRegimeResult:
     observed_at: date
     data_source: str
     warnings: List[str]
+    distribution: Optional[Dict[str, float]] = None
     is_fallback: bool = False
 
 
@@ -126,6 +127,7 @@ def resolve_current_regime(
             observed_at=target_date,
             data_source=source,
             warnings=list(response.warnings or []),
+            distribution=dict(response.result.distribution or {}),
             is_fallback=False,
         )
 
@@ -139,6 +141,7 @@ def resolve_current_regime(
             observed_at=latest.observed_at,
             data_source=source,
             warnings=warnings,
+            distribution=dict(latest.distribution or {}),
             is_fallback=True,
         )
 
@@ -152,5 +155,6 @@ def resolve_current_regime(
         observed_at=target_date,
         data_source=source,
         warnings=warnings,
+        distribution=None,
         is_fallback=True,
     )

@@ -46,6 +46,7 @@ urlpatterns = [
     path('ai/indicators/', views.get_indicators_view, name='ai_indicators'),
 
     # API routes - new standard format (when mounted under /api/signal/)
-    path('', include(router.urls)),
+    # Health check must come BEFORE router to avoid being caught by the router
     path('health/', SignalHealthView.as_view(), name='health'),
+    path('', include(router.urls)),
 ]

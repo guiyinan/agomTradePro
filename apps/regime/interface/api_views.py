@@ -64,7 +64,7 @@ class RegimeViewSet(viewsets.ViewSet):
                     'confidence': latest.confidence,
                     'growth_momentum_z': 0.0,
                     'inflation_momentum_z': 0.0,
-                    'distribution': {},
+                    'distribution': latest.distribution or {},
                     'source': latest.data_source,
                     'is_fallback': latest.is_fallback,
                     'warnings': latest.warnings,
@@ -244,4 +244,3 @@ class RegimeHealthView(APIView):
                 'service': 'regime',
                 'error': str(e)
             }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-

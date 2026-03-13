@@ -58,6 +58,9 @@
             <p class="muted">创建公开围观链接，管理已有分享链接。</p>
         </div>
         <div class="share-link-actions">
+            {% if request.user.is_staff %}
+            <a href="{% url 'share:manage_disclaimer' %}" class="btn btn-secondary">风险提示配置</a>
+            {% endif %}
             <a href="{% url 'simulated_trading:my-accounts' %}" class="btn btn-secondary">返回我的账户</a>
         </div>
     </div>

@@ -10,6 +10,7 @@ from django.utils import timezone
 from django.contrib.auth.hashers import check_password
 
 from apps.share.infrastructure.models import (
+    ShareDisclaimerConfigModel,
     ShareLinkModel,
     ShareSnapshotModel,
     ShareAccessLogModel,
@@ -380,3 +381,19 @@ class TestShareAccessLogModel:
 
         assert logs[0].id == log2.id
         assert logs[1].id == log1.id
+
+
+class TestShareDisclaimerConfigModel:
+    def test_get_solo_creates_default_config(self, db):
+        config = ShareDisclaimerConfigModel.get_solo()
+
+        assert config.singleton_key == "default"
+        assert config.is_enabled is True
+        assert config.modal_enabled is True
+        assert len(config.lines) >= 4
+
+    def test_get_solo_returns_same_record(self, db):
+        first = ShareDisclaimerConfigModel.get_solo()
+        second = ShareDisclaimerConfigModel.get_solo()
+
+        assert first.id == second.id

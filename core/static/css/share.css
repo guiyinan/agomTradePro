@@ -997,8 +997,17 @@
     line-height: 1.8;
 }
 
-.disclaimer-content p {
+.disclaimer-list {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.disclaimer-list li {
     margin-bottom: 8px;
+}
+
+.disclaimer-list li:last-child {
+    margin-bottom: 0;
 }
 
 .disclaimer-footer {
@@ -1057,6 +1066,10 @@
     justify-content: center;
     z-index: 9999;
     padding: 20px;
+}
+
+.share-modal-overlay[hidden] {
+    display: none !important;
 }
 
 .share-modal {
@@ -1133,7 +1146,17 @@
 
 .modal-actions {
     display: flex;
-    gap: 12px;
+    justify-content: center;
+    padding: 0 24px 24px;
+}
+
+.disclaimer-confirm-btn {
+    min-width: 200px;
+    justify-content: center;
+    padding: 14px 28px;
+    font-size: 16px;
+    font-weight: 700;
+    border-radius: 10px;
 }
 
 .btn-block {
@@ -1322,6 +1345,31 @@
 .theme-monopoly .asset-allocation-item {
     background: rgba(255, 255, 255, 0.82);
     border-color: rgba(122, 92, 22, 0.12);
+}
+
+.theme-monopoly .asset-allocation-title {
+    color: #5c4310;
+}
+
+.theme-monopoly .asset-allocation-caption,
+.theme-monopoly .asset-allocation-name,
+.theme-monopoly .asset-allocation-value {
+    color: #6b4f16;
+}
+
+.theme-monopoly .disclaimer-card {
+    background: #fff5cf;
+    border-color: rgba(122, 92, 22, 0.18);
+}
+
+.theme-monopoly .disclaimer-header {
+    color: #7a5c16;
+}
+
+.theme-monopoly .disclaimer-content,
+.theme-monopoly .disclaimer-list,
+.theme-monopoly .disclaimer-list li {
+    color: #5c4310;
 }
 
 .theme-monopoly .positions-table thead {

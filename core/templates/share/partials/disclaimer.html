@@ -1,20 +1,20 @@
 <!-- 风险提示 -->
+{% if disclaimer_enabled and disclaimer_lines %}
 <section class="share-section disclaimer-section">
     <div class="section-container">
         <div class="disclaimer-card">
             <div class="disclaimer-header">
                 <i class="bi bi-exclamation-triangle"></i>
-                <span>风险提示</span>
+                <span>{{ disclaimer_modal_title|default:"重要声明" }}</span>
             </div>
             <div class="disclaimer-content">
-                <p>1. 本页面内容主要用于账户分享、策略复盘和公开交流，不构成投资建议。</p>
-                <p>2. 页面观点和持仓展示仅代表分享账户当时状态，不代表系统作者观点。</p>
-                <p>3. 历史业绩不代表未来表现，投资有风险，入市需谨慎。</p>
-                {% if is_simulated %}
-                <p>4. 本账户为模拟交易账户，非真实资金运作。</p>
-                {% endif %}
-                <p>5. 数据可能存在延迟或缺口，请以实际交易和行情数据为准。</p>
+                <ol class="disclaimer-list">
+                    {% for line in disclaimer_lines %}
+                    <li>{{ line }}</li>
+                    {% endfor %}
+                </ol>
             </div>
         </div>
     </div>
 </section>
+{% endif %}

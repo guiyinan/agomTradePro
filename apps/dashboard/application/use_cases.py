@@ -50,6 +50,24 @@ def _build_ai_api_url(base_url: str) -> str:
     return f"{normalized}/chat/completions"
 
 
+def _normalize_regime_distribution(
+    current_regime: str,
+    raw_distribution: Optional[Dict[str, float]] = None,
+) -> Dict[str, float]:
+    """Return a template-safe quadrant distribution for the dashboard."""
+    quadrant_keys = ("Recovery", "Overheat", "Deflation", "Stagflation")
+    normalized = {key: 0.0 for key in quadrant_keys}
+
+    if raw_distribution:
+        for key in quadrant_keys:
+            value = raw_distribution.get(key)
+            if value is not None:
+                normalized[key] = float(value)
+        if any(value > 0 for value in normalized.values()):
+            return normalized
+    return normalized
+
+
 @dataclass
 class DashboardData:
     """首页数据DTO"""
@@ -183,7 +201,10 @@ class GetDashboardDataUseCase:
             # V2 返回趋势指标而非动量 Z-score
             growth_momentum_z = 0.0
             inflation_momentum_z = 0.0
-            regime_distribution = {}
+            regime_distribution = _normalize_regime_distribution(
+                current_regime=current_regime,
+                raw_distribution=getattr(current, "distribution", None),
+            )
             regime_data_health = "healthy" if health["is_healthy"] else "degraded"
             regime_warnings = list(health["warnings"])
         else:
@@ -195,7 +216,10 @@ class GetDashboardDataUseCase:
                 regime_confidence = latest_snapshot.confidence
                 growth_momentum_z = latest_snapshot.growth_momentum_z
                 inflation_momentum_z = latest_snapshot.inflation_momentum_z
-                regime_distribution = latest_snapshot.distribution or {}
+                regime_distribution = _normalize_regime_distribution(
+                    current_regime=current_regime,
+                    raw_distribution=latest_snapshot.distribution or {},
+                )
                 regime_data_health = "fallback"
                 regime_warnings = ["Regime 实时计算失败，已回退到历史快照"]
             else:
@@ -204,7 +228,9 @@ class GetDashboardDataUseCase:
                 regime_confidence = 0.0
                 growth_momentum_z = 0.0
                 inflation_momentum_z = 0.0
-                regime_distribution = {}
+                regime_distribution = _normalize_regime_distribution(
+                    current_regime=current_regime,
+                )
                 regime_data_health = "unavailable"
                 regime_warnings = ["Regime 实时计算失败，且无可用历史快照"]
 

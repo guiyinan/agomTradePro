@@ -42,6 +42,7 @@ def test_public_share_page_renders_snapshot_data(active_share_link, test_snapsho
     assert active_share_link.title in content
     assert "收益曲线" in content
     assert "Powered by" in content
+    assert "shareDisclaimerModal" in content
 
 
 @pytest.mark.django_db
@@ -81,6 +82,38 @@ def test_public_share_page_renders_position_details_without_duplicate_risk_notic
 
 
 @pytest.mark.django_db
+def test_public_share_page_uses_database_disclaimer_config(
+    active_share_link,
+    share_disclaimer_config,
+    client,
+):
+    share_disclaimer_config.lines = ["第一条提示", "第二条提示"]
+    share_disclaimer_config.modal_enabled = False
+    share_disclaimer_config.save(update_fields=["lines", "modal_enabled", "updated_at"])
+
+    response = client.get(f"/share/{active_share_link.short_code}/")
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "第一条提示" in content
+    assert "第二条提示" in content
+    assert "shareDisclaimerModal" not in content
+
+
+@pytest.mark.django_db
+def test_password_protected_share_page_does_not_render_disclaimer_modal(
+    password_protected_share_link,
+    client,
+):
+    response = client.get(f"/share/{password_protected_share_link.short_code}/")
+
+    assert response.status_code == 401
+    content = response.content.decode("utf-8")
+    assert 'id="passwordModal"' in content
+    assert "shareDisclaimerModal" not in content
+
+
+@pytest.mark.django_db
 def test_share_manage_page_requires_login_and_renders(client, test_user):
     client.force_login(test_user)
 
@@ -88,6 +121,41 @@ def test_share_manage_page_requires_login_and_renders(client, test_user):
 
     assert response.status_code == 200
     assert "账户分享管理" in response.content.decode("utf-8")
+
+
+@pytest.mark.django_db
+def test_share_disclaimer_manage_page_requires_staff(client, test_user):
+    client.force_login(test_user)
+
+    response = client.get("/share/manage/disclaimer/")
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_share_disclaimer_manage_page_updates_config(client, test_user, share_disclaimer_config):
+    test_user.is_staff = True
+    test_user.save(update_fields=["is_staff"])
+    client.force_login(test_user)
+
+    response = client.post(
+        "/share/manage/disclaimer/",
+        {
+            "is_enabled": "on",
+            "modal_enabled": "",
+            "modal_title": "新的风险提示标题",
+            "modal_confirm_text": "继续查看",
+            "lines": "第一条\n第二条\n第三条",
+        },
+    )
+
+    assert response.status_code == 302
+    share_disclaimer_config.refresh_from_db()
+    assert share_disclaimer_config.is_enabled is True
+    assert share_disclaimer_config.modal_enabled is False
+    assert share_disclaimer_config.modal_title == "新的风险提示标题"
+    assert share_disclaimer_config.modal_confirm_text == "继续查看"
+    assert share_disclaimer_config.lines == ["第一条", "第二条", "第三条"]
 
 
 @pytest.mark.django_db

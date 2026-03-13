@@ -18,6 +18,7 @@ from apps.share.domain.entities import (
     AccessResultStatus,
 )
 from apps.share.infrastructure.models import (
+    ShareDisclaimerConfigModel,
     ShareLinkModel,
     ShareSnapshotModel,
     ShareAccessLogModel,
@@ -278,6 +279,11 @@ def share_link_entity():
         created_at=now,
         updated_at=now,
     )
+
+
+@pytest.fixture
+def share_disclaimer_config(db):
+    return ShareDisclaimerConfigModel.get_solo()
 
 
 @pytest.fixture

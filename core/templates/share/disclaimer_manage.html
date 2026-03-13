@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}分享页风险提示配置 - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/share.css' %}">
+<style>
+.share-disclaimer-manage-container { max-width: 920px; margin: 0 auto; padding: 24px; }
+.share-disclaimer-manage-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
+.share-disclaimer-manage-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; }
+.share-disclaimer-form { display: grid; gap: 16px; }
+.share-disclaimer-form label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+.share-disclaimer-form input[type="text"], .share-disclaimer-form textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 10px; }
+.share-disclaimer-form textarea { min-height: 220px; resize: vertical; }
+.share-disclaimer-checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.share-disclaimer-check { display: flex; gap: 8px; align-items: flex-start; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; }
+.share-disclaimer-check input { margin-top: 3px; }
+.share-disclaimer-help { color: #64748b; font-size: 13px; line-height: 1.6; }
+@media (max-width: 720px) { .share-disclaimer-checks { grid-template-columns: 1fr; } .share-disclaimer-manage-header { flex-direction: column; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="share-disclaimer-manage-container">
+    <div class="share-disclaimer-manage-header">
+        <div>
+            <h1>分享页风险提示配置</h1>
+            <p class="share-disclaimer-help">这里配置所有公开分享页共用的风险提示内容，以及首屏弹窗开关。</p>
+        </div>
+        <div class="share-link-actions">
+            <a href="{% url 'share:manage' %}" class="btn btn-secondary">返回账户分享管理</a>
+        </div>
+    </div>
+
+    <section class="share-disclaimer-manage-panel">
+        <form method="post" class="share-disclaimer-form">
+            {% csrf_token %}
+            <div class="share-disclaimer-checks">
+                <label class="share-disclaimer-check">
+                    <input type="checkbox" name="is_enabled" {% if config.is_enabled %}checked{% endif %}>
+                    <span>
+                        <strong>显示页面底部风险提示</strong><br>
+                        <span class="share-disclaimer-help">关闭后，公开页底部将不再展示风险提示区块。</span>
+                    </span>
+                </label>
+                <label class="share-disclaimer-check">
+                    <input type="checkbox" name="modal_enabled" {% if config.modal_enabled %}checked{% endif %}>
+                    <span>
+                        <strong>启用首屏风险提示弹窗</strong><br>
+                        <span class="share-disclaimer-help">关闭后，公开页不再弹出风险提示模态窗。</span>
+                    </span>
+                </label>
+            </div>
+
+            <div>
+                <label for="modal_title">提示标题</label>
+                <input id="modal_title" type="text" name="modal_title" maxlength="120" value="{{ config.modal_title }}">
+            </div>
+
+            <div>
+                <label for="modal_confirm_text">弹窗确认按钮文案</label>
+                <input id="modal_confirm_text" type="text" name="modal_confirm_text" maxlength="40" value="{{ config.modal_confirm_text }}">
+            </div>
+
+            <div>
+                <label for="lines">风险提示内容</label>
+                <textarea id="lines" name="lines" placeholder="每行一条风险提示">{{ lines_text }}</textarea>
+                <p class="share-disclaimer-help">每行会作为一条独立提示显示。模拟盘公开页会自动额外插入“本账户为模拟交易账户”这一条。</p>
+            </div>
+
+            <div class="share-link-actions">
+                <button type="submit" class="btn btn-primary">保存配置</button>
+                <a href="{% url 'share:manage' %}" class="btn btn-secondary">取消</a>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}

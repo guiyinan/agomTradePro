@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -24,7 +25,7 @@ from apps.share.application.use_cases import (
     ShareLinkUseCases,
     ShareSnapshotUseCases,
 )
-from apps.share.infrastructure.models import ShareLinkModel, ShareSnapshotModel
+from apps.share.infrastructure.models import ShareDisclaimerConfigModel, ShareLinkModel, ShareSnapshotModel
 from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 from apps.share.interface.serializers import (
     CreateShareLinkSerializer,
@@ -173,6 +174,15 @@ class ShareVisibilityMixin:
                     return src[key]
             return default
 
+        disclaimer_config = ShareDisclaimerConfigModel.get_solo()
+        disclaimer_lines = list(disclaimer_config.lines or [])
+        if _normalize_portfolio_type(summary.get("portfolio_type")) == "simulated":
+            disclaimer_lines = [
+                *disclaimer_lines[:3],
+                "本账户为模拟交易账户，非真实资金运作。",
+                *disclaimer_lines[3:],
+            ]
+
         return {
             "portfolio_name": share_link.title,
             "portfolio_description": share_link.subtitle,
@@ -209,6 +219,11 @@ class ShareVisibilityMixin:
             "chart_dates": first_of("chart_dates", "dates", source=performance, default=[]),
             "portfolio_values": first_of("portfolio_values", "returns", "series", source=performance, default=[]),
             "benchmark_values": first_of("benchmark_values", "benchmark_series", source=performance, default=[]),
+            "disclaimer_enabled": disclaimer_config.is_enabled,
+            "disclaimer_modal_enabled": disclaimer_config.modal_enabled,
+            "disclaimer_modal_title": disclaimer_config.modal_title,
+            "disclaimer_modal_confirm_text": disclaimer_config.modal_confirm_text,
+            "disclaimer_lines": disclaimer_lines,
         }
 
 
@@ -944,3 +959,50 @@ def refresh_share_link_page(request, share_link_id: int):
     except Exception as exc:
         messages.error(request, f"同步失败：{exc}")
     return redirect("share:manage")
+
+
+@login_required
+def share_disclaimer_manage_page(request):
+    """Frontend management page for global share disclaimer config."""
+    if not request.user.is_staff:
+        raise PermissionDenied("只有管理员可以修改分享页风险提示配置")
+
+    config = ShareDisclaimerConfigModel.get_solo()
+
+    if request.method == "POST":
+        lines = [
+            line.strip()
+            for line in (request.POST.get("lines") or "").splitlines()
+            if line.strip()
+        ]
+        if not lines:
+            messages.error(request, "风险提示内容不能为空")
+        else:
+            config.is_enabled = bool(request.POST.get("is_enabled"))
+            config.modal_enabled = bool(request.POST.get("modal_enabled"))
+            config.modal_title = (request.POST.get("modal_title") or "重要声明").strip() or "重要声明"
+            config.modal_confirm_text = (
+                (request.POST.get("modal_confirm_text") or "我已知悉").strip() or "我已知悉"
+            )
+            config.lines = lines
+            config.save(
+                update_fields=[
+                    "is_enabled",
+                    "modal_enabled",
+                    "modal_title",
+                    "modal_confirm_text",
+                    "lines",
+                    "updated_at",
+                ]
+            )
+            messages.success(request, "分享页风险提示配置已更新")
+            return redirect("share:manage_disclaimer")
+
+    return render(
+        request,
+        "share/disclaimer_manage.html",
+        {
+            "config": config,
+            "lines_text": "\n".join(config.lines or []),
+        },
+    )

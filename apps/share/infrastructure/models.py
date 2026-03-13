@@ -380,3 +380,49 @@ class ShareAccessLogModel(models.Model):
     def is_successful(self) -> bool:
         """是否是成功的访问"""
         return self.result_status == "success"
+
+
+class ShareDisclaimerConfigModel(models.Model):
+    """Global disclaimer content and modal behavior for public share pages."""
+
+    singleton_key = models.CharField("单例键", max_length=32, unique=True, default="default", editable=False)
+    is_enabled = models.BooleanField("显示底部风险提示", default=True)
+    modal_enabled = models.BooleanField("启用风险提示弹窗", default=True)
+    modal_title = models.CharField("提示标题", max_length=120, default="重要声明")
+    modal_confirm_text = models.CharField("弹窗确认按钮文案", max_length=40, default="我已知悉")
+    lines = models.JSONField(
+        "风险提示内容",
+        default=list,
+        blank=True,
+        help_text="按顺序展示的风险提示条目",
+    )
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    updated_at = models.DateTimeField("更新时间", auto_now=True)
+
+    class Meta:
+        db_table = "share_disclaimer_config"
+        verbose_name = "分享页风险提示配置"
+        verbose_name_plural = "分享页风险提示配置"
+
+    def __str__(self):
+        return "分享页风险提示配置"
+
+    @classmethod
+    def get_solo(cls):
+        defaults = {
+            "is_enabled": True,
+            "modal_enabled": True,
+            "modal_title": "重要声明",
+            "modal_confirm_text": "我已知悉",
+            "lines": [
+                "本页面内容主要用于账户分享、策略复盘和公开交流，不构成投资建议。",
+                "页面观点和持仓展示仅代表分享账户当时状态，不代表系统作者观点。",
+                "历史业绩不代表未来表现，投资有风险，入市需谨慎。",
+                "数据可能存在延迟或缺口，请以实际交易和行情数据为准。",
+            ],
+        }
+        config, _ = cls.objects.get_or_create(singleton_key="default", defaults=defaults)
+        if not config.lines:
+            config.lines = defaults["lines"]
+            config.save(update_fields=["lines", "updated_at"])
+        return config

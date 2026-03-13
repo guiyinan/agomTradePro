@@ -69,7 +69,7 @@ def calculate_regime_task(
             'as_of_date': str(target_date),
             'dominant_regime': current.dominant_regime,
             'confidence': current.confidence,
-            'distribution': {},
+            'distribution': current.distribution or {},
             'growth_z': 0.0,
             'inflation_z': 0.0,
             'warnings': current.warnings,

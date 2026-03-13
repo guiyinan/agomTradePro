@@ -188,11 +188,19 @@ async function clearRegimeCache() {
 {% endif %}
 
 {% if regime_result %}
+<div class="card" style="margin-bottom: 20px;">
+    <div class="card-body" style="display: flex; gap: 24px; flex-wrap: wrap; align-items: center;">
+        <div><strong>当前象限：</strong>{{ regime_result.quadrant }}</div>
+        <div><strong>判定置信度：</strong>{{ regime_result.confidence|default:0|floatformat:2 }}</div>
+    </div>
+</div>
+
 <div class="regime-cards">
     <!-- Recovery 复苏 -->
     <div class="regime-card recovery {% if regime_result.quadrant == 'Recovery' %}active{% endif %}">
         <div class="regime-card-icon">🌱</div>
         <div class="regime-card-title">Recovery 复苏</div>
+        <div class="regime-card-score">{{ regime_result.distribution.Recovery|default:0|floatformat:2 }}</div>
         <div class="regime-card-description">
             增长上行，通胀下行<br>
             PMI > 50，CPI 同比下降
@@ -203,19 +211,10 @@ async function clearRegimeCache() {
     <div class="regime-card overheat {% if regime_result.quadrant == 'Overheat' %}active{% endif %}">
         <div class="regime-card-icon">🔥</div>
         <div class="regime-card-title">Overheat 过热</div>
+        <div class="regime-card-score">{{ regime_result.distribution.Overheat|default:0|floatformat:2 }}</div>
         <div class="regime-card-description">
             增长上行，通胀上行<br>
             PMI > 50，CPI 同比上升
-        </div>
-    </div>
-
-    <!-- Stagflation 滞胀 -->
-    <div class="regime-card stagflation {% if regime_result.quadrant == 'Stagflation' %}active{% endif %}">
-        <div class="regime-card-icon">⚠️</div>
-        <div class="regime-card-title">Stagflation 滞胀</div>
-        <div class="regime-card-description">
-            增长下行，通胀上行<br>
-            PMI < 50，CPI 同比上升
         </div>
     </div>
 
@@ -223,9 +222,21 @@ async function clearRegimeCache() {
     <div class="regime-card deflation {% if regime_result.quadrant == 'Deflation' %}active{% endif %}">
         <div class="regime-card-icon">❄️</div>
         <div class="regime-card-title">Deflation 通缩</div>
+        <div class="regime-card-score">{{ regime_result.distribution.Deflation|default:0|floatformat:2 }}</div>
         <div class="regime-card-description">
             增长下行，通胀下行<br>
             PMI < 50，CPI 同比下降
+        </div>
+    </div>
+
+    <!-- Stagflation 滞胀 -->
+    <div class="regime-card stagflation {% if regime_result.quadrant == 'Stagflation' %}active{% endif %}">
+        <div class="regime-card-icon">⚠️</div>
+        <div class="regime-card-title">Stagflation 滞胀</div>
+        <div class="regime-card-score">{{ regime_result.distribution.Stagflation|default:0|floatformat:2 }}</div>
+        <div class="regime-card-description">
+            增长下行，通胀上行<br>
+            PMI < 50，CPI 同比上升
         </div>
     </div>
 </div>
@@ -254,6 +265,12 @@ async function clearRegimeCache() {
                 <th>当前值</th>
                 <th>阈值</th>
                 <th>趋势</th>
+            </tr>
+            <tr>
+                <td>当前主导象限</td>
+                <td>{{ regime_result.quadrant }}</td>
+                <td>-</td>
+                <td><span class="badge badge-neutral">{{ regime_result.confidence|default:0|floatformat:2 }}</span></td>
             </tr>
             <tr>
                 <td>PMI (制造业采购经理指数)</td>

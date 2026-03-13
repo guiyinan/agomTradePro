@@ -217,6 +217,13 @@
     margin-bottom: var(--spacing-sm);
 }
 
+.regime-card-score {
+    font-size: 36px;
+    line-height: 1;
+    font-weight: var(--font-weight-bold);
+    margin-bottom: var(--spacing-sm);
+}
+
 .regime-card-description {
     font-size: var(--font-size-small);
     color: var(--color-text-secondary);
