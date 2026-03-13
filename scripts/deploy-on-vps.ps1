@@ -269,5 +269,9 @@ if (Test-Path $currentDir) {
 Copy-Item -Recurse -Force $releaseDir $currentDir
 
 Set-Location $currentDir
+Write-Info "Running cold-start bootstrap"
+$alphaUniverses = if ($env:AGOMSAAF_BOOTSTRAP_ALPHA_UNIVERSES) { $env:AGOMSAAF_BOOTSTRAP_ALPHA_UNIVERSES } else { 'csi300' }
+$alphaTopN = if ($env:AGOMSAAF_BOOTSTRAP_ALPHA_TOP_N) { $env:AGOMSAAF_BOOTSTRAP_ALPHA_TOP_N } else { '30' }
+Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','exec','-T','web','python','manage.py','bootstrap_cold_start','--with-alpha','--alpha-universes',$alphaUniverses,'--alpha-top-n',$alphaTopN)
 Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','ps')
 Write-Info "Deployment done"

@@ -410,6 +410,16 @@
 
                 <!-- 右侧：Provider 状态面板 + IC 趋势图 -->
                 <div class="alpha-content-right">
+                    <div class="alpha-content-card factor-panel-card">
+                        <div class="card-header">
+                            <h3>因子暴露面板</h3>
+                            <span class="card-hint">点击左侧股票加载</span>
+                        </div>
+                        <div class="card-body" id="alphaFactorPanel">
+                            {% include 'dashboard/partials/alpha_factor_panel.html' with stock=alpha_factor_panel.stock stock_code=alpha_factor_panel.stock_code provider=alpha_factor_panel.provider factor_origin=alpha_factor_panel.factor_origin factors=alpha_factor_panel.factors factor_count=alpha_factor_panel.factor_count empty_reason=alpha_factor_panel.empty_reason %}
+                        </div>
+                    </div>
+
                     <!-- Provider 状态面板 -->
                     <div class="alpha-content-card provider-status-card">
                         <div class="card-header">
@@ -1982,9 +1992,195 @@ chatSendBtn.onclick = async function() {
     flex: 0 0 auto;
 }
 
+.factor-panel-card {
+    flex: 0 0 auto;
+}
+
 .ic-trends-card {
     flex: 1;
     min-height: 280px;
+}
+
+.card-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.alpha-factor-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.factor-panel-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.factor-panel-title {
+    margin: 0;
+    font-size: 16px;
+    color: var(--text-primary);
+}
+
+.factor-panel-subtitle {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.factor-stock-name {
+    margin-left: 8px;
+    color: var(--text-muted);
+}
+
+.factor-panel-badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.factor-provider-badge,
+.factor-count-badge {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.factor-provider-badge {
+    background: rgba(15, 23, 42, 0.08);
+    color: var(--text-primary);
+    text-transform: uppercase;
+}
+
+.factor-provider-qlib {
+    background: rgba(102, 126, 234, 0.16);
+    color: #4c51bf;
+}
+
+.factor-provider-simple {
+    background: rgba(245, 158, 11, 0.18);
+    color: #b45309;
+}
+
+.factor-provider-cache {
+    background: rgba(20, 184, 166, 0.16);
+    color: #0f766e;
+}
+
+.factor-provider-etf {
+    background: rgba(100, 116, 139, 0.16);
+    color: #475569;
+}
+
+.factor-count-badge {
+    background: rgba(15, 23, 42, 0.05);
+    color: var(--text-secondary);
+}
+
+.factor-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.factor-summary-item {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+
+.summary-label {
+    display: block;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.summary-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.factor-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.factor-row-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+    font-size: 12px;
+}
+
+.factor-name {
+    color: var(--text-secondary);
+    word-break: break-word;
+}
+
+.factor-value {
+    font-weight: 700;
+}
+
+.factor-value-positive {
+    color: #047857;
+}
+
+.factor-value-negative {
+    color: #b91c1c;
+}
+
+.factor-track {
+    width: 100%;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.16);
+    overflow: hidden;
+}
+
+.factor-fill {
+    height: 100%;
+    border-radius: 999px;
+}
+
+.factor-fill-positive {
+    background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.factor-fill-negative {
+    background: linear-gradient(90deg, #f97316, #ef4444);
+}
+
+.factor-origin-note {
+    font-size: 11px;
+    color: var(--text-muted);
+    border-top: 1px dashed var(--border-color);
+    padding-top: 10px;
+}
+
+.factor-empty-state {
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.factor-empty-icon {
+    font-size: 28px;
+    color: var(--text-muted);
 }
 
 /* Provider 状态列表 */

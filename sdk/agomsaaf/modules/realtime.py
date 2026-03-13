@@ -24,8 +24,7 @@ class RealtimeModule(BaseModule):
         Args:
             client: AgomSAAF 客户端实例
         """
-        # Backend realtime endpoints are served under /realtime/api/*
-        super().__init__(client, "/realtime/api")
+        super().__init__(client, "/api/realtime")
 
     def get_price(
         self,

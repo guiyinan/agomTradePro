@@ -1,0 +1,115 @@
+{% extends "admin/base_site.html" %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">首页</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{{ list_url }}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; 模型试跑验证
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="module">
+        <h2>模型信息</h2>
+        <table class="validation-table">
+            <tr><th>模型名称</th><td>{{ model_obj.model_name }}</td></tr>
+            <tr><th>Artifact Hash</th><td>{{ model_obj.artifact_hash }}</td></tr>
+            <tr><th>模型类型</th><td>{{ model_obj.model_type }}</td></tr>
+            <tr><th>股票池</th><td>{{ model_obj.universe }}</td></tr>
+            <tr><th>模型文件</th><td>{{ model_obj.model_path }}</td></tr>
+            <tr><th>验证结论</th><td>
+                {% if validation.passed %}
+                <span class="result-pass">通过</span>
+                {% else %}
+                <span class="result-fail">失败</span>
+                {% endif %}
+            </td></tr>
+        </table>
+        {% if validation.activation_message %}
+        <p class="activation-message">{{ validation.activation_message }}</p>
+        {% endif %}
+    </div>
+
+    <div class="module">
+        <h2>检查项</h2>
+        <table class="validation-table">
+            <thead>
+                <tr>
+                    <th>检查项</th>
+                    <th>结果</th>
+                    <th>详情</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for check in validation.checks %}
+                <tr>
+                    <td>{{ check.label }}</td>
+                    <td>
+                        {% if check.ok %}
+                        <span class="result-pass">通过</span>
+                        {% else %}
+                        <span class="result-fail">失败</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ check.detail }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="module">
+        <h2>试跑样例</h2>
+        {% if validation.sample_scores %}
+        <pre class="sample-box">{{ validation.sample_scores }}</pre>
+        {% else %}
+        <p>本次未产出样例评分。</p>
+        {% endif %}
+    </div>
+
+    <div class="submit-row">
+        <a href="{{ change_url }}" class="button default">查看模型详情</a>
+        <a href="{{ list_url }}" class="button">返回列表</a>
+    </div>
+</div>
+
+<style>
+.validation-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.validation-table th,
+.validation-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: left;
+    vertical-align: top;
+}
+.validation-table th {
+    width: 180px;
+    color: #374151;
+}
+.result-pass {
+    color: #047857;
+    font-weight: 700;
+}
+.result-fail {
+    color: #b91c1c;
+    font-weight: 700;
+}
+.sample-box {
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    padding: 12px;
+    border-radius: 6px;
+}
+.activation-message {
+    margin: 12px 0 0;
+    font-weight: 600;
+}
+</style>
+{% endblock %}

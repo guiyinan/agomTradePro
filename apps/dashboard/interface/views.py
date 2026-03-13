@@ -129,6 +129,69 @@ def _get_alpha_ic_trends(days: int = 30) -> list:
         return []
 
 
+def _build_alpha_factor_panel(stock_code: str, source: str | None = None, top_n: int = 10) -> dict:
+    """Build factor panel data for a single alpha stock."""
+    selected = None
+    scores = _get_alpha_stock_scores(top_n=max(top_n, 10))
+    for item in scores:
+        if item.get("code") == stock_code:
+            selected = item
+            break
+
+    provider = source or (selected.get("source") if selected else "unknown")
+    factors = dict(selected.get("factors") or {}) if selected else {}
+    factor_origin = "score_payload" if factors else ""
+    empty_reason = ""
+
+    if not factors and provider in {"simple", "qlib", "etf"}:
+        try:
+            from apps.alpha.application.services import AlphaService
+
+            service = AlphaService()
+            provider_instance = service._registry.get_provider(provider)
+            if provider_instance:
+                factors = provider_instance.get_factor_exposure(stock_code, date.today()) or {}
+                if factors:
+                    factor_origin = f"{provider}_provider"
+        except Exception as exc:
+            logger.warning("Failed to load factor exposure for %s: %s", stock_code, exc)
+
+    if not factors:
+        if provider == "qlib":
+            empty_reason = "当前 Qlib 流程可展示评分与 IC/ICIR，但尚未输出可视化用的单股因子暴露。"
+        elif provider == "cache":
+            empty_reason = "当前缓存记录未包含因子明细，请等待新的带因子评分结果写入缓存。"
+        elif provider == "etf":
+            empty_reason = "ETF 兜底源只提供成份股替代结果，不提供单股因子暴露。"
+        else:
+            empty_reason = "当前股票暂无可展示的因子暴露数据。"
+
+    sorted_factors = sorted(
+        (
+            {
+                "name": key,
+                "value": float(value),
+                "abs_value": abs(float(value)),
+                "bar_width": min(abs(float(value)) * 100, 100),
+                "direction": "positive" if float(value) >= 0 else "negative",
+            }
+            for key, value in factors.items()
+        ),
+        key=lambda item: item["abs_value"],
+        reverse=True,
+    )
+
+    return {
+        "stock": selected,
+        "stock_code": stock_code,
+        "provider": provider,
+        "factor_origin": factor_origin,
+        "factors": sorted_factors,
+        "factor_count": len(sorted_factors),
+        "empty_reason": empty_reason,
+    }
+
+
 @login_required(login_url="/account/login/")
 def dashboard_entry(request):
     """
@@ -162,6 +225,8 @@ def dashboard_view(request):
 
     actionable_candidates = _get_actionable_candidates()
     pending_requests = _get_pending_requests()
+    alpha_stock_scores = _get_alpha_stock_scores(top_n=10)
+    initial_alpha_stock = alpha_stock_scores[0]["code"] if alpha_stock_scores else ""
     try:
         from apps.equity.application.config import get_valuation_repair_config_summary
         valuation_repair_config_summary = get_valuation_repair_config_summary(use_cache=False)
@@ -224,10 +289,11 @@ def dashboard_view(request):
         "pending_requests": pending_requests,
         "pending_count": len(pending_requests),
         # Alpha 可视化数据（新增）
-        "alpha_stock_scores": _get_alpha_stock_scores(top_n=10),
+        "alpha_stock_scores": alpha_stock_scores,
         "alpha_provider_status": _get_alpha_provider_status(),
         "alpha_coverage_metrics": _get_alpha_coverage_metrics(),
         "alpha_ic_trends": _get_alpha_ic_trends(days=30),
+        "alpha_factor_panel": _build_alpha_factor_panel(initial_alpha_stock, top_n=10),
         "valuation_repair_config_summary": valuation_repair_config_summary,
     }
 
@@ -666,3 +732,32 @@ def alpha_ic_trends_htmx(request):
         'success': True,
         'data': trends
     })
+
+
+@login_required(login_url="/account/login/")
+def alpha_factor_panel_htmx(request):
+    """HTMX factor panel for a selected alpha stock."""
+    if 'HX-Request' not in request.headers:
+        return redirect('dashboard:index')
+
+    stock_code = (request.GET.get('code') or '').strip()
+    source = (request.GET.get('source') or '').strip() or None
+    top_n = int(request.GET.get('top_n', 10))
+
+    if not stock_code:
+        return render(
+            request,
+            'dashboard/partials/alpha_factor_panel.html',
+            {
+                'stock': None,
+                'stock_code': '',
+                'provider': source or 'unknown',
+                'factor_origin': '',
+                'factors': [],
+                'factor_count': 0,
+                'empty_reason': '请选择左侧一只股票查看因子暴露。',
+            },
+        )
+
+    context = _build_alpha_factor_panel(stock_code=stock_code, source=source, top_n=top_n)
+    return render(request, 'dashboard/partials/alpha_factor_panel.html', context)

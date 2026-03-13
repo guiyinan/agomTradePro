@@ -173,6 +173,9 @@ def qlib_train_model(
         learning_rate = train_config.get("learning_rate", 0.01)
         epochs = train_config.get("epochs", 100)
         model_path = train_config.get("model_path", "/models/qlib")
+        activate_after_train = bool(train_config.get("activate", False))
+        feature_set_id = train_config.get("feature_set_id", "v1")
+        label_id = train_config.get("label_id", "return_5d")
 
         # 计算数据版本
         data_version = end_date or timezone.now().strftime("%Y-%m-%d")
@@ -213,15 +216,18 @@ def qlib_train_model(
             model_type=model_type,
             universe=universe,
             train_config=train_config,
-            feature_set_id="v1",
-            label_id="return_5d",
+            feature_set_id=feature_set_id,
+            label_id=label_id,
             data_version=data_version,
             ic=metrics.get("ic"),
             icir=metrics.get("icir"),
             rank_ic=metrics.get("rank_ic"),
-            model_path=str(artifact_dir),
+            model_path=str(artifact_dir / "model.pkl"),
             is_active=False,  # 需要手动激活
         )
+
+        if activate_after_train:
+            registry_model.activate(activated_by="qlib_train_task")
 
         logger.info(f"Qlib 训练完成: {model_name}")
         logger.info(f"  Artifact Hash: {artifact_hash[:12]}...")
@@ -233,6 +239,7 @@ def qlib_train_model(
             "model_name": model_name,
             "model_type": model_type,
             "artifact_hash": artifact_hash,
+            "activated": activate_after_train,
             "ic": metrics.get("ic"),
             "icir": metrics.get("icir"),
         }

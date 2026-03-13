@@ -22,6 +22,7 @@ def dashboard_api_root(request):
                 "v1_equity_curve": "/api/dashboard/v1/equity-curve/",
                 "v1_signal_status": "/api/dashboard/v1/signal-status/",
                 "alpha_stocks": "/api/dashboard/alpha/stocks/",
+                "alpha_factor_panel": "/api/dashboard/alpha/factor-panel/",
                 "alpha_provider_status": "/api/dashboard/alpha/provider-status/",
                 "alpha_coverage": "/api/dashboard/alpha/coverage/",
                 "alpha_ic_trends": "/api/dashboard/alpha/ic-trends/",
@@ -42,9 +43,9 @@ urlpatterns = [
     path("v1/equity-curve/", views.equity_curve_v1, name="v1_equity_curve"),
     path("v1/signal-status/", views.signal_status_v1, name="v1_signal_status"),
     path("alpha/stocks/", views.alpha_stocks_htmx, name="alpha_stocks"),
+    path("alpha/factor-panel/", views.alpha_factor_panel_htmx, name="alpha_factor_panel"),
     path("alpha/provider-status/", views.alpha_provider_status_htmx, name="alpha_provider_status"),
     path("alpha/coverage/", views.alpha_coverage_htmx, name="alpha_coverage"),
     path("alpha/ic-trends/", views.alpha_ic_trends_htmx, name="alpha_ic_trends"),
     path("workflow/refresh-candidates/", views.workflow_refresh_candidates, name="workflow_refresh_candidates"),
 ]
-

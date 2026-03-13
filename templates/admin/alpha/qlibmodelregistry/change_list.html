@@ -1,0 +1,11 @@
+{% extends "admin/change_list.html" %}
+
+{% block object-tools-items %}
+<li>
+    <a href="{{ train_url }}" class="addlink">发起训练</a>
+</li>
+<li>
+    <a href="{{ import_url }}" class="addlink">导入模型</a>
+</li>
+{{ block.super }}
+{% endblock %}

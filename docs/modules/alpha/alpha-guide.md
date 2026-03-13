@@ -8,6 +8,8 @@ Alpha 模块是 AgomSAAF 的 AI 选股信号抽象层，与 Qlib 深度集成，
 
 **相关文档**:
 - [Qlib 模型训练指南](./training-guide.md) - 详细的模型训练、评估和部署指南
+- [Qlib 模型导入说明](./qlib-model-import-guide.md) - `model.pkl` 来源、Admin 导入、目录结构与限制
+- [Qlib 训练运行时搭建与接入指南](../../deployment/QLIB_TRAIN_RUNTIME_SETUP.md) - 如何让系统真正训练出模型并接入当前 Admin / Celery
 
 ## 架构
 
@@ -87,3 +89,7 @@ python manage.py list_models
 - 模型训练命令
 - IC/ICIR 指标说明
 - 生产部署流程
+
+## 模型导入
+
+如果你手上已经有离线训练好的 `model.pkl`，而不是准备在当前项目里重新训练，详见 [qlib-model-import-guide.md](./qlib-model-import-guide.md)。

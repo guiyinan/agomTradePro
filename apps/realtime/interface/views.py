@@ -23,6 +23,57 @@ from core.cache_utils import cached_api, CACHE_TTL
 logger = logging.getLogger(__name__)
 
 
+class MarketSummaryView(View):
+    """兼容 SDK/MCP 的市场概况接口。"""
+
+    INDEX_CODES = {
+        "sh_index": "000001.SH",
+        "sz_index": "399001.SZ",
+        "cyb_index": "399006.SZ",
+    }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.use_case = PricePollingUseCase()
+
+    def get(self, request, *args, **kwargs):
+        """GET /api/realtime/market-summary/"""
+        provider = self.use_case.service.price_provider
+        index_payload = {}
+        latest_timestamp = None
+        total_volume = 0
+        available_count = 0
+
+        for field_name, asset_code in self.INDEX_CODES.items():
+            price = provider.get_realtime_price(asset_code)
+            if price is None:
+                index_payload[field_name] = None
+                continue
+
+            index_payload[field_name] = float(price.price)
+            index_payload[f"{field_name}_change"] = float(price.change) if price.change is not None else None
+            index_payload[f"{field_name}_change_pct"] = float(price.change_pct) if price.change_pct is not None else None
+            latest_timestamp = price.timestamp if latest_timestamp is None else max(latest_timestamp, price.timestamp)
+            total_volume += price.volume or 0
+            available_count += 1
+
+        payload = {
+            "success": available_count > 0,
+            "stats_available": False,
+            "message": "Major index snapshot is available; breadth statistics are not implemented in the realtime module yet.",
+            "timestamp": latest_timestamp.isoformat() if latest_timestamp else None,
+            "up_count": 0,
+            "down_count": 0,
+            "flat_count": 0,
+            "limit_up_count": 0,
+            "limit_down_count": 0,
+            "total_volume": total_volume,
+            "total_value": 0,
+        }
+        payload.update(index_payload)
+        return JsonResponse(payload, status=200 if available_count else 503)
+
+
 class RealtimePriceView(View):
     """实时价格 API 视图"""
 

@@ -1,0 +1,43 @@
+services:
+  qlib_train_worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.qlib-train
+    container_name: agomsaaf_qlib_train_worker
+    restart: unless-stopped
+    working_dir: /app
+    environment:
+      DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE:-core.settings.production}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-me}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-127.0.0.1,localhost}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////app/db.sqlite3}
+      REDIS_URL: ${REDIS_URL:-redis://host.docker.internal:6379/0}
+      REDIS_HOST: ${REDIS_HOST:-host.docker.internal}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      QLIB_PROVIDER_URI: ${QLIB_PROVIDER_URI:-/qlib_data/cn_data}
+      QLIB_MODEL_PATH: ${QLIB_MODEL_PATH:-/models/qlib}
+      QLIB_REGION: ${QLIB_REGION:-CN}
+      TUSHARE_TOKEN: ${TUSHARE_TOKEN:-}
+      FRED_API_KEY: ${FRED_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ..:/app
+      - ../runtime/qlib_data:/qlib_data
+      - ../runtime/qlib_models:/models/qlib
+    command:
+      [
+        "celery",
+        "-A",
+        "core",
+        "worker",
+        "-l",
+        "info",
+        "-Q",
+        "qlib_train",
+        "--concurrency=1",
+        "--max-tasks-per-child=1"
+      ]

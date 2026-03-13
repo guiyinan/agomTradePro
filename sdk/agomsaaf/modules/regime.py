@@ -26,7 +26,7 @@ class RegimeModule(BaseModule):
         Args:
             client: AgomSAAF 客户端实例
         """
-        super().__init__(client, "/regime/api")
+        super().__init__(client, "/api/regime")
 
     def get_current(self) -> RegimeState:
         """

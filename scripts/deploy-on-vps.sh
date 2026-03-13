@@ -416,6 +416,9 @@ if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "upgrade" ] || [ "$ACTION" = "restor
     sleep 5
   done
 
+  log_info "Running cold-start bootstrap"
+  compose_vps exec -T web python manage.py bootstrap_cold_start --with-alpha --alpha-universes "${AGOMSAAF_BOOTSTRAP_ALPHA_UNIVERSES:-csi300}" --alpha-top-n "${AGOMSAAF_BOOTSTRAP_ALPHA_TOP_N:-30}"
+
   log_info "Ensuring macro periodic tasks"
   if ! compose_vps exec -T web python manage.py setup_macro_daily_sync --hour 8 --minute 5; then
     log_warn "Failed to configure macro periodic tasks automatically"

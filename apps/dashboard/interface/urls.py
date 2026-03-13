@@ -28,6 +28,7 @@ urlpatterns = [
     path('api/v1/equity-curve/', views.equity_curve_v1, name='api_v1_equity_curve'),
     path('api/v1/signal-status/', views.signal_status_v1, name='api_v1_signal_status'),
     path('api/alpha/stocks/', views.alpha_stocks_htmx, name='api_alpha_stocks'),
+    path('api/alpha/factor-panel/', views.alpha_factor_panel_htmx, name='api_alpha_factor_panel'),
     path('api/alpha/provider-status/', views.alpha_provider_status_htmx, name='api_alpha_provider_status'),
     path('api/alpha/coverage/', views.alpha_coverage_htmx, name='api_alpha_coverage'),
     path('api/alpha/ic-trends/', views.alpha_ic_trends_htmx, name='api_alpha_ic_trends'),

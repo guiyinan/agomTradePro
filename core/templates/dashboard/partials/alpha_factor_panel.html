@@ -1,0 +1,66 @@
+<div class="alpha-factor-panel">
+    <div class="factor-panel-header">
+        <div>
+            <h3 class="factor-panel-title">单股因子暴露</h3>
+            {% if stock_code %}
+            <div class="factor-panel-subtitle">
+                <strong>{{ stock_code }}</strong>
+                {% if stock and stock.name %}<span class="factor-stock-name">{{ stock.name }}</span>{% endif %}
+            </div>
+            {% else %}
+            <div class="factor-panel-subtitle">请选择一只股票</div>
+            {% endif %}
+        </div>
+        <div class="factor-panel-badges">
+            <span class="factor-provider-badge factor-provider-{{ provider|default:'unknown' }}">{{ provider|default:"unknown" }}</span>
+            {% if factor_count %}
+            <span class="factor-count-badge">{{ factor_count }} factors</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if stock %}
+    <div class="factor-summary-grid">
+        <div class="factor-summary-item">
+            <span class="summary-label">Alpha 评分</span>
+            <span class="summary-value">{{ stock.score|floatformat:3 }}</span>
+        </div>
+        <div class="factor-summary-item">
+            <span class="summary-label">排名</span>
+            <span class="summary-value">#{{ stock.rank }}</span>
+        </div>
+        <div class="factor-summary-item">
+            <span class="summary-label">置信度</span>
+            <span class="summary-value">{{ stock.confidence|floatformat:2 }}</span>
+        </div>
+        <div class="factor-summary-item">
+            <span class="summary-label">信号日期</span>
+            <span class="summary-value">{{ stock.asof_date|default:"-" }}</span>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if factors %}
+    <div class="factor-bars">
+        {% for factor in factors %}
+        <div class="factor-row">
+            <div class="factor-row-top">
+                <span class="factor-name">{{ factor.name }}</span>
+                <span class="factor-value factor-value-{{ factor.direction }}">{{ factor.value|floatformat:3 }}</span>
+            </div>
+            <div class="factor-track">
+                <div class="factor-fill factor-fill-{{ factor.direction }}" style="width: {{ factor.bar_width|floatformat:0 }}%"></div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+        {% if factor_origin %}
+        <div class="factor-origin-note">来源: {{ factor_origin }}</div>
+        {% endif %}
+    {% else %}
+    <div class="factor-empty-state">
+        <div class="factor-empty-icon">◌</div>
+        <p>{{ empty_reason }}</p>
+    </div>
+    {% endif %}
+</div>

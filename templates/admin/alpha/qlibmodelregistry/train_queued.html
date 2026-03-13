@@ -1,0 +1,49 @@
+{% extends "admin/base_site.html" %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">首页</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{{ list_url }}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; 训练任务已提交
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="module">
+        <h2>训练任务已提交到 `qlib_train` 队列</h2>
+        <table class="training-table">
+            <tr><th>Task ID</th><td>{{ task_id }}</td></tr>
+            <tr><th>模型名称</th><td>{{ payload.model_name }}</td></tr>
+            <tr><th>模型类型</th><td>{{ payload.model_type }}</td></tr>
+            <tr><th>股票池</th><td>{{ payload.universe }}</td></tr>
+            <tr><th>训练区间</th><td>{{ payload.start_date }} ~ {{ payload.end_date }}</td></tr>
+            <tr><th>自动激活</th><td>{% if payload.activate %}是{% else %}否{% endif %}</td></tr>
+        </table>
+        <p class="help">
+            需要有 Celery worker 正在消费 `qlib_train` 队列，例如:
+            <code>celery -A core worker -l info -Q qlib_train</code>
+        </p>
+    </div>
+    <div class="submit-row">
+        <a href="{{ list_url }}" class="button default">返回模型列表</a>
+    </div>
+</div>
+
+<style>
+.training-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.training-table th,
+.training-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: left;
+}
+.training-table th {
+    width: 180px;
+}
+</style>
+{% endblock %}

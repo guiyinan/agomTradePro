@@ -136,6 +136,33 @@ python manage.py train_qlib_model --name lgb_csi300 --type LGBModel --activate
 python manage.py train_qlib_model --name lgb_csi300 --type LGBModel --async
 ```
 
+### 3.1.1 使用 Admin 页面提交训练
+
+现在系统也支持从 Django Admin 发起训练任务：
+
+```text
+/admin/alpha/qlibmodelregistrymodel/
+```
+
+列表页右上角有：
+
+- `发起训练`
+- `导入模型`
+
+点击 `发起训练` 后可填写：
+
+- 模型名称
+- 模型类型
+- 股票池
+- 训练开始/结束日期
+- 特征集标识 / 标签标识
+- 学习率 / 训练轮数
+- 模型参数 JSON
+- 附加训练配置 JSON
+- 是否训练完成后自动激活
+
+提交后系统会把任务投递到 `qlib_train` Celery 队列。
+
 ### 3.2 模型类型选择
 
 | 模型类型 | 特点 | 训练时间 | 适用场景 |

@@ -1,0 +1,48 @@
+{% extends "admin/base_site.html" %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">首页</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{% url 'admin:alpha_qlibmodelregistrymodel_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; 导入模型
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+        <fieldset class="module aligned">
+            {% for field in form %}
+            <div class="form-row">
+                <div>
+                    {{ field.errors }}
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% if field.help_text %}
+                    <div class="help">{{ field.help_text }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </fieldset>
+        <div class="submit-row">
+            <input type="submit" value="开始导入" class="default">
+            <a href="{% url 'admin:alpha_qlibmodelregistrymodel_changelist' %}" class="button cancel-link">返回列表</a>
+        </div>
+    </form>
+</div>
+
+<style>
+.cancel-link {
+    display: inline-block;
+    padding: 10px 15px;
+    border-radius: 4px;
+    background: #f3f4f6;
+    color: #111827;
+    text-decoration: none;
+    margin-left: 8px;
+}
+</style>
+{% endblock %}

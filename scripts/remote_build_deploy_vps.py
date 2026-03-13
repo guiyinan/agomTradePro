@@ -708,6 +708,11 @@ until compose exec -T web python manage.py migrate --noinput; do
   sleep 5
 done
 
+if ! compose exec -T web python manage.py bootstrap_cold_start --with-alpha --alpha-universes "${AGOMSAAF_BOOTSTRAP_ALPHA_UNIVERSES:-csi300}" --alpha-top-n "${AGOMSAAF_BOOTSTRAP_ALPHA_TOP_N:-30}"; then
+  echo "[ERROR] cold-start bootstrap failed" >&2
+  exit 1
+fi
+
 if ! compose exec -T web python manage.py setup_macro_daily_sync --hour 8 --minute 5; then
   echo "[WARN] failed to configure macro periodic tasks automatically" >&2
 fi
