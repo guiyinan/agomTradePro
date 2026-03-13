@@ -243,6 +243,16 @@ def _direction_label(direction: str) -> str:
     return mapping.get(direction or "", direction or "观察")
 
 
+def _asset_type_label(asset_type: str | None) -> str:
+    mapping = {
+        "equity": "股票",
+        "fund": "基金",
+        "bond": "债券",
+        "cash": "现金",
+    }
+    return mapping.get((asset_type or "").strip().lower(), "其他")
+
+
 def _decision_response(decision_request: DecisionRequestModel):
     try:
         return decision_request.response
@@ -659,23 +669,60 @@ def _build_share_snapshot_from_account(share_link: ShareLinkModel) -> int | None
     market_value = float(account.current_market_value or 0)
     cash_value = float(account.current_cash or 0)
     current_position = round((market_value / total_assets) * 100, 2) if total_assets else 0.0
+    allocation_by_type: dict[str, dict] = {}
 
     position_items = []
     for position in positions:
+        asset_type = (position.asset_type or "").strip().lower() or "other"
+        position_market_value = float(position.market_value or 0)
         weight = round((float(position.market_value or 0) / total_assets) * 100, 2) if total_assets else 0.0
+        bucket = allocation_by_type.setdefault(
+            asset_type,
+            {
+                "key": asset_type,
+                "label": _asset_type_label(asset_type),
+                "value": 0.0,
+                "count": 0,
+            },
+        )
+        bucket["value"] += position_market_value
+        bucket["count"] += 1
         position_items.append({
             "asset_code": position.asset_code,
             "asset_name": position.asset_name,
+            "asset_type": asset_type,
+            "asset_type_label": _asset_type_label(asset_type),
             "quantity": position.quantity,
             "avg_cost": float(position.avg_cost or 0),
             "current_price": float(position.current_price or 0),
-            "market_value": float(position.market_value or 0),
+            "market_value": position_market_value,
             "pnl": float(position.unrealized_pnl or 0),
             "return_pct": position.unrealized_pnl_pct,
             "weight": weight,
             "entry_reason": position.entry_reason,
             "invalidation_logic": position.invalidation_description,
         })
+
+    if cash_value > 0:
+        allocation_by_type["cash"] = {
+            "key": "cash",
+            "label": _asset_type_label("cash"),
+            "value": cash_value,
+            "count": 1,
+        }
+
+    asset_allocation = []
+    for bucket in sorted(
+        allocation_by_type.values(),
+        key=lambda item: item["value"],
+        reverse=True,
+    ):
+        asset_allocation.append(
+            {
+                **bucket,
+                "pct": round((bucket["value"] / total_assets) * 100, 2) if total_assets else 0.0,
+            }
+        )
 
     transaction_items = []
     for trade in trades:
@@ -736,6 +783,7 @@ def _build_share_snapshot_from_account(share_link: ShareLinkModel) -> int | None
             "cash_balance": cash_value,
             "total_assets": total_assets,
             "position_count": len(position_items),
+            "asset_allocation": asset_allocation,
         },
         "position_count": len(position_items),
     }

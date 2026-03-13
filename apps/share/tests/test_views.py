@@ -141,6 +141,48 @@ def test_public_snapshot_is_built_live_when_missing(active_share_link):
 
 
 @pytest.mark.django_db
+def test_public_snapshot_includes_asset_allocation(active_share_link, test_account):
+    PositionModel.objects.create(
+        account=test_account,
+        asset_code="000001.SH",
+        asset_name="平安银行",
+        asset_type="equity",
+        quantity=100,
+        available_quantity=100,
+        avg_cost=Decimal("10.0000"),
+        total_cost=Decimal("1000.00"),
+        current_price=Decimal("10.5000"),
+        market_value=Decimal("1050.00"),
+        unrealized_pnl=Decimal("50.00"),
+        unrealized_pnl_pct=5.0,
+        first_buy_date=timezone.now().date(),
+    )
+    PositionModel.objects.create(
+        account=test_account,
+        asset_code="000311.SZ",
+        asset_name="景顺长城沪深300",
+        asset_type="fund",
+        quantity=200,
+        available_quantity=200,
+        avg_cost=Decimal("2.0000"),
+        total_cost=Decimal("400.00"),
+        current_price=Decimal("2.1000"),
+        market_value=Decimal("420.00"),
+        unrealized_pnl=Decimal("20.00"),
+        unrealized_pnl_pct=5.0,
+        first_buy_date=timezone.now().date(),
+    )
+
+    client = APIClient()
+    response = client.get(f"/api/share/public/{active_share_link.short_code}/snapshot/")
+
+    assert response.status_code == 200
+    allocation = response.data["positions"]["summary"]["asset_allocation"]
+    labels = {item["label"] for item in allocation}
+    assert {"股票", "基金", "现金"} <= labels
+
+
+@pytest.mark.django_db
 def test_refresh_share_link_creates_snapshot(client, test_user, active_share_link):
     client.force_login(test_user)
 

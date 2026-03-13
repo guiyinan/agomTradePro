@@ -27,6 +27,12 @@
     --chart-benchmark-color: #6b7280;
     --chart-portfolio-area-start: rgba(245, 158, 11, 0.22);
     --chart-portfolio-area-end: rgba(245, 158, 11, 0.02);
+    --allocation-surface: #0f151d;
+    --allocation-color-equity: #f59e0b;
+    --allocation-color-fund: #22c55e;
+    --allocation-color-bond: #60a5fa;
+    --allocation-color-cash: #f97316;
+    --allocation-color-other: #a78bfa;
 }
 
 /* Share Page Base */
@@ -559,7 +565,7 @@
     gap: 10px;
     margin-top: 24px;
     padding: 14px;
-    background: #0f151d;
+    background: var(--allocation-surface);
     border-radius: 2px;
     border: 1px solid var(--terminal-border);
 }
@@ -568,6 +574,10 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 2px;
 }
 
 .summary-label {
@@ -586,6 +596,113 @@
 .summary-value.positive { color: var(--terminal-positive); }
 .summary-value.negative { color: var(--terminal-negative); }
 .summary-value.highlight { color: var(--terminal-accent); font-size: 20px; }
+
+.asset-allocation-panel {
+    margin-top: 24px;
+    padding: 18px;
+    background: var(--allocation-surface);
+    border: 1px solid var(--terminal-border);
+    border-radius: 2px;
+}
+
+.asset-allocation-header {
+    margin-bottom: 14px;
+}
+
+.asset-allocation-title {
+    margin: 0 0 4px;
+    font-size: 14px;
+    color: #f4f7fb;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.asset-allocation-caption {
+    margin: 0;
+    font-size: 11px;
+    color: var(--terminal-text-dim);
+}
+
+.asset-allocation-layout {
+    display: grid;
+    grid-template-columns: minmax(240px, 340px) minmax(0, 1fr);
+    gap: 18px;
+    align-items: center;
+}
+
+.asset-allocation-chart-shell {
+    min-height: 260px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 2px;
+}
+
+.asset-allocation-chart {
+    width: 100%;
+    height: 260px;
+}
+
+.asset-allocation-list {
+    display: grid;
+    gap: 10px;
+}
+
+.asset-allocation-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.asset-allocation-item-main,
+.asset-allocation-item-side {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.asset-allocation-item-side {
+    margin-left: auto;
+}
+
+.asset-allocation-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.asset-type-equity { background: var(--allocation-color-equity); }
+.asset-type-fund { background: var(--allocation-color-fund); }
+.asset-type-bond { background: var(--allocation-color-bond); }
+.asset-type-cash { background: var(--allocation-color-cash); }
+.asset-type-other { background: var(--allocation-color-other); }
+
+.asset-allocation-name {
+    color: var(--terminal-text);
+    font-weight: 600;
+}
+
+.asset-allocation-pct {
+    color: var(--terminal-accent);
+    font-weight: 700;
+    min-width: 52px;
+    text-align: right;
+}
+
+.asset-allocation-value {
+    color: var(--terminal-text-muted);
+    min-width: 88px;
+    text-align: right;
+    font-size: 12px;
+}
 
 /* ========================================
    Transactions List - 交易列表
@@ -1066,6 +1183,12 @@
     --chart-benchmark-color: #8f6b2b;
     --chart-portfolio-area-start: rgba(207, 138, 22, 0.18);
     --chart-portfolio-area-end: rgba(207, 138, 22, 0.01);
+    --allocation-surface: #fff5cf;
+    --allocation-color-equity: #ef4444;
+    --allocation-color-fund: #22c55e;
+    --allocation-color-bond: #3b82f6;
+    --allocation-color-cash: #f59e0b;
+    --allocation-color-other: #8b5cf6;
     font-family: "Trebuchet MS", "Segoe UI", sans-serif;
     background:
         radial-gradient(circle at top left, rgba(255, 255, 255, 0.55), transparent 28%),
@@ -1176,6 +1299,19 @@
     background: rgba(255, 255, 255, 0.72);
 }
 
+.theme-monopoly .positions-summary,
+.theme-monopoly .asset-allocation-panel {
+    background: #fff5cf;
+    border-color: rgba(122, 92, 22, 0.18);
+}
+
+.theme-monopoly .summary-item,
+.theme-monopoly .asset-allocation-chart-shell,
+.theme-monopoly .asset-allocation-item {
+    background: rgba(255, 255, 255, 0.82);
+    border-color: rgba(122, 92, 22, 0.12);
+}
+
 .theme-monopoly .positions-table thead {
     background: rgba(207, 138, 22, 0.14);
 }
@@ -1244,6 +1380,25 @@
     .positions-table td {
         padding: 10px 12px;
         font-size: 12px;
+    }
+
+    .asset-allocation-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .asset-allocation-chart-shell,
+    .asset-allocation-chart {
+        min-height: 220px;
+        height: 220px;
+    }
+
+    .asset-allocation-item {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .asset-allocation-item-side {
+        margin-left: 0;
     }
 
     .weight-bar {

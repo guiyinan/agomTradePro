@@ -61,6 +61,38 @@
         </div>
         {% endif %}
 
+        {% if position_summary.asset_allocation %}
+        <div class="asset-allocation-panel">
+            <div class="asset-allocation-header">
+                <h3 class="asset-allocation-title">大类资产占比</h3>
+                <p class="asset-allocation-caption">按股票、基金、债券与现金划分当前总资产结构</p>
+            </div>
+            <div class="asset-allocation-layout">
+                <div class="asset-allocation-chart-shell">
+                    <div
+                        id="assetAllocationChart"
+                        class="asset-allocation-chart"
+                        data-allocation='[{% for item in position_summary.asset_allocation %}{"name":"{{ item.label|escapejs }}","value":{{ item.value|default:0 }},"pct":{{ item.pct|default:0 }},"key":"{{ item.key|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'
+                    ></div>
+                </div>
+                <div class="asset-allocation-list">
+                    {% for item in position_summary.asset_allocation %}
+                    <div class="asset-allocation-item">
+                        <div class="asset-allocation-item-main">
+                            <span class="asset-allocation-dot asset-type-{{ item.key }}"></span>
+                            <span class="asset-allocation-name">{{ item.label }}</span>
+                        </div>
+                        <div class="asset-allocation-item-side">
+                            <span class="asset-allocation-pct">{{ item.pct|floatformat:1 }}%</span>
+                            <span class="asset-allocation-value">{{ item.value|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- 持仓汇总 -->
         {% if position_summary %}
         <div class="positions-summary">
@@ -86,3 +118,67 @@
         {% endif %}
     </div>
 </section>
+
+{% if position_summary.asset_allocation %}
+<script>
+(function() {
+    const chartEl = document.getElementById("assetAllocationChart");
+    if (!chartEl || typeof echarts === "undefined") {
+        return;
+    }
+
+    const allocationData = JSON.parse(chartEl.dataset.allocation || "[]");
+    if (!allocationData.length) {
+        return;
+    }
+
+    const styles = getComputedStyle(document.body);
+    const chart = echarts.init(chartEl);
+    const colorForKey = (key) => styles.getPropertyValue(`--allocation-color-${key}`).trim() || styles.getPropertyValue("--terminal-accent").trim();
+
+    chart.setOption({
+        backgroundColor: "transparent",
+        animation: false,
+        tooltip: {
+            trigger: "item",
+            backgroundColor: styles.getPropertyValue("--chart-tooltip-bg").trim(),
+            borderColor: styles.getPropertyValue("--chart-tooltip-border").trim(),
+            textStyle: {
+                color: styles.getPropertyValue("--chart-tooltip-text").trim(),
+            },
+            formatter: (params) => `${params.name}<br/>${params.value.toFixed(2)}<br/>${params.percent}%`,
+        },
+        series: [
+            {
+                type: "pie",
+                radius: ["48%", "72%"],
+                center: ["50%", "50%"],
+                avoidLabelOverlap: true,
+                label: {
+                    show: true,
+                    color: styles.getPropertyValue("--terminal-text").trim(),
+                    formatter: "{b}\n{d}%",
+                    fontSize: 11,
+                    lineHeight: 16,
+                },
+                labelLine: {
+                    lineStyle: {
+                        color: styles.getPropertyValue("--terminal-border-strong").trim(),
+                    },
+                },
+                itemStyle: {
+                    borderColor: styles.getPropertyValue("--allocation-surface").trim(),
+                    borderWidth: 3,
+                },
+                data: allocationData.map((item) => ({
+                    ...item,
+                    itemStyle: { color: colorForKey(item.key) },
+                })),
+            },
+        ],
+    });
+
+    window.addEventListener("resize", () => chart.resize());
+})();
+</script>
+{% endif %}
