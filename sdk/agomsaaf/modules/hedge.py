@@ -66,7 +66,7 @@ class HedgeModule:
             相关性指标
         """
         return self._client.post(
-            "/api/hedge/actions/calculate-correlation/",
+            "/api/hedge/actions/calculate_correlation/",
             json={
                 "asset1": asset1,
                 "asset2": asset2,
@@ -90,7 +90,7 @@ class HedgeModule:
             相关性矩阵
         """
         return self._client.post(
-            "/api/hedge/actions/get-correlation-matrix/",
+            "/api/hedge/actions/get_correlation_matrix/",
             json={
                 "asset_codes": asset_codes,
                 "window_days": window_days,
@@ -112,7 +112,7 @@ class HedgeModule:
             对冲比例及详情
         """
         return self._client.post(
-            "/api/hedge/actions/check-hedge-ratio/",
+            "/api/hedge/actions/check_hedge_ratio/",
             json={"pair_name": pair_name}
         )
 

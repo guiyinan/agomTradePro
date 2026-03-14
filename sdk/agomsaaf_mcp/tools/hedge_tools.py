@@ -70,7 +70,7 @@ def register_hedge_tools(server: FastMCP) -> None:
         return result
 
     @server.tool()
-    def get_correlation_matrix(
+    def get_hedge_correlation_matrix(
         asset_codes: list[str],
         window_days: int = 60
     ) -> dict[str, Any]:
@@ -87,7 +87,7 @@ def register_hedge_tools(server: FastMCP) -> None:
             相关性矩阵字典
 
         Example:
-            >>> matrix = get_correlation_matrix(
+            >>> matrix = get_hedge_correlation_matrix(
             ...     asset_codes=["510300", "510500", "511260"],
             ...     window_days=60
             ... )
