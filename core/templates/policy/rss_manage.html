@@ -435,7 +435,7 @@ function triggerFetch(sourceId, sourceName) {
     document.getElementById('taskId').textContent = '-';
     document.getElementById('sourceName').textContent = sourceName;
 
-    const url = `/policy/api/rss/sources/${sourceId}/trigger_fetch/`;
+    const url = `/api/policy/rss/sources/${sourceId}/trigger_fetch/`;
     console.log('Fetching from:', url);
 
     fetch(url, {
@@ -537,7 +537,7 @@ function pollFetchStatus(taskId, sourceName) {
         document.getElementById('fetchProgress').style.width = progress + '%';
 
         // 检查抓取日志（使用 source__name 过滤）
-        fetch(`/policy/api/rss/logs/?source__name=${encodeURIComponent(sourceName)}&limit=1`)
+        fetch(`/api/policy/rss/logs/?source__name=${encodeURIComponent(sourceName)}&limit=1`)
             .then(response => response.json())
             .then(data => {
                 if (data.results && data.results.length > 0) {

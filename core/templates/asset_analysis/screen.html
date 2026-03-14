@@ -483,7 +483,7 @@ async function runScreening() {
     `;
 
     try {
-        const response = await fetch(`/asset-analysis/api/screen/${currentAssetType}/`, {
+        const response = await fetch(`/api/asset-analysis/screen/${currentAssetType}/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

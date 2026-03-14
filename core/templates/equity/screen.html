@@ -222,7 +222,7 @@ async function runScreening() {
     const csrftoken = getCookie('csrftoken');
 
     try {
-        const response = await fetch('/equity/api/screen/', {
+        const response = await fetch('/api/equity/screen/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

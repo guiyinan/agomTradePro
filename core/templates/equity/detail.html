@@ -271,7 +271,7 @@ const stockCode = '{{ stock_code }}';
 // 加载股票详情
 async function loadStockDetail() {
     try {
-        const response = await fetch(`/equity/api/valuation/${stockCode}/`);
+        const response = await fetch(`/api/equity/valuation/${stockCode}/`);
         const result = await response.json();
 
         if (result.success) {

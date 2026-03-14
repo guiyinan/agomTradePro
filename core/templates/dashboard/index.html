@@ -574,7 +574,7 @@
                 <div class="section-header">
                     <h2 class="section-title">当前持仓</h2>
                     <div class="header-actions">
-                        <select id="positionSort" class="sort-select" hx-get="/dashboard/api/positions/"
+                        <select id="positionSort" class="sort-select" hx-get="/api/dashboard/positions/"
                                 hx-trigger="change" hx-target="#positionList" hx-include="#positionSort">
                             <option value="market_value">按市值</option>
                             <option value="pnl_pct">按收益率</option>
@@ -598,7 +598,7 @@
                         <tbody id="positionTableBody">
                             {% for pos in positions|slice:":5" %}
                             <tr class="position-row" data-asset-code="{{ pos.asset_code }}"
-                                hx-get="/dashboard/api/position/{{ pos.asset_code }}/"
+                                hx-get="/api/dashboard/position/{{ pos.asset_code }}/"
                                 hx-target="#positionDetailModal" hx-swap="innerHTML"
                                 style="cursor: pointer;">
                                 <td><strong>{{ pos.asset_code }}</strong></td>
@@ -783,7 +783,7 @@
 <script>
 // API 配置
 const API_URLS = {
-    promptChat: "{% url 'prompt:chat' %}",
+    promptChat: "/api/prompt/chat",
     aiProviderManage: "{% url 'ai_provider:manage' %}"
 };
 
@@ -959,7 +959,7 @@ async function checkQlibStatus() {
     if (!indicator || !desc) return;
 
     try {
-        const response = await fetch('/dashboard/api/alpha/provider-status/');
+        const response = await fetch('/api/dashboard/alpha/provider-status/');
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
@@ -1188,7 +1188,7 @@ if (icTrendsCtx) {
         const periodSelect = document.getElementById('icPeriodSelect');
         if (periodSelect) {
             periodSelect.addEventListener('change', function() {
-                fetch(`/dashboard/api/alpha/ic-trends/?days=${this.value}`)
+                fetch(`/api/dashboard/alpha/ic-trends/?days=${this.value}`)
                     .then(r => r.json())
                     .then(response => {
                         if (response.success && response.data) {

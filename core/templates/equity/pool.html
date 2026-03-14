@@ -145,7 +145,7 @@ const pageSize = 20;
 // 加载股票池
 async function loadPool() {
     try {
-        const response = await fetch('/equity/api/pool/');
+        const response = await fetch('/api/equity/pool/');
         const result = await response.json();
 
         if (result.success) {
@@ -292,7 +292,7 @@ async function refreshPool() {
 
         const csrftoken = getCookie('csrftoken');
 
-        const response = await fetch('/equity/api/pool/refresh/', {
+        const response = await fetch('/api/equity/pool/refresh/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
