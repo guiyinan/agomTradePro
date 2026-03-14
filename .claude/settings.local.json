@@ -152,13 +152,22 @@
       "Bash(conda info:*)",
       "WebFetch(domain:skills.sh)",
       "Bash(gh repo:*)",
-      "mcp__agomsaaf__check_alpha_health",
-      "mcp__agomsaaf__get_policy_status",
-      "Bash(cd D:/githv/agomSAAF && echo \"=== API 性能测试 ===\" && for endpoint in \"/api/health/\" \"/api/regime/current/\" \"/api/policy/events/\" \"/api/signal/\" \"/api/strategy/\" \"/api/audit/\" \"/api/backtest/\" \"/api/simulated-trading/accounts/\"; do echo -n \"$endpoint: \" && curl -s -o /dev/null -w \"%{http_code} %{time_total}s\\\\n\" \"http://localhost:8000$endpoint\"; done)"
+      "mcp__agomsaaf_local__check_alpha_health",
+      "mcp__agomsaaf_local__get_policy_status",
+      "Bash(cd D:/githv/agomSAAF && echo \"=== API 性能测试 ===\" && for endpoint in \"/api/health/\" \"/api/regime/current/\" \"/api/policy/events/\" \"/api/signal/\" \"/api/strategy/\" \"/api/audit/\" \"/api/backtest/\" \"/api/simulated-trading/accounts/\"; do echo -n \"$endpoint: \" && curl -s -o /dev/null -w \"%{http_code} %{time_total}s\\\\n\" \"http://localhost:8000$endpoint\"; done)",
+      "mcp__agomsaaf_local__get_top_movers",
+      "mcp__agomsaaf_local__market_data_provider_health",
+      "mcp__agomsaaf_local__get_market_summary",
+      "mcp__agomsaaf_local__get_workbench_summary",
+      "mcp__agomsaaf_local__get_current_regime",
+      "Bash(cd D:/githv/agomSAAF && python -c \"\nimport os\nos.environ.setdefault\\('DJANGO_SETTINGS_MODULE', 'core.settings.development'\\)\nimport django\ndjango.setup\\(\\)\nfrom django.urls import get_resolver\nresolver = get_resolver\\(\\)\nurls = []\nfor pattern in resolver.url_patterns:\n    try:\n        urls.append\\(str\\(pattern.pattern\\)\\)\n    except:\n        pass\nprint\\('Root patterns:', urls[:30]\\)\n\" 2>&1 | head -40)",
+      "Bash(cd D:/githv/agomSAAF && python -c \"\nimport os\nos.environ.setdefault\\('DJANGO_SETTINGS_MODULE', 'core.settings.development'\\)\nimport django\ndjango.setup\\(\\)\nfrom apps.signal.interface.api_views import SignalHealthView\nprint\\('SignalHealthView imported successfully'\\)\n\" 2>&1 | tail -5)",
+      "Bash(cd D:/githv/agomSAAF && python -c \"\nimport os\nos.environ.setdefault\\('DJANGO_SETTINGS_MODULE', 'core.settings.development'\\)\nimport django\ndjango.setup\\(\\)\nfrom django.urls import reverse, resolver = URLResolver\nurlconf = URLResolver\\(regex=r'^api/signal/health'\\).reverse\\(resolver\\)\npatterns = urlconf.url_patterns\nfor p in patterns:\n    print\\(str\\(p.pattern\\)\\)\n\" 2>&1 | tail -20)",
+      "mcp__agomsaaf_local__get_sentiment_health"
     ]
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
-    "agomsaaf"
+    "agomsaaf_local"
   ]
 }

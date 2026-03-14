@@ -4,12 +4,17 @@ Alpha SDK Module
 提供 Python SDK 访问 Alpha 信号功能。
 """
 
+import os
 from typing import Any, Dict, List, Optional
 
 from .base import BaseModule
 
 
 def _get_alpha_service() -> Any:
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings.development")
+    import django
+    if not django.apps.apps.ready:
+        django.setup()
     from apps.alpha.application.services import AlphaService
 
     return AlphaService()

@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "agomsaaf": {
+    "agomsaaf_local": {
       "command": "python",
       "args": ["-m", "agomsaaf_mcp.server"],
       "cwd": "D:/githv/agomSAAF/sdk",

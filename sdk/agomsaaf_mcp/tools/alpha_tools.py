@@ -6,12 +6,21 @@ Model Context Protocol (MCP) 工具定义。
 """
 
 import logging
+import os
+from datetime import datetime, timezone
 from typing import Any
 
 from agomsaaf import AgomSAAFClient
 
 
 logger = logging.getLogger(__name__)
+
+
+def _ensure_django() -> None:
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings.development")
+    import django
+    if not django.apps.apps.ready:
+        django.setup()
 
 
 def register_alpha_tools(server) -> None:
@@ -164,11 +173,9 @@ def register_alpha_tools(server) -> None:
             >>> for name, info in status.items():
             ...     print(f"{name}: {info['status']} (priority={info['priority']})")
         """
-        from apps.alpha.application.services import AlphaService
-
         try:
-            service = AlphaService()
-            return service.get_provider_status()
+            client = AgomSAAFClient()
+            return client.alpha.get_provider_status()
 
         except Exception as e:
             logger.error(f"获取 Provider 状态失败: {e}", exc_info=True)
@@ -195,11 +202,10 @@ def register_alpha_tools(server) -> None:
             >>> for universe in result['universes']:
             ...     print(f"  - {universe}")
         """
-        from apps.alpha.application.services import AlphaService
-
         try:
-            service = AlphaService()
-            universes = service.get_available_universes()
+            client = AgomSAAFClient()
+            result = client.alpha.get_available_universes()
+            universes = result.get("universes", []) if isinstance(result, dict) else []
 
             return {
                 "universes": universes
@@ -245,10 +251,11 @@ def register_alpha_tools(server) -> None:
             >>> result = get_alpha_factor_exposure("000001.SH", "2026-02-05")
             >>> print(f"PE倒数因子: {result['factors']['pe_inv']:.3f}")
         """
-        from apps.alpha.application.services import AlphaService
         from datetime import date
 
         try:
+            _ensure_django()
+            from apps.alpha.application.services import AlphaService
             service = AlphaService()
 
             # 解析日期
@@ -318,13 +325,11 @@ def register_alpha_tools(server) -> None:
             >>> print(f"状态: {health['status']}")
             >>> print(f"可用 Provider: {health['providers']['available']}/{health['providers']['total']}")
         """
-        from apps.alpha.application.services import AlphaService
-        from django.utils import timezone
-
         try:
-            service = AlphaService()
-
-            providers_status = service.get_provider_status()
+            client = AgomSAAFClient()
+            providers_status = client.alpha.get_provider_status()
+            if isinstance(providers_status, dict) and "providers" in providers_status:
+                providers_status = providers_status["providers"]
 
             # 统计状态
             total = len(providers_status)
@@ -337,7 +342,7 @@ def register_alpha_tools(server) -> None:
 
             return {
                 "status": health_status,
-                "timestamp": timezone.now().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "providers": {
                     "available": available,
                     "total": total,
@@ -350,5 +355,5 @@ def register_alpha_tools(server) -> None:
             return {
                 "status": "error",
                 "error": str(e),
-                "timestamp": timezone.now().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }

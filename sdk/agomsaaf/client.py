@@ -158,6 +158,9 @@ class AgomSAAFClient:
             配置了重试策略的 Session 对象
         """
         session = requests.Session()
+        # MCP/SDK should talk to the configured base_url directly instead of
+        # silently inheriting OS/user proxy settings such as 127.0.0.1:10808.
+        session.trust_env = False
 
         # 配置重试策略
         retry_strategy = Retry(
