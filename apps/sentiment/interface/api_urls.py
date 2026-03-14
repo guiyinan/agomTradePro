@@ -6,12 +6,32 @@ Mounted under /api/sentiment/
 """
 
 from django.urls import path
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from . import views
 
 app_name = 'sentiment'
 
 
+class SentimentApiRootView(APIView):
+    def get(self, request):
+        return Response(
+            {
+                "endpoints": {
+                    "analyze": "/api/sentiment/analyze/",
+                    "batch_analyze": "/api/sentiment/batch-analyze/",
+                    "index": "/api/sentiment/index/",
+                    "index_range": "/api/sentiment/index/range/",
+                    "index_recent": "/api/sentiment/index/recent/",
+                    "health": "/api/sentiment/health/",
+                    "cache_clear": "/api/sentiment/cache/clear/",
+                }
+            }
+        )
+
+
 urlpatterns = [
+    path('', SentimentApiRootView.as_view(), name='root'),
     # API routes - Analysis
     path('analyze/', views.SentimentAnalyzeView.as_view(), name='analyze'),
     path('batch-analyze/', views.SentimentBatchAnalyzeView.as_view(), name='batch_analyze'),

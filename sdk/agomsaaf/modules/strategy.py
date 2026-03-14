@@ -25,8 +25,8 @@ class StrategyModule(BaseModule):
         Args:
             client: AgomSAAF 客户端实例
         """
-        # Backend strategy endpoints are served under /strategy/api/*
-        super().__init__(client, "/strategy/api")
+        # Canonical strategy endpoints are served under /api/strategy/*.
+        super().__init__(client, "/api/strategy")
 
     def list_strategies(
         self,

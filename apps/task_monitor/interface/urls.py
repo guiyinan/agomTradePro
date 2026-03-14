@@ -3,13 +3,29 @@ Task Monitor URL Configuration
 
 URL 路由定义。
 """
-
+from django.http import JsonResponse
 from django.urls import path
 from apps.task_monitor.interface import views
 
 app_name = "task_monitor"
 
 urlpatterns = [
+    path(
+        "",
+        lambda request: JsonResponse(
+            {
+                "module": "system",
+                "endpoints": [
+                    "/api/system/status/{task_id}/",
+                    "/api/system/list/",
+                    "/api/system/statistics/",
+                    "/api/system/dashboard/",
+                    "/api/system/celery/health/",
+                ],
+            }
+        ),
+        name="root",
+    ),
     # 任务状态
     path("status/<str:task_id>/", views.get_task_status, name="task_status"),
     path("list/", views.list_tasks, name="task_list"),

@@ -174,10 +174,9 @@ module_patterns = [
     # P0: Account 模块
     path('api/account/', include(('apps.account.interface.api_urls', 'account'), namespace='api_account')),
     # P1: Simulated Trading 模块
-    path('api/simulated-trading/accounts/', RedirectView.as_view(url='/api/simulated-trading/api/accounts/', permanent=False), name='api-simulated-trading-accounts-legacy'),
-    path('api/simulated-trading/', include(('apps.simulated_trading.interface.urls', 'simulated_trading'), namespace='api_simulated_trading')),
+    path('api/simulated-trading/', include(('apps.simulated_trading.interface.api_urls', 'simulated_trading'), namespace='api_simulated_trading')),
     # P1: Strategy 模块
-    path('api/strategy/', include(('apps.strategy.interface.urls', 'strategy'), namespace='api_strategy')),
+    path('api/strategy/', include(('apps.strategy.interface.api_urls', 'strategy'), namespace='api_strategy')),
     # P2: Regime 模块
     path('api/regime/', include(('apps.regime.interface.api_urls', 'regime'), namespace='api_regime')),
     # P2: Policy 模块（仅挂载 API 路由，避免与页面路由冲突）

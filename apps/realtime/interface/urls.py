@@ -1,11 +1,5 @@
-"""
-Realtime Module - URL Configuration
-
-This module defines URL routing for the realtime price monitoring system.
-"""
-
 from django.urls import path
-from django.views.generic import RedirectView
+from django.http import JsonResponse
 
 from apps.realtime.interface.views import (
     MarketSummaryView,
@@ -18,8 +12,21 @@ from apps.realtime.interface.views import (
 app_name = "realtime"
 
 urlpatterns = [
-    # Page redirect (legacy support)
-    path("", RedirectView.as_view(url="/api/realtime/prices/", permanent=False), name="home"),
+    path(
+        "",
+        lambda request: JsonResponse(
+            {
+                "module": "realtime",
+                "endpoints": [
+                    "/api/realtime/prices/",
+                    "/api/realtime/market-summary/",
+                    "/api/realtime/poll/",
+                    "/api/realtime/health/",
+                ],
+            }
+        ),
+        name="home",
+    ),
 
     # API routes - new standard format (when mounted under /api/realtime/)
     path("prices/", RealtimePriceView.as_view(), name="price-list"),

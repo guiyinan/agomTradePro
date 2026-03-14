@@ -138,8 +138,8 @@
 
 API：
 
-1. `POST /api/strategy/api/position-rules/{id}/evaluate/`
-2. `POST /api/strategy/api/strategies/{id}/evaluate_position_management/`
+1. `POST /api/strategy/position-rules/{id}/evaluate/`
+2. `POST /api/strategy/strategies/{id}/evaluate_position_management/`
 
 ### 6.3 账户层风险评估（Account）
 
@@ -172,7 +172,7 @@ API：
 入口:
 
 1. 页面: `/simulated-trading/my-accounts/{account_id}/inspection-notify/`
-2. API: `POST /simulated-trading/api/accounts/{account_id}/inspections/run/`
+2. API: `POST /api/simulated-trading/accounts/{account_id}/inspections/run/`
 
 巡检结果会给出权重偏离与建议动作（buy/sell/hold）及建议数量。
 
@@ -266,6 +266,6 @@ API：
 
 1. `GET /api/regime/current/`
 2. `POST /api/asset-analysis/screen/equity/`
-3. `POST /api/strategy/api/position-rules/{id}/evaluate/`
-4. `POST /simulated-trading/api/accounts/{id}/inspections/run/`
+3. `POST /api/strategy/position-rules/{id}/evaluate/`
+4. `POST /api/simulated-trading/accounts/{id}/inspections/run/`
 5. `POST /api/audit/reports/generate/`

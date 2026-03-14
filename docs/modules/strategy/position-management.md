@@ -28,11 +28,11 @@
 
 ## API
 
-- `GET /strategy/api/position-rules/`
-- `POST /strategy/api/position-rules/`
-- `POST /strategy/api/position-rules/{id}/evaluate/`
-- `GET /strategy/api/strategies/{id}/position_rule/`
-- `POST /strategy/api/strategies/{id}/evaluate_position_management/`
+- `GET /api/strategy/position-rules/`
+- `POST /api/strategy/position-rules/`
+- `POST /api/strategy/position-rules/{id}/evaluate/`
+- `GET /api/strategy/strategies/{id}/position_rule/`
+- `POST /api/strategy/strategies/{id}/evaluate_position_management/`
 
 请求示例：
 

@@ -56,8 +56,8 @@
 
 | 模块 | 旧路由格式 | 新路由格式 | 状态 |
 |------|-----------|-----------|------|
-| **strategy** | `/strategy/api/` | `/api/strategy/` | 双轨 |
-| **simulated_trading** | `/simulated-trading/api/` | `/api/simulated-trading/` | 双轨 |
+| **strategy** | `/strategy/api/` | `/api/strategy/` | 兼容别名 |
+| **simulated_trading** | `/simulated-trading/api/` | `/api/simulated-trading/` | 兼容别名 |
 | **decision_rhythm** | `/api/decision-rhythm/api/` | `/api/decision-rhythm/` | 双轨 |
 | **decision_workflow** | `/api/decision-workflow/api/` | `/api/decision-workflow/` | 双轨 |
 

@@ -196,7 +196,7 @@ async function deleteStrategy(id, name) {
     if (!confirm(`确认删除策略 "${name}"？\n\n此操作不可恢复！`)) return;
 
     try {
-        const res = await fetch(`/strategy/api/strategies/${id}/`, {
+        const res = await fetch(`/api/strategy/strategies/${id}/`, {
             method: 'DELETE'
         });
         if (res.ok) {

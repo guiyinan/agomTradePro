@@ -1,8 +1,6 @@
-"""
-模拟盘交易模块 URL 配置
-"""
-from django.http import JsonResponse
-from django.urls import path
+"""模拟盘交易模块 URL 配置。"""
+from django.shortcuts import redirect
+from django.urls import include, path
 from .views import (
     # 页面视图
     dashboard_page,
@@ -13,33 +11,12 @@ from .views import (
     my_positions_page,
     my_trades_page,
     my_inspection_notify_page,
-    # API 视图
-    AccountListAPIView,
-    AccountDetailAPIView,
-    PositionListAPIView,
-    TradeListAPIView,
-    PerformanceAPIView,
-    ManualTradeAPIView,
-    FeeConfigListAPIView,
-    EquityCurveAPIView,
-    AutoTradingAPIView,
-    DailyInspectionRunAPIView,
-    DailyInspectionReportListAPIView,
 )
 
 app_name = 'simulated_trading'
 
 urlpatterns = [
-    # API 根路径（兼容旧调用）
-    path('', lambda request: JsonResponse({
-        'module': 'simulated-trading',
-        'endpoints': [
-            '/api/simulated-trading/api/accounts/',
-            '/api/simulated-trading/api/accounts/{account_id}/',
-            '/api/simulated-trading/api/accounts/{account_id}/positions/',
-            '/api/simulated-trading/api/accounts/{account_id}/trades/',
-        ],
-    }), name='api-root'),
+    path('', lambda request: redirect('simulated_trading:my-accounts'), name='home'),
 
     # ============================================================================
     # 页面路由
@@ -54,36 +31,6 @@ urlpatterns = [
     path('my-accounts/<int:account_id>/trades/', my_trades_page, name='my-trades'),
     path('my-accounts/<int:account_id>/inspection-notify/', my_inspection_notify_page, name='my-inspection-notify'),
 
-    # ============================================================================
-    # API 路由
-    # ============================================================================
-
-    # 账户管理
-    path('api/accounts/', AccountListAPIView.as_view(), name='account-list'),
-    path('api/accounts/<int:account_id>/', AccountDetailAPIView.as_view(), name='account-detail-api'),
-
-    # 持仓管理
-    path('api/accounts/<int:account_id>/positions/', PositionListAPIView.as_view(), name='position-list'),
-
-    # 交易记录
-    path('api/accounts/<int:account_id>/trades/', TradeListAPIView.as_view(), name='trade-list'),
-
-    # 绩效分析
-    path('api/accounts/<int:account_id>/performance/', PerformanceAPIView.as_view(), name='performance'),
-
-    # 手动交易
-    path('api/accounts/<int:account_id>/trade/', ManualTradeAPIView.as_view(), name='manual-trade'),
-
-    # 净值曲线
-    path('api/accounts/<int:account_id>/equity-curve/', EquityCurveAPIView.as_view(), name='equity-curve'),
-
-    # 费率配置
-    path('api/fee-configs/', FeeConfigListAPIView.as_view(), name='fee-config-list'),
-
-    # 自动交易
-    path('api/auto-trading/run/', AutoTradingAPIView.as_view(), name='auto-trading-run'),
-
-    # 日更巡检
-    path('api/accounts/<int:account_id>/inspections/run/', DailyInspectionRunAPIView.as_view(), name='daily-inspection-run'),
-    path('api/accounts/<int:account_id>/inspections/', DailyInspectionReportListAPIView.as_view(), name='daily-inspection-list'),
+    # Legacy API compatibility under /simulated-trading/api/*
+    path('api/', include(('apps.simulated_trading.interface.api_urls', 'simulated_trading_api'), namespace='legacy_simulated_trading_api')),
 ]

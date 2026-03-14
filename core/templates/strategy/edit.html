@@ -264,7 +264,7 @@ function showEditorForType(type) {
 // 加载现有规则
 function loadExistingRules() {
     // 从后端获取规则数据
-    fetch(`/strategy/api/strategies/{{ strategy.id }}/rules/`)
+    fetch(`/api/strategy/strategies/{{ strategy.id }}/rules/`)
         .then(res => res.json())
         .then(rules => {
             if (Array.isArray(rules)) {
@@ -281,7 +281,7 @@ function loadExistingRules() {
 
 // 加载现有脚本
 function loadExistingScript() {
-    fetch(`/strategy/api/strategies/{{ strategy.id }}/script_config/`)
+    fetch(`/api/strategy/strategies/{{ strategy.id }}/script_config/`)
         .then(res => res.json())
         .then(config => {
             if (config.script_code && window.editor) {
@@ -304,7 +304,7 @@ async function updateStrategy() {
     }
 
     try {
-        const res = await fetch(`/strategy/api/strategies/{{ strategy.id }}/`, {
+        const res = await fetch(`/api/strategy/strategies/{{ strategy.id }}/`, {
             method: 'PUT',  // 或 'PATCH'
             body: formData
         });

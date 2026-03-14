@@ -53,10 +53,10 @@
 
 ## 后端 API
 
-- `POST /simulated-trading/api/accounts/{account_id}/inspections/run/`
+- `POST /api/simulated-trading/accounts/{account_id}/inspections/run/`
   - 手动触发巡检
   - body: `{ "strategy_id": 4, "inspection_date": "2026-02-08" }`（可选）
-- `GET /simulated-trading/api/accounts/{account_id}/inspections/?limit=20&inspection_date=2026-02-08`
+- `GET /api/simulated-trading/accounts/{account_id}/inspections/?limit=20&inspection_date=2026-02-08`
   - 查询巡检历史
 
 ## SDK

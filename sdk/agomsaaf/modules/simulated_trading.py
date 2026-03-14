@@ -25,8 +25,8 @@ class SimulatedTradingModule(BaseModule):
         Args:
             client: AgomSAAF 客户端实例
         """
-        # Backend simulated trading endpoints are served under /simulated-trading/api/*
-        super().__init__(client, "/simulated-trading/api")
+        # Canonical simulated trading endpoints are served under /api/simulated-trading/*.
+        super().__init__(client, "/api/simulated-trading")
 
     def list_accounts(
         self,

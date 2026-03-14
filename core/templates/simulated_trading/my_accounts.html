@@ -767,7 +767,7 @@ async function loadStrategies() {
     strategyList.innerHTML = '<div class="loading">正在加载策略列表...</div>';
 
     try {
-        const res = await fetch('/strategy/api/strategies/my_strategies/');
+        const res = await fetch('/api/strategy/strategies/my_strategies/');
         const data = await res.json();
 
         if (Array.isArray(data)) {
@@ -851,7 +851,7 @@ async function confirmBindStrategy() {
     }
 
     try {
-        const res = await fetch('/strategy/api/bind-strategy/', {
+        const res = await fetch('/api/strategy/bind-strategy/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -882,7 +882,7 @@ async function unbindStrategy(accountId) {
     }
 
     try {
-        const res = await fetch('/strategy/api/unbind-strategy/', {
+        const res = await fetch('/api/strategy/unbind-strategy/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

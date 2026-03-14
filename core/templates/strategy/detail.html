@@ -303,7 +303,7 @@
                         </select>
                     </div>
                     <button class="btn btn-primary" onclick="runExecutionEvaluate()">执行评估</button>
-                    <div id="evalStatus" style="margin-top: 10px; color: #64748b;">点击“执行评估”调用 `/strategy/api/execution/evaluate/`</div>
+                    <div id="evalStatus" style="margin-top: 10px; color: #64748b;">点击“执行评估”调用 `/api/strategy/execution/evaluate/`</div>
                     <pre id="evalResult" style="margin-top: 10px; background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 8px; font-size: 12px; max-height: 260px; overflow: auto;">暂无结果</pre>
                 </div>
             </div>
@@ -569,7 +569,7 @@ async function runExecutionEvaluate() {
     evalResult.textContent = '请求中...';
 
     try {
-        const res = await fetch('/strategy/api/execution/evaluate/', {
+        const res = await fetch('/api/strategy/execution/evaluate/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -750,7 +750,7 @@ function filterLogs() {
 let logsOffset = 20;
 async function loadMoreLogs() {
     try {
-        const res = await fetch(`/strategy/api/strategies/{{ strategy.id }}/execution_logs/?offset=${logsOffset}&limit=20`);
+        const res = await fetch(`/api/strategy/strategies/{{ strategy.id }}/execution_logs/?offset=${logsOffset}&limit=20`);
         const data = await res.json();
 
         if (data.results && data.results.length > 0) {
@@ -900,7 +900,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     // 加载测试账户
     const select = document.getElementById('testAccount');
     try {
-        const res = await fetch('/simulated-trading/api/accounts/');
+        const res = await fetch('/api/simulated-trading/accounts/');
         const data = await res.json();
         const accounts = Array.isArray(data) ? data : (data.accounts || []);
         if (Array.isArray(accounts)) {

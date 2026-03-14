@@ -29,6 +29,10 @@
 | backtest | `/api/backtest/` | 旧 `/backtest/api/` 仅保留兼容 |
 | ai_provider | `/api/ai/` | 旧 `/ai/api/` 仅保留兼容 |
 | prompt | `/api/prompt/` | 旧 `/prompt/api/` 仅保留兼容 |
+| strategy | `/api/strategy/` | 旧 `/strategy/api/` 仅保留兼容 |
+| simulated_trading | `/api/simulated-trading/` | 旧 `/simulated-trading/api/` 仅保留兼容 |
+| realtime | `/api/realtime/` | root 不再重定向到子路径 |
+| system | `/api/system/` | task monitor root 已补齐 |
 | fund | `/api/fund/` | 读取 `rank/info/nav/holding/style` |
 | sector | `/api/sector/` | 当前对外可用入口为 `rotation/` |
 | rotation | `/api/rotation/` | recommendation/assets/configs/signals/templates/account-configs |
@@ -47,6 +51,8 @@
 - backtest SDK: `/backtest/api/*` -> `/api/backtest/*`
 - ai provider SDK: `/ai/api/*` -> `/api/ai/*`
 - prompt SDK: `/prompt/api/*` -> `/api/prompt/*`
+- strategy SDK: `/strategy/api/*` -> `/api/strategy/*`
+- simulated trading SDK: `/simulated-trading/api/*` -> `/api/simulated-trading/*`
 - policy SDK: `/policy/...` -> `/api/policy/...`
 - fund SDK: 历史 `funds/*` -> 当前 `rank/info/nav/holding/style`
 - sector SDK: 历史 `sectors/*` -> 当前 `rotation/`
