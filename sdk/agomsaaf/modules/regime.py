@@ -134,7 +134,7 @@ class RegimeModule(BaseModule):
 
         response = self._get("history/", params=params)
         if isinstance(response, dict):
-            items = response.get("results", [])
+            items = response.get("data", response.get("results", []))
         elif isinstance(response, list):
             items = response
         else:
@@ -165,7 +165,13 @@ class RegimeModule(BaseModule):
             >>> for regime_type, days in distribution.items():
             ...     print(f"{regime_type}: {days} 天")
         """
-        history = self.history(start_date=start_date, end_date=end_date, limit=10000)
+        params: dict[str, Any] = {}
+        if start_date is not None:
+            params["start_date"] = start_date.isoformat()
+        if end_date is not None:
+            params["end_date"] = end_date.isoformat()
+        response = self._get("distribution/", params=params)
+        stats = response.get("distribution", []) if isinstance(response, dict) else []
 
         distribution: dict[RegimeType, int] = {
             "Recovery": 0,
@@ -173,10 +179,10 @@ class RegimeModule(BaseModule):
             "Stagflation": 0,
             "Repression": 0,
         }
-
-        for state in history:
-            distribution[state.dominant_regime] += 1
-
+        for stat in stats:
+            regime = stat.get("dominant_regime")
+            if regime in distribution:
+                distribution[regime] = stat.get("count", 0)
         return distribution
 
     def _parse_regime_state(self, data: dict[str, Any]) -> RegimeState:

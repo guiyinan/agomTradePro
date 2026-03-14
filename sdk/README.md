@@ -91,12 +91,13 @@ Configure in `~/.config/claude-code/mcp_servers.json`:
 ```json
 {
   "mcpServers": {
-    "agomsaaf": {
+    "agomsaaf_local": {
       "command": "python",
       "args": ["-m", "agomsaaf_mcp.server"],
       "cwd": "D:/githv/agomSAAF/sdk",
       "env": {
-        "AGOMSAAF_BASE_URL": "http://localhost:8000",
+        "AGOMSAAF_BASE_URL": "http://127.0.0.1:8000",
+        "AGOMSAAF_API_BASE_URL": "http://127.0.0.1:8000",
         "AGOMSAAF_API_TOKEN": "your_token_here"
       }
     }
@@ -109,6 +110,12 @@ You can also start MCP manually (for smoke testing):
 ```bash
 agomsaaf-mcp
 ```
+
+Recommended:
+
+- repo `.mcp.json`: keep only `agomsaaf_local`
+- client global config: split `agomsaaf_local` and `agomsaaf_prod`
+- do not switch environments by editing one shared server entry
 
 If your environment has a global proxy, set local bypass for loopback:
 
@@ -132,6 +139,7 @@ Three methods (priority order):
 1. **Constructor parameters**
 2. **Environment variables**:
    - `AGOMSAAF_BASE_URL`
+   - `AGOMSAAF_API_BASE_URL` (legacy alias, still supported)
    - `AGOMSAAF_API_TOKEN`
    - `AGOMSAAF_USERNAME`
    - `AGOMSAAF_PASSWORD`
@@ -162,6 +170,10 @@ Three methods (priority order):
 | `client.config_center` | **Config center** - unified config snapshot and capabilities |
 
 ## MCP Tools (60+)
+
+Canonical API routing for SDK/MCP is documented in:
+
+- [`docs/development/api-mcp-sdk-alignment-2026-03-14.md`](../docs/development/api-mcp-sdk-alignment-2026-03-14.md)
 
 ### Core Tools
 - **Regime**: `get_current_regime`, `calculate_regime`, `get_regime_history`, `explain_regime`

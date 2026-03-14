@@ -46,10 +46,12 @@ class SectorModule(BaseModule):
             >>> for sector in sectors:
             ...     print(f"{sector['name']}: {sector['stock_count']}")
         """
-        params: dict[str, Any] = {"limit": limit}
-        response = self._get("sectors/", params=params)
-        results = response.get("results", response)
-        return results
+        regime = self._resolve_current_regime()
+        params: dict[str, Any] = {"top_n": limit}
+        if regime:
+            params["regime"] = regime
+        response = self._get("rotation/", params=params)
+        return response.get("top_sectors", [])
 
     def get_sector_score(
         self,
@@ -122,13 +124,19 @@ class SectorModule(BaseModule):
             >>> for sector in recs:
             ...     print(f"{sector['name']}: {sector['reason']}")
         """
-        params: dict[str, Any] = {"limit": limit}
+        params: dict[str, Any] = {"top_n": limit}
         if regime is not None:
             params["regime"] = regime
 
-        response = self._get("recommendations/", params=params)
-        results = response.get("results", response)
-        return results
+        response = self._get("rotation/", params=params)
+        return response.get("top_sectors", [])
+
+    def _resolve_current_regime(self) -> Optional[str]:
+        response = self._client.get("/api/regime/current/")
+        if isinstance(response, dict):
+            payload = response.get("data", response)
+            return payload.get("dominant_regime")
+        return None
 
     def analyze_sector(
         self,

@@ -125,7 +125,16 @@ class BacktestViewSet(viewsets.ViewSet):
     def list(self, request):
         """列出所有回测"""
         status_filter = request.query_params.get('status')
-        limit = request.query_params.get('limit', type=int)
+        limit_param = request.query_params.get('limit')
+        limit = None
+        if limit_param not in (None, ''):
+            try:
+                limit = int(limit_param)
+            except (TypeError, ValueError):
+                return Response(
+                    {'error': 'limit must be an integer'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
         use_case = ListBacktestsUseCase(self.repository)
         req = ListBacktestsRequest(status=status_filter, limit=limit)

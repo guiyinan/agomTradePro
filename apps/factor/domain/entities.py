@@ -199,9 +199,11 @@ class FactorPortfolioConfig:
 
         # Validate factor weights
         if self.factor_weights:
-            total_weight = sum(self.factor_weights.values())
+            total_weight = sum(abs(weight) for weight in self.factor_weights.values())
             if abs(total_weight - 1.0) > 0.01:
-                raise ValueError(f"Factor weights must sum to 1.0, got {total_weight}")
+                raise ValueError(
+                    f"Absolute factor weights must sum to 1.0, got {total_weight}"
+                )
 
     def get_effective_universe(self) -> str:
         """Get the effective universe code"""

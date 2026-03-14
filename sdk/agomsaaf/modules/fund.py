@@ -25,8 +25,7 @@ class FundModule(BaseModule):
         Args:
             client: AgomSAAF 客户端实例
         """
-        # Backend fund endpoints are served under /fund/api/*
-        super().__init__(client, "/fund/api")
+        super().__init__(client, "/api/fund")
 
     def get_fund_score(
         self,
@@ -81,16 +80,15 @@ class FundModule(BaseModule):
             >>> for fund in funds:
             ...     print(f"{fund['code']}: {fund['name']}")
         """
-        params: dict[str, Any] = {"limit": limit}
+        params: dict[str, Any] = {"max_count": limit}
 
         if fund_type is not None:
             params["fund_type"] = fund_type
         if min_score is not None:
             params["min_score"] = min_score
 
-        response = self._get("funds/", params=params)
-        results = response.get("results", response)
-        return results
+        response = self._get("rank/", params=params)
+        return response.get("funds", [])
 
     def get_fund_detail(self, fund_code: str) -> dict[str, Any]:
         """
@@ -111,7 +109,7 @@ class FundModule(BaseModule):
             >>> print(f"基金名称: {detail['name']}")
             >>> print(f"基金类型: {detail['fund_type']}")
         """
-        return self._get(f"funds/{fund_code}/")
+        return self._get(f"info/{fund_code}/")
 
     def get_recommendations(
         self,
@@ -139,15 +137,14 @@ class FundModule(BaseModule):
             >>> for fund in recs:
             ...     print(f"{fund['code']}: {fund['reason']}")
         """
-        params: dict[str, Any] = {"limit": limit}
+        params: dict[str, Any] = {"max_count": limit}
         if regime is not None:
             params["regime"] = regime
         if fund_type is not None:
             params["fund_type"] = fund_type
 
-        response = self._get("recommendations/", params=params)
-        results = response.get("results", response)
-        return results
+        response = self._get("rank/", params=params)
+        return response.get("funds", [])
 
     def analyze_fund(
         self,
@@ -176,7 +173,7 @@ class FundModule(BaseModule):
         if as_of_date is not None:
             params["as_of_date"] = as_of_date.isoformat()
 
-        return self._get(f"funds/{fund_code}/analyze/", params=params)
+        return self._get(f"style/{fund_code}/", params=params)
 
     def get_nav_history(
         self,
@@ -215,9 +212,8 @@ class FundModule(BaseModule):
         if end_date is not None:
             params["end_date"] = end_date.isoformat()
 
-        response = self._get(f"funds/{fund_code}/nav-history/", params=params)
-        results = response.get("results", response)
-        return results
+        response = self._get(f"nav/{fund_code}/", params=params)
+        return response.get("data", response.get("results", response))
 
     def get_holdings(
         self,
@@ -244,9 +240,8 @@ class FundModule(BaseModule):
         if as_of_date is not None:
             params["as_of_date"] = as_of_date.isoformat()
 
-        response = self._get(f"funds/{fund_code}/holdings/", params=params)
-        results = response.get("results", response)
-        return results
+        response = self._get(f"holding/{fund_code}/", params=params)
+        return response.get("data", response.get("results", response))
 
     def get_performance(
         self,

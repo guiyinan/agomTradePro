@@ -25,7 +25,7 @@ class FactorModule:
         Returns:
             因子列表
         """
-        return self._client.get("factor/api/all-factors/")
+        return self._client.get("/api/factor/all-factors/")
 
     def get_all_configs(self) -> list[dict[str, Any]]:
         """
@@ -34,7 +34,7 @@ class FactorModule:
         Returns:
             配置列表
         """
-        return self._client.get("factor/api/all-configs/")
+        return self._client.get("/api/factor/all-configs/")
 
     def get_top_stocks(
         self,
@@ -53,7 +53,7 @@ class FactorModule:
             选股结果
         """
         return self._client.post(
-            "factor/api/top-stocks/",
+            "/api/factor/top-stocks/",
             json={
                 "factor_preferences": factor_preferences,
                 "top_n": top_n,
@@ -77,7 +77,7 @@ class FactorModule:
         """
         date_str = trade_date.isoformat() if trade_date else None
         return self._client.post(
-            "factor/api/create-portfolio/",
+            "/api/factor/create-portfolio/",
             json={
                 "config_name": config_name,
                 "trade_date": date_str,
@@ -100,7 +100,7 @@ class FactorModule:
             得分说明
         """
         return self._client.post(
-            "factor/api/explain-stock/",
+            "/api/factor/explain-stock/",
             json={
                 "stock_code": stock_code,
                 "factor_weights": factor_weights,

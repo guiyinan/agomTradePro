@@ -97,7 +97,7 @@ class RotationIntegrationService:
             signal = domain_service.generate_signal(config)
 
             # Save to database
-            config_model = self.config_repo.get_by_name(config_name)
+            config_model = self.config_repo.get_model_by_name(config_name)
             if config_model:
                 signal_model = self.signal_repo.save(signal, config_model.id)
 
@@ -328,12 +328,11 @@ class RotationIntegrationService:
             Current regime name or None
         """
         try:
-            from apps.regime.application.services import RegimeService
-            regime_service = RegimeService()
-            current_state = regime_service.get_current_regime()
+            from apps.regime.application.current_regime import resolve_current_regime
 
+            current_state = resolve_current_regime(as_of_date=date.today())
             if current_state:
-                return current_state.regime
+                return current_state.dominant_regime
         except Exception as e:
             logger.warning(f"Failed to get current regime: {e}")
 

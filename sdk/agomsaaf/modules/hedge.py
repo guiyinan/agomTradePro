@@ -25,7 +25,7 @@ class HedgeModule:
         Returns:
             对冲对列表
         """
-        result = self._client.get("hedge/api/pairs/")
+        result = self._client.get("/api/hedge/pairs/")
         return result.get("results", result) if isinstance(result, dict) else result
 
     def get_pair_info(self, pair_name: str) -> Optional[dict[str, Any]]:
@@ -66,7 +66,7 @@ class HedgeModule:
             相关性指标
         """
         return self._client.post(
-            "hedge/api/actions/calculate-correlation/",
+            "/api/hedge/actions/calculate-correlation/",
             json={
                 "asset1": asset1,
                 "asset2": asset2,
@@ -90,7 +90,7 @@ class HedgeModule:
             相关性矩阵
         """
         return self._client.post(
-            "hedge/api/actions/get-correlation-matrix/",
+            "/api/hedge/actions/get-correlation-matrix/",
             json={
                 "asset_codes": asset_codes,
                 "window_days": window_days,
@@ -112,7 +112,7 @@ class HedgeModule:
             对冲比例及详情
         """
         return self._client.post(
-            "hedge/api/actions/check-hedge-ratio/",
+            "/api/hedge/actions/check-hedge-ratio/",
             json={"pair_name": pair_name}
         )
 
@@ -137,7 +137,7 @@ class HedgeModule:
 
         pair_id = pair_info.get("id")
         return self._client.post(
-            f"hedge/api/pairs/{pair_id}/check_effectiveness/",
+            f"/api/hedge/pairs/{pair_id}/check_effectiveness/",
             json={}
         )
 
@@ -148,7 +148,7 @@ class HedgeModule:
         Returns:
             所有效率评估结果
         """
-        return self._client.get("hedge/api/pairs/all_effectiveness/")
+        return self._client.get("/api/hedge/pairs/all_effectiveness/")
 
     # ========================================================================
     # Portfolio State
@@ -164,7 +164,7 @@ class HedgeModule:
         Returns:
             组合状态
         """
-        holdings = self._client.get("hedge/api/holdings/latest/")
+        holdings = self._client.get("/api/hedge/holdings/latest/")
         results = holdings.get("results", holdings) if isinstance(holdings, dict) else holdings
 
         for holding in results:
@@ -180,7 +180,7 @@ class HedgeModule:
         Returns:
             更新结果
         """
-        return self._client.post("hedge/api/holdings/update_all/")
+        return self._client.post("/api/hedge/holdings/update_all/")
 
     # ========================================================================
     # Alerts
@@ -196,7 +196,7 @@ class HedgeModule:
         Returns:
             告警列表
         """
-        result = self._client.get(f"hedge/api/alerts/active/?days={days}")
+        result = self._client.get(f"/api/hedge/alerts/active/?days={days}")
         return result.get("results", result) if isinstance(result, dict) else result
 
     def monitor_alerts(self) -> dict[str, Any]:
@@ -206,7 +206,7 @@ class HedgeModule:
         Returns:
             生成的告警
         """
-        return self._client.post("hedge/api/alerts/monitor/")
+        return self._client.post("/api/hedge/alerts/monitor/")
 
     def resolve_alert(self, alert_id: int) -> dict[str, Any]:
         """
@@ -218,4 +218,4 @@ class HedgeModule:
         Returns:
             操作结果
         """
-        return self._client.post(f"hedge/api/alerts/{alert_id}/resolve/")
+        return self._client.post(f"/api/hedge/alerts/{alert_id}/resolve/")

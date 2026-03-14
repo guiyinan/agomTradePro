@@ -75,7 +75,7 @@ class BacktestModule(BaseModule):
         if params is not None:
             data["params"] = params
 
-        response = self._post("run/", json=data)
+        response = self._post("api/run/", json=data)
         return self._parse_result(response)
 
     def get_result(self, backtest_id: int) -> BacktestResult:
@@ -97,7 +97,7 @@ class BacktestModule(BaseModule):
             >>> print(f"状态: {result.status}")
             >>> print(f"总收益: {result.total_return:.2%}")
         """
-        response = self._get(f"results/{backtest_id}/")
+        response = self._get(f"api/backtests/{backtest_id}/")
         return self._parse_result(response)
 
     def list_backtests(
@@ -133,8 +133,8 @@ class BacktestModule(BaseModule):
         if status is not None:
             params["status"] = status
 
-        response = self._get("results/", params=params)
-        results = response.get("results", response)
+        response = self._get("api/backtests/", params=params)
+        results = response.get("backtests", response.get("results", response))
         return [self._parse_result(item) for item in results]
 
     def delete_result(self, backtest_id: int) -> None:
@@ -152,7 +152,7 @@ class BacktestModule(BaseModule):
             >>> client.backtest.delete_result(123)
             >>> print("回测结果已删除")
         """
-        self._delete(f"results/{backtest_id}/")
+        self._delete(f"api/backtests/{backtest_id}/")
 
     def get_equity_curve(self, backtest_id: int) -> list[dict[str, Any]]:
         """
@@ -173,7 +173,7 @@ class BacktestModule(BaseModule):
             >>> for point in curve:
             ...     print(f"{point['date']}: {point['value']:.2f}")
         """
-        response = self._get(f"results/{backtest_id}/equity-curve/")
+        response = self._get(f"api/backtests/{backtest_id}/equity-curve/")
         return response.get("curve", response)
 
     def _parse_result(self, data: dict[str, Any]) -> BacktestResult:
@@ -186,11 +186,13 @@ class BacktestModule(BaseModule):
         Returns:
             BacktestResult 对象
         """
+        result = data.get("result", {}) if isinstance(data, dict) else {}
+        backtest_id = data.get("id", data.get("backtest_id", 0))
         return BacktestResult(
-            id=data["id"],
-            status=data["status"],
-            total_return=data["total_return"],
-            annual_return=data["annual_return"],
-            max_drawdown=data["max_drawdown"],
-            sharpe_ratio=data.get("sharpe_ratio"),
+            id=backtest_id,
+            status=data.get("status", "unknown"),
+            total_return=result.get("total_return", data.get("total_return", 0.0)),
+            annual_return=result.get("annual_return", data.get("annual_return", 0.0)),
+            max_drawdown=result.get("max_drawdown", data.get("max_drawdown", 0.0)),
+            sharpe_ratio=result.get("sharpe_ratio", data.get("sharpe_ratio")),
         )

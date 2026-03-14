@@ -83,6 +83,13 @@ class RotationConfigRepository:
         except RotationConfigModel.DoesNotExist:
             return None
 
+    def get_model_by_name(self, name: str) -> Optional[RotationConfigModel]:
+        """Get rotation configuration ORM model by name."""
+        try:
+            return RotationConfigModel._default_manager.get(name=name)
+        except RotationConfigModel.DoesNotExist:
+            return None
+
     def get_by_id(self, config_id: int) -> Optional[RotationConfig]:
         """Get rotation configuration by ID"""
         try:
@@ -127,16 +134,18 @@ class RotationSignalRepository:
 
     def save(self, signal: RotationSignal, config_id: int) -> RotationSignalModel:
         """Save rotation signal"""
-        model = RotationSignalModel._default_manager.create(
+        model, _ = RotationSignalModel._default_manager.update_or_create(
             config_id=config_id,
             signal_date=signal.signal_date,
-            target_allocation=signal.target_allocation,
-            current_regime=signal.current_regime,
-            momentum_ranking=signal.momentum_ranking,
-            expected_volatility=signal.expected_volatility,
-            expected_return=signal.expected_return,
-            action_required=signal.action_required,
-            reason=signal.reason,
+            defaults={
+                'target_allocation': signal.target_allocation,
+                'current_regime': signal.current_regime,
+                'momentum_ranking': signal.momentum_ranking,
+                'expected_volatility': signal.expected_volatility,
+                'expected_return': signal.expected_return,
+                'action_required': signal.action_required,
+                'reason': signal.reason,
+            },
         )
         return model
 

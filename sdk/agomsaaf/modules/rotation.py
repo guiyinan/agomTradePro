@@ -32,7 +32,7 @@ class RotationModule:
             推荐配置字典
         """
         return self._client.get(
-            "rotation/api/recommendation/",
+            "/api/rotation/recommendation/",
             params={"strategy": strategy}
         )
 
@@ -52,7 +52,7 @@ class RotationModule:
             比较结果字典
         """
         return self._client.post(
-            "rotation/api/compare/",
+            "/api/rotation/compare/",
             json={
                 "asset_codes": asset_codes,
                 "lookback_days": lookback_days,
@@ -75,7 +75,7 @@ class RotationModule:
             相关性矩阵字典
         """
         return self._client.post(
-            "rotation/api/correlation/",
+            "/api/rotation/correlation/",
             json={
                 "asset_codes": asset_codes,
                 "window_days": window_days,
@@ -89,7 +89,7 @@ class RotationModule:
         Returns:
             配置列表
         """
-        result = self._client.get("rotation/api/configs/")
+        result = self._client.get("/api/rotation/configs/")
         return result.get("results", result) if isinstance(result, dict) else result
 
     def get_config(self, config_id: int) -> dict[str, Any]:
@@ -102,7 +102,7 @@ class RotationModule:
         Returns:
             配置详情
         """
-        return self._client.get(f"rotation/api/configs/{config_id}/")
+        return self._client.get(f"/api/rotation/configs/{config_id}/")
 
     def generate_signal(
         self,
@@ -121,7 +121,7 @@ class RotationModule:
         """
         date_str = signal_date.isoformat() if signal_date else None
         return self._client.post(
-            "rotation/api/generate-signal/",
+            "/api/rotation/generate-signal/",
             json={
                 "config_name": config_name,
                 "signal_date": date_str,
@@ -135,7 +135,7 @@ class RotationModule:
         Returns:
             信号列表
         """
-        return self._client.get("rotation/api/signals/latest/")
+        return self._client.get("/api/rotation/signals/latest/")
 
     def get_all_assets(self) -> list[dict[str, Any]]:
         """
@@ -144,7 +144,7 @@ class RotationModule:
         Returns:
             资产列表
         """
-        return self._client.get("rotation/api/assets/with_prices/")
+        return self._client.get("/api/rotation/assets/with_prices/")
 
     def get_asset_info(self, asset_code: str) -> Optional[dict[str, Any]]:
         """
@@ -156,11 +156,11 @@ class RotationModule:
         Returns:
             资产详情
         """
-        return self._client.get(f"rotation/api/assets/{asset_code}/detail/")
+        return self._client.get(f"/api/rotation/assets/{asset_code}/detail/")
 
     def clear_cache(self) -> dict[str, Any]:
         """清除价格缓存"""
-        return self._client.post("rotation/api/clear-cache/")
+        return self._client.post("/api/rotation/clear-cache/")
 
     def list_regimes(self) -> list[dict[str, Any]]:
         """
