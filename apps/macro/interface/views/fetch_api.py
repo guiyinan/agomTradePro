@@ -6,6 +6,7 @@ Handles data fetching, scheduling, and quick sync operations.
 
 from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 from django.core.management import call_command
 from apps.macro.infrastructure.adapters import AKShareAdapter
 from apps.macro.application.data_management import (
@@ -23,6 +24,7 @@ from .helpers import get_repository, get_sync_use_case
 logger = logging.getLogger(__name__)
 
 
+@csrf_exempt
 def api_fetch_data_stream(request):
     """
     API: 手动触发数据抓取（带进度推送）
@@ -196,6 +198,7 @@ def api_get_supported_indicators(request):
         }, status=500)
 
 
+@csrf_exempt
 def api_fetch_data(request):
     """
     API: 手动触发数据抓取
@@ -269,6 +272,7 @@ def api_get_due_indicators(request):
         }, status=500)
 
 
+@csrf_exempt
 def api_sync_due_indicators(request):
     """
     API: 同步所有到期指标
@@ -311,6 +315,7 @@ def api_sync_due_indicators(request):
 
 
 @require_http_methods(["POST"])
+@csrf_exempt
 def api_quick_sync(request):
     """
     API: 快速同步宏观数据（用于 Dashboard 一键同步）

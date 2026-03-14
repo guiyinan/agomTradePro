@@ -62,6 +62,7 @@ def _load_env_config() -> dict:
 
     支持的环境变量：
     - AGOMSAAF_BASE_URL
+    - AGOMSAAF_API_BASE_URL (legacy alias)
     - AGOMSAAF_API_TOKEN
     - AGOMSAAF_USERNAME
     - AGOMSAAF_PASSWORD
@@ -71,7 +72,7 @@ def _load_env_config() -> dict:
     """
     config = {}
 
-    if base_url := os.getenv("AGOMSAAF_BASE_URL"):
+    if base_url := (os.getenv("AGOMSAAF_BASE_URL") or os.getenv("AGOMSAAF_API_BASE_URL")):
         config["base_url"] = base_url
 
     if api_token := os.getenv("AGOMSAAF_API_TOKEN"):

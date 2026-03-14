@@ -12,7 +12,8 @@ Usage:
     cd sdk && python -m agomsaaf_mcp
 
 Environment Variables:
-    AGOMSAAF_API_BASE_URL: Base URL for AgomSAAF API (default: http://127.0.0.1:8000)
+    AGOMSAAF_BASE_URL / AGOMSAAF_API_BASE_URL: Base URL for AgomSAAF API
+        (default: http://127.0.0.1:8000)
     AGOMSAAF_API_TOKEN: API token for authentication
     AGOMSAAF_MCP_ROLE: RBAC role (default: viewer)
     AGOMSAAF_DEFAULT_PORTFOLIO_ID: Default portfolio ID for account resources
@@ -35,9 +36,12 @@ def main() -> None:
     from agomsaaf_mcp.server import main as server_main
 
     # Validate required environment variables
-    api_base = os.getenv("AGOMSAAF_API_BASE_URL")
+    api_base = os.getenv("AGOMSAAF_BASE_URL") or os.getenv("AGOMSAAF_API_BASE_URL")
     if not api_base:
-        print("Warning: AGOMSAAF_API_BASE_URL not set, using default: http://127.0.0.1:8000", file=sys.stderr)
+        print(
+            "Warning: AGOMSAAF_BASE_URL not set, using default: http://127.0.0.1:8000",
+            file=sys.stderr,
+        )
 
     api_token = os.getenv("AGOMSAAF_API_TOKEN")
     if not api_token:

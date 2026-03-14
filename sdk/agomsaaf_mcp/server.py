@@ -122,12 +122,20 @@ def resource_regime_current() -> str:
 
     client = AgomSAAFClient()
     regime = client.regime.get_current()
+    growth_line = regime.growth_indicator
+    if regime.growth_value is not None:
+        growth_line = f"{growth_line} ({regime.growth_value})"
+
+    inflation_line = regime.inflation_indicator
+    if regime.inflation_value is not None:
+        inflation_line = f"{inflation_line} ({regime.inflation_value})"
+
     return f"""当前宏观环境: {regime.dominant_regime}
 增长水平: {regime.growth_level}
 通胀水平: {regime.inflation_level}
 观测日期: {regime.observed_at}
-增长指标: {regime.growth_indicator} ({regime.growth_value})
-通胀指标: {regime.inflation_indicator} ({regime.inflation_value})"""
+增长指标: {growth_line}
+通胀指标: {inflation_line}"""
 
 @server.resource(
     "agomsaaf://policy/status",

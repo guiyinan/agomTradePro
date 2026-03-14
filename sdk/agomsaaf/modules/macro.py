@@ -19,6 +19,13 @@ class MacroModule(BaseModule):
     提供宏观指标查询、数据同步等功能。
     """
 
+    INDICATOR_ALIASES = {
+        "PMI": "CN_PMI",
+        "CPI": "CN_CPI",
+        "PPI": "CN_PPI",
+        "M2": "CN_M2",
+    }
+
     def __init__(self, client: Any) -> None:
         """
         初始化 Macro 模块
@@ -26,8 +33,9 @@ class MacroModule(BaseModule):
         Args:
             client: AgomSAAF 客户端实例
         """
-        # Backend macro endpoints are served under /macro/api/*
-        super().__init__(client, "/macro/api")
+        # Backend macro endpoints are served under /api/macro/*.
+        # The previous /macro/api/* path is no longer mounted in the current app.
+        super().__init__(client, "/api/macro")
 
     def list_indicators(
         self,
@@ -59,8 +67,11 @@ class MacroModule(BaseModule):
         if frequency is not None:
             params["frequency"] = frequency
 
-        response = self._get("indicators/", params=params)
-        results = response.get("results", response)
+        response = self._get("supported-indicators/", params=params)
+        if isinstance(response, dict):
+            results = response.get("indicators", response.get("results", response))
+        else:
+            results = response
         return [self._parse_indicator(item) for item in results]
 
     def get_indicator(self, indicator_code: str) -> MacroIndicator:
@@ -82,8 +93,12 @@ class MacroModule(BaseModule):
             >>> print(f"名称: {indicator.name}")
             >>> print(f"单位: {indicator.unit}")
         """
-        response = self._get(f"indicators/{indicator_code}/")
-        return self._parse_indicator(response)
+        normalized_code = self._normalize_indicator_code(indicator_code)
+        indicators = self.list_indicators(limit=1000)
+        for indicator in indicators:
+            if indicator.code == normalized_code:
+                return indicator
+        raise ValueError(f"Macro indicator not found: {indicator_code}")
 
     def get_indicator_data(
         self,
@@ -122,9 +137,13 @@ class MacroModule(BaseModule):
         if end_date is not None:
             params["end_date"] = end_date.isoformat()
 
-        response = self._get(f"indicators/{indicator_code}/data/", params=params)
-        results = response.get("results", response)
-        return [self._parse_data_point(item, indicator_code) for item in results]
+        normalized_code = self._normalize_indicator_code(indicator_code)
+        response = self._get("indicator-data/", params={"code": normalized_code, **params})
+        if isinstance(response, dict):
+            results = response.get("data", response.get("results", response))
+        else:
+            results = response
+        return [self._parse_data_point(item, normalized_code) for item in results]
 
     def get_latest_data(self, indicator_code: str) -> Optional[MacroDataPoint]:
         """
@@ -174,8 +193,17 @@ class MacroModule(BaseModule):
             >>> print(f"新增数据点: {result['created']}")
             >>> print(f"更新数据点: {result['updated']}")
         """
-        data = {"force": force}
-        return self._post(f"indicators/{indicator_code}/sync/", json=data)
+        normalized_code = self._normalize_indicator_code(indicator_code)
+        data = {
+            "indicators": [normalized_code],
+            "source": "akshare",
+            "force_refresh": force,
+        }
+        return self._post("fetch/", json=data)
+
+    def _normalize_indicator_code(self, indicator_code: str) -> str:
+        """Map legacy short names used by MCP/SDK docs to backend codes."""
+        return self.INDICATOR_ALIASES.get(indicator_code, indicator_code)
 
     def _parse_indicator(self, data: dict[str, Any]) -> MacroIndicator:
         """
@@ -190,9 +218,9 @@ class MacroModule(BaseModule):
         return MacroIndicator(
             code=data["code"],
             name=data["name"],
-            unit=data["unit"],
-            frequency=data["frequency"],
-            data_source=data["data_source"],
+            unit=data.get("unit", ""),
+            frequency=data.get("frequency", ""),
+            data_source=data.get("data_source", ""),
         )
 
     def _parse_data_point(self, data: dict[str, Any], indicator_code: str) -> MacroDataPoint:
