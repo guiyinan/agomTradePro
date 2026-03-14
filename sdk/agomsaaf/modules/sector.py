@@ -76,11 +76,15 @@ class SectorModule(BaseModule):
             >>> score = client.sector.get_sector_score("银行")
             >>> print(f"综合评分: {score['overall_score']}")
         """
-        params: dict[str, Any] = {}
-        if as_of_date is not None:
-            params["as_of_date"] = as_of_date.isoformat()
-
-        return self._get(f"sectors/{sector_name}/score/", params=params)
+        candidates = self.list_sectors(limit=200)
+        for sector in candidates:
+            if sector.get("sector_name") == sector_name or sector.get("name") == sector_name:
+                return sector
+        return {
+            "success": False,
+            "sector_name": sector_name,
+            "error": "sector score endpoint is not exposed by current canonical API",
+        }
 
     def get_sector_detail(self, sector_name: str) -> dict[str, Any]:
         """
@@ -101,7 +105,7 @@ class SectorModule(BaseModule):
             >>> print(f"股票数量: {detail['stock_count']}")
             >>> print(f"总市值: {detail['total_market_cap']}")
         """
-        return self._get(f"sectors/{sector_name}/")
+        return self.get_sector_score(sector_name)
 
     def get_recommendations(
         self,
@@ -161,11 +165,15 @@ class SectorModule(BaseModule):
             >>> print(f"估值分析: {analysis['valuation']}")
             >>> print(f"资金流向: {analysis['fund_flow']}")
         """
-        params: dict[str, Any] = {}
-        if as_of_date is not None:
-            params["as_of_date"] = as_of_date.isoformat()
-
-        return self._get(f"sectors/{sector_name}/analyze/", params=params)
+        detail = self.get_sector_detail(sector_name)
+        if detail.get("success") is False:
+            return detail
+        return {
+            "success": True,
+            "sector_name": sector_name,
+            "as_of_date": as_of_date.isoformat() if as_of_date else None,
+            "analysis": detail,
+        }
 
     def get_sector_stocks(
         self,
@@ -190,10 +198,10 @@ class SectorModule(BaseModule):
             >>> for stock in stocks:
             ...     print(f"{stock['code']}: {stock['score']}")
         """
-        params: dict[str, Any] = {"order_by": order_by, "limit": limit}
-        response = self._get(f"sectors/{sector_name}/stocks/", params=params)
-        results = response.get("results", response)
-        return results
+        stocks = self._client.equity.list_stocks(sector=sector_name, limit=limit)
+        if order_by == "score":
+            stocks.sort(key=lambda item: item.get("score") or 0, reverse=True)
+        return stocks[:limit]
 
     def get_sector_performance(
         self,
@@ -215,7 +223,13 @@ class SectorModule(BaseModule):
             >>> perf = client.sector.get_sector_performance("银行", period="1m")
             >>> print(f"近一月涨跌: {perf['change']:.2%}")
         """
-        return self._get(f"sectors/{sector_name}/performance/", params={"period": period})
+        detail = self.get_sector_detail(sector_name)
+        return {
+            "success": detail.get("success", True),
+            "sector_name": sector_name,
+            "period": period,
+            "data": detail,
+        }
 
     def compare_sectors(
         self,
@@ -236,8 +250,22 @@ class SectorModule(BaseModule):
             >>> for sector, data in comparison.items():
             ...     print(f"{sector}: 评分 {data['score']}")
         """
-        data = {"sectors": sector_names}
-        return self._post("compare/", json=data)
+        all_sectors = self.list_sectors(limit=max(len(sector_names) * 10, 50))
+        matched: dict[str, Any] = {}
+        for sector_name in sector_names:
+            matched[sector_name] = next(
+                (
+                    sector
+                    for sector in all_sectors
+                    if sector.get("sector_name") == sector_name or sector.get("name") == sector_name
+                ),
+                {
+                    "success": False,
+                    "sector_name": sector_name,
+                    "error": "sector not found in current rotation snapshot",
+                },
+            )
+        return matched
 
     def get_hot_sectors(
         self,
@@ -258,7 +286,4 @@ class SectorModule(BaseModule):
             >>> for sector in hot:
             ...     print(f"{sector['name']}: {sector['change']:.2%}")
         """
-        params: dict[str, Any] = {"limit": limit}
-        response = self._get("hot-sectors/", params=params)
-        results = response.get("results", response)
-        return results
+        return self.list_sectors(limit=limit)

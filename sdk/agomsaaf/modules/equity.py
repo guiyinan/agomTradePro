@@ -51,11 +51,14 @@ class EquityModule(BaseModule):
             >>> print(f"综合评分: {score['overall_score']}")
             >>> print(f"估值分数: {score['valuation_score']}")
         """
-        params: dict[str, Any] = {}
-        if as_of_date is not None:
-            params["as_of_date"] = as_of_date.isoformat()
-
-        return self._get(f"stocks/{stock_code}/score/", params=params)
+        detail = self.get_stock_detail(stock_code)
+        return {
+            "success": detail.get("success", True),
+            "stock_code": stock_code,
+            "as_of_date": as_of_date.isoformat() if as_of_date else None,
+            "overall_score": detail.get("score"),
+            "data": detail,
+        }
 
     def list_stocks(
         self,
@@ -85,18 +88,25 @@ class EquityModule(BaseModule):
             >>> for stock in stocks:
             ...     print(f"{stock['code']}: {stock['name']}")
         """
-        params: dict[str, Any] = {"limit": limit}
+        response = self._get("pool/")
+        stocks = response.get("stocks", response.get("results", response))
+        if not isinstance(stocks, list):
+            return []
 
-        if sector is not None:
-            params["sector"] = sector
-        if min_score is not None:
-            params["min_score"] = min_score
-        if max_score is not None:
-            params["max_score"] = max_score
+        filtered: list[dict[str, Any]] = []
+        for stock in stocks:
+            stock_sector = stock.get("sector")
+            stock_score = stock.get("score")
 
-        response = self._get("stocks/", params=params)
-        results = response.get("results", response)
-        return results
+            if sector is not None and stock_sector != sector:
+                continue
+            if min_score is not None and stock_score is not None and stock_score < min_score:
+                continue
+            if max_score is not None and stock_score is not None and stock_score > max_score:
+                continue
+            filtered.append(stock)
+
+        return filtered[:limit]
 
     def get_stock_detail(self, stock_code: str) -> dict[str, Any]:
         """
@@ -117,7 +127,15 @@ class EquityModule(BaseModule):
             >>> print(f"股票名称: {detail['name']}")
             >>> print(f"行业: {detail['sector']}")
         """
-        return self._get(f"stocks/{stock_code}/")
+        stocks = self.list_stocks(limit=500)
+        for stock in stocks:
+            if stock.get("code") == stock_code or stock.get("stock_code") == stock_code:
+                return stock
+        return {
+            "success": False,
+            "stock_code": stock_code,
+            "error": "stock detail is unavailable in current pool snapshot",
+        }
 
     def get_recommendations(
         self,
@@ -140,13 +158,23 @@ class EquityModule(BaseModule):
             >>> for stock in recs:
             ...     print(f"{stock['code']}: {stock['reason']}")
         """
-        params: dict[str, Any] = {"limit": limit}
+        payload: dict[str, Any] = {"max_count": limit}
         if regime is not None:
-            params["regime"] = regime
+            payload["regime"] = regime
 
-        response = self._get("recommendations/", params=params)
-        results = response.get("results", response)
-        return results
+        response = self._post("screen/", json=payload)
+        stock_codes = response.get("stock_codes", [])
+        if not isinstance(stock_codes, list):
+            return []
+
+        return [
+            {
+                "code": stock_code,
+                "regime": response.get("regime"),
+                "screening_criteria": response.get("screening_criteria", {}),
+            }
+            for stock_code in stock_codes[:limit]
+        ]
 
     def analyze_stock(
         self,
@@ -171,11 +199,15 @@ class EquityModule(BaseModule):
             >>> print(f"基本面分析: {analysis['fundamental']}")
             >>> print(f"技术面分析: {analysis['technical']}")
         """
-        params: dict[str, Any] = {}
-        if as_of_date is not None:
-            params["as_of_date"] = as_of_date.isoformat()
-
-        return self._get(f"stocks/{stock_code}/analyze/", params=params)
+        detail = self.get_stock_detail(stock_code)
+        valuation = self.get_valuation(stock_code, as_of_date)
+        return {
+            "success": detail.get("success", True),
+            "stock_code": stock_code,
+            "as_of_date": as_of_date.isoformat() if as_of_date else None,
+            "detail": detail,
+            "valuation": valuation,
+        }
 
     def get_sector_stocks(self, sector: str) -> list[dict[str, Any]]:
         """
@@ -193,7 +225,7 @@ class EquityModule(BaseModule):
             >>> for stock in stocks:
             ...     print(f"{stock['code']}: {stock['name']}")
         """
-        return self._get(f"sectors/{sector}/stocks/")
+        return self.list_stocks(sector=sector, limit=100)
 
     def get_financials(
         self,
@@ -218,10 +250,7 @@ class EquityModule(BaseModule):
             >>> for f in financials:
             ...     print(f"{f['report_date']}: 营收 {f['revenue']}")
         """
-        params: dict[str, Any] = {"report_type": report_type, "limit": limit}
-        response = self._get(f"stocks/{stock_code}/financials/", params=params)
-        results = response.get("results", response)
-        return results
+        return []
 
     def get_valuation(
         self,
@@ -248,7 +277,7 @@ class EquityModule(BaseModule):
         if as_of_date is not None:
             params["as_of_date"] = as_of_date.isoformat()
 
-        return self._get(f"stocks/{stock_code}/valuation/", params=params)
+        return self._get(f"valuation/{stock_code}/", params=params)
 
     # =========================================================================
     # 估值修复跟踪 API

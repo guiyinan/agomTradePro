@@ -133,7 +133,7 @@ IndicatorThresholdConfig {
 
 ### Attribution Endpoints
 
-#### POST /audit/api/reports/generate/
+#### POST /api/audit/reports/generate/
 Generate attribution report for a backtest.
 
 **Request:**
@@ -158,7 +158,7 @@ Generate attribution report for a backtest.
 }
 ```
 
-#### GET /audit/api/summary/
+#### GET /api/audit/summary/
 Get attribution summary by backtest or date range.
 
 **Query Parameters:**
@@ -180,10 +180,10 @@ Get attribution summary by backtest or date range.
 
 ### Indicator Performance Endpoints
 
-#### GET /audit/api/indicator-performance/<indicator_code>/
+#### GET /api/audit/indicator-performance/<indicator_code>/
 Get detailed performance for a single indicator.
 
-#### POST /audit/api/validate-all-indicators/
+#### POST /api/audit/validate-all-indicators/
 Run validation for all indicators.
 
 **Request:**
@@ -195,7 +195,13 @@ Run validation for all indicators.
 }
 ```
 
-#### POST /audit/api/update-threshold/
+#### POST /api/audit/update-threshold/
+
+### API Routing Rule
+
+- Canonical API: `/api/audit/...`
+- Legacy compatibility: `/audit/api/...`
+- SDK / MCP / frontend new code must use canonical `/api/audit/...`
 Update indicator threshold configuration.
 
 **Request:**

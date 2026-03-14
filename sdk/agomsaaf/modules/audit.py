@@ -7,7 +7,7 @@ from .base import BaseModule
 
 class AuditModule(BaseModule):
     def __init__(self, client: Any) -> None:
-        super().__init__(client, "/audit/api")
+        super().__init__(client, "/api/audit")
 
     def generate_report(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._post("reports/generate/", json=payload)

@@ -187,7 +187,7 @@ API：
 ### 8.1 页面与 API
 
 1. 页面: `/audit/reports/`、`/audit/indicator-performance/`、`/audit/threshold-validation/`
-2. API: `POST /api/audit/api/reports/generate/`、`GET /api/audit/api/summary/`
+2. API: `POST /api/audit/reports/generate/`、`GET /api/audit/summary/`
 
 ### 8.2 归因维度
 
@@ -268,5 +268,4 @@ API：
 2. `POST /api/asset-analysis/screen/equity/`
 3. `POST /api/strategy/api/position-rules/{id}/evaluate/`
 4. `POST /simulated-trading/api/accounts/{id}/inspections/run/`
-5. `POST /api/audit/api/reports/generate/`
-
+5. `POST /api/audit/reports/generate/`

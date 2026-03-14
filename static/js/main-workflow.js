@@ -15,7 +15,7 @@ let pendingSubmitPayload = null;
 
 async function refreshWorkflowCandidates() {
     try {
-        const response = await fetch('/dashboard/api/workflow/refresh-candidates/', {
+        const response = await fetch('/api/dashboard/workflow/refresh-candidates/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

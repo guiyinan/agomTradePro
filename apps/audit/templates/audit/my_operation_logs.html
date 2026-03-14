@@ -143,7 +143,7 @@ $(document).ready(function() {
 function loadLogs(page = 1) {
     var params = $('#filter-form').serialize() + '&page=' + page;
 
-    $.get('/audit/api/operation-logs/?' + params, function(data) {
+    $.get('/api/audit/operation-logs/?' + params, function(data) {
         if (!data.success) {
             $('#logs-table').html('<tr><td colspan="7" class="text-center text-danger">加载失败: ' + (data.error || '未知错误') + '</td></tr>');
             return;
@@ -209,7 +209,7 @@ function updatePagination(currentPage, totalPages) {
 }
 
 function showDetail(logId) {
-    $.get('/audit/api/operation-logs/' + logId + '/', function(data) {
+    $.get('/api/audit/operation-logs/' + logId + '/', function(data) {
         if (!data.success) {
             alert('加载详情失败: ' + (data.error || '未知错误'));
             return;

@@ -195,7 +195,7 @@ $(document).ready(function() {
 });
 
 function loadStats() {
-    $.get('/audit/api/operation-logs/stats/', function(data) {
+    $.get('/api/audit/operation-logs/stats/', function(data) {
         $('#total-count').text(data.total_count.toLocaleString());
         $('#error-count').text(data.error_count.toLocaleString());
         $('#error-rate').text((data.error_rate * 100).toFixed(2) + '%');
@@ -214,7 +214,7 @@ function loadStats() {
 function loadLogs(page = 1) {
     var params = $('#filter-form').serialize() + '&page=' + page;
 
-    $.get('/audit/api/operation-logs/?' + params, function(data) {
+    $.get('/api/audit/operation-logs/?' + params, function(data) {
         if (!data.success) {
             alert('加载失败: ' + data.error);
             return;
@@ -273,7 +273,7 @@ function updatePagination(currentPage, totalPages) {
 }
 
 function showDetail(logId) {
-    $.get('/audit/api/operation-logs/' + logId + '/', function(data) {
+    $.get('/api/audit/operation-logs/' + logId + '/', function(data) {
         if (!data.success) {
             alert('加载详情失败: ' + data.error);
             return;
@@ -314,7 +314,7 @@ function showDetail(logId) {
 function exportLogs(format) {
     var params = $('#filter-form').serialize();
     var query = params ? params + '&format=' + encodeURIComponent(format) : 'format=' + encodeURIComponent(format);
-    window.location.href = '/audit/api/operation-logs/export/?' + query;
+    window.location.href = '/api/audit/operation-logs/export/?' + query;
 }
 
 function formatTime(isoString) {

@@ -75,7 +75,7 @@
 | 模块 | 旧路由格式 | 新路由格式 | 状态 |
 |------|-----------|-----------|------|
 | **backtest** | `/backtest/api/` | `/api/backtest/` | 双轨 |
-| **audit** | `/audit/api/` | `/api/audit/` | 双轨 |
+| **audit** | `/audit/api/` | `/api/audit/` | 双轨，canonical 为 `/api/audit/` |
 | **filter** | `/filter/api/` | `/api/filter/` | 双轨 |
 | **dashboard** | `/dashboard/api/v1/` | `/api/dashboard/v1/` | 双轨 |
 

@@ -224,7 +224,7 @@ class EquityViewSet(viewsets.ViewSet):
         request=AnalyzeValuationRequestSerializer,
         responses={200: AnalyzeValuationResponseSerializer},
     )
-    @action(detail=False, methods=['get'], url_path='valuation/(?P<stock_code>[^/.]+)')
+    @action(detail=False, methods=['get'], url_path='valuation/(?P<stock_code>[^/]+)')
     def analyze_valuation(self, request, stock_code):
         """
         GET /api/equity/valuation/{stock_code}/
@@ -326,7 +326,7 @@ class EquityViewSet(viewsets.ViewSet):
         request=AnalyzeRegimeCorrelationRequestSerializer,
         responses={200: AnalyzeRegimeCorrelationResponseSerializer},
     )
-    @action(detail=False, methods=['get'], url_path='regime-correlation/(?P<stock_code>[^/.]+)')
+    @action(detail=False, methods=['get'], url_path='regime-correlation/(?P<stock_code>[^/]+)')
     def analyze_regime_correlation(self, request, stock_code):
         """
         GET /api/equity/regime-correlation/{stock_code}/

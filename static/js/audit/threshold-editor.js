@@ -167,7 +167,7 @@ function saveThreshold(indicatorCode) {
     };
 
     // 发送 API 请求
-    fetch('/audit/api/update-threshold/', {
+    fetch('/api/audit/update-threshold/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -235,7 +235,7 @@ function saveThresholdSync(indicatorCode) {
         level_high: parseFloat(highSlider.value)
     };
 
-    return fetch('/audit/api/update-threshold/', {
+    return fetch('/api/audit/update-threshold/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -304,7 +304,7 @@ function previewThreshold(indicatorCode) {
 function runValidation() {
     showNotification('正在运行验证...', 'info');
 
-    fetch('/audit/api/run-validation/', {
+    fetch('/api/audit/run-validation/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

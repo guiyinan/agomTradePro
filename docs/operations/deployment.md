@@ -383,7 +383,7 @@ tail -100 /var/log/agomsaaf/application.log | grep ERROR
 
 | Module | Endpoint |
 |--------|----------|
-| Audit | `/api/audit/api/health/` |
+| Audit | `/api/audit/health/` |
 | Alpha | `/api/alpha/health/` |
 | Filter | `/api/filter/api/health/` |
 | Realtime | `/api/realtime/health/` |

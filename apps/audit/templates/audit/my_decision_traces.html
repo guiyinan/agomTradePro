@@ -52,7 +52,7 @@ function loadTraces(page) {
     if (token) {
         params += '&mcp_client_id=' + encodeURIComponent(token);
     }
-    $.get('/audit/api/decision-traces/?' + params, function(data) {
+    $.get('/api/audit/decision-traces/?' + params, function(data) {
         renderTraceList(data.traces || []);
         renderPagination(data.total_count || 0);
     });
@@ -103,7 +103,7 @@ function renderPagination(totalCount) {
 }
 
 function showTraceDetail(requestId, clientId) {
-    var url = '/audit/api/decision-traces/' + requestId + '/';
+    var url = '/api/audit/decision-traces/' + requestId + '/';
     if (clientId) {
         url += '?mcp_client_id=' + clientId;
     }

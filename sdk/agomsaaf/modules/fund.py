@@ -5,10 +5,11 @@ AgomSAAF SDK - Fund 基金分析模块
 提供基金分析相关的 API 操作。
 """
 
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, Optional
 
 from .base import BaseModule
+from ..exceptions import AgomSAAFAPIError
 
 
 class FundModule(BaseModule):
@@ -51,11 +52,16 @@ class FundModule(BaseModule):
             >>> print(f"综合评分: {score['overall_score']}")
             >>> print(f"业绩分数: {score['performance_score']}")
         """
-        params: dict[str, Any] = {}
-        if as_of_date is not None:
-            params["as_of_date"] = as_of_date.isoformat()
-
-        return self._get(f"funds/{fund_code}/score/", params=params)
+        funds = self.list_funds(limit=200)
+        for fund in funds:
+            if fund.get("fund_code") == fund_code or fund.get("code") == fund_code:
+                return fund
+        return {
+            "success": False,
+            "fund_code": fund_code,
+            "as_of_date": as_of_date.isoformat() if as_of_date else None,
+            "error": "fund score endpoint is not exposed by current canonical API",
+        }
 
     def list_funds(
         self,
@@ -264,4 +270,33 @@ class FundModule(BaseModule):
             >>> print(f"近一年收益: {perf['return']:.2%}")
             >>> print(f"夏普比率: {perf['sharpe']:.2f}")
         """
-        return self._get(f"funds/{fund_code}/performance/", params={"period": period})
+        days_by_period = {
+            "1m": 30,
+            "3m": 90,
+            "6m": 180,
+            "1y": 365,
+            "3y": 365 * 3,
+            "5y": 365 * 5,
+            "ytd": max((date.today() - date(date.today().year, 1, 1)).days, 1),
+            "inception": 365 * 10,
+        }
+        days = days_by_period.get(period, 365)
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days)
+        try:
+            response = self._post(
+                "performance/calculate/",
+                json={
+                    "fund_code": fund_code,
+                    "start_date": start_date.isoformat(),
+                    "end_date": end_date.isoformat(),
+                },
+            )
+        except AgomSAAFAPIError as exc:
+            return {
+                "success": False,
+                "fund_code": fund_code,
+                "period": period,
+                "error": str(exc),
+            }
+        return response.get("performance", response)

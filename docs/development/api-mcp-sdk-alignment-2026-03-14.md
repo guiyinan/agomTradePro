@@ -32,6 +32,7 @@
 | backtest | `/api/backtest/` | `api/backtests/` 与 `api/run/` 为当前挂载结果 |
 | equity | `/api/equity/` | valuation repair config 已对齐 |
 | market_data | `/api/market-data/` | MCP 外部市场数据链已打通 |
+| audit | `/api/audit/` | `/audit/api/` 仅保留页面/历史兼容 |
 
 ## 已修复的典型错配
 
@@ -44,6 +45,26 @@
 - factor SDK: `factor/api/*` -> `/api/factor/*`
 - regime SDK: distribution 不再通过 `history(limit=10000)` 侧算，改为 `/api/regime/distribution/`
 - backtest SDK: `results/*` -> 当前 `/api/backtest/api/backtests/*`
+- equity SDK: 历史 `stocks/*` -> 当前 `pool/`、`screen/`、`valuation/{stock_code}/`
+- sector SDK: 历史 `sectors/*` / `hot-sectors/` / `compare/` -> 当前 `rotation/` + 本地兼容聚合
+- fund SDK: 历史 `funds/*/performance/` -> 当前 `performance/calculate/`
+- audit API: 混合 `urls.py` 拆分为 `api_urls.py`，canonical `/api/audit/*` 与 legacy `/audit/api/*` 指向同一套视图
+
+## 根因总结
+
+本轮排查确认，反复出现的 404/400 主要来自四类系统性问题：
+
+1. SDK 中残留了早期资源型路由设计，如 `stocks/*`、`funds/*`、`sectors/*`，而后端现已演化为 action 型 API（如 `screen/`、`rank/`、`rotation/`、`pool/`）。
+2. 个别模块把页面路由和 API 路由混挂在同一入口，导致 `/api/...` 命中重定向或错误 View。
+3. DRF action 的路径正则曾使用 `[^/.]+`，会把 `000001.SZ` 这类带点代码挡掉，形成“接口存在但调用 404”的假象。
+4. 缺少覆盖 SDK/MCP 路由的自动护栏测试，导致后端改完后，SDK/MCP 仍可长期保留陈旧地址。
+5. `audit` 这类页面/API 混合模块如果继续直接挂到 `core` 的 `/api/{module}/`，会出现 `/api/audit/api/*` 这种双前缀畸形路径。
+
+## 新增护栏
+
+- 新增静态回归测试：
+  `sdk/tests/test_sdk/test_route_alignment_guardrails.py`
+- 该测试会阻止常见历史路由模式重新进入 SDK 模块。
 
 ## Regime V2 口径
 

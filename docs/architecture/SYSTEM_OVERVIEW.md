@@ -413,9 +413,9 @@ StopLossConfig(
 - ✅ 指标表现评估与阈值验证能力已接入
 
 **当前可用能力**:
-- 生成归因报告：`POST /audit/api/reports/generate/`
-- 查询审计摘要：`GET /audit/api/summary/`
-- 指标评估与阈值验证：`/audit/api/indicator-performance/*`、`/audit/api/run-validation/`
+- 生成归因报告：`POST /api/audit/reports/generate/`
+- 查询审计摘要：`GET /api/audit/summary/`
+- 指标评估与阈值验证：`/api/audit/indicator-performance/*`、`/api/audit/run-validation/`
 
 #### 13. `filter` - 筛选器管理
 
@@ -969,11 +969,11 @@ workflow = chain(
 - [x] 指标表现评估与阈值验证链路接入
 
 **当前接口（节选）**:
-- [x] `POST /audit/api/reports/generate/`
-- [x] `GET /audit/api/summary/`
-- [x] `GET /audit/api/attribution-chart-data/{report_id}/`
-- [x] `POST /audit/api/validate-all-indicators/`
-- [x] `POST /audit/api/run-validation/`
+- [x] `POST /api/audit/reports/generate/`
+- [x] `GET /api/audit/summary/`
+- [x] `GET /api/audit/attribution-chart-data/{report_id}/`
+- [x] `POST /api/audit/validate-all-indicators/`
+- [x] `POST /api/audit/run-validation/`
 
 **结果**:
 - ✅ 回测后可生成并查询归因报告

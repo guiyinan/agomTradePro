@@ -82,7 +82,7 @@ class AuditLogger:
         """
         self.backend_url = backend_url or os.getenv(
             'AGOMSAAF_AUDIT_URL',
-            'http://127.0.0.1:8000/audit/api/internal/operation-logs/'
+            'http://127.0.0.1:8000/api/audit/internal/operation-logs/'
         )
         self.secret_key = secret_key or os.getenv(
             'AGOMSAAF_AUDIT_SECRET_KEY',

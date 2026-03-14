@@ -196,7 +196,7 @@ module_patterns = [
     # P2: Backtest 模块
     path('api/backtest/', include(('apps.backtest.interface.urls', 'api_backtest'), namespace='api_backtest')),
     # P2: Audit 模块
-    path('api/audit/', include(('apps.audit.interface.urls', 'api_audit'), namespace='api_audit')),
+    path('api/audit/', include(('apps.audit.interface.api_urls', 'api_audit'), namespace='api_audit')),
     # P3: 其他模块
     path('api/equity/', include(('apps.equity.interface.api_urls', 'api_equity'), namespace='api_equity')),
     path('api/fund/', include(('apps.fund.interface.api_urls', 'api_fund'), namespace='api_fund')),

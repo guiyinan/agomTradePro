@@ -29,6 +29,7 @@
 | 模拟交易 | `/simulated-trading/api/` | `/api/simulated-trading/` |
 | 回测 | `/backtest/api/` | `/api/backtest/` |
 | 审计 | `/audit/api/` | `/api/audit/` |
+说明：新代码一律使用 `/api/audit/`。
 | 仪表盘 | `/dashboard/api/v1/` | `/api/dashboard/v1/` |
 
 ## 时间节点
