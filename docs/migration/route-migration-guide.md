@@ -31,14 +31,14 @@
 
 | 模块 | 旧路由格式 | 新路由格式 | 状态 |
 |------|-----------|-----------|------|
-| **account** | `/account/api/portfolios/` | `/api/account/portfolios/` | 双轨 |
-| **account** | `/account/api/positions/` | `/api/account/positions/` | 双轨 |
-| **regime** | `/api/regime/api/` | `/api/regime/` | 双轨 |
-| **regime** | `/api/regime/api/current/` | `/api/regime/current/` | 双轨 |
+| **account** | `/account/api/portfolios/` | `/api/account/portfolios/` | 兼容别名 |
+| **account** | `/account/api/positions/` | `/api/account/positions/` | 兼容别名 |
+| **regime** | `/api/regime/api/` | `/api/regime/` | 已废弃 |
+| **regime** | `/api/regime/api/current/` | `/api/regime/current/` | 已废弃 |
 | **signal** | `/api/signal/api/` | `/api/signal/` | 双轨 |
 | **signal** | `/api/signal/api/health/` | `/api/signal/health/` | 双轨 |
-| **macro** | `/macro/api/supported-indicators/` | `/api/macro/supported-indicators/` | 双轨 |
-| **macro** | `/macro/api/indicator-data/` | `/api/macro/indicator-data/` | 双轨 |
+| **macro** | `/macro/api/supported-indicators/` | `/api/macro/supported-indicators/` | 兼容别名 |
+| **macro** | `/macro/api/indicator-data/` | `/api/macro/indicator-data/` | 兼容别名 |
 | **policy** | `/policy/api/events/` | `/api/policy/events/` | 双轨 |
 | **realtime** | `/api/realtime/api/prices/` | `/api/realtime/prices/` | 双轨 |
 
@@ -74,9 +74,9 @@
 
 | 模块 | 旧路由格式 | 新路由格式 | 状态 |
 |------|-----------|-----------|------|
-| **backtest** | `/backtest/api/` | `/api/backtest/` | 双轨 |
+| **backtest** | `/backtest/api/` | `/api/backtest/` | 兼容别名 |
 | **audit** | `/audit/api/` | `/api/audit/` | 双轨，canonical 为 `/api/audit/` |
-| **filter** | `/filter/api/` | `/api/filter/` | 双轨 |
+| **filter** | `/filter/api/` | `/api/filter/` | 兼容别名 |
 | **dashboard** | `/dashboard/api/v1/` | `/api/dashboard/v1/` | 双轨 |
 
 ---
@@ -132,7 +132,7 @@ Link: </api/{module}/{resource}/>; rel="alternate"
 ```bash
 # 使用旧路由请求
 curl -H "Authorization: Token xxx" \
-     http://api.example.com/regime/api/current/
+     http://api.example.com/api/regime/current/
 
 # 响应头
 HTTP/1.1 200 OK
@@ -248,7 +248,7 @@ import requests
 
 # 旧路由（已废弃）
 response = requests.get(
-    "http://api.example.com/regime/api/current/",
+    "http://api.example.com/api/regime/current/",
     headers={"Authorization": "Token xxx"}
 )
 
@@ -263,7 +263,7 @@ response = requests.get(
 
 ```javascript
 // 旧路由（已废弃）
-fetch('http://api.example.com/regime/api/current/', {
+fetch('http://api.example.com/api/regime/current/', {
   headers: { 'Authorization': 'Token xxx' }
 })
 .then(r => r.json())
@@ -282,7 +282,7 @@ fetch('http://api.example.com/api/regime/current/', {
 ```bash
 # 旧路由（已废弃）
 curl -H "Authorization: Token xxx" \
-     http://api.example.com/regime/api/current/
+     http://api.example.com/api/regime/current/
 
 # 新路由（推荐）
 curl -H "Authorization: Token xxx" \
@@ -306,7 +306,7 @@ curl -H "Authorization: Token xxx" \
 ### 旧路由格式（已废弃）
 
 1. **双层 API 路径**: `/api/{module}/api/{resource}/`
-   - 示例: `/api/regime/api/` → `/api/regime/`
+   - 示例: `/regime/api/` 或 `/api/regime/api/` → `/api/regime/`
 
 2. **模块级 API 路径**: `/{module}/api/{resource}/`
    - 示例: `/rotation/api/` → `/api/rotation/`

@@ -1,15 +1,8 @@
-"""
-URL Configuration for Backtest Module.
-"""
+"""URL Configuration for Backtest Module."""
 
 from django.urls import path, include
 from django.views.generic import RedirectView
-from rest_framework.routers import DefaultRouter
 from . import views
-
-# DRF Router
-router = DefaultRouter()
-router.register(r'api/backtests', views.BacktestViewSet, basename='backtest')
 
 app_name = 'backtest'
 
@@ -21,10 +14,6 @@ urlpatterns = [
     path('<int:backtest_id>/', views.backtest_detail_view, name='detail'),
     path('reports/', RedirectView.as_view(url='/audit/reports/', permanent=False), name='reports-legacy'),
 
-    # API URLs (non-DRF)
-    path('api/statistics/', views.backtest_statistics_api_view, name='statistics-api'),
-    path('api/run/', views.run_backtest_api_view, name='run-api'),
-
-    # DRF URLs
-    path('', include(router.urls)),
+    # Legacy API compatibility under /backtest/api/*
+    path('api/', include(('apps.backtest.interface.api_urls', 'backtest_api'), namespace='legacy_backtest_api')),
 ]

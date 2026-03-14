@@ -7,7 +7,7 @@ from .base import BaseModule
 
 class PromptModule(BaseModule):
     def __init__(self, client: Any) -> None:
-        super().__init__(client, "/prompt/api")
+        super().__init__(client, "/api/prompt")
 
     def list_templates(self) -> list[dict[str, Any]]:
         response = self._get("templates/")

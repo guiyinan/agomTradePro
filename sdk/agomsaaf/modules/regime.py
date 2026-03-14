@@ -171,7 +171,18 @@ class RegimeModule(BaseModule):
         if end_date is not None:
             params["end_date"] = end_date.isoformat()
         response = self._get("distribution/", params=params)
-        stats = response.get("distribution", []) if isinstance(response, dict) else []
+        stats: list[dict[str, Any]]
+        if isinstance(response, dict) and "distribution" in response:
+            stats = response.get("distribution", [])
+        elif isinstance(response, dict) and "results" in response:
+            counts: dict[str, int] = {}
+            for item in response.get("results", []):
+                regime = item.get("dominant_regime")
+                if regime:
+                    counts[regime] = counts.get(regime, 0) + 1
+            stats = [{"dominant_regime": regime, "count": count} for regime, count in counts.items()]
+        else:
+            stats = []
 
         distribution: dict[RegimeType, int] = {
             "Recovery": 0,

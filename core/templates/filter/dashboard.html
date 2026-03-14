@@ -39,7 +39,7 @@ async function applyFilter() {
     btn.innerHTML = '<span class="btn-icon syncing">⟳</span> 计算中...';
 
     try {
-        const response = await fetch('/filter/api/', {
+        const response = await fetch('/api/filter/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -125,7 +125,7 @@ async function submitAIQuestion() {
     submitBtn.disabled = true;
 
     try {
-        const response = await fetch('/prompt/api/chat', {
+        const response = await fetch('/api/prompt/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

@@ -25,8 +25,8 @@ class AccountModule(BaseModule):
         Args:
             client: AgomSAAF 客户端实例
         """
-        # Backend account endpoints are served under /account/api/*
-        super().__init__(client, "/account/api")
+        # Canonical account endpoints are served under /api/account/*.
+        super().__init__(client, "/api/account")
 
     def get_portfolios(
         self,

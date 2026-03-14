@@ -71,7 +71,7 @@
 
 | 端点 | 状态 | 说明 |
 |------|------|------|
-| `/api/regime/api/` | 🔒 403 | 需要认证 |
+| `/api/regime/` | 🔒 403 | 需要认证 |
 | `/api/signal/api/` | 🔒 403 | 需要认证 |
 | `/api/policy/api/events/` | 🔒 403 | 需要认证 |
 | `/api/factor/api/definitions/` | 🔒 403 | 需要认证 |
@@ -82,7 +82,7 @@
 
 | 端点 | 原因 |
 |------|------|
-| `/api/regime/current/` | 路由不存在，正确路径为 `/api/regime/api/` |
+| `/api/regime/current/` | canonical 路径，需认证 |
 | `/api/regime/chart-data/` | 路由不存在 |
 | `/api/signals/` | 路由不存在，正确路径为 `/api/signal/api/` |
 
@@ -182,7 +182,7 @@
 | 1 | Alpha Models API | 列出 `/api/alpha/models/` 等端点 | 代码中不存在 | 待修复 |
 | 2 | 模块数量 | 27 个业务模块 | 实际 28 个（含 apps/shared） | ✅ 已修复 |
 | 3 | sentiment 模块 | 暗示完整功能 | 缺少路由配置 | 待修复 |
-| 4 | API 路由格式 | `/api/regime/current/` | `/api/regime/api/` | 待修复 |
+| 4 | API 路由格式 | `/api/regime/api/` | `/api/regime/` | 已修复 |
 
 ---
 
@@ -193,7 +193,7 @@
 系统存在两种路由模式：
 
 ```
-模式 1 (新): /api/{module}/api/        例: /api/regime/api/
+模式 1 (新): /api/{module}/            例: /api/regime/
 模式 2 (旧): /{module}/api/            例: /regime/api/
 模式 3 (统一): /api/{module}/          例: /api/alpha/scores/
 ```

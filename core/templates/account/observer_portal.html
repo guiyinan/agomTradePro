@@ -387,7 +387,7 @@
 
 <script>
 (function() {
-    const API_BASE = '/account/api/';
+    const API_BASE = '/api/account/';
     let currentGrantId = null;
 
     // 加载可观察的账户列表
@@ -395,7 +395,7 @@
         const container = document.getElementById('accountsContainer');
 
         // 获取作为观察员的授权列表
-        fetch('/account/api/observer-grants/?as_observer=1')
+        fetch('/api/account/observer-grants/?as_observer=1')
             .then(response => response.json())
             .then(data => {
                 const grants = data.results || data.data || [];
@@ -497,7 +497,7 @@
         panel.scrollIntoView({ behavior: 'smooth' });
 
         // 获取持仓数据
-        fetch(`/account/api/observer-grants/${grantId}/positions/`)
+        fetch(`/api/account/observer-grants/${grantId}/positions/`)
             .then(response => response.json())
             .then(data => {
                 if (data.success) {

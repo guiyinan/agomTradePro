@@ -258,6 +258,12 @@ The SDK automatically uses the new routes while maintaining backward compatibili
 |-----------|-----------|
 | `/regime/api/current/` | `/api/regime/current/` |
 | `/signal/api/` | `/api/signal/` |
+| `/account/api/portfolios/` | `/api/account/portfolios/` |
+| `/macro/api/supported-indicators/` | `/api/macro/supported-indicators/` |
+| `/filter/api/` | `/api/filter/` |
+| `/backtest/api/backtests/` | `/api/backtest/backtests/` |
+| `/ai/api/providers/` | `/api/ai/providers/` |
+| `/prompt/api/templates/` | `/api/prompt/templates/` |
 | `/macro/api/supported-indicators/` | `/api/macro/supported-indicators/` |
 | `/policy/api/events/` | `/api/policy/events/` |
 | `/factor/api/` | `/api/factor/` |

@@ -128,7 +128,7 @@ async function rerunBacktest(backtestId) {
     if (!await window.uiConfirm('确定要重新运行此回测吗？', { title: '重新运行回测' })) return;
 
     try {
-        const response = await fetch(`/backtest/api/backtests/${backtestId}/rerun/`, {
+        const response = await fetch(`/api/backtest/backtests/${backtestId}/rerun/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -154,7 +154,7 @@ async function deleteBacktest(backtestId, backtestName) {
     if (!await window.uiConfirm(`确定要删除回测"${backtestName}"吗？此操作不可恢复。`, { title: '删除回测', icon: 'warning' })) return;
 
     try {
-        const response = await fetch(`/backtest/api/backtests/${backtestId}/`, {
+        const response = await fetch(`/api/backtest/backtests/${backtestId}/`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',

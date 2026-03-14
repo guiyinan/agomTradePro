@@ -268,7 +268,7 @@ async function submitAIQuestion() {
     }
 
     try {
-        const response = await fetch('/prompt/api/chat', {
+        const response = await fetch('/api/prompt/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

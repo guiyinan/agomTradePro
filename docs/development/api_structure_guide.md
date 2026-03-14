@@ -63,13 +63,13 @@
 
 | API | 方法 | 功能 | 数据结构 |
 |-----|------|------|---------|
-| `/macro/api/table/` | GET | 获取表格数据（分页） | `MacroIndicator[]` |
-| `/macro/api/indicator-data/` | GET | 获取单个指标数据 | `MacroIndicator[]` |
-| `/macro/api/record/<id>/` | GET/PUT/DELETE | 单条记录 CRUD | `MacroIndicator` |
-| `/macro/api/records/batch-delete/` | POST | 批量删除 | `{success, message, deleted_count}` |
-| `/macro/api/supported-indicators/` | GET | 获取支持的指标列表 | `{code, name, unit}[]` |
-| `/macro/api/fetch/` | POST | 手动触发数据抓取 | `{success, message, synced_count}` |
-| `/macro/api/quick-sync/` | POST | 快速同步 | `{success, message, results}` |
+| `/api/macro/table/` | GET | 获取表格数据（分页） | `MacroIndicator[]` |
+| `/api/macro/indicator-data/` | GET | 获取单个指标数据 | `MacroIndicator[]` |
+| `/api/macro/record/<id>/` | GET/PUT/DELETE | 单条记录 CRUD | `MacroIndicator` |
+| `/api/macro/records/batch-delete/` | POST | 批量删除 | `{success, message, deleted_count}` |
+| `/api/macro/supported-indicators/` | GET | 获取支持的指标列表 | `{code, name, unit}[]` |
+| `/api/macro/fetch/` | POST | 手动触发数据抓取 | `{success, message, synced_count}` |
+| `/api/macro/quick-sync/` | POST | 快速同步 | `{success, message, results}` |
 
 ## 2. 适配器映射机制
 
@@ -357,7 +357,7 @@ class EconomicIndicatorFetcher(BaseFetcher):
 
 ```bash
 # 获取 GDP 数据（返回展示值：亿元）
-GET /macro/api/indicator-data/?code=CN_GDP&limit=10
+GET /api/macro/indicator-data/?code=CN_GDP&limit=10
 
 # 响应
 {
@@ -383,7 +383,7 @@ GET /macro/api/indicator-data/?code=CN_GDP&limit=10
 
 ```bash
 # 抓取 GDP 数据
-POST /macro/api/fetch/
+POST /api/macro/fetch/
 Content-Type: application/json
 
 {
@@ -404,7 +404,7 @@ Content-Type: application/json
 ### 5.3 获取支持的指标列表
 
 ```bash
-GET /macro/api/supported-indicators/
+GET /api/macro/supported-indicators/
 
 # 响应
 {

@@ -143,7 +143,7 @@ print(result.content)
 
 ```bash
 # 执行模板
-curl -X POST http://127.0.0.1:8000/prompt/api/templates/1/execute/ \
+curl -X POST http://127.0.0.1:8000/api/prompt/templates/1/execute/ \
   -H "Content-Type: application/json" \
   -d '{
     "placeholder_values": {
@@ -153,7 +153,7 @@ curl -X POST http://127.0.0.1:8000/prompt/api/templates/1/execute/ \
   }'
 
 # 执行链配置
-curl -X POST http://127.0.0.1:8000/prompt/api/chains/1/execute/ \
+curl -X POST http://127.0.0.1:8000/api/prompt/chains/1/execute/ \
   -H "Content-Type: application/json" \
   -d '{
     "placeholder_values": {

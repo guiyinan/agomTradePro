@@ -959,7 +959,7 @@ async function loadTemplates() {
         if (status === 'active') params.append('is_active', 'true');
         if (search) params.append('search', search);
 
-        const response = await fetch(`/prompt/api/templates/?${params}`);
+        const response = await fetch(`/api/prompt/templates/?${params}`);
         const data = await response.json();
 
         const grid = document.getElementById('templatesGrid');
@@ -1022,7 +1022,7 @@ function closeTemplateModal() {
 
 async function editTemplate(id) {
     try {
-        const response = await fetch(`/prompt/api/templates/${id}/`);
+        const response = await fetch(`/api/prompt/templates/${id}/`);
         const t = await response.json();
 
         document.getElementById('templateModalTitle').textContent = '编辑模板';
@@ -1062,7 +1062,7 @@ async function saveTemplate(event) {
     };
 
     const id = document.getElementById('templateId').value;
-    const url = id ? `/prompt/api/templates/${id}/` : '/prompt/api/templates/';
+    const url = id ? `/api/prompt/templates/${id}/` : '/api/prompt/templates/';
     const method = id ? 'PUT' : 'POST';
 
     try {
@@ -1093,7 +1093,7 @@ async function deleteTemplate(id) {
     if (!await window.uiConfirm('确定删除此模板吗？', { title: '删除模板', icon: 'warning' })) return;
 
     try {
-        const response = await fetch(`/prompt/api/templates/${id}/`, {
+        const response = await fetch(`/api/prompt/templates/${id}/`, {
             method: 'DELETE',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken')
@@ -1141,7 +1141,7 @@ async function loadLogs() {
     const limit = document.getElementById('logLimitFilter')?.value || 20;
 
     try {
-        const response = await fetch(`/prompt/api/logs/recent/?limit=${limit}`);
+        const response = await fetch(`/api/prompt/logs/recent/?limit=${limit}`);
         const data = await response.json();
 
         const tbody = document.getElementById('logsTableBody');
@@ -1183,7 +1183,7 @@ function viewLog(id) {
 // ==================== 测试执行 ====================
 async function loadTestTemplates() {
     try {
-        const response = await fetch('/prompt/api/templates/');
+        const response = await fetch('/api/prompt/templates/');
         const data = await response.json();
 
         const select = document.getElementById('testTemplate');
@@ -1210,7 +1210,7 @@ async function loadTemplatePlaceholders() {
     }
 
     try {
-        const response = await fetch(`/prompt/api/templates/${templateId}/`);
+        const response = await fetch(`/api/prompt/templates/${templateId}/`);
         const t = await response.json();
 
         if (t.placeholders && t.placeholders.length > 0) {
@@ -1245,7 +1245,7 @@ async function executeTest() {
     resultDiv.innerHTML = '<div class="result-placeholder"><div class="placeholder-icon">⏳</div><p>执行中...</p></div>';
 
     try {
-        const response = await fetch(`/prompt/api/templates/${templateId}/execute/`, {
+        const response = await fetch(`/api/prompt/templates/${templateId}/execute/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

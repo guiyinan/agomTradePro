@@ -7,7 +7,7 @@ from .base import BaseModule
 
 class FilterModule(BaseModule):
     def __init__(self, client: Any) -> None:
-        super().__init__(client, "/filter/api")
+        super().__init__(client, "/api/filter")
 
     def list_filters(self) -> list[dict[str, Any]]:
         response = self._get("")

@@ -75,7 +75,7 @@ class BacktestModule(BaseModule):
         if params is not None:
             data["params"] = params
 
-        response = self._post("api/run/", json=data)
+        response = self._post("run/", json=data)
         return self._parse_result(response)
 
     def get_result(self, backtest_id: int) -> BacktestResult:
@@ -97,7 +97,7 @@ class BacktestModule(BaseModule):
             >>> print(f"状态: {result.status}")
             >>> print(f"总收益: {result.total_return:.2%}")
         """
-        response = self._get(f"api/backtests/{backtest_id}/")
+        response = self._get(f"backtests/{backtest_id}/")
         return self._parse_result(response)
 
     def list_backtests(
@@ -133,7 +133,7 @@ class BacktestModule(BaseModule):
         if status is not None:
             params["status"] = status
 
-        response = self._get("api/backtests/", params=params)
+        response = self._get("backtests/", params=params)
         results = response.get("backtests", response.get("results", response))
         return [self._parse_result(item) for item in results]
 
@@ -152,7 +152,7 @@ class BacktestModule(BaseModule):
             >>> client.backtest.delete_result(123)
             >>> print("回测结果已删除")
         """
-        self._delete(f"api/backtests/{backtest_id}/")
+        self._delete(f"backtests/{backtest_id}/")
 
     def get_equity_curve(self, backtest_id: int) -> list[dict[str, Any]]:
         """
@@ -173,7 +173,7 @@ class BacktestModule(BaseModule):
             >>> for point in curve:
             ...     print(f"{point['date']}: {point['value']:.2f}")
         """
-        response = self._get(f"api/backtests/{backtest_id}/equity-curve/")
+        response = self._get(f"backtests/{backtest_id}/equity-curve/")
         return response.get("curve", response)
 
     def _parse_result(self, data: dict[str, Any]) -> BacktestResult:

@@ -385,7 +385,7 @@ tail -100 /var/log/agomsaaf/application.log | grep ERROR
 |--------|----------|
 | Audit | `/api/audit/health/` |
 | Alpha | `/api/alpha/health/` |
-| Filter | `/api/filter/api/health/` |
+| Filter | `/api/filter/health/` |
 | Realtime | `/api/realtime/health/` |
 | Regime | `/api/regime/health/` |
 | Signal | `/api/signal/health/` |

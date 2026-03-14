@@ -54,7 +54,7 @@ pip install --upgrade agomsaaf-sdk
 
 ```python
 # Before
-url = "http://api.example.com/regime/api/current/"
+url = "http://api.example.com/api/regime/current/"
 
 # After
 url = "http://api.example.com/api/regime/current/"

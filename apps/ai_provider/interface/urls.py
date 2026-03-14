@@ -1,19 +1,9 @@
-"""
-URL Configuration for AI Provider Management.
+"""URL Configuration for AI Provider Management."""
 
-URL路由配置。
-"""
-
-from django.urls import path
-from rest_framework.routers import DefaultRouter
+from django.urls import include, path
 from . import views
 
 app_name = 'ai_provider'
-
-# API Router
-router = DefaultRouter()
-router.register(r'api/providers', views.AIProviderConfigViewSet, basename='provider')
-router.register(r'api/logs', views.AIUsageLogViewSet, basename='log')
 
 urlpatterns = [
     # 管理页面
@@ -23,5 +13,7 @@ urlpatterns = [
     path('detail/<int:provider_id>/edit/', views.page_views.ai_provider_edit_view, name='edit'),
 ]
 
-# API URLs
-urlpatterns += router.urls
+# Legacy API compatibility under /ai/api/*
+urlpatterns += [
+    path('api/', include(('apps.ai_provider.interface.api_urls', 'ai_provider_api'), namespace='legacy_ai_provider_api')),
+]

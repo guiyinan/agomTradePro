@@ -24,6 +24,11 @@
 | regime | `/api/regime/` | SDK/MCP 使用 V2 current/history/distribution |
 | policy | `/api/policy/` | SDK/MCP 不再走 `/policy/...` |
 | macro | `/api/macro/` | 旧 `/macro/api/` 已废弃 |
+| account | `/api/account/` | 旧 `/account/api/` 仅保留兼容 |
+| filter | `/api/filter/` | 旧 `/filter/api/` 仅保留兼容 |
+| backtest | `/api/backtest/` | 旧 `/backtest/api/` 仅保留兼容 |
+| ai_provider | `/api/ai/` | 旧 `/ai/api/` 仅保留兼容 |
+| prompt | `/api/prompt/` | 旧 `/prompt/api/` 仅保留兼容 |
 | fund | `/api/fund/` | 读取 `rank/info/nav/holding/style` |
 | sector | `/api/sector/` | 当前对外可用入口为 `rotation/` |
 | rotation | `/api/rotation/` | recommendation/assets/configs/signals/templates/account-configs |
@@ -37,6 +42,11 @@
 ## 已修复的典型错配
 
 - macro SDK: `/macro/api/*` -> `/api/macro/*`
+- account SDK: `/account/api/*` -> `/api/account/*`
+- filter SDK: `/filter/api/*` -> `/api/filter/*`
+- backtest SDK: `/backtest/api/*` -> `/api/backtest/*`
+- ai provider SDK: `/ai/api/*` -> `/api/ai/*`
+- prompt SDK: `/prompt/api/*` -> `/api/prompt/*`
 - policy SDK: `/policy/...` -> `/api/policy/...`
 - fund SDK: 历史 `funds/*` -> 当前 `rank/info/nav/holding/style`
 - sector SDK: 历史 `sectors/*` -> 当前 `rotation/`
@@ -44,7 +54,7 @@
 - hedge SDK: `hedge/api/*` -> `/api/hedge/*`
 - factor SDK: `factor/api/*` -> `/api/factor/*`
 - regime SDK: distribution 不再通过 `history(limit=10000)` 侧算，改为 `/api/regime/distribution/`
-- backtest SDK: `results/*` -> 当前 `/api/backtest/api/backtests/*`
+- backtest SDK: `results/*` -> 当前 `/api/backtest/backtests/*`
 - equity SDK: 历史 `stocks/*` -> 当前 `pool/`、`screen/`、`valuation/{stock_code}/`
 - sector SDK: 历史 `sectors/*` / `hot-sectors/` / `compare/` -> 当前 `rotation/` + 本地兼容聚合
 - fund SDK: 历史 `funds/*/performance/` -> 当前 `performance/calculate/`
@@ -76,7 +86,7 @@ Rotation、Sector 等依赖当前 regime 的模块，统一使用：
 禁止再引用不存在或过时的：
 
 - `apps.regime.application.services.RegimeService`
-- `/regime/api/...` 作为 SDK/MCP 默认入口
+- `/api/regime/...` 作为 SDK/MCP 默认入口
 
 ## MCP 环境拆分
 

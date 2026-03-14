@@ -172,15 +172,14 @@ module_patterns = [
     # ========== 统一 API 路由挂载（新规范） ==========
     # 这些路由提供 /api/{module}/ 模式的 API 端点
     # P0: Account 模块
-    path('api/account/', RedirectView.as_view(url='/api/account/api/', permanent=False), name='api-account-root'),
-    path('api/account/', include(('apps.account.interface.urls', 'account'), namespace='api_account')),
+    path('api/account/', include(('apps.account.interface.api_urls', 'account'), namespace='api_account')),
     # P1: Simulated Trading 模块
     path('api/simulated-trading/accounts/', RedirectView.as_view(url='/api/simulated-trading/api/accounts/', permanent=False), name='api-simulated-trading-accounts-legacy'),
     path('api/simulated-trading/', include(('apps.simulated_trading.interface.urls', 'simulated_trading'), namespace='api_simulated_trading')),
     # P1: Strategy 模块
     path('api/strategy/', include(('apps.strategy.interface.urls', 'strategy'), namespace='api_strategy')),
     # P2: Regime 模块
-    path('api/regime/', include(('apps.regime.interface.urls', 'regime'), namespace='api_regime')),
+    path('api/regime/', include(('apps.regime.interface.api_urls', 'regime'), namespace='api_regime')),
     # P2: Policy 模块（仅挂载 API 路由，避免与页面路由冲突）
     path('api/policy/', include(('apps.policy.interface.api_urls', 'policy'), namespace='api_policy')),
     # P2: Signal 模块
@@ -188,13 +187,13 @@ module_patterns = [
     # P2: Signal 模块（复数别名）
     path('api/signals/', include(('apps.signal.interface.api_urls', 'signal'), namespace='api_signals')),
     # P2: Macro 模块
-    path('api/macro/', include(('apps.macro.interface.urls', 'macro'), namespace='api_macro')),
+    path('api/macro/', include(('apps.macro.interface.api_urls', 'macro'), namespace='api_macro')),
     # P2: Macro indicators 别名
     path('api/macro/indicators/', RedirectView.as_view(url='/api/macro/supported-indicators/', permanent=False), name='api-macro-indicators'),
     # P2: Filter 模块
-    path('api/filter/', include(('apps.filter.interface.urls', 'api_filter'), namespace='api_filter')),
+    path('api/filter/', include(('apps.filter.interface.api_urls', 'api_filter'), namespace='api_filter')),
     # P2: Backtest 模块
-    path('api/backtest/', include(('apps.backtest.interface.urls', 'api_backtest'), namespace='api_backtest')),
+    path('api/backtest/', include(('apps.backtest.interface.api_urls', 'api_backtest'), namespace='api_backtest')),
     # P2: Audit 模块
     path('api/audit/', include(('apps.audit.interface.api_urls', 'api_audit'), namespace='api_audit')),
     # P3: 其他模块
@@ -202,8 +201,8 @@ module_patterns = [
     path('api/fund/', include(('apps.fund.interface.api_urls', 'api_fund'), namespace='api_fund')),
     path('api/asset-analysis/', include(('apps.asset_analysis.interface.urls', 'api_asset_analysis'), namespace='api_asset_analysis')),
     path('api/sector/', include(('apps.sector.interface.urls', 'api_sector'), namespace='api_sector')),
-    path('api/ai/', include(('apps.ai_provider.interface.urls', 'api_ai_provider'), namespace='api_ai_provider')),
-    path('api/prompt/', include(('apps.prompt.interface.urls', 'api_prompt'), namespace='api_prompt')),
+    path('api/ai/', include(('apps.ai_provider.interface.api_urls', 'api_ai_provider'), namespace='api_ai_provider')),
+    path('api/prompt/', include(('apps.prompt.interface.api_urls', 'api_prompt'), namespace='api_prompt')),
     path('api/realtime/', include(('apps.realtime.interface.urls', 'api_realtime'), namespace='api_realtime')),
     path('api/factor/', include(('apps.factor.interface.api_urls', 'api_factor'), namespace='api_factor')),
     path('api/rotation/', include(('apps.rotation.interface.api_urls', 'api_rotation'), namespace='api_rotation')),

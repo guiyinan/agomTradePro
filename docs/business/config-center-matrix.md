@@ -13,8 +13,8 @@
 | `market_data_providers` | 市场数据源状态 | `/market_data/providers/` | 页面/模块现有接口 | `client.market_data` + MCP market-data 工具 | `staff` | 状态实时读取 | 第一期开只读摘要 |
 | `beta_gate` | Beta Gate 配置 | `/beta-gate/config/` | `/api/beta-gate/configs/` | `client.beta_gate` + `beta_gate_tools` | `staff` | 激活配置后生效 | 支持版本与回滚 |
 | `valuation_repair` | 估值修复配置 | `/equity/valuation-repair/config/` | `/api/equity/config/valuation-repair/active/` | `client.equity` + `equity_tools` | `staff` | DB/Settings 配置，运行时读取 | 已支持版本与回滚 |
-| `ai_provider` | AI Provider 配置 | `/ai/` | `/ai/api/providers/` | `client.ai_provider` + `ai_provider_tools` | `staff` | 保存后新请求生效 | 支持启停和优先级 |
-| `trading_cost` | 交易费率配置 | `/account/settings/` | `/account/api/trading-cost-configs/` | `client.account` + `account_tools` | 登录用户/相关账户 | 保存后立即生效 | 账户级配置 |
+| `ai_provider` | AI Provider 配置 | `/ai/` | `/api/ai/providers/` | `client.ai_provider` + `ai_provider_tools` | `staff` | 保存后新请求生效 | 支持启停和优先级 |
+| `trading_cost` | 交易费率配置 | `/account/settings/` | `/api/account/trading-cost-configs/` | `client.account` + `account_tools` | 登录用户/相关账户 | 保存后立即生效 | 账户级配置 |
 
 ## Config Center APIs
 

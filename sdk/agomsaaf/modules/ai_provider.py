@@ -7,34 +7,34 @@ from .base import BaseModule
 
 class AIProviderModule(BaseModule):
     def __init__(self, client: Any) -> None:
-        super().__init__(client, "/ai")
+        super().__init__(client, "/api/ai")
 
     def list_providers(self) -> list[dict[str, Any]]:
-        response = self._get("api/providers/")
+        response = self._get("providers/")
         if isinstance(response, list):
             return response
         return response.get("results", [])
 
     def get_provider(self, provider_id: int) -> dict[str, Any]:
-        return self._get(f"api/providers/{provider_id}/")
+        return self._get(f"providers/{provider_id}/")
 
     def create_provider(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._post("api/providers/", json=payload)
+        return self._post("providers/", json=payload)
 
     def update_provider(self, provider_id: int, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._patch(f"api/providers/{provider_id}/", json=payload)
+        return self._patch(f"providers/{provider_id}/", json=payload)
 
     def delete_provider(self, provider_id: int) -> None:
-        self._delete(f"api/providers/{provider_id}/")
+        self._delete(f"providers/{provider_id}/")
 
     def toggle_provider(self, provider_id: int) -> dict[str, Any]:
-        return self._post(f"api/providers/{provider_id}/toggle_active/", json={})
+        return self._post(f"providers/{provider_id}/toggle_active/", json={})
 
     def provider_usage_stats(self, provider_id: int) -> dict[str, Any]:
-        return self._get(f"api/providers/{provider_id}/usage_stats/")
+        return self._get(f"providers/{provider_id}/usage_stats/")
 
     def overall_stats(self) -> dict[str, Any]:
-        return self._get("api/providers/overall_stats/")
+        return self._get("providers/overall_stats/")
 
     def list_usage_logs(self, provider_id: Optional[int] = None, status: Optional[str] = None) -> list[dict[str, Any]]:
         params: dict[str, Any] = {}
@@ -42,7 +42,7 @@ class AIProviderModule(BaseModule):
             params["provider"] = provider_id
         if status:
             params["status"] = status
-        response = self._get("api/logs/", params=params)
+        response = self._get("logs/", params=params)
         if isinstance(response, list):
             return response
         return response.get("results", [])

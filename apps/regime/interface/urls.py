@@ -1,19 +1,10 @@
-"""
-URL configuration for Regime app.
-"""
+"""URL configuration for Regime app."""
 from django.urls import path, include
 from django.shortcuts import redirect
 from . import views
-from rest_framework.routers import DefaultRouter
-from .api_views import RegimeViewSet, RegimeHealthView
 
 
 app_name = 'regime'
-
-
-# DRF API Router
-router = DefaultRouter()
-router.register(r'', RegimeViewSet, basename='regime')
 
 
 def regime_home_redirect(request):
@@ -29,7 +20,6 @@ urlpatterns = [
     path('dashboard/', views.regime_dashboard_view, name='dashboard'),
     path('clear-cache/', views.clear_regime_cache, name='clear_cache'),
 
-    # API routes - new standard format (when mounted under /api/regime/)
-    path('', include(router.urls)),
-    path('health/', RegimeHealthView.as_view(), name='health'),
+    # Legacy API compatibility under /regime/api/*
+    path('api/', include(('apps.regime.interface.api_urls', 'regime_api'), namespace='legacy_regime_api')),
 ]

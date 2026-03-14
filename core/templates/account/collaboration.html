@@ -344,7 +344,7 @@
 
 <script>
 (function() {
-    const API_BASE = '/account/api/observer-grants/';
+    const API_BASE = '/api/account/observer-grants/';
     let searchTimeout = null;
 
     // 初始化：加载观察员列表
@@ -492,7 +492,7 @@
     function searchUsers(query) {
         // 注意：这里需要一个用户搜索 API，暂时使用前端提示
         // 实际应该调用后端的用户搜索接口
-        fetch(`/account/api/users/search/?q=${encodeURIComponent(query)}`)
+        fetch(`/api/account/users/search/?q=${encodeURIComponent(query)}`)
             .then(response => response.json())
             .then(data => {
                 if (data.results && data.results.length > 0) {

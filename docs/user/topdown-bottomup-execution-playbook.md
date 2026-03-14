@@ -25,7 +25,7 @@
 1. 环境判断: `/macro/` -> `/regime/dashboard/` -> `/policy/dashboard/`
 2. 标的筛选: `/asset-analysis/screen/` + `/equity/screen/`/`/fund/screen/`
 3. 执行闸门: `/beta-gate/config/` + `/beta-gate/test/` + `/decision/workspace/`
-4. 仓位与风险: `/strategy/` + `/simulated-trading/my-accounts/` + `/account/api/...`
+4. 仓位与风险: `/strategy/` + `/simulated-trading/my-accounts/` + `/api/account/...`
 5. 再平衡: 回测频率 + 模拟盘巡检建议
 6. 审计复盘: `/audit/reports/` + `/audit/indicator-performance/`
 

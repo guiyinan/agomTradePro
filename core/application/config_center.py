@@ -116,7 +116,7 @@ _CAPABILITIES: tuple[ConfigCapability, ...] = (
         description="AI 供应商、默认模型、启用状态与预算限制。",
         permission="staff",
         frontend_url="/ai/",
-        api_url="/ai/api/providers/",
+        api_url="/api/ai/providers/",
         sdk_module="ai_provider",
         mcp_tools=(
             "list_ai_providers",
@@ -136,7 +136,7 @@ _CAPABILITIES: tuple[ConfigCapability, ...] = (
         description="佣金、印花税、过户费等账户交易成本配置。",
         permission="login",
         frontend_url="/account/settings/",
-        api_url="/account/api/trading-cost-configs/",
+        api_url="/api/account/trading-cost-configs/",
         sdk_module="account",
         mcp_tools=(
             "get_trading_cost_configs",
