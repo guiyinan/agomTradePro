@@ -410,7 +410,7 @@ class PolicyModule(BaseModule):
 
         return self._post(f"workbench/items/{event_id}/override/", json=data)
 
-    def get_sentiment_gate_state(self) -> SentimentGateState:
+    def get_sentiment_gate_state(self, asset_class: str = "all") -> SentimentGateState:
         """
         获取热点情绪闸门状态
 
@@ -424,7 +424,7 @@ class PolicyModule(BaseModule):
             >>> print(f"热度评分: {state.global_heat}")
             >>> print(f"情绪评分: {state.global_sentiment}")
         """
-        response = self._get("sentiment-gate/state/")
+        response = self._get("sentiment-gate/state/", params={"asset_class": asset_class})
         return self._parse_sentiment_gate_state(response)
 
     # =========================================================================

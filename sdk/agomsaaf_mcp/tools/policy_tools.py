@@ -294,7 +294,7 @@ def register_policy_tools(server: FastMCP) -> None:
         return client.policy.override_event(event_id, reason, expires_in_hours)
 
     @server.tool()
-    def get_sentiment_gate_state() -> dict[str, Any]:
+    def get_sentiment_gate_state(asset_class: str = "all") -> dict[str, Any]:
         """
         获取热点情绪闸门状态
 
@@ -308,14 +308,23 @@ def register_policy_tools(server: FastMCP) -> None:
             >>> print(f"情绪评分: {state['global_sentiment']}")
         """
         client = AgomSAAFClient()
-        state = client.policy.get_sentiment_gate_state()
-        return {
-            "gate_level": state.gate_level,
-            "global_heat": state.global_heat,
-            "global_sentiment": state.global_sentiment,
-            "max_position_cap": state.max_position_cap,
-            "signal_paused": state.signal_paused,
-        }
+        try:
+            state = client.policy.get_sentiment_gate_state(asset_class=asset_class)
+            return {
+                "asset_class": asset_class,
+                "gate_level": state.gate_level,
+                "global_heat": state.global_heat,
+                "global_sentiment": state.global_sentiment,
+                "max_position_cap": state.max_position_cap,
+                "signal_paused": state.signal_paused,
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "asset_class": asset_class,
+                "error": str(e),
+                "message": "sentiment gate 当前缺少对应 asset_class 的配置数据",
+            }
 
     # =========================================================================
     # 新增工具 (2026-02-28)
@@ -389,4 +398,3 @@ def register_policy_tools(server: FastMCP) -> None:
         """
         client = AgomSAAFClient()
         return client.policy.trigger_fetch(source_id, force_refetch)
-

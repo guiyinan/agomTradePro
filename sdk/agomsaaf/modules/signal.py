@@ -32,7 +32,7 @@ class SignalModule(BaseModule):
         Args:
             client: AgomSAAF 客户端实例
         """
-        super().__init__(client, "/signal/api")
+        super().__init__(client, "/api/signal")
 
     def list(
         self,

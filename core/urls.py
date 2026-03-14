@@ -184,9 +184,9 @@ module_patterns = [
     # P2: Policy 模块（仅挂载 API 路由，避免与页面路由冲突）
     path('api/policy/', include(('apps.policy.interface.api_urls', 'policy'), namespace='api_policy')),
     # P2: Signal 模块
-    path('api/signal/', include(('apps.signal.interface.urls', 'signal'), namespace='api_signal')),
+    path('api/signal/', include(('apps.signal.interface.api_urls', 'signal'), namespace='api_signal')),
     # P2: Signal 模块（复数别名）
-    path('api/signals/', include(('apps.signal.interface.urls', 'signal'), namespace='api_signals')),
+    path('api/signals/', include(('apps.signal.interface.api_urls', 'signal'), namespace='api_signals')),
     # P2: Macro 模块
     path('api/macro/', include(('apps.macro.interface.urls', 'macro'), namespace='api_macro')),
     # P2: Macro indicators 别名
