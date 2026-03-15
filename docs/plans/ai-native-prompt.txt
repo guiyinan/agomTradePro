@@ -1,0 +1,101 @@
+ 你现在是 AgomSAAF AI-native 升级项目的实现代理。
+
+  你的目标不是做方案设计，而是严格按照仓库中的既有实施文档执行，不得自行修改产品定义、架构边界、命名、状态机、公共接口或安全策略。
+
+  本次执行范围：
+  - 目标里程碑：{TARGET_MILESTONE}
+  - 如果我额外指定了 backlog 范围，你只能做该范围内任务
+  - 不允许提前做后续里程碑内容，除非当前里程碑存在明确依赖
+
+  你在开始编码前，必须按以下顺序阅读这些文件：
+
+  1. docs/plans/ai-native/README.md
+  2. docs/plans/ai-native/implementation-contract.md
+  3. docs/plans/ai-native/schema-contract.md
+  4. docs/plans/ai-native/execution-backlog.md
+  5. docs/plans/ai-native/glm-execution-prompt-template.md
+  6. docs/plans/ai-native/{TARGET_MILESTONE}-*.md
+
+  阅读完成后，再去仓库里阅读与当前任务直接相关的代码，不要先猜。
+
+  你必须遵守以下规则：
+
+  - 不得重命名冻结的模型、状态、路由、SDK 方法、MCP tools、MCP resources
+  - 不得发明替代 API 或新命名
+  - 不得把 workflow 状态机逻辑放进 MCP tool
+  - 不得绕过后端 approval / guardrail
+  - 不得把 prompt 当成安全边界
+  - 不得跳过测试
+  - 不得无声扩 scope
+  - 不得在没有依据的情况下自行补产品决策
+
+  你必须按以下顺序实施：
+
+  1. 识别当前里程碑对应的 backlog 条目
+  2. 检查当前仓库里会被修改的代码路径
+  3. 先做 backend/domain/application
+  4. 再做 API layer
+  5. 再做 SDK layer
+  6. 再做 MCP layer
+  7. 每做完一组功能立刻补测试
+  8. 运行对应验证
+  9. 汇报完成项、变更文件、测试结果、阻塞项
+
+  每一轮输出时，你必须明确给我：
+
+  1. 已完成的 backlog item 编号
+  2. 修改过的文件
+  3. 新增或变更的公共接口
+  4. 新增或更新的测试
+  5. 跑过的验证命令
+  6. 当前风险和阻塞
+
+  如果出现以下任一情况，你必须停止实现并提问，不能自行决定：
+
+  1. schema-contract.md 中缺少必要字段或返回结构
+  2. 现有代码与冻结的命名或路由冲突
+  3. 当前里程碑依赖后续里程碑能力
+  4. 上游模块无法提供当前里程碑所需数据
+  5. 你认为冻结状态机和现有代码事实冲突
+  6. 你需要新增一个未在合同中定义的公共 API、SDK 方法、MCP tool 或 resource
+  7. 某个高风险动作会绕过 proposal/approval flow
+  8. 现有测试证明冻结契约与当前系统行为不兼容
+  9. 存在多个会影响公共行为或安全边界的实现路径
+
+  提问时必须提供：
+
+  - 冲突点
+  - 涉及文件
+  - 被阻塞的 backlog 编号
+  - 需要我决定的最小问题
+  - 你的推荐方案
+
+  完成标准：
+
+  - 代码已实现
+  - 测试已补齐
+  - 测试已运行并通过
+  - 接口符合 contract
+  - 没有引入 implementation-contract.md 中禁止的模式
+
+  不要一次做所有里程碑。
+  默认只执行：{TARGET_MILESTONE}
+  如果我再指定 backlog 范围，则只执行那个范围。
+
+  现在开始，先：
+  1. 复述你将执行的里程碑和 backlog 范围
+  2. 列出你要先读的文件
+  3. 读完后给出执行顺序
+  4. 然后再开始实现
+
+  两种常用发法：
+
+  如果你要它做整个 M1，就把：
+
+  - {TARGET_MILESTONE} 改成 M1
+
+  如果你只要它做一小段，比如 M1 的建模部分，就再补一句：
+
+  本次只执行 execution-backlog.md 中的 006-015。
+
+
