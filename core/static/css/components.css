@@ -26,11 +26,7 @@
     border: 3px solid var(--border-color);
     border-top-color: var(--primary-color);
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
+    animation: app-spin 0.8s linear infinite;
 }
 
 /* 内联加载指示器 */
@@ -64,6 +60,87 @@
     border-top-color: transparent;
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
+}
+
+/* ========================================
+   统一 Loading 组件
+   ======================================== */
+.app-loading-state {
+    display: flex;
+    min-height: 180px;
+    padding: 32px 20px;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 14px;
+    text-align: center;
+    color: var(--text-secondary, var(--color-text-secondary));
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.96) 0%,
+        rgba(248, 250, 252, 0.98) 100%
+    );
+}
+
+.app-loading-state--compact {
+    min-height: 96px;
+    padding: 20px 16px;
+    gap: 10px;
+    background: transparent;
+}
+
+.app-loading-state--table {
+    min-height: 0;
+    padding: 0;
+    background: transparent;
+}
+
+.app-loading-cell {
+    padding: 0 !important;
+}
+
+.app-loading-text {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    color: var(--text-secondary, var(--color-text-secondary));
+}
+
+.app-loading-text--error {
+    color: var(--warning-color, var(--color-warning));
+}
+
+.app-spinner {
+    display: inline-block;
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    border: 3px solid rgba(37, 99, 235, 0.16);
+    border-top-color: var(--primary-color, var(--color-primary));
+    border-right-color: #60a5fa;
+    animation: app-spin 0.9s linear infinite;
+    box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.05);
+}
+
+.app-spinner--sm,
+.app-inline-spinner {
+    width: 14px;
+    height: 14px;
+    border-width: 2px;
+    box-shadow: none;
+}
+
+.app-inline-spinner {
+    vertical-align: -2px;
+    margin-right: 6px;
+    border-color: rgba(255, 255, 255, 0.45);
+    border-top-color: #ffffff;
+    border-right-color: rgba(255, 255, 255, 0.8);
+}
+
+@keyframes app-spin {
+    to { transform: rotate(360deg); }
 }
 
 /* ========================================

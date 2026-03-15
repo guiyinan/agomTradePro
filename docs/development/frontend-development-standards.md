@@ -154,6 +154,14 @@ border-radius: 4px;
 | 模块专属样式（多页面） | `core/static/css/<module>.css` | `macro.css` |
 | 单页面样式 | 模板内 `<style>` | 页面独有的布局 |
 
+### 3.4 Loading / Spinner 规范
+
+- 区块加载态统一使用 `app-loading-state`、`app-spinner`、`app-loading-text`。
+- 表格加载态统一使用 `app-loading-cell` 和 `app-loading-state--table`。
+- 按钮内联加载态统一使用 `app-inline-spinner`。
+- 禁止在新代码中新增裸 `.loading`、`.spinner`、`.loading-state` 类名。
+- 旧的 `.loading`、`.loader-spinner` 只作为兼容别名保留，不再作为新入口。
+
 ### 3.5 命名约定
 
 使用 **BEM 风格** 或 **语义命名**：

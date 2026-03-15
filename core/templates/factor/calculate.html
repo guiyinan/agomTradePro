@@ -164,7 +164,7 @@
             <button class="modal-close" onclick="closeExplainModal()">&times;</button>
         </div>
         <div class="modal-body" id="explainModalBody">
-            <div class="loading-spinner">加载中...</div>
+            <div class="app-loading-state app-loading-state--compact"><span class="app-spinner app-spinner--sm" aria-hidden="true"></span><p class="app-loading-text">加载中...</p></div>
         </div>
         <div class="modal-footer">
             <button class="btn-modal secondary" onclick="closeExplainModal()">关闭</button>
@@ -304,7 +304,7 @@ async function explainStock(stockCode) {
     }
 
     document.getElementById('explainModal').style.display = 'block';
-    document.getElementById('explainModalBody').innerHTML = '<div class="loading-spinner">加载中...</div>';
+    document.getElementById('explainModalBody').innerHTML = '<div class="app-loading-state app-loading-state--compact"><span class="app-spinner app-spinner--sm" aria-hidden="true"></span><p class="app-loading-text">加载中...</p></div>';
 
     try {
         const url = new URL(API_URLS.factorExplainStock(stockCode), window.location.origin);

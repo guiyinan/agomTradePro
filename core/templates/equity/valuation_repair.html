@@ -272,7 +272,7 @@ async function scanValuationRepairs() {
     const universe = document.getElementById('universeSelect').value;
 
     btn.disabled = true;
-    btn.innerHTML = '<span class="loading" style="display: inline-block; margin-right: 8px;"></span>扫描中...';
+    btn.innerHTML = '<span class="app-inline-spinner" aria-hidden="true" style="margin-right: 8px;"></span>扫描中...';
 
     try {
         const response = await fetch('/api/equity/valuation-repair/scan/', {

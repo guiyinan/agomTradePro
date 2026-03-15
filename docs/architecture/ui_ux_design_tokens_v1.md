@@ -530,7 +530,19 @@
 #### Spinner
 
 ```html
-<div class="spinner"></div>
+<div class="app-loading-state app-loading-state--compact">
+    <span class="app-spinner" aria-hidden="true"></span>
+    <p class="app-loading-text">加载中...</p>
+</div>
+```
+
+按钮内联加载态：
+
+```html
+<button type="button" class="btn-primary" disabled>
+    <span class="app-inline-spinner" aria-hidden="true"></span>
+    提交中...
+</button>
 ```
 
 #### 骨架屏

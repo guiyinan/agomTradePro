@@ -103,9 +103,9 @@ async function loadEvents() {
     tbody.innerHTML = `
         <tr>
             <td colspan="8" class="wb-loading-cell">
-                <div class="wb-loading">
-                    <span class="wb-loading-spinner" aria-hidden="true"></span>
-                    <span>加载中...</span>
+                <div class="app-loading-state app-loading-state--table">
+                    <span class="app-spinner app-spinner--sm" aria-hidden="true"></span>
+                    <span class="app-loading-text">加载中...</span>
                 </div>
             </td>
         </tr>

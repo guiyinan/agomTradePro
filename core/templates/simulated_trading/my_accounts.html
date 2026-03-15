@@ -203,7 +203,7 @@
 
             <!-- 策略列表 -->
             <div id="strategyList" class="strategy-list">
-                <div class="loading">正在加载策略列表...</div>
+                <div class="app-loading-state app-loading-state--compact"><p class="app-loading-text">正在加载策略列表...</p></div>
             </div>
         </div>
         <div class="modal-footer">
@@ -699,12 +699,6 @@
     color: #94a3b8;
 }
 
-.loading {
-    text-align: center;
-    padding: 20px;
-    color: #94a3b8;
-}
-
 /* 响应式设计 */
 @media (max-width: 768px) {
     .account-container {
@@ -764,7 +758,7 @@ function closeBindStrategyModal() {
 
 async function loadStrategies() {
     const strategyList = document.getElementById('strategyList');
-    strategyList.innerHTML = '<div class="loading">正在加载策略列表...</div>';
+    strategyList.innerHTML = '<div class="app-loading-state app-loading-state--compact"><p class="app-loading-text">正在加载策略列表...</p></div>';
 
     try {
         const res = await fetch('/api/strategy/strategies/my_strategies/');
@@ -774,10 +768,10 @@ async function loadStrategies() {
             availableStrategies = data;
             renderStrategies(availableStrategies);
         } else {
-            strategyList.innerHTML = '<div class="loading">加载失败</div>';
+            strategyList.innerHTML = '<div class="app-loading-state app-loading-state--compact"><p class="app-loading-text app-loading-text--error">加载失败</p></div>';
         }
     } catch (e) {
-        strategyList.innerHTML = '<div class="loading">加载失败: ' + e.message + '</div>';
+        strategyList.innerHTML = '<div class="app-loading-state app-loading-state--compact"><p class="app-loading-text app-loading-text--error">加载失败: ' + e.message + '</p></div>';
     }
 }
 
@@ -785,7 +779,7 @@ function renderStrategies(strategies) {
     const strategyList = document.getElementById('strategyList');
 
     if (strategies.length === 0) {
-        strategyList.innerHTML = '<div class="loading">暂无可用策略，请先创建策略</div>';
+        strategyList.innerHTML = '<div class="app-loading-state app-loading-state--compact"><p class="app-loading-text">暂无可用策略，请先创建策略</p></div>';
         return;
     }
 

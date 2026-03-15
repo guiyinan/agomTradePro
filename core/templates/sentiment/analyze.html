@@ -206,18 +206,8 @@
     color: var(--color-warning, #f59e0b);
 }
 
-.loading-spinner {
+.submit-spinner {
     display: none;
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--color-border);
-    border-top-color: var(--color-primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
 }
 </style>
 {% endblock %}
@@ -247,7 +237,7 @@
                 </label>
             </div>
             <button type="submit" class="btn-submit" {% if not ai_available %}disabled{% endif %}>
-                <span class="loading-spinner"></span>
+                <span class="app-inline-spinner submit-spinner" aria-hidden="true"></span>
                 <i class="bi bi-cpu"></i>
                 <span>开始分析</span>
             </button>
@@ -284,7 +274,7 @@
 (function() {
     const form = document.getElementById('analyzeForm');
     const submitBtn = form.querySelector('.btn-submit');
-    const spinner = submitBtn.querySelector('.loading-spinner');
+    const spinner = submitBtn.querySelector('.submit-spinner');
     const resultContainer = document.getElementById('resultContainer');
 
     form.addEventListener('submit', async function(e) {

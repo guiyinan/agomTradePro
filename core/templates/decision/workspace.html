@@ -104,9 +104,9 @@
                 </div>
 
                 <div id="recommendations-list" class="recommendations-list">
-                    <div class="loading-state">
-                        <div class="spinner"></div>
-                        <p>加载中...</p>
+                    <div class="app-loading-state app-loading-state--compact">
+                        <div class="app-spinner" aria-hidden="true"></div>
+                        <p class="app-loading-text">加载中...</p>
                     </div>
                 </div>
             </section>
@@ -129,9 +129,9 @@
                 </div>
 
                 <div id="approvals-list" class="approvals-list">
-                    <div class="loading-state">
-                        <div class="spinner"></div>
-                        <p>加载中...</p>
+                    <div class="app-loading-state app-loading-state--compact">
+                        <div class="app-spinner" aria-hidden="true"></div>
+                        <p class="app-loading-text">加载中...</p>
                     </div>
                 </div>
             </section>
@@ -154,9 +154,9 @@
                 </div>
 
                 <div id="conflicts-list" class="conflicts-list">
-                    <div class="loading-state">
-                        <div class="spinner"></div>
-                        <p>加载中...</p>
+                    <div class="app-loading-state app-loading-state--compact">
+                        <div class="app-spinner" aria-hidden="true"></div>
+                        <p class="app-loading-text">加载中...</p>
                     </div>
                 </div>
             </section>
@@ -554,9 +554,9 @@ async function loadRecommendations() {
     const statusFilter = document.getElementById('status-filter')?.value || '';
 
     container.innerHTML = `
-        <div class="loading-state">
-            <div class="spinner"></div>
-            <p>加载中...</p>
+        <div class="app-loading-state app-loading-state--compact">
+            <div class="app-spinner" aria-hidden="true"></div>
+            <p class="app-loading-text">加载中...</p>
         </div>
     `;
 
@@ -726,9 +726,9 @@ async function loadApprovals() {
     const accountId = document.getElementById('approval-account-selector')?.value || '';
 
     container.innerHTML = `
-        <div class="loading-state">
-            <div class="spinner"></div>
-            <p>加载中...</p>
+        <div class="app-loading-state app-loading-state--compact">
+            <div class="app-spinner" aria-hidden="true"></div>
+            <p class="app-loading-text">加载中...</p>
         </div>
     `;
 
@@ -806,9 +806,9 @@ async function loadConflicts() {
     const accountId = document.getElementById('conflict-account-selector')?.value || '';
 
     container.innerHTML = `
-        <div class="loading-state">
-            <div class="spinner"></div>
-            <p>加载中...</p>
+        <div class="app-loading-state app-loading-state--compact">
+            <div class="app-spinner" aria-hidden="true"></div>
+            <p class="app-loading-text">加载中...</p>
         </div>
     `;
 
@@ -1765,7 +1765,7 @@ function getStatusText(status) {
 }
 
 /* 空状态和加载状态 */
-.empty-state, .loading-state, .error-state {
+.empty-state, .error-state {
     text-align: center;
     padding: 40px 20px;
     color: #64748b;
@@ -1776,22 +1776,8 @@ function getStatusText(status) {
     margin-bottom: 16px;
 }
 
-.spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid #e2e8f0;
-    border-top-color: #667eea;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto 16px;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
 .spin {
-    animation: spin 1s linear infinite;
+    animation: app-spin 1s linear infinite;
 }
 
 /* 徽章 */

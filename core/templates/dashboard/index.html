@@ -682,7 +682,7 @@
                     <button class="modal-close" onclick="closeModal('positionDetailModal')">&times;</button>
                 </div>
                 <div class="modal-body" id="positionDetailContent">
-                    <div class="loading-spinner"></div>
+                    <div class="app-loading-state app-loading-state--compact"><div class="app-spinner app-spinner--sm" aria-hidden="true"></div></div>
                 </div>
             </div>
         </div>
@@ -1398,20 +1398,6 @@ chatSendBtn.onclick = async function() {
     content: ' ▼';
     position: absolute;
     right: 8px;
-}
-
-.loading-spinner {
-    width: 30px;
-    height: 30px;
-    margin: 20px auto;
-    border: 3px solid var(--border-color);
-    border-top-color: var(--primary-color);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
 }
 
 .streaming-text {

@@ -281,25 +281,6 @@ td {
     transition: width 0.3s;
 }
 
-.loading {
-    text-align: center;
-    padding: 60px 20px;
-}
-
-.spinner {
-    border: 3px solid #f3f4f6;
-    border-top: 3px solid #2563eb;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    animation: spin 1s linear infinite;
-    margin: 0 auto 16px;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
 </style>
 {% endblock %}
 
@@ -475,9 +456,11 @@ async function runScreening() {
     // 显示加载状态
     document.getElementById('resultsTableBody').innerHTML = `
         <tr>
-            <td colspan="10" class="loading">
-                <div class="spinner"></div>
-                <p>筛选中...</p>
+            <td colspan="10" class="app-loading-cell">
+                <div class="app-loading-state app-loading-state--table" role="status" aria-live="polite">
+                    <span class="app-spinner" aria-hidden="true"></span>
+                    <p class="app-loading-text">加载中，正在筛选资产...</p>
+                </div>
             </td>
         </tr>
     `;
@@ -505,10 +488,10 @@ async function runScreening() {
             displayResults(screeningResults);
             updatePoolOverview();
         } else {
-            alert('筛选失败: ' + result.error);
+            renderErrorResult('筛选失败: ' + (result.error || '未知错误'));
         }
     } catch (error) {
-        alert('请求失败: ' + error.message);
+        renderErrorResult('请求失败: ' + error.message);
     }
 }
 
@@ -517,6 +500,11 @@ function displayResults(assets) {
     tbody.innerHTML = '';
 
     assets.forEach(asset => {
+        const totalScore = getScoreValue(asset, 'total_score', 'total');
+        const regimeScore = getScoreValue(asset, 'regime_score', 'regime');
+        const policyScore = getScoreValue(asset, 'policy_score', 'policy');
+        const sentimentScore = getScoreValue(asset, 'sentiment_score', 'sentiment');
+        const signalScore = getScoreValue(asset, 'signal_score', 'signal');
         const row = document.createElement('tr');
         row.innerHTML = `
             <td><strong>${asset.asset_code}</strong></td>
@@ -525,15 +513,15 @@ function displayResults(assets) {
             <td>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <div class="score-bar">
-                        <div class="score-fill" style="width: ${asset.total_score}%"></div>
+                        <div class="score-fill" style="width: ${totalScore}%"></div>
                     </div>
-                    <span>${asset.total_score.toFixed(1)}</span>
+                    <span>${totalScore.toFixed(1)}</span>
                 </div>
             </td>
-            <td>${asset.regime_score.toFixed(1)}</td>
-            <td>${asset.policy_score.toFixed(1)}</td>
-            <td>${asset.sentiment_score.toFixed(1)}</td>
-            <td>${asset.signal_score.toFixed(1)}</td>
+            <td>${regimeScore.toFixed(1)}</td>
+            <td>${policyScore.toFixed(1)}</td>
+            <td>${sentimentScore.toFixed(1)}</td>
+            <td>${signalScore.toFixed(1)}</td>
             <td>${asset.risk_level}</td>
             <td>${asset.entry_reason || '-'}</td>
         `;
@@ -563,6 +551,31 @@ function updatePoolOverview() {
     document.getElementById('candidateCount').textContent = counts.candidate;
 }
 
+function getScoreValue(asset, flatKey, nestedKey) {
+    if (typeof asset[flatKey] === 'number') {
+        return asset[flatKey];
+    }
+    if (asset.scores && typeof asset.scores[nestedKey] === 'number') {
+        return asset.scores[nestedKey];
+    }
+    return 0;
+}
+
+function renderErrorResult(message) {
+    screeningResults = [];
+    document.getElementById('resultsTableBody').innerHTML = `
+        <tr>
+            <td colspan="10" class="app-loading-cell">
+                <div class="app-loading-state app-loading-state--table">
+                    <p class="app-loading-text app-loading-text--error">${message}</p>
+                </div>
+            </td>
+        </tr>
+    `;
+    document.getElementById('resultSummary').textContent = message;
+    updatePoolOverview();
+}
+
 function getPoolTypeName(type) {
     const names = {
         'investable': '可投',
@@ -585,11 +598,11 @@ function exportResults() {
             asset.asset_code,
             asset.asset_name,
             getPoolTypeName(asset.pool_type),
-            asset.total_score.toFixed(2),
-            asset.regime_score.toFixed(2),
-            asset.policy_score.toFixed(2),
-            asset.sentiment_score.toFixed(2),
-            asset.signal_score.toFixed(2),
+            getScoreValue(asset, 'total_score', 'total').toFixed(2),
+            getScoreValue(asset, 'regime_score', 'regime').toFixed(2),
+            getScoreValue(asset, 'policy_score', 'policy').toFixed(2),
+            getScoreValue(asset, 'sentiment_score', 'sentiment').toFixed(2),
+            getScoreValue(asset, 'signal_score', 'signal').toFixed(2),
             asset.risk_level,
             asset.entry_reason || ''
         ].join(',');

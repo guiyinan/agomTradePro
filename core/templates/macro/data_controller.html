@@ -114,9 +114,9 @@
         </table>
 
         <!-- 加载状态 -->
-        <div class="loading-state" id="loading-state">
-            <div class="spinner"></div>
-            <p>加载数据中...</p>
+        <div class="app-loading-state" id="loading-state">
+            <div class="app-spinner" aria-hidden="true"></div>
+            <p class="app-loading-text">加载数据中...</p>
         </div>
 
         <!-- 空状态 -->
@@ -627,23 +627,9 @@
 }
 
 /* 加载和空状态 */
-.loading-state, .empty-state {
+.empty-state {
     text-align: center;
     padding: 60px 20px;
-}
-
-.spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid var(--color-border);
-    border-top-color: var(--color-primary);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    margin: 0 auto 16px;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
 }
 
 .empty-icon {

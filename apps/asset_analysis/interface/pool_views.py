@@ -141,8 +141,6 @@ class AssetPoolScreenAPIView(APIView):
 
     def _screen_equity(self, context, filters):
         """筛选股票"""
-        from apps.equity.domain.entities import EquityAssetScore
-
         repo = DjangoEquityAssetRepository()
         scorer = EquityMultiDimScorer(repo)
 
@@ -158,30 +156,16 @@ class AssetPoolScreenAPIView(APIView):
             filter_dict["sector"] = sector
         if market:
             filter_dict["market"] = market
+        if min_market_cap is not None:
+            filter_dict["min_market_cap"] = min_market_cap
+        if max_pe is not None:
+            filter_dict["max_pe"] = max_pe
 
-        # 获取股票列表
-        from apps.equity.domain.entities import StockInfo
-        stocks = repo.get_assets_by_filter(filter_dict)
-
-        # 转换为 EquityAssetScore
-        assets = []
-        for stock in stocks:
-            # 应用额外过滤
-            if min_market_cap and stock.market_cap and stock.market_cap < min_market_cap:
-                continue
-            if max_pe and stock.pe and stock.pe > max_pe:
-                continue
-
-            equity_score = EquityAssetScore.from_stock_info(stock)
-            assets.append(equity_score)
-
-        # 批量评分
+        assets = repo.get_assets_by_filter(asset_type="equity", filters=filter_dict)
         return scorer.score_batch(assets, context)
 
     def _screen_fund(self, context, filters):
         """筛选基金"""
-        from apps.fund.domain.entities import FundAssetScore
-
         repo = DjangoFundAssetRepository()
         scorer = FundMultiDimScorer(repo)
 
@@ -196,22 +180,10 @@ class AssetPoolScreenAPIView(APIView):
             filter_dict["fund_type"] = fund_type
         if investment_style:
             filter_dict["investment_style"] = investment_style
+        if min_scale is not None:
+            filter_dict["min_scale"] = min_scale
 
-        # 获取基金列表
-        from apps.fund.domain.entities import FundInfo
-        funds = repo.get_assets_by_filter(filter_dict)
-
-        # 转换为 FundAssetScore
-        assets = []
-        for fund in funds:
-            # 应用额外过滤
-            if min_scale and fund.scale and fund.scale < min_scale:
-                continue
-
-            fund_score = FundAssetScore.from_fund_info(fund)
-            assets.append(fund_score)
-
-        # 批量评分
+        assets = repo.get_assets_by_filter(asset_type="fund", filters=filter_dict)
         return scorer.score_batch(assets, context)
 
 

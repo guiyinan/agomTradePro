@@ -56,7 +56,7 @@ async function performPrecheck(candidateId, assetCode) {
     try {
         // 禁用按钮并显示加载状态
         precheckButton.disabled = true;
-        precheckButton.innerHTML = '<span class="spinner"></span> 检查中...';
+        precheckButton.innerHTML = '<span class="app-inline-spinner" aria-hidden="true"></span> 检查中...';
 
         // 调用预检查 API
         const response = await fetch('/api/decision-workflow/precheck/', {
@@ -172,7 +172,7 @@ async function submitDecision(candidateId, assetCode, assetClass, direction, con
     try {
         // 禁用按钮
         submitButton.disabled = true;
-        submitButton.innerHTML = '<span class="spinner"></span> 提交中...';
+        submitButton.innerHTML = '<span class="app-inline-spinner" aria-hidden="true"></span> 提交中...';
 
         // 构造请求
         const payload = {
@@ -277,7 +277,7 @@ async function confirmSubmitDecision() {
     const btn = document.getElementById('confirmSubmitDecisionButton');
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner"></span> 提交中...';
+        btn.innerHTML = '<span class="app-inline-spinner" aria-hidden="true"></span> 提交中...';
     }
     const p = pendingSubmitPayload;
     await submitDecision(p.candidateId, p.assetCode, p.assetClass, p.direction, p.confidence, p.thesis);
@@ -399,7 +399,7 @@ async function confirmExecute() {
 
     const confirmButton = document.getElementById('confirmExecuteButton');
     confirmButton.disabled = true;
-    confirmButton.innerHTML = '<span class="spinner"></span> 执行中...';
+    confirmButton.innerHTML = '<span class="app-inline-spinner" aria-hidden="true"></span> 执行中...';
 
     try {
         let payload = {

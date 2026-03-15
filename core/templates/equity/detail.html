@@ -5,9 +5,6 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/equity.css' %}">
-<style>
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-</style>
 {% endblock %}
 
 {% block extra_js %}
@@ -185,8 +182,9 @@
     <!-- 资金流向（来自 market_data 统一数据源） -->
     <div class="card" id="capitalFlowCard">
         <h2 class="card-title">资金流向 <span style="font-size: 12px; color: var(--color-text-muted); font-weight: normal;">（东方财富）</span></h2>
-        <div id="capitalFlowLoading" style="text-align: center; padding: 20px; color: var(--color-text-muted);">
-            <i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite;"></i> 加载中...
+        <div id="capitalFlowLoading" class="app-loading-state app-loading-state--compact">
+            <span class="app-spinner app-spinner--sm" aria-hidden="true"></span>
+            <p class="app-loading-text">加载中...</p>
         </div>
         <div id="capitalFlowEmpty" style="display: none; text-align: center; padding: 20px; color: var(--color-text-muted);">
             暂无资金流向数据
@@ -212,8 +210,9 @@
     <!-- 个股新闻（来自 market_data 统一数据源） -->
     <div class="card" id="stockNewsCard">
         <h2 class="card-title">最新新闻 <span style="font-size: 12px; color: var(--color-text-muted); font-weight: normal;">（东方财富）</span></h2>
-        <div id="stockNewsLoading" style="text-align: center; padding: 20px; color: var(--color-text-muted);">
-            <i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite;"></i> 加载中...
+        <div id="stockNewsLoading" class="app-loading-state app-loading-state--compact">
+            <span class="app-spinner app-spinner--sm" aria-hidden="true"></span>
+            <p class="app-loading-text">加载中...</p>
         </div>
         <div id="stockNewsEmpty" style="display: none; text-align: center; padding: 20px; color: var(--color-text-muted);">
             暂无新闻数据
