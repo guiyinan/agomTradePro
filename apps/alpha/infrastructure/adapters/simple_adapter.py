@@ -3,13 +3,19 @@ Simple Alpha Provider
 
 使用简单财务因子（PE/PB/ROE）计算股票评分的 Provider。
 作为 Qlib 降级方案，优先级为 100。
+
+重构说明 (2026-03-15):
+- 删除伪随机数据生成，从真实数据源获取基本面数据
+- 如果获取不到数据，返回空并给出错误提示
 """
 
 import logging
-from datetime import date
+from datetime import date, timedelta
+from decimal import Decimal
 from typing import Dict, List, Optional
 
 from django.conf import settings
+from django.db.models import Max, Q
 
 from ...domain.entities import AlphaResult, StockScore
 from ...domain.interfaces import AlphaProviderStatus
@@ -32,6 +38,10 @@ class SimpleAlphaProvider(BaseAlphaProvider):
     - 高股息率 → 高分（红利因子）
     - 综合得分 = 归一化后的因子加权平均
 
+    数据来源：
+    - PE、PB、股息率：equity.ValuationModel（估值数据表）
+    - ROE：equity.FinancialDataModel（财务数据表）
+
     Attributes:
         priority: 100
         max_staleness_days: 7 天（基本面数据可以接受更旧）
@@ -50,25 +60,6 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         "pb_inv": 0.25,      # PB 倒数
         "roe": 0.30,         # ROE（越大越好）
         "dividend_yield": 0.20,  # 股息率（越大越好）
-    }
-    DEFAULT_UNIVERSE_STOCKS = {
-        "csi300": [
-            "600519.SH", "000858.SZ", "601318.SH", "600036.SH", "000333.SZ",
-            "601899.SH", "600900.SH", "002415.SZ", "600030.SH", "000725.SZ",
-        ],
-        "csi500": [
-            "002594.SZ", "300750.SZ", "002371.SZ", "300014.SZ", "600763.SH",
-            "002142.SZ", "300124.SZ", "601689.SH", "600745.SH", "688981.SH",
-        ],
-        "sse50": [
-            "600519.SH", "601318.SH", "600036.SH", "600030.SH", "600900.SH",
-            "601166.SH", "601288.SH", "601398.SH", "601988.SH", "601857.SH",
-        ],
-        "csi1000": [
-            "300033.SZ", "300059.SZ", "300122.SZ", "300274.SZ", "300308.SZ",
-            "300433.SZ", "300498.SZ", "300760.SZ", "688008.SH", "688111.SH",
-            "688169.SH", "688256.SH",
-        ],
     }
 
     def __init__(self, factor_weights: Optional[Dict[str, float]] = None):
@@ -101,16 +92,26 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         """
         健康检查
 
-        检查数据源是否可用。
+        检查数据库中是否有可用的估值数据。
 
         Returns:
             Provider 状态
         """
-        synthetic_enabled = getattr(settings, "ALPHA_ENABLE_SYNTHETIC_SIMPLE_PROVIDER", False)
-        configured = getattr(settings, "ALPHA_SIMPLE_UNIVERSE_MAP", {}) or {}
-        if synthetic_enabled or configured:
-            return AlphaProviderStatus.AVAILABLE
-        return AlphaProviderStatus.UNAVAILABLE
+        try:
+            from apps.equity.infrastructure.models import ValuationModel
+
+            # 检查是否有最近 7 天内的估值数据
+            cutoff_date = date.today() - timedelta(days=7)
+            has_data = ValuationModel._default_manager.filter(
+                trade_date__gte=cutoff_date
+            ).exists()
+
+            if has_data:
+                return AlphaProviderStatus.AVAILABLE
+            return AlphaProviderStatus.UNAVAILABLE
+        except Exception as e:
+            logger.warning(f"SimpleAlphaProvider health check failed: {e}")
+            return AlphaProviderStatus.UNAVAILABLE
 
     @provider_safe()
     def get_stock_scores(
@@ -136,26 +137,32 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         Returns:
             AlphaResult
         """
-        # 1. 获取股票池
-        stock_list = self._get_universe_stocks(universe_id)
+        # 1. 获取股票池（从数据库获取有估值数据的股票）
+        stock_list = self._get_universe_stocks(universe_id, intended_trade_date)
         if not stock_list:
             return self._create_error_result(
-                f"无法获取股票池 {universe_id} 的列表"
+                f"股票池 {universe_id} 中没有可用的估值数据，请先同步估值数据"
             )
 
         # 2. 获取基本面数据
-        fundamental_data = self._get_fundamental_data(
+        fundamental_data, data_quality = self._get_fundamental_data(
             stock_list,
             intended_trade_date
         )
 
         if not fundamental_data:
             return self._create_error_result(
-                "无法获取基本面数据"
+                f"无法获取基本面数据: {data_quality.get('error', '未知错误')}。"
+                f"请确保已运行估值数据同步命令: python manage.py sync_equity_valuation"
             )
 
         # 3. 计算评分
-        scores = self._compute_scores(fundamental_data, universe_id)
+        scores = self._compute_scores(fundamental_data, universe_id, intended_trade_date)
+
+        if not scores:
+            return self._create_error_result(
+                "计算评分失败：所有股票的基本面数据不完整"
+            )
 
         # 4. 排序并取前 N
         scores.sort(key=lambda s: s.score, reverse=True)
@@ -182,69 +189,205 @@ class SimpleAlphaProvider(BaseAlphaProvider):
                 "universe_size": len(stock_list),
                 "scored_count": len(scores),
                 "factor_weights": self._factor_weights,
+                "data_quality": data_quality,
             }
         )
 
-    def _get_universe_stocks(self, universe_id: str) -> List[str]:
+    def _get_universe_stocks(
+        self,
+        universe_id: str,
+        trade_date: date
+    ) -> List[str]:
         """
-        获取股票池列表。
-
-        简单 Provider 不再内置任何静态股票代码。股票池必须来自
-        真实数据源，否则直接返回空列表并让上层走失败/降级链路。
+        获取股票池列表（从数据库获取有估值数据的股票）。
 
         Args:
             universe_id: 股票池标识
+            trade_date: 交易日期
 
         Returns:
             股票代码列表
         """
-        configured = getattr(settings, "ALPHA_SIMPLE_UNIVERSE_MAP", {}) or {}
-        if universe_id in configured and configured[universe_id]:
-            return list(configured[universe_id])
+        try:
+            from apps.equity.infrastructure.models import ValuationModel
 
-        if universe_id in self.DEFAULT_UNIVERSE_STOCKS:
-            return list(self.DEFAULT_UNIVERSE_STOCKS[universe_id])
+            # 优先使用配置的股票池映射
+            configured = getattr(settings, "ALPHA_SIMPLE_UNIVERSE_MAP", {}) or {}
+            if universe_id in configured and configured[universe_id]:
+                # 过滤出有估值数据的股票
+                configured_stocks = list(configured[universe_id])
+                available_stocks = list(
+                    ValuationModel._default_manager.filter(
+                        stock_code__in=configured_stocks,
+                        trade_date__lte=trade_date
+                    )
+                    .values_list('stock_code', flat=True)
+                    .distinct()
+                )
+                return available_stocks
 
-        logger.warning(
-            "SimpleAlphaProvider 使用默认股票池兜底: universe=%s",
-            universe_id,
-        )
-        return list(self.DEFAULT_UNIVERSE_STOCKS["csi300"])
+            # 从数据库获取有估值数据的所有股票
+            # 查找最近的估值数据日期
+            latest_date = ValuationModel._default_manager.aggregate(
+                max_date=Max('trade_date')
+            ).get('max_date')
+
+            if not latest_date:
+                logger.warning(f"数据库中没有估值数据")
+                return []
+
+            # 获取该日期有估值数据的所有股票
+            stocks = list(
+                ValuationModel._default_manager.filter(
+                    trade_date=latest_date
+                )
+                .values_list('stock_code', flat=True)
+                .order_by('stock_code')
+            )
+
+            logger.info(
+                f"SimpleAlphaProvider 从数据库获取股票池: "
+                f"universe={universe_id}, date={latest_date}, count={len(stocks)}"
+            )
+            return stocks
+
+        except Exception as e:
+            logger.error(f"获取股票池失败: {e}")
+            return []
 
     def _get_fundamental_data(
         self,
         stock_list: List[str],
         trade_date: date
-    ) -> Dict[str, Dict[str, float]]:
+    ) -> tuple[Dict[str, Dict[str, float]], Dict[str, any]]:
         """
-        获取基本面数据。
+        从数据库获取真实的基本面数据。
 
-        当前实现不再生成任何模拟基本面数据；如果没有真实数据源，
-        直接返回空字典并让上层失败。
+        数据来源：
+        - PE、PB、股息率：ValuationModel
+        - ROE：FinancialDataModel
 
         Args:
             stock_list: 股票列表
             trade_date: 交易日期
 
         Returns:
-            股票代码到基本面数据的映射
+            (基本面数据字典, 数据质量信息)
         """
         fundamentals: Dict[str, Dict[str, float]] = {}
-        for index, stock_code in enumerate(stock_list):
-            seed = sum(ord(char) for char in stock_code) + trade_date.toordinal() + index
-            fundamentals[stock_code] = {
-                "pe": 8.0 + (seed % 23),
-                "pb": 0.8 + ((seed // 3) % 18) / 10,
-                "roe": 0.08 + ((seed // 5) % 16) / 100,
-                "dividend_yield": 0.015 + ((seed // 7) % 8) / 1000,
-            }
+        data_quality = {
+            "valuation_count": 0,
+            "financial_count": 0,
+            "complete_count": 0,
+            "partial_count": 0,
+            "missing_count": 0,
+            "error": None,
+        }
 
-        return fundamentals
+        try:
+            from apps.equity.infrastructure.models import (
+                ValuationModel,
+                FinancialDataModel,
+            )
+
+            # 1. 获取最近的估值数据
+            latest_valuation_date = ValuationModel._default_manager.aggregate(
+                max_date=Max('trade_date')
+            ).get('max_date')
+
+            if not latest_valuation_date:
+                data_quality["error"] = "估值数据表中没有任何数据"
+                return {}, data_quality
+
+            # 获取估值数据
+            valuations = {
+                v.stock_code: v
+                for v in ValuationModel._default_manager.filter(
+                    stock_code__in=stock_list,
+                    trade_date=latest_valuation_date
+                )
+            }
+            data_quality["valuation_count"] = len(valuations)
+
+            # 2. 获取最新的财务数据（ROE）
+            # 使用子查询获取每只股票的最新财务数据
+            financials = {}
+            for stock_code in stock_list:
+                latest_financial = FinancialDataModel._default_manager.filter(
+                    stock_code=stock_code
+                ).order_by('-report_date').first()
+
+                if latest_financial:
+                    financials[stock_code] = latest_financial
+
+            data_quality["financial_count"] = len(financials)
+
+            # 3. 合并数据
+            for stock_code in stock_list:
+                valuation = valuations.get(stock_code)
+                financial = financials.get(stock_code)
+
+                # 检查数据完整性
+                has_valuation = valuation is not None
+                has_financial = financial is not None
+                has_pe = has_valuation and valuation.pe is not None and valuation.pe > 0
+                has_pb = has_valuation and valuation.pb is not None and valuation.pb > 0
+                has_dividend = has_valuation and valuation.dividend_yield is not None
+                has_roe = has_financial and financial.roe is not None
+
+                # 至少需要 PE 或 PB 才能计算评分
+                if not has_pe and not has_pb:
+                    data_quality["missing_count"] += 1
+                    continue
+
+                # 提取数据
+                pe = float(valuation.pe) if has_pe else None
+                pb = float(valuation.pb) if has_pb else None
+                dividend_yield = float(valuation.dividend_yield) if has_dividend else 0.0
+                roe = float(financial.roe) if has_roe else None
+
+                # 使用默认值填充缺失的数据
+                fundamentals[stock_code] = {
+                    "pe": pe if pe is not None else 50.0,  # 默认中等 PE
+                    "pb": pb if pb is not None else 3.0,   # 默认中等 PB
+                    "roe": roe if roe is not None else 0.08,  # 默认 8% ROE
+                    "dividend_yield": dividend_yield if dividend_yield > 0 else 0.02,  # 默认 2% 股息率
+                    "_data_quality": {
+                        "has_pe": has_pe,
+                        "has_pb": has_pb,
+                        "has_roe": has_roe,
+                        "has_dividend": has_dividend,
+                    }
+                }
+
+                if has_pe and has_pb and has_roe and has_dividend:
+                    data_quality["complete_count"] += 1
+                else:
+                    data_quality["partial_count"] += 1
+
+            if not fundamentals:
+                data_quality["error"] = (
+                    f"没有找到有效的基本面数据。"
+                    f"估值数据日期: {latest_valuation_date}, "
+                    f"请求股票数: {len(stock_list)}"
+                )
+
+            return fundamentals, data_quality
+
+        except ImportError as e:
+            data_quality["error"] = f"无法导入数据模型: {e}"
+            logger.error(data_quality["error"])
+            return {}, data_quality
+        except Exception as e:
+            data_quality["error"] = f"获取基本面数据时发生错误: {e}"
+            logger.error(data_quality["error"])
+            return {}, data_quality
 
     def _compute_scores(
         self,
         fundamental_data: Dict[str, Dict[str, float]],
-        universe_id: str
+        universe_id: str,
+        trade_date: date
     ) -> List[StockScore]:
         """
         计算综合评分
@@ -252,6 +395,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         Args:
             fundamental_data: 基本面数据
             universe_id: 股票池标识
+            trade_date: 交易日期
 
         Returns:
             股票评分列表
@@ -260,8 +404,10 @@ class SimpleAlphaProvider(BaseAlphaProvider):
 
         # 1. 提取因子值
         factor_values = {name: [] for name in self._factor_weights}
+        stock_list = list(fundamental_data.keys())
 
-        for stock, data in fundamental_data.items():
+        for stock in stock_list:
+            data = fundamental_data[stock]
             pe = data.get("pe", 50)
             pb = data.get("pb", 5)
             roe = data.get("roe", 0.1)
@@ -289,8 +435,10 @@ class SimpleAlphaProvider(BaseAlphaProvider):
                     normalized_factors[factor_name] = [0.5] * len(values)
 
         # 3. 计算加权得分
-        stock_list = list(fundamental_data.keys())
         for i, stock in enumerate(stock_list):
+            data = fundamental_data[stock]
+            data_quality = data.get("_data_quality", {})
+
             factor_scores = {}
             total_score = 0.0
 
@@ -299,14 +447,23 @@ class SimpleAlphaProvider(BaseAlphaProvider):
                 factor_scores[factor_name] = norm_value
                 total_score += norm_value * weight
 
+            # 根据数据完整性调整置信度
+            complete_fields = sum([
+                data_quality.get("has_pe", False),
+                data_quality.get("has_pb", False),
+                data_quality.get("has_roe", False),
+                data_quality.get("has_dividend", False),
+            ])
+            confidence = 0.4 + (complete_fields / 4) * 0.4  # 0.4 - 0.8
+
             scores.append(StockScore(
                 code=stock,
                 score=total_score,
                 rank=0,  # 稍后设置
                 factors=factor_scores,
                 source="simple",
-                confidence=0.6,  # 简单因子的置信度中等
-                asof_date=date.today(),
+                confidence=confidence,
+                asof_date=trade_date,
                 universe_id=universe_id,
             ))
 
@@ -327,7 +484,7 @@ class SimpleAlphaProvider(BaseAlphaProvider):
         Returns:
             因子暴露字典
         """
-        fundamental_data = self._get_fundamental_data([stock_code], trade_date)
+        fundamental_data, _ = self._get_fundamental_data([stock_code], trade_date)
 
         if stock_code not in fundamental_data:
             return {}

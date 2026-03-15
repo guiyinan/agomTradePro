@@ -4,6 +4,11 @@ ETF Fallback Alpha Provider
 使用 ETF 成分股作为最后防线的 Provider。
 当所有其他 Provider 都不可用时，使用 ETF 持仓作为推荐。
 优先级为 1000（最低）。
+
+重构说明 (2026-03-15):
+- 删除静态持仓兜底，不再使用硬编码的成分股数据
+- 必须从数据库 FundHoldingModel 获取真实持仓数据
+- 如果没有真实数据，返回错误而不是使用假数据
 """
 
 import logging
@@ -27,10 +32,9 @@ class ETFFallbackProvider(BaseAlphaProvider):
     使用 ETF 成分股作为推荐，作为最后的降级方案。
     优先级为 1000（最低），仅在其他所有 Provider 都不可用时使用。
 
-    逻辑：
-    - 根据 universe_id 匹配对应的 ETF
-    - 使用 ETF 前十大重仓股
-    - 按权重分配评分
+    数据来源：
+    - 必须从 FundHoldingModel 获取真实持仓数据
+    - 不再使用硬编码的静态成分股列表
 
     Attributes:
         priority: 1000（最低优先级）
@@ -123,14 +127,15 @@ class ETFFallbackProvider(BaseAlphaProvider):
             )
 
         # 2. 获取 ETF 成分股（数据库）
-        constituents = self._get_etf_constituents(
+        constituents, constituents_error = self._get_etf_constituents(
             etf_info["etf_code"],
             top_n
         )
 
         if not constituents:
+            error_msg = constituents_error or f"无法获取 ETF {etf_info['etf_code']} 的真实成分股"
             return self._create_error_result(
-                f"无法获取 ETF {etf_info['etf_code']} 的真实成分股"
+                f"{error_msg}。请先同步 ETF 持仓数据: python manage.py sync_fund_holdings --fund-code {etf_info['etf_code'].split('.')[0]}"
             )
 
         # 3. 创建评分
@@ -169,54 +174,63 @@ class ETFFallbackProvider(BaseAlphaProvider):
         self,
         etf_code: str,
         top_n: int
-    ) -> List[tuple]:
+    ) -> tuple[List[tuple], Optional[str]]:
         """
-        获取 ETF 成分股
+        获取 ETF 成分股（仅从真实数据源）
 
-        返回 (股票代码, 权重) 的列表
+        不再使用静态成分股列表作为兜底。
+        如果没有真实持仓数据，返回空列表和错误信息。
 
         Args:
             etf_code: ETF 代码
             top_n: 返回前 N 只
 
         Returns:
-            (股票代码, 权重) 列表
+            (成分股列表, 错误信息)
+            成分股列表格式: [(股票代码, 权重), ...]
         """
         try:
             from apps.fund.infrastructure.models import FundHoldingModel
 
             fund_code = etf_code.split(".")[0]
+
+            # 获取最新报告日期
             latest_report = (
                 FundHoldingModel._default_manager.filter(fund_code=fund_code)
                 .order_by("-report_date")
                 .values_list("report_date", flat=True)
                 .first()
             )
-            if latest_report:
-                holdings = list(
-                    FundHoldingModel._default_manager.filter(
-                        fund_code=fund_code,
-                        report_date=latest_report,
-                    ).order_by("-holding_ratio", "-holding_value").values(
-                        "stock_code", "holding_ratio"
-                    )[:top_n]
-                )
 
-                result: List[tuple] = []
-                for row in holdings:
-                    stock_code = row["stock_code"]
-                    ratio = row["holding_ratio"]
-                    ratio_value = float(ratio) if ratio is not None else 0.0
-                    result.append((stock_code, ratio_value))
-                if result:
-                    return result
-        except Exception:
-            pass
+            if not latest_report:
+                return [], f"ETF {etf_code} 没有持仓报告数据，请先同步基金持仓数据"
 
-        fallback = self.DEFAULT_ETF_CONSTITUENTS.get(etf_code)
-        if fallback:
-            return list(fallback[:top_n])
-        return []
+            # 获取持仓数据
+            holdings = list(
+                FundHoldingModel._default_manager.filter(
+                    fund_code=fund_code,
+                    report_date=latest_report,
+                ).order_by("-holding_ratio", "-holding_value").values(
+                    "stock_code", "holding_ratio"
+                )[:top_n]
+            )
+
+            if not holdings:
+                return [], f"ETF {etf_code} 报告日期 {latest_report} 没有持仓记录"
+
+            result: List[tuple] = []
+            for row in holdings:
+                stock_code = row["stock_code"]
+                ratio = row["holding_ratio"]
+                ratio_value = float(ratio) if ratio is not None else 0.0
+                result.append((stock_code, ratio_value))
+
+            return result, None
+
+        except ImportError as e:
+            return [], f"无法导入基金模型: {e}"
+        except Exception as e:
+            return [], f"获取 ETF {etf_code} 持仓时发生错误: {e}"
 
     def get_etf_for_universe(self, universe_id: str) -> Dict[str, str]:
         """
@@ -321,39 +335,17 @@ class ETFFallbackProvider(BaseAlphaProvider):
         return None
 
     def _get_config_map(self) -> Dict[str, Dict[str, str]]:
+        """获取股票池到 ETF 的映射配置"""
         config_map = getattr(settings, "ALPHA_UNIVERSE_ETF_MAP", {}) or {}
         merged = self.DEFAULT_UNIVERSE_ETF_MAP.copy()
         merged.update(config_map)
         return merged
+
+    # 股票池到 ETF 的默认映射（不含成分股数据）
+    # 成分股数据必须从 FundHoldingModel 获取
     DEFAULT_UNIVERSE_ETF_MAP = {
-        "csi300": {"etf_code": "510300.SH", "etf_name": "CSI 300 ETF"},
-        "csi500": {"etf_code": "510500.SH", "etf_name": "CSI 500 ETF"},
-        "sse50": {"etf_code": "510050.SH", "etf_name": "SSE 50 ETF"},
-        "csi1000": {"etf_code": "512100.SH", "etf_name": "CSI 1000 ETF"},
-    }
-    DEFAULT_ETF_CONSTITUENTS = {
-        "510300.SH": [
-            ("600519.SH", 8.60), ("000858.SZ", 6.20), ("601318.SH", 5.40),
-            ("600036.SH", 5.10), ("000333.SZ", 4.80), ("601899.SH", 4.20),
-            ("600900.SH", 3.90), ("002415.SZ", 3.70), ("600030.SH", 3.40),
-            ("000725.SZ", 3.10),
-        ],
-        "510500.SH": [
-            ("002594.SZ", 5.50), ("300750.SZ", 5.00), ("002371.SZ", 4.70),
-            ("300014.SZ", 4.20), ("600763.SH", 4.00), ("002142.SZ", 3.80),
-            ("300124.SZ", 3.60), ("601689.SH", 3.40), ("600745.SH", 3.20),
-            ("688981.SH", 3.00),
-        ],
-        "510050.SH": [
-            ("600519.SH", 9.20), ("601318.SH", 7.50), ("600036.SH", 6.80),
-            ("600030.SH", 5.30), ("600900.SH", 4.60), ("601166.SH", 4.30),
-            ("601288.SH", 4.00), ("601398.SH", 3.80), ("601988.SH", 3.50),
-            ("601857.SH", 3.10),
-        ],
-        "512100.SH": [
-            ("300033.SZ", 2.80), ("300059.SZ", 2.70), ("300122.SZ", 2.60),
-            ("300274.SZ", 2.50), ("300308.SZ", 2.40), ("300433.SZ", 2.30),
-            ("300498.SZ", 2.20), ("300760.SZ", 2.10), ("688008.SH", 2.00),
-            ("688111.SH", 1.90),
-        ],
+        "csi300": {"etf_code": "510300.SH", "etf_name": "沪深300ETF"},
+        "csi500": {"etf_code": "510500.SH", "etf_name": "中证500ETF"},
+        "sse50": {"etf_code": "510050.SH", "etf_name": "上证50ETF"},
+        "csi1000": {"etf_code": "512100.SH", "etf_name": "中证1000ETF"},
     }

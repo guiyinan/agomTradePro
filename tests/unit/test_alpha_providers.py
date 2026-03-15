@@ -327,8 +327,10 @@ class TestETFFallbackProvider:
 
         result = provider.get_stock_scores("csi300", date.today())
 
+        # 应该返回失败，因为没有真实持仓数据
         assert result.success is False
-        assert "真实成分股" in result.error_message
+        # 错误信息应该提示用户同步持仓数据
+        assert "持仓" in result.error_message or "同步" in result.error_message
 
 
 class TestAlphaService:
