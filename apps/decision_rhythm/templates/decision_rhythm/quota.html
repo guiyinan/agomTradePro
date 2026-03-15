@@ -551,8 +551,8 @@
                             </td>
                             <td>{{ request.requested_at|date:"m/d H:i"|default:"-" }}</td>
                             <td>
-                                <button class="btn-sm btn-view" onclick="viewRequest('{{ request.request_id }}')">
-                                    查看
+                                <button class="btn-sm btn-view" onclick="showRequestDetail('{{ request.request_id }}', '{{ request.asset_code }}', '{{ request.direction }}', '{{ request.execution_status }}', '{{ request.priority }}')">
+                                    详情
                                 </button>
                             </td>
                         </tr>
@@ -601,9 +601,29 @@
 </div>
 
 <script>
-function viewRequest(requestId) {
-    // TODO: 跳转到请求详情页
-    window.location.href = `/decision-rhythm/requests/${requestId}/`;
+function showRequestDetail(requestId, assetCode, direction, status, priority) {
+    // 使用 SweetAlert2 显示请求详情
+    Swal.fire({
+        title: '决策请求详情',
+        html: `
+            <div style="text-align: left; padding: 10px;">
+                <p><strong>请求ID:</strong> <code>${requestId}</code></p>
+                <p><strong>资产代码:</strong> <code>${assetCode}</code></p>
+                <p><strong>方向:</strong> ${direction || '-'}</p>
+                <p><strong>执行状态:</strong> ${status || '-'}</p>
+                <p><strong>优先级:</strong> ${priority || '-'}</p>
+            </div>
+        `,
+        icon: 'info',
+        confirmButtonText: '关闭',
+        showCancelButton: true,
+        cancelButtonText: '查看API',
+    }).then((result) => {
+        if (result.dismiss === Swal.DismissReason.cancel) {
+            // 跳转到 API 详情
+            window.open(`/api/decision-rhythm/requests/${requestId}/`, '_blank');
+        }
+    });
 }
 </script>
 {% endblock %}
