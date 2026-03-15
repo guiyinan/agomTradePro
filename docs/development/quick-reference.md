@@ -247,7 +247,7 @@ mypy apps/ --strict
 | `/api/dashboard/v1/regime-quadrant/` | GET | Regime 象限数据 |
 | `/api/dashboard/v1/equity-curve/` | GET | 资金曲线数据 |
 | `/api/dashboard/v1/signal-status/` | GET | 信号状态数据 |
-| `/dashboard/api/v1/*` | GET | 兼容路径（legacy） |
+| `/api/dashboard/v1/*` | GET | dashboard canonical 路径 |
 
 ### Operations UI
 

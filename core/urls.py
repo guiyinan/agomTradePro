@@ -206,6 +206,7 @@ module_patterns = [
     path('api/factor/', include(('apps.factor.interface.api_urls', 'api_factor'), namespace='api_factor')),
     path('api/rotation/', include(('apps.rotation.interface.api_urls', 'api_rotation'), namespace='api_rotation')),
     path('api/hedge/', include(('apps.hedge.interface.api_urls', 'api_hedge'), namespace='api_hedge')),
+    path('api/events/', include(('apps.events.interface.api_urls', 'events_api'), namespace='api_events')),
     # Market Data 统一数据源接入层
     path('market-data/', include(('apps.market_data.interface.urls', 'market_data'), namespace='market_data')),
     path('api/market-data/', include(('apps.market_data.interface.api_urls', 'market_data'), namespace='api_market_data')),
@@ -220,7 +221,7 @@ module_patterns = [
     # Share public routes
     path('', include(('apps.share.interface.urls', 'share'), namespace='share')),
     # Portfolio API routes (alias for simulated-trading accounts)
-    path('api/portfolio/', RedirectView.as_view(url='/api/simulated-trading/api/accounts/', permanent=False), name='api-portfolio'),
+    path('api/portfolio/', RedirectView.as_view(url='/api/simulated-trading/accounts/', permanent=False), name='api-portfolio'),
 ]
 
 

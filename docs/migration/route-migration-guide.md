@@ -77,7 +77,7 @@
 | **backtest** | `/backtest/api/` | `/api/backtest/` | 兼容别名 |
 | **audit** | `/audit/api/` | `/api/audit/` | 双轨，canonical 为 `/api/audit/` |
 | **filter** | `/filter/api/` | `/api/filter/` | 兼容别名 |
-| **dashboard** | `/dashboard/api/v1/` | `/api/dashboard/v1/` | 双轨 |
+| **dashboard** | `/dashboard/api/v1/` | `/api/dashboard/v1/` | 兼容别名 |
 
 ---
 

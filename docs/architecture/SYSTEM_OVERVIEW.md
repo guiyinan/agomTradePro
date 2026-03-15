@@ -610,7 +610,7 @@ allocation = allocation_service.calculate_allocation(
 - ✅ 支持用户个性化配置(隐藏卡片、折叠状态、卡片顺序)
 - ✅ Alpha可视化集成(选股评分、Provider状态、IC趋势)
 - ✅ 收益趋势图历史数据已接入，基于 `account.PortfolioDailySnapshotModel` 输出真实组合曲线
-- ✅ `GET /dashboard/api/performance/` 与 `GET /dashboard/api/v1/equity-curve/` 已返回历史收益序列
+- ✅ `GET /api/dashboard/performance/` 与 `GET /api/dashboard/v1/equity-curve/` 已返回历史收益序列
 
 **待优化**:
 - ⚠️ 图表交互待完善(ECharts集成)
@@ -921,7 +921,7 @@ workflow = chain(
 - Application层: 用例编排
 - Interface层: HTMX视图 + DRF序列化器
 - 收益趋势图历史数据：已基于 `PortfolioDailySnapshotModel` 接入
-- 接口：`/dashboard/api/performance/`、`/dashboard/api/v1/equity-curve/`
+- 接口：`/api/dashboard/performance/`、`/api/dashboard/v1/equity-curve/`
 
 **待优化**:
 - Regime象限图可视化

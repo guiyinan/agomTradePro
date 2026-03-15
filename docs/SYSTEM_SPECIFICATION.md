@@ -1135,8 +1135,8 @@ def check_invalidation(
 
 | 端点 | 方法 | 说明 | 认证 |
 |------|------|------|------|
-| `/dashboard/api/performance/` | GET | 获取首页收益趋势图历史数据 | 需要 |
-| `/dashboard/api/v1/equity-curve/` | GET | 获取 Streamlit 净值曲线序列 | 需要 |
+| `/api/dashboard/performance/` | GET | 获取首页收益趋势图历史数据 | 需要 |
+| `/api/dashboard/v1/equity-curve/` | GET | 获取 Streamlit 净值曲线序列 | 需要 |
 
 **实现说明**：
 - 数据来源：`account.PortfolioDailySnapshotModel`

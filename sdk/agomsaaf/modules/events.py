@@ -7,7 +7,7 @@ from .base import BaseModule
 
 class EventsModule(BaseModule):
     def __init__(self, client: Any) -> None:
-        super().__init__(client, "/events/api")
+        super().__init__(client, "/api/events")
 
     def publish(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._post("publish/", json=payload)

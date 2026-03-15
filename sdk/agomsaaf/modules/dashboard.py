@@ -7,7 +7,7 @@ from .base import BaseModule
 
 class DashboardModule(BaseModule):
     def __init__(self, client: Any) -> None:
-        super().__init__(client, "/dashboard/api")
+        super().__init__(client, "/api/dashboard")
 
     def position_detail(self, asset_code: str) -> dict[str, Any]:
         return self._get(f"position/{asset_code}/")
