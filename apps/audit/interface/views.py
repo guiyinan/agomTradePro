@@ -38,6 +38,7 @@ from .serializers import (
     AttributionReportSerializer,
     GenerateAttributionReportRequestSerializer,
     GenerateAttributionReportResponseSerializer,
+    ThresholdValidationReportSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -476,9 +477,53 @@ class RunValidationView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            report = response.validation_report
+            report_data = None
+            if report is not None:
+                report_data = ThresholdValidationReportSerializer(
+                    {
+                        'validation_run_id': report.validation_run_id,
+                        'run_date': report.run_date,
+                        'evaluation_period_start': report.evaluation_period_start,
+                        'evaluation_period_end': report.evaluation_period_end,
+                        'total_indicators': report.total_indicators,
+                        'approved_indicators': report.approved_indicators,
+                        'rejected_indicators': report.rejected_indicators,
+                        'pending_indicators': report.pending_indicators,
+                        'indicator_reports': [
+                            {
+                                'indicator_code': item.indicator_code,
+                                'evaluation_period_start': item.evaluation_period_start,
+                                'evaluation_period_end': item.evaluation_period_end,
+                                'true_positive_count': item.true_positive_count,
+                                'false_positive_count': item.false_positive_count,
+                                'true_negative_count': item.true_negative_count,
+                                'false_negative_count': item.false_negative_count,
+                                'precision': item.precision,
+                                'recall': item.recall,
+                                'f1_score': item.f1_score,
+                                'accuracy': item.accuracy,
+                                'lead_time_mean': item.lead_time_mean,
+                                'lead_time_std': item.lead_time_std,
+                                'pre_2015_correlation': item.pre_2015_correlation,
+                                'post_2015_correlation': item.post_2015_correlation,
+                                'stability_score': item.stability_score,
+                                'recommended_action': item.recommended_action,
+                                'recommended_weight': item.recommended_weight,
+                                'confidence_level': item.confidence_level,
+                                'decay_rate': item.decay_rate,
+                                'signal_strength': item.signal_strength,
+                            }
+                            for item in report.indicator_reports
+                        ],
+                        'overall_recommendation': report.overall_recommendation,
+                        'status': report.status.value,
+                    }
+                ).data
+
             return Response({
                 'validation_run_id': response.validation_run_id,
-                'report': response.validation_report
+                'report': report_data,
             })
 
         except Exception as e:

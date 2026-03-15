@@ -16,7 +16,9 @@ def register_filter_tools(server: FastMCP) -> None:
     @server.tool()
     def get_filter(filter_id: int | None = None, indicator_code: str | None = None) -> dict[str, Any]:
         client = AgomSAAFClient()
-        return client.filter.get_filter(filter_id=filter_id, indicator_code=indicator_code)
+        if indicator_code is not None:
+            return client.filter.get_filter(indicator_code=indicator_code)
+        return client.filter.get_filter(filter_id)
 
     @server.tool()
     def create_filter(payload: dict[str, Any]) -> dict[str, Any]:

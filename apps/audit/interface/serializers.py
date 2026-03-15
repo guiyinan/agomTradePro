@@ -5,6 +5,48 @@ Serializers for Audit API.
 from rest_framework import serializers
 
 
+class IndicatorPerformanceReportSerializer(serializers.Serializer):
+    """指标表现报告序列化器。"""
+
+    indicator_code = serializers.CharField()
+    evaluation_period_start = serializers.DateField()
+    evaluation_period_end = serializers.DateField()
+    true_positive_count = serializers.IntegerField()
+    false_positive_count = serializers.IntegerField()
+    true_negative_count = serializers.IntegerField()
+    false_negative_count = serializers.IntegerField()
+    precision = serializers.FloatField()
+    recall = serializers.FloatField()
+    f1_score = serializers.FloatField()
+    accuracy = serializers.FloatField()
+    lead_time_mean = serializers.FloatField()
+    lead_time_std = serializers.FloatField()
+    pre_2015_correlation = serializers.FloatField(allow_null=True)
+    post_2015_correlation = serializers.FloatField(allow_null=True)
+    stability_score = serializers.FloatField()
+    recommended_action = serializers.CharField()
+    recommended_weight = serializers.FloatField()
+    confidence_level = serializers.FloatField()
+    decay_rate = serializers.FloatField()
+    signal_strength = serializers.FloatField()
+
+
+class ThresholdValidationReportSerializer(serializers.Serializer):
+    """阈值验证报告序列化器。"""
+
+    validation_run_id = serializers.CharField()
+    run_date = serializers.DateField()
+    evaluation_period_start = serializers.DateField()
+    evaluation_period_end = serializers.DateField()
+    total_indicators = serializers.IntegerField()
+    approved_indicators = serializers.IntegerField()
+    rejected_indicators = serializers.IntegerField()
+    pending_indicators = serializers.IntegerField()
+    indicator_reports = IndicatorPerformanceReportSerializer(many=True)
+    overall_recommendation = serializers.CharField()
+    status = serializers.CharField()
+
+
 class LossAnalysisSerializer(serializers.Serializer):
     """损失分析序列化器"""
     id = serializers.IntegerField()

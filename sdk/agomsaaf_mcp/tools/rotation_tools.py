@@ -112,7 +112,14 @@ def register_rotation_tools(server: FastMCP) -> None:
             "is_enabled": is_enabled,
             "regime_allocations": regime_allocations or {},
         }
-        return client.rotation.create_account_config(payload)
+        try:
+            return client.rotation.create_account_config(payload)
+        except Exception as exc:
+            return {
+                "success": False,
+                "account_id": account_id,
+                "error": str(exc),
+            }
 
     @server.tool()
     def update_account_rotation_config(

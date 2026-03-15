@@ -936,7 +936,7 @@ class ValidateThresholdsUseCase:
                 pending_indicators=pending_count,
                 indicator_reports=indicator_reports,
                 overall_recommendation=overall_recommendation,
-                status=ValidationStatus.COMPLETED if not request.use_shadow_mode else ValidationStatus.SHADOW_RUN,
+                status=ValidationStatus.PASSED if not request.use_shadow_mode else ValidationStatus.SHADOW_RUN,
             )
 
             # 7. 更新验证摘要 (通过 Repository)

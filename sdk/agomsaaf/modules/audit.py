@@ -42,7 +42,15 @@ class AuditModule(BaseModule):
         return self._get(f"indicator-performance-data/{validation_id}/")
 
     def validate_all_indicators(self) -> dict[str, Any]:
-        return self._post("validate-all-indicators/", json={})
+        end = date.today()
+        start = end - timedelta(days=30)
+        return self._post(
+            "validate-all-indicators/",
+            json={
+                "start_date": start.isoformat(),
+                "end_date": end.isoformat(),
+            },
+        )
 
     def update_threshold(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._post("update-threshold/", json=payload)

@@ -47,7 +47,12 @@ def client():
         (lambda c: c.audit.get_attribution_chart_data(12), "GET", "/api/audit/attribution-chart-data/12/"),
         (lambda c: c.audit.indicator_performance("CPI"), "GET", "/api/audit/indicator-performance/CPI/"),
         (lambda c: c.audit.indicator_performance_chart(9), "GET", "/api/audit/indicator-performance-data/9/"),
-        (lambda c: c.audit.validate_all_indicators(), "POST", "/api/audit/validate-all-indicators/", {"json": {}}),
+        (
+            lambda c: c.audit.validate_all_indicators(),
+            "POST",
+            "/api/audit/validate-all-indicators/",
+            {"json": {"start_date": ANY, "end_date": ANY}},
+        ),
         (lambda c: c.audit.update_threshold({"threshold": 0.3}), "POST", "/api/audit/update-threshold/", {"json": {"threshold": 0.3}}),
         (lambda c: c.audit.threshold_validation_data(5), "GET", "/api/audit/threshold-validation-data/5/"),
         (lambda c: c.audit.run_validation({"force": True}), "POST", "/api/audit/run-validation/"),
@@ -78,6 +83,48 @@ def client():
         (lambda c: c.beta_gate.suggest_config({"signal": "s1"}), "POST", "/api/beta-gate/config/suggest/", {"json": {"signal": "s1"}}),
         (lambda c: c.alpha.get_stock_scores(), "GET", "/api/alpha/scores/", {"params": {"universe": "csi300", "top_n": 30}}),
         (lambda c: c.alpha.get_stock_scores("csi500", "2026-02-05", 10), "GET", "/api/alpha/scores/", {"params": {"universe": "csi500", "trade_date": "2026-02-05", "top_n": 10}}),
+        (
+            lambda c: c.alpha.upload_scores(
+                scores=[{"code": "000001.SZ", "score": 0.9, "rank": 1}],
+                universe_id="csi300",
+                asof_date="2026-03-08",
+                intended_trade_date="2026-03-10",
+            ),
+            "POST",
+            "/api/alpha/scores/upload/",
+            {
+                "json": {
+                    "universe_id": "csi300",
+                    "asof_date": "2026-03-08",
+                    "intended_trade_date": "2026-03-10",
+                    "model_id": "local_qlib",
+                    "scope": "user",
+                    "scores": [{"code": "000001.SZ", "score": 0.9, "rank": 1}],
+                }
+            },
+        ),
+        (
+            lambda c: c.alpha.upload_scores(
+                scores=[{"code": "000001.SZ", "score": 0.9, "rank": 1}],
+                universe_id="csi300",
+                asof_date="2026-03-08",
+                intended_trade_date="2026-03-10",
+                model_artifact_hash="hash-123",
+            ),
+            "POST",
+            "/api/alpha/scores/upload/",
+            {
+                "json": {
+                    "universe_id": "csi300",
+                    "asof_date": "2026-03-08",
+                    "intended_trade_date": "2026-03-10",
+                    "model_id": "local_qlib",
+                    "model_artifact_hash": "hash-123",
+                    "scope": "user",
+                    "scores": [{"code": "000001.SZ", "score": 0.9, "rank": 1}],
+                }
+            },
+        ),
         (lambda c: c.alpha.get_provider_status(), "GET", "/api/alpha/providers/status/"),
         (lambda c: c.alpha.get_available_universes(), "GET", "/api/alpha/universes/"),
         (lambda c: c.alpha.check_health(), "GET", "/api/alpha/health/"),

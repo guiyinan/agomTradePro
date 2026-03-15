@@ -191,3 +191,31 @@ Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*runserver*
 
 1. 先保证 MCP 不抛底层异常，统一返回结构化失败结果。
 2. 再按是否需要种子数据、配置数据或业务参数补齐环境。
+
+## 2026-03-15 写工具回归
+
+回归端口：
+
+- 本地 Django: `http://127.0.0.1:8000`
+- MCP base URL: `AGOMSAAF_BASE_URL=http://127.0.0.1:8000`
+
+本轮补齐的问题：
+
+- `audit.run-validation` 之前会把 `ThresholdValidationReport` dataclass 直接塞进 `Response`，导致 `500`；现已改为显式序列化。
+- `alpha.upload_scores` 之前总是发送 `model_artifact_hash=""`，而后端把该字段视为“可选但非空”，导致 SDK/MCP 专有的 `400`；现已改为“空值不发送”。
+- `publish_event`、`query_events`、`submit_decision_request`、`submit_batch_decision_request` 这类写工具，若业务参数不满足要求，MCP 现在统一返回结构化失败结果，不再抛 `ToolError`。
+
+2026-03-15 实测通过的写工具链路：
+
+- `validate_all_indicators`
+- `run_audit_validation`
+- `clear_sentiment_cache`
+- `reset_decision_quota`
+- `create_ai_provider`
+- `create_account_rotation_config`（在使用真实存在的 account_id 时）
+- `upload_alpha_scores`
+
+关于业务失败口径：
+
+- 如果 payload 缺必填字段，MCP 应返回 `{success: false, error: "...", payload: ...}`，而不是工具执行异常。
+- 如果本地数据已存在（例如同一账户已创建过 rotation config），允许返回结构化 `400`，这属于环境状态，不再视为 MCP/SDK 断链。

@@ -21,12 +21,26 @@ def register_decision_rhythm_tools(server: FastMCP) -> None:
     @server.tool()
     def submit_decision_request(payload: dict[str, Any]) -> dict[str, Any]:
         client = AgomSAAFClient()
-        return client.decision_rhythm.submit(payload)
+        try:
+            return client.decision_rhythm.submit(payload)
+        except Exception as exc:
+            return {
+                "success": False,
+                "error": str(exc),
+                "payload": payload,
+            }
 
     @server.tool()
     def submit_batch_decision_request(payload: dict[str, Any]) -> dict[str, Any]:
         client = AgomSAAFClient()
-        return client.decision_rhythm.submit_batch(payload)
+        try:
+            return client.decision_rhythm.submit_batch(payload)
+        except Exception as exc:
+            return {
+                "success": False,
+                "error": str(exc),
+                "payload": payload,
+            }
 
     @server.tool()
     def get_decision_rhythm_summary(payload: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -36,7 +50,11 @@ def register_decision_rhythm_tools(server: FastMCP) -> None:
     @server.tool()
     def reset_decision_quota(payload: dict[str, Any]) -> dict[str, Any]:
         client = AgomSAAFClient()
-        return client.decision_rhythm.reset_quota(payload)
+        normalized = dict(payload)
+        period = normalized.get("period")
+        if isinstance(period, str):
+            normalized["period"] = period.strip().lower()
+        return client.decision_rhythm.reset_quota(normalized)
 
     @server.tool()
     def decision_execute_request(request_id: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -67,7 +85,15 @@ def register_decision_rhythm_tools(server: FastMCP) -> None:
             执行结果，包含执行状态、执行时间和执行引用
         """
         client = AgomSAAFClient()
-        return client.decision_rhythm.execute_request(request_id, payload)
+        try:
+            return client.decision_rhythm.execute_request(request_id, payload)
+        except Exception as exc:
+            return {
+                "success": False,
+                "request_id": request_id,
+                "error": str(exc),
+                "payload": payload,
+            }
 
     @server.tool()
     def decision_cancel_request(request_id: str, reason: str | None = None) -> dict[str, Any]:
@@ -83,7 +109,15 @@ def register_decision_rhythm_tools(server: FastMCP) -> None:
             取消结果
         """
         client = AgomSAAFClient()
-        return client.decision_rhythm.cancel_request(request_id, reason)
+        try:
+            return client.decision_rhythm.cancel_request(request_id, reason)
+        except Exception as exc:
+            return {
+                "success": False,
+                "request_id": request_id,
+                "reason": reason,
+                "error": str(exc),
+            }
 
     @server.tool()
     def get_decision_request(request_id: str) -> dict[str, Any]:
@@ -96,4 +130,11 @@ def register_decision_rhythm_tools(server: FastMCP) -> None:
             决策请求详情，包含执行状态和执行引用
         """
         client = AgomSAAFClient()
-        return client.decision_rhythm.get_request(request_id)
+        try:
+            return client.decision_rhythm.get_request(request_id)
+        except Exception as exc:
+            return {
+                "success": False,
+                "request_id": request_id,
+                "error": str(exc),
+            }

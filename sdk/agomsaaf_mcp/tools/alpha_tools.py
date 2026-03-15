@@ -132,7 +132,7 @@ def register_alpha_tools(server) -> None:
                 scope=scope,
             )
         except Exception as e:
-            logger.error(f"上传 Alpha 评分失败: {e}", exc_info=True)
+            logger.warning(f"上传 Alpha 评分失败: {e}")
             return {
                 "success": False,
                 "error": str(e),

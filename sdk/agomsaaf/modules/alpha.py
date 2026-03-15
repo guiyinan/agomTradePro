@@ -115,18 +115,18 @@ class AlphaModule(BaseModule):
             ... )
             >>> print(f"上传 {result['count']} 条，scope={result['scope']}")
         """
-        return self._post(
-            "scores/upload/",
-            json={
-                "universe_id": universe_id,
-                "asof_date": asof_date,
-                "intended_trade_date": intended_trade_date,
-                "model_id": model_id,
-                "model_artifact_hash": model_artifact_hash,
-                "scope": scope,
-                "scores": scores,
-            },
-        )
+        payload = {
+            "universe_id": universe_id,
+            "asof_date": asof_date,
+            "intended_trade_date": intended_trade_date,
+            "model_id": model_id,
+            "scope": scope,
+            "scores": scores,
+        }
+        if model_artifact_hash:
+            payload["model_artifact_hash"] = model_artifact_hash
+
+        return self._post("scores/upload/", json=payload)
 
     def get_provider_status(self) -> Dict[str, Any]:
         """

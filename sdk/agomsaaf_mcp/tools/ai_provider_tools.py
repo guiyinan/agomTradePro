@@ -29,7 +29,27 @@ def register_ai_provider_tools(server: FastMCP) -> None:
     @server.tool()
     def create_ai_provider(payload: dict[str, Any]) -> dict[str, Any]:
         client = AgomSAAFClient()
-        return client.ai_provider.create_provider(payload)
+        normalized = dict(payload)
+        if "model_name" in normalized and "default_model" not in normalized:
+            normalized["default_model"] = normalized.pop("model_name")
+        provider_type = str(normalized.get("provider_type", "")).strip().lower()
+        if not normalized.get("base_url"):
+            default_base_urls = {
+                "openai": "https://api.openai.com/v1",
+                "deepseek": "https://api.deepseek.com/v1",
+                "anthropic": "https://api.anthropic.com",
+            }
+            normalized["base_url"] = default_base_urls.get(provider_type, "https://api.openai.com/v1")
+        try:
+            return client.ai_provider.create_provider(normalized)
+        except Exception as exc:
+            return {
+                "success": False,
+                "error": str(exc),
+                "payload": {
+                    k: v for k, v in normalized.items() if k != "api_key"
+                },
+            }
 
     @server.tool()
     def update_ai_provider(provider_id: int, payload: dict[str, Any]) -> dict[str, Any]:
