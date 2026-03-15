@@ -3,13 +3,462 @@
 
 {% block title %}决策配额管理 - AgomSAAF{% endblock %}
 
-{% block content %}
+{% block extra_css %}
+<style>
+/* ========================================
+   配额管理页面样式
+   ======================================== */
 
+.quota-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
+}
+
+.quota-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.quota-header h1 {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.quota-header p {
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.btn-config {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    text-decoration: none;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-config:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.btn-config i {
+    font-size: 16px;
+}
+
+/* 配额概览卡片 */
+.quota-overview {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.quota-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.quota-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.quota-card.primary {
+    border-left: 4px solid var(--primary-color);
+}
+
+.quota-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 8px 0;
+}
+
+.quota-card.primary .quota-value {
+    color: var(--primary-color);
+}
+
+.quota-label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* 进度条容器 */
+.quota-progress-container {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.quota-progress-card {
+    /* No additional styling needed */
+}
+
+.quota-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.quota-progress-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* 进度条样式 */
+.quota-progress-bar {
+    height: 12px;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+}
+
+.quota-progress-fill {
+    height: 100%;
+    background: linear-gradient(to right, var(--primary-color), var(--primary-hover));
+    transition: width 0.3s ease;
+    position: relative;
+}
+
+.quota-progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.15) 0%,
+        rgba(255, 255, 255, 0.3) 50%,
+        rgba(255, 255, 255, 0.15) 100%
+    );
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* 面板容器 */
+.panels-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+/* 面板卡片 */
+.panel-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-secondary);
+}
+
+.panel-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.panel-count {
+    background: var(--primary-light);
+    color: var(--primary-color);
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.panel-count.active {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.panel-body {
+    padding: 0;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* 表格样式 */
+.panel-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.panel-table th,
+.panel-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.panel-table th {
+    background: var(--bg-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.panel-table td {
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.panel-table tbody tr:hover {
+    background: var(--bg-secondary);
+}
+
+/* 状态徽章 */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-badge.pending {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.status-badge.approved {
+    background: #d1fae5;
+    color: #059669;
+}
+
+.status-badge.rejected {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.status-badge.executed {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.status-badge.cancelled {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+/* 决策类型徽章 */
+.type-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+/* 冷却项样式 */
+.cooldown-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-light);
+    gap: 12px;
+}
+
+.cooldown-item:last-child {
+    border-bottom: none;
+}
+
+.cooldown-asset {
+    font-weight: 600;
+    color: var(--text-primary);
+    min-width: 100px;
+}
+
+.cooldown-reason {
+    flex: 1;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.cooldown-timer {
+    font-size: 12px;
+    color: var(--warning-color);
+    background: #fef3c7;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+/* 空状态 */
+.empty-state {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.empty-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+    opacity: 0.3;
+}
+
+/* 操作按钮 */
+.btn-sm {
+    padding: 6px 12px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-sm:hover {
+    opacity: 0.8;
+}
+
+.btn-view {
+    background: var(--primary-light);
+    color: var(--primary-color);
+}
+
+.btn-view:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-cancel {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.btn-cancel:hover {
+    background: var(--danger-color);
+    color: white;
+}
+
+/* 巻加操作按钮 */
+.btn-add {
+    background: #d1fae5;
+    color: #059669;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-add:hover {
+    background: var(--success-color);
+    color: white;
+}
+
+/* 巻加新按钮 */
+.btn-add {
+    background: #d1fae5;
+    color: #059669;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-add:hover {
+    background: var(--success-color);
+    color: white;
+}
+
+/* 删除按钮 */
+.btn-delete {
+    background: #fee2e2;
+    color: #dc2626;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-delete:hover {
+    background: var(--danger-color);
+    color: white;
+}
+
+/* 资产代码样式 */
+.asset-code {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 13px;
+    color: var(--primary-color);
+    background: var(--bg-tertiary);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+/* 响应式调整 */
+@media (max-width: 1200px) {
+    .panels-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .quota-overview {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .quota-header h1 {
+        font-size: 24px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
 <div class="quota-container">
     <!-- 头部 -->
     <div class="quota-header">
         <div>
-            <h1>⏱️ 决策配额管理</h1>
+            <h1>决策配额管理</h1>
             <p>决策频率约束与配额监控 - 防止过度交易，确保决策质量</p>
         </div>
         <a href="{% url 'decision_rhythm:config' %}" class="btn-config">
@@ -55,44 +504,57 @@
                 {% endif %}
             </div>
             <div class="quota-progress-bar">
-                <div class="quota-progress-fill" style="width: {{ quota_usage_percent }}%;">
-                    {{ quota_usage_percent }}%
-                </div>
-            </div>
-            <div class="quota-progress-stats">
-                <div>已使用: <strong>{{ quota_used }}</strong> / {{ quota_total }}</div>
-                <div>剩余: <strong>{{ quota_remaining }}</strong></div>
-                <div>周期重置: <strong>{% if current_quota %}{{ current_quota.period_end|date:"m/d H:i" }}{% else %}--{% endif %}</strong></div>
+                <div class="quota-progress-fill" style="width: {{ quota_usage_percent }}%;"></div>
             </div>
         </div>
     </div>
 
-    <!-- 决策请求和冷却期 -->
-    <div class="panel-grid">
-        <!-- 最近决策请求 -->
+    <!-- 双面板区域 -->
+    <div class="panels-container">
+        <!-- 近期决策请求 -->
         <div class="panel-card">
             <div class="panel-header">
-                <div class="panel-title">📋 最近决策请求</div>
-                <span class="panel-count">{{ recent_requests|length }}</span>
+                <div class="panel-title">📋 近期决策请求</div>
+                <span class="panel-count active">{{ recent_requests|length }}</span>
             </div>
             <div class="panel-body">
                 {% if recent_requests %}
-                <table class="request-table">
+                <table class="panel-table">
                     <thead>
                         <tr>
-                            <th>资产</th>
-                            <th>类型</th>
-                            <th>状态</th>
+                            <th>请求ID</th>
+                            <th>资产代码</th>
+                            <th>方向</th>
+                            <th>执行状态</th>
+                            <th>优先级</th>
                             <th>请求时间</th>
+                            <th>操作</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for request in recent_requests|slice:":15" %}
                         <tr>
-                            <td><strong>{{ request.asset_code }}</strong></td>
-                            <td>{{ request.decision_type|lower|cut:"_" }}</td>
-                            <td><span class="request-status {{ request.status }}">{{ request.status|title }}</span></td>
-                            <td>{{ request.requested_at|date:"m-d H:i" }}</td>
+                            <td><code class="asset-code">{{ request.request_id|slice:":8" }}</code></td>
+                            <td><code class="asset-code">{{ request.asset_code }}</code></td>
+                            <td>
+                                <span class="type-badge">
+                                    {{ request.direction|default:"-" }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="status-badge {{ request.execution_status|lower }}">
+                                    {{ request.get_execution_status_display|default:request.execution_status }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="type-badge">{{ request.priority|default:"-" }}</span>
+                            </td>
+                            <td>{{ request.requested_at|date:"m/d H:i"|default:"-" }}</td>
+                            <td>
+                                <button class="btn-sm btn-view" onclick="viewRequest('{{ request.request_id }}')">
+                                    查看
+                                </button>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -117,12 +579,12 @@
                 {% for cooldown in active_cooldowns|slice:":10" %}
                 <div class="cooldown-item">
                     <div class="cooldown-asset">{{ cooldown.asset_code }}</div>
-                    <div class="cooldown-reason">{{ cooldown.reason|default:"决策冷却" }}</div>
+                    <div class="cooldown-reason">冷却 {{ cooldown.min_decision_interval_hours }}h / {{ cooldown.min_execution_interval_hours }}h</div>
                     <div class="cooldown-timer">
-                        {% if cooldown.ends_at %}
-                        剩余: {{ cooldown.ends_at|timeuntil }}
+                        {% if cooldown.last_decision_at %}
+                        上次决策: {{ cooldown.last_decision_at|timesince }}
                         {% else %}
-                        冷却中
+                        待决策
                         {% endif %}
                     </div>
                 </div>
@@ -137,4 +599,11 @@
         </div>
     </div>
 </div>
+
+<script>
+function viewRequest(requestId) {
+    // TODO: 跳转到请求详情页
+    window.location.href = `/decision-rhythm/requests/${requestId}/`;
+}
+</script>
 {% endblock %}

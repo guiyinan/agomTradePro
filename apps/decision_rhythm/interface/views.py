@@ -931,9 +931,8 @@ def decision_rhythm_quota_view(request):
             current_quota = None
 
         try:
-            active_cooldowns = list(CooldownPeriodModel._default_manager.filter(
-                status="ACTIVE"
-            ).order_by('-created_at')[:10])
+            # CooldownPeriodModel 没有 status 字段，查询所有记录
+            active_cooldowns = list(CooldownPeriodModel._default_manager.all().order_by('-created_at')[:10])
         except Exception as e:
             logger.warning(f"Failed to query active cooldowns: {e}")
             active_cooldowns = []
