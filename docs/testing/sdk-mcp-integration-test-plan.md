@@ -332,7 +332,7 @@ python test_sdk_connection.py
 | Signal | `client.signal.check_eligibility()` | 返回准入结果 | ☐ |
 | Macro | `client.macro.list_indicators()` | 返回指标列表 | ☐ |
 | Policy | `client.policy.get_status()` | 返回政策状态 | ☐ |
-| Backtest | `client.backtest.list_backtests()` | 返回回测列表 | ☐ |
+| Backtest | `client.backtest.list()` | 返回回测列表 | ☐ |
 | Account | `client.account.get_portfolios()` | 返回投资组合 | ☐ |
 | SimulatedTrading | `client.simulated_trading.list_accounts()` | 返回模拟账户 | ☐ |
 
@@ -488,10 +488,17 @@ pytest tests/integration/test_backtesting_flow.py -v
 
 **运行方式：**
 ```powershell
+set AGOMSAAF_RUN_LIVE_REALTIME_TESTS=1
 python tests/integration/test_realtime_monitoring_flow.py
 # 或
+set AGOMSAAF_RUN_LIVE_REALTIME_TESTS=1
 pytest tests/integration/test_realtime_monitoring_flow.py -v
 ```
+
+**运行前提：**
+- 该测试依赖 `http://localhost:8000` 上的可用服务。
+- 该测试依赖真实实时行情数据。
+- 未设置 `AGOMSAAF_RUN_LIVE_REALTIME_TESTS=1` 时应默认跳过，避免 CI 因环境或行情缺失失败。
 
 **测试步骤：**
 
@@ -912,6 +919,7 @@ python tests/integration/test_complete_investment_flow.py
 python tests/integration/test_backtesting_flow.py
 
 # 实时监控集成测试
+set AGOMSAAF_RUN_LIVE_REALTIME_TESTS=1
 python tests/integration/test_realtime_monitoring_flow.py
 ```
 
@@ -974,7 +982,7 @@ python tests/integration/test_realtime_monitoring_flow.py
 | **集成测试** | |
 | 投资流程测试 | `tests/integration/test_complete_investment_flow.py` |
 | 回测流程测试 | `tests/integration/test_backtesting_flow.py` |
-| 实时监控测试 | `tests/integration/test_realtime_monitoring_flow.py` |
+| 实时监控测试 | `tests/integration/test_realtime_monitoring_flow.py`（需设置 `AGOMSAAF_RUN_LIVE_REALTIME_TESTS=1`） |
 | **性能测试** | |
 | 性能基准测试 | `tests/performance/` (待创建) |
 | **测试数据** | |

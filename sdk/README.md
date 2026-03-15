@@ -288,6 +288,11 @@ For detailed migration information, see:
 | [equity_fund_analysis.py](../docs/sdk/examples/equity_fund_analysis.py) | Stock and fund analysis |
 | [realtime_strategy.py](../docs/sdk/examples/realtime_strategy.py) | Real-time monitoring and strategies |
 
+## Notes
+
+- `client.backtest.list()` is the preferred SDK list method. `client.backtest.list_backtests()` remains supported as a compatibility alias.
+- `tests/integration/test_realtime_monitoring_flow.py` is a live-market integration test. It is skipped by default unless `AGOMSAAF_RUN_LIVE_REALTIME_TESTS=1` is set.
+
 ## Development
 
 ```bash

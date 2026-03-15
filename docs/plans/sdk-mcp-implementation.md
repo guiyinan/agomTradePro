@@ -356,7 +356,7 @@ print(f"年化收益: {result.annual_return:.2%}")
 |--------|------|--------------|
 | `run_backtest` | 运行回测 | `client.backtest.run()` |
 | `get_backtest_result` | 获取回测结果 | `client.backtest.get_result()` |
-| `list_backtests` | 获取回测列表 | `client.backtest.list_backtests()` |
+| `list_backtests` | 获取回测列表 | `client.backtest.list()` |
 | `get_backtest_equity_curve` | 获取净值曲线 | `client.backtest.get_equity_curve()` |
 
 #### Account（账户管理）

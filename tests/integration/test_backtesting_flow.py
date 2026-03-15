@@ -85,7 +85,7 @@ def test_backtesting_flow() -> None:
         # ====================================================================
         print_step(2, "List Existing Backtests")
 
-        backtests = client.backtest.list_backtests()
+        backtests = client.backtest.list()
         print(f"  Total backtests: {len(backtests)}")
 
         if backtests:

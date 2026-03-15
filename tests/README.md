@@ -69,8 +69,13 @@ Note:
 # In another terminal:
 python tests/integration/test_complete_investment_flow.py
 python tests/integration/test_backtesting_flow.py
+set AGOMSAAF_RUN_LIVE_REALTIME_TESTS=1
 python tests/integration/test_realtime_monitoring_flow.py
 ```
+
+Note:
+- `test_realtime_monitoring_flow.py` depends on a live local server and real-time market data.
+- It is skipped by default unless `AGOMSAAF_RUN_LIVE_REALTIME_TESTS=1` is set.
 
 ---
 
@@ -83,7 +88,7 @@ python tests/integration/test_realtime_monitoring_flow.py
 | `run_all_tests.ps1` | Orchestrates all tests | Project root |
 | `test_complete_investment_flow.py` | Integration test: investment flow | `tests/integration/` |
 | `test_backtesting_flow.py` | Integration test: backtesting | `tests/integration/` |
-| `test_realtime_monitoring_flow.py` | Integration test: realtime monitoring | `tests/integration/` |
+| `test_realtime_monitoring_flow.py` | Integration test: realtime monitoring (live data, opt-in) | `tests/integration/` |
 
 ---
 

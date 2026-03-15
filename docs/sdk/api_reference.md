@@ -100,10 +100,13 @@ client.macro.sync_indicator(indicator_code, force) -> dict
 ```python
 client.backtest.run(strategy_name, start_date, end_date, initial_capital, params) -> BacktestResult
 client.backtest.get_result(backtest_id) -> BacktestResult
+client.backtest.list(strategy_name, status, limit) -> list[BacktestResult]
 client.backtest.list_backtests(strategy_name, status, limit) -> list[BacktestResult]
 client.backtest.delete_result(backtest_id) -> None
 client.backtest.get_equity_curve(backtest_id) -> list[dict]
 ```
+
+`client.backtest.list()` is the preferred public method. `list_backtests()` is retained for backward compatibility.
 
 ### BacktestResult
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 """
 AgomSAAF SDK - Backtest 回测引擎模块
@@ -119,7 +121,7 @@ class BacktestModule(BaseModule):
 
         Example:
             >>> client = AgomSAAFClient()
-            >>> results = client.backtest.list_backtests(
+            >>> results = client.backtest.list(
             ...     strategy_name="momentum",
             ...     status="completed"
             ... )
@@ -136,6 +138,23 @@ class BacktestModule(BaseModule):
         response = self._get("backtests/", params=params)
         results = response.get("backtests", response.get("results", response))
         return [self._parse_result(item) for item in results]
+
+    def list(
+        self,
+        strategy_name: Optional[str] = None,
+        status: Optional[str] = None,
+        limit: int = 100,
+    ) -> list[BacktestResult]:
+        """
+        获取回测列表。
+
+        这是 `list_backtests()` 的兼容别名，便于与 SDK 其他模块保持一致。
+        """
+        return self.list_backtests(
+            strategy_name=strategy_name,
+            status=status,
+            limit=limit,
+        )
 
     def delete_result(self, backtest_id: int) -> None:
         """

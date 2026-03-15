@@ -48,7 +48,8 @@ class RealtimeModule(BaseModule):
             >>> print(f"当前价: {price['current_price']}")
             >>> print(f"涨跌幅: {price['change_percent']:.2%}")
         """
-        return self._get(f"prices/{asset_code}/")
+        response = self._get(f"prices/{asset_code}/")
+        return self._normalize_price_payload(response)
 
     def get_multiple_prices(
         self,
@@ -71,8 +72,24 @@ class RealtimeModule(BaseModule):
             >>> for code, price in prices.items():
             ...     print(f"{code}: {price['current_price']}")
         """
-        data = {"asset_codes": asset_codes}
-        return self._post("prices/batch/", json=data)
+        if not asset_codes:
+            return {}
+
+        response = self._get("prices/", params={"assets": ",".join(asset_codes)})
+        prices = response.get("prices", response)
+        normalized = [self._normalize_price_payload(item) for item in prices]
+        return {item["asset_code"]: item for item in normalized if item.get("asset_code")}
+
+    def get_batch_prices(
+        self,
+        asset_codes: list[str],
+    ) -> list[dict[str, Any]]:
+        """
+        批量获取实时价格列表。
+
+        兼容旧示例命名，内部复用 `get_multiple_prices()`。
+        """
+        return list(self.get_multiple_prices(asset_codes).values())
 
     def get_price_history(
         self,
@@ -231,6 +248,46 @@ class RealtimeModule(BaseModule):
         """
         return self._get("market-summary/")
 
+    def get_market_overview(self) -> dict[str, Any]:
+        """
+        获取市场概况兼容别名。
+
+        返回值在 `get_market_summary()` 基础上补充统一字段，便于旧示例继续运行。
+        """
+        summary = self.get_market_summary()
+        indices = []
+        for code_key, name in (
+            ("sh_index", "Shanghai Index"),
+            ("sz_index", "Shenzhen Index"),
+            ("cyb_index", "ChiNext Index"),
+        ):
+            value = summary.get(code_key)
+            if value is None:
+                continue
+            indices.append(
+                {
+                    "name": name,
+                    "value": value,
+                    "change": summary.get(f"{code_key}_change"),
+                    "change_percent": summary.get(f"{code_key}_change_pct"),
+                }
+            )
+
+        return {
+            **summary,
+            "market_status": "open" if summary.get("success") else "unavailable",
+            "last_update": summary.get("timestamp"),
+            "indices": indices,
+            "market_summary": {
+                "advancing": summary.get("up_count", 0),
+                "declining": summary.get("down_count", 0),
+                "unchanged": summary.get("flat_count", 0),
+                "limit_up": summary.get("limit_up_count", 0),
+                "limit_down": summary.get("limit_down_count", 0),
+            },
+            "turnover": summary.get("total_value"),
+        }
+
     def get_sector_performance(self) -> list[dict[str, Any]]:
         """
         获取板块实时表现
@@ -269,10 +326,32 @@ class RealtimeModule(BaseModule):
             >>> for stock in top_gainers:
             ...     print(f"{stock['code']}: {stock['change_percent']:.2%}")
         """
-        params: dict[str, Any] = {"direction": direction, "limit": limit}
-        response = self._get("top-movers/", params=params)
-        results = response.get("results", response)
-        return results
+        prices = self._get_live_snapshot_prices()
+        reverse = direction != "down"
+        sorted_prices = sorted(
+            prices,
+            key=lambda item: self._numeric(item.get("price_change_percent")),
+            reverse=reverse,
+        )
+        return sorted_prices[:limit]
+
+    def get_top_gainers(self, limit: int = 10) -> list[dict[str, Any]]:
+        """获取涨幅榜兼容方法。"""
+        return self.get_top_movers(direction="up", limit=limit)
+
+    def get_top_losers(self, limit: int = 10) -> list[dict[str, Any]]:
+        """获取跌幅榜兼容方法。"""
+        return self.get_top_movers(direction="down", limit=limit)
+
+    def get_most_active(self, limit: int = 10) -> list[dict[str, Any]]:
+        """获取成交量最活跃资产。"""
+        prices = self._get_live_snapshot_prices()
+        sorted_prices = sorted(
+            prices,
+            key=lambda item: self._numeric(item.get("volume")),
+            reverse=True,
+        )
+        return sorted_prices[:limit]
 
     def subscribe_price(
         self,
@@ -322,3 +401,36 @@ class RealtimeModule(BaseModule):
         response = self._get("subscriptions/")
         results = response.get("results", response)
         return results
+
+    def _get_live_snapshot_prices(self) -> list[dict[str, Any]]:
+        snapshot = self._post("prices/")
+        prices = snapshot.get("prices", snapshot)
+        return [self._normalize_price_payload(item) for item in prices]
+
+    def _normalize_price_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
+        price = payload.get("current_price", payload.get("price"))
+        change = payload.get("price_change", payload.get("change"))
+        change_pct = payload.get(
+            "price_change_percent",
+            payload.get("change_percent", payload.get("change_pct")),
+        )
+        timestamp = payload.get("updated_at", payload.get("timestamp"))
+
+        normalized = dict(payload)
+        normalized.setdefault("current_price", price)
+        normalized.setdefault("price_change", change)
+        normalized.setdefault("price_change_percent", change_pct)
+        normalized.setdefault("updated_at", timestamp)
+
+        # 保留后端字段别名，方便旧代码和新代码同时工作。
+        normalized.setdefault("price", price)
+        normalized.setdefault("change", change)
+        normalized.setdefault("change_pct", change_pct)
+        normalized.setdefault("timestamp", timestamp)
+        return normalized
+
+    def _numeric(self, value: Any) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0

@@ -87,6 +87,26 @@ class TestBacktestModule:
             assert results[0].id == 1
             assert results[1].status == "running"
 
+    def test_list_alias(self, client):
+        """测试 list() 兼容别名"""
+        mock_response = {
+            "results": [
+                {
+                    "id": 1,
+                    "status": "completed",
+                    "total_return": 0.25,
+                    "annual_return": 0.12,
+                    "max_drawdown": -0.15,
+                }
+            ]
+        }
+
+        with patch.object(client, "_request", return_value=mock_response):
+            results = client.backtest.list(limit=10)
+
+            assert len(results) == 1
+            assert results[0].id == 1
+
     def test_get_equity_curve(self, client):
         """测试获取净值曲线"""
         mock_response = {

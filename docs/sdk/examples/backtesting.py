@@ -72,9 +72,9 @@ print()
 
 # Example 4: List all backtests
 print("=== All Backtests ===")
-all_backtests = client.backtest.list_backtests(limit=10)
+all_backtests = client.backtest.list(limit=10)
 for bt in all_backtests:
-    print(f"ID {bt.id}: {bt['strategy_name']} - {bt.status}")
+    print(f"ID {bt.id}: status={bt.status}, annual_return={bt.annual_return:.2%}")
 print()
 
 # Example 5: Get backtest result details

@@ -222,7 +222,7 @@ def test_list_backtests() -> None:
         from sdk.agomsaaf import AgomSAAFClient
 
         client = AgomSAAFClient()
-        backtests = client.backtest.list_backtests()
+        backtests = client.backtest.list()
 
         print_success(f"Found {len(backtests)} backtests")
     except Exception as e:
