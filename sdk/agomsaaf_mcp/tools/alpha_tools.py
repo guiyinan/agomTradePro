@@ -86,7 +86,7 @@ def register_alpha_tools(server) -> None:
             )
 
         except Exception as e:
-            logger.error(f"获取 Alpha 评分失败: {e}", exc_info=True)
+            logger.warning(f"获取 Alpha 评分失败: {e}")
             return {
                 "success": False,
                 "error": str(e),

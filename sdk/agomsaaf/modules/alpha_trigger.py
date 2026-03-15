@@ -29,9 +29,7 @@ class AlphaTriggerModule(BaseModule):
         return self._post("generate-candidate/", json=payload)
 
     def performance(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        if payload:
-            return self._post("performance/", json=payload)
-        return self._get("performance/")
+        return self._get("performance/", params=payload)
 
     def list_candidates(self) -> list[dict[str, Any]]:
         response = self._get("candidates/")

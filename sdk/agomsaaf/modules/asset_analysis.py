@@ -24,6 +24,4 @@ class AssetAnalysisModule(BaseModule):
         return self._get(f"screen/{asset_type}/")
 
     def pool_summary(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        if payload:
-            return self._post("pool-summary/", json=payload)
-        return self._get("pool-summary/")
+        return self._get("pool-summary/", params=payload)

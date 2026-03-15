@@ -15,8 +15,13 @@ class TaskMonitorModule(BaseModule):
     def list_tasks(self) -> dict[str, Any]:
         return self._get("list/")
 
-    def statistics(self) -> dict[str, Any]:
-        return self._get("statistics/")
+    def statistics(self, task_name: str | None = None, days: int | None = None) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        if task_name:
+            params["task_name"] = task_name
+        if days is not None:
+            params["days"] = days
+        return self._get("statistics/", params=params)
 
     def dashboard(self) -> dict[str, Any]:
         return self._get("dashboard/")

@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -98,10 +99,12 @@ class AlphaTriggerRepository:
         Returns:
             AlphaTrigger 实体列表
         """
-        queryset = self.model.objects.active().not_expired()
+        queryset = self.model.objects.filter(
+            status=self.model.ACTIVE,
+        ).filter(Q(expires_at__isnull=True) | Q(expires_at__gt=timezone.now()))
 
         if asset_code:
-            queryset = queryset.by_asset(asset_code)
+            queryset = queryset.filter(asset_code=asset_code)
 
         if min_strength:
             strength_order = [
@@ -129,11 +132,7 @@ class AlphaTriggerRepository:
         Returns:
             AlphaTrigger 实体列表
         """
-        models = (
-            self.model.objects
-            .by_regime(regime)
-            .order_by("-created_at")
-        )
+        models = self.model.objects.filter(related_regime=regime).order_by("-created_at")
 
         return [m.to_domain() for m in models]
 
@@ -147,11 +146,7 @@ class AlphaTriggerRepository:
         Returns:
             AlphaTrigger 实体列表
         """
-        models = (
-            self.model.objects
-            .by_type(trigger_type)
-            .order_by("-created_at")
-        )
+        models = self.model.objects.filter(trigger_type=trigger_type.value).order_by("-created_at")
 
         return [m.to_domain() for m in models]
 
@@ -237,10 +232,9 @@ class AlphaTriggerRepository:
             AlphaTrigger 实体列表
         """
         now = timezone.now()
-        models = (
-            self.model.objects
-            .active()
-            .filter(expires_at__lt=now)
+        models = self.model.objects.filter(
+            status=TriggerStatus.ACTIVE.value,
+            expires_at__lt=now,
         )
 
         # 更新状态为过期
@@ -267,8 +261,8 @@ class AlphaTriggerRepository:
         queryset = self.model.objects.filter(created_at__gte=since)
 
         total = queryset.count()
-        active = queryset.active().count()
-        triggered = queryset.triggered().count()
+        active = queryset.filter(status=TriggerStatus.ACTIVE.value).count()
+        triggered = queryset.filter(status=TriggerStatus.TRIGGERED.value).count()
         invalidated = queryset.filter(status=TriggerStatus.INVALIDATED.value).count()
 
         # 按类型分组

@@ -153,3 +153,41 @@ Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*runserver*
 
 - `get_rotation_recommendation` 当前可返回结果，但若本地未配置 Tushare，会退化为 mock 价格数据。
 - `list_sectors`、`list_funds` 若返回空列表，优先看本地数据是否为空，而不是先怀疑路由。
+
+## 2026-03-15 MCP 实跑端口与问题清单
+
+端口口径：
+
+- 正式本地回环地址：`http://127.0.0.1:8000`
+- 临时隔离排查实例：`http://127.0.0.1:8017`
+
+说明：
+
+- `8017` 仅用于确认“代码是否正确、MCP 是否可调用”，不是长期配置端口。
+- 文档、SDK、MCP 默认地址仍应统一指向 `127.0.0.1:8000`。
+- 若 `8000` 卡死，可临时起隔离端口做比对，但修复完成后必须回到 `8000` 复验。
+
+2026-03-15 真实 MCP 长尾扫面中，曾确认的失败项：
+
+- `list_config_capabilities`: SDK 对 list 响应误用 `.get(...)`
+- `query_events`: SDK 用 `POST`，后端实际为 `GET`
+- `get_decision_rhythm_summary`: SDK 允许 `POST`，后端实际为 `GET`；同时后端把 `DecisionScheduler` 误传给 `RhythmManager`
+- `alpha_trigger_performance`: SDK 用 `POST`，后端实际为 `GET`
+- `asset_pool_summary`: SDK 用 `POST`，后端实际为 `GET`
+- `get_sentiment_index` / `get_sentiment_recent`: SDK 用 `POST`，后端实际为 `GET`
+- `list_alpha_triggers`: 后端 repository 误依赖失效的 queryset manager 扩展，导致 `500`
+
+还有一批不是路由错配，而是“数据不存在/业务前置条件不满足”：
+
+- `get_ai_provider`
+- `decision_workflow_precheck`
+- `get_audit_summary`
+- `get_task_monitor_status`
+- `get_task_monitor_statistics`
+- `get_account_rotation_config`
+- `get_alpha_stock_scores`
+
+这些项的修复策略应是：
+
+1. 先保证 MCP 不抛底层异常，统一返回结构化失败结果。
+2. 再按是否需要种子数据、配置数据或业务参数补齐环境。

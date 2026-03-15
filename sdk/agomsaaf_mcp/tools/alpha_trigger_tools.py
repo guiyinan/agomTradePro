@@ -11,7 +11,10 @@ def register_alpha_trigger_tools(server: FastMCP) -> None:
     @server.tool()
     def list_alpha_triggers() -> list[dict[str, Any]]:
         client = AgomSAAFClient()
-        return client.alpha_trigger.list_triggers()
+        try:
+            return client.alpha_trigger.list_triggers()
+        except Exception:
+            return []
 
     @server.tool()
     def create_alpha_trigger(payload: dict[str, Any]) -> dict[str, Any]:
@@ -36,7 +39,13 @@ def register_alpha_trigger_tools(server: FastMCP) -> None:
     @server.tool()
     def alpha_trigger_performance(payload: dict[str, Any] | None = None) -> dict[str, Any]:
         client = AgomSAAFClient()
-        return client.alpha_trigger.performance(payload)
+        result = client.alpha_trigger.performance(payload)
+        if isinstance(result, list):
+            return {
+                "data": result,
+                "summary": {},
+            }
+        return result
 
     @server.tool()
     def list_alpha_candidates() -> list[dict[str, Any]]:

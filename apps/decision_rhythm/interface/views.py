@@ -465,8 +465,7 @@ class SubmitDecisionRequestView(APIView):
             # 创建管理器
             quota_manager = QuotaManager()
             cooldown_manager = CooldownManager()
-            scheduler = DecisionScheduler()
-            rhythm_manager = RhythmManager(quota_manager, cooldown_manager, scheduler)
+            rhythm_manager = RhythmManager(quota_manager, cooldown_manager)
 
             # 创建用例
             use_case = SubmitDecisionRequestUseCase(rhythm_manager)
@@ -656,8 +655,7 @@ class SubmitBatchRequestView(APIView):
             # 创建管理器
             quota_manager = QuotaManager()
             cooldown_manager = CooldownManager()
-            scheduler = DecisionScheduler()
-            rhythm_manager = RhythmManager(quota_manager, cooldown_manager, scheduler)
+            rhythm_manager = RhythmManager(quota_manager, cooldown_manager)
 
             # 创建用例
             use_case = SubmitBatchRequestUseCase(rhythm_manager)
@@ -724,8 +722,7 @@ class GetRhythmSummaryView(APIView):
             # 创建管理器
             quota_manager = QuotaManager()
             cooldown_manager = CooldownManager()
-            scheduler = DecisionScheduler()
-            rhythm_manager = RhythmManager(quota_manager, cooldown_manager, scheduler)
+            rhythm_manager = RhythmManager(quota_manager, cooldown_manager)
 
             # 创建用例
             use_case = GetRhythmSummaryUseCase(rhythm_manager)

@@ -15,4 +15,6 @@ class ConfigCenterModule(BaseModule):
 
     def list_capabilities(self) -> list[dict[str, Any]]:
         response = self._get("config-capabilities/")
+        if isinstance(response, list):
+            return response
         return response.get("data", response)

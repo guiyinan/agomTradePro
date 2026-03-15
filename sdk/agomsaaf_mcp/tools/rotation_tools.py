@@ -65,9 +65,23 @@ def register_rotation_tools(server: FastMCP) -> None:
         """
         client = AgomSAAFClient()
         if config_id is not None:
-            return client.rotation.get_account_config(config_id)
+            try:
+                return client.rotation.get_account_config(config_id)
+            except Exception as exc:
+                return {
+                    "success": False,
+                    "config_id": config_id,
+                    "error": str(exc),
+                }
         if account_id is not None:
-            return client.rotation.get_account_config_by_account(account_id)
+            try:
+                return client.rotation.get_account_config_by_account(account_id)
+            except Exception as exc:
+                return {
+                    "success": False,
+                    "account_id": account_id,
+                    "error": str(exc),
+                }
         return {
             "error": "必须提供 config_id 或 account_id 之一",
         }

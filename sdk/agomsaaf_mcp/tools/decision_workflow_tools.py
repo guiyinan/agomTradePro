@@ -21,4 +21,11 @@ def register_decision_workflow_tools(server: FastMCP) -> None:
             预检查结果，包含各项检查状态和警告/错误信息
         """
         client = AgomSAAFClient()
-        return client.decision_workflow.precheck(candidate_id)
+        try:
+            return client.decision_workflow.precheck(candidate_id)
+        except Exception as exc:
+            return {
+                "success": False,
+                "candidate_id": candidate_id,
+                "error": str(exc),
+            }

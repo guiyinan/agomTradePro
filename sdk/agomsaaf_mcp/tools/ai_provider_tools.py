@@ -17,7 +17,14 @@ def register_ai_provider_tools(server: FastMCP) -> None:
     @server.tool()
     def get_ai_provider(provider_id: int) -> dict[str, Any]:
         client = AgomSAAFClient()
-        return client.ai_provider.get_provider(provider_id)
+        try:
+            return client.ai_provider.get_provider(provider_id)
+        except Exception as exc:
+            return {
+                "success": False,
+                "provider_id": provider_id,
+                "error": str(exc),
+            }
 
     @server.tool()
     def create_ai_provider(payload: dict[str, Any]) -> dict[str, Any]:

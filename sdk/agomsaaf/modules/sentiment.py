@@ -16,19 +16,13 @@ class SentimentModule(BaseModule):
         return self._post("batch-analyze/", json=payload)
 
     def get_index(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        if payload:
-            return self._post("index/", json=payload)
-        return self._get("index/")
+        return self._get("index/", params=payload)
 
     def index_range(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        if payload:
-            return self._post("index/range/", json=payload)
-        return self._get("index/range/")
+        return self._get("index/range/", params=payload)
 
     def index_recent(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        if payload:
-            return self._post("index/recent/", json=payload)
-        return self._get("index/recent/")
+        return self._get("index/recent/", params=payload)
 
     def health(self) -> dict[str, Any]:
         return self._get("health/")

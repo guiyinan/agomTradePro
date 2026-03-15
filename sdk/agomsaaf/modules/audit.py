@@ -1,5 +1,6 @@
 """AgomSAAF SDK - Audit 模块。"""
 
+from datetime import date, timedelta
 from typing import Any
 
 from .base import BaseModule
@@ -12,8 +13,24 @@ class AuditModule(BaseModule):
     def generate_report(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._post("reports/generate/", json=payload)
 
-    def get_summary(self) -> dict[str, Any]:
-        return self._get("summary/")
+    def get_summary(
+        self,
+        backtest_id: int | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        if backtest_id is not None:
+            params["backtest_id"] = backtest_id
+        elif start_date and end_date:
+            params["start_date"] = start_date
+            params["end_date"] = end_date
+        else:
+            end = date.today()
+            start = end - timedelta(days=30)
+            params["start_date"] = start.isoformat()
+            params["end_date"] = end.isoformat()
+        return self._get("summary/", params=params)
 
     def get_attribution_chart_data(self, report_id: int) -> dict[str, Any]:
         return self._get(f"attribution-chart-data/{report_id}/")

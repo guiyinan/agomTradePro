@@ -9,9 +9,17 @@ from agomsaaf import AgomSAAFClient
 
 def register_audit_tools(server: FastMCP) -> None:
     @server.tool()
-    def get_audit_summary() -> dict[str, Any]:
+    def get_audit_summary(
+        backtest_id: int | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> dict[str, Any]:
         client = AgomSAAFClient()
-        return client.audit.get_summary()
+        return client.audit.get_summary(
+            backtest_id=backtest_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
     @server.tool()
     def generate_audit_report(payload: dict[str, Any]) -> dict[str, Any]:

@@ -28,9 +28,7 @@ class DecisionRhythmModule(BaseModule):
         return self._post("submit-batch/", json=payload)
 
     def summary(self, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        if payload:
-            return self._post("summary/", json=payload)
-        return self._get("summary/")
+        return self._get("summary/", params=payload)
 
     def reset_quota(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._post("reset-quota/", json=payload)

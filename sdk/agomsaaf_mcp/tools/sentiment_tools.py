@@ -21,7 +21,13 @@ def register_sentiment_tools(server: FastMCP) -> None:
     @server.tool()
     def get_sentiment_index(payload: dict[str, Any] | None = None) -> dict[str, Any]:
         client = AgomSAAFClient()
-        return client.sentiment.get_index(payload)
+        try:
+            return client.sentiment.get_index(payload)
+        except Exception as exc:
+            return {
+                "success": False,
+                "error": str(exc),
+            }
 
     @server.tool()
     def get_sentiment_recent(payload: dict[str, Any] | None = None) -> dict[str, Any]:

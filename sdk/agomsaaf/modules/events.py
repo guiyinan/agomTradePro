@@ -13,7 +13,7 @@ class EventsModule(BaseModule):
         return self._post("publish/", json=payload)
 
     def query(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._post("query/", json=payload)
+        return self._get("query/", params=payload)
 
     def metrics(self) -> dict[str, Any]:
         return self._get("metrics/")
