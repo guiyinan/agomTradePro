@@ -7,6 +7,7 @@ DRF ViewSets and page views for the hedge module.
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import ensure_csrf_cookie
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -393,6 +394,7 @@ class HedgeActionViewSet(viewsets.ViewSet):
 # Page Views (for HTML rendering)
 # ============================================================================
 
+@ensure_csrf_cookie
 def hedge_pairs_view(request):
     """
     Hedge pairs configuration page.
@@ -451,6 +453,7 @@ def hedge_pairs_view(request):
     return render(request, 'hedge/pairs.html', context)
 
 
+@ensure_csrf_cookie
 def hedge_holdings_view(request):
     """
     Hedge holdings status page.
@@ -492,6 +495,7 @@ def hedge_holdings_view(request):
     return render(request, 'hedge/holdings.html', context)
 
 
+@ensure_csrf_cookie
 def hedge_alerts_view(request):
     """
     Hedge alerts page.

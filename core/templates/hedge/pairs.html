@@ -22,6 +22,9 @@
 
 <!-- 操作栏 -->
 <div class="hedge-actions-bar">
+    <button class="hedge-btn hedge-btn-primary" onclick="openCreateModal()">
+        <i class="bi bi-plus-circle"></i> 新增对冲对
+    </button>
     <button class="hedge-btn hedge-btn-primary" onclick="updateAllPortfolios()">
         <i class="bi bi-arrow-clockwise"></i> 更新所有持仓
     </button>
@@ -40,6 +43,27 @@
                 </span>
             </div>
             <div class="hedge-pair-actions">
+                <button
+                    class="hedge-action-btn"
+                    onclick="openEditModal(this)"
+                    title="编辑"
+                    data-id="{{ pair.id }}"
+                    data-name="{{ pair.name }}"
+                    data-long-asset="{{ pair.long_asset }}"
+                    data-hedge-asset="{{ pair.hedge_asset }}"
+                    data-hedge-method="{{ pair.hedge_method }}"
+                    data-target-long-weight="{{ pair.target_long_weight }}"
+                    data-target-hedge-weight="{{ pair.target_hedge_weight }}"
+                    data-rebalance-trigger="{{ pair.rebalance_trigger }}"
+                    data-correlation-window="{{ pair.correlation_window }}"
+                    data-min-correlation="{{ pair.min_correlation }}"
+                    data-max-correlation="{{ pair.max_correlation }}"
+                    data-correlation-alert-threshold="{{ pair.correlation_alert_threshold }}"
+                    data-max-hedge-cost="{{ pair.max_hedge_cost }}"
+                    data-beta-target="{% if pair.beta_target is not None %}{{ pair.beta_target }}{% endif %}"
+                    data-is-active="{% if pair.is_active %}true{% else %}false{% endif %}">
+                    <i class="bi bi-pencil-square"></i>
+                </button>
                 {% if pair.is_active %}
                 <button class="hedge-action-btn" onclick="deactivatePair({{ pair.id }})" title="停用">
                     <i class="bi bi-pause-circle"></i>
@@ -49,6 +73,9 @@
                     <i class="bi bi-play-circle"></i>
                 </button>
                 {% endif %}
+                <button class="hedge-action-btn hedge-action-btn-danger" onclick="deletePair({{ pair.id }}, '{{ pair.name|escapejs }}')" title="删除">
+                    <i class="bi bi-trash"></i>
+                </button>
             </div>
         </div>
 
@@ -147,50 +174,324 @@
     <div>暂无对冲对配置</div>
 </div>
 {% endif %}
+
+<div id="pairModal" class="hedge-modal" hidden>
+    <div class="hedge-modal-backdrop" onclick="closePairModal()"></div>
+    <div class="hedge-modal-dialog">
+        <div class="hedge-modal-header">
+            <h3 id="pairModalTitle">新增对冲对</h3>
+            <button type="button" class="hedge-modal-close" onclick="closePairModal()">&times;</button>
+        </div>
+        <form id="pairForm" class="hedge-modal-body">
+            <input type="hidden" id="pairId">
+
+            <div class="hedge-form-grid">
+                <label class="hedge-form-field">
+                    <span>对冲对名称</span>
+                    <input type="text" id="pairName" maxlength="100" required>
+                </label>
+                <label class="hedge-form-field">
+                    <span>对冲方法</span>
+                    <select id="pairMethod" required>
+                        {% for value, label in hedge_methods %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="hedge-form-field">
+                    <span>多头资产</span>
+                    <input type="text" id="longAsset" maxlength="20" required>
+                </label>
+                <label class="hedge-form-field">
+                    <span>对冲资产</span>
+                    <input type="text" id="hedgeAsset" maxlength="20" required>
+                </label>
+                <label class="hedge-form-field">
+                    <span>目标多头权重</span>
+                    <input type="number" id="targetLongWeight" step="0.0001" min="0" required>
+                </label>
+                <label class="hedge-form-field">
+                    <span>目标对冲权重</span>
+                    <input type="number" id="targetHedgeWeight" step="0.0001" min="0" required>
+                </label>
+                <label class="hedge-form-field">
+                    <span>调仓触发阈值</span>
+                    <input type="number" id="rebalanceTrigger" step="0.0001" min="0" required>
+                </label>
+                <label class="hedge-form-field">
+                    <span>相关性窗口</span>
+                    <input type="number" id="correlationWindow" min="1" required>
+                </label>
+                <label class="hedge-form-field">
+                    <span>最小相关性</span>
+                    <input type="number" id="minCorrelation" step="0.0001" min="-1" max="1" required>
+                </label>
+                <label class="hedge-form-field">
+                    <span>最大相关性</span>
+                    <input type="number" id="maxCorrelation" step="0.0001" min="-1" max="1" required>
+                </label>
+                <label class="hedge-form-field">
+                    <span>相关性告警阈值</span>
+                    <input type="number" id="correlationAlertThreshold" step="0.0001" min="0" required>
+                </label>
+                <label class="hedge-form-field">
+                    <span>最大对冲成本</span>
+                    <input type="number" id="maxHedgeCost" step="0.0001" min="0" required>
+                </label>
+                <label class="hedge-form-field">
+                    <span>目标 Beta</span>
+                    <input type="number" id="betaTarget" step="0.0001">
+                </label>
+                <label class="hedge-form-field hedge-form-checkbox">
+                    <span>启用状态</span>
+                    <input type="checkbox" id="isActive" checked>
+                </label>
+            </div>
+
+            <div class="hedge-modal-footer">
+                <button type="button" class="hedge-btn hedge-btn-secondary" onclick="closePairModal()">取消</button>
+                <button type="submit" class="hedge-btn hedge-btn-primary" id="pairSubmitButton">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
-{% block extra_js %}
+{% block hedge_extra_js %}
 <script>
+const pairForm = document.getElementById('pairForm');
+const pairModal = document.getElementById('pairModal');
+
+async function parseJsonResponse(res) {
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+        return await res.json();
+    }
+    const text = await res.text();
+    throw new Error(text.slice(0, 200) || `HTTP ${res.status}`);
+}
+
+function apiJsonHeaders() {
+    return {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': window.csrfToken || '',
+    };
+}
+
+function normalizeDecimal(value) {
+    if (value === '' || value === null || value === undefined) {
+        return null;
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function pairEndpoint(id = '') {
+    return `${HEDGE_URLS.apiPairs}${id ? `${id}/` : ''}`;
+}
+
+function openCreateModal() {
+    document.getElementById('pairModalTitle').textContent = '新增对冲对';
+    document.getElementById('pairSubmitButton').textContent = '创建';
+    pairForm.reset();
+    document.getElementById('pairId').value = '';
+    document.getElementById('pairMethod').value = 'beta';
+    document.getElementById('targetLongWeight').value = '0.7';
+    document.getElementById('targetHedgeWeight').value = '0.3';
+    document.getElementById('rebalanceTrigger').value = '0.05';
+    document.getElementById('correlationWindow').value = '60';
+    document.getElementById('minCorrelation').value = '-0.3';
+    document.getElementById('maxCorrelation').value = '-0.9';
+    document.getElementById('correlationAlertThreshold').value = '0.2';
+    document.getElementById('maxHedgeCost').value = '0.05';
+    document.getElementById('isActive').checked = true;
+    showPairModal();
+}
+
+function openEditModal(button) {
+    const data = button.dataset;
+    document.getElementById('pairModalTitle').textContent = '编辑对冲对';
+    document.getElementById('pairSubmitButton').textContent = '保存修改';
+    document.getElementById('pairId').value = data.id;
+    document.getElementById('pairName').value = data.name || '';
+    document.getElementById('longAsset').value = data.longAsset || '';
+    document.getElementById('hedgeAsset').value = data.hedgeAsset || '';
+    document.getElementById('pairMethod').value = data.hedgeMethod || 'beta';
+    document.getElementById('targetLongWeight').value = data.targetLongWeight || '';
+    document.getElementById('targetHedgeWeight').value = data.targetHedgeWeight || '';
+    document.getElementById('rebalanceTrigger').value = data.rebalanceTrigger || '';
+    document.getElementById('correlationWindow').value = data.correlationWindow || '';
+    document.getElementById('minCorrelation').value = data.minCorrelation || '';
+    document.getElementById('maxCorrelation').value = data.maxCorrelation || '';
+    document.getElementById('correlationAlertThreshold').value = data.correlationAlertThreshold || '';
+    document.getElementById('maxHedgeCost').value = data.maxHedgeCost || '';
+    document.getElementById('betaTarget').value = data.betaTarget || '';
+    document.getElementById('isActive').checked = data.isActive === 'true';
+    showPairModal();
+}
+
+function showPairModal() {
+    console.log('[DEBUG] showPairModal called, pairModal.hidden = false;
+    document.body.classList.add('hedge-modal-open');
+    console.log('[DEBUG] pairModal.hidden = false);
+    console.log('[DEBUG] body.classList:', document.body.classList);
+}
+
+function closePairModal() {
+    pairModal.hidden = true;
+    document.body.classList.remove('hedge-modal-open');
+}
+
+function formatApiError(err) {
+    if (!err) return '未知错误';
+    if (typeof err === 'string') return err;
+    if (Array.isArray(err)) return err.join('；');
+    if (typeof err === 'object') {
+        return Object.entries(err)
+            .map(([key, value]) => `${key}: ${formatApiError(value)}`)
+            .join('；');
+    }
+    return String(err);
+}
+
+function collectPairPayload() {
+    return {
+        name: document.getElementById('pairName').value.trim(),
+        long_asset: document.getElementById('longAsset').value.trim(),
+        hedge_asset: document.getElementById('hedgeAsset').value.trim(),
+        hedge_method: document.getElementById('pairMethod').value,
+        target_long_weight: normalizeDecimal(document.getElementById('targetLongWeight').value),
+        target_hedge_weight: normalizeDecimal(document.getElementById('targetHedgeWeight').value),
+        rebalance_trigger: normalizeDecimal(document.getElementById('rebalanceTrigger').value),
+        correlation_window: normalizeDecimal(document.getElementById('correlationWindow').value),
+        min_correlation: normalizeDecimal(document.getElementById('minCorrelation').value),
+        max_correlation: normalizeDecimal(document.getElementById('maxCorrelation').value),
+        correlation_alert_threshold: normalizeDecimal(document.getElementById('correlationAlertThreshold').value),
+        max_hedge_cost: normalizeDecimal(document.getElementById('maxHedgeCost').value),
+        beta_target: normalizeDecimal(document.getElementById('betaTarget').value),
+        is_active: document.getElementById('isActive').checked,
+    };
+}
+
+pairForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const pairId = document.getElementById('pairId').value;
+    const payload = collectPairPayload();
+
+    if (!payload.name || !payload.long_asset || !payload.hedge_asset) {
+        showToast('名称、资产字段不能为空', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch(pairEndpoint(pairId), {
+            method: pairId ? 'PATCH' : 'POST',
+            headers: apiJsonHeaders(),
+            body: JSON.stringify(payload),
+        });
+        const data = await parseJsonResponse(res);
+
+        if (!res.ok) {
+            throw new Error(formatApiError(data));
+        }
+
+        showToast(pairId ? '对冲对已更新' : '对冲对已创建');
+        closePairModal();
+        location.reload();
+    } catch (error) {
+        showToast(`保存失败: ${error.message}`, 'error');
+    }
+});
+
+async function deletePair(id, name) {
+    if (!await window.uiConfirm(`确认删除对冲对“${name}”？此操作不可恢复。`, { title: '删除对冲对', icon: 'warning' })) return;
+
+    try {
+        const res = await fetch(pairEndpoint(id), {
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': window.csrfToken || '' },
+        });
+
+        if (!res.ok) {
+            const data = await parseJsonResponse(res);
+            throw new Error(formatApiError(data));
+        }
+
+        showToast('对冲对已删除');
+        location.reload();
+    } catch (error) {
+        showToast(`删除失败: ${error.message}`, 'error');
+    }
+}
+
 async function activatePair(id) {
     if (!await window.uiConfirm('确认启用该对冲对？', { title: '启用对冲对', icon: 'info' })) return;
 
-    const res = await fetch(HEDGE_URLS.activatePair(id), { method: 'POST' });
-    const data = await res.json();
+    try {
+        const res = await fetch(HEDGE_URLS.activatePair(id), {
+            method: 'POST',
+            headers: { 'X-CSRFToken': window.csrfToken || '' },
+        });
+        const data = await parseJsonResponse(res);
 
-    if (data.success) {
-        showToast(data.message);
-        location.reload();
-    } else {
-        showToast('操作失败: ' + (data.error || '未知错误'), 'error');
+        if (res.ok && data.success) {
+            showToast(data.message);
+            location.reload();
+        } else {
+            showToast('操作失败: ' + (data.error || '未知错误'), 'error');
+        }
+    } catch (error) {
+        showToast('操作失败: ' + error.message, 'error');
     }
 }
 
 async function deactivatePair(id) {
     if (!await window.uiConfirm('确认停用该对冲对？', { title: '停用对冲对', icon: 'warning' })) return;
 
-    const res = await fetch(HEDGE_URLS.deactivatePair(id), { method: 'POST' });
-    const data = await res.json();
+    try {
+        const res = await fetch(HEDGE_URLS.deactivatePair(id), {
+            method: 'POST',
+            headers: { 'X-CSRFToken': window.csrfToken || '' },
+        });
+        const data = await parseJsonResponse(res);
 
-    if (data.success) {
-        showToast(data.message);
-        location.reload();
-    } else {
-        showToast('操作失败: ' + (data.error || '未知错误'), 'error');
+        if (res.ok && data.success) {
+            showToast(data.message);
+            location.reload();
+        } else {
+            showToast('操作失败: ' + (data.error || '未知错误'), 'error');
+        }
+    } catch (error) {
+        showToast('操作失败: ' + error.message, 'error');
     }
 }
 
 async function updateAllPortfolios() {
     if (!await window.uiConfirm('确认更新所有对冲持仓？', { title: '更新持仓', icon: 'info' })) return;
 
-    const res = await fetch(HEDGE_URLS.updatePortfolios, { method: 'POST' });
-    const data = await res.json();
+    try {
+        const res = await fetch(HEDGE_URLS.updatePortfolios, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': window.csrfToken || '' },
+        });
+        const data = await parseJsonResponse(res);
 
-    if (data.success) {
-        showToast(`已更新 ${data.updated} 个对冲组合`);
-        location.reload();
-    } else {
-        showToast('更新失败', 'error');
+        if (res.ok && data.success) {
+            showToast(`已更新 ${data.updated} 个对冲组合`);
+            location.reload();
+        } else {
+            showToast('更新失败: ' + (data.error || '未知错误'), 'error');
+        }
+    } catch (error) {
+        showToast('更新失败: ' + error.message, 'error');
     }
 }
+
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !pairModal.hidden) {
+        closePairModal();
+    }
+});
 </script>
 {% endblock %}

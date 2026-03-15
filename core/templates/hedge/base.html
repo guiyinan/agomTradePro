@@ -28,11 +28,14 @@
 
 <!-- Toast -->
 <div id="toast" class="toast"></div>
+{% endblock %}
 
 {% block extra_js %}
+{{ block.super }}
 <script>
 // URL 配置
 const HEDGE_URLS = {
+    apiPairs: "/api/hedge/pairs/",
     activatePair: (id) => `{% url 'hedge:activate_pair' 0 %}`.replace('0', id),
     deactivatePair: (id) => `{% url 'hedge:deactivate_pair' 0 %}`.replace('0', id),
     updatePortfolios: "{% url 'hedge:update_portfolios' %}",
@@ -47,5 +50,5 @@ function showToast(msg, type = 'success') {
     setTimeout(() => toast.classList.remove('show'), 3000);
 }
 </script>
-{% endblock %}
+{% block hedge_extra_js %}{% endblock %}
 {% endblock %}

@@ -1,0 +1,272 @@
+/**
+ * Regime Dashboard Styles
+ *
+ * Regime 判定模块样式，使用设计Token
+ *
+ * @version 1.0.0
+ * @updated 2026-02-18
+ */
+
+/* 页面头部 */
+.page-header {
+    margin-bottom: var(--spacing-xl);
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+}
+
+.header-content h1 {
+    font-size: var(--font-size-h1);
+    font-weight: var(--font-weight-bold);
+    margin: 0 0 var(--spacing-sm) 0;
+}
+
+/* 数据源选择器 */
+.data-source-selector {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.data-source-selector label {
+    font-size: var(--font-size-body);
+    color: var(--color-text-primary);
+}
+
+.data-source-selector select {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-body);
+    background: white;
+    cursor: pointer;
+}
+
+/* 数据源徽章 */
+.source-badge {
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-semibold);
+}
+
+.source-badge.source-akshare {
+    background: var(--color-primary-light);
+    color: var(--color-primary-dark);
+}
+
+.source-badge.source-tushare {
+    background: var(--color-warning-light);
+    color: var(--color-warning-dark);
+}
+
+.source-badge.source-fred {
+    background: var(--color-success-light);
+    color: var(--color-success-dark);
+}
+
+/* 同步按钮 */
+.sync-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-body);
+    cursor: pointer;
+    transition: all var(--transition-base);
+}
+
+.sync-btn:hover {
+    background: var(--color-surface);
+    border-color: var(--color-primary);
+}
+
+.sync-icon {
+    display: inline-block;
+    transition: transform var(--transition-slow);
+}
+
+.sync-btn:active .sync-icon {
+    transform: rotate(360deg);
+}
+
+/* 进度条 */
+.sync-progress {
+    width: 200px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--color-border);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: var(--radius-full);
+    transition: width var(--transition-base);
+    width: 0%;
+}
+
+.progress-text {
+    margin-top: var(--spacing-xs);
+    font-size: var(--font-size-small);
+    color: var(--color-text-secondary);
+}
+
+/* 配置链接 */
+.config-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    font-size: 18px;
+    transition: all var(--transition-base);
+}
+
+.config-link:hover {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+/* 教学按钮 */
+.teaching-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-body);
+    cursor: pointer;
+    transition: background var(--transition-base);
+}
+
+.teaching-toggle-btn:hover {
+    background: var(--color-primary-hover);
+}
+
+/* Regime 象限卡片 */
+.regime-cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.regime-card {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    text-align: center;
+}
+
+.regime-card.active {
+    border: 2px solid;
+    box-shadow: var(--shadow-md);
+}
+
+.regime-card.recovery.active {
+    border-color: var(--color-regime-recovery);
+    background: var(--color-regime-recovery);
+}
+
+.regime-card.overheat.active {
+    border-color: var(--color-regime-overheat);
+    background: var(--color-regime-overheat);
+}
+
+.regime-card.stagflation.active {
+    border-color: var(--color-regime-stagflation);
+    background: var(--color-regime-stagflation);
+}
+
+.regime-card.deflation.active {
+    border-color: var(--color-regime-deflation);
+    background: var(--color-regime-deflation);
+}
+
+.regime-card-icon {
+    font-size: 48px;
+    margin-bottom: var(--spacing-md);
+}
+
+.regime-card-title {
+    font-size: var(--font-size-h4);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--spacing-sm);
+}
+
+.regime-card-score {
+    font-size: 36px;
+    line-height: 1;
+    font-weight: var(--font-weight-bold);
+    margin-bottom: var(--spacing-sm);
+}
+
+.regime-card-description {
+    font-size: var(--font-size-small);
+    color: var(--color-text-secondary);
+}
+
+/* 指标图表容器 */
+.charts-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.chart-card {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+}
+
+.chart-card-title {
+    font-size: var(--font-size-h4);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--spacing-md);
+}
+
+.chart-canvas {
+    width: 100%;
+    height: 300px;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .regime-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .charts-container {
+        grid-template-columns: 1fr;
+    }
+
+    .data-source-selector {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

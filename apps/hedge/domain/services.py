@@ -573,7 +573,8 @@ class HedgePortfolioService:
 
         # Determine if rebalance is needed
         target_hedge_weight = pair.target_hedge_weight
-        current_hedge_weight = hedge_ratio * pair.target_long_weight
+        raw_hedge_weight = hedge_ratio * pair.target_long_weight
+        current_hedge_weight = max(0.0, min(1.0, raw_hedge_weight))
 
         rebalance_needed = abs(current_hedge_weight - target_hedge_weight) > pair.rebalance_trigger
         rebalance_reason = ""
@@ -582,6 +583,8 @@ class HedgePortfolioService:
                 f"对冲比例 {current_hedge_weight:.2%} 偏离目标 {target_hedge_weight:.2%} "
                 f"超过阈值 {pair.rebalance_trigger:.1%}"
             )
+            if raw_hedge_weight != current_hedge_weight:
+                rebalance_reason += f"（原始计算值 {raw_hedge_weight:.2%} 已截断到有效范围）"
 
         # Calculate hedge effectiveness
         hedge_effectiveness = self._calculate_effectiveness(correlation_metric.correlation)

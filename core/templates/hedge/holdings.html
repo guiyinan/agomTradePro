@@ -160,12 +160,15 @@
 {% endif %}
 {% endblock %}
 
-{% block extra_js %}
+{% block hedge_extra_js %}
 <script>
 async function updateAllPortfolios() {
     if (!await window.uiConfirm('确认更新所有对冲持仓？', { title: '更新持仓', icon: 'info' })) return;
 
-    const res = await fetch(HEDGE_URLS.updatePortfolios, { method: 'POST' });
+    const res = await fetch(HEDGE_URLS.updatePortfolios, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': window.csrfToken || '' },
+    });
     const data = await res.json();
 
     if (data.success) {

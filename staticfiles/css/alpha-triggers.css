@@ -1,0 +1,242 @@
+/**
+ * Alpha Trigger Module Styles
+ *
+ * Alpha 触发器模块样式，使用设计Token
+ *
+ * @version 1.0.0
+ * @updated 2026-02-18
+ */
+
+/* 容器 */
+.alpha-trigger-container {
+    max-width: var(--content-max-width);
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+}
+
+/* 头部 */
+.alpha-trigger-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.alpha-trigger-header h1 {
+    font-size: var(--font-size-h1);
+    margin: 0;
+}
+
+.alpha-trigger-header p {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-body);
+    margin-top: var(--spacing-xs);
+}
+
+/* 统计网格 */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.stat-card {
+    padding: var(--spacing-lg);
+    background: var(--color-surface);
+    border-radius: var(--radius-xl);
+    text-align: center;
+}
+
+.stat-value {
+    font-size: var(--font-size-h1);
+    font-weight: var(--font-weight-bold);
+    margin-bottom: var(--spacing-xs);
+}
+
+.stat-label {
+    font-size: var(--font-size-small);
+    color: var(--color-text-secondary);
+    font-weight: var(--font-weight-medium);
+}
+
+.stat-card.watch .stat-value {
+    color: var(--color-warning);
+}
+
+.stat-card.candidate .stat-value {
+    color: var(--color-primary);
+}
+
+.stat-card.actionable .stat-value {
+    color: var(--color-success);
+}
+
+.stat-card.triggered .stat-value {
+    color: #8b5cf6;
+}
+
+/* 面板网格 */
+.panel-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+}
+
+.panel-card {
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+}
+
+.panel-header {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.panel-title {
+    font-size: var(--font-size-h4);
+    font-weight: var(--font-weight-semibold);
+}
+
+.panel-count {
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-semibold);
+}
+
+.panel-count.watch {
+    background: var(--color-warning-light);
+    color: var(--color-warning-dark);
+}
+
+.panel-count.candidate {
+    background: var(--color-info-light);
+    color: var(--color-info-dark);
+}
+
+.panel-count.actionable {
+    background: var(--color-success-light);
+    color: var(--color-success-dark);
+}
+
+.panel-body {
+    padding: 0;
+}
+
+/* 触发器表格 */
+.trigger-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.trigger-table th {
+    padding: var(--spacing-md) var(--spacing-lg);
+    text-align: left;
+    background: var(--color-surface);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-small);
+    color: var(--color-text-secondary);
+}
+
+.trigger-table td {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-top: 1px solid var(--color-border);
+    font-size: var(--font-size-small);
+}
+
+/* 强度徽章 */
+.strength-badge {
+    padding: 3px var(--spacing-sm);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+}
+
+.strength-weak {
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+}
+
+.strength-moderate {
+    background: var(--color-info-light);
+    color: var(--color-info-dark);
+}
+
+.strength-strong {
+    background: var(--color-warning-light);
+    color: var(--color-warning-dark);
+}
+
+.strength-very_strong {
+    background: #FED7AA;
+    color: #9A3412;
+}
+
+/* 方向徽章 */
+.direction-badge {
+    padding: 3px var(--spacing-sm);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+}
+
+.direction-long {
+    background: var(--color-success-light);
+    color: var(--color-success-dark);
+}
+
+.direction-short {
+    background: var(--color-error-light);
+    color: var(--color-error-dark);
+}
+
+.direction-neutral {
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+}
+
+/* 触发器行 */
+.trigger-row {
+    cursor: pointer;
+    transition: background var(--transition-base);
+}
+
+.trigger-row:hover {
+    background: var(--color-surface);
+}
+
+.trigger-link {
+    color: inherit;
+    text-decoration: none;
+    display: contents;
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-xl) var(--spacing-lg);
+    color: var(--color-text-muted);
+}
+
+.empty-icon {
+    font-size: 36px;
+    margin-bottom: var(--spacing-sm);
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .panel-grid {
+        grid-template-columns: 1fr;
+    }
+}

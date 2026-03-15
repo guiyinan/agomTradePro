@@ -1,0 +1,266 @@
+/**
+ * AgomSAAF - Alerts Component
+ *
+ * 警告提示组件样式，基于设计Token
+ *
+ * @version 1.0.0
+ * @updated 2026-02-18
+ */
+
+/* 基础提示框 */
+.alert {
+  position: relative;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-md);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+/* 主要提示 */
+.alert-primary {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+  color: var(--color-primary-dark);
+}
+
+.alert-primary .alert-icon {
+  color: var(--color-primary);
+}
+
+/* 成功提示 */
+.alert-success {
+  background: var(--color-success-light);
+  border-color: var(--color-success);
+  color: var(--color-success-dark);
+}
+
+.alert-success .alert-icon {
+  color: var(--color-success);
+}
+
+/* 警告提示 */
+.alert-warning {
+  background: var(--color-warning-light);
+  border-color: var(--color-warning);
+  color: var(--color-warning-dark);
+}
+
+.alert-warning .alert-icon {
+  color: var(--color-warning);
+}
+
+/* 错误提示 */
+.alert-error {
+  background: var(--color-error-light);
+  border-color: var(--color-error);
+  color: var(--color-error-dark);
+}
+
+.alert-error .alert-icon {
+  color: var(--color-error);
+}
+
+/* 信息提示 */
+.alert-info {
+  background: var(--color-info-light);
+  border-color: var(--color-info);
+  color: var(--color-info-dark);
+}
+
+.alert-info .alert-icon {
+  color: var(--color-info);
+}
+
+/* 提示框标题 */
+.alert-heading {
+  margin-top: 0;
+  margin-bottom: var(--spacing-xs);
+  font-size: var(--font-size-h4);
+  font-weight: var(--font-weight-semibold);
+}
+
+.alert-title {
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--spacing-xs);
+}
+
+/* 提示框内容 */
+.alert-content {
+  margin: 0;
+}
+
+/* 提示框图标 */
+.alert-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: var(--spacing-sm);
+  font-size: var(--font-size-h4);
+}
+
+/* 可关闭的提示框 */
+.alert-dismissible {
+  padding-right: 40px;
+}
+
+.alert-close {
+  position: absolute;
+  top: var(--spacing-md);
+  right: var(--spacing-md);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity var(--transition-base);
+}
+
+.alert-close:hover {
+  opacity: 1;
+}
+
+/* 提示框链接 */
+.alert-link {
+  font-weight: var(--font-weight-semibold);
+  color: inherit;
+  text-decoration: underline;
+}
+
+.alert-link:hover {
+  text-decoration: none;
+}
+
+/* 内联提示 */
+.alert-inline {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  margin: 0;
+  font-size: var(--font-size-small);
+}
+
+/* 块级提示带图标 */
+.alert-with-icon {
+  display: flex;
+  align-items: flex-start;
+}
+
+.alert-with-icon .alert-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+}
+
+.alert-with-icon .alert-body {
+  flex: 1;
+}
+
+/* Toast 提示（固定定位） */
+.toast-container {
+  position: fixed;
+  top: var(--spacing-lg);
+  right: var(--spacing-lg);
+  z-index: var(--z-tooltip);
+  max-width: 350px;
+}
+
+.toast {
+  margin-bottom: var(--spacing-sm);
+  animation: toast-slide-in var(--transition-slow) ease-out;
+}
+
+.toast.hiding {
+  animation: toast-fade-out var(--transition-slow) ease-in forwards;
+}
+
+@keyframes toast-slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* 顶部消息横幅 */
+.alert-banner {
+  position: relative;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border: none;
+  border-radius: 0;
+  margin: 0;
+  text-align: center;
+}
+
+/* 加载提示 */
+.alert-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.alert-loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: alert-spin 0.6s linear infinite;
+}
+
+@keyframes alert-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Regime 象限提示 */
+.alert-regime {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.alert-regime-recovery {
+  background: var(--color-regime-recovery);
+  color: var(--color-text-primary);
+}
+
+.alert-regime-overheat {
+  background: var(--color-regime-overheat);
+  color: var(--color-text-primary);
+}
+
+.alert-regime-stagflation {
+  background: var(--color-regime-stagflation);
+  color: var(--color-text-primary);
+}
+
+.alert-regime-deflation {
+  background: var(--color-regime-deflation);
+  color: var(--color-text-primary);
+}
+
+.alert-regime-icon {
+  font-size: var(--font-size-h3);
+  margin-right: var(--spacing-md);
+}

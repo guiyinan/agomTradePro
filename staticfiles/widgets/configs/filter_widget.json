@@ -1,0 +1,34 @@
+{
+    "widgetId": "filter-dashboard",
+    "title": "快捷操作",
+    "icon": "📉",
+    "position": "bottom-right",
+    "content": {
+        "sections": [
+            {
+                "id": "quick-actions",
+                "title": "滤波说明",
+                "type": "content",
+                "content": "<p><strong>Kalman 滤波:</strong> 平滑价格波动，识别真实趋势</p><p><strong>趋势判断:</strong> 滤波后价格上升为上升趋势</p><p><strong>扩张窗口:</strong> 每天重新计算，避免后视偏差</p>"
+            },
+            {
+                "id": "quick-links",
+                "title": "导航",
+                "type": "accordion",
+                "items": [
+                    {
+                        "title": "相关页面",
+                        "content": "<ul><li><a href=\"/regime/dashboard/\">Regime 判定</a></li><li><a href=\"/equity/screen/\">个股筛选</a></li><li><a href=\"/signal/list/\">投资信号</a></li></ul>"
+                    }
+                ]
+            }
+        ],
+        "actions": [
+            {
+                "label": "调整参数",
+                "icon": "⚙️",
+                "onclick": "document.querySelector('.filter-settings')?.scrollIntoView({behavior: 'smooth'})"
+            }
+        ]
+    }
+}

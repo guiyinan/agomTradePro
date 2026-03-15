@@ -124,12 +124,15 @@
 {% endif %}
 {% endblock %}
 
-{% block extra_js %}
+{% block hedge_extra_js %}
 <script>
 async function runMonitoring() {
     if (!await window.uiConfirm('确认运行对冲监控检查？', { title: '运行监控', icon: 'info' })) return;
 
-    const res = await fetch(HEDGE_URLS.runMonitoring, { method: 'POST' });
+    const res = await fetch(HEDGE_URLS.runMonitoring, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': window.csrfToken || '' },
+    });
     const data = await res.json();
 
     if (data.success) {
@@ -145,7 +148,10 @@ async function runMonitoring() {
 async function resolveAlert(id) {
     if (!await window.uiConfirm('确认标记该告警为已解决？', { title: '解决告警', icon: 'info' })) return;
 
-    const res = await fetch(HEDGE_URLS.resolveAlert(id), { method: 'POST' });
+    const res = await fetch(HEDGE_URLS.resolveAlert(id), {
+        method: 'POST',
+        headers: { 'X-CSRFToken': window.csrfToken || '' },
+    });
     const data = await res.json();
 
     if (data.success) {

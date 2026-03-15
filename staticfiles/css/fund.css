@@ -1,0 +1,379 @@
+/**
+ * Fund Module Styles
+ * 基金分析模块样式
+ * 使用设计Token v1.0
+ */
+
+/* Page Header */
+.page-header {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+    color: white;
+    padding: var(--spacing-xl) var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+}
+
+.header-content {
+    max-width: var(--content-max-width);
+    margin: 0 auto;
+}
+
+.header-content h1 {
+    font-size: var(--font-size-h1);
+    margin: 0 0 var(--spacing-sm) 0;
+}
+
+.subtitle {
+    font-size: var(--font-size-body);
+    opacity: 0.9;
+    margin: 0 0 var(--spacing-xs) 0;
+}
+
+.description {
+    font-size: var(--font-size-small);
+    opacity: 0.8;
+    margin: 0;
+}
+
+/* Stats Row */
+.stats-row {
+    max-width: var(--content-max-width);
+    margin: 0 auto var(--spacing-lg);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+    padding: 0 var(--spacing-lg);
+}
+
+.stat-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.stat-icon {
+    font-size: 32px;
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: var(--font-size-h3);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+}
+
+.stat-label {
+    font-size: var(--font-size-small);
+    color: var(--color-text-secondary);
+}
+
+.stat-detail {
+    font-size: var(--font-size-small);
+    color: var(--color-text-secondary);
+    margin-top: var(--spacing-xs);
+}
+
+/* Main Content */
+.fund-container {
+    max-width: var(--content-max-width);
+    margin: 0 auto;
+    padding: 0 var(--spacing-lg);
+}
+
+/* Fund List Section */
+.fund-section {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.section-title {
+    font-size: var(--font-size-h4);
+    font-weight: var(--font-weight-semibold);
+    margin: 0;
+}
+
+/* Fund Grid */
+.fund-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.fund-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    transition: all var(--duration-normal) var(--ease-in-out);
+}
+
+.fund-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.fund-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--spacing-md);
+}
+
+.fund-code {
+    font-size: var(--font-size-h4);
+    font-weight: var(--font-weight-semibold);
+}
+
+.fund-name {
+    font-size: var(--font-size-body);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.fund-type {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+}
+
+/* Fund Metrics */
+.fund-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.fund-metric {
+    display: flex;
+    flex-direction: column;
+}
+
+.metric-label {
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
+}
+
+.metric-value {
+    font-size: var(--font-size-body);
+    font-weight: var(--font-weight-semibold);
+}
+
+.metric-value.positive {
+    color: var(--color-success);
+}
+
+.metric-value.negative {
+    color: var(--color-error);
+}
+
+/* Fund Actions */
+.fund-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+/* Filter Section */
+.filter-section {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.filter-row {
+    display: flex;
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
+    margin-bottom: var(--spacing-md);
+}
+
+.filter-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+.filter-group label {
+    display: block;
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.filter-group select,
+.filter-group input {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-body);
+}
+
+.filter-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: flex-end;
+}
+
+/* Table */
+.fund-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.fund-table thead {
+    border-bottom: 2px solid var(--color-border);
+}
+
+.fund-table th {
+    padding: var(--spacing-md);
+    text-align: left;
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-small);
+    color: var(--color-text-primary);
+}
+
+.fund-table td {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+    font-size: var(--font-size-body);
+}
+
+.fund-table tbody tr:hover {
+    background: var(--color-surface);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-xxl) var(--spacing-lg);
+    color: var(--color-text-muted);
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: var(--spacing-md);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .stats-row {
+        grid-template-columns: 1fr;
+    }
+
+    .fund-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .fund-metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .filter-row {
+        flex-direction: column;
+    }
+
+    .filter-group {
+        min-width: 100%;
+    }
+
+    .fund-table {
+        display: block;
+        overflow-x: auto;
+    }
+}
+
+/* Utility Classes */
+.hidden {
+    display: none !important;
+}
+
+.flex-row {
+    display: flex;
+    gap: var(--spacing-md);
+}
+
+.flex-row-sm {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.text-small {
+    font-size: var(--font-size-small);
+}
+
+/* Weight Config */
+.weight-config {
+    padding: var(--spacing-md);
+    background: var(--color-primary-light);
+    border: 1px solid var(--color-primary-light);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.weight-config h4 {
+    font-size: var(--font-size-small);
+    margin-bottom: var(--spacing-xs);
+    color: var(--color-text-primary);
+}
+
+.weight-info {
+    display: flex;
+    gap: var(--spacing-md);
+    font-size: var(--font-size-small);
+    color: var(--color-text-secondary);
+}
+
+.weight-info strong {
+    color: var(--color-text-primary);
+}
+
+/* Loading & Empty States */
+.text-center {
+    text-align: center;
+}
+
+.loading-text {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--color-text-muted);
+}
+
+.error-text {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--color-error);
+}
+
+.empty-text {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--color-text-muted);
+}
+
+/* Spacing Utilities */
+.mt-md {
+    margin-top: var(--spacing-md);
+}
+

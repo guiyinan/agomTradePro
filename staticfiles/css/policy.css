@@ -1,0 +1,222 @@
+/**
+ * Policy Dashboard Module Styles
+ * 政策跟踪看板模块样式
+ * 使用设计Token v1.0
+ */
+
+/* Container */
+.policy-dashboard {
+    max-width: var(--content-max-width);
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+}
+
+/* Header */
+.policy-header {
+    margin-bottom: var(--spacing-xl);
+}
+
+.policy-header h1 {
+    margin: 0 0 var(--spacing-sm) 0;
+    font-size: var(--font-size-h1);
+}
+
+.policy-header p {
+    margin: 0;
+    color: var(--color-text-secondary);
+}
+
+/* Status Section */
+.status-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+/* Status Cards */
+.status-card {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.status-card.p0 {
+    border-left: 4px solid var(--color-text-secondary);
+}
+
+.status-card.p1 {
+    border-left: 4px solid var(--color-warning);
+}
+
+.status-card.p2 {
+    border-left: 4px solid #fd7e14;
+}
+
+.status-card.p3 {
+    border-left: 4px solid var(--color-error);
+}
+
+.status-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.status-card-title {
+    font-size: var(--font-size-h4);
+    font-weight: var(--font-weight-semibold);
+}
+
+/* Status Badge */
+.status-badge {
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-semibold);
+    color: white;
+}
+
+.status-badge.p0 {
+    background: var(--color-text-secondary);
+}
+
+.status-badge.p1 {
+    background: var(--color-warning);
+}
+
+.status-badge.p2 {
+    background: #fd7e14;
+}
+
+.status-badge.p3 {
+    background: var(--color-error);
+}
+
+.status-card-body {
+    color: var(--color-text-secondary);
+}
+
+.status-card-body strong {
+    color: var(--color-text-primary);
+}
+
+.status-actions {
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--color-border);
+}
+
+.status-actions button,
+.status-actions a {
+    margin-right: var(--spacing-sm);
+}
+
+/* Recommendations */
+.recommendations {
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    margin-top: var(--spacing-md);
+}
+
+.recommendations h4 {
+    margin: 0 0 var(--spacing-sm) 0;
+    font-size: var(--font-size-body);
+    color: var(--color-text-primary);
+}
+
+.recommendations ul {
+    margin: 0;
+    padding-left: var(--spacing-lg);
+    color: var(--color-text-secondary);
+}
+
+.recommendations li {
+    margin-bottom: var(--spacing-xs);
+}
+
+/* Events Section */
+.events-section {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.events-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.events-header h2 {
+    margin: 0;
+    font-size: var(--font-size-h2);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-xxl);
+    color: var(--color-text-muted);
+}
+
+.empty-state svg {
+    width: 64px;
+    height: 64px;
+    margin-bottom: var(--spacing-md);
+    opacity: 0.5;
+}
+
+/* Table Component */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table thead {
+    border-bottom: 2px solid var(--color-border);
+}
+
+.table th {
+    padding: var(--spacing-md);
+    text-align: left;
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-small);
+    color: var(--color-text-primary);
+}
+
+.table td {
+    padding: var(--spacing-md);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.table tbody tr:hover {
+    background: var(--color-surface);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .status-section {
+        grid-template-columns: 1fr;
+    }
+
+    .events-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-md);
+    }
+
+    .table {
+        display: block;
+        overflow-x: auto;
+    }
+}

@@ -1,0 +1,256 @@
+/**
+ * AgomSAAF - Badges Component
+ *
+ * 徽章/标签组件样式，基于设计Token
+ *
+ * @version 1.0.0
+ * @updated 2026-02-18
+ */
+
+/* 基础徽章 */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-md);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* 主要徽章 */
+.badge-primary {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+}
+
+/* 成功徽章 */
+.badge-success {
+  background: var(--color-success-light);
+  color: var(--color-success-dark);
+}
+
+/* 警告徽章 */
+.badge-warning {
+  background: var(--color-warning-light);
+  color: var(--color-warning-dark);
+}
+
+/* 错误徽章 */
+.badge-error {
+  background: var(--color-error-light);
+  color: var(--color-error-dark);
+}
+
+/* 信息徽章 */
+.badge-info {
+  background: var(--color-info-light);
+  color: var(--color-info-dark);
+}
+
+/* 中性徽章 */
+.badge-neutral {
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+/* 浅色徽章 */
+.badge-light {
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+
+/* 深色徽章 */
+.badge-dark {
+  background: var(--color-text-primary);
+  color: var(--color-text-inverse);
+}
+
+/* 圆形徽章 */
+.badge-circle {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 大号圆形徽章 */
+.badge-circle-lg {
+  width: 32px;
+  height: 32px;
+}
+
+/* 小号徽章 */
+.badge-sm {
+  padding: 2px 6px;
+  font-size: var(--font-size-xs);
+}
+
+/* 大号徽章 */
+.badge-lg {
+  padding: var(--spacing-xs) var(--spacing-md);
+  font-size: var(--font-size-body);
+}
+
+/* 圆角徽章 */
+.badge-pill {
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-full);
+}
+
+/* 带边框徽章 */
+.badge-bordered {
+  border: 1px solid currentColor;
+}
+
+/* 徽章链接 */
+.badge-link {
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity var(--transition-base);
+}
+
+.badge-link:hover {
+  opacity: 0.8;
+}
+
+/* Regime 象限徽章 */
+.badge-regime {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+}
+
+.badge-regime-recovery {
+  background: var(--color-regime-recovery);
+  color: var(--color-text-primary);
+}
+
+.badge-regime-overheat {
+  background: var(--color-regime-overheat);
+  color: var(--color-text-primary);
+}
+
+.badge-regime-stagflation {
+  background: var(--color-regime-stagflation);
+  color: var(--color-text-primary);
+}
+
+.badge-regime-deflation {
+  background: var(--color-regime-deflation);
+  color: var(--color-text-primary);
+}
+
+/* 计数徽章 */
+.badge-count {
+  position: relative;
+}
+
+.badge-count::after {
+  content: attr(data-count);
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background: var(--color-error);
+  color: var(--color-text-inverse);
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  line-height: 18px;
+  text-align: center;
+  border-radius: var(--radius-full);
+}
+
+/* 状态指示器徽章 */
+.badge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.badge-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.badge-status-online {
+  color: var(--color-success);
+}
+
+.badge-status-offline {
+  color: var(--color-text-muted);
+}
+
+.badge-status-busy {
+  color: var(--color-error);
+}
+
+.badge-status-away {
+  color: var(--color-warning);
+}
+
+/* 强度徽章（用于Alpha触发器） */
+.badge-strength {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.badge-strength-weak {
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+}
+
+.badge-strength-moderate {
+  background: var(--color-info-light);
+  color: var(--color-info-dark);
+}
+
+.badge-strength-strong {
+  background: var(--color-warning-light);
+  color: var(--color-warning-dark);
+}
+
+.badge-strength-very_strong {
+  background: #FED7AA;
+  color: #9A3412;
+}
+
+/* 方向徽章（用于Alpha触发器） */
+.badge-direction {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.badge-direction-long {
+  background: var(--color-success-light);
+  color: var(--color-success-dark);
+}
+
+.badge-direction-short {
+  background: var(--color-error-light);
+  color: var(--color-error-dark);
+}
+
+.badge-direction-neutral {
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+}

@@ -216,22 +216,35 @@ class HedgePortfolioRepository:
         if not pair_model:
             raise ValueError(f"Hedge pair not found: {portfolio.pair_name}")
 
+        portfolio_values = {
+            'long_weight': portfolio.long_weight,
+            'hedge_weight': portfolio.hedge_weight,
+            'hedge_ratio': portfolio.hedge_ratio,
+            'target_hedge_ratio': portfolio.target_hedge_ratio,
+            'current_correlation': portfolio.current_correlation,
+            'correlation_20d': portfolio.correlation_20d,
+            'correlation_60d': portfolio.correlation_60d,
+            'portfolio_beta': portfolio.portfolio_beta,
+            'portfolio_volatility': portfolio.portfolio_volatility,
+            'hedge_effectiveness': portfolio.hedge_effectiveness,
+            'daily_return': portfolio.daily_return,
+            'unhedged_return': portfolio.unhedged_return,
+            'hedge_return': portfolio.hedge_return,
+            'value_at_risk': portfolio.value_at_risk,
+            'max_drawdown': portfolio.max_drawdown,
+            'rebalance_needed': portfolio.rebalance_needed,
+            'rebalance_reason': portfolio.rebalance_reason,
+        }
+
         model, created = HedgePortfolioHoldingModel._default_manager.get_or_create(
             pair=pair_model,
             trade_date=portfolio.trade_date,
-            defaults={
-                'long_weight': portfolio.long_weight,
-                'hedge_weight': portfolio.hedge_weight,
-                'current_correlation': portfolio.current_correlation,
-                'portfolio_beta': portfolio.portfolio_beta,
-            }
+            defaults=portfolio_values,
         )
 
         if not created:
-            model.long_weight = portfolio.long_weight
-            model.hedge_weight = portfolio.hedge_weight
-            model.current_correlation = portfolio.current_correlation
-            model.portfolio_beta = portfolio.portfolio_beta
+            for field_name, value in portfolio_values.items():
+                setattr(model, field_name, value)
             model.save()
 
         return portfolio
