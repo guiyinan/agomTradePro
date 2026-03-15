@@ -16,7 +16,14 @@ def register_prompt_tools(server: FastMCP) -> None:
     @server.tool()
     def create_prompt_template(payload: dict[str, Any]) -> dict[str, Any]:
         client = AgomSAAFClient()
-        return client.prompt.create_template(payload)
+        try:
+            return client.prompt.create_template(payload)
+        except Exception as exc:
+            return {
+                "success": False,
+                "error": str(exc),
+                "payload": payload,
+            }
 
     @server.tool()
     def list_prompt_chains() -> list[dict[str, Any]]:
@@ -31,9 +38,23 @@ def register_prompt_tools(server: FastMCP) -> None:
     @server.tool()
     def generate_prompt_report(payload: dict[str, Any]) -> dict[str, Any]:
         client = AgomSAAFClient()
-        return client.prompt.generate_report(payload)
+        try:
+            return client.prompt.generate_report(payload)
+        except Exception as exc:
+            return {
+                "success": False,
+                "error": str(exc),
+                "payload": payload,
+            }
 
     @server.tool()
     def generate_prompt_signal(payload: dict[str, Any]) -> dict[str, Any]:
         client = AgomSAAFClient()
-        return client.prompt.generate_signal(payload)
+        try:
+            return client.prompt.generate_signal(payload)
+        except Exception as exc:
+            return {
+                "success": False,
+                "error": str(exc),
+                "payload": payload,
+            }

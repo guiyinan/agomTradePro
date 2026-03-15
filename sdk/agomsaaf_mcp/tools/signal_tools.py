@@ -157,13 +157,26 @@ def register_signal_tools(server: FastMCP) -> None:
             ... )
         """
         client = AgomSAAFClient()
-        signal = client.signal.create(
-            asset_code=asset_code,
-            logic_desc=logic_desc,
-            invalidation_logic=invalidation_logic,
-            invalidation_threshold=invalidation_threshold,
-            target_regime=target_regime,
-        )
+        try:
+            signal = client.signal.create(
+                asset_code=asset_code,
+                logic_desc=logic_desc,
+                invalidation_logic=invalidation_logic,
+                invalidation_threshold=invalidation_threshold,
+                target_regime=target_regime,
+            )
+        except Exception as exc:
+            return {
+                "success": False,
+                "error": str(exc),
+                "payload": {
+                    "asset_code": asset_code,
+                    "logic_desc": logic_desc,
+                    "invalidation_logic": invalidation_logic,
+                    "invalidation_threshold": invalidation_threshold,
+                    "target_regime": target_regime,
+                },
+            }
 
         return {
             "id": signal.id,
@@ -236,7 +249,15 @@ def register_signal_tools(server: FastMCP) -> None:
             >>> signal = invalidate_signal(123, reason="PMI 跌破 50")
         """
         client = AgomSAAFClient()
-        signal = client.signal.invalidate(signal_id, reason=reason)
+        try:
+            signal = client.signal.invalidate(signal_id, reason=reason)
+        except Exception as exc:
+            return {
+                "success": False,
+                "signal_id": signal_id,
+                "reason": reason,
+                "error": str(exc),
+            }
 
         return {
             "id": signal.id,

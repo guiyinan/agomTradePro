@@ -77,6 +77,42 @@ class PromptTemplateViewSet(viewsets.ModelViewSet):
             return PromptTemplateCreateSerializer
         return PromptTemplateSerializer
 
+    def create(self, request, *args, **kwargs):
+        """创建模板后返回稳定的 JSON 结构。"""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        template = serializer.save()
+        return Response(
+            {
+                "id": template.id,
+                "name": template.name,
+                "category": template.category.value,
+                "version": template.version,
+                "template_content": template.template_content,
+                "system_prompt": template.system_prompt,
+                "placeholders": [
+                    {
+                        "name": p.name,
+                        "type": p.type.value,
+                        "description": p.description,
+                        "default_value": p.default_value,
+                        "required": p.required,
+                        "function_name": p.function_name,
+                        "function_params": p.function_params,
+                    }
+                    for p in template.placeholders
+                ],
+                "temperature": template.temperature,
+                "max_tokens": template.max_tokens,
+                "description": template.description,
+                "is_active": template.is_active,
+                "created_at": template.created_at.isoformat() if template.created_at else None,
+                "updated_at": None,
+                "last_used_at": None,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
     @action(detail=True, methods=['post'])
     def execute(self, request, pk=None):
         """执行模板"""

@@ -18,6 +18,19 @@ from ..types import (
 )
 
 
+def _infer_asset_class(asset_code: str) -> str:
+    code = (asset_code or "").upper()
+    if code.startswith(("511", "128", "019")):
+        return "china_bond"
+    if code.startswith(("518", "159934")):
+        return "gold"
+    if code.startswith(("159985", "510170")):
+        return "commodity"
+    if code.startswith(("511880", "511990")):
+        return "cash"
+    return "a_share_growth"
+
+
 class SignalModule(BaseModule):
     """
     投资信号模块
@@ -130,9 +143,10 @@ class SignalModule(BaseModule):
         """
         data: dict[str, Any] = {
             "asset_code": asset_code,
+            "asset_class": _infer_asset_class(asset_code),
+            "direction": "LONG",
             "logic_desc": logic_desc,
             "invalidation_logic": invalidation_logic,
-            "invalidation_threshold": invalidation_threshold,
         }
 
         if target_regime is not None:

@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 from apps.signal.infrastructure.models import InvestmentSignalModel
 from apps.signal.application.use_cases import ValidateSignalUseCase
@@ -66,6 +67,16 @@ class SignalViewSet(viewsets.ModelViewSet):
             return InvestmentSignalCreateSerializer
         return InvestmentSignalSerializer
 
+    def create(self, request, *args, **kwargs):
+        """创建信号后统一返回标准输出结构。"""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        signal = serializer.save()
+        return Response(
+            InvestmentSignalSerializer(signal).data,
+            status=status.HTTP_201_CREATED,
+        )
+
     @action(detail=True, methods=['post'])
     def validate(self, request, pk=None):
         """
@@ -87,6 +98,36 @@ class SignalViewSet(viewsets.ModelViewSet):
                 'success': False,
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        """审批信号。"""
+        signal = get_object_or_404(InvestmentSignalModel, pk=pk)
+        signal.status = 'approved'
+        signal.rejection_reason = ''
+        signal.save(update_fields=['status', 'rejection_reason', 'updated_at'])
+        return Response(InvestmentSignalSerializer(signal).data)
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        """拒绝信号。"""
+        signal = get_object_or_404(InvestmentSignalModel, pk=pk)
+        reason = request.data.get('reason', '手动拒绝')
+        signal.status = 'rejected'
+        signal.rejection_reason = reason
+        signal.save(update_fields=['status', 'rejection_reason', 'updated_at'])
+        return Response(InvestmentSignalSerializer(signal).data)
+
+    @action(detail=True, methods=['post'])
+    def invalidate(self, request, pk=None):
+        """证伪信号。"""
+        signal = get_object_or_404(InvestmentSignalModel, pk=pk)
+        reason = request.data.get('reason', '手动证伪')
+        signal.status = 'invalidated'
+        signal.rejection_reason = reason
+        signal.invalidated_at = timezone.now()
+        signal.save(update_fields=['status', 'rejection_reason', 'invalidated_at', 'updated_at'])
+        return Response(InvestmentSignalSerializer(signal).data)
 
     @action(detail=False, methods=['post'])
     def check_eligibility(self, request):

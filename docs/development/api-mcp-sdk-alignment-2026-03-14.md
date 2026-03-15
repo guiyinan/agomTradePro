@@ -219,3 +219,25 @@ Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*runserver*
 
 - 如果 payload 缺必填字段，MCP 应返回 `{success: false, error: "...", payload: ...}`，而不是工具执行异常。
 - 如果本地数据已存在（例如同一账户已创建过 rotation config），允许返回结构化 `400`，这属于环境状态，不再视为 MCP/SDK 断链。
+
+## 2026-03-15 第二批写工具结果
+
+本轮继续验证并修复了：
+
+- `create_strategy`
+- `create_signal`
+- `invalidate_signal`
+- `create_prompt_template`
+
+对应修复：
+
+- `strategy`：后端序列化器不再把 `created_by` 暴露成外部必填字段，创建时由 `perform_create()` 统一注入当前用户。
+- `signal`：SDK 创建请求改为对齐 DRF `POST /api/signal/` 的真实输入结构；后端 `SignalViewSet` 新增 `approve/reject/invalidate` action，并在创建后返回标准输出 serializer。
+- `prompt`：`PromptTemplateViewSet.create()` 改为显式返回稳定 JSON，不再把 domain entity 直接交给 DRF 的 `ModelSerializer` 渲染，避免 `datetime.date` / timezone 渲染异常。
+
+当前已知的剩余限制：
+
+- `reset_simulated_account` 在当前后端没有对应的 canonical API endpoint。
+- 因此 MCP 现在会返回结构化失败：
+  `{success: false, account_id: ..., error: "[404] Resource not found."}`
+- 这表示“功能尚未由后端实现”，不再视为 SDK/MCP 路由断链。

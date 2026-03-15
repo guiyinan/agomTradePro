@@ -79,7 +79,18 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
         """
         client = AgomSAAFClient()
         parsed_date = date.fromisoformat(start_date)
-        return client.simulated_trading.create_account(name, initial_capital, parsed_date)
+        try:
+            return client.simulated_trading.create_account(name, initial_capital, parsed_date)
+        except Exception as exc:
+            return {
+                "success": False,
+                "error": str(exc),
+                "payload": {
+                    "name": name,
+                    "initial_capital": initial_capital,
+                    "start_date": start_date,
+                },
+            }
 
     @server.tool()
     def execute_simulated_trade(
@@ -168,7 +179,15 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
             >>> account = reset_simulated_account(account_id=1)
         """
         client = AgomSAAFClient()
-        return client.simulated_trading.reset_account(account_id, new_initial_capital)
+        try:
+            return client.simulated_trading.reset_account(account_id, new_initial_capital)
+        except Exception as exc:
+            return {
+                "success": False,
+                "account_id": account_id,
+                "new_initial_capital": new_initial_capital,
+                "error": str(exc),
+            }
 
     @server.tool()
     def close_simulated_position(
@@ -205,11 +224,20 @@ def register_simulated_trading_tools(server: FastMCP) -> None:
         """
         client = AgomSAAFClient()
         parsed_date = date.fromisoformat(inspection_date) if inspection_date else None
-        return client.simulated_trading.run_daily_inspection(
-            account_id=account_id,
-            strategy_id=strategy_id,
-            inspection_date=parsed_date,
-        )
+        try:
+            return client.simulated_trading.run_daily_inspection(
+                account_id=account_id,
+                strategy_id=strategy_id,
+                inspection_date=parsed_date,
+            )
+        except Exception as exc:
+            return {
+                "success": False,
+                "account_id": account_id,
+                "strategy_id": strategy_id,
+                "inspection_date": inspection_date,
+                "error": str(exc),
+            }
 
     @server.tool()
     def list_simulated_daily_inspections(

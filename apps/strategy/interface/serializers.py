@@ -38,7 +38,7 @@ class StrategySerializer(serializers.ModelSerializer):
             'max_position_pct', 'max_total_position_pct', 'stop_loss_pct',
             'created_by', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
 
     def validate_max_position_pct(self, value):
         """验证单资产最大持仓比例"""

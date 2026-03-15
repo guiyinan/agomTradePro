@@ -81,7 +81,19 @@ def register_strategy_tools(server: FastMCP) -> None:
             ... )
         """
         client = AgomSAAFClient()
-        return client.strategy.create_strategy(name, strategy_type, description, params)
+        try:
+            return client.strategy.create_strategy(name, strategy_type, description, params)
+        except Exception as exc:
+            return {
+                "success": False,
+                "error": str(exc),
+                "payload": {
+                    "name": name,
+                    "strategy_type": strategy_type,
+                    "description": description,
+                    "params": params,
+                },
+            }
 
     @server.tool()
     def execute_strategy(
@@ -234,22 +246,30 @@ def register_strategy_tools(server: FastMCP) -> None:
     ) -> dict[str, Any]:
         """创建仓位管理规则。"""
         client = AgomSAAFClient()
-        return client.strategy.create_position_rule(
-            strategy_id=strategy_id,
-            name=name,
-            buy_price_expr=buy_price_expr,
-            sell_price_expr=sell_price_expr,
-            stop_loss_expr=stop_loss_expr,
-            take_profit_expr=take_profit_expr,
-            position_size_expr=position_size_expr,
-            buy_condition_expr=buy_condition_expr,
-            sell_condition_expr=sell_condition_expr,
-            description=description,
-            price_precision=price_precision,
-            variables_schema=variables_schema,
-            metadata=metadata,
-            is_active=is_active,
-        )
+        payload = {
+            "strategy_id": strategy_id,
+            "name": name,
+            "buy_price_expr": buy_price_expr,
+            "sell_price_expr": sell_price_expr,
+            "stop_loss_expr": stop_loss_expr,
+            "take_profit_expr": take_profit_expr,
+            "position_size_expr": position_size_expr,
+            "buy_condition_expr": buy_condition_expr,
+            "sell_condition_expr": sell_condition_expr,
+            "description": description,
+            "price_precision": price_precision,
+            "variables_schema": variables_schema,
+            "metadata": metadata,
+            "is_active": is_active,
+        }
+        try:
+            return client.strategy.create_position_rule(**payload)
+        except Exception as exc:
+            return {
+                "success": False,
+                "error": str(exc),
+                "payload": payload,
+            }
 
     @server.tool()
     def evaluate_position_rule(
