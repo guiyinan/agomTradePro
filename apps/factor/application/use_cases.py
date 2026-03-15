@@ -493,6 +493,11 @@ class GetFactorCalculationDataUseCase:
                 ).order_by('-trade_date').first()
 
                 if latest_holding:
+                    total_stocks = FactorPortfolioHoldingModel._default_manager.filter(
+                        config=selected_config,
+                        trade_date=latest_holding.trade_date
+                    ).count()
+
                     # Get holdings for this trade date
                     holdings = FactorPortfolioHoldingModel._default_manager.filter(
                         config=selected_config,
@@ -501,7 +506,7 @@ class GetFactorCalculationDataUseCase:
 
                     calculated_results = {
                         'trade_date': latest_holding.trade_date,
-                        'total_stocks': holdings.count(),
+                        'total_stocks': total_stocks,
                         'holdings': holdings,
                         'config_name': selected_config.name,
                         'top_n': request.top_n,

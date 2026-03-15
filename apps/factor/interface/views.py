@@ -7,6 +7,7 @@ DRF ViewSets and page views for the factor module.
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import login_required
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -50,14 +51,15 @@ from apps.factor.application.use_cases import (
 )
 
 
-class FactorDefinitionViewSet(viewsets.ReadOnlyModelViewSet):
+class FactorDefinitionViewSet(viewsets.ModelViewSet):
     """ViewSet for FactorDefinition model"""
-    queryset = FactorDefinitionModel._default_manager.filter(is_active=True)
+    queryset = FactorDefinitionModel._default_manager.all()
     serializer_class = FactorDefinitionSerializer
     permission_classes = [IsAuthenticated]
     filterset_fields = ['category', 'is_active']
     search_fields = ['code', 'name', 'description']
     ordering_fields = ['category', 'code']
+    ordering = ['category', 'code']
 
     @action(detail=False, methods=['get'])
     def all_active(self, request):
@@ -65,6 +67,19 @@ class FactorDefinitionViewSet(viewsets.ReadOnlyModelViewSet):
         service = FactorIntegrationService()
         factors = service.get_factor_definitions()
         return Response(factors)
+
+    @action(detail=True, methods=['post'], url_path='toggle-active')
+    def toggle_active(self, request, pk=None):
+        """Toggle active status for a factor definition"""
+        factor = self.get_object()
+        factor.is_active = not factor.is_active
+        factor.save(update_fields=['is_active', 'updated_at'])
+        return Response({
+            'success': True,
+            'id': factor.id,
+            'is_active': factor.is_active,
+            'message': f'因子已{"启用" if factor.is_active else "禁用"}'
+        })
 
 
 class FactorPortfolioConfigViewSet(viewsets.ModelViewSet):
@@ -289,12 +304,14 @@ class FactorActionViewSet(viewsets.ViewSet):
 # Page Views (HTML Templates)
 # ============================================================================
 
+@login_required
 def factor_home_redirect(request):
     """Redirect root /factor/ to manage page"""
     from django.shortcuts import redirect
     return redirect('factor:manage')
 
 
+@login_required
 def factor_manage_view(request):
     """
     因子管理页面 - Factor Definition Management
@@ -332,6 +349,7 @@ def factor_manage_view(request):
     return render(request, 'factor/manage.html', context)
 
 
+@login_required
 def portfolio_list_view(request):
     """
     因子组合配置页面 - Portfolio Configuration Management
@@ -369,6 +387,7 @@ def portfolio_list_view(request):
     return render(request, 'factor/portfolios.html', context)
 
 
+@login_required
 def factor_calculate_view(request):
     """
     因子计算页面 - Factor Score Calculation
@@ -421,6 +440,7 @@ def factor_calculate_view(request):
 
 
 @require_http_methods(["POST"])
+@login_required
 def create_portfolio_config_view(request):
     """
     Create a new portfolio configuration
@@ -490,6 +510,7 @@ def create_portfolio_config_view(request):
 
 
 @require_http_methods(["POST", "DELETE"])
+@login_required
 def portfolio_config_action_view(request, config_id):
     """
     Perform actions on portfolio config (activate, deactivate, delete)
@@ -538,6 +559,7 @@ def portfolio_config_action_view(request, config_id):
 
 
 @require_http_methods(["POST"])
+@login_required
 def calculate_scores_view(request):
     """
     Calculate factor scores for a portfolio configuration
@@ -591,6 +613,7 @@ def calculate_scores_view(request):
 
 
 @require_http_methods(["GET"])
+@login_required
 def explain_stock_view(request, stock_code):
     """
     Get factor score explanation for a specific stock

@@ -5,6 +5,15 @@
 {% block title %}因子定义管理 - AgomSAAF{% endblock %}
 
 {% block factor_content %}
+<style>
+#factorModal {
+    display: none !important;
+}
+
+#factorModal.is-open {
+    display: flex !important;
+}
+</style>
 <!-- Header -->
 <div class="factor-header">
     <h1>因子定义管理</h1>
@@ -156,9 +165,195 @@
 // URL configuration
 const API_URLS = {
     factorManage: "{% url 'factor:manage' %}",
+    factorDefinitions: "{% url 'api_factor:factor-definition-list' %}",
+    factorDefinitionDetail: (id) => `{% url 'api_factor:factor-definition-detail' 0 %}`.replace('0', id),
+    factorDefinitionToggle: (id) => `{% url 'api_factor:factor-definition-toggle-active' 0 %}`.replace('0', id),
 };
 
 let filterDebounceTimer;
+const UPDATE_FREQUENCY_LABELS = {
+    daily: '每日',
+    weekly: '每周',
+    monthly: '每月',
+    quarterly: '每季度',
+};
+
+function reloadManagePage() {
+    const url = new URL(API_URLS.factorManage, window.location.origin);
+    const current = new URL(window.location.href);
+    current.searchParams.forEach((value, key) => {
+        if (key !== '_refresh') {
+            url.searchParams.set(key, value);
+        }
+    });
+    url.searchParams.set('_refresh', String(Date.now()));
+    window.location.href = url.toString();
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatDateTime(value) {
+    if (!value) return '暂无';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN');
+}
+
+function openFactorModal(title, bodyHtml) {
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalBody').innerHTML = bodyHtml;
+    document.getElementById('factorModal').classList.add('is-open');
+}
+
+function buildFactorForm(factor = null) {
+    const submitLabel = factor ? '保存修改' : '创建因子';
+    return `
+        <form id="factorForm" data-factor-id="${factor?.id ?? ''}">
+            <div class="form-group">
+                <label>因子代码</label>
+                <input type="text" name="code" class="form-input" value="${escapeHtml(factor?.code ?? '')}" required>
+            </div>
+            <div class="form-group">
+                <label>因子名称</label>
+                <input type="text" name="name" class="form-input" value="${escapeHtml(factor?.name ?? '')}" required>
+            </div>
+            <div class="form-group">
+                <label>因子类别</label>
+                <select name="category" class="form-select" required>
+                    <option value="value" ${factor?.category === 'value' ? 'selected' : ''}>价值</option>
+                    <option value="quality" ${factor?.category === 'quality' ? 'selected' : ''}>质量</option>
+                    <option value="growth" ${factor?.category === 'growth' ? 'selected' : ''}>成长</option>
+                    <option value="momentum" ${factor?.category === 'momentum' ? 'selected' : ''}>动量</option>
+                    <option value="volatility" ${factor?.category === 'volatility' ? 'selected' : ''}>波动</option>
+                    <option value="liquidity" ${factor?.category === 'liquidity' ? 'selected' : ''}>流动性</option>
+                    <option value="technical" ${factor?.category === 'technical' ? 'selected' : ''}>技术</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>描述</label>
+                <textarea name="description" class="form-textarea" rows="3">${escapeHtml(factor?.description ?? '')}</textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>数据源</label>
+                    <input type="text" name="data_source" class="form-input" value="${escapeHtml(factor?.data_source ?? '')}" required>
+                </div>
+                <div class="form-group">
+                    <label>数据字段</label>
+                    <input type="text" name="data_field" class="form-input" value="${escapeHtml(factor?.data_field ?? '')}" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>因子方向</label>
+                    <select name="direction" class="form-select">
+                        <option value="positive" ${factor?.direction === 'positive' || !factor ? 'selected' : ''}>正向</option>
+                        <option value="negative" ${factor?.direction === 'negative' ? 'selected' : ''}>反向</option>
+                        <option value="neutral" ${factor?.direction === 'neutral' ? 'selected' : ''}>中性</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>更新频率</label>
+                    <select name="update_frequency" class="form-select">
+                        <option value="daily" ${factor?.update_frequency === 'daily' || !factor ? 'selected' : ''}>每日</option>
+                        <option value="weekly" ${factor?.update_frequency === 'weekly' ? 'selected' : ''}>每周</option>
+                        <option value="monthly" ${factor?.update_frequency === 'monthly' ? 'selected' : ''}>每月</option>
+                        <option value="quarterly" ${factor?.update_frequency === 'quarterly' ? 'selected' : ''}>每季度</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>最小数据点</label>
+                    <input type="number" name="min_data_points" class="form-input" min="0" value="${escapeHtml(factor?.min_data_points ?? 20)}">
+                </div>
+                <div class="form-group" style="display:flex;align-items:flex-end;">
+                    <label>
+                        <input type="checkbox" name="allow_missing" ${factor?.allow_missing ? 'checked' : ''}> 允许缺失值
+                    </label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" name="is_active" ${(factor?.is_active ?? true) ? 'checked' : ''}> 启用因子
+                </label>
+            </div>
+            <button type="submit" class="btn-modal primary">${submitLabel}</button>
+        </form>
+    `;
+}
+
+async function requestJson(url, options = {}) {
+    const response = await fetch(url, {
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': window.csrfToken || '',
+            ...(options.headers || {}),
+        },
+        ...options,
+    });
+
+    let payload = {};
+    const contentType = response.headers.get('Content-Type') || '';
+    if (contentType.includes('application/json')) {
+        payload = await response.json();
+    } else {
+        payload = { error: await response.text() };
+    }
+
+    if (!response.ok) {
+        const errorText = payload.detail || payload.error || Object.values(payload).flat().join(' ') || '请求失败';
+        throw new Error(errorText);
+    }
+
+    return payload;
+}
+
+function bindFactorFormSubmit() {
+    const form = document.getElementById('factorForm');
+    if (!form) return;
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const factorId = this.dataset.factorId;
+        const formData = new FormData(this);
+        const payload = {
+            code: (formData.get('code') || '').trim(),
+            name: (formData.get('name') || '').trim(),
+            category: formData.get('category'),
+            description: (formData.get('description') || '').trim(),
+            data_source: (formData.get('data_source') || '').trim(),
+            data_field: (formData.get('data_field') || '').trim(),
+            direction: formData.get('direction'),
+            update_frequency: formData.get('update_frequency'),
+            min_data_points: Number(formData.get('min_data_points') || 0),
+            allow_missing: formData.has('allow_missing'),
+            is_active: formData.has('is_active'),
+        };
+
+        const url = factorId ? API_URLS.factorDefinitionDetail(factorId) : API_URLS.factorDefinitions;
+        const method = factorId ? 'PATCH' : 'POST';
+
+        try {
+            await requestJson(url, {
+                method,
+                body: JSON.stringify(payload),
+            });
+            showToast(factorId ? '因子已更新' : '因子已创建', 'success');
+            closeFactorModal();
+            reloadManagePage();
+        } catch (error) {
+            showToast((factorId ? '更新失败: ' : '创建失败: ') + error.message, 'error');
+        }
+    });
+}
 
 function debounceFilter() {
     clearTimeout(filterDebounceTimer);
@@ -179,129 +374,108 @@ function applyFilters() {
 }
 
 function refreshFactors() {
-    window.location.reload();
+    reloadManagePage();
+}
+
+function ensureFactorEmptyState() {
+    const list = document.querySelector('.factor-list');
+    const cards = list ? list.querySelectorAll('.factor-card') : [];
+    let emptyState = document.querySelector('.empty-state');
+
+    if (cards.length === 0 && !emptyState && list) {
+        emptyState = document.createElement('div');
+        emptyState.className = 'empty-state';
+        emptyState.innerHTML = '<div style="font-size: 48px; margin-bottom: 16px;">📊</div><div>暂无因子定义</div>';
+        list.insertAdjacentElement('afterend', emptyState);
+    }
+
+    if (cards.length > 0 && emptyState) {
+        emptyState.remove();
+    }
 }
 
 function showFactorModal() {
-    document.getElementById('modalTitle').textContent = '新建因子';
-    document.getElementById('modalBody').innerHTML = `
-        <form id="factorForm">
-            <div class="form-group">
-                <label>因子代码</label>
-                <input type="text" name="code" class="form-input" required>
-            </div>
-            <div class="form-group">
-                <label>因子名称</label>
-                <input type="text" name="name" class="form-input" required>
-            </div>
-            <div class="form-group">
-                <label>因子类别</label>
-                <select name="category" class="form-select" required>
-                    <option value="value">价值</option>
-                    <option value="quality">质量</option>
-                    <option value="growth">成长</option>
-                    <option value="momentum">动量</option>
-                    <option value="volatility">波动</option>
-                    <option value="liquidity">流动性</option>
-                    <option value="technical">技术</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>描述</label>
-                <textarea name="description" class="form-textarea" rows="3"></textarea>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>数据源</label>
-                    <input type="text" name="data_source" class="form-input" required>
-                </div>
-                <div class="form-group">
-                    <label>数据字段</label>
-                    <input type="text" name="data_field" class="form-input" required>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>因子方向</label>
-                    <select name="direction" class="form-select">
-                        <option value="positive">正向</option>
-                        <option value="negative">反向</option>
-                        <option value="neutral">中性</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>更新频率</label>
-                    <select name="update_frequency" class="form-select">
-                        <option value="daily">每日</option>
-                        <option value="weekly">每周</option>
-                        <option value="monthly">每月</option>
-                        <option value="quarterly">每季度</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-group">
-                <label>
-                    <input type="checkbox" name="is_active" checked> 启用因子
-                </label>
-            </div>
-            <button type="submit" class="btn-modal primary">创建因子</button>
-        </form>
-    `;
-    document.getElementById('factorModal').style.display = 'block';
-
-    document.getElementById('factorForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        showToast('因子创建功能待实现', 'info');
-    });
+    openFactorModal('新建因子', buildFactorForm());
+    bindFactorFormSubmit();
 }
 
 async function viewFactor(id) {
-    const factorCard = document.querySelector(`[data-id="${id}"]`);
-    const code = factorCard.querySelector('.factor-code').textContent;
-    const name = factorCard.querySelector('.factor-name').textContent;
-    const category = factorCard.querySelector('.factor-category').textContent;
-    const desc = factorCard.querySelector('.factor-desc').textContent;
-
-    document.getElementById('modalTitle').textContent = '因子详情';
-    document.getElementById('modalBody').innerHTML = `
-        <div class="factor-detail">
-            <div class="detail-row">
-                <span class="detail-label">代码:</span>
-                <span class="detail-value">${code}</span>
+    try {
+        const factor = await requestJson(API_URLS.factorDefinitionDetail(id), { method: 'GET' });
+        openFactorModal('因子详情', `
+            <div class="factor-detail">
+                <div class="detail-row"><span class="detail-label">代码:</span><span class="detail-value">${escapeHtml(factor.code)}</span></div>
+                <div class="detail-row"><span class="detail-label">名称:</span><span class="detail-value">${escapeHtml(factor.name)}</span></div>
+                <div class="detail-row"><span class="detail-label">类别:</span><span class="detail-value">${escapeHtml(factor.category_display || factor.category)}</span></div>
+                <div class="detail-row"><span class="detail-label">状态:</span><span class="detail-value">${factor.is_active ? '启用' : '禁用'}</span></div>
+                <div class="detail-row"><span class="detail-label">描述:</span><span class="detail-value">${escapeHtml(factor.description || '暂无描述')}</span></div>
+                <div class="detail-row"><span class="detail-label">数据源:</span><span class="detail-value">${escapeHtml(factor.data_source)}</span></div>
+                <div class="detail-row"><span class="detail-label">数据字段:</span><span class="detail-value">${escapeHtml(factor.data_field)}</span></div>
+                <div class="detail-row"><span class="detail-label">方向:</span><span class="detail-value">${escapeHtml(factor.direction_display || factor.direction)}</span></div>
+                <div class="detail-row"><span class="detail-label">更新频率:</span><span class="detail-value">${escapeHtml(UPDATE_FREQUENCY_LABELS[factor.update_frequency] || factor.update_frequency)}</span></div>
+                <div class="detail-row"><span class="detail-label">最小数据点:</span><span class="detail-value">${factor.min_data_points}</span></div>
+                <div class="detail-row"><span class="detail-label">允许缺失:</span><span class="detail-value">${factor.allow_missing ? '是' : '否'}</span></div>
+                <div class="detail-row"><span class="detail-label">创建时间:</span><span class="detail-value">${escapeHtml(formatDateTime(factor.created_at))}</span></div>
+                <div class="detail-row"><span class="detail-label">更新时间:</span><span class="detail-value">${escapeHtml(formatDateTime(factor.updated_at))}</span></div>
             </div>
-            <div class="detail-row">
-                <span class="detail-label">名称:</span>
-                <span class="detail-value">${name}</span>
-            </div>
-            <div class="detail-row">
-                <span class="detail-label">类别:</span>
-                <span class="detail-value">${category}</span>
-            </div>
-            <div class="detail-row">
-                <span class="detail-label">描述:</span>
-                <span class="detail-value">${desc}</span>
-            </div>
-        </div>
-    `;
-    document.getElementById('factorModal').style.display = 'block';
+        `);
+    } catch (error) {
+        showToast('加载详情失败: ' + error.message, 'error');
+    }
 }
 
-function editFactor(id) {
-    showToast('编辑功能待实现', 'info');
+async function editFactor(id) {
+    try {
+        const factor = await requestJson(API_URLS.factorDefinitionDetail(id), { method: 'GET' });
+        openFactorModal(`编辑因子: ${factor.code}`, buildFactorForm(factor));
+        bindFactorFormSubmit();
+    } catch (error) {
+        showToast('加载编辑数据失败: ' + error.message, 'error');
+    }
 }
 
 async function toggleFactor(id) {
-    showToast('切换状态功能待实现', 'info');
+    const factorCard = document.querySelector(`[data-id="${id}"]`);
+    const isActive = factorCard && !factorCard.classList.contains('inactive');
+    if (!await window.uiConfirm(`确认${isActive ? '禁用' : '启用'}该因子？`, { title: '切换状态', icon: 'question' })) return;
+
+    try {
+        const data = await requestJson(API_URLS.factorDefinitionToggle(id), {
+            method: 'POST',
+            body: JSON.stringify({}),
+        });
+        showToast(data.message || '状态已更新', 'success');
+        reloadManagePage();
+    } catch (error) {
+        showToast('切换状态失败: ' + error.message, 'error');
+    }
 }
 
 async function deleteFactor(id) {
-    if (!await window.uiConfirm('确认删除该因子？', { title: '删除因子', icon: 'warning' })) return;
-    showToast('删除功能待实现', 'info');
+    if (!await window.uiConfirm('确认删除该因子？此操作不可恢复。', { title: '删除因子', icon: 'warning' })) return;
+
+    try {
+        await requestJson(API_URLS.factorDefinitionDetail(id), {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        showToast('因子已删除', 'success');
+        document.querySelector(`[data-id="${id}"]`)?.remove();
+        ensureFactorEmptyState();
+    } catch (error) {
+        showToast('删除失败: ' + error.message, 'error');
+    }
 }
 
 function closeFactorModal() {
+    document.getElementById('factorModal').classList.remove('is-open');
     document.getElementById('factorModal').style.display = 'none';
 }
+
+closeFactorModal();
+window.addEventListener('pageshow', closeFactorModal);
 
 // Close modal on outside click
 document.getElementById('factorModal').addEventListener('click', function(e) {

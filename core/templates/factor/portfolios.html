@@ -5,6 +5,15 @@
 {% block title %}因子组合配置 - AgomSAAF{% endblock %}
 
 {% block factor_content %}
+<style>
+#portfolioModal {
+    display: none !important;
+}
+
+#portfolioModal.is-open {
+    display: flex !important;
+}
+</style>
 <!-- Header -->
 <div class="factor-header">
     <h1>因子组合配置</h1>
@@ -310,9 +319,69 @@ const API_URLS = {
     factorPortfolios: "{% url 'factor:portfolios' %}",
     factorCreateConfig: "{% url 'factor:create_config' %}",
     factorConfigAction: (id) => `{% url 'factor:config_action' 0 %}`.replace('0', id),
+    factorConfigList: "{% url 'api_factor:factor-config-list' %}",
+    factorConfigDetail: (id) => `{% url 'api_factor:factor-config-detail' 0 %}`.replace('0', id),
 };
 
 let filterDebounceTimer;
+
+function reloadPortfoliosPage() {
+    const url = new URL(API_URLS.factorPortfolios, window.location.origin);
+    const current = new URL(window.location.href);
+    current.searchParams.forEach((value, key) => {
+        if (key !== '_refresh') {
+            url.searchParams.set(key, value);
+        }
+    });
+    url.searchParams.set('_refresh', String(Date.now()));
+    window.location.href = url.toString();
+}
+
+function buildJsonHeaders(extra = {}) {
+    return {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': window.csrfToken || '',
+        ...extra,
+    };
+}
+
+async function readJsonResponse(response) {
+    const contentType = response.headers.get('Content-Type') || '';
+    if (contentType.includes('application/json')) {
+        return response.json();
+    }
+    return { error: await response.text() };
+}
+
+function resetPortfolioForm() {
+    document.getElementById('configId').value = '';
+    document.getElementById('portfolioForm').reset();
+    document.querySelectorAll('#factorWeightsContainer input[name^="weight_"]').forEach(input => {
+        input.value = '0';
+    });
+}
+
+function fillPortfolioForm(config) {
+    document.getElementById('configId').value = config.id;
+    const form = document.getElementById('portfolioForm');
+    form.elements.name.value = config.name || '';
+    form.elements.description.value = config.description || '';
+    form.elements.universe.value = config.universe || form.elements.universe.value;
+    form.elements.top_n.value = config.top_n || 30;
+    form.elements.rebalance_frequency.value = config.rebalance_frequency || form.elements.rebalance_frequency.value;
+    form.elements.weight_method.value = config.weight_method || form.elements.weight_method.value;
+    form.elements.min_market_cap.value = config.min_market_cap ?? '';
+    form.elements.max_market_cap.value = config.max_market_cap ?? '';
+    form.elements.max_pe.value = config.max_pe ?? '';
+    form.elements.max_pb.value = config.max_pb ?? '';
+    form.elements.max_debt_ratio.value = config.max_debt_ratio ?? '';
+
+    const weights = config.factor_weights || {};
+    document.querySelectorAll('#factorWeightsContainer input[name^="weight_"]').forEach(input => {
+        const factorCode = input.name.replace('weight_', '');
+        input.value = weights[factorCode] ?? 0;
+    });
+}
 
 function debounceFilter() {
     clearTimeout(filterDebounceTimer);
@@ -331,27 +400,57 @@ function applyFilters() {
 }
 
 function refreshPortfolios() {
-    window.location.reload();
+    reloadPortfoliosPage();
+}
+
+function ensurePortfolioEmptyState() {
+    const list = document.querySelector('.portfolio-list');
+    const cards = list ? list.querySelectorAll('.portfolio-card') : [];
+    let emptyState = document.querySelector('.empty-state');
+
+    if (cards.length === 0 && !emptyState && list) {
+        emptyState = document.createElement('div');
+        emptyState.className = 'empty-state';
+        emptyState.innerHTML = '<div style="font-size: 48px; margin-bottom: 16px;">📊</div><div>暂无组合配置</div>';
+        list.insertAdjacentElement('afterend', emptyState);
+    }
+
+    if (cards.length > 0 && emptyState) {
+        emptyState.remove();
+    }
 }
 
 function showCreateModal() {
     document.getElementById('modalTitle').textContent = '新建因子组合';
-    document.getElementById('configId').value = '';
-    document.getElementById('portfolioForm').reset();
-    document.getElementById('portfolioModal').style.display = 'block';
+    resetPortfolioForm();
+    document.querySelector('#portfolioForm .btn-modal.primary').textContent = '保存配置';
+    document.getElementById('portfolioModal').classList.add('is-open');
 }
 
 function viewPortfolio(id) {
     window.location.href = `{% url 'factor:calculate' %}?config_id=${id}`;
 }
 
-function editPortfolio(id) {
-    showToast('编辑功能待实现', 'info');
+async function editPortfolio(id) {
+    try {
+        const res = await fetch(API_URLS.factorConfigDetail(id));
+        const data = await readJsonResponse(res);
+        if (!res.ok) {
+            throw new Error(data.detail || data.error || '加载配置失败');
+        }
+
+        document.getElementById('modalTitle').textContent = '编辑因子组合';
+        document.querySelector('#portfolioForm .btn-modal.primary').textContent = '保存修改';
+        fillPortfolioForm(data);
+        document.getElementById('portfolioModal').classList.add('is-open');
+    } catch (e) {
+        showToast('加载配置失败: ' + e.message, 'error');
+    }
 }
 
 async function togglePortfolio(id) {
     const config = document.querySelector(`[data-id="${id}"]`);
-    const isActive = config.classList.contains('active');
+    const isActive = config && !config.classList.contains('inactive');
 
     if (!await window.uiConfirm(`确认${isActive ? '禁用' : '启用'}该组合配置？`, { title: '切换状态', icon: 'question' })) return;
 
@@ -361,13 +460,16 @@ async function togglePortfolio(id) {
     try {
         const res = await fetch(API_URLS.factorConfigAction(id), {
             method: 'POST',
-            body: formData
+            body: formData,
+            headers: {
+                'X-CSRFToken': window.csrfToken || ''
+            }
         });
         const data = await res.json();
 
         if (data.success) {
             showToast(data.message, 'success');
-            location.reload();
+            reloadPortfoliosPage();
         } else {
             showToast('操作失败: ' + data.error, 'error');
         }
@@ -385,13 +487,16 @@ async function generatePortfolio(id) {
     try {
         const res = await fetch(API_URLS.factorConfigAction(id), {
             method: 'POST',
-            body: formData
+            body: formData,
+            headers: {
+                'X-CSRFToken': window.csrfToken || ''
+            }
         });
         const data = await res.json();
 
         if (data.success) {
             showToast(data.message, 'success');
-            location.reload();
+            reloadPortfoliosPage();
         } else {
             showToast('生成失败: ' + data.error, 'error');
         }
@@ -405,13 +510,17 @@ async function deletePortfolio(id) {
 
     try {
         const res = await fetch(API_URLS.factorConfigAction(id), {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': window.csrfToken || ''
+            }
         });
         const data = await res.json();
 
         if (data.success) {
             showToast(data.message, 'success');
-            document.querySelector(`[data-id="${id}"]`).remove();
+            document.querySelector(`[data-id="${id}"]`)?.remove();
+            ensurePortfolioEmptyState();
         } else {
             showToast('删除失败: ' + data.error, 'error');
         }
@@ -421,14 +530,19 @@ async function deletePortfolio(id) {
 }
 
 function closePortfolioModal() {
+    document.getElementById('portfolioModal').classList.remove('is-open');
     document.getElementById('portfolioModal').style.display = 'none';
 }
+
+closePortfolioModal();
+window.addEventListener('pageshow', closePortfolioModal);
 
 // Form submission
 document.getElementById('portfolioForm').addEventListener('submit', async function(e) {
     e.preventDefault();
 
     const formData = new FormData(this);
+    const configId = document.getElementById('configId').value;
 
     // Collect factor weights
     const factorWeights = {};
@@ -440,24 +554,39 @@ document.getElementById('portfolioForm').addEventListener('submit', async functi
         }
     });
 
-    formData.append('factor_weights', JSON.stringify(factorWeights));
+    const payload = {
+        name: (formData.get('name') || '').trim(),
+        description: (formData.get('description') || '').trim(),
+        universe: formData.get('universe'),
+        top_n: parseInt(formData.get('top_n') || '30', 10),
+        rebalance_frequency: formData.get('rebalance_frequency'),
+        weight_method: formData.get('weight_method'),
+        factor_weights: factorWeights,
+        min_market_cap: formData.get('min_market_cap') ? parseFloat(formData.get('min_market_cap')) : null,
+        max_market_cap: formData.get('max_market_cap') ? parseFloat(formData.get('max_market_cap')) : null,
+        max_pe: formData.get('max_pe') ? parseFloat(formData.get('max_pe')) : null,
+        max_pb: formData.get('max_pb') ? parseFloat(formData.get('max_pb')) : null,
+        max_debt_ratio: formData.get('max_debt_ratio') ? parseFloat(formData.get('max_debt_ratio')) : null,
+    };
 
     try {
-        const res = await fetch(API_URLS.factorCreateConfig, {
-            method: 'POST',
-            body: formData
+        const res = await fetch(configId ? API_URLS.factorConfigDetail(configId) : API_URLS.factorConfigList, {
+            method: configId ? 'PATCH' : 'POST',
+            headers: buildJsonHeaders(),
+            body: JSON.stringify(payload)
         });
-        const data = await res.json();
+        const data = await readJsonResponse(res);
 
-        if (data.success) {
-            showToast(data.message, 'success');
+        if (res.ok) {
+            showToast(configId ? '配置已更新' : '配置已创建', 'success');
             closePortfolioModal();
-            location.reload();
+            reloadPortfoliosPage();
         } else {
-            showToast('创建失败: ' + data.error, 'error');
+            const errorText = data.detail || data.error || Object.values(data).flat().join(' ') || '保存失败';
+            showToast((configId ? '更新失败: ' : '创建失败: ') + errorText, 'error');
         }
     } catch (e) {
-        showToast('网络错误: ' + e.message, 'error');
+        showToast((configId ? '更新失败: ' : '创建失败: ') + e.message, 'error');
     }
 });
 

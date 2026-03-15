@@ -15,6 +15,8 @@ from apps.factor.infrastructure.models import (
 
 class FactorDefinitionSerializer(serializers.ModelSerializer):
     """Serializer for FactorDefinition"""
+    category_display = serializers.CharField(source='get_category_display', read_only=True)
+    direction_display = serializers.CharField(source='get_direction_display', read_only=True)
 
     class Meta:
         model = FactorDefinitionModel
@@ -22,6 +24,7 @@ class FactorDefinitionSerializer(serializers.ModelSerializer):
             'id', 'code', 'name', 'category', 'description',
             'data_source', 'data_field', 'direction', 'update_frequency',
             'is_active', 'min_data_points', 'allow_missing',
+            'category_display', 'direction_display',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']

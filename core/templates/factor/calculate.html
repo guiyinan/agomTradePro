@@ -222,6 +222,8 @@ function selectConfig() {
     if (selectedConfigId) {
         const url = new URL(window.location);
         url.searchParams.set('config_id', selectedConfigId);
+        url.searchParams.set('trade_date', document.getElementById('tradeDateInput').value);
+        url.searchParams.set('top_n', document.getElementById('topNInput').value);
         window.location.href = url.toString();
     }
 }
@@ -258,7 +260,10 @@ async function calculateScores() {
 
         const res = await fetch(API_URLS.factorCalculateScores, {
             method: 'POST',
-            body: formData
+            body: formData,
+            headers: {
+                'X-CSRFToken': window.csrfToken || ''
+            }
         });
 
         clearInterval(progressInterval);
@@ -277,6 +282,7 @@ async function calculateScores() {
                 closeCalculateModal();
                 const url = new URL(window.location);
                 url.searchParams.set('config_id', configId);
+                url.searchParams.set('trade_date', tradeDate);
                 url.searchParams.set('top_n', topN);
                 window.location.href = url.toString();
             }, 1000);
@@ -360,12 +366,45 @@ function closeExplainModal() {
 }
 
 function exportResults() {
-    if (!selectedConfigId) {
+    const rows = Array.from(document.querySelectorAll('.results-table tbody tr'));
+    if (!selectedConfigId || rows.length === 0) {
         showToast('没有可导出的结果', 'warning');
         return;
     }
 
-    showToast('导出功能待实现', 'info');
+    const headers = ['排名', '股票代码', '股票名称', '因子得分', '权重', '行业'];
+    const csvRows = [headers];
+
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        csvRows.push([
+            cells[0]?.textContent.trim() || '',
+            cells[1]?.textContent.trim() || '',
+            cells[2]?.textContent.trim() || '',
+            cells[3]?.querySelector('.score-value')?.textContent.trim() || '',
+            cells[4]?.textContent.trim() || '',
+            cells[5]?.textContent.trim() || '',
+        ]);
+    });
+
+    const csvContent = '\uFEFF' + csvRows.map(columns =>
+        columns.map(value => `"${String(value).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+
+    const configName = (document.querySelector('#configSelect option:checked')?.textContent || 'factor_results')
+        .replace(/[\\/:*?"<>|]/g, '_')
+        .trim();
+    const tradeDate = document.getElementById('tradeDateInput').value || 'latest';
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const downloadUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `${configName}_${tradeDate}_top${rows.length}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(downloadUrl);
+    showToast('结果已导出', 'success');
 }
 
 // Close modals on outside click
