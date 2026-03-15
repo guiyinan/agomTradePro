@@ -48,14 +48,22 @@ def register_backtest_tools(server: FastMCP) -> None:
         parsed_start = date.fromisoformat(start_date)
         parsed_end = date.fromisoformat(end_date)
 
-        result = client.backtest.run(
-            strategy_name=strategy_name,
-            start_date=parsed_start,
-            end_date=parsed_end,
-            initial_capital=initial_capital,
-        )
+        try:
+            result = client.backtest.run(
+                strategy_name=strategy_name,
+                start_date=parsed_start,
+                end_date=parsed_end,
+                initial_capital=initial_capital,
+            )
+        except Exception as exc:
+            return {
+                "success": False,
+                "error": str(exc),
+                "strategy_name": strategy_name,
+            }
 
         return {
+            "success": True,
             "id": result.id,
             "status": result.status,
             "total_return": result.total_return,

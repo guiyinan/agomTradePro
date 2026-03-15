@@ -47,7 +47,10 @@ class FilterModule(BaseModule):
         return response
 
     def create_filter(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._post("", json=payload)
+        request_payload = dict(payload)
+        request_payload.setdefault("filter_type", "HP")
+        request_payload.setdefault("save_results", True)
+        return self._post("", json=request_payload)
 
     def update_filter(self, filter_id: int, payload: dict[str, Any]) -> dict[str, Any]:
         return self._patch(f"{filter_id}/", json=payload)

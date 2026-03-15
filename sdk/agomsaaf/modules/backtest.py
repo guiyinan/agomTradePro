@@ -66,7 +66,7 @@ class BacktestModule(BaseModule):
             >>> print(f"最大回撤: {result.max_drawdown:.2%}")
         """
         data: dict[str, Any] = {
-            "strategy_name": strategy_name,
+            "name": strategy_name,
             "start_date": start_date.isoformat(),
             "end_date": end_date.isoformat(),
             "initial_capital": initial_capital,

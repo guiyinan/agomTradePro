@@ -241,3 +241,44 @@ Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*runserver*
 - 因此 MCP 现在会返回结构化失败：
   `{success: false, account_id: ..., error: "[404] Resource not found."}`
 - 这表示“功能尚未由后端实现”，不再视为 SDK/MCP 路由断链。
+
+## 2026-03-15 第三批写工具结果
+
+本轮继续对剩余长尾写工具做真实回环地址复验，端口仍统一为：
+
+- Django: `http://127.0.0.1:8000`
+- MCP/SDK base URL: `AGOMSAAF_BASE_URL=http://127.0.0.1:8000`
+
+已从“系统故障”修复为可用或结构化结果的项：
+
+- `create_beta_gate_config`
+  - 后端补齐了 `POST /api/beta-gate/configs/`
+  - 同时新增了 `apps/beta_gate/interface/api_urls.py`，把 `/api/beta-gate/` 收口为 API-only canonical root
+- `create_policy_event`
+  - SDK/MCP 改为兼容后端现行的 `level/title/evidence_url`
+  - 后端校验失败改为 `400`，不再误报 `500`
+- `run_backtest`
+  - `/api/backtest/run/` 改成 DRF API 入口，token 调用不再被 CSRF 拦截
+  - 修掉了 SDK 仍发送旧字段 `strategy_name` 的问题，当前按 `name` 传输
+  - 修掉了 `run_async` 透传到 `RunBacktestRequest` 导致的 `500`
+
+已从 `500` 降级为明确业务错误的项：
+
+- `create_filter`
+  - 当前若本地宏观指标不存在，会返回 `400`
+  - 这表示“数据缺失”，不是 SDK/MCP/路由断链
+- `create_factor_portfolio`
+  - 修掉了缺失 repository import 导致的 `500`
+  - 当前若组合配置本身的因子权重和不为 `1.0`，会返回 `400`
+- `generate_rotation_signal`
+  - 当前若配置名不存在，会返回 `404`
+  - 不再把“配置不存在”伪装成 `500`
+
+2026-03-15 当前实测状态：
+
+- `create_beta_gate_config`: 成功
+- `create_policy_event`: 成功
+- `run_backtest`: 成功
+- `create_filter`: `400`，本地数据缺失
+- `create_factor_portfolio`: `400`，本地配置权重不合法
+- `generate_rotation_signal`: `404`，本地不存在 `动量轮动配置`

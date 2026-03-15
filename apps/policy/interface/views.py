@@ -18,6 +18,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
@@ -312,6 +313,17 @@ class PolicyEventListView(APIView):
 
             return Response(response_data, status=status_code)
 
+        except ValidationError as e:
+            return Response(
+                {
+                    "success": False,
+                    "errors": e.detail,
+                    "event": None,
+                    "warnings": [],
+                    "alert_triggered": False,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         except Exception as e:
             logger.error(f"Failed to create policy event: {e}", exc_info=True)
             return Response(

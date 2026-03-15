@@ -205,6 +205,7 @@ module_patterns = [
     path('api/realtime/', include(('apps.realtime.interface.urls', 'api_realtime'), namespace='api_realtime')),
     path('api/factor/', include(('apps.factor.interface.api_urls', 'api_factor'), namespace='api_factor')),
     path('api/rotation/', include(('apps.rotation.interface.api_urls', 'api_rotation'), namespace='api_rotation')),
+    path('api/beta-gate/', include(('apps.beta_gate.interface.api_urls', 'api_beta_gate'), namespace='api_beta_gate')),
     path('api/hedge/', include(('apps.hedge.interface.api_urls', 'api_hedge'), namespace='api_hedge')),
     path('api/events/', include(('apps.events.interface.api_urls', 'events_api'), namespace='api_events')),
     # Market Data 统一数据源接入层

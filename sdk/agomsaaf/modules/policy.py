@@ -132,6 +132,10 @@ class PolicyModule(BaseModule):
         event_type: str,
         description: str,
         gear: PolicyGear,
+        *,
+        level: Optional[PolicyLevel] = None,
+        title: Optional[str] = None,
+        evidence_url: Optional[str] = None,
     ) -> PolicyEvent:
         """
         创建政策事件
@@ -159,14 +163,18 @@ class PolicyModule(BaseModule):
             ... )
             >>> print(f"事件已创建: {event.id}")
         """
+        level_value = level or self._gear_to_level(gear)
         data: dict[str, Any] = {
             "event_date": event_date.isoformat(),
-            "event_type": event_type,
+            "level": level_value,
+            "title": title or event_type.replace("_", " ").strip().title() or "Policy Event",
             "description": description,
-            "gear": gear,
+            "evidence_url": evidence_url or "https://local.invalid/policy-event",
         }
 
         response = self._post("events/", json=data)
+        if isinstance(response, dict) and "event" in response:
+            response = response["event"]
         return self._parse_event(response)
 
     def update_event(
@@ -528,6 +536,8 @@ class PolicyModule(BaseModule):
 
     def _parse_event(self, data: dict[str, Any]) -> PolicyEvent:
         """解析政策事件数据"""
+        if "event" in data and isinstance(data["event"], dict):
+            data = data["event"]
         event_date = data.get("event_date")
         if isinstance(event_date, str):
             event_date = datetime.fromisoformat(event_date).date()
@@ -535,12 +545,32 @@ class PolicyModule(BaseModule):
             event_date = date.today()
 
         return PolicyEvent(
-            id=data["id"],
+            id=data.get("id", data.get("event_id", 0)),
             event_date=event_date,
-            event_type=data["event_type"],
+            event_type=data.get("event_type", "policy"),
             description=data["description"],
-            gear=data["gear"],
+            gear=data.get("gear", self._level_to_gear(data.get("level"))),
         )
+
+    @staticmethod
+    def _gear_to_level(gear: PolicyGear) -> PolicyLevel:
+        mapping: dict[str, PolicyLevel] = {
+            "neutral": "P0",
+            "tightening": "P1",
+            "stimulus": "P2",
+        }
+        return mapping.get(str(gear), "P0")
+
+    @staticmethod
+    def _level_to_gear(level: Any) -> PolicyGear:
+        mapping: dict[str, PolicyGear] = {
+            "P0": "neutral",
+            "P1": "tightening",
+            "P2": "stimulus",
+            "P3": "stimulus",
+            "PX": "neutral",
+        }
+        return mapping.get(str(level), "neutral")
 
     def _parse_workbench_summary(self, data: dict[str, Any]) -> WorkbenchSummary:
         """解析工作台概览数据"""

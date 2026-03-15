@@ -16,7 +16,10 @@ def register_beta_gate_tools(server: FastMCP) -> None:
     @server.tool()
     def create_beta_gate_config(payload: dict[str, Any]) -> dict[str, Any]:
         client = AgomSAAFClient()
-        return client.beta_gate.create_config(payload)
+        try:
+            return client.beta_gate.create_config(payload)
+        except Exception as exc:
+            return {"success": False, "error": str(exc), "payload": payload}
 
     @server.tool()
     def test_beta_gate(payload: dict[str, Any]) -> dict[str, Any]:
@@ -31,4 +34,7 @@ def register_beta_gate_tools(server: FastMCP) -> None:
     @server.tool()
     def rollback_beta_gate_config(config_id: str) -> dict[str, Any]:
         client = AgomSAAFClient()
-        return client.beta_gate.rollback_config(config_id)
+        try:
+            return client.beta_gate.rollback_config(config_id)
+        except Exception as exc:
+            return {"success": False, "error": str(exc), "config_id": config_id}

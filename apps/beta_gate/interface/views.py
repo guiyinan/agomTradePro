@@ -9,6 +9,7 @@ Beta Gate DRF Views
 import logging
 import json
 import re
+from dataclasses import replace
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -19,6 +20,7 @@ from rest_framework.views import APIView
 from .forms import GateConfigForm
 from ..infrastructure.models import GateConfigModel
 from ..infrastructure.repositories import get_config_repository
+from ..domain.entities import RiskProfile, create_gate_config
 
 
 logger = logging.getLogger(__name__)
@@ -689,6 +691,74 @@ class GateConfigViewSet(viewsets.ViewSet):
             })
         except Exception as e:
             logger.error(f"Failed to retrieve config: {e}", exc_info=True)
+            return Response(
+                {"success": False, "error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def create(self, request) -> Response:
+        """创建新的 Beta Gate 配置。"""
+        try:
+            payload = request.data if isinstance(request.data, dict) else {}
+            regime_constraints = payload.get("regime_constraints", {}) or {}
+            policy_constraints = payload.get("policy_constraints", {}) or {}
+            portfolio_constraints = payload.get("portfolio_constraints", {}) or {}
+
+            risk_profile_raw = str(payload.get("risk_profile", "balanced")).strip().lower()
+            try:
+                risk_profile = RiskProfile(risk_profile_raw)
+            except ValueError:
+                return Response(
+                    {"success": False, "error": f"Invalid risk_profile: {risk_profile_raw}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            level_raw = payload.get("max_policy_level", policy_constraints.get("max_allowed_level", 2))
+            if isinstance(level_raw, str) and level_raw.upper().startswith("P"):
+                level_raw = level_raw[1:]
+
+            config = create_gate_config(
+                risk_profile=risk_profile,
+                allowed_regimes=payload.get("allowed_regimes", regime_constraints.get("allowed_regimes")),
+                min_confidence=float(payload.get("min_confidence", regime_constraints.get("min_confidence", 0.3))),
+                max_policy_level=int(level_raw),
+                veto_on_p3=bool(payload.get("veto_on_p3", policy_constraints.get("veto_on_p3", True))),
+                max_total_position=float(
+                    payload.get(
+                        "max_total_position",
+                        portfolio_constraints.get("max_total_position_pct", 95.0),
+                    )
+                ),
+                max_single_position=float(
+                    payload.get(
+                        "max_single_position",
+                        portfolio_constraints.get("max_single_position_pct", 20.0),
+                    )
+                ),
+            )
+            if payload.get("config_id"):
+                config = replace(config, config_id=str(payload["config_id"]))
+
+            saved = self.config_repository.save(config)
+            return Response(
+                {
+                    "success": True,
+                    "result": {
+                        "config_id": saved.config_id,
+                        "risk_profile": saved.risk_profile.lower(),
+                        "version": saved.version,
+                        "is_active": saved.is_active,
+                        "regime_constraints": saved.regime_constraints,
+                        "policy_constraints": saved.policy_constraints,
+                        "portfolio_constraints": saved.portfolio_constraints,
+                        "effective_date": saved.effective_date.isoformat() if saved.effective_date else None,
+                        "expires_at": saved.expires_at.isoformat() if saved.expires_at else None,
+                    },
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        except Exception as e:
+            logger.error(f"Failed to create config: {e}", exc_info=True)
             return Response(
                 {"success": False, "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

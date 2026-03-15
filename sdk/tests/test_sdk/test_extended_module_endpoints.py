@@ -177,7 +177,12 @@ def client():
         (lambda c: c.task_monitor.celery_health(), "GET", "/api/system/celery/health/"),
         (lambda c: c.filter.list_filters(), "GET", "/api/filter/indicators/"),
         (lambda c: c.filter.get_filter(indicator_code="PMI"), "GET", "/api/filter/config/PMI/"),
-        (lambda c: c.filter.create_filter({"name": "f1"}), "POST", "/api/filter/", {"json": {"name": "f1"}}),
+        (
+            lambda c: c.filter.create_filter({"name": "f1"}),
+            "POST",
+            "/api/filter/",
+            {"json": {"name": "f1", "filter_type": "HP", "save_results": True}},
+        ),
         (lambda c: c.filter.update_filter(11, {"name": "f2"}), "PATCH", "/api/filter/11/", {"json": {"name": "f2"}}),
         (lambda c: c.filter.delete_filter(11), "DELETE", "/api/filter/11/"),
         (lambda c: c.filter.health(), "GET", "/api/filter/health/"),

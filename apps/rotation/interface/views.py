@@ -217,8 +217,8 @@ class RotationActionViewSet(viewsets.ViewSet):
         if signal:
             return Response(signal)
         return Response(
-            {'error': 'Failed to generate signal'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            {'error': f'Rotation config not found or signal generation failed: {config_name}'},
+            status=status.HTTP_404_NOT_FOUND
         )
 
     @action(detail=False, methods=['post'], url_path='clear-cache')
@@ -395,8 +395,8 @@ def rotation_generate_signal_view(request):
         else:
             return JsonResponse({
                 'success': False,
-                'error': '生成信号失败，请检查配置和数据可用性'
-            }, status=500)
+                'error': f'生成信号失败，请检查配置名称和数据可用性: {config_name}'
+            }, status=404)
 
     except Exception as e:
         return JsonResponse({

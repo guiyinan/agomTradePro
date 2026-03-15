@@ -80,6 +80,9 @@ def register_policy_tools(server: FastMCP) -> None:
         event_type: str,
         description: str,
         gear: str,
+        title: str | None = None,
+        level: str | None = None,
+        evidence_url: str | None = None,
     ) -> dict[str, Any]:
         """
         创建政策事件
@@ -103,8 +106,25 @@ def register_policy_tools(server: FastMCP) -> None:
         """
         client = AgomSAAFClient()
         parsed_date = date.fromisoformat(event_date)
-        event = client.policy.create_event(parsed_date, event_type, description, gear)
+        try:
+            event = client.policy.create_event(
+                parsed_date,
+                event_type,
+                description,
+                gear,
+                title=title,
+                level=level,
+                evidence_url=evidence_url,
+            )
+        except Exception as exc:
+            return {
+                "success": False,
+                "error": str(exc),
+                "event_date": event_date,
+                "event_type": event_type,
+            }
         return {
+            "success": True,
             "id": event.id,
             "event_date": event.event_date.isoformat(),
             "event_type": event.event_type,
@@ -263,7 +283,10 @@ def register_policy_tools(server: FastMCP) -> None:
             >>> print(f"回滚结果: {result['success']}")
         """
         client = AgomSAAFClient()
-        return client.policy.rollback_event(event_id, reason)
+        try:
+            return client.policy.rollback_event(event_id, reason)
+        except Exception as exc:
+            return {"success": False, "error": str(exc), "event_id": event_id}
 
     @server.tool()
     def override_workbench_event(

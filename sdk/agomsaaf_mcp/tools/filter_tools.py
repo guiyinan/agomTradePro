@@ -23,18 +23,27 @@ def register_filter_tools(server: FastMCP) -> None:
     @server.tool()
     def create_filter(payload: dict[str, Any]) -> dict[str, Any]:
         client = AgomSAAFClient()
-        return client.filter.create_filter(payload)
+        try:
+            return client.filter.create_filter(payload)
+        except Exception as exc:
+            return {"success": False, "error": str(exc), "payload": payload}
 
     @server.tool()
     def update_filter(filter_id: int, payload: dict[str, Any]) -> dict[str, Any]:
         client = AgomSAAFClient()
-        return client.filter.update_filter(filter_id, payload)
+        try:
+            return client.filter.update_filter(filter_id, payload)
+        except Exception as exc:
+            return {"success": False, "error": str(exc), "filter_id": filter_id, "payload": payload}
 
     @server.tool()
     def delete_filter(filter_id: int) -> dict[str, Any]:
         client = AgomSAAFClient()
-        client.filter.delete_filter(filter_id)
-        return {"success": True, "filter_id": filter_id}
+        try:
+            client.filter.delete_filter(filter_id)
+            return {"success": True, "filter_id": filter_id}
+        except Exception as exc:
+            return {"success": False, "error": str(exc), "filter_id": filter_id}
 
     @server.tool()
     def get_filter_health() -> dict[str, Any]:

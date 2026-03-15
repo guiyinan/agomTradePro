@@ -91,7 +91,7 @@ class FilterViewSet(viewsets.ViewSet):
         else:
             return Response(
                 {'success': False, 'error': response.error},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                status=status.HTTP_400_BAD_REQUEST
             )
 
     @action(detail=False, methods=['POST'], url_path='get-data')

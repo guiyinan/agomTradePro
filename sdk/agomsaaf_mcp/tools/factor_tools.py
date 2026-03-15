@@ -241,7 +241,14 @@ def register_factor_tools(server: FastMCP) -> None:
                     "error": f"无效的日期格式: {trade_date}，请使用 YYYY-MM-DD 格式",
                 }
 
-        result = client.factor.create_portfolio(config_name, parsed_date)
+        try:
+            result = client.factor.create_portfolio(config_name, parsed_date)
+        except Exception as exc:
+            return {
+                "success": False,
+                "error": str(exc),
+                "config_name": config_name,
+            }
 
         if result is None or "error" in result:
             return {

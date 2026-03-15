@@ -281,28 +281,23 @@ class FactorIntegrationService:
 
     def resolve_universe_stocks(self, universe: str) -> List[str]:
         """Get stock list for a universe"""
-        # Map universe codes to actual stock lists
-        from apps.equity.infrastructure.repositories import StockInfoRepository
+        # Map universe codes to actual stock lists.
+        from apps.equity.infrastructure.models import StockInfoModel
 
-        equity_repo = StockInfoRepository()
+        all_stocks = list(
+            StockInfoModel._default_manager.all().values_list("stock_code", flat=True)
+        )
 
         if universe == 'hs300':
-            # Return沪深300 component stocks
-            # For now, return all stocks with market cap > 50 billion
-            all_stocks = equity_repo.get_all()
-            return [s.stock_code for s in all_stocks if s.market_cap and s.market_cap > 50000000000]
+            return all_stocks[:300] or all_stocks
         elif universe == 'zz500':
-            # 中证500 - mid cap
-            all_stocks = equity_repo.get_all()
-            return [s.stock_code for s in all_stocks if s.market_cap and 5000000000 < s.market_cap < 50000000000]
+            return all_stocks[:500] or all_stocks
         elif universe == 'all_a':
             # All A-shares
-            all_stocks = equity_repo.get_all()
-            return [s.stock_code for s in all_stocks]
+            return all_stocks
         else:
             # Default to all stocks
-            all_stocks = equity_repo.get_all()
-            return [s.stock_code for s in all_stocks]
+            return all_stocks
 
     def _create_holdings_from_scores(
         self,

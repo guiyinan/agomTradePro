@@ -97,14 +97,16 @@ class FactorPortfolioConfigViewSet(viewsets.ModelViewSet):
         """Generate factor portfolio for this configuration"""
         config = self.get_object()
         service = FactorIntegrationService()
-
-        portfolio = service.create_factor_portfolio(config.name)
+        try:
+            portfolio = service.create_factor_portfolio(config.name)
+        except ValueError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         if portfolio:
             return Response(portfolio)
         return Response(
-            {'error': 'Failed to generate portfolio'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            {'error': f'Portfolio config not found or generation failed: {config.name}'},
+            status=status.HTTP_404_NOT_FOUND
         )
 
 
@@ -222,13 +224,16 @@ class FactorActionViewSet(viewsets.ViewSet):
             )
 
         service = FactorIntegrationService()
-        portfolio = service.create_factor_portfolio(config_name, trade_date)
+        try:
+            portfolio = service.create_factor_portfolio(config_name, trade_date)
+        except ValueError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         if portfolio:
             return Response(portfolio)
         return Response(
-            {'error': 'Failed to create portfolio'},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            {'error': f'Portfolio config not found or generation failed: {config_name}'},
+            status=status.HTTP_404_NOT_FOUND
         )
 
     @action(detail=False, methods=['post'], url_path='explain-stock')

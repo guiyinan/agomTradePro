@@ -9,7 +9,8 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.utils.decorators import method_decorator
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from datetime import date
 
@@ -279,21 +280,16 @@ def backtest_statistics_api_view(request):
     })
 
 
-@require_http_methods(["POST"])
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def run_backtest_api_view(request):
     """运行回测（独立 API）"""
-    import json
-
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'Invalid JSON'}, status=400)
-
-    serializer = RunBacktestSerializer(data=data)
+    serializer = RunBacktestSerializer(data=request.data)
     if not serializer.is_valid():
-        return JsonResponse({'errors': serializer.errors}, status=400)
+        return Response({'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-    validated_data = serializer.validated_data
+    validated_data = dict(serializer.validated_data)
+    validated_data.pop("run_async", None)
 
     repository = DjangoBacktestRepository()
 
@@ -329,12 +325,12 @@ def run_backtest_api_view(request):
     response = use_case.execute(req)
 
     if response.status == 'failed':
-        return JsonResponse({
+        return Response({
             'error': 'Backtest failed',
             'errors': response.errors,
-        }, status=500)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    return JsonResponse({
+    return Response({
         'backtest_id': response.backtest_id,
         'status': response.status,
         'result': response.result,
