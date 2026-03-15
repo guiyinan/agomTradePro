@@ -279,6 +279,52 @@ Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*runserver*
 - `create_beta_gate_config`: 成功
 - `create_policy_event`: 成功
 - `run_backtest`: 成功
-- `create_filter`: `400`，本地数据缺失
-- `create_factor_portfolio`: `400`，本地配置权重不合法
-- `generate_rotation_signal`: `404`，本地不存在 `动量轮动配置`
+- `create_filter`: 已通过冷启动配置修复
+- `create_factor_portfolio`: 已通过冷启动配置修复
+- `generate_rotation_signal`: 已通过冷启动配置修复
+
+## 2026-03-15 MCP 冷启动配置
+
+为保证以下写工具在本地空库或半空库环境下可直接验证：
+
+- `create_filter`
+- `create_factor_portfolio`
+- `generate_rotation_signal`
+
+新增了管理命令：
+
+- `python manage.py bootstrap_mcp_cold_start`
+
+该命令是幂等的，当前会补齐：
+
+- `MCP_TEST_IND`
+  - 基于已有 `CN_PMI` 复制生成的测试宏观指标
+  - 供 `create_filter` 直接使用
+- `动量轮动配置`
+  - 从现有 `动量轮动策略` 复制出的 MCP 兼容别名
+  - 供 `generate_rotation_signal` 直接使用
+- `MCP冷启动动量组合`
+  - 只依赖可回退计算的动量/波动/量能因子
+  - 供 `create_factor_portfolio` 在无 Tushare 凭证时仍可返回结果
+- 最小股票池
+  - 向 `equity_stock_info` 写入 10 只示例股票
+  - 避免 `factor` 模块因股票池为空而始终返回空结果
+- 因子配置修复
+  - 自动把历史配置里的负权重规范化为正权重且总和为 `1.0`
+
+实现口径：
+
+- 冷启动默认服务端口仍以 `127.0.0.1:8000` 为准
+- 隔离回归时可临时起 `8001/8002/8003`，但仅用于验证最新代码，不是长期配置
+
+2026-03-15 使用隔离实例 `127.0.0.1:8003` 的实测结果：
+
+- `create_filter({'indicator_code': 'MCP_TEST_IND', ...})`: 成功
+- `generate_rotation_signal('动量轮动配置')`: 成功
+- `create_factor_portfolio('MCP冷启动动量组合')`: 成功
+- `create_factor_portfolio('动量精选组合')`: 成功
+
+补充说明：
+
+- `factor` 模块为支持冷启动，已改成“缺单个因子值时跳过该因子，不整组合失败”
+- 同时修掉了服务层对已移除字段 `style/size/valuation_score` 的历史访问

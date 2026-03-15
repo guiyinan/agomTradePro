@@ -115,12 +115,12 @@ class FactorIntegrationService:
                 'percentile_rank': round(score.percentile_rank, 4),
                 'factor_scores': {k: round(v, 2) for k, v in score.factor_scores.items()},
                 'sector': score.sector,
-                'style': score.style,
-                'size': score.size,
-                'valuation_score': round(score.valuation_score, 2),
+                'value_score': round(score.value_score, 2),
                 'quality_score': round(score.quality_score, 2),
                 'growth_score': round(score.growth_score, 2),
                 'momentum_score': round(score.momentum_score, 2),
+                'volatility_score': round(score.volatility_score, 2),
+                'liquidity_score': round(score.liquidity_score, 2),
             }
             for score in scores
         ]

@@ -15,6 +15,7 @@ from apps.account.infrastructure.models import (
 )
 from apps.audit.infrastructure.models import ConfidenceConfigModel, IndicatorThresholdConfigModel
 from apps.decision_rhythm.infrastructure.models import DecisionModelParamConfigModel
+from apps.equity.infrastructure.models import StockInfoModel
 from apps.equity.infrastructure.models import ScoringWeightConfigModel
 from apps.factor.infrastructure.models import FactorDefinitionModel, FactorPortfolioConfigModel
 from apps.hedge.infrastructure.models import HedgePairModel
@@ -132,6 +133,11 @@ class Command(BaseCommand):
                 run=lambda: self._run_command("init_factors"),
             ),
             BootstrapStep(
+                name="mcp_cold_start_defaults",
+                check=self._mcp_cold_start_ready,
+                run=lambda: self._run_command("bootstrap_mcp_cold_start"),
+            ),
+            BootstrapStep(
                 name="decision_model_params",
                 check=lambda: DecisionModelParamConfigModel._default_manager.filter(env=decision_env).exists(),
                 run=lambda: self._run_command("init_decision_model_params", env=decision_env),
@@ -240,3 +246,25 @@ class Command(BaseCommand):
         if not StrategyModel._default_manager.exists():
             return True
         return PositionManagementRuleModel._default_manager.exists()
+
+    def _mcp_cold_start_ready(self) -> bool:
+        rotation_ready = RotationConfigModel._default_manager.filter(name="动量轮动配置").exists()
+        macro_ready = self._macro_indicator_model()._default_manager.filter(code="MCP_TEST_IND").exists()
+        stock_ready = StockInfoModel._default_manager.exists()
+        factor_seed_ready = FactorPortfolioConfigModel._default_manager.filter(name="MCP冷启动动量组合").exists()
+        factor_ready = True
+        for config in FactorPortfolioConfigModel._default_manager.all():
+            weights = config.factor_weights or {}
+            if not weights:
+                continue
+            abs_sum = sum(abs(weight) for weight in weights.values())
+            if abs(abs_sum - 1.0) > 0.01 or any(weight < 0 for weight in weights.values()):
+                factor_ready = False
+                break
+        return rotation_ready and macro_ready and stock_ready and factor_seed_ready and factor_ready
+
+    @staticmethod
+    def _macro_indicator_model():
+        from apps.macro.infrastructure.models import MacroIndicator
+
+        return MacroIndicator

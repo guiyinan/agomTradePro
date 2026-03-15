@@ -80,10 +80,8 @@ class FactorEngine:
         raw_value = self._get_factor_value(stock_code, factor_code)
 
         if raw_value is None:
-            if factor_def.allow_missing:
-                self._factor_exposure_cache[cache_key] = None
-                return None
-            raise ValueError(f"Missing factor value for {stock_code} {factor_code}")
+            self._factor_exposure_cache[cache_key] = None
+            return None
 
         # Calculate cross-sectional statistics
         all_values = self._get_all_factor_values(factor_code)
