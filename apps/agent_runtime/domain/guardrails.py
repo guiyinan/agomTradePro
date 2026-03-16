@@ -114,6 +114,7 @@ class GuardrailEngine:
         """
         ctx = context or {}
         results: List[GuardrailResult] = [
+            self._role_gate(proposal, actor),
             self._approval_required_gate(proposal),
             self._risk_level_gate(proposal),
             self._market_readiness_gate(proposal, ctx),
@@ -149,15 +150,17 @@ class GuardrailEngine:
                 evidence={"user_id": actor.get("user_id")},
             )
 
-        # For high-risk types, require explicit role
+        # For high-risk types, require explicit operator/admin role.
+        # Accept both legacy and current group names to avoid RBAC drift.
         if proposal.proposal_type in HIGH_RISK_PROPOSAL_TYPES:
             allowed_roles = actor.get("roles", [])
-            if "agent_operator" not in allowed_roles and "admin" not in allowed_roles:
+            permitted_roles = {"agent_operator", "operator", "admin"}
+            if not permitted_roles.intersection(allowed_roles):
                 return GuardrailResult(
                     gate_name="role_gate",
                     decision=GuardrailDecision.NEEDS_HUMAN,
                     reason_code="insufficient_role",
-                    message=f"Proposal type '{proposal.proposal_type}' requires agent_operator or admin role",
+                    message=f"Proposal type '{proposal.proposal_type}' requires operator or admin role",
                     evidence={"proposal_type": proposal.proposal_type, "user_roles": allowed_roles},
                     requires_human=True,
                 )

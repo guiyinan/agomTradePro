@@ -141,3 +141,59 @@ class TestOperatorDashboard:
 
         assert response.status_code == 200
         assert "execution_records" in response.data
+
+    def test_non_staff_user_denied(self, factory):
+        """Non-staff, non-operator user cannot access dashboard."""
+        from django.contrib.auth.models import User
+        regular_user = User.objects.create_user(
+            username="dashboard_regular",
+            password="test",
+            is_staff=False,
+        )
+        view = OperatorDashboardViewSet.as_view({"get": "summary"})
+        request = factory.get("/api/agent-runtime/dashboard/summary/")
+        force_authenticate(request, user=regular_user)
+        response = view(request)
+
+        assert response.status_code == 403
+
+    def test_operator_group_allowed(self, factory):
+        """User in 'operator' group can access dashboard."""
+        from django.contrib.auth.models import User, Group
+        operator_group, _ = Group.objects.get_or_create(name="operator")
+        op_user = User.objects.create_user(
+            username="dashboard_operator",
+            password="test",
+            is_staff=False,
+        )
+        op_user.groups.add(operator_group)
+
+        view = OperatorDashboardViewSet.as_view({"get": "summary"})
+        request = factory.get("/api/agent-runtime/dashboard/summary/")
+        force_authenticate(request, user=op_user)
+        response = view(request)
+
+        assert response.status_code == 200
+
+    def test_needs_attention_no_double_count(self, factory, staff_user):
+        """Verify needs_attention_count does not double-count tasks."""
+        from apps.agent_runtime.infrastructure.models import AgentTaskModel
+
+        # Task with BOTH requires_human=True AND status=needs_human
+        AgentTaskModel._default_manager.create(
+            request_id="atr_double_count_test",
+            task_domain="research",
+            task_type="test",
+            status="needs_human",
+            input_payload={},
+            requires_human=True,
+            created_by=staff_user,
+        )
+
+        view = OperatorDashboardViewSet.as_view({"get": "summary"})
+        request = factory.get("/api/agent-runtime/dashboard/summary/")
+        force_authenticate(request, user=staff_user)
+        response = view(request)
+
+        # The single task should be counted exactly once
+        assert response.data["needs_attention_count"] == 1

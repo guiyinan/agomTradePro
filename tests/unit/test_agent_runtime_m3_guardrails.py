@@ -82,6 +82,11 @@ class TestRoleGate:
         result = self.engine._role_gate(self.proposal, actor)
         assert result.decision == GuardrailDecision.ALLOWED
 
+    def test_high_risk_type_with_operator_group_role(self):
+        actor = {"user_id": 1, "is_staff": False, "roles": ["operator"]}
+        result = self.engine._role_gate(self.proposal, actor)
+        assert result.decision == GuardrailDecision.ALLOWED
+
     def test_non_high_risk_type_any_role(self):
         proposal = _make_proposal(proposal_type="custom_report")
         actor = {"user_id": 1, "is_staff": False, "roles": ["viewer"]}
@@ -260,6 +265,17 @@ class TestPreExecutionGuardrails:
             approval_required=True,
         )
         actor = {"user_id": 1, "is_staff": True}
+        result = self.engine.check_pre_execution(proposal, actor, {})
+        assert result.overall_decision == GuardrailDecision.ALLOWED
+
+    def test_operator_role_passes_high_risk_pre_execution(self):
+        proposal = _make_proposal(
+            status=ProposalStatus.APPROVED,
+            risk_level=RiskLevel.MEDIUM,
+            proposal_type="signal_create",
+            approval_required=True,
+        )
+        actor = {"user_id": 1, "is_staff": False, "roles": ["operator"]}
         result = self.engine.check_pre_execution(proposal, actor, {})
         assert result.overall_decision == GuardrailDecision.ALLOWED
 

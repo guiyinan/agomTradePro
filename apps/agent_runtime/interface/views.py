@@ -13,7 +13,8 @@ from typing import Optional, Dict, Any
 from rest_framework import viewsets, status, serializers as drf_serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, BasePermission
+from django.db.models import Q
 from django.http import Http404
 
 from apps.agent_runtime.domain.entities import TaskStatus, TaskDomain, EventSource
@@ -63,6 +64,17 @@ from apps.agent_runtime.infrastructure.models import (
 
 
 logger = logging.getLogger(__name__)
+
+
+class IsStaffOrOperator(BasePermission):
+    """Allow access only to staff users or users in the 'operator' group."""
+
+    def has_permission(self, request, view) -> bool:
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if request.user.is_staff:
+            return True
+        return request.user.groups.filter(name="operator").exists()
 
 
 def build_error_response(
@@ -198,10 +210,31 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
             raise Http404
         return task_model
 
+    def _build_actor(self, request: Any) -> Optional[Dict[str, Any]]:
+        """Build actor dict from request, including Django group names as roles."""
+        user = request.user
+        if not user.is_authenticated:
+            return None
+        roles = []
+        if hasattr(user, "groups"):
+            try:
+                roles = list(user.groups.values_list("name", flat=True))
+            except Exception:
+                roles = []
+        return {
+            "user_id": user.id,
+            "is_staff": getattr(user, "is_staff", False),
+            "roles": roles,
+        }
+
     def _lookup_task_request_id(self, pk: Any) -> Optional[str]:
         """Best-effort request_id lookup for error responses."""
-        task_model = AgentTaskModel._default_manager.filter(pk=pk).only("request_id").first()
-        return getattr(task_model, "request_id", None)
+        try:
+            task_model = AgentTaskModel._default_manager.filter(pk=pk).only("request_id").first()
+            rid = getattr(task_model, "request_id", None)
+            return rid if isinstance(rid, str) else None
+        except Exception:
+            return None
 
     def create(self, request, *args, **kwargs):
         """
@@ -245,17 +278,10 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
 
             output = use_case.execute(input_dto)
 
-            # Serialize the created task
-            try:
-                task_model = AgentTaskModel._default_manager.get(pk=output.task.id)
-                task_data = _serialize_task_like(task_model)
-            except AgentTaskModel.DoesNotExist:
-                task_data = _serialize_task_like(output.task)
-
             return Response(
                 {
                     "request_id": output.request_id,
-                    "task": task_data,
+                    "task": _serialize_task_like(output.task),
                 },
                 status=status.HTTP_201_CREATED,
             )
@@ -347,13 +373,10 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
             use_case = GetTaskUseCase()
             output = use_case.execute(task_id=int(pk))
 
-            task_model = AgentTaskModel._default_manager.get(pk=output.task.id)
-            serializer = AgentTaskSerializer(task_model)
-
             return Response(
                 {
                     "request_id": output.request_id,
-                    "task": serializer.data,
+                    "task": _serialize_task_like(output.task),
                 }
             )
 
@@ -423,21 +446,15 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
                 task_id=int(pk),
                 target_status=request.data.get("target_status"),
                 reason=request.data.get("reason"),
-                actor={"user_id": request.user.id} if request.user.is_authenticated else None,
+                actor=self._build_actor(request),
             )
 
             output = use_case.execute(input_dto)
 
-            try:
-                task_model = AgentTaskModel._default_manager.get(pk=output.task.id)
-                task_data = _serialize_task_like(task_model)
-            except AgentTaskModel.DoesNotExist:
-                task_data = _serialize_task_like(output.task)
-
             return Response(
                 {
                     "request_id": output.request_id,
-                    "task": task_data,
+                    "task": _serialize_task_like(output.task),
                     "timeline_event_id": output.timeline_event_id,
                 }
             )
@@ -505,21 +522,15 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
             input_dto = CancelTaskInput(
                 task_id=int(pk),
                 reason=reason,
-                actor={"user_id": request.user.id} if request.user.is_authenticated else None,
+                actor=self._build_actor(request),
             )
 
             output = use_case.execute(input_dto)
 
-            try:
-                task_model = AgentTaskModel._default_manager.get(pk=output.task.id)
-                task_data = _serialize_task_like(task_model)
-            except AgentTaskModel.DoesNotExist:
-                task_data = _serialize_task_like(output.task)
-
             return Response(
                 {
                     "request_id": output.request_id,
-                    "task": task_data,
+                    "task": _serialize_task_like(output.task),
                     "timeline_event_id": output.timeline_event_id,
                 }
             )
@@ -642,7 +653,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
                 handoff_reason=handoff_reason,
                 recommended_next_action=request.data.get("recommended_next_action"),
                 open_risks=request.data.get("open_risks"),
-                actor={"user_id": request.user.id} if request.user.is_authenticated else None,
+                actor=self._build_actor(request),
             ))
 
             return Response({
@@ -806,9 +817,9 @@ class AgentProposalViewSet(viewsets.ViewSet):
     - POST   /api/agent-runtime/proposals/                      - Create proposal
     - GET    /api/agent-runtime/proposals/{id}/                 - Get proposal
     - POST   /api/agent-runtime/proposals/{id}/submit-approval/ - Submit for approval
-    - POST   /api/agent-runtime/proposals/{id}/approve/         - Approve proposal
-    - POST   /api/agent-runtime/proposals/{id}/reject/          - Reject proposal
-    - POST   /api/agent-runtime/proposals/{id}/execute/         - Execute proposal
+    - POST   /api/agent-runtime/proposals/{id}/approve/         - Approve proposal (staff/operator only)
+    - POST   /api/agent-runtime/proposals/{id}/reject/          - Reject proposal (staff/operator only)
+    - POST   /api/agent-runtime/proposals/{id}/execute/         - Execute proposal (staff/operator only)
     """
 
     permission_classes = [IsAuthenticated]
@@ -847,11 +858,33 @@ class AgentProposalViewSet(viewsets.ViewSet):
             return self._serialize_proposal(proposal_entity)
 
     def _get_actor(self, request: Any) -> Dict[str, Any]:
-        """Build actor dict from request."""
+        """Build actor dict from request, including Django group names as roles."""
+        user = request.user
+        roles = []
+        if hasattr(user, "groups"):
+            try:
+                roles = list(user.groups.values_list("name", flat=True))
+            except Exception:
+                roles = []
         return {
-            "user_id": request.user.id if request.user.is_authenticated else None,
-            "is_staff": getattr(request.user, "is_staff", False),
+            "user_id": user.id if user.is_authenticated else None,
+            "is_staff": getattr(user, "is_staff", False),
+            "roles": roles,
         }
+
+    def _require_staff_or_operator(self, request: Any) -> Optional[Response]:
+        """Return an error response if the user is not staff or operator. None if OK."""
+        user = request.user
+        if user.is_staff:
+            return None
+        if hasattr(user, "groups") and user.groups.filter(name="operator").exists():
+            return None
+        return build_error_response(
+            request_id=generate_request_id(),
+            error_code="permission_denied",
+            message="This action requires staff or operator role",
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
 
     def create(self, request):
         """
@@ -993,7 +1026,13 @@ class AgentProposalViewSet(viewsets.ViewSet):
         {
             "reason": "Looks good"  // Optional
         }
+
+        Requires staff or operator role.
         """
+        perm_error = self._require_staff_or_operator(request)
+        if perm_error is not None:
+            return perm_error
+
         try:
             use_case = ApproveProposalUseCase()
             output = use_case.execute(
@@ -1038,7 +1077,13 @@ class AgentProposalViewSet(viewsets.ViewSet):
         {
             "reason": "Risk too high"  // Optional
         }
+
+        Requires staff or operator role.
         """
+        perm_error = self._require_staff_or_operator(request)
+        if perm_error is not None:
+            return perm_error
+
         try:
             use_case = RejectProposalUseCase()
             output = use_case.execute(
@@ -1080,7 +1125,12 @@ class AgentProposalViewSet(viewsets.ViewSet):
         POST /api/agent-runtime/proposals/{id}/execute/
 
         Runs pre-execution guardrail checks, creates execution record.
+        Requires staff or operator role.
         """
+        perm_error = self._require_staff_or_operator(request)
+        if perm_error is not None:
+            return perm_error
+
         try:
             use_case = ExecuteProposalUseCase()
             output = use_case.execute(
@@ -1134,6 +1184,7 @@ class OperatorDashboardViewSet(viewsets.ViewSet):
 
     Read-only aggregation endpoints for operator observability.
     Allows inspecting any task end-to-end without database access.
+    Restricted to staff users and users in the 'operator' group.
 
     Endpoints:
     - GET /api/agent-runtime/dashboard/summary/     - System overview
@@ -1143,7 +1194,7 @@ class OperatorDashboardViewSet(viewsets.ViewSet):
     - GET /api/agent-runtime/dashboard/executions/   - Recent execution outcomes
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsStaffOrOperator]
 
     @action(detail=False, methods=["get"], url_path="summary")
     def summary(self, request):
@@ -1161,10 +1212,8 @@ class OperatorDashboardViewSet(viewsets.ViewSet):
             .values_list("status", "count")
         )
         needs_attention = AgentTaskModel._default_manager.filter(
-            requires_human=True
-        ).count() + AgentTaskModel._default_manager.filter(
-            status__in=["needs_human", "failed"]
-        ).count()
+            Q(requires_human=True) | Q(status__in=["needs_human", "failed"])
+        ).distinct().count()
 
         return Response({
             "request_id": generate_request_id(),

@@ -86,6 +86,7 @@ class TestAgentTaskAPI:
         mock_task = MagicMock()
         mock_task.id = 1
         mock_task.request_id = "atr_20260316_000001"
+        mock_task.schema_version = "v1"
         mock_task.task_domain = MagicMock()
         mock_task.task_domain.value = "research"
         mock_task.task_type = "macro_portfolio_review"
@@ -108,20 +109,14 @@ class TestAgentTaskAPI:
         # Force authenticate
         api_client.force_authenticate(user=mock_user)
 
-        # Patch model get
-        with patch(
-            "apps.agent_runtime.interface.views.AgentTaskModel._default_manager.get"
-        ) as mock_get:
-            mock_get.return_value = mock_task_model
+        url = reverse("agent_runtime:task-list")
+        data = {
+            "task_domain": "research",
+            "task_type": "macro_portfolio_review",
+            "input_payload": {"query": "test"},
+        }
 
-            url = reverse("agent_runtime:task-list")
-            data = {
-                "task_domain": "research",
-                "task_type": "macro_portfolio_review",
-                "input_payload": {"query": "test"},
-            }
-
-            response = api_client.post(url, data, format="json")
+        response = api_client.post(url, data, format="json")
 
         assert response.status_code == status.HTTP_201_CREATED
         assert "request_id" in response.data
@@ -208,29 +203,24 @@ class TestAgentTaskAPI:
 
         api_client.force_authenticate(user=mock_user)
 
-        with patch(
-            "apps.agent_runtime.interface.views.AgentTaskModel._default_manager.get"
-        ) as mock_get:
-            mock_get.return_value = mock_task_model
-
-            url = reverse("agent_runtime:task-detail", kwargs={"pk": 1})
-            response = api_client.get(url)
+        url = reverse("agent_runtime:task-detail", kwargs={"pk": 1})
+        response = api_client.get(url)
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data["request_id"] == "atr_20260316_000001"
 
     def test_get_task_not_found(self, api_client, mock_user):
         """Test task retrieval when task doesn't exist returns FROZEN error format."""
-        from django.core.exceptions import ObjectDoesNotExist
+        from apps.agent_runtime.infrastructure.models import AgentTaskModel
 
         api_client.force_authenticate(user=mock_user)
 
         with patch(
-            "apps.agent_runtime.interface.views.AgentTaskModel._default_manager.filter"
-        ) as mock_filter:
-            mock_queryset = MagicMock()
-            mock_queryset.first.return_value = None
-            mock_filter.return_value = mock_queryset
+            "apps.agent_runtime.interface.views.GetTaskUseCase"
+        ) as mock_use_case_class:
+            mock_use_case = MagicMock()
+            mock_use_case.execute.side_effect = AgentTaskModel.DoesNotExist
+            mock_use_case_class.return_value = mock_use_case
 
             url = reverse("agent_runtime:task-detail", kwargs={"pk": 999})
             response = api_client.get(url)
@@ -330,8 +320,19 @@ class TestAgentTaskAPI:
         mock_task = MagicMock()
         mock_task.id = 1
         mock_task.request_id = "atr_test"
+        mock_task.schema_version = "v1"
+        mock_task.task_domain = MagicMock()
+        mock_task.task_domain.value = "research"
+        mock_task.task_type = "macro_portfolio_review"
         mock_task.status = MagicMock()
         mock_task.status.value = "draft"
+        mock_task.input_payload = {}
+        mock_task.current_step = None
+        mock_task.last_error = None
+        mock_task.requires_human = False
+        mock_task.created_by = 1
+        mock_task.created_at = datetime.now(timezone.utc)
+        mock_task.updated_at = datetime.now(timezone.utc)
 
         mock_output = MagicMock()
         mock_output.task = mock_task
@@ -346,18 +347,12 @@ class TestAgentTaskAPI:
             "apps.agent_runtime.interface.views.AgentTaskModel._default_manager.filter"
         ) as mock_filter:
             mock_queryset = MagicMock()
+            mock_queryset.only.return_value = mock_filter.return_value
             mock_queryset.first.return_value = mock_task_model
             mock_filter.return_value = mock_queryset
 
-            with patch(
-                "apps.agent_runtime.interface.views.AgentTaskSerializer"
-            ) as mock_serializer:
-                mock_serializer_instance = MagicMock()
-                mock_serializer_instance.data = {"id": 1, "status": "draft"}
-                mock_serializer.return_value = mock_serializer_instance
-
-                url = reverse("agent_runtime:task-resume", kwargs={"pk": 1})
-                response = api_client.post(url, {"reason": "Fixed the issue"})
+            url = reverse("agent_runtime:task-resume", kwargs={"pk": 1})
+            response = api_client.post(url, {"reason": "Fixed the issue"})
 
         assert response.status_code == status.HTTP_200_OK
 
@@ -365,16 +360,13 @@ class TestAgentTaskAPI:
 
     def test_get_task_timeline(self, api_client, mock_user, mock_task_model):
         """Test getting task timeline."""
+        from apps.agent_runtime.interface.views import AgentTaskViewSet
+
         api_client.force_authenticate(user=mock_user)
 
-        mock_events = []
-        with patch(
-            "apps.agent_runtime.interface.views.AgentTaskModel._default_manager.filter"
-        ) as mock_filter:
-            mock_queryset = MagicMock()
-            mock_queryset.first.return_value = mock_task_model
-            mock_filter.return_value = mock_queryset
-
+        with patch.object(
+            AgentTaskViewSet, "get_object", return_value=mock_task_model
+        ):
             with patch(
                 "apps.agent_runtime.interface.views.AgentTimelineEventModel._default_manager.filter"
             ) as mock_event_filter:
@@ -393,20 +385,26 @@ class TestAgentTaskAPI:
 
     def test_needs_attention_endpoint(self, api_client, mock_user):
         """Test needs attention endpoint."""
+        from apps.agent_runtime.interface.views import AgentTaskViewSet
+
         api_client.force_authenticate(user=mock_user)
 
-        with patch(
-            "apps.agent_runtime.interface.views.AgentTaskModel._default_manager"
-        ) as mock_manager:
-            mock_queryset = MagicMock()
-            mock_queryset.filter.return_value = mock_queryset
-            mock_queryset.__or__ = MagicMock(return_value=mock_queryset)
-            mock_queryset.distinct.return_value = mock_queryset
-            mock_queryset.order_by.return_value = mock_queryset
-            mock_queryset.count.return_value = 0
-            mock_queryset.__getitem__ = lambda self, key: []
-            mock_manager.all.return_value = mock_queryset
+        # The view chains: get_queryset().filter() | get_queryset().filter()
+        # then .distinct().order_by()[:limit]
+        mock_filtered = MagicMock()
+        mock_filtered.__or__ = MagicMock(return_value=mock_filtered)
+        mock_filtered.distinct.return_value = mock_filtered
+        mock_filtered.order_by.return_value = mock_filtered
+        mock_filtered.count.return_value = 0
+        mock_filtered.__getitem__ = lambda self, key: mock_filtered
+        mock_filtered.__iter__ = lambda self: iter([])
 
+        mock_queryset = MagicMock()
+        mock_queryset.filter.return_value = mock_filtered
+
+        with patch.object(
+            AgentTaskViewSet, "get_queryset", return_value=mock_queryset
+        ):
             url = reverse("agent_runtime:task-needs-attention")
             response = api_client.get(url)
 
@@ -426,8 +424,19 @@ class TestAgentTaskAPI:
         mock_task = MagicMock()
         mock_task.id = 1
         mock_task.request_id = "atr_test"
+        mock_task.schema_version = "v1"
+        mock_task.task_domain = MagicMock()
+        mock_task.task_domain.value = "research"
+        mock_task.task_type = "test"
         mock_task.status = MagicMock()
         mock_task.status.value = "cancelled"
+        mock_task.input_payload = {}
+        mock_task.current_step = None
+        mock_task.last_error = None
+        mock_task.requires_human = False
+        mock_task.created_by = 1
+        mock_task.created_at = datetime.now(timezone.utc)
+        mock_task.updated_at = datetime.now(timezone.utc)
 
         mock_output = MagicMock()
         mock_output.task = mock_task
@@ -442,18 +451,12 @@ class TestAgentTaskAPI:
             "apps.agent_runtime.interface.views.AgentTaskModel._default_manager.filter"
         ) as mock_filter:
             mock_queryset = MagicMock()
+            mock_queryset.only.return_value = mock_filter.return_value
             mock_queryset.first.return_value = mock_task_model
             mock_filter.return_value = mock_queryset
 
-            with patch(
-                "apps.agent_runtime.interface.views.AgentTaskSerializer"
-            ) as mock_serializer:
-                mock_serializer_instance = MagicMock()
-                mock_serializer_instance.data = {"id": 1, "status": "cancelled"}
-                mock_serializer.return_value = mock_serializer_instance
-
-                url = reverse("agent_runtime:task-cancel", kwargs={"pk": 1})
-                response = api_client.post(url, {"reason": "No longer needed"})
+            url = reverse("agent_runtime:task-cancel", kwargs={"pk": 1})
+            response = api_client.post(url, {"reason": "No longer needed"})
 
         assert response.status_code == status.HTTP_200_OK
 
@@ -528,17 +531,20 @@ class TestAgentTaskAPI:
         self, api_client, mock_user, mock_task_model
     ):
         """Test that resuming from non-resumable state returns error."""
-        # Set task to a non-resumable state
-        mock_task_model.status = "draft"
+        from apps.agent_runtime.domain.services import InvalidStateTransitionError
 
         api_client.force_authenticate(user=mock_user)
 
         with patch(
-            "apps.agent_runtime.interface.views.AgentTaskModel._default_manager.filter"
-        ) as mock_filter:
-            mock_queryset = MagicMock()
-            mock_queryset.first.return_value = mock_task_model
-            mock_filter.return_value = mock_queryset
+            "apps.agent_runtime.interface.views.ResumeTaskUseCase"
+        ) as mock_use_case_class:
+            mock_use_case = MagicMock()
+            mock_use_case.execute.side_effect = InvalidStateTransitionError(
+                current_status="draft",
+                target_status="draft",
+                allowed_transitions=["context_ready"],
+            )
+            mock_use_case_class.return_value = mock_use_case
 
             url = reverse("agent_runtime:task-resume", kwargs={"pk": 1})
             response = api_client.post(url, {"reason": "Try to resume"})
@@ -612,15 +618,17 @@ class TestAgentTaskAPI:
 
     def test_error_response_format_matches_contract(self, api_client, mock_user):
         """Test that all error responses match FROZEN error contract."""
+        from apps.agent_runtime.infrastructure.models import AgentTaskModel
+
         api_client.force_authenticate(user=mock_user)
 
         # Try to get non-existent task
         with patch(
-            "apps.agent_runtime.interface.views.AgentTaskModel._default_manager.filter"
-        ) as mock_filter:
-            mock_queryset = MagicMock()
-            mock_queryset.first.return_value = None
-            mock_filter.return_value = mock_queryset
+            "apps.agent_runtime.interface.views.GetTaskUseCase"
+        ) as mock_use_case_class:
+            mock_use_case = MagicMock()
+            mock_use_case.execute.side_effect = AgentTaskModel.DoesNotExist
+            mock_use_case_class.return_value = mock_use_case
 
             url = reverse("agent_runtime:task-detail", kwargs={"pk": 999})
             response = api_client.get(url)
