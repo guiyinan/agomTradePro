@@ -147,6 +147,9 @@ INSTALLED_APPS = [
     # ========== 新模块：账户分享 ==========
     'apps.share',          # 账户分享模块（新增）
 
+    # ========== 新模块：AI-native Agent Runtime ==========
+    'apps.agent_runtime',  # AI-native 任务执行框架（新增）
+
     # ========== Prometheus 指标 ==========
     'django_prometheus',   # Prometheus 指标导出（新增）
 ]

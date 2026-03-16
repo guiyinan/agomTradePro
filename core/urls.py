@@ -48,6 +48,7 @@ def api_root_view(request):
     """API 根路径 - 返回可用的 API 端点列表"""
     return JsonResponse({
         'endpoints': {
+            'agent-runtime': '/api/agent-runtime/',
             'account': '/api/account/',
             'alpha': '/api/alpha/',
             'asset-analysis': '/api/asset-analysis/',
@@ -223,6 +224,9 @@ module_patterns = [
     path('', include(('apps.share.interface.urls', 'share'), namespace='share')),
     # Portfolio API routes (alias for simulated-trading accounts)
     path('api/portfolio/', RedirectView.as_view(url='/api/simulated-trading/accounts/', permanent=False), name='api-portfolio'),
+
+    # ========== AI-native Agent Runtime (M1) ==========
+    path('api/agent-runtime/', include(('apps.agent_runtime.interface.api_urls', 'agent_runtime'), namespace='api_agent_runtime')),
 ]
 
 

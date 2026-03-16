@@ -1,0 +1,56 @@
+"""
+API URL Configuration for Agent Runtime.
+
+FROZEN: Routes must not change.
+See: docs/plans/ai-native/implementation-contract.md
+"""
+
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+
+from apps.agent_runtime.interface.views import (
+    AgentTaskViewSet,
+    AgentTaskHealthViewSet,
+)
+
+# Router configuration
+router = DefaultRouter()
+router.register(r"tasks", AgentTaskViewSet, basename="task")
+router.register(r"health", AgentTaskHealthViewSet, basename="health")
+
+# Task routes (frozen - implemented)
+# - GET    /api/agent-runtime/tasks/              - List tasks
+# - POST   /api/agent-runtime/tasks/              - Create task
+# - GET    /api/agent-runtime/tasks/{id}/         - Get task detail
+# - PUT    /api/agent-runtime/tasks/{id}/         - Update task
+# - PATCH  /api/agent-runtime/tasks/{id}/         - Partial update
+# - DELETE /api/agent-runtime/tasks/{id}/         - Delete task
+# - GET    /api/agent-runtime/tasks/{id}/timeline/   - Get timeline events
+# - GET    /api/agent-runtime/tasks/{id}/artifacts/  - Get artifacts
+# - POST   /api/agent-runtime/tasks/{id}/resume/     - Resume task
+# - POST   /api/agent-runtime/tasks/{id}/cancel/     - Cancel task
+# - GET    /api/agent-runtime/tasks/needs_attention/ - Get tasks needing attention
+
+# Health routes (frozen - implemented)
+# - GET    /api/agent-runtime/health/             - Health check
+
+# Proposal routes (frozen - M3)
+# - /api/agent-runtime/proposals/
+# - /api/agent-runtime/proposals/{id}/
+# - /api/agent-runtime/proposals/{id}/submit-approval/
+# - /api/agent-runtime/proposals/{id}/approve/
+# - /api/agent-runtime/proposals/{id}/reject/
+# - /api/agent-runtime/proposals/{id}/execute/
+
+# Context routes (frozen - M2)
+# - /api/agent-runtime/context/research/
+# - /api/agent-runtime/context/monitoring/
+# - /api/agent-runtime/context/decision/
+# - /api/agent-runtime/context/execution/
+# - /api/agent-runtime/context/ops/
+
+app_name = 'agent_runtime'
+
+urlpatterns = [
+    path('', include(router.urls)),
+]

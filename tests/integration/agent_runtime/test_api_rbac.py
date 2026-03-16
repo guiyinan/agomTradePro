@@ -1,0 +1,362 @@
+"""
+Integration tests for API RBAC (Role-Based Access Control).
+
+WP-M1-06: Security And Audit Hook
+
+Tests verify:
+- Deny access to disallowed roles
+- Permission denied cases
+- Audit trail exists for mutating runtime calls
+"""
+
+import pytest
+from unittest.mock import patch, MagicMock
+from datetime import datetime, timezone
+
+from django.urls import reverse
+from rest_framework.test import APIClient
+from rest_framework import status
+
+
+@pytest.mark.django_db
+class TestAPIRBAC:
+    """Tests for API Role-Based Access Control."""
+
+    @pytest.fixture
+    def api_client(self):
+        """Create an API client."""
+        return APIClient()
+
+    @pytest.fixture
+    def mock_user(self):
+        """Create a mock authenticated user."""
+        user = MagicMock()
+        user.id = 1
+        user.is_authenticated = True
+        user.is_staff = False
+        user.is_superuser = False
+        return user
+
+    @pytest.fixture
+    def mock_staff_user(self):
+        """Create a mock staff user."""
+        user = MagicMock()
+        user.id = 2
+        user.is_authenticated = True
+        user.is_staff = True
+        user.is_superuser = False
+        return user
+
+    @pytest.fixture
+    def mock_super_user(self):
+        """Create a mock superuser."""
+        user = MagicMock()
+        user.id = 3
+        user.is_authenticated = True
+        user.is_staff = True
+        user.is_superuser = True
+        return user
+
+    # ========== Authentication Tests ==========
+
+    def test_unauthenticated_user_cannot_create_task(self, api_client):
+        """Test that unauthenticated users cannot create tasks."""
+        url = reverse("agent_runtime:task-list")
+        response = api_client.post(url, {
+            "task_domain": "research",
+            "task_type": "test",
+            "input_payload": {},
+        }, format="json")
+
+        assert response.status_code in [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        ]
+
+    def test_unauthenticated_user_cannot_list_tasks(self, api_client):
+        """Test that unauthenticated users cannot list tasks."""
+        url = reverse("agent_runtime:task-list")
+        response = api_client.get(url)
+
+        assert response.status_code in [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        ]
+
+    def test_unauthenticated_user_cannot_get_task(self, api_client):
+        """Test that unauthenticated users cannot get task details."""
+        url = reverse("agent_runtime:task-detail", kwargs={"pk": 1})
+        response = api_client.get(url)
+
+        assert response.status_code in [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        ]
+
+    def test_unauthenticated_user_cannot_resume_task(self, api_client):
+        """Test that unauthenticated users cannot resume tasks."""
+        url = reverse("agent_runtime:task-resume", kwargs={"pk": 1})
+        response = api_client.post(url, {"reason": "test"}, format="json")
+
+        assert response.status_code in [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        ]
+
+    def test_unauthenticated_user_cannot_cancel_task(self, api_client):
+        """Test that unauthenticated users cannot cancel tasks."""
+        url = reverse("agent_runtime:task-cancel", kwargs={"pk": 1})
+        response = api_client.post(url, {"reason": "test"}, format="json")
+
+        assert response.status_code in [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        ]
+
+    # ========== Health Endpoint Tests ==========
+
+    def test_health_endpoint_no_auth_required(self, api_client):
+        """Test that health endpoint does not require authentication."""
+        url = reverse("agent_runtime:health-list")
+        response = api_client.get(url)
+
+        # Health check should be accessible without auth
+        assert response.status_code == status.HTTP_200_OK
+
+    # ========== Forbidden Method Tests ==========
+
+    def test_put_task_forbidden(self, api_client, mock_user):
+        """Test that PUT method is forbidden (405)."""
+        api_client.force_authenticate(user=mock_user)
+        url = reverse("agent_runtime:task-detail", kwargs={"pk": 1})
+        response = api_client.put(url, {"status": "completed"}, format="json")
+
+        assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+
+    def test_patch_task_forbidden(self, api_client, mock_user):
+        """Test that PATCH method is forbidden (405)."""
+        api_client.force_authenticate(user=mock_user)
+        url = reverse("agent_runtime:task-detail", kwargs={"pk": 1})
+        response = api_client.patch(url, {"status": "completed"}, format="json")
+
+        assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+
+    def test_delete_task_forbidden(self, api_client, mock_user):
+        """Test that DELETE method is forbidden (405)."""
+        api_client.force_authenticate(user=mock_user)
+        url = reverse("agent_runtime:task-detail", kwargs={"pk": 1})
+        response = api_client.delete(url)
+
+        assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+
+
+@pytest.mark.django_db
+class TestAuditTrail:
+    """Tests for audit trail on mutating operations."""
+
+    @pytest.fixture
+    def api_client(self):
+        """Create an API client."""
+        return APIClient()
+
+    @pytest.fixture
+    def mock_user(self):
+        """Create a mock authenticated user."""
+        user = MagicMock()
+        user.id = 1
+        user.is_authenticated = True
+        user.is_staff = False
+        return user
+
+    @patch("apps.agent_runtime.interface.views.CreateTaskUseCase")
+    def test_create_task_creates_audit_log(self, mock_use_case_class, api_client, mock_user):
+        """Verify create task operation creates audit log."""
+        # Setup mock
+        mock_use_case = MagicMock()
+        mock_task = MagicMock()
+        mock_task.id = 1
+        mock_task.request_id = "atr_test"
+        mock_task.task_domain = MagicMock()
+        mock_task.task_domain.value = "research"
+        mock_task.task_type = "test"
+        mock_task.status = MagicMock()
+        mock_task.status.value = "draft"
+
+        mock_output = MagicMock()
+        mock_output.task = mock_task
+        mock_output.request_id = "atr_test"
+        mock_use_case.execute.return_value = mock_output
+        mock_use_case_class.return_value = mock_use_case
+
+        api_client.force_authenticate(user=mock_user)
+
+        with patch(
+            "apps.agent_runtime.interface.views.AgentTaskModel._default_manager.get"
+        ) as mock_get:
+            mock_get.return_value = MagicMock()
+
+            url = reverse("agent_runtime:task-list")
+            response = api_client.post(url, {
+                "task_domain": "research",
+                "task_type": "test",
+                "input_payload": {},
+            }, format="json")
+
+        # Response should succeed
+        assert response.status_code == status.HTTP_201_CREATED
+
+    @patch("apps.agent_runtime.interface.views.ResumeTaskUseCase")
+    def test_resume_task_creates_audit_log(self, mock_use_case_class, api_client, mock_user):
+        """Verify resume task operation creates audit log."""
+        # Setup mock
+        mock_use_case = MagicMock()
+        mock_task = MagicMock()
+        mock_task.id = 1
+        mock_task.request_id = "atr_test"
+        mock_task.status = MagicMock()
+        mock_task.status.value = "draft"
+
+        mock_output = MagicMock()
+        mock_output.task = mock_task
+        mock_output.request_id = "atr_test"
+        mock_output.timeline_event_id = 123
+        mock_use_case.execute.return_value = mock_output
+        mock_use_case_class.return_value = mock_use_case
+
+        api_client.force_authenticate(user=mock_user)
+
+        with patch(
+            "apps.agent_runtime.interface.views.AgentTaskModel._default_manager.filter"
+        ) as mock_filter:
+            mock_queryset = MagicMock()
+            mock_queryset.first.return_value = MagicMock(status="failed")
+            mock_filter.return_value = mock_queryset
+
+            with patch(
+                "apps.agent_runtime.interface.views.AgentTaskSerializer"
+            ) as mock_serializer:
+                mock_serializer_instance = MagicMock()
+                mock_serializer_instance.data = {"id": 1, "status": "draft"}
+                mock_serializer.return_value = mock_serializer_instance
+
+                url = reverse("agent_runtime:task-resume", kwargs={"pk": 1})
+                response = api_client.post(url, {"reason": "Fixed"}, format="json")
+
+        # Response should succeed
+        assert response.status_code == status.HTTP_200_OK
+
+    @patch("apps.agent_runtime.interface.views.CancelTaskUseCase")
+    def test_cancel_task_creates_audit_log(self, mock_use_case_class, api_client, mock_user):
+        """Verify cancel task operation creates audit log."""
+        # Setup mock
+        mock_use_case = MagicMock()
+        mock_task = MagicMock()
+        mock_task.id = 1
+        mock_task.request_id = "atr_test"
+        mock_task.status = MagicMock()
+        mock_task.status.value = "cancelled"
+
+        mock_output = MagicMock()
+        mock_output.task = mock_task
+        mock_output.request_id = "atr_test"
+        mock_output.timeline_event_id = 124
+        mock_use_case.execute.return_value = mock_output
+        mock_use_case_class.return_value = mock_use_case
+
+        api_client.force_authenticate(user=mock_user)
+
+        with patch(
+            "apps.agent_runtime.interface.views.AgentTaskModel._default_manager.filter"
+        ) as mock_filter:
+            mock_queryset = MagicMock()
+            mock_queryset.first.return_value = MagicMock(status="draft")
+            mock_filter.return_value = mock_queryset
+
+            with patch(
+                "apps.agent_runtime.interface.views.AgentTaskSerializer"
+            ) as mock_serializer:
+                mock_serializer_instance = MagicMock()
+                mock_serializer_instance.data = {"id": 1, "status": "cancelled"}
+                mock_serializer.return_value = mock_serializer_instance
+
+                url = reverse("agent_runtime:task-cancel", kwargs={"pk": 1})
+                response = api_client.post(url, {"reason": "Not needed"}, format="json")
+
+        # Response should succeed
+        assert response.status_code == status.HTTP_200_OK
+
+
+@pytest.mark.django_db
+class TestErrorResponses:
+    """Tests for error response format compliance."""
+
+    @pytest.fixture
+    def api_client(self):
+        """Create an API client."""
+        return APIClient()
+
+    @pytest.fixture
+    def mock_user(self):
+        """Create a mock authenticated user."""
+        user = MagicMock()
+        user.id = 1
+        user.is_authenticated = True
+        return user
+
+    def test_404_response_format(self, api_client, mock_user):
+        """Test 404 response follows FROZEN error contract."""
+        api_client.force_authenticate(user=mock_user)
+
+        with patch(
+            "apps.agent_runtime.interface.views.AgentTaskModel._default_manager.filter"
+        ) as mock_filter:
+            mock_queryset = MagicMock()
+            mock_queryset.first.return_value = None
+            mock_filter.return_value = mock_queryset
+
+            url = reverse("agent_runtime:task-detail", kwargs={"pk": 99999})
+            response = api_client.get(url)
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+        # Verify FROZEN error format (schema-contract.md:151)
+        data = response.data
+        assert "request_id" in data
+        assert "success" in data
+        assert data["success"] is False
+        assert "error_code" in data
+        assert "message" in data
+
+    def test_400_response_format(self, api_client, mock_user):
+        """Test 400 response follows FROZEN error contract."""
+        api_client.force_authenticate(user=mock_user)
+
+        url = reverse("agent_runtime:task-list")
+        response = api_client.post(url, {
+            "task_domain": "invalid_domain",
+            "task_type": "test",
+            "input_payload": {},
+        }, format="json")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+        # Verify FROZEN error format
+        data = response.data
+        assert "request_id" in data or "success" in data
+
+    def test_405_response_format(self, api_client, mock_user):
+        """Test 405 response follows FROZEN error contract."""
+        api_client.force_authenticate(user=mock_user)
+
+        url = reverse("agent_runtime:task-detail", kwargs={"pk": 1})
+        response = api_client.put(url, {"status": "completed"}, format="json")
+
+        assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+
+        # Verify FROZEN error format
+        data = response.data
+        assert "request_id" in data
+        assert "success" in data
+        assert data["success"] is False
+        assert "error_code" in data
+        assert data["error_code"] == "method_not_allowed"

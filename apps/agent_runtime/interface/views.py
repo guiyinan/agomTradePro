@@ -1,0 +1,582 @@
+"""
+DRF Views for Agent Runtime API.
+
+WP-M1-06: API Endpoints (025-026)
+FROZEN: Only endpoints explicitly listed in the contract are exposed.
+See: docs/plans/ai-native/schema-contract.md
+"""
+
+import logging
+from typing import Optional, Dict, Any
+
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from django.http import Http404
+
+from apps.agent_runtime.domain.entities import TaskStatus, TaskDomain, EventSource
+from apps.agent_runtime.domain.services import InvalidStateTransitionError
+from apps.agent_runtime.application.use_cases import (
+    CreateTaskUseCase,
+    GetTaskUseCase,
+    ListTasksUseCase,
+    ResumeTaskUseCase,
+    CancelTaskUseCase,
+    CreateTaskInput,
+    ListTasksInput,
+    ResumeTaskInput,
+    CancelTaskInput,
+)
+from apps.agent_runtime.interface.serializers import (
+    AgentTaskSerializer,
+    AgentTaskCreateSerializer,
+    AgentTaskListSerializer,
+    AgentTaskListQuerySerializer,
+    AgentTimelineEventSerializer,
+    AgentArtifactSerializer,
+)
+from apps.agent_runtime.infrastructure.models import (
+    AgentTaskModel,
+    AgentTimelineEventModel,
+    AgentArtifactModel,
+)
+
+
+logger = logging.getLogger(__name__)
+
+
+def build_error_response(
+    request_id: str,
+    error_code: str,
+    message: str,
+    details: Optional[Dict[str, Any]] = None,
+    status_code: int = status.HTTP_400_BAD_REQUEST,
+) -> Response:
+    """
+    Build an error response following the FROZEN error contract.
+
+    Error contract format (from schema-contract.md:151):
+    {
+        "request_id": "atr_20260316_000001",
+        "success": false,
+        "error_code": "invalid_task_domain",
+        "message": "Unsupported task_domain.",
+        "details": {...}  // Optional additional context
+    }
+    """
+    response_data = {
+        "request_id": request_id,
+        "success": False,
+        "error_code": error_code,
+        "message": message,
+    }
+    if details:
+        response_data["details"] = details
+
+    return Response(response_data, status=status_code)
+
+
+def generate_request_id() -> str:
+    """Generate a unique request ID for error responses."""
+    from apps.agent_runtime.application.use_cases import generate_request_id as gen_rid
+    return gen_rid()
+
+
+class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API ViewSet for AgentTask operations.
+
+    FROZEN: Only read operations and specific actions are allowed.
+    No direct PUT/PATCH/DELETE - all state changes go through use cases.
+
+    Allowed operations:
+    - GET /tasks/ - List tasks
+    - POST /tasks/ - Create task (via perform_create)
+    - GET /tasks/{id}/ - Get task detail
+    - POST /tasks/{id}/resume/ - Resume task
+    - POST /tasks/{id}/cancel/ - Cancel task
+    - GET /tasks/{id}/timeline/ - Get timeline events
+    - GET /tasks/{id}/artifacts/ - Get artifacts
+    - GET /tasks/needs_attention/ - Get tasks needing attention
+
+    All responses include request_id for tracing.
+    """
+
+    permission_classes = [IsAuthenticated]
+    lookup_field = "pk"
+
+    def get_queryset(self):
+        """Return queryset with user filtering."""
+        queryset = AgentTaskModel._default_manager.all()
+
+        # Filter by user if not staff
+        if not self.request.user.is_staff:
+            queryset = queryset.filter(created_by=self.request.user)
+
+        return queryset.order_by("-created_at")
+
+    def get_serializer_class(self):
+        """Return appropriate serializer based on action."""
+        if self.action == "create":
+            return AgentTaskCreateSerializer
+        elif self.action == "list":
+            return AgentTaskListSerializer
+        return AgentTaskSerializer
+
+    def create(self, request, *args, **kwargs):
+        """
+        Create a new AgentTask.
+
+        POST /api/agent-runtime/tasks/
+
+        Request body:
+        {
+            "task_domain": "research",
+            "task_type": "macro_portfolio_review",
+            "input_payload": {...}
+        }
+
+        Response (schema-contract.md:129):
+        {
+            "request_id": "atr_20260316_000001",
+            "task": {
+                "id": 101,
+                "request_id": "atr_20260316_000001",
+                "schema_version": "v1",
+                "task_domain": "research",
+                ...
+            }
+        }
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        use_case = CreateTaskUseCase()
+        try:
+            input_dto = CreateTaskInput(
+                task_domain=serializer.validated_data["task_domain"],
+                task_type=serializer.validated_data["task_type"],
+                input_payload=serializer.validated_data.get("input_payload", {}),
+                created_by=request.user.id if request.user.is_authenticated else None,
+            )
+
+            output = use_case.execute(input_dto)
+
+            # Serialize the created task
+            task_model = AgentTaskModel._default_manager.get(pk=output.task.id)
+            task_serializer = AgentTaskSerializer(task_model)
+
+            return Response(
+                {
+                    "request_id": output.request_id,
+                    "task": task_serializer.data,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+        except ValueError as e:
+            request_id = generate_request_id()
+            return build_error_response(
+                request_id=request_id,
+                error_code="validation_error",
+                message=str(e),
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+    def list(self, request, *args, **kwargs):
+        """
+        List AgentTasks with filters.
+
+        GET /api/agent-runtime/tasks/?status=draft&task_domain=research
+
+        Query params:
+        - status: Filter by status
+        - task_domain: Filter by domain
+        - task_type: Filter by type (partial match)
+        - requires_human: Filter by requires_human flag
+        - search: Search in task_type and request_id
+        - limit: Results per page (default 50)
+        - offset: Pagination offset (default 0)
+
+        Response:
+        {
+            "request_id": "atr_20260316_000002",
+            "tasks": [...],
+            "total_count": 100
+        }
+        """
+        query_serializer = AgentTaskListQuerySerializer(data=request.query_params)
+        query_serializer.is_valid(raise_exception=True)
+
+        use_case = ListTasksUseCase()
+        input_dto = ListTasksInput(
+            status=query_serializer.validated_data.get("status"),
+            task_domain=query_serializer.validated_data.get("task_domain"),
+            task_type=query_serializer.validated_data.get("task_type"),
+            requires_human=query_serializer.validated_data.get("requires_human"),
+            search=query_serializer.validated_data.get("search"),
+            limit=query_serializer.validated_data.get("limit", 50),
+            offset=query_serializer.validated_data.get("offset", 0),
+        )
+
+        output = use_case.execute(input_dto)
+
+        # Get models for serialization
+        task_ids = [t.id for t in output.tasks]
+        task_models = AgentTaskModel._default_manager.filter(id__in=task_ids)
+        task_map = {t.id: t for t in task_models}
+
+        # Serialize in order
+        tasks_data = []
+        for task in output.tasks:
+            if task.id in task_map:
+                serializer = AgentTaskListSerializer(task_map[task.id])
+                tasks_data.append(serializer.data)
+
+        return Response(
+            {
+                "request_id": output.request_id,
+                "tasks": tasks_data,
+                "total_count": output.total_count,
+            }
+        )
+
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Get a single AgentTask.
+
+        GET /api/agent-runtime/tasks/{id}/
+
+        Response:
+        {
+            "request_id": "atr_20260316_000001",
+            "task": {...}
+        }
+        """
+        try:
+            pk = kwargs.get("pk")
+            use_case = GetTaskUseCase()
+            output = use_case.execute(task_id=int(pk))
+
+            task_model = AgentTaskModel._default_manager.get(pk=output.task.id)
+            serializer = AgentTaskSerializer(task_model)
+
+            return Response(
+                {
+                    "request_id": output.request_id,
+                    "task": serializer.data,
+                }
+            )
+
+        except AgentTaskModel.DoesNotExist:
+            return build_error_response(
+                request_id=generate_request_id(),
+                error_code="not_found",
+                message=f"Task {kwargs.get('pk')} not found",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+    # FROZEN: update, partial_update, destroy are NOT allowed
+    # All state changes must go through use cases (resume/cancel)
+
+    def update(self, request, *args, **kwargs):
+        """Direct updates are not allowed. Use /resume or /cancel endpoints."""
+        return build_error_response(
+            request_id=generate_request_id(),
+            error_code="method_not_allowed",
+            message="Direct task updates are not allowed. Use /resume or /cancel endpoints.",
+            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        """Direct updates are not allowed. Use /resume or /cancel endpoints."""
+        return build_error_response(
+            request_id=generate_request_id(),
+            error_code="method_not_allowed",
+            message="Direct task updates are not allowed. Use /resume or /cancel endpoints.",
+            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        """Task deletion is not allowed in M1."""
+        return build_error_response(
+            request_id=generate_request_id(),
+            error_code="method_not_allowed",
+            message="Task deletion is not allowed. Use /cancel to cancel a task.",
+            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    @action(detail=True, methods=["post"])
+    def resume(self, request, pk=None):
+        """
+        Resume a task from failed or needs_human state.
+
+        POST /api/agent-runtime/tasks/{id}/resume/
+
+        Request body:
+        {
+            "target_status": "draft",  // Optional, defaults based on current state
+            "reason": "Fixed the issue"  // Optional
+        }
+
+        Response:
+        {
+            "request_id": "atr_20260316_000001",
+            "task": {...},
+            "timeline_event_id": 123
+        }
+        """
+        try:
+            task_model = self.get_object()
+        except Http404:
+            return build_error_response(
+                request_id=generate_request_id(),
+                error_code="not_found",
+                message=f"Task {pk} not found",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        use_case = ResumeTaskUseCase()
+        try:
+            input_dto = ResumeTaskInput(
+                task_id=int(pk),
+                target_status=request.data.get("target_status"),
+                reason=request.data.get("reason"),
+                actor={"user_id": request.user.id} if request.user.is_authenticated else None,
+            )
+
+            output = use_case.execute(input_dto)
+
+            # Get updated model
+            task_model = AgentTaskModel._default_manager.get(pk=output.task.id)
+            serializer = AgentTaskSerializer(task_model)
+
+            return Response(
+                {
+                    "request_id": output.request_id,
+                    "task": serializer.data,
+                    "timeline_event_id": output.timeline_event_id,
+                }
+            )
+
+        except InvalidStateTransitionError as e:
+            return build_error_response(
+                request_id=task_model.request_id,
+                error_code="invalid_state_transition",
+                message=e.message,
+                details={
+                    "current_status": e.current_status,
+                    "target_status": e.target_status,
+                    "allowed_transitions": e.allowed_transitions,
+                },
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+        except ValueError as e:
+            return build_error_response(
+                request_id=task_model.request_id,
+                error_code="validation_error",
+                message=str(e),
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        """
+        Cancel a task.
+
+        POST /api/agent-runtime/tasks/{id}/cancel/
+
+        Request body:
+        {
+            "reason": "No longer needed"  // Required
+        }
+
+        Response:
+        {
+            "request_id": "atr_20260316_000001",
+            "task": {...},
+            "timeline_event_id": 123
+        }
+        """
+        try:
+            task_model = self.get_object()
+        except Http404:
+            return build_error_response(
+                request_id=generate_request_id(),
+                error_code="not_found",
+                message=f"Task {pk} not found",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        reason = request.data.get("reason", "")
+
+        if not reason:
+            return build_error_response(
+                request_id=task_model.request_id,
+                error_code="validation_error",
+                message="reason is required for cancellation",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        use_case = CancelTaskUseCase()
+        try:
+            input_dto = CancelTaskInput(
+                task_id=int(pk),
+                reason=reason,
+                actor={"user_id": request.user.id} if request.user.is_authenticated else None,
+            )
+
+            output = use_case.execute(input_dto)
+
+            # Get updated model
+            task_model = AgentTaskModel._default_manager.get(pk=output.task.id)
+            serializer = AgentTaskSerializer(task_model)
+
+            return Response(
+                {
+                    "request_id": output.request_id,
+                    "task": serializer.data,
+                    "timeline_event_id": output.timeline_event_id,
+                }
+            )
+
+        except InvalidStateTransitionError as e:
+            return build_error_response(
+                request_id=task_model.request_id,
+                error_code="invalid_state_transition",
+                message=e.message,
+                details={
+                    "current_status": e.current_status,
+                    "target_status": e.target_status,
+                    "allowed_transitions": e.allowed_transitions,
+                },
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+    @action(detail=True, methods=["get"])
+    def timeline(self, request, pk=None):
+        """
+        Get timeline events for a task.
+
+        GET /api/agent-runtime/tasks/{id}/timeline/
+
+        Response:
+        {
+            "request_id": "atr_20260316_000001",
+            "events": [...]
+        }
+        """
+        task_model = self.get_object()
+
+        events = AgentTimelineEventModel._default_manager.filter(
+            task_id=task_model.id
+        ).order_by("created_at")
+
+        serializer = AgentTimelineEventSerializer(events, many=True)
+
+        return Response(
+            {
+                "request_id": task_model.request_id,
+                "events": serializer.data,
+            }
+        )
+
+    @action(detail=True, methods=["get"])
+    def artifacts(self, request, pk=None):
+        """
+        Get artifacts for a task.
+
+        GET /api/agent-runtime/tasks/{id}/artifacts/
+
+        Response:
+        {
+            "request_id": "atr_20260316_000001",
+            "artifacts": [...]
+        }
+        """
+        task_model = self.get_object()
+
+        artifacts = AgentArtifactModel._default_manager.filter(
+            task_id=task_model.id
+        ).order_by("-created_at")
+
+        serializer = AgentArtifactSerializer(artifacts, many=True)
+
+        return Response(
+            {
+                "request_id": task_model.request_id,
+                "artifacts": serializer.data,
+            }
+        )
+
+    @action(detail=False, methods=["get"])
+    def needs_attention(self, request):
+        """
+        Get tasks that need human attention.
+
+        GET /api/agent-runtime/tasks/needs_attention/
+
+        Returns tasks with requires_human=True or in needs_human/failed state.
+
+        Response:
+        {
+            "request_id": "atr_20260316_000003",
+            "tasks": [...],
+            "total_count": 5
+        }
+        """
+        queryset = self.get_queryset().filter(
+            requires_human=True
+        ) | self.get_queryset().filter(
+            status__in=[TaskStatus.NEEDS_HUMAN.value, TaskStatus.FAILED.value]
+        )
+
+        queryset = queryset.distinct().order_by("-updated_at")
+
+        # Limit results
+        limit = min(int(request.query_params.get("limit", 20)), 100)
+        queryset = queryset[:limit]
+
+        serializer = AgentTaskListSerializer(queryset, many=True)
+
+        return Response(
+            {
+                "request_id": generate_request_id(),
+                "tasks": serializer.data,
+                "total_count": queryset.count(),
+            }
+        )
+
+
+class AgentTaskHealthViewSet(viewsets.ViewSet):
+    """
+    Health check endpoints for Agent Runtime.
+
+    NOTE: This is an additional read-only endpoint, not part of the FROZEN contract.
+    """
+
+    permission_classes = []  # Public endpoint
+
+    def list(self, request):
+        """
+        Health check for Agent Runtime API.
+
+        GET /api/agent-runtime/health/
+
+        Response:
+        {
+            "status": "healthy",
+            "version": "v1",
+            "timestamp": "2026-03-16T10:00:00Z"
+        }
+        """
+        from django.utils import timezone
+
+        return Response(
+            {
+                "status": "healthy",
+                "version": "v1",
+                "timestamp": timezone.now().isoformat(),
+            }
+        )
