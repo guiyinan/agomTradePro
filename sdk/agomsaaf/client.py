@@ -24,6 +24,7 @@ from .exceptions import (
 )
 from .modules.account import AccountModule
 from .modules.agent_context import AgentContextModule
+from .modules.agent_proposal import AgentProposalModule
 from .modules.agent_runtime import AgentRuntimeModule
 from .modules.ai_provider import AIProviderModule
 from .modules.alpha import AlphaModule
@@ -106,6 +107,7 @@ class AgomSAAFClient:
     _decision_workflow: Optional[DecisionWorkflowModule] = None
     _agent_runtime: Optional[AgentRuntimeModule] = None
     _agent_context: Optional[AgentContextModule] = None
+    _agent_proposal: Optional[AgentProposalModule] = None
 
     def __init__(
         self,
@@ -603,6 +605,13 @@ class AgomSAAFClient:
         if self._agent_context is None:
             self._agent_context = AgentContextModule(self)
         return self._agent_context
+
+    @property
+    def agent_proposal(self) -> AgentProposalModule:
+        """Agent Proposal 提案生命周期模块"""
+        if self._agent_proposal is None:
+            self._agent_proposal = AgentProposalModule(self)
+        return self._agent_proposal
 
     # ========================================================================
     # 会话管理

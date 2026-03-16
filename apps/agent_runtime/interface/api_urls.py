@@ -11,12 +11,14 @@ from rest_framework.routers import DefaultRouter
 from apps.agent_runtime.interface.views import (
     AgentTaskViewSet,
     AgentTaskHealthViewSet,
+    AgentProposalViewSet,
     ContextSnapshotViewSet,
 )
 
 # Router configuration
 router = DefaultRouter()
 router.register(r"tasks", AgentTaskViewSet, basename="task")
+router.register(r"proposals", AgentProposalViewSet, basename="proposal")
 router.register(r"context", ContextSnapshotViewSet, basename="context")
 router.register(r"health", AgentTaskHealthViewSet, basename="health")
 
@@ -36,13 +38,13 @@ router.register(r"health", AgentTaskHealthViewSet, basename="health")
 # Health routes (frozen - implemented)
 # - GET    /api/agent-runtime/health/             - Health check
 
-# Proposal routes (frozen - M3)
-# - /api/agent-runtime/proposals/
-# - /api/agent-runtime/proposals/{id}/
-# - /api/agent-runtime/proposals/{id}/submit-approval/
-# - /api/agent-runtime/proposals/{id}/approve/
-# - /api/agent-runtime/proposals/{id}/reject/
-# - /api/agent-runtime/proposals/{id}/execute/
+# Proposal routes (frozen - M3 implemented)
+# - POST   /api/agent-runtime/proposals/                      - Create proposal
+# - GET    /api/agent-runtime/proposals/{id}/                 - Get proposal
+# - POST   /api/agent-runtime/proposals/{id}/submit-approval/ - Submit for approval
+# - POST   /api/agent-runtime/proposals/{id}/approve/         - Approve proposal
+# - POST   /api/agent-runtime/proposals/{id}/reject/          - Reject proposal
+# - POST   /api/agent-runtime/proposals/{id}/execute/         - Execute proposal
 
 # Context routes (frozen - M2 implemented)
 # - GET /api/agent-runtime/context/research/    - Research context snapshot

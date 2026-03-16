@@ -2,6 +2,7 @@
 DRF Views for Agent Runtime API.
 
 WP-M1-06: API Endpoints (025-026)
+WP-M3-01: Proposal lifecycle endpoints
 FROZEN: Only endpoints explicitly listed in the contract are exposed.
 See: docs/plans/ai-native/schema-contract.md
 """
@@ -28,6 +29,17 @@ from apps.agent_runtime.application.use_cases import (
     ResumeTaskInput,
     CancelTaskInput,
 )
+from apps.agent_runtime.application.proposal_use_cases import (
+    CreateProposalUseCase,
+    GetProposalUseCase,
+    SubmitProposalForApprovalUseCase,
+    ApproveProposalUseCase,
+    RejectProposalUseCase,
+    ExecuteProposalUseCase,
+    CreateProposalInput,
+    InvalidProposalTransitionError,
+    GuardrailBlockedError,
+)
 from apps.agent_runtime.interface.serializers import (
     AgentTaskSerializer,
     AgentTaskCreateSerializer,
@@ -35,11 +47,18 @@ from apps.agent_runtime.interface.serializers import (
     AgentTaskListQuerySerializer,
     AgentTimelineEventSerializer,
     AgentArtifactSerializer,
+    AgentProposalSerializer,
+    AgentProposalCreateSerializer,
+    AgentGuardrailDecisionSerializer,
+    AgentExecutionRecordSerializer,
 )
 from apps.agent_runtime.infrastructure.models import (
     AgentTaskModel,
     AgentTimelineEventModel,
     AgentArtifactModel,
+    AgentProposalModel,
+    AgentGuardrailDecisionModel,
+    AgentExecutionRecordModel,
 )
 
 
@@ -718,6 +737,336 @@ class ContextSnapshotViewSet(viewsets.ViewSet):
         AI provider health, audit freshness.
         """
         return self._build_snapshot_response("ops")
+
+
+class AgentProposalViewSet(viewsets.ViewSet):
+    """
+    WP-M3-01: Proposal lifecycle API.
+
+    Endpoints:
+    - POST   /api/agent-runtime/proposals/                      - Create proposal
+    - GET    /api/agent-runtime/proposals/{id}/                 - Get proposal
+    - POST   /api/agent-runtime/proposals/{id}/submit-approval/ - Submit for approval
+    - POST   /api/agent-runtime/proposals/{id}/approve/         - Approve proposal
+    - POST   /api/agent-runtime/proposals/{id}/reject/          - Reject proposal
+    - POST   /api/agent-runtime/proposals/{id}/execute/         - Execute proposal
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def _serialize_proposal(self, proposal_model: Any) -> Dict[str, Any]:
+        """Serialize a proposal model to dict."""
+        if isinstance(proposal_model, AgentProposalModel):
+            return AgentProposalSerializer(proposal_model).data
+
+        # Domain entity fallback
+        created_at = getattr(proposal_model, "created_at", None)
+        updated_at = getattr(proposal_model, "updated_at", None)
+        return {
+            "id": getattr(proposal_model, "id", None),
+            "request_id": getattr(proposal_model, "request_id", None),
+            "schema_version": getattr(proposal_model, "schema_version", "v1"),
+            "task_id": getattr(proposal_model, "task_id", None),
+            "proposal_type": getattr(proposal_model, "proposal_type", None),
+            "status": getattr(proposal_model, "status", None),
+            "risk_level": getattr(proposal_model, "risk_level", None),
+            "approval_required": getattr(proposal_model, "approval_required", True),
+            "approval_status": getattr(proposal_model, "approval_status", None),
+            "approval_reason": getattr(proposal_model, "approval_reason", None),
+            "proposal_payload": getattr(proposal_model, "proposal_payload", {}),
+            "created_by": getattr(proposal_model, "created_by", None),
+            "created_at": created_at.isoformat() if hasattr(created_at, "isoformat") else created_at,
+            "updated_at": updated_at.isoformat() if hasattr(updated_at, "isoformat") else updated_at,
+        }
+
+    def _get_proposal_data(self, proposal_entity: Any) -> Dict[str, Any]:
+        """Get serialized proposal data, preferring model if available."""
+        try:
+            model = AgentProposalModel._default_manager.get(pk=proposal_entity.id)
+            return AgentProposalSerializer(model).data
+        except AgentProposalModel.DoesNotExist:
+            return self._serialize_proposal(proposal_entity)
+
+    def _get_actor(self, request: Any) -> Dict[str, Any]:
+        """Build actor dict from request."""
+        return {
+            "user_id": request.user.id if request.user.is_authenticated else None,
+            "is_staff": getattr(request.user, "is_staff", False),
+        }
+
+    def create(self, request):
+        """
+        Create a new proposal.
+
+        POST /api/agent-runtime/proposals/
+
+        Request body:
+        {
+            "task_id": 101,           // Optional
+            "proposal_type": "signal_create",
+            "risk_level": "medium",   // Optional, default medium
+            "approval_required": true, // Optional, default true
+            "proposal_payload": {...},
+            "approval_reason": "..."  // Optional
+        }
+        """
+        serializer = AgentProposalCreateSerializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except drf_serializers.ValidationError as e:
+            return _build_validation_error_response(generate_request_id(), e)
+
+        use_case = CreateProposalUseCase()
+        try:
+            inp = CreateProposalInput(
+                task_id=serializer.validated_data.get("task_id"),
+                proposal_type=serializer.validated_data["proposal_type"],
+                risk_level=serializer.validated_data.get("risk_level", "medium"),
+                approval_required=serializer.validated_data.get("approval_required", True),
+                proposal_payload=serializer.validated_data.get("proposal_payload", {}),
+                approval_reason=serializer.validated_data.get("approval_reason"),
+                created_by=request.user.id if request.user.is_authenticated else None,
+            )
+            output = use_case.execute(inp)
+
+            return Response(
+                {
+                    "request_id": output.request_id,
+                    "proposal": self._get_proposal_data(output.proposal),
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+        except ValueError as e:
+            return build_error_response(
+                request_id=generate_request_id(),
+                error_code="validation_error",
+                message=str(e),
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+    def retrieve(self, request, pk=None):
+        """
+        Get a single proposal.
+
+        GET /api/agent-runtime/proposals/{id}/
+        """
+        try:
+            use_case = GetProposalUseCase()
+            output = use_case.execute(proposal_id=int(pk))
+
+            return Response(
+                {
+                    "request_id": output.request_id,
+                    "proposal": self._get_proposal_data(output.proposal),
+                }
+            )
+        except AgentProposalModel.DoesNotExist:
+            return build_error_response(
+                request_id=generate_request_id(),
+                error_code="not_found",
+                message=f"Proposal {pk} not found",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+    @action(detail=True, methods=["post"], url_path="submit-approval")
+    def submit_approval(self, request, pk=None):
+        """
+        Submit a proposal for approval.
+
+        POST /api/agent-runtime/proposals/{id}/submit-approval/
+
+        Runs pre-approval guardrail checks.
+        """
+        try:
+            use_case = SubmitProposalForApprovalUseCase()
+            output = use_case.execute(
+                proposal_id=int(pk),
+                actor=self._get_actor(request),
+            )
+
+            return Response({
+                "request_id": output.request_id,
+                "proposal": self._get_proposal_data(output.proposal),
+                "guardrail_decision": output.guardrail_decision,
+            })
+
+        except AgentProposalModel.DoesNotExist:
+            return build_error_response(
+                request_id=generate_request_id(),
+                error_code="not_found",
+                message=f"Proposal {pk} not found",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+        except InvalidProposalTransitionError as e:
+            return build_error_response(
+                request_id=generate_request_id(),
+                error_code="invalid_state_transition",
+                message=e.message,
+                details={
+                    "current_status": e.current_status,
+                    "target_status": e.target_status,
+                    "allowed_transitions": e.allowed_transitions,
+                },
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+        except GuardrailBlockedError as e:
+            return build_error_response(
+                request_id=generate_request_id(),
+                error_code="guardrail_blocked",
+                message=e.guardrail_message,
+                details={
+                    "decision": e.decision,
+                    "reason_code": e.reason_code,
+                    "evidence": e.evidence,
+                },
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+
+    @action(detail=True, methods=["post"])
+    def approve(self, request, pk=None):
+        """
+        Approve a submitted proposal.
+
+        POST /api/agent-runtime/proposals/{id}/approve/
+
+        Request body:
+        {
+            "reason": "Looks good"  // Optional
+        }
+        """
+        try:
+            use_case = ApproveProposalUseCase()
+            output = use_case.execute(
+                proposal_id=int(pk),
+                reason=request.data.get("reason"),
+                actor=self._get_actor(request),
+            )
+
+            return Response({
+                "request_id": output.request_id,
+                "proposal": self._get_proposal_data(output.proposal),
+            })
+
+        except AgentProposalModel.DoesNotExist:
+            return build_error_response(
+                request_id=generate_request_id(),
+                error_code="not_found",
+                message=f"Proposal {pk} not found",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+        except InvalidProposalTransitionError as e:
+            return build_error_response(
+                request_id=generate_request_id(),
+                error_code="invalid_state_transition",
+                message=e.message,
+                details={
+                    "current_status": e.current_status,
+                    "target_status": e.target_status,
+                    "allowed_transitions": e.allowed_transitions,
+                },
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+    @action(detail=True, methods=["post"])
+    def reject(self, request, pk=None):
+        """
+        Reject a submitted proposal.
+
+        POST /api/agent-runtime/proposals/{id}/reject/
+
+        Request body:
+        {
+            "reason": "Risk too high"  // Optional
+        }
+        """
+        try:
+            use_case = RejectProposalUseCase()
+            output = use_case.execute(
+                proposal_id=int(pk),
+                reason=request.data.get("reason"),
+                actor=self._get_actor(request),
+            )
+
+            return Response({
+                "request_id": output.request_id,
+                "proposal": self._get_proposal_data(output.proposal),
+            })
+
+        except AgentProposalModel.DoesNotExist:
+            return build_error_response(
+                request_id=generate_request_id(),
+                error_code="not_found",
+                message=f"Proposal {pk} not found",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+        except InvalidProposalTransitionError as e:
+            return build_error_response(
+                request_id=generate_request_id(),
+                error_code="invalid_state_transition",
+                message=e.message,
+                details={
+                    "current_status": e.current_status,
+                    "target_status": e.target_status,
+                    "allowed_transitions": e.allowed_transitions,
+                },
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+    @action(detail=True, methods=["post"])
+    def execute(self, request, pk=None):
+        """
+        Execute an approved proposal.
+
+        POST /api/agent-runtime/proposals/{id}/execute/
+
+        Runs pre-execution guardrail checks, creates execution record.
+        """
+        try:
+            use_case = ExecuteProposalUseCase()
+            output = use_case.execute(
+                proposal_id=int(pk),
+                actor=self._get_actor(request),
+            )
+
+            return Response({
+                "request_id": output.request_id,
+                "proposal": self._get_proposal_data(output.proposal),
+                "execution_record_id": output.execution_record_id,
+                "guardrail_decision": output.guardrail_decision,
+            })
+
+        except AgentProposalModel.DoesNotExist:
+            return build_error_response(
+                request_id=generate_request_id(),
+                error_code="not_found",
+                message=f"Proposal {pk} not found",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+        except InvalidProposalTransitionError as e:
+            return build_error_response(
+                request_id=generate_request_id(),
+                error_code="invalid_state_transition",
+                message=e.message,
+                details={
+                    "current_status": e.current_status,
+                    "target_status": e.target_status,
+                    "allowed_transitions": e.allowed_transitions,
+                },
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+        except GuardrailBlockedError as e:
+            return build_error_response(
+                request_id=generate_request_id(),
+                error_code="guardrail_blocked",
+                message=e.guardrail_message,
+                details={
+                    "decision": e.decision,
+                    "reason_code": e.reason_code,
+                    "evidence": e.evidence,
+                },
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
 
 
 class AgentTaskHealthViewSet(viewsets.ViewSet):

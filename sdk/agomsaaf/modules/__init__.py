@@ -6,6 +6,7 @@ AgomSAAF SDK 业务模块
 
 from .account import AccountModule
 from .agent_context import AgentContextModule
+from .agent_proposal import AgentProposalModule
 from .agent_runtime import AgentRuntimeModule
 from .ai_provider import AIProviderModule
 from .alpha import AlphaModule
@@ -42,6 +43,7 @@ __all__ = [
     "BaseModule",
     "AgentRuntimeModule",
     "AgentContextModule",
+    "AgentProposalModule",
     "RegimeModule",
     "SignalModule",
     "MacroModule",

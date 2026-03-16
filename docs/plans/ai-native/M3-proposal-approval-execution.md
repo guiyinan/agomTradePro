@@ -1,5 +1,8 @@
 # Milestone M3: Proposal, Approval, And Guarded Execution
 
+> **Status**: COMPLETED (2026-03-16)
+> **Tests**: 61 unit tests (41 guardrails + 12 SDK + 8 MCP), all passing
+
 ## Objective
 
 Introduce the controlled execution model so that high-risk actions no longer execute directly from low-level tools.

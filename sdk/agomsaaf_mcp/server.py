@@ -36,6 +36,7 @@ from agomsaaf_mcp.tools.simulated_trading_tools import register_simulated_tradin
 from agomsaaf_mcp.tools.strategy_tools import register_strategy_tools
 from agomsaaf_mcp.tools.task_monitor_tools import register_task_monitor_tools
 from agomsaaf_mcp.tools.agent_task_tools import register_agent_task_tools
+from agomsaaf_mcp.tools.agent_proposal_tools import register_agent_proposal_tools
 from agomsaaf_mcp.tools.decision_workflow_tools import register_decision_workflow_tools
 from agomsaaf_mcp.rbac import (
     enforce_prompt_access,
@@ -97,6 +98,9 @@ def register_all_tools() -> None:
 
     # Agent Runtime task tools (M2)
     register_agent_task_tools(server)
+
+    # Agent Proposal tools (M3)
+    register_agent_proposal_tools(server)
 
 
 def apply_tool_rbac_guards() -> None:
