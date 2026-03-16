@@ -600,6 +600,65 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
             }
         )
 
+    @action(detail=True, methods=["post"])
+    def handoff(self, request, pk=None):
+        """
+        Hand a task to another agent or human.
+
+        POST /api/agent-runtime/tasks/{id}/handoff/
+
+        Request body:
+        {
+            "to_agent": "human_operator",
+            "handoff_reason": "Needs domain expertise",
+            "recommended_next_action": "Review signal logic",
+            "open_risks": ["macro data stale"]
+        }
+
+        Response includes complete handoff payload with task status,
+        completed/pending steps, context references, and open risks.
+        """
+        from apps.agent_runtime.application.handoff_use_cases import (
+            HandoffTaskUseCase,
+            HandoffInput,
+        )
+
+        to_agent = request.data.get("to_agent", "")
+        handoff_reason = request.data.get("handoff_reason", "")
+
+        if not to_agent or not handoff_reason:
+            return build_error_response(
+                request_id=generate_request_id(),
+                error_code="validation_error",
+                message="to_agent and handoff_reason are required",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            use_case = HandoffTaskUseCase()
+            output = use_case.execute(HandoffInput(
+                task_id=int(pk),
+                to_agent=to_agent,
+                handoff_reason=handoff_reason,
+                recommended_next_action=request.data.get("recommended_next_action"),
+                open_risks=request.data.get("open_risks"),
+                actor={"user_id": request.user.id} if request.user.is_authenticated else None,
+            ))
+
+            return Response({
+                "request_id": output.request_id,
+                "handoff_id": output.handoff_id,
+                "handoff_payload": output.handoff_payload,
+            })
+
+        except AgentTaskModel.DoesNotExist:
+            return build_error_response(
+                request_id=generate_request_id(),
+                error_code="not_found",
+                message=f"Task {pk} not found",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
     @action(detail=False, methods=["get"])
     def needs_attention(self, request):
         """
@@ -1067,6 +1126,162 @@ class AgentProposalViewSet(viewsets.ViewSet):
                 },
                 status_code=status.HTTP_403_FORBIDDEN,
             )
+
+
+class OperatorDashboardViewSet(viewsets.ViewSet):
+    """
+    WP-M4-01: Operator Dashboard API.
+
+    Read-only aggregation endpoints for operator observability.
+    Allows inspecting any task end-to-end without database access.
+
+    Endpoints:
+    - GET /api/agent-runtime/dashboard/summary/     - System overview
+    - GET /api/agent-runtime/dashboard/task/{id}/    - Full task detail with timeline + proposals
+    - GET /api/agent-runtime/dashboard/proposals/    - Proposal list with approval status
+    - GET /api/agent-runtime/dashboard/guardrails/   - Recent guardrail decisions
+    - GET /api/agent-runtime/dashboard/executions/   - Recent execution outcomes
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=False, methods=["get"], url_path="summary")
+    def summary(self, request):
+        """System-wide summary for operator dashboard."""
+        from django.db.models import Count
+
+        task_counts = dict(
+            AgentTaskModel._default_manager.values("status")
+            .annotate(count=Count("id"))
+            .values_list("status", "count")
+        )
+        proposal_counts = dict(
+            AgentProposalModel._default_manager.values("status")
+            .annotate(count=Count("id"))
+            .values_list("status", "count")
+        )
+        needs_attention = AgentTaskModel._default_manager.filter(
+            requires_human=True
+        ).count() + AgentTaskModel._default_manager.filter(
+            status__in=["needs_human", "failed"]
+        ).count()
+
+        return Response({
+            "request_id": generate_request_id(),
+            "task_counts_by_status": task_counts,
+            "proposal_counts_by_status": proposal_counts,
+            "needs_attention_count": needs_attention,
+            "total_tasks": AgentTaskModel._default_manager.count(),
+            "total_proposals": AgentProposalModel._default_manager.count(),
+        })
+
+    @action(detail=False, methods=["get"], url_path="task/(?P<task_id>[^/.]+)")
+    def task_detail(self, request, task_id=None):
+        """Full task detail with timeline, proposals, and guardrails."""
+        try:
+            task_model = AgentTaskModel._default_manager.get(pk=int(task_id))
+        except AgentTaskModel.DoesNotExist:
+            return build_error_response(
+                request_id=generate_request_id(),
+                error_code="not_found",
+                message=f"Task {task_id} not found",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
+
+        task_data = AgentTaskSerializer(task_model).data
+
+        # Timeline
+        timeline = list(
+            AgentTimelineEventModel._default_manager.filter(task_id=task_model.id)
+            .order_by("created_at")
+            .values("id", "event_type", "event_source", "event_payload", "created_at")
+        )
+
+        # Proposals
+        proposals = list(
+            AgentProposalModel._default_manager.filter(task_id=task_model.id)
+            .order_by("-created_at")
+            .values(
+                "id", "request_id", "proposal_type", "status",
+                "risk_level", "approval_status", "approval_reason", "created_at",
+            )
+        )
+
+        # Guardrail decisions
+        guardrails = list(
+            AgentGuardrailDecisionModel._default_manager.filter(task_id=task_model.id)
+            .order_by("-created_at")
+            .values("id", "decision", "reason_code", "message", "requires_human", "created_at")
+        )
+
+        # Execution records
+        executions = list(
+            AgentExecutionRecordModel._default_manager.filter(task_id=task_model.id)
+            .order_by("-created_at")
+            .values("id", "execution_status", "started_at", "completed_at", "error_details")
+        )
+
+        return Response({
+            "request_id": generate_request_id(),
+            "task": task_data,
+            "timeline": timeline,
+            "proposals": proposals,
+            "guardrail_decisions": guardrails,
+            "execution_records": executions,
+        })
+
+    @action(detail=False, methods=["get"], url_path="proposals")
+    def proposals(self, request):
+        """Proposal list with approval status."""
+        limit = min(int(request.query_params.get("limit", 50)), 200)
+        offset = int(request.query_params.get("offset", 0))
+        status_filter = request.query_params.get("status")
+
+        qs = AgentProposalModel._default_manager.all()
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        total = qs.count()
+
+        proposals = AgentProposalSerializer(
+            qs.order_by("-created_at")[offset:offset + limit],
+            many=True,
+        ).data
+
+        return Response({
+            "request_id": generate_request_id(),
+            "proposals": proposals,
+            "total_count": total,
+        })
+
+    @action(detail=False, methods=["get"], url_path="guardrails")
+    def guardrails(self, request):
+        """Recent guardrail decisions."""
+        limit = min(int(request.query_params.get("limit", 50)), 200)
+
+        decisions = AgentGuardrailDecisionSerializer(
+            AgentGuardrailDecisionModel._default_manager.order_by("-created_at")[:limit],
+            many=True,
+        ).data
+
+        return Response({
+            "request_id": generate_request_id(),
+            "guardrail_decisions": decisions,
+        })
+
+    @action(detail=False, methods=["get"], url_path="executions")
+    def executions(self, request):
+        """Recent execution outcomes."""
+        limit = min(int(request.query_params.get("limit", 50)), 200)
+
+        records = AgentExecutionRecordSerializer(
+            AgentExecutionRecordModel._default_manager.order_by("-created_at")[:limit],
+            many=True,
+        ).data
+
+        return Response({
+            "request_id": generate_request_id(),
+            "execution_records": records,
+        })
 
 
 class AgentTaskHealthViewSet(viewsets.ViewSet):

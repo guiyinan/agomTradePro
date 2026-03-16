@@ -1,5 +1,8 @@
 # Milestone M4: Observability, Recovery, And Release Readiness
 
+> **Status**: COMPLETED (2026-03-16)
+> **Tests**: 62 M4 tests + 193 full regression (all passing)
+
 ## Objective
 
 Turn the L4 implementation into a releasable system with operator visibility, failure recovery, and staged validation.

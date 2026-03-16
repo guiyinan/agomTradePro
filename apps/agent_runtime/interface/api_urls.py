@@ -13,6 +13,7 @@ from apps.agent_runtime.interface.views import (
     AgentTaskHealthViewSet,
     AgentProposalViewSet,
     ContextSnapshotViewSet,
+    OperatorDashboardViewSet,
 )
 
 # Router configuration
@@ -20,6 +21,7 @@ router = DefaultRouter()
 router.register(r"tasks", AgentTaskViewSet, basename="task")
 router.register(r"proposals", AgentProposalViewSet, basename="proposal")
 router.register(r"context", ContextSnapshotViewSet, basename="context")
+router.register(r"dashboard", OperatorDashboardViewSet, basename="dashboard")
 router.register(r"health", AgentTaskHealthViewSet, basename="health")
 
 # Task routes (frozen - implemented)
