@@ -114,11 +114,6 @@ def qlib_model(db):
     return model
 
 
-# Configure pytest-django
-@pytest.fixture(scope="session")
-def django_db_setup():
-    """Setup database for testing"""
-    pass
 
 
 # Skip tests that require Qlib if it's not installed

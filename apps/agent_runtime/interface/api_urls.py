@@ -11,11 +11,13 @@ from rest_framework.routers import DefaultRouter
 from apps.agent_runtime.interface.views import (
     AgentTaskViewSet,
     AgentTaskHealthViewSet,
+    ContextSnapshotViewSet,
 )
 
 # Router configuration
 router = DefaultRouter()
 router.register(r"tasks", AgentTaskViewSet, basename="task")
+router.register(r"context", ContextSnapshotViewSet, basename="context")
 router.register(r"health", AgentTaskHealthViewSet, basename="health")
 
 # Task routes (frozen - implemented)
@@ -42,12 +44,12 @@ router.register(r"health", AgentTaskHealthViewSet, basename="health")
 # - /api/agent-runtime/proposals/{id}/reject/
 # - /api/agent-runtime/proposals/{id}/execute/
 
-# Context routes (frozen - M2)
-# - /api/agent-runtime/context/research/
-# - /api/agent-runtime/context/monitoring/
-# - /api/agent-runtime/context/decision/
-# - /api/agent-runtime/context/execution/
-# - /api/agent-runtime/context/ops/
+# Context routes (frozen - M2 implemented)
+# - GET /api/agent-runtime/context/research/    - Research context snapshot
+# - GET /api/agent-runtime/context/monitoring/  - Monitoring context snapshot
+# - GET /api/agent-runtime/context/decision/    - Decision context snapshot
+# - GET /api/agent-runtime/context/execution/   - Execution context snapshot
+# - GET /api/agent-runtime/context/ops/         - Ops context snapshot
 
 app_name = 'agent_runtime'
 

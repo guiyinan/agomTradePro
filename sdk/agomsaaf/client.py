@@ -23,6 +23,8 @@ from .exceptions import (
     TimeoutError as SDKTimeoutError,
 )
 from .modules.account import AccountModule
+from .modules.agent_context import AgentContextModule
+from .modules.agent_runtime import AgentRuntimeModule
 from .modules.ai_provider import AIProviderModule
 from .modules.alpha import AlphaModule
 from .modules.alpha_trigger import AlphaTriggerModule
@@ -102,6 +104,8 @@ class AgomSAAFClient:
     _filter: Optional[FilterModule] = None
     _market_data: Optional[MarketDataModule] = None
     _decision_workflow: Optional[DecisionWorkflowModule] = None
+    _agent_runtime: Optional[AgentRuntimeModule] = None
+    _agent_context: Optional[AgentContextModule] = None
 
     def __init__(
         self,
@@ -585,6 +589,20 @@ class AgomSAAFClient:
         if self._decision_workflow is None:
             self._decision_workflow = DecisionWorkflowModule(self)
         return self._decision_workflow
+
+    @property
+    def agent_runtime(self) -> AgentRuntimeModule:
+        """Agent Runtime 任务管理模块"""
+        if self._agent_runtime is None:
+            self._agent_runtime = AgentRuntimeModule(self)
+        return self._agent_runtime
+
+    @property
+    def agent_context(self) -> AgentContextModule:
+        """Agent Context 上下文快照模块"""
+        if self._agent_context is None:
+            self._agent_context = AgentContextModule(self)
+        return self._agent_context
 
     # ========================================================================
     # 会话管理

@@ -300,7 +300,11 @@ class ListTasksUseCase:
     def __init__(self):
         pass
 
-    def execute(self, input_dto: ListTasksInput) -> ListTasksOutput:
+    def execute(
+        self,
+        input_dto: Optional[ListTasksInput] = None,
+        **filters: Any,
+    ) -> ListTasksOutput:
         """
         Execute the list tasks use case.
 
@@ -311,6 +315,11 @@ class ListTasksUseCase:
             ListTasksOutput with tasks and total count
         """
         from apps.agent_runtime.infrastructure.models import AgentTaskModel
+
+        if input_dto is None:
+            input_dto = ListTasksInput(**filters)
+        elif filters:
+            raise TypeError("Pass either input_dto or keyword filters, not both")
 
         request_id = generate_request_id()
         queryset = AgentTaskModel._default_manager.all()

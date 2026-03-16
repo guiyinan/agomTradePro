@@ -35,6 +35,7 @@ from agomsaaf_mcp.tools.signal_tools import register_signal_tools
 from agomsaaf_mcp.tools.simulated_trading_tools import register_simulated_trading_tools
 from agomsaaf_mcp.tools.strategy_tools import register_strategy_tools
 from agomsaaf_mcp.tools.task_monitor_tools import register_task_monitor_tools
+from agomsaaf_mcp.tools.agent_task_tools import register_agent_task_tools
 from agomsaaf_mcp.tools.decision_workflow_tools import register_decision_workflow_tools
 from agomsaaf_mcp.rbac import (
     enforce_prompt_access,
@@ -93,6 +94,9 @@ def register_all_tools() -> None:
 
     # Market Data 统一数据源模块
     register_market_data_tools(server)
+
+    # Agent Runtime task tools (M2)
+    register_agent_task_tools(server)
 
 
 def apply_tool_rbac_guards() -> None:
@@ -192,6 +196,245 @@ def prompt_check_signal_eligibility(asset_code: str, logic_desc: str) -> str:
 4. 根据检查结果给出明确的准入/不准入建议
 
 请详细说明准入或不准入的原因。"""
+
+# ==========================================================================
+# WP-M2-05: Context Resources
+# ==========================================================================
+
+def _format_context_snapshot(domain: str) -> str:
+    """Fetch context snapshot via SDK and format as readable text."""
+    from agomsaaf import AgomSAAFClient
+
+    client = AgomSAAFClient()
+    ctx = client.agent_context.get_context_snapshot(domain)
+
+    regime = ctx.get("regime_summary", {})
+    policy = ctx.get("policy_summary", {})
+    portfolio = ctx.get("portfolio_summary", {})
+    signals = ctx.get("active_signals_summary", {})
+    decisions = ctx.get("open_decisions_summary", {})
+    risk = ctx.get("risk_alerts_summary", {})
+    tasks = ctx.get("task_health_summary", {})
+    freshness = ctx.get("data_freshness_summary", {})
+
+    lines = [
+        f"Domain: {ctx.get('domain', domain)}",
+        f"Generated: {ctx.get('generated_at', 'unknown')}",
+        "",
+        "--- Regime ---",
+        f"  Status: {regime.get('status', 'unknown')}",
+    ]
+    if regime.get("status") == "ok":
+        lines.append(f"  Dominant: {regime.get('dominant_regime')}")
+        lines.append(f"  Growth: {regime.get('growth_level')}")
+        lines.append(f"  Inflation: {regime.get('inflation_level')}")
+
+    lines += [
+        "",
+        "--- Policy ---",
+        f"  Status: {policy.get('status', 'unknown')}",
+    ]
+    if policy.get("status") == "ok":
+        lines.append(f"  Gear: {policy.get('current_gear')}")
+
+    lines += [
+        "",
+        "--- Portfolio ---",
+        f"  Status: {portfolio.get('status', 'unknown')}",
+    ]
+    if portfolio.get("status") == "ok":
+        lines.append(f"  Positions: {portfolio.get('position_count')}")
+
+    lines += [
+        "",
+        "--- Active Signals ---",
+        f"  Status: {signals.get('status', 'unknown')}",
+        f"  Count: {signals.get('active_count', 0)}",
+        "",
+        "--- Tasks ---",
+        f"  Active: {tasks.get('active_tasks', 0)}",
+        f"  Needs Human: {tasks.get('needs_human', 0)}",
+        f"  Failed: {tasks.get('failed_tasks', 0)}",
+    ]
+
+    return "\n".join(lines)
+
+
+@server.resource(
+    "agomsaaf://context/research/current",
+    name="Research Context",
+    description="当前研究域上下文快照",
+    mime_type="text/plain",
+)
+def resource_context_research() -> str:
+    """Research domain context snapshot."""
+    enforce_resource_access("agomsaaf://context/research/current")
+    return _format_context_snapshot("research")
+
+
+@server.resource(
+    "agomsaaf://context/monitoring/current",
+    name="Monitoring Context",
+    description="当前监控域上下文快照",
+    mime_type="text/plain",
+)
+def resource_context_monitoring() -> str:
+    """Monitoring domain context snapshot."""
+    enforce_resource_access("agomsaaf://context/monitoring/current")
+    return _format_context_snapshot("monitoring")
+
+
+@server.resource(
+    "agomsaaf://context/decision/current",
+    name="Decision Context",
+    description="当前决策域上下文快照",
+    mime_type="text/plain",
+)
+def resource_context_decision() -> str:
+    """Decision domain context snapshot."""
+    enforce_resource_access("agomsaaf://context/decision/current")
+    return _format_context_snapshot("decision")
+
+
+@server.resource(
+    "agomsaaf://context/execution/current",
+    name="Execution Context",
+    description="当前执行域上下文快照",
+    mime_type="text/plain",
+)
+def resource_context_execution() -> str:
+    """Execution domain context snapshot."""
+    enforce_resource_access("agomsaaf://context/execution/current")
+    return _format_context_snapshot("execution")
+
+
+@server.resource(
+    "agomsaaf://context/ops/current",
+    name="Ops Context",
+    description="当前运维域上下文快照",
+    mime_type="text/plain",
+)
+def resource_context_ops() -> str:
+    """Ops domain context snapshot."""
+    enforce_resource_access("agomsaaf://context/ops/current")
+    return _format_context_snapshot("ops")
+
+
+# ==========================================================================
+# WP-M2-06: Workflow Guide Prompts
+# ==========================================================================
+
+@server.prompt("run_research_workflow")
+def prompt_run_research_workflow(focus: str = "macro_regime") -> str:
+    """Run a research workflow: gather context, analyze, and produce findings."""
+    enforce_prompt_access("run_research_workflow")
+    return f"""Execute a research workflow with focus: {focus}
+
+Steps:
+1. Read resource agomsaaf://context/research/current to understand the current environment
+2. Use start_research_task to create a tracked research task
+3. Depending on focus:
+   - macro_regime: Use get_current_regime + get_regime_history to analyze trends
+   - factor_analysis: Use get_factor_top_stocks to identify opportunities
+   - sector_scan: Use get_hot_sectors + analyze_sector to evaluate sectors
+4. Summarize findings and any recommended actions
+5. If actions are warranted, note them for a follow-up decision workflow
+
+Important: Always check regime and policy status before making recommendations."""
+
+
+@server.prompt("run_monitoring_workflow")
+def prompt_run_monitoring_workflow(check_type: str = "full") -> str:
+    """Run a monitoring workflow: check alerts, freshness, and anomalies."""
+    enforce_prompt_access("run_monitoring_workflow")
+    return f"""Execute a monitoring workflow (type: {check_type})
+
+Steps:
+1. Read resource agomsaaf://context/monitoring/current for current monitoring state
+2. Use start_monitoring_task to create a tracked monitoring task
+3. Check data freshness across all sources
+4. Review any triggered price alerts (list_price_alerts)
+5. Check sentiment gate state (get_sentiment_gate_state)
+6. If check_type is 'full', also verify:
+   - Market data provider health (market_data_provider_health)
+   - Alpha provider status (get_alpha_provider_status)
+7. Report any anomalies or stale data sources
+
+Escalate to human if critical alerts are found."""
+
+
+@server.prompt("run_decision_workflow")
+def prompt_run_decision_workflow(decision_type: str = "signal_review") -> str:
+    """Run a decision workflow: evaluate signals, check quotas, propose actions."""
+    enforce_prompt_access("run_decision_workflow")
+    return f"""Execute a decision workflow (type: {decision_type})
+
+Steps:
+1. Read resource agomsaaf://context/decision/current for decision context
+2. Use start_decision_task to create a tracked decision task
+3. Check decision quotas to ensure capacity exists
+4. Depending on decision_type:
+   - signal_review: List active signals, check eligibility, approve/reject
+   - rebalance: Review portfolio vs target allocation, propose rebalance
+   - position_sizing: Evaluate position rules, check risk limits
+5. For any proposed action, verify:
+   - Current regime allows the action
+   - Policy gear does not block it
+   - Beta gate passes
+6. Present proposal for human approval if risk_level >= medium
+
+CRITICAL: Never execute trades without explicit human approval."""
+
+
+@server.prompt("run_execution_workflow")
+def prompt_run_execution_workflow(action: str = "review_pending") -> str:
+    """Run an execution workflow: execute approved proposals or review positions."""
+    enforce_prompt_access("run_execution_workflow")
+    return f"""Execute an execution workflow (action: {action})
+
+Steps:
+1. Read resource agomsaaf://context/execution/current for execution context
+2. Use start_execution_task to create a tracked execution task
+3. Depending on action:
+   - review_pending: List tasks needing attention, review pending proposals
+   - execute_approved: Find approved proposals, execute via simulated trading
+   - position_check: Review open positions, check stop-loss/take-profit levels
+4. For any trade execution:
+   - Verify the proposal is still approved
+   - Check trading cost estimates
+   - Execute via simulated trading (never real trades)
+5. Record execution results
+
+CRITICAL: All executions go through simulated trading only."""
+
+
+@server.prompt("run_ops_workflow")
+def prompt_run_ops_workflow(scope: str = "health_check") -> str:
+    """Run an ops workflow: system health, data sync, or audit review."""
+    enforce_prompt_access("run_ops_workflow")
+    return f"""Execute an ops workflow (scope: {scope})
+
+Steps:
+1. Read resource agomsaaf://context/ops/current for ops context
+2. Use start_ops_task to create a tracked ops task
+3. Depending on scope:
+   - health_check: Check all system components
+     * Agent task health (active, failed, needs_human counts)
+     * Event bus status
+     * AI provider availability
+     * Data freshness across all sources
+   - data_sync: Trigger data synchronization
+     * Sync macro indicators
+     * Refresh valuation data
+     * Trigger RSS fetch for news
+   - audit_review: Review recent audit records
+     * Check audit summary
+     * Run validation checks
+     * Report any compliance issues
+4. Summarize system status and any issues found
+
+Escalate to human if system components are unhealthy."""
+
 
 # 注册所有工具
 register_all_tools()

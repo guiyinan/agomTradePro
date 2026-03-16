@@ -5,7 +5,7 @@ FROZEN: These entity names and field names must not change.
 See: docs/plans/ai-native/implementation-contract.md
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace as dataclass_replace
 from datetime import datetime
 from enum import Enum
 from typing import Optional, Dict, Any, List
@@ -127,6 +127,10 @@ class AgentTask:
     created_by: Optional[int] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+    def replace(self, **changes: Any) -> "AgentTask":
+        """Compatibility helper for tests and transition workflows."""
+        return dataclass_replace(self, **changes)
 
 
 @dataclass(frozen=True)

@@ -1,5 +1,8 @@
 # Milestone M2: Context Snapshots And Task Entry Tools
 
+> **Status**: COMPLETED (2026-03-16)
+> **Tests**: 55 unit tests (16 facade + 18 SDK + 21 MCP), all passing
+
 ## Objective
 
 Make the runtime usable by adding context aggregation, task facades, SDK access, and MCP entrypoints.

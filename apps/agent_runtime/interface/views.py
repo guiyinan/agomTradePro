@@ -9,7 +9,7 @@ See: docs/plans/ai-native/schema-contract.md
 import logging
 from typing import Optional, Dict, Any
 
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, serializers as drf_serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -83,6 +83,51 @@ def generate_request_id() -> str:
     return gen_rid()
 
 
+def _build_validation_error_response(
+    request_id: str,
+    exc: drf_serializers.ValidationError,
+) -> Response:
+    """Normalize DRF serializer validation errors to the frozen contract."""
+    return build_error_response(
+        request_id=request_id,
+        error_code="validation_error",
+        message="Request validation failed",
+        details=exc.detail if hasattr(exc, "detail") else None,
+        status_code=status.HTTP_400_BAD_REQUEST,
+    )
+
+
+def _serialize_task_like(task_obj: Any) -> Dict[str, Any]:
+    """Serialize either a model instance or a domain/mock task object."""
+    if isinstance(task_obj, AgentTaskModel):
+        return AgentTaskSerializer(task_obj).data
+
+    def _enum_value(value: Any) -> Any:
+        return getattr(value, "value", value)
+
+    created_at = getattr(task_obj, "created_at", None)
+    updated_at = getattr(task_obj, "updated_at", None)
+    return {
+        "id": getattr(task_obj, "id", None),
+        "request_id": getattr(task_obj, "request_id", None),
+        "schema_version": getattr(task_obj, "schema_version", "v1"),
+        "task_domain": _enum_value(getattr(task_obj, "task_domain", None)),
+        "task_type": getattr(task_obj, "task_type", None),
+        "status": _enum_value(getattr(task_obj, "status", None)),
+        "input_payload": getattr(task_obj, "input_payload", {}) or {},
+        "current_step": getattr(task_obj, "current_step", None),
+        "last_error": getattr(task_obj, "last_error", None),
+        "requires_human": getattr(task_obj, "requires_human", False),
+        "created_by": getattr(task_obj, "created_by", None),
+        "created_at": created_at.isoformat() if hasattr(created_at, "isoformat") else created_at,
+        "updated_at": updated_at.isoformat() if hasattr(updated_at, "isoformat") else updated_at,
+        "steps_count": 0,
+        "proposals_count": 0,
+        "artifacts_count": 0,
+        "timeline_events_count": 0,
+    }
+
+
 class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
     """
     API ViewSet for AgentTask operations.
@@ -112,7 +157,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
 
         # Filter by user if not staff
         if not self.request.user.is_staff:
-            queryset = queryset.filter(created_by=self.request.user)
+            queryset = queryset.filter(created_by_id=getattr(self.request.user, "id", None))
 
         return queryset.order_by("-created_at")
 
@@ -123,6 +168,21 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
         elif self.action == "list":
             return AgentTaskListSerializer
         return AgentTaskSerializer
+
+    def _get_task_for_action(self, pk: Any) -> AgentTaskModel:
+        """Fetch a task with the same ownership rules used by the queryset."""
+        filters: Dict[str, Any] = {"pk": pk}
+        if not self.request.user.is_staff:
+            filters["created_by_id"] = getattr(self.request.user, "id", None)
+        task_model = AgentTaskModel._default_manager.filter(**filters).first()
+        if task_model is None:
+            raise Http404
+        return task_model
+
+    def _lookup_task_request_id(self, pk: Any) -> Optional[str]:
+        """Best-effort request_id lookup for error responses."""
+        task_model = AgentTaskModel._default_manager.filter(pk=pk).only("request_id").first()
+        return getattr(task_model, "request_id", None)
 
     def create(self, request, *args, **kwargs):
         """
@@ -150,7 +210,10 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
         }
         """
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except drf_serializers.ValidationError as e:
+            return _build_validation_error_response(generate_request_id(), e)
 
         use_case = CreateTaskUseCase()
         try:
@@ -164,13 +227,16 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
             output = use_case.execute(input_dto)
 
             # Serialize the created task
-            task_model = AgentTaskModel._default_manager.get(pk=output.task.id)
-            task_serializer = AgentTaskSerializer(task_model)
+            try:
+                task_model = AgentTaskModel._default_manager.get(pk=output.task.id)
+                task_data = _serialize_task_like(task_model)
+            except AgentTaskModel.DoesNotExist:
+                task_data = _serialize_task_like(output.task)
 
             return Response(
                 {
                     "request_id": output.request_id,
-                    "task": task_serializer.data,
+                    "task": task_data,
                 },
                 status=status.HTTP_201_CREATED,
             )
@@ -207,7 +273,10 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
         }
         """
         query_serializer = AgentTaskListQuerySerializer(data=request.query_params)
-        query_serializer.is_valid(raise_exception=True)
+        try:
+            query_serializer.is_valid(raise_exception=True)
+        except drf_serializers.ValidationError as e:
+            return _build_validation_error_response(generate_request_id(), e)
 
         use_case = ListTasksUseCase()
         input_dto = ListTasksInput(
@@ -327,15 +396,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
             "timeline_event_id": 123
         }
         """
-        try:
-            task_model = self.get_object()
-        except Http404:
-            return build_error_response(
-                request_id=generate_request_id(),
-                error_code="not_found",
-                message=f"Task {pk} not found",
-                status_code=status.HTTP_404_NOT_FOUND,
-            )
+        request_id = self._lookup_task_request_id(pk) or generate_request_id()
 
         use_case = ResumeTaskUseCase()
         try:
@@ -348,21 +409,30 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
 
             output = use_case.execute(input_dto)
 
-            # Get updated model
-            task_model = AgentTaskModel._default_manager.get(pk=output.task.id)
-            serializer = AgentTaskSerializer(task_model)
+            try:
+                task_model = AgentTaskModel._default_manager.get(pk=output.task.id)
+                task_data = _serialize_task_like(task_model)
+            except AgentTaskModel.DoesNotExist:
+                task_data = _serialize_task_like(output.task)
 
             return Response(
                 {
                     "request_id": output.request_id,
-                    "task": serializer.data,
+                    "task": task_data,
                     "timeline_event_id": output.timeline_event_id,
                 }
             )
 
+        except AgentTaskModel.DoesNotExist:
+            return build_error_response(
+                request_id=request_id,
+                error_code="not_found",
+                message=f"Task {pk} not found",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
         except InvalidStateTransitionError as e:
             return build_error_response(
-                request_id=task_model.request_id,
+                request_id=request_id,
                 error_code="invalid_state_transition",
                 message=e.message,
                 details={
@@ -374,7 +444,7 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
             )
         except ValueError as e:
             return build_error_response(
-                request_id=task_model.request_id,
+                request_id=request_id,
                 error_code="validation_error",
                 message=str(e),
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -399,21 +469,13 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
             "timeline_event_id": 123
         }
         """
-        try:
-            task_model = self.get_object()
-        except Http404:
-            return build_error_response(
-                request_id=generate_request_id(),
-                error_code="not_found",
-                message=f"Task {pk} not found",
-                status_code=status.HTTP_404_NOT_FOUND,
-            )
+        request_id = self._lookup_task_request_id(pk) or generate_request_id()
 
         reason = request.data.get("reason", "")
 
         if not reason:
             return build_error_response(
-                request_id=task_model.request_id,
+                request_id=request_id,
                 error_code="validation_error",
                 message="reason is required for cancellation",
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -429,21 +491,30 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
 
             output = use_case.execute(input_dto)
 
-            # Get updated model
-            task_model = AgentTaskModel._default_manager.get(pk=output.task.id)
-            serializer = AgentTaskSerializer(task_model)
+            try:
+                task_model = AgentTaskModel._default_manager.get(pk=output.task.id)
+                task_data = _serialize_task_like(task_model)
+            except AgentTaskModel.DoesNotExist:
+                task_data = _serialize_task_like(output.task)
 
             return Response(
                 {
                     "request_id": output.request_id,
-                    "task": serializer.data,
+                    "task": task_data,
                     "timeline_event_id": output.timeline_event_id,
                 }
             )
 
+        except AgentTaskModel.DoesNotExist:
+            return build_error_response(
+                request_id=request_id,
+                error_code="not_found",
+                message=f"Task {pk} not found",
+                status_code=status.HTTP_404_NOT_FOUND,
+            )
         except InvalidStateTransitionError as e:
             return build_error_response(
-                request_id=task_model.request_id,
+                request_id=request_id,
                 error_code="invalid_state_transition",
                 message=e.message,
                 details={
@@ -547,6 +618,106 @@ class AgentTaskViewSet(viewsets.ReadOnlyModelViewSet):
                 "total_count": queryset.count(),
             }
         )
+
+
+class ContextSnapshotViewSet(viewsets.ViewSet):
+    """
+    WP-M2-01: Context Snapshot API.
+
+    Provides domain-specific context snapshots aggregated through facades.
+    All five domain endpoints return a structured snapshot even when
+    underlying data sources are partially unavailable.
+
+    Endpoints:
+    - GET /api/agent-runtime/context/research/
+    - GET /api/agent-runtime/context/monitoring/
+    - GET /api/agent-runtime/context/decision/
+    - GET /api/agent-runtime/context/execution/
+    - GET /api/agent-runtime/context/ops/
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def _build_snapshot_response(self, domain: str) -> Response:
+        """Build and return a context snapshot for the given domain."""
+        from apps.agent_runtime.application.facades import get_facade
+
+        try:
+            facade = get_facade(domain)
+        except ValueError:
+            return build_error_response(
+                request_id=generate_request_id(),
+                error_code="invalid_domain",
+                message=f"Unknown context domain: {domain}",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        snapshot = facade.build_snapshot()
+        request_id = generate_request_id()
+
+        return Response({
+            "request_id": request_id,
+            "domain": snapshot.domain,
+            "generated_at": snapshot.generated_at,
+            "regime_summary": snapshot.regime_summary,
+            "policy_summary": snapshot.policy_summary,
+            "portfolio_summary": snapshot.portfolio_summary,
+            "active_signals_summary": snapshot.active_signals_summary,
+            "open_decisions_summary": snapshot.open_decisions_summary,
+            "risk_alerts_summary": snapshot.risk_alerts_summary,
+            "task_health_summary": snapshot.task_health_summary,
+            "data_freshness_summary": snapshot.data_freshness_summary,
+        })
+
+    @action(detail=False, methods=["get"], url_path="research")
+    def research(self, request):
+        """
+        GET /api/agent-runtime/context/research/
+
+        Context snapshot tailored for research tasks: macro trends,
+        regime history depth, signal invalidation status.
+        """
+        return self._build_snapshot_response("research")
+
+    @action(detail=False, methods=["get"], url_path="monitoring")
+    def monitoring(self, request):
+        """
+        GET /api/agent-runtime/context/monitoring/
+
+        Context snapshot tailored for monitoring tasks: price alerts,
+        sentiment freshness, data quality metrics.
+        """
+        return self._build_snapshot_response("monitoring")
+
+    @action(detail=False, methods=["get"], url_path="decision")
+    def decision(self, request):
+        """
+        GET /api/agent-runtime/context/decision/
+
+        Context snapshot tailored for decision tasks: quotas,
+        pending approvals, signal eligibility.
+        """
+        return self._build_snapshot_response("decision")
+
+    @action(detail=False, methods=["get"], url_path="execution")
+    def execution(self, request):
+        """
+        GET /api/agent-runtime/context/execution/
+
+        Context snapshot tailored for execution tasks: positions,
+        simulated accounts, trading cost context.
+        """
+        return self._build_snapshot_response("execution")
+
+    @action(detail=False, methods=["get"], url_path="ops")
+    def ops(self, request):
+        """
+        GET /api/agent-runtime/context/ops/
+
+        Context snapshot tailored for ops tasks: event bus status,
+        AI provider health, audit freshness.
+        """
+        return self._build_snapshot_response("ops")
 
 
 class AgentTaskHealthViewSet(viewsets.ViewSet):

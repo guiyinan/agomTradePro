@@ -171,7 +171,9 @@ class TestAuditTrail:
     @patch("apps.agent_runtime.interface.views.CreateTaskUseCase")
     def test_create_task_creates_audit_log(self, mock_use_case_class, api_client, mock_user):
         """Verify create task operation creates audit log."""
-        # Setup mock
+        from datetime import datetime, timezone as tz
+
+        # Setup mock with JSON-serializable attributes (avoid MagicMock infinite loop)
         mock_use_case = MagicMock()
         mock_task = MagicMock()
         mock_task.id = 1
@@ -181,6 +183,14 @@ class TestAuditTrail:
         mock_task.task_type = "test"
         mock_task.status = MagicMock()
         mock_task.status.value = "draft"
+        mock_task.schema_version = "v1"
+        mock_task.input_payload = {}
+        mock_task.current_step = None
+        mock_task.last_error = None
+        mock_task.requires_human = False
+        mock_task.created_by = None
+        mock_task.created_at = datetime.now(tz.utc)
+        mock_task.updated_at = datetime.now(tz.utc)
 
         mock_output = MagicMock()
         mock_output.task = mock_task
@@ -190,10 +200,27 @@ class TestAuditTrail:
 
         api_client.force_authenticate(user=mock_user)
 
+        # Return a mock with explicit serializable attributes to avoid
+        # MagicMock tolist() infinite loop in DRF JSON encoder
+        mock_model = MagicMock()
+        mock_model.id = 1
+        mock_model.request_id = "atr_test"
+        mock_model.schema_version = "v1"
+        mock_model.task_domain = "research"
+        mock_model.task_type = "test"
+        mock_model.status = "draft"
+        mock_model.input_payload = {}
+        mock_model.current_step = None
+        mock_model.last_error = None
+        mock_model.requires_human = False
+        mock_model.created_by = None
+        mock_model.created_at = datetime.now(tz.utc)
+        mock_model.updated_at = datetime.now(tz.utc)
+
         with patch(
             "apps.agent_runtime.interface.views.AgentTaskModel._default_manager.get"
         ) as mock_get:
-            mock_get.return_value = MagicMock()
+            mock_get.return_value = mock_model
 
             url = reverse("agent_runtime:task-list")
             response = api_client.post(url, {
@@ -208,13 +235,26 @@ class TestAuditTrail:
     @patch("apps.agent_runtime.interface.views.ResumeTaskUseCase")
     def test_resume_task_creates_audit_log(self, mock_use_case_class, api_client, mock_user):
         """Verify resume task operation creates audit log."""
-        # Setup mock
+        from datetime import datetime, timezone as tz
+
+        # Setup mock with JSON-serializable attributes
         mock_use_case = MagicMock()
         mock_task = MagicMock()
         mock_task.id = 1
         mock_task.request_id = "atr_test"
         mock_task.status = MagicMock()
         mock_task.status.value = "draft"
+        mock_task.task_domain = MagicMock()
+        mock_task.task_domain.value = "research"
+        mock_task.task_type = "test"
+        mock_task.schema_version = "v1"
+        mock_task.input_payload = {}
+        mock_task.current_step = None
+        mock_task.last_error = None
+        mock_task.requires_human = False
+        mock_task.created_by = None
+        mock_task.created_at = datetime.now(tz.utc)
+        mock_task.updated_at = datetime.now(tz.utc)
 
         mock_output = MagicMock()
         mock_output.task = mock_task
@@ -225,22 +265,20 @@ class TestAuditTrail:
 
         api_client.force_authenticate(user=mock_user)
 
+        mock_model = MagicMock()
+        mock_model.request_id = "atr_test"
+        mock_model.status = "failed"
+
         with patch(
             "apps.agent_runtime.interface.views.AgentTaskModel._default_manager.filter"
         ) as mock_filter:
             mock_queryset = MagicMock()
-            mock_queryset.first.return_value = MagicMock(status="failed")
+            mock_queryset.first.return_value = mock_model
+            mock_queryset.only.return_value = mock_queryset
             mock_filter.return_value = mock_queryset
 
-            with patch(
-                "apps.agent_runtime.interface.views.AgentTaskSerializer"
-            ) as mock_serializer:
-                mock_serializer_instance = MagicMock()
-                mock_serializer_instance.data = {"id": 1, "status": "draft"}
-                mock_serializer.return_value = mock_serializer_instance
-
-                url = reverse("agent_runtime:task-resume", kwargs={"pk": 1})
-                response = api_client.post(url, {"reason": "Fixed"}, format="json")
+            url = reverse("agent_runtime:task-resume", kwargs={"pk": 1})
+            response = api_client.post(url, {"reason": "Fixed"}, format="json")
 
         # Response should succeed
         assert response.status_code == status.HTTP_200_OK
@@ -248,13 +286,26 @@ class TestAuditTrail:
     @patch("apps.agent_runtime.interface.views.CancelTaskUseCase")
     def test_cancel_task_creates_audit_log(self, mock_use_case_class, api_client, mock_user):
         """Verify cancel task operation creates audit log."""
-        # Setup mock
+        from datetime import datetime, timezone as tz
+
+        # Setup mock with JSON-serializable attributes
         mock_use_case = MagicMock()
         mock_task = MagicMock()
         mock_task.id = 1
         mock_task.request_id = "atr_test"
         mock_task.status = MagicMock()
         mock_task.status.value = "cancelled"
+        mock_task.task_domain = MagicMock()
+        mock_task.task_domain.value = "research"
+        mock_task.task_type = "test"
+        mock_task.schema_version = "v1"
+        mock_task.input_payload = {}
+        mock_task.current_step = None
+        mock_task.last_error = None
+        mock_task.requires_human = False
+        mock_task.created_by = None
+        mock_task.created_at = datetime.now(tz.utc)
+        mock_task.updated_at = datetime.now(tz.utc)
 
         mock_output = MagicMock()
         mock_output.task = mock_task
@@ -265,22 +316,20 @@ class TestAuditTrail:
 
         api_client.force_authenticate(user=mock_user)
 
+        mock_model = MagicMock()
+        mock_model.request_id = "atr_test"
+        mock_model.status = "draft"
+
         with patch(
             "apps.agent_runtime.interface.views.AgentTaskModel._default_manager.filter"
         ) as mock_filter:
             mock_queryset = MagicMock()
-            mock_queryset.first.return_value = MagicMock(status="draft")
+            mock_queryset.first.return_value = mock_model
+            mock_queryset.only.return_value = mock_queryset
             mock_filter.return_value = mock_queryset
 
-            with patch(
-                "apps.agent_runtime.interface.views.AgentTaskSerializer"
-            ) as mock_serializer:
-                mock_serializer_instance = MagicMock()
-                mock_serializer_instance.data = {"id": 1, "status": "cancelled"}
-                mock_serializer.return_value = mock_serializer_instance
-
-                url = reverse("agent_runtime:task-cancel", kwargs={"pk": 1})
-                response = api_client.post(url, {"reason": "Not needed"}, format="json")
+            url = reverse("agent_runtime:task-cancel", kwargs={"pk": 1})
+            response = api_client.post(url, {"reason": "Not needed"}, format="json")
 
         # Response should succeed
         assert response.status_code == status.HTTP_200_OK
