@@ -350,12 +350,25 @@ class DatabaseWatchlistProvider(WatchlistProviderProtocol):
     def get_watchlist_assets(self, user_id: Optional[str] = None) -> List[str]:
         """获取关注池资产代码
 
-        注意：如果系统有关注池功能，这里应该查询关注池表
-        目前先返回空列表，后续可以根据实际需求实现
+        从 asset_analysis 模块的 AssetPoolEntry 中查询
+        pool_type='watch' 且 is_active=True 的资产。
         """
-        # TODO: 实现关注池功能
-        # 如果有关注池模型，可以在这里查询
-        return []
+        try:
+            from apps.asset_analysis.infrastructure.models import AssetPoolEntry
+
+            codes = AssetPoolEntry._default_manager.filter(
+                pool_type="watch",
+                is_active=True,
+            ).values_list("asset_code", flat=True).distinct()
+
+            result = list(codes)
+            if result:
+                logger.info("Loaded %d watchlist assets from asset pool", len(result))
+            return result
+
+        except Exception as e:
+            logger.warning("Failed to load watchlist assets: %s", e)
+            return []
 
     def get_all_monitored_assets(self) -> List[str]:
         """获取所有需要监控的资产（持仓 + 关注池）"""

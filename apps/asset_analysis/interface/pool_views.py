@@ -196,28 +196,31 @@ class AssetPoolSummaryAPIView(APIView):
 
     def get(self, request):
         """获取所有资产池的摘要信息"""
-        asset_type = request.query_params.get("asset_type", "equity")
+        asset_type = request.query_params.get("asset_type")
 
-        # TODO: 从数据库查询实际的资产池数据
-        # 暂时返回模拟数据
-        summary = {
-            "equity": {
-                "investable": 45,
-                "watch": 23,
-                "prohibited": 12,
-                "candidate": 67,
-                "total": 147
-            },
-            "fund": {
-                "investable": 32,
-                "watch": 18,
-                "prohibited": 8,
-                "candidate": 45,
-                "total": 103
-            }
-        }
+        from apps.asset_analysis.infrastructure.models import AssetPoolEntry
+        from apps.asset_analysis.domain.pool import PoolType
 
-        return Response({
-            "success": True,
-            "summary": summary.get(asset_type, summary["equity"])
-        })
+        try:
+            queryset = AssetPoolEntry._default_manager.filter(is_active=True)
+            if asset_type:
+                queryset = queryset.filter(asset_category=asset_type)
+
+            summary = {}
+            total = 0
+            for pool_type in PoolType:
+                count = queryset.filter(pool_type=pool_type.value).count()
+                summary[pool_type.value] = count
+                total += count
+            summary["total"] = total
+
+            return Response({
+                "success": True,
+                "asset_type": asset_type or "all",
+                "summary": summary,
+            })
+        except Exception as e:
+            return Response({
+                "success": False,
+                "error": f"查询资产池摘要失败: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

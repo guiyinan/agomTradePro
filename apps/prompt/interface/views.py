@@ -33,35 +33,87 @@ from .serializers import (
     ExecutionLogSerializer
 )
 
+import logging
 
-# 依赖注入工厂
+logger = logging.getLogger(__name__)
+
+
 class AIClientFactory:
-    """AI客户端工厂（简化实现）"""
+    """AI客户端工厂 - 从 ai_provider 模块获取真实 AI 客户端"""
 
     def __init__(self):
-        # 实际使用时应该从ai_provider模块获取
-        self._providers = {}
+        from apps.ai_provider.infrastructure.repositories import AIProviderRepository
+        self._provider_repo = AIProviderRepository()
 
     def get_client(self, provider_name=None):
-        """获取AI客户端"""
-        # 简化实现
-        return MockAIClient()
+        """获取AI客户端（支持指定提供商或自动 failover）"""
+        from apps.ai_provider.infrastructure.adapters import (
+            OpenAICompatibleAdapter, AIFailoverHelper
+        )
+
+        if provider_name:
+            # 使用指定的提供商
+            provider = self._provider_repo.get_by_name(provider_name)
+            if provider:
+                api_key = self._provider_repo.get_api_key(provider)
+                return OpenAICompatibleAdapter(
+                    base_url=provider.base_url,
+                    api_key=api_key,
+                    default_model=provider.default_model,
+                    api_mode=getattr(provider, 'api_mode', None),
+                    fallback_enabled=getattr(provider, 'fallback_enabled', None),
+                )
+            logger.warning("Provider '%s' not found, falling back to failover", provider_name)
+
+        # 使用所有活跃提供商构建 failover 链
+        providers = self._provider_repo.get_active_providers()
+        if not providers:
+            logger.error("No active AI providers configured")
+            return _NullAIClient()
+
+        provider_dicts = []
+        for p in providers:
+            provider_dicts.append({
+                "name": p.name,
+                "base_url": p.base_url,
+                "api_key_decrypted": self._provider_repo.get_api_key(p),
+                "default_model": p.default_model,
+                "api_mode": getattr(p, 'api_mode', None),
+                "fallback_enabled": getattr(p, 'fallback_enabled', None),
+            })
+
+        return _FailoverAIClient(AIFailoverHelper(provider_dicts))
 
 
-class MockAIClient:
-    """模拟AI客户端"""
+class _FailoverAIClient:
+    """Failover AI 客户端包装器，适配 chat_completion 接口"""
 
-    def chat_completion(self, messages, model, temperature, max_tokens):
-        """模拟聊天完成"""
+    def __init__(self, failover_helper):
+        self._helper = failover_helper
+
+    def chat_completion(self, messages, model=None, temperature=0.7, max_tokens=None):
+        return self._helper.chat_completion_with_failover(
+            messages=messages,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+
+class _NullAIClient:
+    """无可用提供商时返回的空客户端"""
+
+    def chat_completion(self, messages, model=None, temperature=0.7, max_tokens=None):
         return {
-            "status": "success",
-            "content": "这是模拟的AI响应内容",
-            "provider_used": "mock",
-            "model": model,
-            "prompt_tokens": 100,
-            "completion_tokens": 50,
-            "total_tokens": 150,
-            "estimated_cost": 0.001
+            "status": "error",
+            "content": "",
+            "provider_used": "",
+            "model": model or "",
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "estimated_cost": 0.0,
+            "error_message": "没有可用的AI提供商，请先在 ai_provider 模块配置",
         }
 
 
@@ -275,7 +327,7 @@ class SignalGenerationView(APIView):
 
 
 class ChatView(APIView):
-    """聊天视图 - 支持多提供商和模型切换"""
+    """聊天视图 - 通过 AIClientFactory 统一走 ai_provider 模块"""
 
     def post(self, request):
         """聊天提问"""
@@ -289,48 +341,43 @@ class ChatView(APIView):
         model = serializer.validated_data.get('model')
         context = serializer.validated_data.get('context', {})
 
-        # 获取AI提供商
-        from apps.ai_provider.infrastructure.repositories import AIProviderRepository
-        provider_repo = AIProviderRepository()
-
-        # 如果指定了提供商，使用指定的；否则使用默认的
-        if provider_name:
-            provider = provider_repo.get_by_name(provider_name)
-        else:
-            # 获取优先级最高的活跃提供商
-            active_providers = provider_repo.get_active_providers()
-            provider = active_providers[0] if active_providers else None
-
-        if not provider:
-            return Response({
-                'error': '没有可用的AI提供商，请先配置'
-            }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-
-        # 使用提供商的默认模型或请求中指定的模型
-        model_to_use = model or provider.default_model
-
         # 构建消息
         messages = context.get('history', [])
         messages.append({'role': 'user', 'content': message})
 
-        # 调用AI（使用模拟实现，实际应使用真实AI客户端）
+        # 通过 AIClientFactory 获取客户端（自动 failover）
         import time
         start_time = time.time()
 
-        # TODO: 实际实现时替换为真实的AI调用
-        # from apps.ai_provider.infrastructure.adapters import OpenAIAdapter
-        # ai_adapter = OpenAIAdapter(provider.base_url, provider.api_key)
-        # response = ai_adapter.chat_completion(messages, model_to_use, 0.7, None)
+        try:
+            ai_factory = AIClientFactory()
+            ai_client = ai_factory.get_client(provider_name)
+            ai_response = ai_client.chat_completion(
+                messages=messages,
+                model=model,
+            )
 
-        # 模拟响应
+            ai_status = ai_response.get('status', 'error')
+            if ai_status != 'success':
+                error_msg = ai_response.get('error_message', 'AI 调用失败')
+                return Response({
+                    'error': error_msg
+                }, status=status.HTTP_502_BAD_GATEWAY)
+
+        except Exception as e:
+            logger.error("Chat AI call failed: %s", e)
+            return Response({
+                'error': f'AI 调用异常: {str(e)}'
+            }, status=status.HTTP_502_BAD_GATEWAY)
+
         response_data = {
-            'reply': f"[{provider.name} - {model_to_use}] 收到您的问题：{message}",
+            'reply': ai_response.get('content', ''),
             'session_id': session_id,
             'metadata': {
-                'provider': provider.name,
-                'model': model_to_use,
-                'tokens': 100,
-                'response_time_ms': int((time.time() - start_time) * 1000)
+                'provider': ai_response.get('provider_used', ''),
+                'model': ai_response.get('model', ''),
+                'tokens': ai_response.get('total_tokens', 0),
+                'response_time_ms': int((time.time() - start_time) * 1000),
             }
         }
 
@@ -371,31 +418,66 @@ class ChatProvidersView(APIView):
 
 
 class ChatModelsView(APIView):
-    """获取指定提供商的可用模型列表"""
+    """获取指定提供商的可用模型列表 - 从 ai_provider 模块读取"""
 
     def get(self, request):
         """获取模型列表"""
         provider_name = request.query_params.get('provider', '')
 
-        # 简化实现：返回预设的模型列表
-        # 实际应该从AI提供商API获取可用模型
-        models_map = {
-            'openai': ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo'],
-            'deepseek': ['deepseek-chat', 'deepseek-coder'],
-            'qwen': ['qwen-turbo', 'qwen-plus', 'qwen-max'],
-            'moonshot': ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'],
-        }
+        from apps.ai_provider.infrastructure.repositories import AIProviderRepository
+        from apps.ai_provider.domain.services import AICostCalculator
 
-        if provider_name and provider_name in models_map:
-            models = models_map[provider_name]
-        else:
-            # 默认返回所有模型
-            models = ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo',
-                     'deepseek-chat', 'deepseek-coder',
-                     'qwen-turbo', 'qwen-plus', 'qwen-max',
-                     'moonshot-v1-8k', 'moonshot-v1-32k']
+        provider_repo = AIProviderRepository()
+
+        if provider_name:
+            # 按提供商名称查询
+            provider = provider_repo.get_by_name(provider_name)
+            if provider:
+                # 优先从 extra_config 读取 supported_models
+                extra = provider.extra_config or {}
+                models = extra.get('supported_models')
+                if not models:
+                    # 取同 provider_type 的所有已知模型 + 当前 default_model
+                    models = self._models_by_type(provider.provider_type)
+                    if provider.default_model not in models:
+                        models.insert(0, provider.default_model)
+                return Response({'models': models})
+
+            # 按 provider_type 查询（兼容传入 "openai" / "deepseek" 等类型名）
+            providers = provider_repo.get_by_type(provider_name)
+            if providers:
+                models = list({p.default_model for p in providers})
+                type_models = self._models_by_type(provider_name)
+                for m in type_models:
+                    if m not in models:
+                        models.append(m)
+                return Response({'models': models})
+
+        # 无指定提供商：汇总所有活跃提供商的模型
+        active_providers = provider_repo.get_active_providers()
+        models = list({p.default_model for p in active_providers})
+        # 补充定价表中的已知模型
+        for m in AICostCalculator.MODEL_PRICING:
+            if m not in models:
+                models.append(m)
 
         return Response({'models': models})
+
+    @staticmethod
+    def _models_by_type(provider_type: str) -> list:
+        """从定价表中按 provider_type 归类已知模型"""
+        from apps.ai_provider.domain.services import AICostCalculator
+
+        type_prefixes = {
+            'openai': 'gpt-',
+            'deepseek': 'deepseek-',
+            'qwen': 'qwen-',
+            'moonshot': 'moonshot-',
+        }
+        prefix = type_prefixes.get(provider_type, '')
+        if not prefix:
+            return []
+        return [m for m in AICostCalculator.MODEL_PRICING if m.startswith(prefix)]
 
 
 class ExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
