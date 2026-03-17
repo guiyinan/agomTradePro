@@ -29,6 +29,26 @@ class ConfigCapability:
 
 _CAPABILITIES: tuple[ConfigCapability, ...] = (
     ConfigCapability(
+        key="agent_runtime_operator",
+        name="Agent Runtime Operator",
+        module="agent_runtime",
+        section="系统级配置",
+        description="查看 AI-native task/proposal 队列，并进入 operator 页面执行审批与处置。",
+        permission="staff",
+        frontend_url="/ops/agent-runtime/",
+        api_url="/api/agent-runtime/dashboard/summary/",
+        sdk_module="agent_runtime",
+        mcp_tools=(
+            "start_research_task",
+            "resume_agent_task",
+            "create_agent_proposal",
+            "approve_agent_proposal",
+            "execute_agent_proposal",
+        ),
+        supports_edit=False,
+        docs_ref="docs/plans/ai-native/M4-observability-recovery-and-release.md",
+    ),
+    ConfigCapability(
         key="system_settings",
         name="系统设置",
         module="account",
@@ -174,6 +194,33 @@ def get_system_settings_summary() -> dict[str, Any]:
             "benchmark_map_size": len(settings_obj.benchmark_code_map or {}),
             "macro_index_catalog_size": len(settings_obj.macro_index_catalog or []),
             "updated_at": settings_obj.updated_at.isoformat() if getattr(settings_obj, "updated_at", None) else None,
+        },
+    }
+
+
+def get_agent_runtime_operator_summary() -> dict[str, Any]:
+    from django.db.models import Q
+
+    from apps.agent_runtime.infrastructure.models import AgentProposalModel, AgentTaskModel
+
+    needs_attention_count = AgentTaskModel._default_manager.filter(
+        Q(requires_human=True) | Q(status__in=["needs_human", "failed"])
+    ).distinct().count()
+    pending_approval_count = AgentProposalModel._default_manager.filter(
+        status__in=["generated", "submitted", "approved"]
+    ).count()
+
+    status = "configured"
+    if needs_attention_count > 0 or pending_approval_count > 0:
+        status = "attention"
+
+    return {
+        "status": status,
+        "summary": {
+            "total_tasks": AgentTaskModel._default_manager.count(),
+            "needs_attention_count": needs_attention_count,
+            "pending_approval_count": pending_approval_count,
+            "operator_url": "/ops/agent-runtime/",
         },
     }
 
@@ -341,6 +388,7 @@ def get_trading_cost_summary() -> dict[str, Any]:
 
 
 _SUMMARY_BUILDERS = {
+    "agent_runtime_operator": lambda: _safe_summary(get_agent_runtime_operator_summary, "Agent Runtime Operator"),
     "system_settings": lambda: _safe_summary(get_system_settings_summary, "系统设置"),
     "macro_datasources": lambda: _safe_summary(get_macro_datasource_summary, "宏观数据源配置"),
     "market_data_providers": lambda: _safe_summary(get_market_data_provider_summary, "市场数据源状态"),

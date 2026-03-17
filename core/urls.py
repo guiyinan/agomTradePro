@@ -227,6 +227,7 @@ module_patterns = [
 
     # ========== AI-native Agent Runtime (M1) ==========
     path('api/agent-runtime/', include(('apps.agent_runtime.interface.api_urls', 'agent_runtime'), namespace='api_agent_runtime')),
+    path('ops/agent-runtime/', include(('apps.agent_runtime.interface.page_urls', 'agent_runtime_pages'), namespace='agent_runtime_pages')),
 ]
 
 

@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+{% include "agent_runtime/_operator_styles.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="ops-shell">
+    <div class="ops-header">
+        <div>
+            <h1 class="ops-title">{{ task.request_id }}</h1>
+            <p class="ops-subtitle">{{ task.task_domain }} / {{ task.task_type }} / <span class="ops-chip status-{{ task.status }}">{{ task.status }}</span></p>
+        </div>
+        <div class="ops-links">
+            <a href="{% url 'agent_runtime_pages:task_list' %}" class="btn btn-secondary" style="text-decoration:none;">返回 Task List</a>
+            <a href="/api/agent-runtime/tasks/{{ task.id }}/" class="btn btn-secondary" style="text-decoration:none;">Task API</a>
+        </div>
+    </div>
+
+    {% include "agent_runtime/_summary_cards.html" %}
+
+    <section class="ops-panel" style="margin-bottom:20px;">
+        <h2>Task Overview</h2>
+        <div class="ops-kv">
+            <div class="ops-kv-item"><div class="ops-kv-label">Created By</div><div class="ops-kv-value">{{ task.created_by|default:"-" }}</div></div>
+            <div class="ops-kv-item"><div class="ops-kv-label">Requires Human</div><div class="ops-kv-value">{{ task.requires_human|yesno:"Yes,No" }}</div></div>
+            <div class="ops-kv-item"><div class="ops-kv-label">Current Step</div><div class="ops-kv-value">{{ task.current_step|default:"-" }}</div></div>
+            <div class="ops-kv-item"><div class="ops-kv-label">Updated At</div><div class="ops-kv-value">{{ task.updated_at|date:"Y-m-d H:i:s" }}</div></div>
+        </div>
+        {% if latest_context %}
+        <div class="ops-kv" style="margin-top:12px;">
+            <div class="ops-kv-item"><div class="ops-kv-label">Latest Context Snapshot</div><div class="ops-kv-value">#{{ latest_context.id }} / {{ latest_context.domain }}</div></div>
+            <div class="ops-kv-item"><div class="ops-kv-label">Generated At</div><div class="ops-kv-value">{{ latest_context.generated_at|date:"Y-m-d H:i:s"|default:"-" }}</div></div>
+        </div>
+        {% endif %}
+        {% if task.input_payload %}
+        <h3>Input Payload</h3>
+        <pre class="ops-json">{{ task.input_payload }}</pre>
+        {% endif %}
+        {% if task.last_error %}
+        <h3>Last Error</h3>
+        <pre class="ops-json">{{ task.last_error }}</pre>
+        {% endif %}
+    </section>
+
+    <div class="ops-grid">
+        <section class="ops-section-stack">
+            <section class="ops-panel">
+                <h2>Timeline</h2>
+                <div class="ops-timeline">
+                    {% for event in timeline %}
+                    <article class="ops-timeline-item">
+                        <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+                            <strong>{{ event.event_type }}</strong>
+                            <span class="ops-meta">{{ event.created_at|date:"Y-m-d H:i:s" }}</span>
+                        </div>
+                        <div class="ops-meta">{{ event.event_source }}</div>
+                        {% if event.event_payload %}
+                        <pre class="ops-json" style="margin-top:10px;">{{ event.event_payload }}</pre>
+                        {% endif %}
+                    </article>
+                    {% empty %}
+                    <div class="ops-muted">暂无 timeline。</div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="ops-panel">
+                <h2>Proposals</h2>
+                <div class="ops-table-wrap">
+                    <table class="ops-table">
+                        <thead>
+                            <tr>
+                                <th>Request</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Risk</th>
+                                <th>Approval</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for proposal in proposals %}
+                            <tr>
+                                <td><a href="{% url 'agent_runtime_pages:proposal_detail' proposal.id %}">{{ proposal.request_id }}</a></td>
+                                <td>{{ proposal.proposal_type }}</td>
+                                <td><span class="ops-chip status-{{ proposal.status }}">{{ proposal.status }}</span></td>
+                                <td><span class="ops-chip status-{{ proposal.risk_level }}">{{ proposal.risk_level }}</span></td>
+                                <td>{{ proposal.approval_status }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="ops-muted">暂无 proposals。</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </section>
+
+        <section class="ops-section-stack">
+            <section class="ops-panel">
+                <h3>Guardrails</h3>
+                <div class="ops-timeline">
+                    {% for guardrail in guardrails %}
+                    <article class="ops-timeline-item">
+                        <strong>{{ guardrail.reason_code }}</strong>
+                        <div style="margin:8px 0;"><span class="ops-chip status-{{ guardrail.decision }}">{{ guardrail.decision }}</span></div>
+                        <div>{{ guardrail.message }}</div>
+                        {% if guardrail.evidence %}
+                        <pre class="ops-json" style="margin-top:10px;">{{ guardrail.evidence }}</pre>
+                        {% endif %}
+                    </article>
+                    {% empty %}
+                    <div class="ops-muted">暂无 guardrail 记录。</div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="ops-panel">
+                <h3>Execution Records</h3>
+                <div class="ops-timeline">
+                    {% for execution in executions %}
+                    <article class="ops-timeline-item">
+                        <strong>#{{ execution.id }}</strong>
+                        <div style="margin:8px 0;"><span class="ops-chip status-{{ execution.execution_status }}">{{ execution.execution_status }}</span></div>
+                        <div class="ops-meta">{{ execution.started_at|date:"Y-m-d H:i:s"|default:"-" }} -> {{ execution.completed_at|date:"Y-m-d H:i:s"|default:"-" }}</div>
+                        {% if execution.error_details %}
+                        <pre class="ops-json" style="margin-top:10px;">{{ execution.error_details }}</pre>
+                        {% endif %}
+                    </article>
+                    {% empty %}
+                    <div class="ops-muted">暂无 execution record。</div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="ops-panel">
+                <h3>Handoffs</h3>
+                <div class="ops-timeline">
+                    {% for handoff in handoffs %}
+                    <article class="ops-timeline-item">
+                        <strong>{{ handoff.from_agent }} -> {{ handoff.to_agent }}</strong>
+                        <div class="ops-meta">{{ handoff.created_at|date:"Y-m-d H:i:s" }} / {{ handoff.handoff_status }}</div>
+                        <div style="margin-top:8px;">{{ handoff.handoff_reason }}</div>
+                        {% if handoff.handoff_payload %}
+                        <pre class="ops-json" style="margin-top:10px;">{{ handoff.handoff_payload }}</pre>
+                        {% endif %}
+                    </article>
+                    {% empty %}
+                    <div class="ops-muted">暂无 handoff。</div>
+                    {% endfor %}
+                </div>
+            </section>
+        </section>
+    </div>
+</div>
+{% endblock %}

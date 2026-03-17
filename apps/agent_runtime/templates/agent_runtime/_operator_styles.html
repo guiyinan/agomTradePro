@@ -1,0 +1,46 @@
+<style>
+    .ops-shell { max-width: 1380px; margin: 0 auto; padding: 24px; }
+    .ops-header { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; margin-bottom:24px; }
+    .ops-title { margin:0; font-size:32px; }
+    .ops-subtitle { margin:8px 0 0; color:#64748b; }
+    .ops-links { display:flex; gap:10px; flex-wrap:wrap; }
+    .ops-summary { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:20px; }
+    .ops-card, .ops-panel { background:#fff; border:1px solid #e2e8f0; border-radius:16px; box-shadow:0 18px 40px rgba(15,23,42,0.06); }
+    .ops-card { padding:18px; }
+    .ops-card-label { font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:0.08em; }
+    .ops-card-value { font-size:28px; font-weight:700; margin-top:10px; }
+    .ops-grid { display:grid; grid-template-columns: 2fr 1fr; gap:20px; }
+    .ops-grid-single { display:grid; gap:20px; }
+    .ops-panel { padding:18px; }
+    .ops-panel h2, .ops-panel h3 { margin-top:0; }
+    .ops-table-wrap { overflow:auto; }
+    .ops-table { width:100%; border-collapse:collapse; min-width:780px; }
+    .ops-table th, .ops-table td { padding:12px 10px; border-bottom:1px solid #e2e8f0; text-align:left; vertical-align:top; }
+    .ops-table th { font-size:12px; text-transform:uppercase; letter-spacing:0.06em; color:#64748b; }
+    .ops-chip { display:inline-flex; align-items:center; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:700; background:#e2e8f0; color:#334155; }
+    .ops-chip.status-draft, .ops-chip.status-generated, .ops-chip.status-pending { background:#e0f2fe; color:#075985; }
+    .ops-chip.status-awaiting_approval, .ops-chip.status-submitted { background:#fef3c7; color:#92400e; }
+    .ops-chip.status-approved, .ops-chip.status-completed, .ops-chip.status-executed, .ops-chip.status-success { background:#dcfce7; color:#166534; }
+    .ops-chip.status-rejected, .ops-chip.status-cancelled, .ops-chip.status-expired { background:#fee2e2; color:#991b1b; }
+    .ops-chip.status-failed, .ops-chip.status-execution_failed, .ops-chip.status-needs_human { background:#fecaca; color:#991b1b; }
+    .ops-chip.status-escalated, .ops-chip.status-high { background:#fce7f3; color:#9d174d; }
+    .ops-kv { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; }
+    .ops-kv-item { padding:14px; border-radius:12px; background:#f8fafc; border:1px solid #e2e8f0; }
+    .ops-kv-label { font-size:12px; color:#64748b; margin-bottom:6px; }
+    .ops-kv-value { font-size:14px; font-weight:600; word-break:break-word; }
+    .ops-timeline { display:grid; gap:12px; }
+    .ops-timeline-item { padding:14px; border-left:4px solid #cbd5e1; background:#fff; border-radius:10px; border:1px solid #e2e8f0; }
+    .ops-meta { font-size:12px; color:#64748b; }
+    .ops-form-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:20px; }
+    .ops-input, .ops-select, .ops-textarea { width:100%; box-sizing:border-box; padding:10px 12px; border:1px solid #cbd5e1; border-radius:10px; background:#fff; }
+    .ops-textarea { min-height:96px; resize:vertical; }
+    .ops-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .ops-actions form { display:flex; flex-direction:column; gap:10px; width:100%; }
+    .ops-actions-inline { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .ops-muted { color:#64748b; }
+    .ops-section-stack { display:grid; gap:20px; }
+    .ops-json { margin:0; white-space:pre-wrap; word-break:break-word; font-family:Consolas, monospace; font-size:12px; background:#0f172a; color:#e2e8f0; padding:12px; border-radius:12px; overflow:auto; }
+    @media (max-width: 960px) {
+        .ops-grid { grid-template-columns:1fr; }
+    }
+</style>

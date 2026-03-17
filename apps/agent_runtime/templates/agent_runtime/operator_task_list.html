@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Agent Runtime Operator - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+{% include "agent_runtime/_operator_styles.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="ops-shell">
+    <div class="ops-header">
+        <div>
+            <h1 class="ops-title">{{ page_title }}</h1>
+            <p class="ops-subtitle">任务列表、attention 队列和 proposal 状态总览。</p>
+        </div>
+        <div class="ops-links">
+            <a href="{% url 'agent_runtime_pages:proposal_list' %}" class="btn btn-secondary" style="text-decoration:none;">查看 Proposal Queue</a>
+            <a href="/api/agent-runtime/dashboard/summary/" class="btn btn-secondary" style="text-decoration:none;">Dashboard API</a>
+        </div>
+    </div>
+
+    {% include "agent_runtime/_summary_cards.html" %}
+
+    <section class="ops-panel">
+        <h2>筛选</h2>
+        <form method="get" class="ops-form-grid">
+            <input class="ops-input" type="text" name="search" value="{{ filters.search }}" placeholder="搜索 request_id / task_type">
+            <select class="ops-select" name="status">
+                <option value="">全部状态</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ value }}</option>
+                {% endfor %}
+            </select>
+            <select class="ops-select" name="task_domain">
+                <option value="">全部域</option>
+                {% for value, label in domain_choices %}
+                <option value="{{ value }}" {% if filters.task_domain == value %}selected{% endif %}>{{ value }}</option>
+                {% endfor %}
+            </select>
+            <select class="ops-select" name="attention">
+                <option value="0" {% if not filters.attention %}selected{% endif %}>全部任务</option>
+                <option value="1" {% if filters.attention %}selected{% endif %}>仅 attention</option>
+            </select>
+            <div class="ops-actions-inline">
+                <button type="submit" class="btn btn-primary">应用筛选</button>
+                <a href="{% url 'agent_runtime_pages:task_list' %}" class="btn btn-secondary" style="text-decoration:none;">重置</a>
+            </div>
+        </form>
+    </section>
+
+    <div class="ops-grid">
+        <section class="ops-panel">
+            <h2>Task List</h2>
+            <div class="ops-table-wrap">
+                <table class="ops-table">
+                    <thead>
+                        <tr>
+                            <th>Request</th>
+                            <th>Domain</th>
+                            <th>Status</th>
+                            <th>Task Type</th>
+                            <th>Attention</th>
+                            <th>Counts</th>
+                            <th>Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for task in tasks %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'agent_runtime_pages:task_detail' task.id %}">{{ task.request_id }}</a>
+                            </td>
+                            <td>{{ task.task_domain }}</td>
+                            <td><span class="ops-chip status-{{ task.status }}">{{ task.status }}</span></td>
+                            <td>{{ task.task_type }}</td>
+                            <td>
+                                {% if task.requires_human or task.status == "needs_human" or task.status == "failed" %}
+                                <span class="ops-chip status-needs_human">attention</span>
+                                {% else %}
+                                <span class="ops-muted">normal</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ task.timeline_count }} events / {{ task.proposal_count }} proposals / {{ task.guardrail_count }} guardrails</td>
+                            <td>{{ task.updated_at|date:"Y-m-d H:i" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="ops-muted">没有匹配的任务。</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="ops-section-stack">
+            <section class="ops-panel">
+                <h3>Task Counts</h3>
+                <div class="ops-kv">
+                    {% for status, count in summary.task_counts.items %}
+                    <div class="ops-kv-item">
+                        <div class="ops-kv-label">{{ status }}</div>
+                        <div class="ops-kv-value">{{ count }}</div>
+                    </div>
+                    {% empty %}
+                    <div class="ops-muted">暂无任务数据。</div>
+                    {% endfor %}
+                </div>
+            </section>
+            <section class="ops-panel">
+                <h3>Proposal Counts</h3>
+                <div class="ops-kv">
+                    {% for status, count in summary.proposal_counts.items %}
+                    <div class="ops-kv-item">
+                        <div class="ops-kv-label">{{ status }}</div>
+                        <div class="ops-kv-value">{{ count }}</div>
+                    </div>
+                    {% empty %}
+                    <div class="ops-muted">暂无 proposal 数据。</div>
+                    {% endfor %}
+                </div>
+            </section>
+        </section>
+    </div>
+</div>
+{% endblock %}

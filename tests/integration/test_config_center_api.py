@@ -38,6 +38,7 @@ def test_config_center_snapshot_returns_sections(staff_client):
         for section in payload["data"]["sections"]
         for item in section["items"]
     }
+    assert "agent_runtime_operator" in item_keys
     assert "valuation_repair" in item_keys
     assert "beta_gate" in item_keys
     assert "system_settings" in item_keys
@@ -51,5 +52,6 @@ def test_config_capabilities_returns_known_entries(staff_client):
     payload = response.json()
     assert payload["success"] is True
     keys = {item["key"] for item in payload["data"]}
+    assert "agent_runtime_operator" in keys
     assert "valuation_repair" in keys
     assert "trading_cost" in keys

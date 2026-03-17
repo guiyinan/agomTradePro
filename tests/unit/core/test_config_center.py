@@ -7,6 +7,7 @@ def test_list_config_capabilities_contains_core_items():
     capabilities = list_config_capabilities()
     keys = {item["key"] for item in capabilities}
 
+    assert "agent_runtime_operator" in keys
     assert "system_settings" in keys
     assert "valuation_repair" in keys
     assert "beta_gate" in keys
@@ -18,6 +19,7 @@ def test_build_config_center_snapshot_filters_staff_items_for_normal_user(monkey
     monkeypatch.setattr(
         "core.application.config_center._SUMMARY_BUILDERS",
         {
+            "agent_runtime_operator": lambda: {"status": "configured", "summary": {"message": "ok"}},
             "system_settings": lambda: {"status": "configured", "summary": {"message": "ok"}},
             "macro_datasources": lambda: {"status": "configured", "summary": {"message": "ok"}},
             "market_data_providers": lambda: {"status": "configured", "summary": {"message": "ok"}},
@@ -36,5 +38,6 @@ def test_build_config_center_snapshot_filters_staff_items_for_normal_user(monkey
     }
 
     assert "trading_cost" in item_keys
+    assert "agent_runtime_operator" not in item_keys
     assert "valuation_repair" not in item_keys
     assert "system_settings" not in item_keys

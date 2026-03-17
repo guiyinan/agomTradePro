@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+{% include "agent_runtime/_operator_styles.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="ops-shell">
+    <div class="ops-header">
+        <div>
+            <h1 class="ops-title">{{ proposal.request_id }}</h1>
+            <p class="ops-subtitle">{{ proposal.proposal_type }} / <span class="ops-chip status-{{ proposal.status }}">{{ proposal.status }}</span> / approval <span class="ops-chip status-{{ proposal.approval_status }}">{{ proposal.approval_status }}</span></p>
+        </div>
+        <div class="ops-links">
+            <a href="{% url 'agent_runtime_pages:proposal_list' %}" class="btn btn-secondary" style="text-decoration:none;">返回 Proposal Queue</a>
+            <a href="/api/agent-runtime/proposals/{{ proposal.id }}/" class="btn btn-secondary" style="text-decoration:none;">Proposal API</a>
+        </div>
+    </div>
+
+    {% include "agent_runtime/_summary_cards.html" %}
+
+    <div class="ops-grid">
+        <section class="ops-section-stack">
+            <section class="ops-panel">
+                <h2>Proposal Overview</h2>
+                <div class="ops-kv">
+                    <div class="ops-kv-item"><div class="ops-kv-label">Task</div><div class="ops-kv-value">{% if proposal.task_id %}<a href="{% url 'agent_runtime_pages:task_detail' proposal.task_id %}">{{ proposal.task.request_id }}</a>{% else %}-{% endif %}</div></div>
+                    <div class="ops-kv-item"><div class="ops-kv-label">Risk Level</div><div class="ops-kv-value">{{ proposal.risk_level }}</div></div>
+                    <div class="ops-kv-item"><div class="ops-kv-label">Approval Required</div><div class="ops-kv-value">{{ proposal.approval_required|yesno:"Yes,No" }}</div></div>
+                    <div class="ops-kv-item"><div class="ops-kv-label">Created At</div><div class="ops-kv-value">{{ proposal.created_at|date:"Y-m-d H:i:s" }}</div></div>
+                </div>
+                {% if proposal.approval_reason %}
+                <div class="ops-kv" style="margin-top:12px;">
+                    <div class="ops-kv-item">
+                        <div class="ops-kv-label">Approval Reason</div>
+                        <div class="ops-kv-value">{{ proposal.approval_reason }}</div>
+                    </div>
+                </div>
+                {% endif %}
+                <h3>Proposal Payload</h3>
+                <pre class="ops-json">{{ proposal.proposal_payload }}</pre>
+            </section>
+
+            <section class="ops-panel">
+                <h2>Task Timeline Context</h2>
+                <div class="ops-timeline">
+                    {% for event in task_timeline %}
+                    <article class="ops-timeline-item">
+                        <strong>{{ event.event_type }}</strong>
+                        <div class="ops-meta">{{ event.created_at|date:"Y-m-d H:i:s" }} / {{ event.event_source }}</div>
+                        {% if event.event_payload %}
+                        <pre class="ops-json" style="margin-top:10px;">{{ event.event_payload }}</pre>
+                        {% endif %}
+                    </article>
+                    {% empty %}
+                    <div class="ops-muted">当前 proposal 未关联 task timeline。</div>
+                    {% endfor %}
+                </div>
+            </section>
+        </section>
+
+        <section class="ops-section-stack">
+            <section class="ops-panel">
+                <h3>Operator Actions</h3>
+                <div class="ops-actions">
+                    {% if proposal.status == "generated" %}
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="submit">
+                        <button type="submit" class="btn btn-primary">提交审批</button>
+                    </form>
+                    {% endif %}
+
+                    {% if proposal.status == "submitted" %}
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="approve">
+                        <textarea class="ops-textarea" name="reason" placeholder="批准原因，可选"></textarea>
+                        <button type="submit" class="btn btn-primary">批准 Proposal</button>
+                    </form>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="reject">
+                        <textarea class="ops-textarea" name="reason" placeholder="拒绝原因"></textarea>
+                        <button type="submit" class="btn btn-danger">拒绝 Proposal</button>
+                    </form>
+                    {% endif %}
+
+                    {% if proposal.status == "approved" %}
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="execute">
+                        <button type="submit" class="btn btn-primary">执行 Proposal</button>
+                    </form>
+                    {% endif %}
+
+                    {% if proposal.status != "generated" and proposal.status != "submitted" and proposal.status != "approved" %}
+                    <div class="ops-muted">当前状态无可执行 operator 动作。</div>
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="ops-panel">
+                <h3>Guardrail Decisions</h3>
+                <div class="ops-timeline">
+                    {% for guardrail in guardrails %}
+                    <article class="ops-timeline-item">
+                        <strong>{{ guardrail.reason_code }}</strong>
+                        <div style="margin:8px 0;"><span class="ops-chip status-{{ guardrail.decision }}">{{ guardrail.decision }}</span></div>
+                        <div>{{ guardrail.message }}</div>
+                        {% if guardrail.evidence %}
+                        <pre class="ops-json" style="margin-top:10px;">{{ guardrail.evidence }}</pre>
+                        {% endif %}
+                    </article>
+                    {% empty %}
+                    <div class="ops-muted">暂无 guardrail 决策。</div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="ops-panel">
+                <h3>Execution Records</h3>
+                <div class="ops-timeline">
+                    {% for execution in executions %}
+                    <article class="ops-timeline-item">
+                        <strong>#{{ execution.id }}</strong>
+                        <div style="margin:8px 0;"><span class="ops-chip status-{{ execution.execution_status }}">{{ execution.execution_status }}</span></div>
+                        <div class="ops-meta">{{ execution.started_at|date:"Y-m-d H:i:s"|default:"-" }} -> {{ execution.completed_at|date:"Y-m-d H:i:s"|default:"-" }}</div>
+                        {% if execution.execution_output %}
+                        <pre class="ops-json" style="margin-top:10px;">{{ execution.execution_output }}</pre>
+                        {% endif %}
+                        {% if execution.error_details %}
+                        <pre class="ops-json" style="margin-top:10px;">{{ execution.error_details }}</pre>
+                        {% endif %}
+                    </article>
+                    {% empty %}
+                    <div class="ops-muted">暂无 execution record。</div>
+                    {% endfor %}
+                </div>
+            </section>
+        </section>
+    </div>
+</div>
+{% endblock %}

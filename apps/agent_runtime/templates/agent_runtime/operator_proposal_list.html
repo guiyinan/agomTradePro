@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Proposal Approval Queue - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+{% include "agent_runtime/_operator_styles.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="ops-shell">
+    <div class="ops-header">
+        <div>
+            <h1 class="ops-title">{{ page_title }}</h1>
+            <p class="ops-subtitle">审批、拒绝和执行前的 proposal 队列视图。</p>
+        </div>
+        <div class="ops-links">
+            <a href="{% url 'agent_runtime_pages:task_list' %}" class="btn btn-secondary" style="text-decoration:none;">查看 Task List</a>
+            <a href="/api/agent-runtime/proposals/" class="btn btn-secondary" style="text-decoration:none;">Proposal API</a>
+        </div>
+    </div>
+
+    {% include "agent_runtime/_summary_cards.html" %}
+
+    <section class="ops-panel">
+        <h2>筛选</h2>
+        <form method="get" class="ops-form-grid">
+            <input class="ops-input" type="text" name="search" value="{{ filters.search }}" placeholder="搜索 request_id / task request / proposal_type">
+            <select class="ops-select" name="status">
+                <option value="">全部状态</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ value }}</option>
+                {% endfor %}
+            </select>
+            <select class="ops-select" name="approval_status">
+                <option value="">全部审批状态</option>
+                {% for value, label in approval_choices %}
+                <option value="{{ value }}" {% if filters.approval_status == value %}selected{% endif %}>{{ value }}</option>
+                {% endfor %}
+            </select>
+            <select class="ops-select" name="risk_level">
+                <option value="">全部风险级别</option>
+                {% for value, label in risk_choices %}
+                <option value="{{ value }}" {% if filters.risk_level == value %}selected{% endif %}>{{ value }}</option>
+                {% endfor %}
+            </select>
+            <div class="ops-actions-inline">
+                <button type="submit" class="btn btn-primary">应用筛选</button>
+                <a href="{% url 'agent_runtime_pages:proposal_list' %}" class="btn btn-secondary" style="text-decoration:none;">重置</a>
+            </div>
+        </form>
+    </section>
+
+    <section class="ops-panel">
+        <h2>Proposal Queue</h2>
+        <div class="ops-table-wrap">
+            <table class="ops-table">
+                <thead>
+                    <tr>
+                        <th>Request</th>
+                        <th>Task</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Approval</th>
+                        <th>Risk</th>
+                        <th>Updated</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for proposal in proposals %}
+                    <tr>
+                        <td><a href="{% url 'agent_runtime_pages:proposal_detail' proposal.id %}">{{ proposal.request_id }}</a></td>
+                        <td>
+                            {% if proposal.task_id %}
+                            <a href="{% url 'agent_runtime_pages:task_detail' proposal.task_id %}">{{ proposal.task.request_id }}</a>
+                            {% else %}
+                            <span class="ops-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ proposal.proposal_type }}</td>
+                        <td><span class="ops-chip status-{{ proposal.status }}">{{ proposal.status }}</span></td>
+                        <td><span class="ops-chip status-{{ proposal.approval_status }}">{{ proposal.approval_status }}</span></td>
+                        <td><span class="ops-chip status-{{ proposal.risk_level }}">{{ proposal.risk_level }}</span></td>
+                        <td>{{ proposal.updated_at|date:"Y-m-d H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="ops-muted">没有匹配的 proposal。</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+{% endblock %}
