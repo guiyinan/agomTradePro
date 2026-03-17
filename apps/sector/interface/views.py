@@ -85,7 +85,8 @@ class SectorRotationViewSet(viewsets.ViewSet):
 
         # 4. 格式化输出
         result_serializer = SectorRotationResultSerializer(result)
-        return Response(result_serializer.data, status=status.HTTP_200_OK)
+        response_status = status.HTTP_200_OK if result.success else status.HTTP_503_SERVICE_UNAVAILABLE
+        return Response(result_serializer.data, status=response_status)
 
     @action(detail=False, methods=['get'], url_path='rotation')
     def rotation(self, request):
@@ -124,7 +125,8 @@ class SectorRotationViewSet(viewsets.ViewSet):
 
         # 4. 格式化输出
         result_serializer = SectorRotationResultSerializer(result)
-        return Response(result_serializer.data, status=status.HTTP_200_OK)
+        response_status = status.HTTP_200_OK if result.success else status.HTTP_503_SERVICE_UNAVAILABLE
+        return Response(result_serializer.data, status=response_status)
 
 
 class SectorDataUpdateView(APIView):

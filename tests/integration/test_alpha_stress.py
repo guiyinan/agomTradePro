@@ -24,12 +24,35 @@ from apps.alpha.application.tasks import qlib_predict_scores
 from shared.infrastructure.metrics import get_alpha_metrics
 
 
+# --- Helper: mock ETF constituents so ETF fallback returns real data ---
+_ETF_CONSTITUENTS_PATH = (
+    "apps.alpha.infrastructure.adapters.etf_adapter"
+    ".ETFFallbackProvider._get_etf_constituents"
+)
+_FAKE_ETF_CONSTITUENTS = (
+    [("600519.SH", 5.0), ("000858.SZ", 3.5), ("601318.SH", 2.8)],
+    None,
+)
+
+
+def _reset_alpha_service():
+    """Reset AlphaService singleton so providers are re-initialised."""
+    AlphaService._instance = None
+
+
 @pytest.mark.django_db
 class TestQlibNotInstalled:
     """测试 Qlib 未安装场景"""
 
+    def setup_method(self):
+        _reset_alpha_service()
+
+    def teardown_method(self):
+        _reset_alpha_service()
+
+    @patch(_ETF_CONSTITUENTS_PATH, return_value=_FAKE_ETF_CONSTITUENTS)
     @patch('apps.alpha.infrastructure.adapters.qlib_adapter.QlibAlphaProvider._get_active_model')
-    def test_alpha_service_works_without_qlib(self, mock_get_model):
+    def test_alpha_service_works_without_qlib(self, mock_get_model, _mock_etf):
         """测试没有 Qlib 时 AlphaService 仍然工作"""
         # Mock 返回 None（模拟没有激活的模型）
         mock_get_model.return_value = None
@@ -40,8 +63,9 @@ class TestQlibNotInstalled:
         # 应该降级到其他 Provider
         assert result.success or result.source in ["cache", "simple", "etf"]
 
+    @patch(_ETF_CONSTITUENTS_PATH, return_value=_FAKE_ETF_CONSTITUENTS)
     @patch('apps.alpha.infrastructure.adapters.qlib_adapter.QlibAlphaProvider._get_active_model')
-    def test_fallback_chain_without_qlib(self, mock_get_model):
+    def test_fallback_chain_without_qlib(self, mock_get_model, _mock_etf):
         """测试没有 Qlib 时的完整降级链路"""
         # 清空所有缓存
         AlphaScoreCacheModel.objects.all().delete()
@@ -81,8 +105,10 @@ class TestQlibDataUnavailable:
         assert result.success
         assert result.source in ["cache", "qlib"]
 
-    def test_all_cache_expired_fallback_to_simple(self):
+    @patch(_ETF_CONSTITUENTS_PATH, return_value=_FAKE_ETF_CONSTITUENTS)
+    def test_all_cache_expired_fallback_to_simple(self, _mock_etf):
         """测试所有缓存过期时降级到 Simple"""
+        _reset_alpha_service()
         # 创建过期的缓存（10 天前）
         old_date = date.today() - timedelta(days=10)
         AlphaScoreCacheModel.objects.create(
@@ -105,8 +131,15 @@ class TestQlibDataUnavailable:
 class TestQlibInferenceFailure:
     """测试 Qlib 推理任务失败场景"""
 
+    def setup_method(self):
+        _reset_alpha_service()
+
+    def teardown_method(self):
+        _reset_alpha_service()
+
+    @patch(_ETF_CONSTITUENTS_PATH, return_value=_FAKE_ETF_CONSTITUENTS)
     @patch('apps.alpha.application.tasks.qlib_predict_scores.apply_async')
-    def test_inference_task_failure_handled_gracefully(self, mock_apply_async):
+    def test_inference_task_failure_handled_gracefully(self, mock_apply_async, _mock_etf):
         """测试推理任务失败时的优雅处理"""
         # Mock apply_async 抛出异常
         mock_apply_async.side_effect = Exception("Celery unavailable")
@@ -138,7 +171,14 @@ class TestQlibInferenceFailure:
 class TestModelLoadingFailure:
     """测试模型加载失败场景"""
 
-    def test_no_active_model_fallback(self):
+    def setup_method(self):
+        _reset_alpha_service()
+
+    def teardown_method(self):
+        _reset_alpha_service()
+
+    @patch(_ETF_CONSTITUENTS_PATH, return_value=_FAKE_ETF_CONSTITUENTS)
+    def test_no_active_model_fallback(self, _mock_etf):
         """测试没有激活模型时的降级"""
         # 确保没有激活的模型
         QlibModelRegistryModel.objects.filter(is_active=True).update(is_active=False)
@@ -149,7 +189,8 @@ class TestModelLoadingFailure:
         # 应该降级到其他 Provider
         assert result.source in ["cache", "simple", "etf"]
 
-    def test_model_file_missing(self):
+    @patch(_ETF_CONSTITUENTS_PATH, return_value=_FAKE_ETF_CONSTITUENTS)
+    def test_model_file_missing(self, _mock_etf):
         """测试模型文件缺失场景"""
         # 创建模型记录，但文件不存在
         model = QlibModelRegistryModel.objects.create(
@@ -176,7 +217,14 @@ class TestModelLoadingFailure:
 class TestCompleteDegradation:
     """测试全链路降级场景"""
 
-    def test_full_degradation_chain(self):
+    def setup_method(self):
+        _reset_alpha_service()
+
+    def teardown_method(self):
+        _reset_alpha_service()
+
+    @patch(_ETF_CONSTITUENTS_PATH, return_value=_FAKE_ETF_CONSTITUENTS)
+    def test_full_degradation_chain(self, _mock_etf):
         """测试完整降级链路：Qlib → Cache → Simple → ETF"""
         service = AlphaService()
 
@@ -193,7 +241,8 @@ class TestCompleteDegradation:
         assert result.success
         assert result.source == "etf" or result.source == "simple"
 
-    def test_etf_provider_always_available(self):
+    @patch(_ETF_CONSTITUENTS_PATH, return_value=_FAKE_ETF_CONSTITUENTS)
+    def test_etf_provider_always_available(self, _mock_etf):
         """测试 ETF Provider 总是可用"""
         service = AlphaService()
 
@@ -312,7 +361,14 @@ class TestMetricsUnderFailure:
 class TestCacheFailureScenarios:
     """测试缓存故障场景"""
 
-    def test_cache_corruption_handling(self):
+    def setup_method(self):
+        _reset_alpha_service()
+
+    def teardown_method(self):
+        _reset_alpha_service()
+
+    @patch(_ETF_CONSTITUENTS_PATH, return_value=_FAKE_ETF_CONSTITUENTS)
+    def test_cache_corruption_handling(self, _mock_etf):
         """测试缓存损坏处理"""
         # 创建损坏的缓存（scores 为空）
         today = date.today()
@@ -359,7 +415,14 @@ class TestCacheFailureScenarios:
 class TestRecoveryScenarios:
     """测试恢复场景"""
 
-    def test_qlib_recovery_after_failure(self):
+    def setup_method(self):
+        _reset_alpha_service()
+
+    def teardown_method(self):
+        _reset_alpha_service()
+
+    @patch(_ETF_CONSTITUENTS_PATH, return_value=_FAKE_ETF_CONSTITUENTS)
+    def test_qlib_recovery_after_failure(self, _mock_etf):
         """测试 Qlib 恢复后的行为"""
         # 1. 初始状态：没有激活模型
         service = AlphaService()
@@ -436,8 +499,15 @@ class TestMemoryPressure:
 class TestNetworkFailure:
     """测试网络故障场景"""
 
+    def setup_method(self):
+        _reset_alpha_service()
+
+    def teardown_method(self):
+        _reset_alpha_service()
+
+    @patch(_ETF_CONSTITUENTS_PATH, return_value=_FAKE_ETF_CONSTITUENTS)
     @patch('apps.alpha.infrastructure.adapters.simple_adapter.SimpleAlphaProvider.get_stock_scores')
-    def test_external_api_failure(self, mock_simple):
+    def test_external_api_failure(self, mock_simple, _mock_etf):
         """测试外部 API 失败"""
         # Mock Simple Provider 失败
         mock_simple.side_effect = Exception("Network timeout")

@@ -59,6 +59,9 @@ class SectorRotationResult:
     analysis_date: date
     top_sectors: List[SectorScore]
     error: Optional[str] = None
+    status: str = "available"
+    data_source: str = "live"
+    warning_message: Optional[str] = None
 
 
 class AnalyzeSectorRotationUseCase:
@@ -112,7 +115,10 @@ class AnalyzeSectorRotationUseCase:
                         regime='',
                         analysis_date=date.today(),
                         top_sectors=[],
-                        error="未指定 Regime 且未提供 regime_repo"
+                        error="未指定 Regime 且未提供 regime_repo",
+                        status="unavailable",
+                        data_source="fallback",
+                        warning_message="regime_unavailable",
                     )
                 # 自动获取最新 Regime（统一 V2 链路）
                 from apps.regime.application.current_regime import resolve_current_regime
@@ -126,7 +132,10 @@ class AnalyzeSectorRotationUseCase:
                     regime=regime,
                     analysis_date=date.today(),
                     top_sectors=[],
-                    error=f"未找到 Regime '{regime}' 的板块权重配置，请在 Django Admin 中配置"
+                    error=f"未找到 Regime '{regime}' 的板块权重配置，请在 Django Admin 中配置",
+                    status="unavailable",
+                    data_source="fallback",
+                    warning_message="sector_weights_unavailable",
                 )
 
             # 3. 获取所有板块信息
@@ -137,7 +146,10 @@ class AnalyzeSectorRotationUseCase:
                     regime=regime,
                     analysis_date=date.today(),
                     top_sectors=[],
-                    error=f"未找到级别为 {request.level} 的板块数据"
+                    error=f"未找到级别为 {request.level} 的板块数据",
+                    status="unavailable",
+                    data_source="fallback",
+                    warning_message="sector_data_unavailable",
                 )
 
             # 4. 计算每个板块的动量和相对强弱
@@ -170,6 +182,17 @@ class AnalyzeSectorRotationUseCase:
 
                 # 获取大盘指数收益率（沪深300）
                 market_returns = self._get_market_returns(start_date, end_date, len(returns))
+                if market_returns is None:
+                    return SectorRotationResult(
+                        success=False,
+                        regime=regime,
+                        analysis_date=date.today(),
+                        top_sectors=[],
+                        error="缺少沪深300真实收益率数据，无法计算板块相对强弱",
+                        status="unavailable",
+                        data_source="fallback",
+                        warning_message="market_returns_unavailable",
+                    )
 
                 # 计算相对强弱（简化版）
                 relative_strength = momentum - sum(market_returns) / len(market_returns) * 100
@@ -191,7 +214,10 @@ class AnalyzeSectorRotationUseCase:
                     regime=regime,
                     analysis_date=date.today(),
                     top_sectors=[],
-                    error="没有足够的板块指数数据进行分析"
+                    error="没有足够的板块指数数据进行分析",
+                    status="unavailable",
+                    data_source="fallback",
+                    warning_message="sector_indices_insufficient",
                 )
 
             # 5. 使用 Domain 层服务进行评分排名
@@ -210,7 +236,10 @@ class AnalyzeSectorRotationUseCase:
                 success=True,
                 regime=regime,
                 analysis_date=date.today(),
-                top_sectors=top_sectors
+                top_sectors=top_sectors,
+                status="available",
+                data_source="live",
+                warning_message=None,
             )
 
         except Exception as e:
@@ -219,12 +248,15 @@ class AnalyzeSectorRotationUseCase:
                 regime=regime if request.regime else '',
                 analysis_date=date.today(),
                 top_sectors=[],
-                error=str(e)
+                error=str(e),
+                status="degraded",
+                data_source="fallback",
+                warning_message="sector_rotation_failed",
             )
 
     def _get_market_returns(
         self, start_date: date, end_date: date, expected_length: int
-    ) -> list:
+    ) -> Optional[list]:
         """获取大盘指数收益率（沪深300）
 
         Args:
@@ -235,15 +267,13 @@ class AnalyzeSectorRotationUseCase:
         Returns:
             收益率列表
         """
-        fallback = [0.0] * expected_length
-
         if self.market_adapter is None:
             try:
                 from apps.equity.infrastructure.adapters import MarketDataRepositoryAdapter
                 self.market_adapter = MarketDataRepositoryAdapter()
             except Exception:
-                logger.warning("无法初始化市场数据适配器，使用零收益率 fallback")
-                return fallback
+                logger.warning("无法初始化市场数据适配器，大盘收益率 unavailable")
+                return None
 
         try:
             returns_dict = self.market_adapter.get_index_daily_returns(
@@ -252,8 +282,8 @@ class AnalyzeSectorRotationUseCase:
                 end_date=end_date,
             )
             if not returns_dict:
-                logger.warning("沪深300 收益率数据为空，使用零收益率 fallback")
-                return fallback
+                logger.warning("沪深300 收益率数据为空，大盘收益率 unavailable")
+                return None
 
             # 按日期排序并提取收益率
             sorted_returns = [v for _, v in sorted(returns_dict.items())]
@@ -262,13 +292,16 @@ class AnalyzeSectorRotationUseCase:
             if len(sorted_returns) >= expected_length:
                 return sorted_returns[-expected_length:]
             else:
-                # 不足时前面补零
-                padding = [0.0] * (expected_length - len(sorted_returns))
-                return padding + sorted_returns
+                logger.warning(
+                    "沪深300 收益率数据不足: expected=%s actual=%s",
+                    expected_length,
+                    len(sorted_returns),
+                )
+                return None
 
         except Exception as e:
-            logger.warning(f"获取大盘收益率失败: {e}，使用零收益率 fallback")
-            return fallback
+            logger.warning(f"获取大盘收益率失败: {e}，大盘收益率 unavailable")
+            return None
 
 
 @dataclass

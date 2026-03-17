@@ -16,7 +16,11 @@ from agomsaaf_mcp.server import server
 
 def _get_tool_names():
     """Get all registered tool names from MCP server."""
-    tools = asyncio.get_event_loop().run_until_complete(server.list_tools())
+    loop = asyncio.new_event_loop()
+    try:
+        tools = loop.run_until_complete(server.list_tools())
+    finally:
+        loop.close()
     return {t.name for t in tools}
 
 
@@ -62,7 +66,11 @@ class TestProposalToolExecution:
         register_agent_proposal_tools(test_server)
 
         # Find and call the tool
-        tools = asyncio.get_event_loop().run_until_complete(test_server.list_tools())
+        loop = asyncio.new_event_loop()
+        try:
+            tools = loop.run_until_complete(test_server.list_tools())
+        finally:
+            loop.close()
         tool_map = {t.name: t for t in tools}
         assert "create_agent_proposal" in tool_map
 

@@ -89,7 +89,14 @@ def _get_alpha_provider_status() -> dict:
         return data.provider_status
     except Exception as e:
         logger.warning(f"Failed to get alpha provider status: {e}")
-        return {"providers": {}, "metrics": {}, "timestamp": None}
+        return {
+            "providers": {},
+            "metrics": {},
+            "timestamp": None,
+            "status": "degraded",
+            "data_source": "fallback",
+            "warning_message": "provider_status_unavailable",
+        }
 
 
 def _get_alpha_coverage_metrics() -> dict:
@@ -110,10 +117,13 @@ def _get_alpha_coverage_metrics() -> dict:
             "total_requests": 0,
             "cache_hit_rate": 0.0,
             "timestamp": None,
+            "status": "degraded",
+            "data_source": "fallback",
+            "warning_message": "coverage_metrics_unavailable",
         }
 
 
-def _get_alpha_ic_trends(days: int = 30) -> list:
+def _get_alpha_ic_trends_payload(days: int = 30) -> dict:
     """
     获取 Alpha IC/ICIR 趋势数据
 
@@ -123,10 +133,24 @@ def _get_alpha_ic_trends(days: int = 30) -> list:
     try:
         query = get_alpha_visualization_query()
         data = query.execute(top_n=10, ic_days=days)
-        return data.ic_trends
+        return {
+            "items": data.ic_trends,
+            "status": data.ic_trends_meta.get("status", "available"),
+            "data_source": data.ic_trends_meta.get("data_source", "live"),
+            "warning_message": data.ic_trends_meta.get("warning_message"),
+        }
     except Exception as e:
         logger.warning(f"Failed to get alpha IC trends: {e}")
-        return []
+        return {
+            "items": [],
+            "status": "degraded",
+            "data_source": "fallback",
+            "warning_message": "ic_trends_unavailable",
+        }
+
+
+def _get_alpha_ic_trends(days: int = 30) -> list:
+    return _get_alpha_ic_trends_payload(days)["items"]
 
 
 def _build_alpha_factor_panel(stock_code: str, source: str | None = None, top_n: int = 10) -> dict:
@@ -699,7 +723,10 @@ def alpha_provider_status_htmx(request):
 
     return JsonResponse({
         'success': True,
-        'data': provider_status
+        'data': provider_status,
+        'status': provider_status.get('status', 'available'),
+        'data_source': provider_status.get('data_source', 'live'),
+        'warning_message': provider_status.get('warning_message'),
     })
 
 
@@ -714,7 +741,10 @@ def alpha_coverage_htmx(request):
 
     return JsonResponse({
         'success': True,
-        'data': coverage
+        'data': coverage,
+        'status': coverage.get('status', 'available'),
+        'data_source': coverage.get('data_source', 'live'),
+        'warning_message': coverage.get('warning_message'),
     })
 
 
@@ -726,11 +756,14 @@ def alpha_ic_trends_htmx(request):
     返回 IC 趋势 JSON 数据。
     """
     days = int(request.GET.get('days', 30))
-    trends = _get_alpha_ic_trends(days=days)
+    payload = _get_alpha_ic_trends_payload(days=days)
 
     return JsonResponse({
         'success': True,
-        'data': trends
+        'data': payload['items'],
+        'status': payload['status'],
+        'data_source': payload['data_source'],
+        'warning_message': payload['warning_message'],
     })
 
 

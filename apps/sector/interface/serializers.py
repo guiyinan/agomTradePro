@@ -105,6 +105,9 @@ class SectorRotationResultSerializer(serializers.Serializer):
     analysis_date = serializers.DateField()
     top_sectors = SectorScoreSerializer(many=True)
     error = serializers.CharField(allow_null=True, required=False)
+    status = serializers.CharField(max_length=20, required=False)
+    data_source = serializers.CharField(max_length=20, required=False)
+    warning_message = serializers.CharField(allow_null=True, required=False)
 
 
 class UpdateSectorDataRequestSerializer(serializers.Serializer):

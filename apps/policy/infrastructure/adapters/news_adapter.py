@@ -294,51 +294,69 @@ class NewsPolicyAdapter(PolicyAdapterProtocol):
         return None
 
 
-class MockNewsPolicyAdapter(NewsPolicyAdapter):
+class RSSPolicyAdapter(PolicyAdapterProtocol):
     """
-    模拟新闻适配器
+    基于 RSS 管道的政策事件适配器
 
-    用于测试和开发，返回模拟数据
+    从 PolicyLog 表中读取已由 FetchRSSUseCase 抓取并分类的政策事件，
+    转换为 PolicyEvent 领域实体。
+
+    数据流: RSS源 → FetchRSSUseCase → PolicyLog(DB) → 本适配器 → PolicyEvent
     """
-
-    def __init__(self):
-        config = NewsSourceConfig(
-            name="Mock News Source",
-            base_url="https://mock.example.com"
-        )
-        super().__init__(config)
 
     def fetch_policy_events(
         self,
         start_date: Optional[date] = None,
         end_date: Optional[date] = None
     ) -> List[PolicyEvent]:
-        """返回模拟政策事件"""
+        """
+        从 PolicyLog 获取政策事件
 
-        # 模拟数据
-        mock_events = [
-            {
-                "title": "央行宣布降准 0.5 个百分点",
-                "content": "中国人民银行决定下调金融机构存款准备金率 0.5 个百分点，释放长期资金约 1 万亿元。",
-                "url": "https://example.com/news/1",
-                "pub_date": (date.today() - timedelta(days=5)).isoformat()
-            },
-            {
-                "title": "国务院常务会议研究稳经济政策措施",
-                "content": "国务院召开常务会议，研究部署进一步稳经济政策措施，有望在近期出台。",
-                "url": "https://example.com/news/2",
-                "pub_date": (date.today() - timedelta(days=3)).isoformat()
-            }
-        ]
+        Args:
+            start_date: 起始日期（默认最近 7 天）
+            end_date: 结束日期（默认今天）
+
+        Returns:
+            政策事件列表
+        """
+        from apps.policy.infrastructure.models import PolicyLog
+
+        if end_date is None:
+            end_date = date.today()
+        if start_date is None:
+            start_date = end_date - timedelta(days=7)
+
+        logs = PolicyLog._default_manager.filter(
+            event_date__gte=start_date,
+            event_date__lte=end_date,
+        ).order_by('-event_date')[:100]
 
         events = []
-        for item in mock_events:
-            event = self._parse_news_to_event(item)
-            if event:
-                events.append(event)
+        for log in logs:
+            try:
+                level = PolicyLevel(log.level)
+            except ValueError:
+                level = PolicyLevel.P0
 
+            events.append(PolicyEvent(
+                event_date=log.event_date,
+                level=level,
+                title=log.title,
+                description=log.description,
+                evidence_url=log.evidence_url,
+            ))
+
+        logger.info(f"RSSPolicyAdapter: loaded {len(events)} events from PolicyLog")
         return events
 
     def is_available(self) -> bool:
-        """模拟始终可用"""
-        return True
+        """检查 PolicyLog 表是否可访问"""
+        try:
+            from apps.policy.infrastructure.models import PolicyLog
+            PolicyLog._default_manager.exists()
+            return True
+        except Exception:
+            return False
+
+    def get_source_name(self) -> str:
+        return "RSS Pipeline (PolicyLog)"

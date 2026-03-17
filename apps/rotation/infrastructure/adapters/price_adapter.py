@@ -179,43 +179,6 @@ class AksharePriceAdapter(PriceDataSource):
             return None
 
 
-class MockPriceAdapter(PriceDataSource):
-    """Mock price adapter for testing/development"""
-
-    def __init__(self):
-        # Store mock prices
-        self._mock_prices: Dict[str, List[float]] = {}
-
-    def set_mock_prices(self, asset_code: str, prices: List[float]):
-        """Set mock prices for an asset"""
-        self._mock_prices[asset_code] = prices
-
-    def get_prices(
-        self,
-        asset_code: str,
-        end_date: date,
-        days_back: int
-    ) -> Optional[List[float]]:
-        """Get mock prices"""
-        if asset_code not in self._mock_prices:
-            # Generate synthetic price data
-            import random
-            base_price = 3.0  # Base price for most ETFs
-            prices = []
-            price = base_price
-
-            for _ in range(days_back):
-                # Random walk with slight upward drift
-                change = random.gauss(0.0002, 0.015)  # Daily return ~ N(0.02%, 1.5%)
-                price = price * (1 + change)
-                prices.append(price)
-
-            self._mock_prices[asset_code] = prices
-
-        prices = self._mock_prices[asset_code]
-        return prices[-days_back:] if len(prices) > days_back else prices
-
-
 class FailoverPriceAdapter(PriceDataSource):
     """
     Failover price adapter with multiple data sources.
@@ -227,11 +190,9 @@ class FailoverPriceAdapter(PriceDataSource):
         self,
         primary_adapter: Optional[PriceDataSource] = None,
         secondary_adapters: Optional[List[PriceDataSource]] = None,
-        mock_adapter: Optional[PriceDataSource] = None,
     ):
         self.primary_adapter = primary_adapter or TusharePriceAdapter()
         self.secondary_adapters = secondary_adapters or [AksharePriceAdapter()]
-        self.mock_adapter = mock_adapter or MockPriceAdapter()
 
     def get_prices(
         self,
@@ -252,9 +213,8 @@ class FailoverPriceAdapter(PriceDataSource):
                 logger.info(f"Using secondary data source for {asset_code}")
                 return prices
 
-        # Fall back to mock adapter for development
-        logger.warning(f"Using mock data for {asset_code}")
-        return self.mock_adapter.get_prices(asset_code, end_date, days_back)
+        logger.warning(f"Price data unavailable for {asset_code} after exhausting all sources")
+        return None
 
 
 class PriceDataCache:

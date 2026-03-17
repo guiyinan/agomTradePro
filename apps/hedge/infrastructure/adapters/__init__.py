@@ -172,24 +172,39 @@ class AkshareHedgeAdapter(HedgeDataSource):
         return asset_code
 
 
+HEDGE_PRICE_CACHE_PREFIX = "hedge:prices"
+HEDGE_PRICE_CACHE_TIMEOUT = 86400  # 24 hours
+
+
+def _cache_hedge_prices(asset_code: str, prices: List[float]) -> None:
+    """Cache successfully fetched prices for fallback use"""
+    try:
+        from django.core.cache import cache
+        cache_key = f"{HEDGE_PRICE_CACHE_PREFIX}:{asset_code}"
+        cache.set(cache_key, prices, timeout=HEDGE_PRICE_CACHE_TIMEOUT)
+    except Exception as e:
+        logger.debug(f"Failed to cache hedge prices for {asset_code}: {e}")
+
+
+def _get_cached_hedge_prices(asset_code: str) -> Optional[List[float]]:
+    """Retrieve cached prices from a previous successful fetch"""
+    try:
+        from django.core.cache import cache
+        cache_key = f"{HEDGE_PRICE_CACHE_PREFIX}:{asset_code}"
+        return cache.get(cache_key)
+    except Exception as e:
+        logger.debug(f"Failed to read cached hedge prices for {asset_code}: {e}")
+        return None
+
+
 class CachedHedgeAdapter(HedgeDataSource):
     """
-    Cached/Mock data source for hedge module.
+    Cached data source for hedge module.
 
-    Fallback data source when external APIs fail.
+    Reads last-known-good prices from Django cache (written by Tushare/Akshare
+    on successful fetches). Falls back to realtime price cache if no historical
+    data is available.
     """
-
-    def __init__(self):
-        # Mock price data for common ETFs
-        self._mock_prices = {
-            '510300': {'base': 4.5, 'vol': 0.02},  # 沪深300
-            '510500': {'base': 7.2, 'vol': 0.025},  # 中证500
-            '159915': {'base': 1.8, 'vol': 0.03},   # 创业板
-            '512100': {'base': 3.2, 'vol': 0.015},  # 红利ETF
-            '511260': {'base': 102.5, 'vol': 0.005}, # 10年国债
-            '511880': {'base': 100.2, 'vol': 0.002}, # 银行间国债
-            '159985': {'base': 7.8, 'vol': 0.025},  # 商品ETF
-        }
 
     def get_asset_prices(
         self,
@@ -197,31 +212,33 @@ class CachedHedgeAdapter(HedgeDataSource):
         end_date: date,
         days: int = 60
     ) -> Optional[List[float]]:
-        """Generate mock price data"""
-        import random
+        """Return cached prices from previous successful fetches"""
+        # 1. Try Django cache (last-known-good from Tushare/Akshare)
+        cached = _get_cached_hedge_prices(asset_code)
+        if cached and len(cached) > 0:
+            logger.info(f"Returning cached prices for {asset_code} ({len(cached)} data points)")
+            return cached[-days:] if len(cached) >= days else cached
 
-        mock_data = self._mock_prices.get(asset_code)
-        if not mock_data:
-            # Generate default mock data
-            mock_data = {'base': 10.0, 'vol': 0.02}
+        # 2. Try realtime price cache (single latest price)
+        latest_price = self._get_realtime_price(asset_code)
+        if latest_price is not None:
+            logger.info(f"Using realtime price for {asset_code}: {latest_price}")
+            return [latest_price] * days
 
-        base_price = mock_data['base']
-        volatility = mock_data['vol']
+        return None
 
-        # Generate price series with random walk
-        prices = []
-        price = base_price
-
-        # Set seed for reproducibility based on asset_code and date
-        seed = hash(asset_code + end_date.strftime('%Y%m%d')) % 10000
-        random.seed(seed)
-
-        for _ in range(days):
-            change = random.gauss(0, volatility)
-            price = price * (1 + change)
-            prices.append(max(price, 0.01))  # Ensure positive prices
-
-        return prices
+    @staticmethod
+    def _get_realtime_price(asset_code: str) -> Optional[float]:
+        """Try to get latest price from realtime cache"""
+        try:
+            from apps.realtime.infrastructure.repositories import RedisRealtimePriceRepository
+            repo = RedisRealtimePriceRepository()
+            price_data = repo.get_latest_price(asset_code)
+            if price_data and price_data.price > 0:
+                return float(price_data.price)
+        except Exception:
+            pass
+        return None
 
 
 class FailoverHedgeAdapter(HedgeDataSource):
@@ -244,7 +261,7 @@ class FailoverHedgeAdapter(HedgeDataSource):
         end_date: date,
         days: int = 60
     ) -> Optional[List[float]]:
-        """Get prices with automatic failover"""
+        """Get prices with automatic failover and caching"""
         last_error = None
 
         for i, source in enumerate(self.sources):
@@ -255,6 +272,10 @@ class FailoverHedgeAdapter(HedgeDataSource):
                     if i > 0:
                         logger.info(f"Using fallback source {i+1} for {asset_code}")
 
+                    # Cache successful results from primary sources (not CachedHedgeAdapter)
+                    if not isinstance(source, CachedHedgeAdapter):
+                        _cache_hedge_prices(asset_code, prices)
+
                     return prices
 
             except Exception as e:
@@ -263,9 +284,7 @@ class FailoverHedgeAdapter(HedgeDataSource):
                 continue
 
         logger.error(f"All data sources failed for {asset_code}, last error: {last_error}")
-
-        # Return minimal mock data as last resort
-        return [100.0] * days
+        return None
 
 
 # Singleton instance for use in the application

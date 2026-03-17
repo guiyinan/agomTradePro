@@ -670,6 +670,7 @@ def _train_qlib_model(
         import qlib
         from qlib.contrib.data.handler import Alpha360
         from qlib.contrib.model.gbdt import LGBModel
+        from qlib.contrib.model.pytorch_gru import GRUModel
         from qlib.contrib.model.pytorch_lstm import LSTMModel
         from qlib.contrib.model.mlptron import MLPTPModel
         from qlib.data.dataset import DatasetH
@@ -743,11 +744,14 @@ def _train_qlib_model(
         # 模型类型映射
         model_cls_map = {
             'LGBModel': LGBModel,
+            'GRUModel': GRUModel,
             'LSTMModel': LSTMModel,
             'MLPModel': MLPTPModel,
         }
 
-        model_cls = model_cls_map.get(model_type, LGBModel)
+        model_cls = model_cls_map.get(model_type)
+        if model_cls is None:
+            raise ValueError(f"不支持的模型类型: {model_type}")
 
         # 模型参数（默认值 + 覆盖）
         default_model_params = {
@@ -782,47 +786,6 @@ def _train_qlib_model(
     except Exception as e:
         logger.error(f"训练 Qlib 模型失败: {e}", exc_info=True)
         raise
-
-
-def _create_mock_model(model_type: str):
-    """
-    创建模拟模型
-
-    当 Qlib 未安装时，创建一个简单的模拟模型用于测试。
-
-    Args:
-        model_type: 模型类型
-
-    Returns:
-        模拟模型对象
-    """
-    class MockModel:
-        """模拟 Qlib 模型"""
-
-        def __init__(self, model_type):
-            self.model_type = model_type
-            self.is_trained = True
-
-        def fit(self, dataset):
-            """模拟训练"""
-            logger.info(f"模拟训练 {self.model_type}")
-            return self
-
-        def predict(self, dataset=None):
-            """模拟预测，返回合成 instrument 分数。"""
-            import pandas as pd
-            import numpy as np
-
-            np.random.seed(42)
-            synthetic_instruments = [f"SYNTH{i:04d}" for i in range(10)]
-            scores = np.random.uniform(-0.5, 0.5, len(synthetic_instruments))
-            return pd.Series(scores, index=synthetic_instruments)
-
-        def __repr__(self):
-            return f"MockModel({self.model_type})"
-
-    logger.warning(f"创建模拟模型: {model_type}")
-    return MockModel(model_type)
 
 
 def _evaluate_model_metrics(model, universe: str, train_config: dict = None) -> dict:

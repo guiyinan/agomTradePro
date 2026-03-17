@@ -70,6 +70,8 @@ class MarketDataProvider:
         """
         获取资产价格（收盘价）
 
+        数据源优先级：内存缓存 → Tushare日线 → 实时价格缓存（Redis）
+
         Args:
             asset_code: 资产代码（如 'ASSET_CODE'）
             trade_date: 交易日期（None表示最新）
@@ -77,7 +79,7 @@ class MarketDataProvider:
         Returns:
             价格（元），获取失败返回None
         """
-        # 1. 检查缓存
+        # 1. 检查内存缓存
         cached_price, cached_time = self._price_cache.get(asset_code, (None, None))
         if cached_price is not None:
             # 检查缓存是否过期
@@ -97,11 +99,36 @@ class MarketDataProvider:
             logger.warning(f"未知资产类型: {asset_code}，尝试作为股票处理")
             price = self._get_stock_price(asset_code, trade_date)
 
-        # 3. 更新缓存
+        # 3. Fallback: 尝试从实时价格缓存获取
+        if price is None:
+            price = self._get_realtime_price(asset_code)
+
+        # 4. 更新内存缓存
         if price is not None:
             self._price_cache[asset_code] = (price, timezone.now())
 
         return price
+
+    def _get_realtime_price(self, asset_code: str) -> Optional[float]:
+        """
+        从实时价格缓存（Redis）获取最新价格
+
+        Args:
+            asset_code: 资产代码
+
+        Returns:
+            最新价格，获取失败返回None
+        """
+        try:
+            from apps.realtime.infrastructure.repositories import RedisRealtimePriceRepository
+            repo = RedisRealtimePriceRepository()
+            price_data = repo.get_latest_price(asset_code)
+            if price_data and price_data.price > 0:
+                logger.info(f"实时缓存 fallback: {asset_code} = {price_data.price}")
+                return float(price_data.price)
+        except Exception as e:
+            logger.debug(f"实时缓存获取失败: {asset_code}, {e}")
+        return None
 
     def _get_stock_price(self, stock_code: str, trade_date: date = None) -> Optional[float]:
         """

@@ -18,11 +18,11 @@
     "/alpha/": null
   },
   "api_route_corrections": {
-    "/api/account/": "/api/account/api/",
+    "/api/account/": "/api/account/",
     "/api/equity/": "/api/equity/",
     "/api/fund/": "/api/fund/",
     "/api/asset-analysis/": "/api/asset-analysis/multidim-screen/",
-    "/api/simulated-trading/": "/api/simulated-trading/api/accounts/",
+    "/api/simulated-trading/": "/api/simulated-trading/accounts/",
     "/api/alpha/": "/api/alpha/scores/",
     "/api/system/": "/api/system/list/"
   },
@@ -37,11 +37,11 @@
     "/sector/",
     "/strategy/",
     "/realtime/",
-    "/api/account/api/",
+    "/api/account/",
     "/api/equity/",
     "/api/fund/",
     "/api/asset-analysis/multidim-screen/",
-    "/api/simulated-trading/api/accounts/",
+    "/api/simulated-trading/accounts/",
     "/api/alpha/scores/",
     "/api/system/list/"
   ]

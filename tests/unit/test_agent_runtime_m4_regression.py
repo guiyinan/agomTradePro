@@ -193,7 +193,11 @@ class TestMCPRegistration:
     @pytest.fixture(autouse=True)
     def _tool_names(self):
         from agomsaaf_mcp.server import server
-        tools = asyncio.get_event_loop().run_until_complete(server.list_tools())
+        loop = asyncio.new_event_loop()
+        try:
+            tools = loop.run_until_complete(server.list_tools())
+        finally:
+            loop.close()
         self.tool_names = {t.name for t in tools}
 
     # M2 task tools

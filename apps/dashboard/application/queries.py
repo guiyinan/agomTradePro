@@ -30,6 +30,7 @@ class AlphaVisualizationData:
     provider_status: Dict[str, Any]
     coverage_metrics: Dict[str, Any]
     ic_trends: List[Dict[str, Any]]
+    ic_trends_meta: Dict[str, Any]
 
 
 class AlphaVisualizationQuery:
@@ -55,11 +56,13 @@ class AlphaVisualizationQuery:
         Returns:
             AlphaVisualizationData
         """
+        ic_trends = self._get_ic_trends(ic_days)
         return AlphaVisualizationData(
             stock_scores=self._get_stock_scores(top_n),
             provider_status=self._get_provider_status(),
             coverage_metrics=self._get_coverage_metrics(),
-            ic_trends=self._get_ic_trends(ic_days)
+            ic_trends=ic_trends,
+            ic_trends_meta=self._build_ic_trends_meta(ic_trends),
         )
 
     def _get_stock_scores(self, top_n: int) -> List[Dict[str, Any]]:
@@ -165,10 +168,20 @@ class AlphaVisualizationQuery:
                 "providers": provider_status,
                 "metrics": provider_metrics,
                 "timestamp": django_timezone.now().isoformat(),
+                "status": "available",
+                "data_source": "live",
+                "warning_message": None,
             }
         except Exception as e:
             logger.warning(f"Failed to get alpha provider status: {e}")
-            return {"providers": {}, "metrics": {}, "timestamp": None}
+            return {
+                "providers": {},
+                "metrics": {},
+                "timestamp": None,
+                "status": "degraded",
+                "data_source": "fallback",
+                "warning_message": "provider_status_unavailable",
+            }
 
     def _get_coverage_metrics(self) -> Dict[str, Any]:
         """获取 Alpha 覆盖率指标"""
@@ -186,6 +199,9 @@ class AlphaVisualizationQuery:
                 "total_requests": int(request_count.value) if request_count else 0,
                 "cache_hit_rate": round(cache_hit_rate.value, 3) if cache_hit_rate else 0.0,
                 "timestamp": django_timezone.now().isoformat(),
+                "status": "available",
+                "data_source": "live",
+                "warning_message": None,
             }
         except Exception as e:
             logger.warning(f"Failed to get alpha coverage metrics: {e}")
@@ -194,6 +210,9 @@ class AlphaVisualizationQuery:
                 "total_requests": 0,
                 "cache_hit_rate": 0.0,
                 "timestamp": None,
+                "status": "degraded",
+                "data_source": "fallback",
+                "warning_message": "coverage_metrics_unavailable",
             }
 
     def _get_ic_trends(self, days: int) -> List[Dict[str, Any]]:
@@ -204,7 +223,7 @@ class AlphaVisualizationQuery:
             active_models = QlibModelRegistryModel._default_manager.filter(is_active=True)
 
             if not active_models.exists():
-                return self._generate_mock_ic_data(days)
+                return self._empty_ic_data(days)
 
             trends = []
             base_date = date.today()
@@ -235,30 +254,40 @@ class AlphaVisualizationQuery:
 
         except Exception as e:
             logger.warning(f"Failed to get alpha IC trends: {e}")
-            return self._generate_mock_ic_data(days)
+            return self._empty_ic_data(days)
 
-    def _generate_mock_ic_data(self, days: int) -> List[Dict[str, Any]]:
-        """生成模拟 IC 数据"""
-        import random
-
+    def _empty_ic_data(self, days: int) -> List[Dict[str, Any]]:
+        """返回显式 unavailable 的空 IC 时间序列。"""
         trends = []
         base_date = date.today()
-        base_ic = 0.05
 
         for i in range(days):
             check_date = base_date - timedelta(days=days - i)
-            ic = base_ic + random.uniform(-0.02, 0.02)
-            icir = ic * random.uniform(0.5, 1.5)
-            rank_ic = ic * random.uniform(0.8, 1.2)
-
             trends.append({
                 "date": check_date.isoformat(),
-                "ic": round(ic, 4),
-                "icir": round(icir, 4),
-                "rank_ic": round(rank_ic, 4),
+                "ic": None,
+                "icir": None,
+                "rank_ic": None,
             })
 
         return trends
+
+    def _build_ic_trends_meta(self, trends: List[Dict[str, Any]]) -> Dict[str, Any]:
+        has_live_data = any(
+            row.get("ic") is not None or row.get("icir") is not None or row.get("rank_ic") is not None
+            for row in trends
+        )
+        if has_live_data:
+            return {
+                "status": "available",
+                "data_source": "live",
+                "warning_message": None,
+            }
+        return {
+            "status": "unavailable",
+            "data_source": "fallback",
+            "warning_message": "ic_trends_unavailable",
+        }
 
 
 # ============================================================================

@@ -432,7 +432,7 @@ class TestFactorPortfolioConfig:
 
     def test_factor_weights_must_sum_to_one(self):
         """Test factor weights must sum to 1.0"""
-        with pytest.raises(ValueError, match="Factor weights must sum to 1.0"):
+        with pytest.raises(ValueError, match="factor weights must sum to 1.0"):
             FactorPortfolioConfig(
                 name="测试",
                 factor_weights={"pe_ttm": 0.5, "roe": 0.3},

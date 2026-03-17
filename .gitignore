@@ -95,3 +95,4 @@ docs/docs.7z
 .mcp.json
 tmp_asset_screen_before.png
 docs/DEV_DIARY.md
+*.sqlite3-journal

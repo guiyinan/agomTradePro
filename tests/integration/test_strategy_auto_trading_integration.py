@@ -199,33 +199,36 @@ class TestStrategyAutoTradingIntegration(TestCase):
             is_active=True,
         )
 
-        # 4. 创建 Mock 的策略执行器
-        mock_strategy_executor = Mock()
-        # 模拟策略执行返回买入信号
-        mock_result = StrategyExecutionResult(
-            strategy_id=strategy.id,
-            portfolio_id=account.account_id,
-            execution_time=datetime.now(),
-            execution_duration_ms=100,
+        # 4. Mock 策略执行网关（engine 内部使用 gateway，不再直接使用 strategy_executor）
+        from apps.strategy.application.execution_gateway import (
+            ExecutionResult as GatewayExecutionResult,
+            SignalInfo,
+        )
+
+        mock_gateway = Mock()
+        mock_gateway.execute_for_account.return_value = GatewayExecutionResult(
+            success=True,
             signals=[
-                SignalRecommendation(
+                SignalInfo(
+                    signal_id=None,
                     asset_code='000001.SZ',
                     asset_name='平安银行',
-                    action=ActionType.BUY,
-                    weight=0.15,
-                    quantity=1000,  # 指定数量
-                    reason='PMI扩张（PMI=50.2 > 50）',
+                    action='buy',
+                    quantity=1000,
                     confidence=0.85,
-                    metadata={'rule_id': 1, 'rule_name': 'PMI扩张买入'}
+                    reason='PMI扩张（PMI=50.2 > 50）',
                 )
             ],
-            is_success=True,
-            error_message='',
-            context={}
         )
-        mock_strategy_executor.execute_strategy = Mock(return_value=mock_result)
+        # 网关还需提供 get_active_strategy_binding (facade 调用)
+        mock_gateway.get_active_strategy_binding.return_value = {
+            'strategy_id': strategy.id,
+            'name': strategy.name,
+            'strategy_type': 'rule_based',
+            'is_active': True,
+        }
 
-        # 5. 创建自动交易引擎（传入策略执行器）
+        # 5. 创建自动交易引擎
         market_data = Mock()
         market_data.get_price = Mock(return_value=10.50)
 
@@ -237,20 +240,21 @@ class TestStrategyAutoTradingIntegration(TestCase):
             sell_use_case=self.sell_use_case,
             performance_use_case=Mock(),
             market_data_provider=market_data,
-            strategy_executor=mock_strategy_executor
+            strategy_executor=Mock(),  # 需要非 None 以触发策略路径
         )
 
-        # 6. 处理账户（应该使用策略执行引擎）
-        buy_count, sell_count = engine._process_account(
-            account=account,
-            trade_date=date.today()
-        )
+        # 6. 处理账户（Patch 网关 — 覆盖 facade + engine 两处调用）
+        with patch(
+            'apps.strategy.application.execution_gateway.get_strategy_execution_gateway',
+            return_value=mock_gateway,
+        ):
+            buy_count, sell_count = engine._process_account(
+                account=account,
+                trade_date=date.today()
+            )
 
-        # 7. 验证策略执行器被调用
-        mock_strategy_executor.execute_strategy.assert_called_once_with(
-            strategy.id,
-            account.account_id
-        )
+        # 7. 验证网关被调用
+        mock_gateway.execute_for_account.assert_called_once()
 
         # 8. 验证买入信号被执行
         self.assertEqual(buy_count, 1)
@@ -278,6 +282,14 @@ class TestStrategyAutoTradingIntegration(TestCase):
             created_by=self.test_user,
         )
 
+        # 添加规则条件（规则驱动策略必须至少有一个规则）
+        RuleConditionModel.objects.create(
+            strategy=strategy,
+            rule_name='PMI收缩卖出',
+            rule_type='macro',
+            condition_json={'operator': '<', 'indicator': 'CN_PMI_MANUFACTURING', 'threshold': 50},
+        )
+
         # 2. 创建账户并绑定策略
         account = self.create_account_use_case.execute(
             account_name='卖出测试账户',
@@ -303,30 +315,34 @@ class TestStrategyAutoTradingIntegration(TestCase):
             reason='初始买入'
         )
 
-        # 4. 创建 Mock 的策略执行器（返回卖出信号）
-        mock_strategy_executor = Mock()
-        mock_result = StrategyExecutionResult(
-            strategy_id=strategy.id,
-            portfolio_id=account.account_id,
-            execution_time=datetime.now(),
-            execution_duration_ms=100,
+        # 4. Mock 策略执行网关（返回卖出信号）
+        from apps.strategy.application.execution_gateway import (
+            ExecutionResult as GatewayExecutionResult,
+            SignalInfo,
+        )
+
+        mock_gateway = Mock()
+        mock_gateway.execute_for_account.return_value = GatewayExecutionResult(
+            success=True,
             signals=[
-                SignalRecommendation(
+                SignalInfo(
+                    signal_id=None,
                     asset_code='000001.SZ',
                     asset_name='平安银行',
-                    action=ActionType.SELL,
-                    weight=0.0,
+                    action='sell',
                     quantity=None,  # 未指定数量，应该全部卖出
-                    reason='PMI收缩（PMI=49.5 < 50）',
                     confidence=0.75,
-                    metadata={}
+                    reason='PMI收缩（PMI=49.5 < 50）',
                 )
             ],
-            is_success=True,
-            error_message='',
-            context={}
         )
-        mock_strategy_executor.execute_strategy = Mock(return_value=mock_result)
+        # 网关还需提供 get_active_strategy_binding (facade 调用)
+        mock_gateway.get_active_strategy_binding.return_value = {
+            'strategy_id': strategy.id,
+            'name': strategy.name,
+            'strategy_type': 'rule_based',
+            'is_active': True,
+        }
 
         # 5. 创建自动交易引擎
         market_data = Mock()
@@ -340,14 +356,18 @@ class TestStrategyAutoTradingIntegration(TestCase):
             sell_use_case=self.sell_use_case,
             performance_use_case=Mock(),
             market_data_provider=market_data,
-            strategy_executor=mock_strategy_executor
+            strategy_executor=Mock(),  # 需要非 None 以触发策略路径
         )
 
-        # 6. 处理账户
-        buy_count, sell_count = engine._process_account(
-            account=account,
-            trade_date=date.today()
-        )
+        # 6. 处理账户（Patch 网关）
+        with patch(
+            'apps.strategy.application.execution_gateway.get_strategy_execution_gateway',
+            return_value=mock_gateway,
+        ):
+            buy_count, sell_count = engine._process_account(
+                account=account,
+                trade_date=date.today()
+            )
 
         # 7. 验证卖出信号被执行
         self.assertEqual(buy_count, 0)

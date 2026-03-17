@@ -34,11 +34,13 @@ class TestDecisionApprovedHandler:
         assert handler.can_handle(EventType.DECISION_EXECUTED) is False
         assert handler.can_handle(EventType.DECISION_REJECTED) is False
 
-    @patch('apps.alpha_trigger.infrastructure.models.AlphaCandidateModel')
-    def test_handle_updates_last_decision_request_id(self, mock_candidate_model):
+    def test_handle_updates_last_decision_request_id(self):
         """测试处理事件时更新 last_decision_request_id"""
-        # 准备测试数据
-        handler = DecisionApprovedHandler()
+        # 准备 mock 仓储
+        mock_repo = Mock()
+        mock_repo.update_last_decision_request_id.return_value = True
+
+        handler = DecisionApprovedHandler(alpha_candidate_repo=mock_repo)
 
         event = create_event(
             event_type=EventType.DECISION_APPROVED,
@@ -49,19 +51,13 @@ class TestDecisionApprovedHandler:
             },
         )
 
-        # Mock AlphaCandidate
-        mock_candidate = Mock()
-        mock_candidate_model.objects.get.return_value = mock_candidate
-
         # 执行
         handler.handle(event)
 
         # 验证
-        mock_candidate_model.objects.get.assert_called_once_with(
-            candidate_id="candidate_123"
+        mock_repo.update_last_decision_request_id.assert_called_once_with(
+            "candidate_123", "request_456"
         )
-        assert mock_candidate.last_decision_request_id == "request_456"
-        mock_candidate.save.assert_called_once()
 
     def test_handle_skips_if_missing_candidate_id(self):
         """测试缺少 candidate_id 时跳过处理"""
@@ -115,14 +111,18 @@ class TestDecisionExecutedHandler:
         assert handler.can_handle(EventType.DECISION_EXECUTED) is True
         assert handler.can_handle(EventType.DECISION_APPROVED) is False
 
-    @patch('apps.alpha_trigger.infrastructure.models.AlphaCandidateModel')
-    @patch('apps.decision_rhythm.infrastructure.models.DecisionRequestModel')
-    def test_handle_updates_execution_status(
-        self, mock_request_model, mock_candidate_model
-    ):
+    def test_handle_updates_execution_status(self):
         """测试处理事件时更新执行状态"""
-        # 准备测试数据
-        handler = DecisionExecutedHandler()
+        # 准备 mock 仓储
+        mock_request_repo = Mock()
+        mock_request_repo.update_execution_status_to_executed.return_value = True
+        mock_candidate_repo = Mock()
+        mock_candidate_repo.update_status_to_executed.return_value = True
+
+        handler = DecisionExecutedHandler(
+            decision_request_repo=mock_request_repo,
+            alpha_candidate_repo=mock_candidate_repo,
+        )
 
         event = create_event(
             event_type=EventType.DECISION_EXECUTED,
@@ -133,34 +133,18 @@ class TestDecisionExecutedHandler:
             },
         )
 
-        # Mock DecisionRequest
-        mock_request = Mock()
-        mock_request_model.objects.get.return_value = mock_request
-
-        # Mock AlphaCandidate
-        mock_candidate = Mock()
-        mock_candidate_model.objects.get.return_value = mock_candidate
-        mock_candidate_model.EXECUTED = "EXECUTED"
-        mock_candidate_model.EXECUTION_EXECUTED = "EXECUTED"
-
         # 执行
         handler.handle(event)
 
         # 验证 DecisionRequest 更新
-        mock_request_model.objects.get.assert_called_once_with(
-            request_id="request_456"
+        mock_request_repo.update_execution_status_to_executed.assert_called_once_with(
+            "request_456", {"trade_id": "trade_789"}
         )
-        assert mock_request.execution_status == "EXECUTED"
-        assert mock_request.execution_ref == {"trade_id": "trade_789"}
-        mock_request.save.assert_called_once()
 
         # 验证 AlphaCandidate 更新
-        mock_candidate_model.objects.get.assert_called_once_with(
-            candidate_id="candidate_123"
+        mock_candidate_repo.update_status_to_executed.assert_called_once_with(
+            "candidate_123"
         )
-        assert mock_candidate.status == "EXECUTED"
-        assert mock_candidate.last_execution_status == "EXECUTED"
-        mock_candidate.save.assert_called_once()
 
     def test_handle_skips_if_missing_request_id(self):
         """测试缺少 request_id 时跳过处理"""
@@ -193,14 +177,18 @@ class TestDecisionExecutionFailedHandler:
         assert handler.can_handle(EventType.DECISION_EXECUTION_FAILED) is True
         assert handler.can_handle(EventType.DECISION_EXECUTED) is False
 
-    @patch('apps.alpha_trigger.infrastructure.models.AlphaCandidateModel')
-    @patch('apps.decision_rhythm.infrastructure.models.DecisionRequestModel')
-    def test_handle_updates_failed_status(
-        self, mock_request_model, mock_candidate_model
-    ):
+    def test_handle_updates_failed_status(self):
         """测试处理事件时更新失败状态"""
-        # 准备测试数据
-        handler = DecisionExecutionFailedHandler()
+        # 准备 mock 仓储
+        mock_request_repo = Mock()
+        mock_request_repo.update_execution_status_to_failed.return_value = True
+        mock_candidate_repo = Mock()
+        mock_candidate_repo.update_execution_status_to_failed.return_value = True
+
+        handler = DecisionExecutionFailedHandler(
+            decision_request_repo=mock_request_repo,
+            alpha_candidate_repo=mock_candidate_repo,
+        )
 
         event = create_event(
             event_type=EventType.DECISION_EXECUTION_FAILED,
@@ -211,33 +199,14 @@ class TestDecisionExecutionFailedHandler:
             },
         )
 
-        # Mock DecisionRequest
-        mock_request = Mock()
-        mock_request_model.objects.get.return_value = mock_request
-
-        # Mock AlphaCandidate
-        mock_candidate = Mock()
-        mock_candidate_model.objects.get.return_value = mock_candidate
-        mock_candidate_model.EXECUTION_FAILED = "FAILED"
-
         # 执行
         handler.handle(event)
 
         # 验证 DecisionRequest 更新
-        mock_request_model.objects.get.assert_called_once_with(
-            request_id="request_456"
-        )
-        assert mock_request.execution_status == "FAILED"
-        mock_request.save.assert_called_once()
+        mock_request_repo.update_execution_status_to_failed.assert_called_once()
 
-        # 验证 AlphaCandidate 更新
-        # 注意：状态应保持 ACTIONABLE，允许重试
-        mock_candidate_model.objects.get.assert_called_once_with(
-            candidate_id="candidate_123"
-        )
-        assert mock_candidate.last_execution_status == "FAILED"
-        # status 不应被修改
-        assert not hasattr(mock_candidate, 'status') or mock_candidate.save.call_count == 1
+        # 验证 AlphaCandidate 更新 (保留 ACTIONABLE 状态，允许重试)
+        mock_candidate_repo.update_execution_status_to_failed.assert_called_once()
 
     def test_handle_keeps_actionable_status(self):
         """测试失败时保留 ACTIONABLE 状态（允许重试）"""

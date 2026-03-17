@@ -4,14 +4,12 @@ Train Qlib Model Management Command
 训练 Qlib 模型的 Django 管理命令。
 """
 
-import hashlib
 import json
 import logging
 import pickle
-from datetime import datetime
 from pathlib import Path
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 
@@ -196,8 +194,8 @@ class Command(BaseCommand):
         task = qlib_train_model.delay(
             model_name=kwargs['name'],
             model_type=kwargs['model_type'],
-            universe=kwargs['universe'],
             train_config={
+                'universe': kwargs['universe'],
                 'start_date': kwargs['start_date'],
                 'end_date': kwargs['end_date'],
                 'learning_rate': kwargs['learning_rate'],
@@ -215,14 +213,10 @@ class Command(BaseCommand):
     def _train_sync(self, **kwargs) -> dict:
         """同步训练"""
         try:
-            import qlib
-            from qlib.workflow import R
-            from qlib.contrib.evaluate import risk_analysis
-            from qlib.contrib.strategy.strategy import TopkDropoutStrategy
-
             # 初始化 Qlib
             from django.conf import settings
             qlib_config = settings.QLIB_SETTINGS
+            import qlib
             qlib.init(
                 provider_uri=qlib_config['provider_uri'],
                 region=qlib_config['region']
@@ -248,7 +242,11 @@ class Command(BaseCommand):
                 model=model,
                 name=kwargs['name'],
                 artifact_hash=artifact_hash,
-                config=train_config
+                config={
+                    **train_config,
+                    "model_type": kwargs["model_type"],
+                },
+                metrics=metrics,
             )
 
             # 写入 Registry
@@ -303,51 +301,27 @@ class Command(BaseCommand):
 
     def _execute_training(self, name: str, model_type: str, universe: str, config: dict):
         """执行训练"""
-        import qlib
-        from qlib.workflow import R
-        from qlib.contrib.model.pytorch_lstm import LSTMModel
-        from qlib.contrib.model.pytorch_gru import GRUModel
-        from qlib.contrib.model.gbdt import LGBModel
-        from qlib.contrib.model.mlptron import MLPTPModel
+        from apps.alpha.application.tasks import _calculate_artifact_hash, _train_qlib_model
 
-        # 模型类型映射
-        model_cls_map = {
-            'LGBModel': LGBModel,
-            'LSTMModel': LSTMModel,
-            'GRUModel': GRUModel,
-            'MLPModel': MLPTPModel,
-        }
-
-        model_cls = model_cls_map.get(model_type)
-        if not model_cls:
+        supported_model_types = {'LGBModel', 'LSTMModel', 'GRUModel', 'MLPModel'}
+        if model_type not in supported_model_types:
             raise ValueError(f"不支持的模型类型: {model_type}")
 
         # 准备数据
         self.stdout.write(f'  准备数据: {config["start_date"]} 到 {config["end_date"]}')
-
-        # 这里使用 Qlib 的工作流 API 训练模型
-        # 实际实现需要根据 Qlib 版本调整
+        train_config = {
+            **config,
+            "universe": universe,
+            "model_type": model_type,
+        }
 
         # 生成 artifact_hash（这里简化）
-        artifact_hash = hashlib.sha256(
-            f"{name}_{model_type}_{universe}_{config['end_date']}".encode()
-        ).hexdigest()
-
-        # 创建一个模拟模型用于测试
-        model = self._create_mock_model(model_type)
+        artifact_hash = _calculate_artifact_hash(
+            f"{name}_{model_type}_{universe}_{config['end_date']}"
+        )
+        model = _train_qlib_model(model_type=model_type, train_config=train_config)
 
         return model, artifact_hash
-
-    def _create_mock_model(self, model_type: str):
-        """创建模拟模型（用于测试）"""
-        class MockModel:
-            def __init__(self, model_type):
-                self.model_type = model_type
-
-            def predict(self, **kwargs):
-                return {}
-
-        return MockModel(model_type)
 
     def _evaluate_model(self, model, universe: str) -> dict:
         """
@@ -418,7 +392,7 @@ class Command(BaseCommand):
             'rank_ic': None,
         }
 
-    def _save_model(self, model, name: str, artifact_hash: str, config: dict) -> str:
+    def _save_model(self, model, name: str, artifact_hash: str, config: dict, metrics: dict) -> str:
         """保存模型到文件系统"""
         model_path = Path(config['model_path'])
         artifact_dir = model_path / name / artifact_hash
@@ -443,11 +417,7 @@ class Command(BaseCommand):
         # 保存指标
         metrics_file = artifact_dir / "metrics.json"
         with open(metrics_file, 'w') as f:
-            json.dump({
-                'ic': 0.05,
-                'icir': 0.8,
-                'rank_ic': 0.04,
-            }, f, indent=2)
+            json.dump(metrics, f, indent=2)
 
         self.stdout.write(f'  模型已保存: {artifact_dir}')
 
@@ -488,4 +458,3 @@ class Command(BaseCommand):
         self.stdout.write(f'  ✓ {action} Registry 记录')
 
         return registry
-

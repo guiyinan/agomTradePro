@@ -27,6 +27,8 @@ def test_regime_dashboard_view_handles_invalid_raw_data_values(monkeypatch):
             regime=SimpleNamespace(value="Recovery"),
             growth_level=50.1,
             inflation_level=2.3,
+            confidence=0.85,
+            distribution={"Recovery": 0.6, "Expansion": 0.4},
         ),
         raw_data={
             "growth": [
@@ -51,11 +53,20 @@ def test_regime_dashboard_view_handles_invalid_raw_data_values(monkeypatch):
         def execute(self, request_obj):
             return fake_response
 
+    # DjangoDataSourceConfig is instantiated as a class; provide a dummy class
+    class _FakeDataSourceConfig:
+        pass
+
     monkeypatch.setattr(
-        "apps.regime.interface.views.DataSourceConfig",
-        SimpleNamespace(_default_manager=_FakeSources()),
+        "apps.regime.interface.views.DjangoDataSourceConfig",
+        _FakeDataSourceConfig,
     )
-    monkeypatch.setattr("apps.regime.interface.views.DjangoMacroRepository", lambda: object())
+    monkeypatch.setattr("apps.regime.interface.views.MacroRepositoryAdapter", lambda: object())
+    # _get_available_sources() calls DjangoMacroSourceConfigGateway
+    monkeypatch.setattr(
+        "apps.regime.interface.views._get_available_sources",
+        lambda: [SimpleNamespace(source_type="akshare")],
+    )
     monkeypatch.setattr("apps.regime.interface.views.CalculateRegimeV2UseCase", _FakeUseCase)
     monkeypatch.setattr(
         "apps.regime.interface.views.render",

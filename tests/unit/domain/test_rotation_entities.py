@@ -333,55 +333,25 @@ class TestFactoryFunctions:
     """Tests for factory functions"""
 
     def test_get_common_etf_assets(self):
-        """Test getting common ETF assets"""
+        """Test getting common ETF assets - returns empty (DB-driven)"""
         assets = get_common_etf_assets()
-        assert len(assets) > 0
-
-        # Check for expected assets
-        asset_codes = [a.code for a in assets]
-        assert "510300" in asset_codes  # 沪深300ETF
-        assert "510500" in asset_codes  # 中证500ETF
-        assert "159915" in asset_codes  # 创业板ETF
-        assert "511260" in asset_codes  # 十年国债ETF
-        assert "159980" in asset_codes  # 黄金ETF
-
-        # Check categories
-        equity_assets = [a for a in assets if a.category == AssetCategory.EQUITY]
-        bond_assets = [a for a in assets if a.category == AssetCategory.BOND]
-        commodity_assets = [a for a in assets if a.category == AssetCategory.COMMODITY]
-
-        assert len(equity_assets) > 0
-        assert len(bond_assets) > 0
-        assert len(commodity_assets) > 0
+        assert isinstance(assets, list)
+        # Assets now come from DB, Domain layer returns empty list
+        assert len(assets) == 0
 
     def test_create_default_regime_allocation(self):
-        """Test creating default regime allocation"""
+        """Test creating default regime allocation - returns empty (DB-driven)"""
         allocation = create_default_regime_allocation()
         assert isinstance(allocation, dict)
-
-        # Check for expected regimes
-        assert "Recovery" in allocation
-        assert "Overheat" in allocation
-        assert "Stagflation" in allocation
-        assert "Deflation" in allocation
-
-        # Check allocation weights sum to 1
-        for regime, weights in allocation.items():
-            total = sum(weights.values())
-            assert abs(total - 1.0) < 0.01, f"{regime} allocation sums to {total}"
+        # Regime allocations now come from DB, Domain layer returns empty dict
+        assert len(allocation) == 0
 
     def test_create_default_momentum_config(self):
-        """Test creating default momentum config"""
-        config = create_default_momentum_config()
-        assert config.name == "动量轮动策略"
-        assert config.strategy_type == RotationStrategyType.MOMENTUM
-        assert config.top_n == 3
-        assert "momentum_periods" in config.params
+        """Test creating default momentum config raises ValueError (DB-driven)"""
+        with pytest.raises(ValueError, match="默认轮动配置已移除"):
+            create_default_momentum_config()
 
     def test_create_default_regime_config(self):
-        """Test creating default regime config"""
-        config = create_default_regime_config()
-        assert config.name == "宏观象限轮动策略"
-        assert config.strategy_type == RotationStrategyType.REGIME_BASED
-        assert len(config.regime_allocations) > 0
-        assert config.max_weight == 0.5
+        """Test creating default regime config raises ValueError (DB-driven)"""
+        with pytest.raises(ValueError, match="默认轮动配置已移除"):
+            create_default_regime_config()

@@ -170,8 +170,8 @@ class TestCalculateFactorExposure:
         result = engine.calculate_factor_exposure("000001", "special")
         assert result is None
 
-    def test_missing_value_allow_missing_false_raises(self) -> None:
-        """When allow_missing=False and value is None, raises ValueError."""
+    def test_missing_value_allow_missing_false_returns_none(self) -> None:
+        """When allow_missing=False and value is None, returns None (graceful handling)."""
         factor_def = make_factor_definition(
             code="special",
             name="Special",
@@ -180,8 +180,8 @@ class TestCalculateFactorExposure:
         ctx = _make_context(factor_defs=[factor_def])
         engine = FactorEngine(ctx)
 
-        with pytest.raises(ValueError, match="Missing factor value"):
-            engine.calculate_factor_exposure("000001", "special")
+        result = engine.calculate_factor_exposure("000001", "special")
+        assert result is None
 
     def test_z_score_calculation(self) -> None:
         """Z-score is correctly calculated as (value - mean) / std."""

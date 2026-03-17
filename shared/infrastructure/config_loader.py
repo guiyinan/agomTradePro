@@ -4,12 +4,13 @@ Configuration Loader for AgomSAAF
 提供带缓存的配置访问接口，替代硬编码。
 """
 
+import os
+import logging
 from typing import Optional, Dict, List, Any
+
 from django.core.cache import cache
 from django.conf import settings
 from django.db import models
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,16 @@ DEFAULT_INDICATOR_THRESHOLDS = {
     'CN_PMI': {'bullish': 50, 'bearish': 50},
     'CN_CPI': {'bullish': 2.0, 'bearish': 3.0},
 }
+
+
+def _legacy_fallback_allowed() -> bool:
+    settings_module = os.environ.get("DJANGO_SETTINGS_MODULE", "")
+    return bool(
+        getattr(settings, "DEBUG", False)
+        or "test" in settings_module
+        or "development" in settings_module
+        or getattr(settings, "ALLOW_LEGACY_CONFIG_FALLBACK", False)
+    )
 
 
 def get_asset_ticker(asset_class: str) -> Optional[str]:
@@ -56,13 +67,20 @@ def get_asset_ticker(asset_class: str) -> Optional[str]:
                 ticker = config.ticker_symbol
                 cache.set(cache_key, ticker, timeout=3600)  # 缓存 1 小时
             else:
-                # Fallback to hardcoded
-                ticker = DEFAULT_ASSET_TICKERS.get(asset_class)
-                logger.warning(f"Asset config not found for {asset_class}, using fallback: {ticker}")
+                if _legacy_fallback_allowed():
+                    ticker = DEFAULT_ASSET_TICKERS.get(asset_class)
+                    logger.warning(
+                        "Asset config not found for %s, using legacy fallback: %s",
+                        asset_class,
+                        ticker,
+                    )
+                else:
+                    logger.error("Asset config not found for %s and legacy fallback is disabled", asset_class)
+                    ticker = None
 
         except Exception as e:
             logger.error(f"Error loading asset ticker for {asset_class}: {e}")
-            ticker = DEFAULT_ASSET_TICKERS.get(asset_class)
+            ticker = DEFAULT_ASSET_TICKERS.get(asset_class) if _legacy_fallback_allowed() else None
 
     return ticker
 
@@ -103,14 +121,17 @@ def get_indicator_config(code: str) -> Optional[Dict[str, Any]]:
                 }
                 cache.set(cache_key, config, timeout=3600)
             else:
-                # Fallback to defaults
-                defaults = DEFAULT_INDICATOR_THRESHOLDS.get(code, {})
-                config = {
-                    'code': code,
-                    'threshold_bullish': defaults.get('bullish'),
-                    'threshold_bearish': defaults.get('bearish'),
-                }
-                logger.warning(f"Indicator config not found for {code}, using fallback")
+                if _legacy_fallback_allowed():
+                    defaults = DEFAULT_INDICATOR_THRESHOLDS.get(code, {})
+                    config = {
+                        'code': code,
+                        'threshold_bullish': defaults.get('bullish'),
+                        'threshold_bearish': defaults.get('bearish'),
+                    }
+                    logger.warning("Indicator config not found for %s, using legacy fallback", code)
+                else:
+                    logger.error("Indicator config not found for %s and legacy fallback is disabled", code)
+                    config = None
 
         except Exception as e:
             logger.error(f"Error loading indicator config for {code}: {e}")

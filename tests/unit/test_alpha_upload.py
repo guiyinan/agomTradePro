@@ -9,7 +9,7 @@ Alpha 上传与用户隔离单元测试
 """
 
 import pytest
-from datetime import date
+from datetime import date, timedelta
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework.test import APIClient
@@ -68,14 +68,22 @@ SAMPLE_SCORES = [
     },
 ]
 
-UPLOAD_PAYLOAD = {
-    "universe_id": "csi300",
-    "asof_date": "2026-03-08",
-    "intended_trade_date": "2026-03-10",
-    "model_id": "test_model",
-    "scope": "user",
-    "scores": SAMPLE_SCORES,
-}
+def _make_upload_payload(**overrides):
+    """生成使用动态日期的上传 payload"""
+    today = date.today()
+    payload = {
+        "universe_id": "csi300",
+        "asof_date": (today - timedelta(days=1)).isoformat(),
+        "intended_trade_date": today.isoformat(),
+        "model_id": "test_model",
+        "scope": "user",
+        "scores": SAMPLE_SCORES,
+    }
+    payload.update(overrides)
+    return payload
+
+
+UPLOAD_PAYLOAD = _make_upload_payload()
 
 
 @pytest.mark.django_db
@@ -157,8 +165,7 @@ class TestUserIsolation:
         # DB 里只有一条记录
         count = AlphaScoreCacheModel.objects.filter(
             universe_id="csi300",
-            intended_trade_date=date(2026, 3, 10),
-            provider_source="qlib",
+            intended_trade_date=date.today(),
         ).count()
         assert count >= 1  # 至少自己的一条
 
@@ -197,12 +204,15 @@ class TestReadIsolation:
     def test_user_read_prefers_personal_cache(self, normal_user, user_client):
         from apps.alpha.infrastructure.models import AlphaScoreCacheModel
 
+        today = date.today()
+        yesterday = today - timedelta(days=1)
+
         AlphaScoreCacheModel.objects.create(
             user=None,
             universe_id="csi300",
-            intended_trade_date=date(2026, 3, 10),
+            intended_trade_date=today,
             provider_source="qlib",
-            asof_date=date(2026, 3, 8),
+            asof_date=yesterday,
             model_id="system_model",
             model_artifact_hash="system_hash",
             scores=[{"code": "SYS", "score": 0.1, "rank": 1, "confidence": 1.0, "source": "system", "factors": {}}],
@@ -211,16 +221,16 @@ class TestReadIsolation:
         AlphaScoreCacheModel.objects.create(
             user=normal_user,
             universe_id="csi300",
-            intended_trade_date=date(2026, 3, 10),
+            intended_trade_date=today,
             provider_source="qlib",
-            asof_date=date(2026, 3, 8),
+            asof_date=yesterday,
             model_id="user_model",
             model_artifact_hash="user_hash",
             scores=[{"code": "USR", "score": 0.9, "rank": 1, "confidence": 1.0, "source": "user", "factors": {}}],
             status="available",
         )
 
-        resp = user_client.get("/api/alpha/scores/?universe=csi300&trade_date=2026-03-10")
+        resp = user_client.get(f"/api/alpha/scores/?universe=csi300&trade_date={today.isoformat()}")
 
         assert resp.status_code == 200
         assert resp.json()["stocks"][0]["code"] == "USR"
@@ -228,19 +238,22 @@ class TestReadIsolation:
     def test_user_read_falls_back_to_system_cache(self, user_client):
         from apps.alpha.infrastructure.models import AlphaScoreCacheModel
 
+        today = date.today()
+        yesterday = today - timedelta(days=1)
+
         AlphaScoreCacheModel.objects.create(
             user=None,
             universe_id="csi300",
-            intended_trade_date=date(2026, 3, 10),
+            intended_trade_date=today,
             provider_source="qlib",
-            asof_date=date(2026, 3, 8),
+            asof_date=yesterday,
             model_id="system_model",
             model_artifact_hash="system_hash",
             scores=[{"code": "SYS", "score": 0.1, "rank": 1, "confidence": 1.0, "source": "system", "factors": {}}],
             status="available",
         )
 
-        resp = user_client.get("/api/alpha/scores/?universe=csi300&trade_date=2026-03-10")
+        resp = user_client.get(f"/api/alpha/scores/?universe=csi300&trade_date={today.isoformat()}")
 
         assert resp.status_code == 200
         assert resp.json()["stocks"][0]["code"] == "SYS"
@@ -248,12 +261,15 @@ class TestReadIsolation:
     def test_admin_can_query_specific_user_scores(self, admin_client, normal_user):
         from apps.alpha.infrastructure.models import AlphaScoreCacheModel
 
+        today = date.today()
+        yesterday = today - timedelta(days=1)
+
         AlphaScoreCacheModel.objects.create(
             user=normal_user,
             universe_id="csi300",
-            intended_trade_date=date(2026, 3, 10),
+            intended_trade_date=today,
             provider_source="qlib",
-            asof_date=date(2026, 3, 8),
+            asof_date=yesterday,
             model_id="user_model",
             model_artifact_hash="user_hash",
             scores=[{"code": "USR", "score": 0.9, "rank": 1, "confidence": 1.0, "source": "user", "factors": {}}],
@@ -261,15 +277,16 @@ class TestReadIsolation:
         )
 
         resp = admin_client.get(
-            f"/api/alpha/scores/?universe=csi300&trade_date=2026-03-10&user_id={normal_user.pk}"
+            f"/api/alpha/scores/?universe=csi300&trade_date={today.isoformat()}&user_id={normal_user.pk}"
         )
 
         assert resp.status_code == 200
         assert resp.json()["stocks"][0]["code"] == "USR"
 
     def test_non_admin_cannot_query_other_user_scores(self, user_client, normal_user):
+        today = date.today()
         resp = user_client.get(
-            f"/api/alpha/scores/?universe=csi300&trade_date=2026-03-10&user_id={normal_user.pk}"
+            f"/api/alpha/scores/?universe=csi300&trade_date={today.isoformat()}&user_id={normal_user.pk}"
         )
 
         assert resp.status_code == 403

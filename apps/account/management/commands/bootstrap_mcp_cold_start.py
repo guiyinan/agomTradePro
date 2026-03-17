@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import os
 from copy import deepcopy
 from datetime import date, timedelta
 
-from django.core.management.base import BaseCommand
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
 
 from apps.equity.infrastructure.models import StockInfoModel
 from apps.factor.infrastructure.models import FactorPortfolioConfigModel
@@ -12,7 +14,7 @@ from apps.rotation.infrastructure.models import RotationConfigModel
 
 
 class Command(BaseCommand):
-    help = "Bootstrap MCP-friendly cold-start defaults for local/dev environments"
+    help = "Bootstrap MCP-friendly cold-start defaults for local/dev/test environments (dev-only)"
 
     STOCK_SEEDS = [
         ("000001.SZ", "平安银行", "银行", "SZ"),
@@ -32,6 +34,7 @@ class Command(BaseCommand):
     }
 
     def handle(self, *args, **options):
+        self._assert_dev_only_environment()
         self.stdout.write(self.style.SUCCESS("MCP cold-start bootstrap begin"))
 
         factor_fixed = self._repair_factor_configs()
@@ -46,6 +49,16 @@ class Command(BaseCommand):
                 f"stock_seeded={stock_seeded}, factor_seeded={factor_seeded}, "
                 f"rotation_seeded={rotation_seeded}, macro_seeded={macro_seeded}"
             )
+        )
+
+    def _assert_dev_only_environment(self) -> None:
+        settings_module = os.environ.get("DJANGO_SETTINGS_MODULE", "")
+        if settings.DEBUG:
+            return
+        if "test" in settings_module or "development" in settings_module or "development_sqlite" in settings_module:
+            return
+        raise CommandError(
+            "bootstrap_mcp_cold_start is dev-only and cannot run in production-like environments."
         )
 
     def _repair_factor_configs(self) -> int:

@@ -20,6 +20,16 @@ from apps.alpha.application.services import AlphaService
 from apps.alpha.application.tasks import qlib_predict_scores
 from apps.alpha.infrastructure.models import AlphaScoreCacheModel, QlibModelRegistryModel
 from apps.signal.application.unified_service import UnifiedSignalService
+
+# --- Helper: mock ETF constituents so ETF fallback returns real data ---
+_ETF_CONSTITUENTS_PATH = (
+    "apps.alpha.infrastructure.adapters.etf_adapter"
+    ".ETFFallbackProvider._get_etf_constituents"
+)
+_FAKE_ETF_CONSTITUENTS = (
+    [("600519.SH", 5.0), ("000858.SZ", 3.5), ("601318.SH", 2.8)],
+    None,
+)
 from apps.backtest.domain.alpha_backtest import (
     RunAlphaBacktestUseCase,
     RunAlphaBacktestRequest,
@@ -207,8 +217,10 @@ class TestAlphaProviderFallback:
         assert result.success
         assert result.source in ["cache", "simple", "etf"]  # 降级链路之一
 
-    def test_fallback_to_etf(self):
+    @patch(_ETF_CONSTITUENTS_PATH, return_value=_FAKE_ETF_CONSTITUENTS)
+    def test_fallback_to_etf(self, _mock_etf):
         """测试最终降级到 ETF"""
+        AlphaService._instance = None
         service = AlphaService()
 
         # 不创建任何缓存，应该最终降级到 ETF
@@ -216,6 +228,7 @@ class TestAlphaProviderFallback:
 
         # ETF Provider 应该总是可用
         assert result.success or result.source == "etf"
+        AlphaService._instance = None
 
 
 @pytest.mark.django_db

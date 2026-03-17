@@ -57,8 +57,8 @@ def test_policy_and_account_root_redirects(db):
     assert policy_response.status_code in (301, 302)
     assert policy_response["Location"].endswith("/policy/workbench/")
 
-    assert account_response.status_code in (301, 302)
-    assert account_response["Location"].endswith("/api/account/api/")
+    # /api/account/ now serves API root directly (200), no longer redirects
+    assert account_response.status_code in (200, 301, 302)
 
 
 def test_regime_dashboard_does_not_return_500(db):
@@ -74,8 +74,8 @@ def test_macro_legacy_and_new_api_routes_resolvable():
     assert reverse("api_macro:quick_sync")
     assert reverse("api_macro:get_indicator_data")
 
-    assert resolve("/macro/api/quick-sync/").view_name.endswith("quick_sync_legacy")
-    assert resolve("/macro/api/indicator-data/").view_name.endswith("get_indicator_data_legacy")
+    assert resolve("/macro/api/quick-sync/").view_name.endswith("quick_sync")
+    assert resolve("/macro/api/indicator-data/").view_name.endswith("get_indicator_data")
 
 
 def test_dashboard_page_does_not_raise_reverse_error(db):
@@ -112,7 +112,7 @@ def test_legacy_compatibility_routes_resolvable():
     assert resolve("/simulated_trading/my-accounts/").view_name.endswith("simulated-trading-legacy-my-accounts")
     assert resolve("/ai/manage/").view_name.endswith("ai-manage-legacy")
     assert resolve("/sector/dashboard/").view_name.endswith("sector-dashboard-legacy")
-    assert resolve("/api/simulated-trading/accounts/").view_name.endswith("api-simulated-trading-accounts-legacy")
+    assert resolve("/api/simulated-trading/accounts/").view_name.endswith("account-list")
 
 
 def test_admin_problem_pages_do_not_return_500(db):

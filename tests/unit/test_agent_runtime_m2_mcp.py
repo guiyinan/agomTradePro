@@ -16,7 +16,11 @@ class TestAgentTaskToolRegistration:
     def tool_names(self):
         """Get all registered tool names from MCP server."""
         from agomsaaf_mcp.server import server
-        tools = asyncio.get_event_loop().run_until_complete(server.list_tools())
+        loop = asyncio.new_event_loop()
+        try:
+            tools = loop.run_until_complete(server.list_tools())
+        finally:
+            loop.close()
         return [t.name for t in tools]
 
     def test_start_research_task_registered(self, tool_names):
@@ -48,7 +52,11 @@ class TestContextResourceRegistration:
     def resource_uris(self):
         """Get all registered resource URIs."""
         from agomsaaf_mcp.server import server
-        resources = asyncio.get_event_loop().run_until_complete(server.list_resources())
+        loop = asyncio.new_event_loop()
+        try:
+            resources = loop.run_until_complete(server.list_resources())
+        finally:
+            loop.close()
         return [str(r.uri) for r in resources]
 
     def test_research_context_resource(self, resource_uris):
@@ -74,7 +82,11 @@ class TestWorkflowPromptRegistration:
     def prompt_names(self):
         """Get all registered prompt names."""
         from agomsaaf_mcp.server import server
-        prompts = asyncio.get_event_loop().run_until_complete(server.list_prompts())
+        loop = asyncio.new_event_loop()
+        try:
+            prompts = loop.run_until_complete(server.list_prompts())
+        finally:
+            loop.close()
         return [p.name for p in prompts]
 
     def test_research_workflow_prompt(self, prompt_names):

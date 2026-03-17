@@ -144,7 +144,26 @@ class StrategyExecutionGateway:
         if self._executor is None:
             # 延迟导入避免循环依赖
             from apps.strategy.application.strategy_executor import StrategyExecutor
-            self._executor = StrategyExecutor()
+            from apps.strategy.infrastructure.repositories import (
+                DjangoStrategyRepository,
+                DjangoStrategyExecutionLogRepository,
+            )
+            from apps.strategy.infrastructure.providers import (
+                DjangoMacroDataProvider,
+                DjangoRegimeProvider,
+                DjangoAssetPoolProvider,
+                DjangoSignalProvider,
+                DjangoPortfolioDataProvider,
+            )
+            self._executor = StrategyExecutor(
+                strategy_repository=DjangoStrategyRepository(),
+                execution_log_repository=DjangoStrategyExecutionLogRepository(),
+                macro_provider=DjangoMacroDataProvider(),
+                regime_provider=DjangoRegimeProvider(),
+                asset_pool_provider=DjangoAssetPoolProvider(),
+                signal_provider=DjangoSignalProvider(),
+                portfolio_provider=DjangoPortfolioDataProvider(),
+            )
         return self._executor
 
     def execute_for_account(
@@ -167,37 +186,36 @@ class StrategyExecutionGateway:
         try:
             executor = self._get_executor()
 
-            # 执行策略
+            # 执行策略 — StrategyExecutor 使用 portfolio_id（与 account_id 对应）
             raw_result = executor.execute_strategy(
                 strategy_id=strategy_id,
-                account_id=account_id,
-                as_of_date=as_of_date
+                portfolio_id=account_id,
             )
 
-            if not raw_result.get('is_success', False):
+            if not raw_result.is_success:
                 return ExecutionResult(
                     success=False,
                     signals=[],
-                    error_message=raw_result.get('error_message', '策略执行失败')
+                    error_message=raw_result.error_message or '策略执行失败'
                 )
 
-            # 转换信号
+            # 转换信号（StrategyExecutionResult.signals -> [SignalRecommendation]）
             signals = []
-            for sig in raw_result.get('signals', []):
+            for sig in raw_result.signals:
                 signals.append(SignalInfo(
-                    signal_id=sig.get('signal_id'),
-                    asset_code=sig.get('asset_code', ''),
-                    asset_name=sig.get('asset_name', ''),
-                    action=sig.get('action', ''),
-                    quantity=sig.get('quantity'),
-                    confidence=sig.get('confidence', 0.0),
-                    reason=sig.get('reason', '')
+                    signal_id=None,
+                    asset_code=sig.asset_code,
+                    asset_name=sig.asset_name,
+                    action=sig.action.value if hasattr(sig.action, 'value') else str(sig.action),
+                    quantity=sig.quantity,
+                    confidence=sig.confidence,
+                    reason=sig.reason,
                 ))
 
             return ExecutionResult(
                 success=True,
                 signals=signals,
-                execution_time=raw_result.get('execution_time')
+                execution_time=raw_result.execution_time,
             )
 
         except Exception as e:
