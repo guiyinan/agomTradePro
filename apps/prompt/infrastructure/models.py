@@ -351,3 +351,216 @@ class ChatSessionORM(models.Model):
 
     def __str__(self):
         return f"Session: {self.session_id}"
+
+
+class TerminalCommandORM(models.Model):
+    """
+    终端命令配置ORM模型
+    
+    支持两种执行类型：
+    - prompt: 调用Prompt模板，通过AI生成响应
+    - api: 调用系统API端点
+    """
+
+    COMMAND_TYPE_CHOICES = [
+        ('prompt', 'Prompt模板调用'),
+        ('api', 'API端点调用'),
+        ('builtin', '内置命令'),
+    ]
+
+    OUTPUT_FORMAT_CHOICES = [
+        ('text', '纯文本'),
+        ('json', 'JSON格式'),
+        ('table', '表格格式'),
+        ('markdown', 'Markdown格式'),
+    ]
+
+    # 基本信息
+    name = models.CharField(
+        max_length=50,
+        unique=True,
+        db_index=True,
+        help_text="命令名称（如：analyze, report）"
+    )
+    display_name = models.CharField(
+        max_length=100,
+        help_text="显示名称"
+    )
+    description = models.TextField(
+        blank=True,
+        help_text="命令描述"
+    )
+    category = models.CharField(
+        max_length=50,
+        default='general',
+        db_index=True,
+        help_text="命令分类"
+    )
+
+    # 执行配置
+    command_type = models.CharField(
+        max_length=20,
+        choices=COMMAND_TYPE_CHOICES,
+        default='prompt',
+        help_text="命令类型"
+    )
+    
+    # Prompt类型配置
+    prompt_template = models.ForeignKey(
+        PromptTemplateORM,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='terminal_commands',
+        help_text="关联的Prompt模板（command_type=prompt时使用）"
+    )
+    system_prompt_override = models.TextField(
+        blank=True,
+        help_text="覆盖系统提示词（可选）"
+    )
+    
+    # API类型配置
+    api_endpoint = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="API端点路径（command_type=api时使用，如：/api/regime/current/）"
+    )
+    api_method = models.CharField(
+        max_length=10,
+        default='GET',
+        help_text="HTTP方法（GET/POST）"
+    )
+    api_payload_template = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="API请求体模板（支持变量插值）"
+    )
+    
+    # 响应处理
+    response_jq_filter = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="JQ过滤器，从API响应中提取数据"
+    )
+    output_format = models.CharField(
+        max_length=20,
+        choices=OUTPUT_FORMAT_CHOICES,
+        default='text',
+        help_text="输出格式"
+    )
+    output_template = models.TextField(
+        blank=True,
+        help_text="输出模板（Jinja2格式，可使用{{变量}}）"
+    )
+
+    # 参数定义（交互式输入）
+    # 格式: [{"name": "symbol", "type": "text", "prompt": "请输入股票代码", "required": true, "default": ""}]
+    parameters = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="参数定义列表（用于交互式输入）"
+    )
+
+    # 权限和状态
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text="是否启用"
+    )
+    requires_auth = models.BooleanField(
+        default=True,
+        help_text="是否需要登录"
+    )
+    allowed_roles = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="允许访问的角色列表（空表示所有用户）"
+    )
+
+    # 使用统计
+    usage_count = models.IntegerField(
+        default=0,
+        help_text="使用次数"
+    )
+    last_used_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="最后使用时间"
+    )
+
+    # 排序和分组
+    sort_order = models.IntegerField(
+        default=0,
+        help_text="排序顺序"
+    )
+
+    # 时间戳
+    created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, help_text="更新时间")
+
+    class Meta:
+        db_table = 'terminal_command'
+        ordering = ['category', 'sort_order', 'name']
+        verbose_name = "终端命令"
+        verbose_name_plural = "终端命令配置"
+        indexes = [
+            models.Index(fields=['category', 'is_active']),
+            models.Index(fields=['command_type', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.get_command_type_display()})"
+
+    def clean(self):
+        """验证配置"""
+        super().clean()
+        
+        # Prompt类型必须关联模板
+        if self.command_type == 'prompt' and not self.prompt_template:
+            from django.core.exceptions import ValidationError
+            raise ValidationError({
+                'prompt_template': 'Prompt类型命令必须关联Prompt模板'
+            })
+        
+        # API类型必须配置端点
+        if self.command_type == 'api' and not self.api_endpoint:
+            from django.core.exceptions import ValidationError
+            raise ValidationError({
+                'api_endpoint': 'API类型命令必须配置API端点'
+            })
+
+    def get_parameter_schema(self):
+        """获取参数的JSON Schema，用于前端验证"""
+        schema = {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+        
+        for param in self.parameters:
+            name = param.get('name', '')
+            param_type = param.get('type', 'text')
+            
+            # 映射到JSON Schema类型
+            type_map = {
+                'text': 'string',
+                'number': 'number',
+                'integer': 'integer',
+                'boolean': 'boolean',
+                'select': 'string',
+                'date': 'string',
+            }
+            
+            schema['properties'][name] = {
+                'type': type_map.get(param_type, 'string'),
+                'description': param.get('prompt', ''),
+                'default': param.get('default', ''),
+            }
+            
+            if param.get('required', False):
+                schema['required'].append(name)
+            
+            if param_type == 'select':
+                schema['properties'][name]['enum'] = param.get('options', [])
+        
+        return schema

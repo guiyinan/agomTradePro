@@ -222,6 +222,10 @@
                 <div class="dropdown">
                     <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">AI服务</button>
                     <div class="dropdown-menu">
+                        <a href="{% url 'terminal' %}" class="dropdown-item" target="_blank">
+                            <i class="bi bi-terminal"></i> AI Terminal
+                        </a>
+                        <div class="dropdown-divider"></div>
                         <a href="{% url 'ai_provider:manage' %}" class="dropdown-item">AI接口管理</a>
                         <a href="{% url 'ai_provider:logs' %}" class="dropdown-item">AI调用日志</a>
                         <a href="{% url 'prompt:prompt-manage' %}" class="dropdown-item">Prompt模板管理</a>

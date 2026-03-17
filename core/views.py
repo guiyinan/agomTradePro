@@ -66,6 +66,61 @@ def chat_example_view(request):
     return render(request, 'components/chat_example.html')
 
 
+# @login_required  # 临时禁用登录验证用于测试
+def terminal_view(request):
+    """
+    CLI Terminal 风格的 AI 聊天界面
+    
+    提供 bash 风格的命令行界面，用于与 AI 中台交互
+    """
+    from apps.regime.application.current_regime import resolve_current_regime
+    from apps.policy.infrastructure.repositories import DjangoPolicyRepository
+    
+    # 获取当前上下文信息
+    current_regime = resolve_current_regime()
+    
+    policy_repo = DjangoPolicyRepository()
+    latest_policy = policy_repo.get_current_policy_level()
+    
+    regime_display = {
+        'Recovery': '复苏',
+        'Overheat': '过热',
+        'Stagflation': '滞胀',
+        'Deflation': '通缩',
+    }
+    
+    context = {
+        'current_regime': current_regime.dominant_regime,
+        'regime_display': regime_display.get(current_regime.dominant_regime, '未知'),
+        'regime_confidence': f"{current_regime.confidence * 100:.1f}%" if current_regime.confidence else "N/A",
+        'current_policy': latest_policy.value if latest_policy else 'P1',
+        'page_title': 'AI Terminal',
+    }
+    
+    return render(request, 'terminal/index.html', context)
+
+
+@login_required
+def terminal_config_view(request):
+    """
+    终端命令配置页面
+    
+    管理员可以在此配置终端命令，映射到Prompt模板或API端点
+    """
+    from django.contrib.auth.decorators import permission_required
+    
+    # 检查权限
+    if not (request.user.is_staff or request.user.is_superuser):
+        from django.http import HttpResponseForbidden
+        return HttpResponseForbidden("需要管理员权限")
+    
+    context = {
+        'page_title': '终端命令配置',
+    }
+    
+    return render(request, 'terminal/config.html', context)
+
+
 @login_required
 def asset_screen_view(request):
     """

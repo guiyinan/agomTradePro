@@ -1,0 +1,720 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}终端命令配置 - AgomSAAF{% endblock %}
+
+{% block extra_css %}
+<style>
+.terminal-config-container {
+    padding: var(--spacing-lg, 24px);
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.config-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg, 24px);
+}
+
+.config-header h1 {
+    font-size: 1.5rem;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.config-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.command-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 16px;
+}
+
+.command-card {
+    background: var(--bg-secondary, #fff);
+    border: 1px solid var(--border-color, #e1e5e9);
+    border-radius: 8px;
+    padding: 16px;
+    transition: box-shadow 0.2s ease;
+}
+
+.command-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.command-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.command-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-primary, #3fb950);
+}
+
+.command-type-badge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.command-type-badge.prompt {
+    background: rgba(163, 113, 247, 0.15);
+    color: #a371f7;
+}
+
+.command-type-badge.api {
+    background: rgba(88, 166, 255, 0.15);
+    color: #58a6ff;
+}
+
+.command-type-badge.builtin {
+    background: rgba(210, 153, 34, 0.15);
+    color: #d29922;
+}
+
+.command-description {
+    color: var(--text-secondary, #656d76);
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+}
+
+.command-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 0.8rem;
+    color: var(--text-muted, #8b949e);
+}
+
+.command-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.command-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color, #e1e5e9);
+}
+
+.btn {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-primary {
+    background: var(--color-primary, #3fb950);
+    color: #fff;
+    border: none;
+}
+
+.btn-primary:hover {
+    background: var(--color-primary-hover, #238636);
+}
+
+.btn-secondary {
+    background: var(--bg-tertiary, #f6f8fa);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color, #e1e5e9);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-hover, #eaeef2);
+}
+
+.btn-danger {
+    background: rgba(248, 81, 73, 0.1);
+    color: #f85149;
+    border: 1px solid rgba(248, 81, 73, 0.3);
+}
+
+.btn-danger:hover {
+    background: rgba(248, 81, 73, 0.2);
+}
+
+/* Modal styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    background: var(--bg-primary, #fff);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+.modal-overlay.active .modal-content {
+    transform: scale(1);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border-color, #e1e5e9);
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-muted, #8b949e);
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.form-control {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color, #e1e5e9);
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--color-primary, #3fb950);
+    box-shadow: 0 0 0 3px rgba(63, 185, 80, 0.2);
+}
+
+textarea.form-control {
+    min-height: 100px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.form-hint {
+    font-size: 0.8rem;
+    color: var(--text-muted, #8b949e);
+    margin-top: 4px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-color, #e1e5e9);
+}
+
+/* Status toggle */
+.status-toggle {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+}
+
+.status-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.3s;
+    border-radius: 22px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+.status-toggle input:checked + .toggle-slider {
+    background-color: var(--color-primary, #3fb950);
+}
+
+.status-toggle input:checked + .toggle-slider:before {
+    transform: translateX(18px);
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 48px;
+    color: var(--text-muted, #8b949e);
+}
+
+.empty-state-icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="terminal-config-container">
+    <div class="config-header">
+        <h1>🖥️ 终端命令配置</h1>
+        <div class="config-actions">
+            <button class="btn btn-primary" onclick="openCreateModal()">
+                <span>+</span> 新建命令
+            </button>
+            <a href="{% url 'terminal' %}" class="btn btn-secondary" target="_blank">
+                打开终端 →
+            </a>
+        </div>
+    </div>
+
+    <div id="commands-container" class="command-grid">
+        <!-- Commands will be loaded here -->
+        <div class="empty-state">
+            <div class="empty-state-icon">⏳</div>
+            <p>加载命令列表...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Modal -->
+<div id="command-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modal-title">新建命令</h2>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="command-form">
+                <input type="hidden" id="command-id">
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="cmd-name">命令名称 *</label>
+                        <input type="text" id="cmd-name" class="form-control" required 
+                               placeholder="例如: analyze" pattern="[a-z_]+">
+                        <div class="form-hint">小写字母和下划线，用于终端调用</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="cmd-display-name">显示名称 *</label>
+                        <input type="text" id="cmd-display-name" class="form-control" required
+                               placeholder="例如: 股票分析">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="cmd-type">命令类型 *</label>
+                        <select id="cmd-type" class="form-control" required onchange="toggleTypeFields()">
+                            <option value="prompt">Prompt模板调用</option>
+                            <option value="api">API端点调用</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="cmd-category">分类</label>
+                        <input type="text" id="cmd-category" class="form-control" 
+                               placeholder="例如: analysis" value="general">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="cmd-description">描述</label>
+                    <textarea id="cmd-description" class="form-control" 
+                              placeholder="命令用途描述"></textarea>
+                </div>
+                
+                <!-- Prompt Type Fields -->
+                <div id="prompt-fields">
+                    <div class="form-group">
+                        <label for="cmd-prompt-template">关联Prompt模板</label>
+                        <select id="cmd-prompt-template" class="form-control">
+                            <option value="">选择模板...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="cmd-system-prompt">系统提示词（覆盖）</label>
+                        <textarea id="cmd-system-prompt" class="form-control"
+                                  placeholder="可选，覆盖模板的系统提示词"></textarea>
+                    </div>
+                </div>
+                
+                <!-- API Type Fields -->
+                <div id="api-fields" style="display: none;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="cmd-api-endpoint">API端点 *</label>
+                            <input type="text" id="cmd-api-endpoint" class="form-control"
+                                   placeholder="例如: /api/regime/current/">
+                        </div>
+                        <div class="form-group">
+                            <label for="cmd-api-method">HTTP方法</label>
+                            <select id="cmd-api-method" class="form-control">
+                                <option value="GET">GET</option>
+                                <option value="POST">POST</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="cmd-api-payload">请求体模板 (JSON)</label>
+                        <textarea id="cmd-api-payload" class="form-control"
+                                  placeholder='{"key": "{{param_name}}"}'></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="cmd-jq-filter">JQ过滤器</label>
+                        <input type="text" id="cmd-jq-filter" class="form-control"
+                               placeholder="例如: .data.regime">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="cmd-output-format">输出格式</label>
+                        <select id="cmd-output-format" class="form-control">
+                            <option value="text">纯文本</option>
+                            <option value="json">JSON</option>
+                            <option value="table">表格</option>
+                            <option value="markdown">Markdown</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="cmd-sort-order">排序</label>
+                        <input type="number" id="cmd-sort-order" class="form-control" value="0">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="cmd-output-template">输出模板 (Jinja2)</label>
+                    <textarea id="cmd-output-template" class="form-control"
+                              placeholder="{{ data.field_name }}或自定义格式"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="cmd-parameters">交互参数定义 (JSON)</label>
+                    <textarea id="cmd-parameters" class="form-control" rows="5">[]</textarea>
+                    <div class="form-hint">
+                        示例: [{"name": "symbol", "type": "text", "prompt": "股票代码", "required": true}]
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="status-toggle">
+                            <input type="checkbox" id="cmd-is-active" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span style="margin-left: 8px;">启用</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="status-toggle">
+                            <input type="checkbox" id="cmd-requires-auth" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span style="margin-left: 8px;">需要登录</span>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="saveCommand()">保存</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let commands = [];
+let templates = [];
+
+// Load commands on page load
+document.addEventListener('DOMContentLoaded', () => {
+    loadCommands();
+    loadTemplates();
+});
+
+async function loadCommands() {
+    try {
+        const response = await fetch('/api/prompt/terminal/commands/');
+        const data = await response.json();
+        commands = data.results || [];
+        renderCommands();
+    } catch (error) {
+        console.error('Failed to load commands:', error);
+        document.getElementById('commands-container').innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">❌</div>
+                <p>加载失败，请刷新页面重试</p>
+            </div>
+        `;
+    }
+}
+
+async function loadTemplates() {
+    try {
+        const response = await fetch('/api/prompt/templates/');
+        const data = await response.json();
+        templates = data.results || [];
+        
+        const select = document.getElementById('cmd-prompt-template');
+        select.innerHTML = '<option value="">选择模板...</option>';
+        templates.forEach(t => {
+            select.innerHTML += `<option value="${t.id}">${t.name} (${t.category})</option>`;
+        });
+    } catch (error) {
+        console.error('Failed to load templates:', error);
+    }
+}
+
+function renderCommands() {
+    const container = document.getElementById('commands-container');
+    
+    if (commands.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📝</div>
+                <p>暂无命令配置</p>
+                <button class="btn btn-primary" onclick="openCreateModal()">创建第一个命令</button>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = commands.map(cmd => `
+        <div class="command-card" data-id="${cmd.id}">
+            <div class="command-card-header">
+                <span class="command-name">${cmd.name}</span>
+                <span class="command-type-badge ${cmd.command_type}">${cmd.command_type}</span>
+            </div>
+            <div class="command-description">${cmd.description || cmd.display_name}</div>
+            <div class="command-meta">
+                <div class="command-meta-item">
+                    <span>📁 ${cmd.category}</span>
+                </div>
+                <div class="command-meta-item">
+                    <span>📊 ${cmd.usage_count || 0} 次调用</span>
+                </div>
+                <div class="command-meta-item">
+                    <span>${cmd.is_active ? '✅ 启用' : '⏸️ 禁用'}</span>
+                </div>
+            </div>
+            <div class="command-actions">
+                <button class="btn btn-secondary" onclick="editCommand(${cmd.id})">编辑</button>
+                <button class="btn btn-danger" onclick="deleteCommand(${cmd.id})">删除</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function openCreateModal() {
+    document.getElementById('modal-title').textContent = '新建命令';
+    document.getElementById('command-form').reset();
+    document.getElementById('command-id').value = '';
+    document.getElementById('cmd-is-active').checked = true;
+    document.getElementById('cmd-requires-auth').checked = true;
+    document.getElementById('cmd-parameters').value = '[]';
+    toggleTypeFields();
+    document.getElementById('command-modal').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('command-modal').classList.remove('active');
+}
+
+function toggleTypeFields() {
+    const type = document.getElementById('cmd-type').value;
+    document.getElementById('prompt-fields').style.display = type === 'prompt' ? 'block' : 'none';
+    document.getElementById('api-fields').style.display = type === 'api' ? 'block' : 'none';
+}
+
+function editCommand(id) {
+    const cmd = commands.find(c => c.id === id);
+    if (!cmd) return;
+    
+    document.getElementById('modal-title').textContent = '编辑命令';
+    document.getElementById('command-id').value = cmd.id;
+    document.getElementById('cmd-name').value = cmd.name;
+    document.getElementById('cmd-display-name').value = cmd.display_name || '';
+    document.getElementById('cmd-type').value = cmd.command_type;
+    document.getElementById('cmd-category').value = cmd.category || 'general';
+    document.getElementById('cmd-description').value = cmd.description || '';
+    document.getElementById('cmd-output-format').value = cmd.output_format || 'text';
+    document.getElementById('cmd-sort-order').value = cmd.sort_order || 0;
+    document.getElementById('cmd-is-active').checked = cmd.is_active;
+    document.getElementById('cmd-requires-auth').checked = cmd.requires_auth;
+    document.getElementById('cmd-parameters').value = JSON.stringify(cmd.parameters || [], null, 2);
+    
+    toggleTypeFields();
+    
+    // Load other fields based on type (would need to fetch full details)
+    document.getElementById('command-modal').classList.add('active');
+}
+
+async function saveCommand() {
+    const id = document.getElementById('command-id').value;
+    const data = {
+        name: document.getElementById('cmd-name').value,
+        display_name: document.getElementById('cmd-display-name').value,
+        command_type: document.getElementById('cmd-type').value,
+        category: document.getElementById('cmd-category').value || 'general',
+        description: document.getElementById('cmd-description').value,
+        output_format: document.getElementById('cmd-output-format').value,
+        sort_order: parseInt(document.getElementById('cmd-sort-order').value) || 0,
+        is_active: document.getElementById('cmd-is-active').checked,
+        requires_auth: document.getElementById('cmd-requires-auth').checked,
+        parameters: JSON.parse(document.getElementById('cmd-parameters').value || '[]'),
+    };
+    
+    // Add type-specific fields
+    if (data.command_type === 'prompt') {
+        const templateId = document.getElementById('cmd-prompt-template').value;
+        if (templateId) data.prompt_template = parseInt(templateId);
+        data.system_prompt_override = document.getElementById('cmd-system-prompt').value;
+    } else {
+        data.api_endpoint = document.getElementById('cmd-api-endpoint').value;
+        data.api_method = document.getElementById('cmd-api-method').value;
+        try {
+            data.api_payload_template = JSON.parse(document.getElementById('cmd-api-payload').value || '{}');
+        } catch (e) {
+            data.api_payload_template = {};
+        }
+        data.response_jq_filter = document.getElementById('cmd-jq-filter').value;
+    }
+    
+    data.output_template = document.getElementById('cmd-output-template').value;
+    
+    try {
+        const url = id ? `/api/prompt/terminal/commands/${id}/` : '/api/prompt/terminal/commands/';
+        const method = id ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            closeModal();
+            loadCommands();
+            showToast('命令保存成功', 'success');
+        } else {
+            const error = await response.json();
+            showToast('保存失败: ' + JSON.stringify(error), 'error');
+        }
+    } catch (error) {
+        showToast('保存失败: ' + error.message, 'error');
+    }
+}
+
+async function deleteCommand(id) {
+    if (!confirm('确定要删除此命令吗？')) return;
+    
+    try {
+        const response = await fetch(`/api/prompt/terminal/commands/${id}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        });
+        
+        if (response.ok) {
+            loadCommands();
+            showToast('命令已删除', 'success');
+        }
+    } catch (error) {
+        showToast('删除失败: ' + error.message, 'error');
+    }
+}
+
+function getCsrfToken() {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') return decodeURIComponent(value);
+    }
+    return '';
+}
+
+function showToast(message, type = 'info') {
+    if (window.showToast) {
+        window.showToast(message, type);
+    } else {
+        alert(message);
+    }
+}
+</script>
+{% endblock %}

@@ -1,8 +1,8 @@
 # AgomSAAF 文档索引
 
-> **AgomSAAF V3.4** - 宏观环境准入系统
-> **最后更新**: 2026-02-28
-> **项目状态**: 生产就绪（RC2 阶段）
+> **AgomSAAF V3.5** - 宏观环境准入系统
+> **最后更新**: 2026-03-17
+> **项目状态**: 生产就绪
 
 ---
 
@@ -177,6 +177,7 @@
 | [factor/factor-guide.md](modules/factor/factor-guide.md) | Factor 模块指南 | 完整 |
 | [rotation/rotation-guide.md](modules/rotation/rotation-guide.md) | Rotation 模块指南 | 完整 |
 | [hedge/hedge-guide.md](modules/hedge/hedge-guide.md) | Hedge 模块指南 | 完整 |
+| [terminal/terminal-guide.md](modules/terminal/terminal-guide.md) | Terminal 模块指南（终端 AI CLI） | ✅ 2026-03-17 新增 |
 | [simulated_trading/daily-inspection.md](modules/simulated_trading/daily-inspection.md) | 模拟盘日更巡检 | ✅ 新增 |
 | [strategy/position-management.md](modules/strategy/position-management.md) | 策略仓位管理 | ✅ 新增 |
 
@@ -275,13 +276,14 @@
 #### 数据接入模块 (1个)
 - `market_data` - 统一数据源接入层（东方财富/AKShare/Tushare 自动 failover + 交叉校验）（✅ 新增）
 
-#### 工具模块 (6个)
+#### 工具模块 (7个)
 - `ai_provider` - AI 服务商管理
 - `prompt` - AI Prompt 模板
 - `dashboard` - 仪表盘
 - `backtest` - 回测引擎
 - `events` - 事件系统
 - `task_monitor` - 定时任务监控
+- `terminal` - 终端 CLI（AI 交互界面）
 
 ---
 
@@ -333,7 +335,16 @@
 
 ---
 
-## 最近更新 (2026-02-20 ~ 2026-03-11)
+## 最近更新 (2026-02-20 ~ 2026-03-17)
+
+### 2026-03-17
+- ✅ **Terminal CLI 模块（V3.5）**
+  - 新增独立 `apps/terminal/` 模块（完整四层架构）
+  - 支持两种命令类型：Prompt 模板调用、API 端点调用
+  - 可配置命令系统（参数定义、JQ 过滤、输出格式）
+  - 终端风格 AI 交互界面
+  - 完整的 REST API 和 Admin 管理
+  - 依赖 prompt 模块的 AI 能力和数据模型
 
 ### 2026-03-11
 - ✅ **估值修复策略参数配置系统**
@@ -413,4 +424,4 @@
 ---
 
 **文档维护**: AgomSAAF Team
-**最后更新**: 2026-03-01
+**最后更新**: 2026-03-17

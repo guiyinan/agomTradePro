@@ -1,0 +1,184 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgomSAAF Terminal - AI CLI</title>
+    <link rel="stylesheet" href="{% static 'css/terminal.css' %}">
+    <style>
+        /* 独立页面样式 - 移除导航栏 */
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        .terminal-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+    </style>
+</head>
+<body>
+<div class="terminal-container">
+    <!-- 终端窗口 -->
+    <div class="terminal-window">
+        <!-- 终端标题栏 -->
+        <div class="terminal-header">
+            <div class="terminal-buttons">
+                <span class="terminal-btn terminal-btn-close" onclick="window.close(); if(window.opener) window.opener.location.reload();"></span>
+                <span class="terminal-btn terminal-btn-minimize"></span>
+                <span class="terminal-btn terminal-btn-maximize" id="fullscreen-btn"></span>
+            </div>
+            <div class="terminal-title">
+                <span class="terminal-icon">⬡</span>
+                AgomSAAF Terminal — AI Intelligent Platform CLI
+            </div>
+            <div class="terminal-info">
+                <span id="terminal-provider" class="terminal-badge">system</span>
+                <span id="terminal-model" class="terminal-badge terminal-badge-model">ready</span>
+                <a href="/" class="terminal-badge terminal-badge-link" title="Back to Home">← Home</a>
+            </div>
+        </div>
+
+        <!-- 终端内容区 -->
+        <div class="terminal-body" id="terminal-body">
+            <!-- 启动信息 -->
+            <div class="terminal-output terminal-welcome">
+                <div class="terminal-ascii-art">
+<pre>
+     _                             ____     _        _     _____ 
+    / \    __ _   ___   _ __ ___  / ___|   / \      / \   |  ___|
+   / _ \  / _` | / _ \ | '_ ` _ \ \___ \  / _ \    / _ \  | |_   
+  / ___ \| (_| || (_) || | | | | | ___) |/ ___ \  / ___ \ |  _|  
+ /_/   \_\\__, | \___/ |_| |_| |_||____//_/   \_\/_/   \_\|_|    
+          |___/                                                  
+</pre>
+                </div>
+                <div class="terminal-system-info">
+                    <p><span class="terminal-prompt">$</span> <span class="terminal-cmd">system --info</span></p>
+                    <p class="terminal-result">AgomSAAF Terminal v2.0.0</p>
+                    <p class="terminal-result">Type <span class="terminal-cmd">help</span> for available commands</p>
+                    <p class="terminal-result">Type <span class="terminal-cmd">chat &lt;message&gt;</span> to talk with AI</p>
+                    <p class="terminal-result">Press <span class="terminal-key">Tab</span> for auto-completion</p>
+                    <p class="terminal-result">Press <span class="terminal-key">↑/↓</span> for command history</p>
+                </div>
+            </div>
+
+            <!-- 命令输出区域 -->
+            <div id="terminal-output" class="terminal-output-area"></div>
+
+            <!-- 输入区域 -->
+            <div class="terminal-input-line">
+                <span class="terminal-prompt" id="terminal-prompt">{{ request.user.username|default:"guest" }}@agomSAAF:~$</span>
+                <input type="text" 
+                       id="terminal-input" 
+                       class="terminal-input" 
+                       autocomplete="off" 
+                       autocapitalize="off"
+                       autocorrect="off"
+                       spellcheck="false"
+                       autofocus>
+            </div>
+        </div>
+    </div>
+
+    <!-- 侧边栏工具面板 -->
+    <div class="terminal-sidebar" id="terminal-sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-title">Quick Actions</span>
+            <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle Sidebar">◀</button>
+        </div>
+        
+        <div class="sidebar-content">
+            <!-- AI Provider 选择 -->
+            <div class="sidebar-section">
+                <label class="sidebar-label">AI Provider</label>
+                <select id="provider-select" class="sidebar-select">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+
+            <!-- Model 选择 -->
+            <div class="sidebar-section">
+                <label class="sidebar-label">Model</label>
+                <select id="model-select" class="sidebar-select">
+                    <option value="">Select provider first</option>
+                </select>
+            </div>
+
+            <!-- 快捷命令 -->
+            <div class="sidebar-section">
+                <label class="sidebar-label">Quick Commands</label>
+                <div class="quick-commands">
+                    <button class="quick-cmd-btn" data-cmd="status">
+                        <span class="quick-cmd-icon">📊</span>
+                        <span>System Status</span>
+                    </button>
+                    <button class="quick-cmd-btn" data-cmd="regime">
+                        <span class="quick-cmd-icon">🌡️</span>
+                        <span>Current Regime</span>
+                    </button>
+                    <button class="quick-cmd-btn" data-cmd="signals">
+                        <span class="quick-cmd-icon">📡</span>
+                        <span>Active Signals</span>
+                    </button>
+                    <button class="quick-cmd-btn" data-cmd="quota">
+                        <span class="quick-cmd-icon">🎫</span>
+                        <span>Decision Quota</span>
+                    </button>
+                    <button class="quick-cmd-btn" data-cmd="clear">
+                        <span class="quick-cmd-icon">🗑️</span>
+                        <span>Clear Screen</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 会话信息 -->
+            <div class="sidebar-section">
+                <label class="sidebar-label">Session Info</label>
+                <div class="session-info">
+                    <div class="session-item">
+                        <span class="session-label">Session ID:</span>
+                        <span class="session-value" id="session-id">-</span>
+                    </div>
+                    <div class="session-item">
+                        <span class="session-label">Messages:</span>
+                        <span class="session-value" id="message-count">0</span>
+                    </div>
+                    <div class="session-item">
+                        <span class="session-label">Tokens:</span>
+                        <span class="session-value" id="token-count">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 全屏切换
+document.getElementById('fullscreen-btn')?.addEventListener('click', function() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+    } else {
+        document.exitFullscreen();
+    }
+});
+
+// CSRF Token
+window.csrfToken = (function() {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') return decodeURIComponent(value);
+    }
+    return '';
+})();
+</script>
+<script src="{% static 'js/terminal.js' %}"></script>
+</body>
+</html>

@@ -33,6 +33,9 @@ from core.views import (
     decision_workspace_view,
     ops_center_view,
 )
+
+# 终端视图（从terminal模块导入）
+from apps.terminal.interface.views import terminal_view, terminal_config_view
 from core.api_views import ConfigCenterSnapshotView, ConfigCapabilitiesView
 from core.admin_log_views import (
     server_logs_page,
@@ -77,6 +80,7 @@ def api_root_view(request):
             'share': '/api/share/',
             'system': '/api/system/',
             'system-config-center': '/api/system/config-center/',
+            'terminal': '/api/terminal/',
             'docs': '/api/docs/',
             'schema': '/api/schema/',
         }
@@ -91,6 +95,8 @@ core_patterns = [
     path('api/system/config-center/', ConfigCenterSnapshotView.as_view(), name='api-system-config-center'),
     path('api/system/config-capabilities/', ConfigCapabilitiesView.as_view(), name='api-system-config-capabilities'),
     path('chat-example/', chat_example_view, name='chat-example'),
+    path('terminal/', terminal_view, name='terminal'),
+    path('terminal/config/', terminal_config_view, name='terminal-config'),
     # 301 重定向旧页面到统一工作台
     path('policy/dashboard/', RedirectView.as_view(url='/policy/workbench/', permanent=True), name='policy-dashboard'),
     path('asset-analysis/screen/', asset_screen_view, name='asset-screen'),
@@ -203,6 +209,7 @@ module_patterns = [
     path('api/sector/', include(('apps.sector.interface.urls', 'api_sector'), namespace='api_sector')),
     path('api/ai/', include(('apps.ai_provider.interface.api_urls', 'api_ai_provider'), namespace='api_ai_provider')),
     path('api/prompt/', include(('apps.prompt.interface.api_urls', 'api_prompt'), namespace='api_prompt')),
+    path('api/terminal/', include(('apps.terminal.interface.api_urls', 'api_terminal'), namespace='api_terminal')),
     path('api/realtime/', include(('apps.realtime.interface.urls', 'api_realtime'), namespace='api_realtime')),
     path('api/factor/', include(('apps.factor.interface.api_urls', 'api_factor'), namespace='api_factor')),
     path('api/rotation/', include(('apps.rotation.interface.api_urls', 'api_rotation'), namespace='api_rotation')),

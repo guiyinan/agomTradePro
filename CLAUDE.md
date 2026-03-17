@@ -4,21 +4,18 @@
 
 ## 项目概述
 
-> **最后更新**: 2026-02-26
-> **系统版本**: AgomSAAF V3.4
+> **最后更新**: 2026-03-17
+> **系统版本**: AgomSAAF V3.5
 > **项目状态**: 生产就绪
-> **业务模块**: 27个
+> **业务模块**: 28个
 > **测试覆盖**: 1,500+ 个测试用例
 
 AgomSAAF (Agom Strategic Asset Allocation Framework) 是一个宏观环境准入系统，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
 
 **最新完成**:
-- V3.4 后续开发路线图全部完成（2026-02-26）
-- 主链路无 501 占位接口
-- 完整的 CI 门禁和守护测试
-- Alpha 模块与 Qlib 深度集成（Phase 1-5 全部完成）
-- 新增 Factor/Rotation/Hedge 智能模块
-- 架构合规性修复（2026-02-20）
+- V3.5 新增 Terminal CLI 模块（终端风格 AI 交互界面）
+- 支持可配置命令系统（Prompt/API 两种执行类型）
+- 完整的 DDD 四层架构实现
 
 ## 技术栈
 
@@ -71,7 +68,7 @@ AgomSAAF/
 │   │   └── production.py
 │   ├── urls.py
 │   └── celery.py
-├── apps/                     # 27个业务模块
+├── apps/                     # 28个业务模块
 │   ├── macro/                # 宏观数据采集
 │   ├── regime/               # Regime 判定引擎
 │   ├── policy/               # 政策事件管理
@@ -98,7 +95,8 @@ AgomSAAF/
 │   ├── factor/               # 因子管理
 │   ├── rotation/             # 板块轮动
 │   ├── hedge/                # 对冲策略
-│   └── events/               # 事件系统
+│   ├── events/               # 事件系统
+│   └── terminal/             # 终端 CLI（AI 交互界面）
 ├── shared/                   # 跨 App 共享（仅技术性组件）
 │   ├── domain/interfaces.py  # Protocol 定义
 │   ├── infrastructure/       # 通用算法实现（如 Kalman 滤波）
@@ -418,7 +416,7 @@ ak.macro_china_money_supply()
 
 ## 当前开发阶段
 
-**项目状态**: 核心功能已完成 (98%)
+**项目状态**: 核心功能已完成 (99%)
 
 **Phase 1-7 已完成** ✅:
 - ✅ Django 项目骨架
@@ -441,6 +439,7 @@ ak.macro_china_money_supply()
 - ✅ Factor 模块（因子管理）
 - ✅ Rotation 模块（板块轮动）
 - ✅ Hedge 模块（对冲策略）
+- ✅ Terminal 模块（终端 CLI，AI 交互界面）
 
 **Phase 8: 功能完善** (进行中):
 - [x] Audit 模块补全 ✅ (含 Brinson 归因 + 完整测试覆盖)
@@ -497,3 +496,4 @@ ak.macro_china_money_supply()
 - `factor/` - 因子管理模块，支持因子计算、分析、IC/ICIR 评估
 - `rotation/` - 板块轮动模块，基于 Regime 的板块配置建议
 - `hedge/` - 对冲策略模块，支持期货对冲计算和管理
+- `terminal/` - 终端 CLI 模块，提供终端风格的 AI 交互界面，支持可配置命令系统
