@@ -454,12 +454,59 @@ def send_performance_summary_task(self, account_ids: Optional[list] = None) -> D
 
         logger.info(f"绩效摘要生成完成: {len(summaries)} 个账户")
 
-        # TODO: 实现邮件/消息推送
-        # 目前只记录日志，实际部署时需要集成邮件服务
+        # 邮件推送绩效摘要
+        notification_results = []
+        try:
+            from shared.infrastructure.notification_service import (
+                get_notification_service,
+                NotificationPriority,
+            )
+            notification_service = get_notification_service()
+
+            # 构建摘要文本
+            lines = [f"模拟盘绩效日报 ({date.today().isoformat()})"]
+            lines.append("=" * 40)
+            for s in summaries:
+                lines.append(
+                    f"\n账户: {s['account_name']}"
+                    f"\n  总资产: {s['total_value']:,.2f}"
+                    f"\n  总收益: {s['total_return']:.2%}"
+                    f"\n  最大回撤: {s['max_drawdown']:.2%}"
+                    f"\n  夏普比率: {s['sharpe_ratio']:.2f}"
+                    f"\n  胜率: {s['win_rate']:.2%}"
+                    f"\n  交易/持仓: {s['total_trades']}/{s['total_positions']}"
+                )
+            body = "\n".join(lines)
+
+            # 从 settings 获取收件人列表
+            recipients = getattr(
+                settings, 'PERFORMANCE_SUMMARY_RECIPIENTS', []
+            )
+            if recipients:
+                results = notification_service.send_email(
+                    subject=f"模拟盘绩效日报 - {date.today().isoformat()}",
+                    body=body,
+                    recipients=recipients,
+                    priority=NotificationPriority.NORMAL,
+                )
+                notification_results = [
+                    {'email': r.recipient.email, 'success': r.success}
+                    for r in results
+                ]
+                logger.info(
+                    f"绩效摘要邮件发送完成: "
+                    f"{sum(1 for r in results if r.success)}/{len(results)} 成功"
+                )
+            else:
+                logger.info("未配置 PERFORMANCE_SUMMARY_RECIPIENTS，跳过邮件推送")
+
+        except Exception as notify_err:
+            logger.warning(f"绩效摘要邮件推送失败（不影响主流程）: {notify_err}")
 
         return {
             'success': True,
             'summaries': summaries,
+            'notifications': notification_results,
         }
 
     except Exception as e:
@@ -909,13 +956,57 @@ def notify_invalidated_positions_task(self) -> Dict[str, Any]:
                 f" | 原因: {pos['invalidation_reason']}"
             )
 
-        # TODO: 实现通知功能（邮件/消息推送）
-        # 目前只记录日志
+        # 邮件推送证伪持仓通知
+        notification_results = []
+        if positions:
+            try:
+                from shared.infrastructure.notification_service import (
+                    get_notification_service,
+                    NotificationPriority,
+                )
+                notification_service = get_notification_service()
+
+                lines = [f"证伪持仓通知 ({date.today().isoformat()})"]
+                lines.append("=" * 40)
+                for pos in positions:
+                    lines.append(
+                        f"\n账户: {pos['account_name']}"
+                        f"\n  标的: {pos['asset_code']} ({pos['asset_name']})"
+                        f"\n  数量: {pos['quantity']}"
+                        f"\n  原因: {pos['invalidation_reason']}"
+                    )
+                body = "\n".join(lines)
+
+                recipients = getattr(
+                    settings, 'INVALIDATION_ALERT_RECIPIENTS',
+                    getattr(settings, 'PERFORMANCE_SUMMARY_RECIPIENTS', []),
+                )
+                if recipients:
+                    results = notification_service.send_email(
+                        subject=f"[重要] 证伪持仓通知 - {len(positions)} 个持仓",
+                        body=body,
+                        recipients=recipients,
+                        priority=NotificationPriority.HIGH,
+                    )
+                    notification_results = [
+                        {'email': r.recipient.email, 'success': r.success}
+                        for r in results
+                    ]
+                    logger.info(
+                        f"证伪持仓邮件发送完成: "
+                        f"{sum(1 for r in results if r.success)}/{len(results)} 成功"
+                    )
+                else:
+                    logger.info("未配置通知收件人，跳过邮件推送")
+
+            except Exception as notify_err:
+                logger.warning(f"证伪持仓邮件推送失败（不影响主流程）: {notify_err}")
 
         return {
             'success': True,
             'count': len(positions),
             'positions': positions,
+            'notifications': notification_results,
         }
 
     except Exception as e:

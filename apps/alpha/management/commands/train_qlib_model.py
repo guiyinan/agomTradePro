@@ -350,12 +350,72 @@ class Command(BaseCommand):
         return MockModel(model_type)
 
     def _evaluate_model(self, model, universe: str) -> dict:
-        """评估模型"""
-        # TODO: 实现 IC/ICIR 计算
+        """
+        评估模型 IC/ICIR 指标
+
+        优先使用 Qlib 完整评估，失败时尝试缓存评估，
+        均不可用时返回空指标（不使用硬编码假数据）。
+        """
+        # 1) 尝试 Qlib 完整评估
+        try:
+            from apps.alpha.application.tasks import _evaluate_model_metrics
+            metrics = _evaluate_model_metrics(model, universe)
+            if metrics and metrics.get('ic') is not None:
+                self.stdout.write(
+                    f"  IC={metrics['ic']:.4f}  ICIR={metrics.get('icir', 0):.4f}  "
+                    f"Rank IC={metrics.get('rank_ic', 0):.4f}"
+                )
+                return metrics
+        except Exception as e:
+            logger.warning(f"Qlib 完整评估不可用: {e}")
+
+        # 2) 尝试缓存评估
+        try:
+            from datetime import timedelta
+            from apps.alpha.infrastructure.cache_evaluation import evaluate_model_from_cache
+
+            end_date = timezone.now().date()
+            start_date = end_date - timedelta(days=60)
+
+            # 需要 artifact_hash —— 在 handle() 中计算后传入
+            # 此处 fallback：扫描该 universe 最近的缓存
+            from apps.alpha.infrastructure.models import AlphaScoreCacheModel
+            latest = (
+                AlphaScoreCacheModel.objects
+                .filter(universe_id=universe, provider_source="qlib")
+                .order_by('-intended_trade_date')
+                .first()
+            )
+            if latest and latest.model_artifact_hash:
+                cache_metrics = evaluate_model_from_cache(
+                    model_artifact_hash=latest.model_artifact_hash,
+                    universe_id=universe,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+                result = {
+                    'ic': cache_metrics.ic if cache_metrics.ic is not None else None,
+                    'icir': cache_metrics.icir if cache_metrics.icir is not None else None,
+                    'rank_ic': cache_metrics.rank_ic if cache_metrics.rank_ic is not None else None,
+                }
+                if result['ic'] is not None:
+                    self.stdout.write(
+                        f"  (缓存评估) IC={result['ic']:.4f}  "
+                        f"ICIR={result.get('icir', 0) or 0:.4f}  "
+                        f"Rank IC={result.get('rank_ic', 0) or 0:.4f}"
+                    )
+                    return result
+        except Exception as e:
+            logger.warning(f"缓存评估不可用: {e}")
+
+        # 3) 均不可用：返回空指标，不造假
+        self.stdout.write(self.style.WARNING(
+            '  ⚠ 无法计算 IC/ICIR（Qlib 未初始化且无缓存数据）'
+        ))
         return {
-            'ic': 0.05,
-            'icir': 0.8,
-            'rank_ic': 0.04,
+            'ic': None,
+            'icir': None,
+            'rank_ic': None,
         }
 
     def _save_model(self, model, name: str, artifact_hash: str, config: dict) -> str:

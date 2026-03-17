@@ -309,13 +309,98 @@ def notify_regime_change_after_calculation(
                     f"REGIME CHANGE DETECTED: {last_snapshot.dominant_regime} -> "
                     f"{regime_result['dominant_regime']}"
                 )
-                # TODO: 集成邮件/钉钉/Slack 通知
+
+                # 发送 Regime 变化通知
+                try:
+                    from shared.infrastructure.notification_service import (
+                        get_notification_service,
+                        NotificationPriority,
+                    )
+                    from django.conf import settings as django_settings
+
+                    svc = get_notification_service()
+
+                    subject = (
+                        f"[紧急] Regime 变化: "
+                        f"{last_snapshot.dominant_regime} → "
+                        f"{regime_result['dominant_regime']}"
+                    )
+                    body = (
+                        f"Regime 发生切换\n"
+                        f"{'=' * 40}\n"
+                        f"日期: {regime_result.get('as_of_date')}\n"
+                        f"旧 Regime: {last_snapshot.dominant_regime}\n"
+                        f"新 Regime: {regime_result['dominant_regime']}\n"
+                        f"置信度: {regime_result['confidence']:.2%}\n"
+                    )
+
+                    # 邮件通知
+                    recipients = getattr(
+                        django_settings, 'REGIME_ALERT_RECIPIENTS',
+                        getattr(django_settings, 'PERFORMANCE_SUMMARY_RECIPIENTS', []),
+                    )
+                    if recipients:
+                        svc.send_email(
+                            subject=subject,
+                            body=body,
+                            recipients=recipients,
+                            priority=NotificationPriority.URGENT,
+                        )
+
+                    # 同时发送系统告警
+                    svc.send_alert(
+                        title=subject,
+                        message=body,
+                        level="critical",
+                        metadata={
+                            "old_regime": last_snapshot.dominant_regime,
+                            "new_regime": regime_result['dominant_regime'],
+                            "confidence": regime_result['confidence'],
+                        },
+                    )
+                except Exception as notify_err:
+                    logger.warning(f"Regime 变化通知发送失败: {notify_err}")
 
             if confidence_dropped:
                 logger.warning(
                     f"CONFIDENCE DROPPED: {last_snapshot.confidence:.2f} -> "
                     f"{regime_result['confidence']:.2f}"
                 )
+
+                # 置信度下降通知
+                try:
+                    from shared.infrastructure.notification_service import (
+                        get_notification_service,
+                        NotificationPriority,
+                    )
+                    from django.conf import settings as django_settings
+
+                    svc = get_notification_service()
+                    recipients = getattr(
+                        django_settings, 'REGIME_ALERT_RECIPIENTS',
+                        getattr(django_settings, 'PERFORMANCE_SUMMARY_RECIPIENTS', []),
+                    )
+                    if recipients:
+                        svc.send_email(
+                            subject=(
+                                f"[重要] Regime 置信度下降: "
+                                f"{last_snapshot.confidence:.2f} → "
+                                f"{regime_result['confidence']:.2f}"
+                            ),
+                            body=(
+                                f"Regime 置信度显著下降\n"
+                                f"{'=' * 40}\n"
+                                f"日期: {regime_result.get('as_of_date')}\n"
+                                f"当前 Regime: {regime_result['dominant_regime']}\n"
+                                f"旧置信度: {last_snapshot.confidence:.2f}\n"
+                                f"新置信度: {regime_result['confidence']:.2f}\n"
+                                f"下降幅度: {(1 - regime_result['confidence'] / last_snapshot.confidence):.2%}\n"
+                            ),
+                            recipients=recipients,
+                            priority=NotificationPriority.HIGH,
+                        )
+                except Exception as notify_err:
+                    logger.warning(f"置信度下降通知发送失败: {notify_err}")
 
         return {
             'status': 'success',

@@ -418,8 +418,49 @@ class QlibAlphaProvider(BaseAlphaProvider):
             因子暴露字典
         """
         try:
-            # TODO: 实现从 Qlib 获取因子暴露
-            # 这里需要 Qlib 的 API 来获取单个股票的因子值
+            from qlib.data import D
+            import pandas as pd
+
+            # Qlib 使用 D.features 获取因子值
+            trade_date_str = trade_date.strftime("%Y-%m-%d")
+            instruments = [stock_code]
+
+            # Alpha360 常用因子列表
+            factor_names = [
+                "$close/Ref($close, 1) - 1",   # 日收益率 (momentum_1d)
+                "$close/Ref($close, 5) - 1",   # 5日动量 (momentum_5d)
+                "$close/Ref($close, 20) - 1",  # 20日动量 (momentum_20d)
+                "$volume/Ref($volume, 1) - 1",  # 量比 (volume_ratio)
+                "Std($close, 20)/$close",        # 20日波动率 (volatility_20d)
+            ]
+            factor_labels = [
+                "momentum_1d", "momentum_5d", "momentum_20d",
+                "volume_ratio", "volatility_20d",
+            ]
+
+            df = D.features(
+                instruments=instruments,
+                fields=factor_names,
+                start_time=trade_date_str,
+                end_time=trade_date_str,
+            )
+
+            if df is None or df.empty:
+                logger.debug(f"股票 {stock_code} 在 {trade_date} 无因子数据")
+                return {}
+
+            # 取最后一行，转为 dict
+            row = df.iloc[-1]
+            result = {}
+            for i, label in enumerate(factor_labels):
+                val = row.iloc[i]
+                if pd.notna(val):
+                    result[label] = float(val)
+
+            return result
+
+        except ImportError:
+            logger.debug("Qlib 未安装，无法获取因子暴露")
             return {}
         except Exception as e:
             logger.error(f"获取因子暴露失败: {e}")
@@ -449,10 +490,24 @@ class QlibAlphaProvider(BaseAlphaProvider):
             return []
 
         try:
-            # TODO: 使用 Qlib API 获取股票池
-            # from qlib.data import D
-            # instruments = D.instruments(market="csi300")
-            # return list(instruments)
+            from qlib.data import D
+
+            instruments = D.instruments(market=qlib_universe)
+            # D.instruments 返回的可能是 Instruments 对象，需要 list_instruments 解析
+            if hasattr(instruments, '__iter__') and not isinstance(instruments, str):
+                stock_list = list(instruments)
+            else:
+                # 使用 D.list_instruments 获取具体股票列表
+                stock_list = D.list_instruments(
+                    instruments=instruments,
+                    as_list=True,
+                )
+
+            logger.info(f"获取股票池 {qlib_universe}: {len(stock_list)} 只股票")
+            return stock_list
+
+        except ImportError:
+            logger.debug("Qlib 未安装，无法获取股票池")
             return []
         except Exception as e:
             logger.error(f"获取股票池失败: {e}")
@@ -506,8 +561,55 @@ class QlibAlphaProvider(BaseAlphaProvider):
             return {}
 
         try:
-            # TODO: 使用 Qlib API 执行预测
-            # scores = self._model.predict(dates=trade_date)
+            from qlib.data import D
+            from qlib.contrib.data.handler import Alpha360
+            from qlib.data.dataset import DatasetH
+            import pandas as pd
+
+            trade_date_str = trade_date.strftime("%Y-%m-%d")
+            # 需要几天的历史数据给 Alpha360 做特征
+            lookback_start = (trade_date - timedelta(days=60)).strftime("%Y-%m-%d")
+
+            # 获取股票池
+            instruments = D.instruments(market=universe_id)
+
+            handler = Alpha360(
+                start_time=lookback_start,
+                end_time=trade_date_str,
+                fit_start_time=lookback_start,
+                fit_end_time=trade_date_str,
+                instruments=instruments,
+            )
+
+            dataset = DatasetH(
+                handler=handler,
+                segments={"test": (pd.Timestamp(trade_date_str), pd.Timestamp(trade_date_str))},
+            )
+
+            pred = self._model.predict(dataset)
+
+            # pred 可能是 Series 或 DataFrame，统一转为 {stock_code: score}
+            if isinstance(pred, pd.DataFrame):
+                if pred.empty:
+                    return {}
+                # 多级索引 (datetime, instrument)
+                if isinstance(pred.index, pd.MultiIndex):
+                    last_date = pred.index.get_level_values(0)[-1]
+                    pred = pred.loc[last_date]
+                scores = pred.iloc[:, 0].to_dict() if pred.ndim > 1 else pred.to_dict()
+            elif isinstance(pred, pd.Series):
+                if isinstance(pred.index, pd.MultiIndex):
+                    last_date = pred.index.get_level_values(0)[-1]
+                    pred = pred.loc[last_date]
+                scores = pred.to_dict()
+            else:
+                scores = {}
+
+            # 确保值为 float
+            return {str(k): float(v) for k, v in scores.items() if pd.notna(v)}
+
+        except ImportError:
+            logger.debug("Qlib 未安装，无法执行预测")
             return {}
         except Exception as e:
             logger.error(f"预测失败: {e}", exc_info=True)
