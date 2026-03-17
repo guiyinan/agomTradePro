@@ -38,6 +38,8 @@ from apps.simulated_trading.infrastructure.repositories import (
 )
 from apps.simulated_trading.infrastructure.market_data_provider import MarketDataProvider
 from apps.simulated_trading.application.asset_pool_query_service import AssetPoolQueryService
+from apps.asset_analysis.infrastructure.repositories import DjangoAssetPoolQueryRepository
+from apps.signal.infrastructure.repositories import DjangoSignalRepository
 from .serializers import (
     CreateAccountRequestSerializer,
     AccountResponseSerializer,
@@ -912,10 +914,12 @@ class ManualTradeAPIView(APIView):
         try:
             # 2. 根据动作执行不同用例
             if data['action'] == 'buy':
+                signal_repo = DjangoSignalRepository()
                 use_case = ExecuteBuyOrderUseCase(
                     self.account_repo,
                     self.position_repo,
-                    self.trade_repo
+                    self.trade_repo,
+                    signal_repo=signal_repo,
                 )
                 trade = use_case.execute(
                     account_id=account_id,
@@ -1162,13 +1166,22 @@ class AutoTradingAPIView(APIView):
         account_repo = DjangoSimulatedAccountRepository()
         position_repo = DjangoPositionRepository()
         trade_repo = DjangoTradeRepository()
+        signal_repo = DjangoSignalRepository()
 
-        buy_use_case = ExecuteBuyOrderUseCase(account_repo, position_repo, trade_repo)
+        buy_use_case = ExecuteBuyOrderUseCase(
+            account_repo,
+            position_repo,
+            trade_repo,
+            signal_repo=signal_repo,
+        )
         sell_use_case = ExecuteSellOrderUseCase(account_repo, position_repo, trade_repo)
         performance_use_case = GetAccountPerformanceUseCase(account_repo, position_repo, trade_repo)
 
         market_data = MarketDataProvider()
-        asset_pool_service = AssetPoolQueryService()
+        asset_pool_service = AssetPoolQueryService(
+            asset_pool_repo=DjangoAssetPoolQueryRepository(),
+            signal_repo=signal_repo,
+        )
 
         engine = AutoTradingEngine(
             account_repo=account_repo,
@@ -1179,6 +1192,7 @@ class AutoTradingAPIView(APIView):
             performance_use_case=performance_use_case,
             asset_pool_service=asset_pool_service,
             market_data_provider=market_data,
+            signal_service=signal_repo,
         )
 
         # 3. 执行自动交易

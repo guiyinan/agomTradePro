@@ -6,6 +6,7 @@ Infrastructure layer implementation using Django ORM.
 
 from datetime import date
 from typing import List, Optional, Any
+import json
 
 from django.db import transaction
 from django.utils import timezone
@@ -508,6 +509,34 @@ class DjangoSignalRepository:
             'by_status': status_stats,
             'by_asset_class': asset_stats
         }
+
+    def get_valid_signal_summaries(self, asset_codes: Optional[List[str]] = None) -> List[dict]:
+        query = self._model.objects.filter(status='valid', is_active=True)
+        if asset_codes:
+            query = query.filter(asset_code__in=asset_codes)
+        query = query.order_by('-created_at')
+        return list(query.values('id', 'asset_code', 'logic_desc'))
+
+    def get_signal_snapshot(self, signal_id: int) -> Optional[dict]:
+        signal = self._model.objects.filter(id=signal_id).values(
+            'id', 'asset_code', 'status', 'logic_desc', 'is_active'
+        ).first()
+        if signal is None:
+            return None
+        signal['is_valid'] = signal['status'] == 'valid' and bool(signal['is_active'])
+        signal['signal_id'] = signal.pop('id')
+        return signal
+
+    def get_signal_invalidation_payload(self, signal_id: int) -> tuple[Optional[str], str]:
+        signal = self._model.objects.filter(id=signal_id).values(
+            'invalidation_rule_json', 'invalidation_description'
+        ).first()
+        if signal is None:
+            return None, ""
+        invalidation_rule_json = None
+        if signal.get('invalidation_rule_json'):
+            invalidation_rule_json = json.dumps(signal['invalidation_rule_json'], ensure_ascii=False)
+        return invalidation_rule_json, (signal.get('invalidation_description') or "")
 
     @staticmethod
     def _orm_to_entity(orm_obj: InvestmentSignalModel) -> InvestmentSignal:

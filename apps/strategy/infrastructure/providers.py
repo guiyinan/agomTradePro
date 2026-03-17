@@ -323,6 +323,48 @@ class DjangoPortfolioDataProvider:
             return 0.0
 
 
+class DjangoAssetNameResolver:
+    """Django ORM 实现的资产名称解析器。"""
+
+    def resolve_asset_names(self, codes: List[str]) -> Dict[str, str]:
+        code_set = {code for code in codes if code}
+        if not code_set:
+            return {}
+
+        resolved: Dict[str, str] = {}
+
+        try:
+            from apps.equity.infrastructure.models import StockInfoModel
+
+            stock_rows = StockInfoModel._default_manager.filter(
+                stock_code__in=list(code_set)
+            ).values("stock_code", "name")
+            for row in stock_rows:
+                resolved[row["stock_code"]] = row["name"]
+        except Exception as e:
+            logger.warning("Failed to resolve stock names: %s", e)
+
+        unresolved = [code for code in code_set if code not in resolved]
+        if not unresolved:
+            return resolved
+
+        try:
+            from apps.fund.infrastructure.models import FundInfoModel
+
+            code_to_fund_code = {code: code.split(".")[0] for code in unresolved}
+            fund_rows = FundInfoModel._default_manager.filter(
+                fund_code__in=list(set(code_to_fund_code.values()))
+            ).values("fund_code", "fund_name")
+            fund_name_map = {row["fund_code"]: row["fund_name"] for row in fund_rows}
+            for code, fund_code in code_to_fund_code.items():
+                if fund_code in fund_name_map:
+                    resolved[code] = fund_name_map[fund_code]
+        except Exception as e:
+            logger.warning("Failed to resolve fund names: %s", e)
+
+        return resolved
+
+
 # ========================================================================
 # M3: 执行适配器实现
 # ========================================================================

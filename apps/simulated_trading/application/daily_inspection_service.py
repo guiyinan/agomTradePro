@@ -7,15 +7,12 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from django.utils import timezone
-
-from apps.policy.infrastructure.models import PolicyLog
+from apps.policy.infrastructure.repositories import DjangoPolicyRepository
 from apps.regime.application.current_regime import resolve_current_regime
-from apps.simulated_trading.infrastructure.models import (
-    DailyInspectionReportModel,
-    PositionModel,
-    RebalanceProposalModel,
-    SimulatedAccountModel,
+from apps.simulated_trading.infrastructure.repositories import (
+    DjangoInspectionRepository,
+    DjangoPositionRepository,
+    DjangoSimulatedAccountRepository,
 )
 from apps.strategy.application.execution_gateway import get_strategy_execution_gateway
 
@@ -32,6 +29,10 @@ class DailyInspectionService:
 
     DEFAULT_RISK_PER_TRADE_PCT = 0.008
     DEFAULT_ENTRY_BUFFER_PCT = 0.002
+    account_repo = DjangoSimulatedAccountRepository()
+    position_repo = DjangoPositionRepository()
+    inspection_repo = DjangoInspectionRepository()
+    policy_repo = DjangoPolicyRepository()
 
     @classmethod
     def run(
@@ -41,7 +42,9 @@ class DailyInspectionService:
         strategy_id: int | None = None,
     ) -> dict[str, Any]:
         as_of = inspection_date or date.today()
-        account = SimulatedAccountModel._default_manager.get(id=account_id)
+        account = cls.account_repo.get_by_id(account_id)
+        if not account:
+            raise ValueError(f"账户不存在: {account_id}")
         selection = cls._select_strategy_and_rule(account_id=account_id, strategy_id=strategy_id)
 
         checks = cls._build_checks(
@@ -51,8 +54,8 @@ class DailyInspectionService:
         summary = cls._build_summary(account=account, checks=checks)
         status = "warning" if summary["rebalance_required_count"] > 0 else "ok"
 
-        report, _ = DailyInspectionReportModel._default_manager.update_or_create(
-            account=account,
+        report = cls.inspection_repo.upsert_report(
+            account_id=account_id,
             inspection_date=as_of,
             defaults={
                 "strategy_id": selection.strategy_id,
@@ -69,12 +72,12 @@ class DailyInspectionService:
         )
 
         return {
-            "report_id": report.id,
-            "account_id": account.id,
+            "report_id": report["report_id"],
+            "account_id": account.account_id,
             "inspection_date": as_of.isoformat(),
-            "status": report.status,
-            "macro_regime": report.macro_regime,
-            "policy_gear": report.policy_gear,
+            "status": report["status"],
+            "macro_regime": report["macro_regime"],
+            "policy_gear": report["policy_gear"],
             "strategy_id": selection.strategy_id,
             "position_rule_id": selection.rule_id,
             "summary": summary,
@@ -101,10 +104,14 @@ class DailyInspectionService:
     @classmethod
     def _build_checks(
         cls,
-        account: SimulatedAccountModel,
+        account,
         selection: InspectionSelection,
     ) -> list[dict[str, Any]]:
-        positions = PositionModel._default_manager.filter(account=account).order_by("-market_value")
+        positions = sorted(
+            cls.position_repo.get_by_account(account.account_id),
+            key=lambda pos: float(pos.market_value),
+            reverse=True,
+        )
         total_value = float(account.total_value or 0)
         checks: list[dict[str, Any]] = []
         rebalance_cfg = (selection.rule_metadata or {}).get("rebalance", {}) if selection.rule_id else {}
@@ -175,7 +182,7 @@ class DailyInspectionService:
     @classmethod
     def _build_summary(
         cls,
-        account: SimulatedAccountModel,
+        account,
         checks: list[dict[str, Any]],
     ) -> dict[str, Any]:
         rebalance_required = [c for c in checks if c["rebalance_action"] != "hold"]
@@ -194,8 +201,8 @@ class DailyInspectionService:
 
     @staticmethod
     def _latest_policy_gear() -> str:
-        latest = PolicyLog._default_manager.order_by("-event_date", "-created_at").first()
-        return latest.level if latest else ""
+        latest = DailyInspectionService.policy_repo.get_latest_event()
+        return latest.level.value if latest else ""
 
     @classmethod
     def run_and_create_proposal(
@@ -240,7 +247,7 @@ class DailyInspectionService:
                     account_id=account_id,
                     inspection_result=inspection_result,
                 )
-                result["proposal_id"] = proposal.id
+                result["proposal_id"] = proposal["proposal_id"]
                 result["proposal_created"] = True
 
         return result
@@ -250,7 +257,7 @@ class DailyInspectionService:
         cls,
         account_id: int,
         inspection_result: dict[str, Any],
-    ) -> RebalanceProposalModel:
+    ) -> dict[str, Any]:
         """
         根据巡检结果创建再平衡建议草案
 
@@ -261,7 +268,9 @@ class DailyInspectionService:
         Returns:
             RebalanceProposalModel: 创建的再平衡建议
         """
-        account = SimulatedAccountModel._default_manager.get(id=account_id)
+        account = cls.account_repo.get_by_id(account_id)
+        if not account:
+            raise ValueError(f"账户不存在: {account_id}")
         checks = inspection_result.get("checks", [])
         summary = inspection_result.get("summary", {})
 
@@ -317,24 +326,24 @@ class DailyInspectionService:
         priority = cls._determine_priority(summary)
 
         # 创建再平衡建议
-        proposal = RebalanceProposalModel._default_manager.create(
-            account=account,
-            inspection_report_id=inspection_result.get("report_id"),
-            strategy_id=inspection_result.get("strategy_id"),
-            source=RebalanceProposalModel.SOURCE_DAILY_INSPECTION,
-            source_description=cls._build_source_description(inspection_result),
-            status=RebalanceProposalModel.STATUS_PENDING,
-            priority=priority,
-            proposals=proposals,
-            summary=proposal_summary,
-            proposed_by="daily_inspection",
-            metadata={
+        proposal = cls.inspection_repo.create_rebalance_proposal({
+            "account_id": account_id,
+            "inspection_report_id": inspection_result.get("report_id"),
+            "strategy_id": inspection_result.get("strategy_id"),
+            "source": "daily_inspection",
+            "source_description": cls._build_source_description(inspection_result),
+            "status": "pending",
+            "priority": priority,
+            "proposals": proposals,
+            "summary": proposal_summary,
+            "proposed_by": "daily_inspection",
+            "metadata": {
                 "inspection_date": inspection_result.get("inspection_date"),
                 "macro_regime": inspection_result.get("macro_regime"),
                 "policy_gear": inspection_result.get("policy_gear"),
                 "position_rule_id": inspection_result.get("position_rule_id"),
             },
-        )
+        })
 
         return proposal
 

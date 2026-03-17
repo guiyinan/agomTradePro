@@ -97,6 +97,30 @@ class StrategyExecutorProtocol(Protocol):
         ...
 
 
+class StrategyGatewayQueryProtocol(Protocol):
+    """策略只读查询协议。"""
+
+    def get_strategy_info(self, strategy_id: int) -> Optional[Dict[str, Any]]:
+        ...
+
+    def get_active_strategy_binding(self, account_id: int) -> Optional[Dict[str, Any]]:
+        ...
+
+    def get_inspection_selection(
+        self,
+        account_id: int,
+        strategy_id: Optional[int] = None,
+    ) -> InspectionSelection:
+        ...
+
+    def evaluate_position_rule(
+        self,
+        rule_id: Optional[int],
+        context: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        ...
+
+
 # ============================================================================
 # Gateway Implementation
 # ============================================================================
@@ -122,7 +146,8 @@ class StrategyExecutionGateway:
 
     def __init__(
         self,
-        executor: Optional[StrategyExecutorProtocol] = None
+        executor: Optional[StrategyExecutorProtocol] = None,
+        query_repository: Optional[StrategyGatewayQueryProtocol] = None,
     ):
         """
         初始化网关
@@ -131,6 +156,7 @@ class StrategyExecutionGateway:
             executor: 策略执行器 (可选， 支持依赖注入)
         """
         self._executor = executor
+        self._query_repository = query_repository
 
     def _get_executor(self) -> StrategyExecutorProtocol:
         """
@@ -165,6 +191,13 @@ class StrategyExecutionGateway:
                 portfolio_provider=DjangoPortfolioDataProvider(),
             )
         return self._executor
+
+    def _get_query_repository(self) -> StrategyGatewayQueryProtocol:
+        if self._query_repository is None:
+            from apps.strategy.infrastructure.repositories import DjangoStrategyGatewayRepository
+
+            self._query_repository = DjangoStrategyGatewayRepository()
+        return self._query_repository
 
     def execute_for_account(
         self,
@@ -237,23 +270,7 @@ class StrategyExecutionGateway:
             策略信息字典或 None
         """
         try:
-            # 延迟导入避免循环依赖
-            from apps.strategy.infrastructure.models import StrategyModel
-
-            strategy = StrategyModel._default_manager.filter(
-                id=strategy_id
-            ).first()
-
-            if strategy:
-                return {
-                    'strategy_id': strategy.id,
-                    'name': strategy.name,
-                    'strategy_type': strategy.strategy_type,
-                    'is_active': strategy.is_active,
-                    'description': strategy.description
-                }
-            return None
-
+            return self._get_query_repository().get_strategy_info(strategy_id)
         except Exception as e:
             logger.error(f"Error getting strategy info: {e}")
             return None
@@ -269,29 +286,7 @@ class StrategyExecutionGateway:
             绑定信息字典或 None
         """
         try:
-            from apps.strategy.infrastructure.models import PortfolioStrategyAssignmentModel
-
-            assignment = (
-                PortfolioStrategyAssignmentModel._default_manager.filter(
-                    portfolio_id=account_id,
-                    is_active=True,
-                    strategy__is_active=True,
-                )
-                .select_related("strategy")
-                .order_by("-updated_at", "-id")
-                .first()
-            )
-
-            if not assignment or not assignment.strategy:
-                return None
-
-            return {
-                "strategy_id": assignment.strategy_id,
-                "name": assignment.strategy.name,
-                "strategy_type": assignment.strategy.strategy_type,
-                "is_active": assignment.strategy.is_active,
-                "description": assignment.strategy.description,
-            }
+            return self._get_query_repository().get_active_strategy_binding(account_id)
         except Exception as e:
             logger.error(f"Error getting active strategy binding for account {account_id}: {e}")
             return None
@@ -316,42 +311,9 @@ class StrategyExecutionGateway:
     ) -> InspectionSelection:
         """获取日更巡检需要的策略和规则信息。"""
         try:
-            from apps.strategy.infrastructure.models import PositionManagementRuleModel, StrategyModel
-
-            if strategy_id:
-                strategy = StrategyModel._default_manager.filter(id=strategy_id).first()
-                rule = (
-                    PositionManagementRuleModel._default_manager.filter(
-                        strategy_id=strategy_id,
-                        is_active=True,
-                    )
-                    .order_by("-updated_at")
-                    .first()
-                )
-                return InspectionSelection(
-                    strategy_id=getattr(strategy, "id", None),
-                    position_rule_id=getattr(rule, "id", None),
-                    rule_metadata=getattr(rule, "metadata", {}) or {},
-                    strategy_name=getattr(strategy, "name", None),
-                    strategy_type=getattr(strategy, "strategy_type", None),
-                )
-
-            rule = (
-                PositionManagementRuleModel._default_manager.filter(
-                    is_active=True,
-                    metadata__account_id=account_id,
-                )
-                .select_related("strategy")
-                .order_by("-updated_at")
-                .first()
-            )
-            strategy = getattr(rule, "strategy", None)
-            return InspectionSelection(
-                strategy_id=getattr(strategy, "id", None),
-                position_rule_id=getattr(rule, "id", None),
-                rule_metadata=getattr(rule, "metadata", {}) or {},
-                strategy_name=getattr(strategy, "name", None),
-                strategy_type=getattr(strategy, "strategy_type", None),
+            return self._get_query_repository().get_inspection_selection(
+                account_id=account_id,
+                strategy_id=strategy_id,
             )
         except Exception as e:
             logger.error(f"Error getting inspection selection: {e}")
@@ -371,13 +333,7 @@ class StrategyExecutionGateway:
             return None
 
         try:
-            from apps.strategy.infrastructure.models import PositionManagementRuleModel
-            from apps.strategy.application.position_management_service import PositionManagementService
-
-            rule = PositionManagementRuleModel._default_manager.filter(id=rule_id).first()
-            if not rule:
-                return None
-            return PositionManagementService.evaluate(rule=rule, context=context).to_dict()
+            return self._get_query_repository().evaluate_position_rule(rule_id, context)
         except Exception as e:
             logger.error(f"Error evaluating position rule: {e}")
             return None

@@ -15,8 +15,8 @@ from apps.signal.domain.invalidation import (
     IndicatorValue,
     evaluate_rule,
 )
-from apps.simulated_trading.infrastructure.models import PositionModel
-from apps.simulated_trading.infrastructure.repositories import PositionRepository
+from apps.simulated_trading.domain.entities import Position
+from apps.simulated_trading.infrastructure.repositories import DjangoPositionRepository
 
 
 class PositionInvalidationChecker:
@@ -30,7 +30,7 @@ class PositionInvalidationChecker:
         # 延迟导入避免循环依赖
         from apps.macro.infrastructure.repositories import DjangoMacroRepository
         self.macro_repo = DjangoMacroRepository()
-        self.position_repo = PositionRepository()
+        self.position_repo = DjangoPositionRepository()
 
     def check_all_positions(self) -> List[Dict]:
         """
@@ -40,11 +40,7 @@ class PositionInvalidationChecker:
             List[Dict]: 被证伪的持仓列表
         """
         # 获取所有有证伪规则且未被证伪的持仓
-        positions = PositionModel._default_manager.filter(
-            invalidation_rule_json__isnull=False,
-            invalidation_rule_json____isnull=False,  # 不为空
-            is_invalidated=False,
-        ).exclude(invalidation_rule_json={})
+        positions = self.position_repo.get_pending_invalidation_positions()
 
         invalidated = []
 
@@ -54,7 +50,7 @@ class PositionInvalidationChecker:
                 # 更新持仓的证伪状态
                 self._mark_position_invalidated(position, result)
                 invalidated.append({
-                    'position_id': position.id,
+                    'position_id': None,
                     'account_id': position.account_id,
                     'asset_code': position.asset_code,
                     'asset_name': position.asset_name,
@@ -73,26 +69,17 @@ class PositionInvalidationChecker:
         Returns:
             InvalidationCheckResult 或 None
         """
-        try:
-            position = PositionModel._default_manager.get(id=position_id)
-
-            if not position.invalidation_rule_json:
-                return None
-
-            if position.is_invalidated:
-                return None
-
-            return self._check_position(position)
-
-        except PositionModel.DoesNotExist:
+        position = self.position_repo.get_position_by_id(position_id)
+        if not position or not position.invalidation_rule_json or position.is_invalidated:
             return None
+        return self._check_position(position)
 
-    def _check_position(self, position: PositionModel) -> Optional[InvalidationCheckResult]:
+    def _check_position(self, position: Position) -> Optional[InvalidationCheckResult]:
         """
         检查持仓的证伪状态
 
         Args:
-            position: PositionModel 实例
+            position: Position 实体
 
         Returns:
             InvalidationCheckResult 或 None
@@ -114,8 +101,11 @@ class PositionInvalidationChecker:
         result = evaluate_rule(rule, indicator_values)
 
         # 更新检查时间
-        position.invalidation_checked_at = timezone.now()
-        position.save(update_fields=['invalidation_checked_at'])
+        self.position_repo.mark_invalidation_checked(
+            account_id=position.account_id,
+            asset_code=position.asset_code,
+            checked_at=timezone.now(),
+        )
 
         return result
 
@@ -170,7 +160,7 @@ class PositionInvalidationChecker:
 
         return values
 
-    def _mark_position_invalidated(self, position: PositionModel, result: InvalidationCheckResult):
+    def _mark_position_invalidated(self, position: Position, result: InvalidationCheckResult):
         """
         标记持仓为已证伪
 
@@ -178,10 +168,12 @@ class PositionInvalidationChecker:
             position: 持仓模型
             result: 证伪检查结果
         """
-        position.is_invalidated = True
-        position.invalidation_reason = result.reason
-        position.invalidation_checked_at = timezone.now()
-        position.save()
+        self.position_repo.mark_invalidated(
+            account_id=position.account_id,
+            asset_code=position.asset_code,
+            reason=result.reason,
+            checked_at=timezone.now(),
+        )
 
         # 记录日志
         import logging
@@ -190,17 +182,14 @@ class PositionInvalidationChecker:
             f"持仓证伪: {position.account_id} - {position.asset_code} - {result.reason}"
         )
 
-    def get_positions_to_close(self) -> List[PositionModel]:
+    def get_positions_to_close(self) -> List[dict]:
         """
         获取所有应该平仓的持仓（已证伪）
 
         Returns:
-            List[PositionModel]: 应该平仓的持仓列表
+            List[dict]: 应该平仓的持仓摘要列表
         """
-        return PositionModel._default_manager.filter(
-            is_invalidated=True,
-            quantity__gt=0,  # 仍有持仓
-        ).order_by('-invalidation_checked_at')
+        return self.position_repo.get_invalidated_position_summaries()
 
 
 # ==================== 导出函数，供 Celery 任务使用 ====================
@@ -218,9 +207,7 @@ def check_and_invalidate_positions() -> Dict:
     invalidated = checker.check_all_positions()
 
     return {
-        'checked': PositionModel._default_manager.filter(
-            invalidation_rule_json__isnull=False
-        ).exclude(invalidation_rule_json={}).count(),
+        'checked': checker.position_repo.count_positions_with_invalidation_rules(),
         'invalidated': len(invalidated),
         'positions': invalidated
     }
@@ -236,20 +223,5 @@ def get_invalidated_positions_summary() -> List[Dict]:
     checker = PositionInvalidationChecker()
     positions = checker.get_positions_to_close()
 
-    return [
-        {
-            'position_id': p.id,
-            'account_id': p.account_id,
-            'account_name': p.account.account_name,
-            'asset_code': p.asset_code,
-            'asset_name': p.asset_name,
-            'quantity': p.quantity,
-            'market_value': float(p.market_value),
-            'unrealized_pnl': float(p.unrealized_pnl),
-            'unrealized_pnl_pct': p.unrealized_pnl_pct,
-            'invalidation_reason': p.invalidation_reason,
-            'invalidation_checked_at': p.invalidation_checked_at.isoformat() if p.invalidation_checked_at else None,
-        }
-        for p in positions
-    ]
+    return positions
 

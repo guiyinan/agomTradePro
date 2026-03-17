@@ -379,6 +379,22 @@ class PortfolioDataProviderProtocol(Protocol):
         ...
 
 
+class AssetNameResolverProtocol(Protocol):
+    """资产名称解析接口"""
+
+    def resolve_asset_names(self, codes: List[str]) -> Dict[str, str]:
+        """
+        批量解析资产名称。
+
+        Args:
+            codes: 资产代码列表
+
+        Returns:
+            资产代码到名称的映射
+        """
+        ...
+
+
 # ========================================================================
 # M3: 执行适配器协议
 # ========================================================================

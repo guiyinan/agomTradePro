@@ -36,6 +36,10 @@ class SignalServiceProtocol(Protocol):
         """获取有效信号"""
         ...
 
+    def get_signal_by_id(self, signal_id: int) -> Optional[dict]:
+        """按ID获取信号快照"""
+        ...
+
 
 class MarketDataProviderProtocol(Protocol):
     """市场数据提供者接口"""
@@ -381,16 +385,8 @@ class AutoTradingEngine:
                 signal = self.signal_service.get_signal_by_id(position.signal_id)
                 signal_valid = signal and signal.get('is_valid', False) if signal else False
             else:
-                # 如果没有信号服务，从数据库查询
-                try:
-                    from apps.signal.infrastructure.models import InvestmentSignalModel
-                    signal = InvestmentSignalModel._default_manager.filter(
-                        id=position.signal_id
-                    ).first()
-                    signal_valid = signal and signal.status == 'valid' if signal else False
-                except Exception as e:
-                    logger.warning(f"查询信号失败: {position.signal_id}, 错误: {e}")
-                    signal_valid = True  # 查询失败时假设有效，避免误杀
+                logger.warning("signal_service 未配置，跳过信号有效性校验: %s", position.signal_id)
+                signal_valid = True
 
         if not signal_valid:
             logger.info(f"    持仓 {position.asset_code} 信号失效,准备卖出")

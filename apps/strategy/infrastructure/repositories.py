@@ -8,6 +8,7 @@ Infrastructure层:
 """
 import logging
 from typing import List, Optional
+from dataclasses import asdict
 from datetime import datetime
 from hashlib import sha256
 
@@ -879,3 +880,94 @@ class DjangoOrderIntentRepository(OrderIntentRepositoryProtocol):
             ],
         ).order_by('-created_at').all()
         return [self._orm_to_domain_entity(obj) for obj in orm_objects]
+
+
+class DjangoStrategyGatewayRepository:
+    """Strategy gateway 的只读查询仓储。"""
+
+    def get_strategy_info(self, strategy_id: int) -> Optional[dict]:
+        strategy = StrategyModel._default_manager.filter(id=strategy_id).first()
+        if not strategy:
+            return None
+        return {
+            "strategy_id": strategy.id,
+            "name": strategy.name,
+            "strategy_type": strategy.strategy_type,
+            "is_active": strategy.is_active,
+            "description": strategy.description,
+        }
+
+    def get_active_strategy_binding(self, account_id: int) -> Optional[dict]:
+        assignment = (
+            PortfolioStrategyAssignmentModel._default_manager.filter(
+                portfolio_id=account_id,
+                is_active=True,
+                strategy__is_active=True,
+            )
+            .select_related("strategy")
+            .order_by("-updated_at", "-id")
+            .first()
+        )
+        if not assignment or not assignment.strategy:
+            return None
+        return {
+            "strategy_id": assignment.strategy_id,
+            "name": assignment.strategy.name,
+            "strategy_type": assignment.strategy.strategy_type,
+            "is_active": assignment.strategy.is_active,
+            "description": assignment.strategy.description,
+        }
+
+    def get_inspection_selection(self, account_id: int, strategy_id: Optional[int] = None):
+        from apps.strategy.application.execution_gateway import InspectionSelection
+
+        if strategy_id:
+            strategy = StrategyModel._default_manager.filter(id=strategy_id).first()
+            rule = (
+                PositionManagementRuleModel._default_manager.filter(
+                    strategy_id=strategy_id,
+                    is_active=True,
+                )
+                .order_by("-updated_at")
+                .first()
+            )
+            return InspectionSelection(
+                strategy_id=getattr(strategy, "id", None),
+                position_rule_id=getattr(rule, "id", None),
+                rule_metadata=getattr(rule, "metadata", {}) or {},
+                strategy_name=getattr(strategy, "name", None),
+                strategy_type=getattr(strategy, "strategy_type", None),
+            )
+
+        rule = (
+            PositionManagementRuleModel._default_manager.filter(
+                is_active=True,
+                metadata__account_id=account_id,
+            )
+            .select_related("strategy")
+            .order_by("-updated_at")
+            .first()
+        )
+        strategy = getattr(rule, "strategy", None)
+        return InspectionSelection(
+            strategy_id=getattr(strategy, "id", None),
+            position_rule_id=getattr(rule, "id", None),
+            rule_metadata=getattr(rule, "metadata", {}) or {},
+            strategy_name=getattr(strategy, "name", None),
+            strategy_type=getattr(strategy, "strategy_type", None),
+        )
+
+    def evaluate_position_rule(
+        self,
+        rule_id: Optional[int],
+        context: dict,
+    ) -> Optional[dict]:
+        if not rule_id:
+            return None
+
+        from apps.strategy.application.position_management_service import PositionManagementService
+
+        rule = PositionManagementRuleModel._default_manager.filter(id=rule_id).first()
+        if not rule:
+            return None
+        return PositionManagementService.evaluate(rule=rule, context=context).to_dict()

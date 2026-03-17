@@ -25,7 +25,12 @@ from apps.simulated_trading.infrastructure.models import (
     SimulatedAccountModel,
     PositionModel,
     SimulatedTradeModel,
-    FeeConfigModel
+    FeeConfigModel,
+    DailyNetValueModel,
+    DailyInspectionReportModel,
+    DailyInspectionNotificationConfigModel,
+    NotificationHistoryModel,
+    RebalanceProposalModel,
 )
 
 
@@ -387,6 +392,13 @@ class DjangoSimulatedAccountRepository:
         except SimulatedAccountModel.DoesNotExist:
             return False
 
+    def user_owns_account(self, account_id: int, user_id: int) -> bool:
+        """判断账户是否属于指定用户。"""
+        return SimulatedAccountModel._default_manager.filter(
+            id=account_id,
+            user_id=user_id,
+        ).exists()
+
 
 class DjangoPositionRepository:
     """持仓Repository实现"""
@@ -449,6 +461,75 @@ class DjangoPositionRepository:
         ).delete()
         return deleted > 0
 
+    def get_pending_invalidation_positions(self) -> List[Position]:
+        """获取需要做证伪检查的持仓。"""
+        models = PositionModel._default_manager.filter(
+            invalidation_rule_json__isnull=False,
+            is_invalidated=False,
+        ).exclude(invalidation_rule_json={})
+        return [PositionMapper.to_entity(m) for m in models]
+
+    def get_position_by_id(self, position_id: int) -> Optional[Position]:
+        """按主键获取持仓。"""
+        try:
+            model = PositionModel._default_manager.get(id=position_id)
+            return PositionMapper.to_entity(model)
+        except PositionModel.DoesNotExist:
+            return None
+
+    def mark_invalidation_checked(self, account_id: int, asset_code: str, checked_at) -> bool:
+        updated = PositionModel._default_manager.filter(
+            account_id=account_id,
+            asset_code=asset_code,
+        ).update(invalidation_checked_at=checked_at)
+        return updated > 0
+
+    def mark_invalidated(
+        self,
+        account_id: int,
+        asset_code: str,
+        reason: str,
+        checked_at,
+    ) -> bool:
+        updated = PositionModel._default_manager.filter(
+            account_id=account_id,
+            asset_code=asset_code,
+        ).update(
+            is_invalidated=True,
+            invalidation_reason=reason,
+            invalidation_checked_at=checked_at,
+        )
+        return updated > 0
+
+    def count_positions_with_invalidation_rules(self) -> int:
+        return PositionModel._default_manager.filter(
+            invalidation_rule_json__isnull=False
+        ).exclude(invalidation_rule_json={}).count()
+
+    def get_invalidated_position_summaries(self) -> List[dict]:
+        models = PositionModel._default_manager.filter(
+            is_invalidated=True,
+            quantity__gt=0,
+        ).select_related("account").order_by("-invalidation_checked_at")
+        return [
+            {
+                "account_id": model.account_id,
+                "account_name": model.account.account_name,
+                "asset_code": model.asset_code,
+                "asset_name": model.asset_name,
+                "quantity": model.quantity,
+                "market_value": float(model.market_value),
+                "unrealized_pnl": float(model.unrealized_pnl),
+                "unrealized_pnl_pct": model.unrealized_pnl_pct,
+                "invalidation_reason": model.invalidation_reason,
+                "invalidation_checked_at": (
+                    model.invalidation_checked_at.isoformat()
+                    if model.invalidation_checked_at else None
+                ),
+            }
+            for model in models
+        ]
+
 
 class DjangoTradeRepository:
     """交易记录Repository实现"""
@@ -493,6 +574,66 @@ class DjangoTradeRepository:
             asset_code=asset_code
         ).order_by('-execution_date', '-execution_time')
         return [SimulatedTradeMapper.to_entity(m) for m in models]
+
+    def count_by_execution_date(self, account_id: int, execution_date: date) -> int:
+        """按执行日期统计交易数。"""
+        return SimulatedTradeModel._default_manager.filter(
+            account_id=account_id,
+            execution_date=execution_date,
+        ).count()
+
+
+class DjangoDailyNetValueRepository:
+    """日净值记录仓储。"""
+
+    def upsert_daily_record(self, account_id: int, record_date: date, payload: dict) -> None:
+        DailyNetValueModel._default_manager.update_or_create(
+            account_id=account_id,
+            record_date=record_date,
+            defaults=payload,
+        )
+
+    def list_daily_records(
+        self,
+        account_id: int,
+        start_date: Optional[date] = None,
+        end_date: Optional[date] = None,
+    ) -> List[dict]:
+        queryset = DailyNetValueModel._default_manager.filter(account_id=account_id).order_by("record_date")
+        if start_date:
+            queryset = queryset.filter(record_date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(record_date__lte=end_date)
+        return list(
+            queryset.values(
+                "record_date",
+                "net_value",
+                "cash",
+                "market_value",
+                "daily_return",
+                "cumulative_return",
+                "drawdown",
+                "total_trades",
+                "positions_count",
+            )
+        )
+
+    def get_latest_record_before(self, account_id: int, current_date: date) -> Optional[dict]:
+        return DailyNetValueModel._default_manager.filter(
+            account_id=account_id,
+            record_date__lt=current_date,
+        ).order_by("-record_date").values(
+            "record_date",
+            "net_value",
+            "cumulative_return",
+        ).first()
+
+    def get_max_net_value_before(self, account_id: int, before_date: date) -> Optional[float]:
+        record = DailyNetValueModel._default_manager.filter(
+            account_id=account_id,
+            record_date__lt=before_date,
+        ).order_by("-net_value").values("net_value").first()
+        return float(record["net_value"]) if record else None
 
 
 class DjangoFeeConfigRepository:
@@ -598,4 +739,90 @@ class DjangoFeeConfigRepository:
         else:
             models = FeeConfigModel._default_manager.filter(is_active=True)
         return [FeeConfigMapper.to_entity(m) for m in models]
+
+
+class DjangoInspectionRepository:
+    """日更巡检相关仓储。"""
+
+    def upsert_report(
+        self,
+        account_id: int,
+        inspection_date: date,
+        defaults: dict,
+    ) -> dict:
+        report, _ = DailyInspectionReportModel._default_manager.update_or_create(
+            account_id=account_id,
+            inspection_date=inspection_date,
+            defaults=defaults,
+        )
+        return {
+            "report_id": report.id,
+            "status": report.status,
+            "macro_regime": report.macro_regime,
+            "policy_gear": report.policy_gear,
+        }
+
+    def create_rebalance_proposal(self, payload: dict) -> dict:
+        proposal = RebalanceProposalModel._default_manager.create(**payload)
+        return {
+            "proposal_id": proposal.id,
+            "priority": proposal.priority,
+            "status": proposal.status,
+        }
+
+    def get_account_notification_context(self, account_id: int) -> Optional[dict]:
+        account = SimulatedAccountModel._default_manager.filter(id=account_id).select_related("user").first()
+        if not account:
+            return None
+        config, _ = DailyInspectionNotificationConfigModel._default_manager.get_or_create(account=account)
+        return {
+            "account_id": account.id,
+            "account_name": account.account_name,
+            "user_id": account.user.id if account.user else None,
+            "user_email": account.user.email if account.user else "",
+            "config": {
+                "is_enabled": config.is_enabled,
+                "include_owner_email": config.include_owner_email,
+                "notify_on": config.notify_on,
+                "recipient_emails": list(config.recipient_emails or []),
+            },
+        }
+
+    def get_rebalance_proposal_detail(self, proposal_id: int) -> Optional[dict]:
+        proposal = RebalanceProposalModel._default_manager.filter(id=proposal_id).first()
+        if not proposal:
+            return None
+        return {
+            "proposal_id": proposal.id,
+            "priority": proposal.priority,
+            "priority_display": proposal.get_priority_display(),
+            "status": proposal.status,
+            "status_display": proposal.get_status_display(),
+            "proposals": list(proposal.proposals or []),
+            "source_description": proposal.source_description,
+        }
+
+    def record_notification_history(
+        self,
+        account_id: int,
+        proposal_id: Optional[int],
+        notification_type: str,
+        recipients: list[str],
+        status: str,
+        subject: str,
+        body: str,
+        recipient_user_id: Optional[int] = None,
+    ) -> None:
+        for email in recipients:
+            NotificationHistoryModel._default_manager.create(
+                account_id=account_id,
+                rebalance_proposal_id=proposal_id,
+                notification_type=notification_type,
+                channel="email",
+                recipient_user_id=recipient_user_id,
+                recipient_email=email,
+                subject=subject,
+                body=body,
+                status=status,
+            )
 

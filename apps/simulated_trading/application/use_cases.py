@@ -22,6 +22,7 @@ from apps.simulated_trading.domain.entities import (
     OrderStatus
 )
 from apps.simulated_trading.domain.rules import TradingConstraintRule
+from apps.simulated_trading.application.ports import SignalQueryRepositoryProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -195,11 +196,13 @@ class ExecuteBuyOrderUseCase:
         self,
         account_repo: SimulatedAccountRepositoryProtocol,
         position_repo: PositionRepositoryProtocol,
-        trade_repo: TradeRepositoryProtocol
+        trade_repo: TradeRepositoryProtocol,
+        signal_repo: Optional[SignalQueryRepositoryProtocol] = None,
     ):
         self.account_repo = account_repo
         self.position_repo = position_repo
         self.trade_repo = trade_repo
+        self.signal_repo = signal_repo
 
     def execute(
         self,
@@ -378,27 +381,11 @@ class ExecuteBuyOrderUseCase:
         Returns:
             (invalidation_rule_json, invalidation_description) 或 (None, None)
         """
-        try:
-            from apps.signal.infrastructure.models import InvestmentSignalModel
-            import json
-
-            signal = InvestmentSignalModel._default_manager.get(id=signal_id)
-
-            # 获取证伪规则（JSON 格式）
-            invalidation_rule_json = None
-            if signal.invalidation_rule_json:
-                invalidation_rule_json = json.dumps(signal.invalidation_rule_json, ensure_ascii=False)
-
-            # 获取证伪描述
-            invalidation_description = signal.invalidation_description
-
-            return invalidation_rule_json, (invalidation_description or "")
-
-        except InvestmentSignalModel.DoesNotExist:
-            # 信号不存在，返回 None
+        if self.signal_repo is None:
             return None, ""
+        try:
+            return self.signal_repo.get_signal_invalidation_payload(signal_id)
         except Exception:
-            # 其他错误，返回 None
             return None, ""
 
 

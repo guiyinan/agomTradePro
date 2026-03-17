@@ -22,6 +22,11 @@ from dataclasses import dataclass
 from typing import List, Optional
 from decimal import Decimal
 
+from apps.simulated_trading.infrastructure.repositories import (
+    DjangoSimulatedAccountRepository,
+    DjangoPositionRepository,
+)
+
 logger = __import__('logging').getLogger(__name__)
 
 
@@ -98,6 +103,14 @@ class SimulatedTradingFacade:
         ...     print(f"{pos.asset_code}: {pos.market_value}")
     """
 
+    def __init__(
+        self,
+        account_repo: Optional[DjangoSimulatedAccountRepository] = None,
+        position_repo: Optional[DjangoPositionRepository] = None,
+    ) -> None:
+        self.account_repo = account_repo or DjangoSimulatedAccountRepository()
+        self.position_repo = position_repo or DjangoPositionRepository()
+
     def _get_active_strategy_binding(self, account_id: int) -> Optional[StrategyBindingSummary]:
         """通过 strategy gateway 获取账户当前激活的策略绑定。"""
         try:
@@ -129,33 +142,24 @@ class SimulatedTradingFacade:
             AccountSummary 或 None
         """
         try:
-            # 延迟导入避免循环依赖
-            from apps.simulated_trading.infrastructure.models import (
-                SimulatedAccountModel,
-            )
-
-            account = SimulatedAccountModel._default_manager.filter(id=account_id).first()
-
+            account = self.account_repo.get_by_id(account_id)
             if not account:
                 return None
 
-            positions = account.positions.filter(quantity__gt=0)
-            market_value = sum(
-                (pos.market_value or Decimal("0"))
-                for pos in positions
-            )
+            positions = self.position_repo.get_by_account(account_id)
+            market_value = sum(Decimal(str(pos.market_value or 0)) for pos in positions)
             active_strategy = self._get_active_strategy_binding(account_id)
 
             return AccountSummary(
-                account_id=account.id,
+                account_id=account.account_id,
                 account_name=account.account_name,
-                total_value=account.current_cash + market_value,
-                current_cash=account.current_cash,
+                total_value=Decimal(str(account.current_cash)) + market_value,
+                current_cash=Decimal(str(account.current_cash)),
                 market_value=market_value,
                 active_strategy_id=(
                     active_strategy.strategy_id if active_strategy else None
                 ),
-                position_count=positions.count(),
+                position_count=len(positions),
                 is_active=account.auto_trading_enabled,
             )
 
@@ -174,28 +178,23 @@ class SimulatedTradingFacade:
             PositionSummary 列表
         """
         try:
-            # 延迟导入避免循环依赖
-            from apps.simulated_trading.infrastructure.models import PositionModel
-
-            positions = PositionModel._default_manager.filter(
-                account_id=account_id,
-                quantity__gt=0  # 只返回有效持仓
-            ).all()
+            positions = self.position_repo.get_by_account(account_id)
 
             return [
                 PositionSummary(
                     asset_code=pos.asset_code,
                     asset_name=pos.asset_name or pos.asset_code,
                     quantity=int(pos.quantity),
-                    avg_cost=pos.avg_cost or Decimal('0'),
-                    current_price=pos.current_price or Decimal('0'),
-                    market_value=pos.market_value or Decimal('0'),
-                    unrealized_pnl=pos.unrealized_pnl,
-                    unrealized_pnl_pct=pos.unrealized_pnl_pct,
+                    avg_cost=Decimal(str(pos.avg_cost or 0)),
+                    current_price=Decimal(str(pos.current_price or 0)),
+                    market_value=Decimal(str(pos.market_value or 0)),
+                    unrealized_pnl=Decimal(str(pos.unrealized_pnl or 0)),
+                    unrealized_pnl_pct=Decimal(str(pos.unrealized_pnl_pct)) if pos.unrealized_pnl_pct is not None else None,
                     asset_type=pos.asset_type or 'equity',
-                    is_closed=pos.is_closed or False
+                    is_closed=False,
                 )
                 for pos in positions
+                if pos.quantity > 0
             ]
 
         except Exception as e:
@@ -213,15 +212,9 @@ class SimulatedTradingFacade:
             现金余额
         """
         try:
-            # 延迟导入避免循环依赖
-            from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
-
-            account = SimulatedAccountModel._default_manager.filter(
-                id=account_id
-            ).first()
-
+            account = self.account_repo.get_by_id(account_id)
             if account:
-                return account.current_cash or Decimal('0')
+                return Decimal(str(account.current_cash or 0))
             return Decimal('0')
 
         except Exception as e:
@@ -248,12 +241,7 @@ class SimulatedTradingFacade:
     def user_owns_account(self, account_id: int, user_id: int) -> bool:
         """判断账户是否属于指定用户。"""
         try:
-            from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
-
-            return SimulatedAccountModel._default_manager.filter(
-                id=account_id,
-                user_id=user_id,
-            ).exists()
+            return self.account_repo.user_owns_account(account_id, user_id)
         except Exception as e:
             logger.error(f"Error checking account ownership: {e}")
             return False
@@ -269,34 +257,29 @@ class SimulatedTradingFacade:
             AccountOverview 或 None
         """
         try:
-            # 延迟导入避免循环依赖
-            from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
-
-            account = SimulatedAccountModel._default_manager.filter(
-                id=account_id
-            ).first()
-
+            account = self.account_repo.get_by_id(account_id)
             if not account:
                 return None
 
             active_strategy = self._get_active_strategy_binding(account_id)
+            positions = self.position_repo.get_by_account(account_id)
 
             # 计算总收益
-            initial_capital = account.initial_capital or Decimal('1000000')
-            total_value = account.current_cash + (account.current_market_value or Decimal('0'))
+            initial_capital = Decimal(str(account.initial_capital or 1000000))
+            total_value = Decimal(str(account.current_cash)) + Decimal(str(account.current_market_value or 0))
             total_return_pct = None
             if initial_capital and initial_capital > 0:
                 total_return_pct = (total_value - initial_capital) / initial_capital * 100
 
             return AccountOverview(
-                account_id=account.id,
+                account_id=account.account_id,
                 account_name=account.account_name,
                 initial_capital=initial_capital,
-                current_cash=account.current_cash,
-                market_value=account.current_market_value or Decimal('0'),
+                current_cash=Decimal(str(account.current_cash)),
+                market_value=Decimal(str(account.current_market_value or 0)),
                 total_value=total_value,
                 total_return_pct=total_return_pct,
-                position_count=account.positions.filter(quantity__gt=0).count(),
+                position_count=len([pos for pos in positions if pos.quantity > 0]),
                 active_strategy_id=(
                     active_strategy.strategy_id if active_strategy else None
                 ),
@@ -314,17 +297,12 @@ class SimulatedTradingFacade:
             AccountOverview 列表
         """
         try:
-            # 延迟导入避免循环依赖
-            from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
-
-            accounts = SimulatedAccountModel._default_manager.filter(
-                auto_trading_enabled=True
-            ).all()
+            accounts = self.account_repo.get_active_accounts()
 
             return [
                 overview
                 for account in accounts
-                if (overview := self.get_account_overview(account.id))
+                if (overview := self.get_account_overview(account.account_id))
             ]
 
         except Exception as e:
@@ -343,14 +321,8 @@ class SimulatedTradingFacade:
             是否存在持仓
         """
         try:
-            # 延迟导入避免循环依赖
-            from apps.simulated_trading.infrastructure.models import PositionModel
-
-            return PositionModel._default_manager.filter(
-                account_id=account_id,
-                asset_code=asset_code,
-                quantity__gt=0
-            ).exists()
+            position = self.position_repo.get_position(account_id, asset_code)
+            return position is not None and position.quantity > 0
 
         except Exception as e:
             logger.error(f"Error checking position exists: {e}")

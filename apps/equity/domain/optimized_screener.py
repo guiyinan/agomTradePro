@@ -348,7 +348,11 @@ class ScreeningCacheManager:
 
 
 @lru_cache(maxsize=128)
-def cached_sector_filter(stock_code: str, allowed_sectors: tuple) -> bool:
+def cached_sector_filter(
+    stock_code: str,
+    allowed_sectors: tuple,
+    stock_sector: Optional[str] = None,
+) -> bool:
     """
     缓存的行业过滤
 
@@ -359,20 +363,8 @@ def cached_sector_filter(stock_code: str, allowed_sectors: tuple) -> bool:
     Returns:
         是否在允许的行业中
     """
-    # 从数据库或缓存中获取股票的行业
-    try:
-        from apps.equity.infrastructure.models import StockInfoModel
-
-        stock_model = StockInfoModel.objects.filter(
-            stock_code=stock_code,
-            is_active=True
-        ).first()
-
-        if stock_model and stock_model.sector:
-            return stock_model.sector in allowed_sectors
-
+    # Domain 层不负责查询基础设施数据，调用方应先解析出行业并作为
+    # `stock_sector` 传入。
+    if not stock_code or not allowed_sectors or not stock_sector:
         return False
-
-    except Exception:
-        # 发生异常时，保守返回 False
-        return False
+    return stock_sector in allowed_sectors

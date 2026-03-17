@@ -5,13 +5,14 @@
 仓储实现了 Domain 层定义的 Protocol 接口。
 """
 
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Dict
 from datetime import date
 
 from apps.asset_analysis.domain.interfaces import WeightConfigRepositoryProtocol, AssetRepositoryProtocol
 from apps.asset_analysis.domain.value_objects import WeightConfig
 from apps.asset_analysis.domain.entities import AssetScore, AssetType, AssetStyle, AssetSize
-from apps.asset_analysis.infrastructure.models import WeightConfigModel
+from apps.asset_analysis.domain.pool import PoolType
+from apps.asset_analysis.infrastructure.models import WeightConfigModel, AssetPoolEntry
 
 
 class AssetRepositoryFactory:
@@ -250,4 +251,54 @@ class DjangoAssetRepository(AssetRepositoryProtocol):
         """
         repo = AssetRepositoryFactory.get_repository(asset_type)
         return repo.get_asset_by_code(asset_type, asset_code)
+
+
+class DjangoAssetPoolQueryRepository:
+    """资产池只读查询仓储。"""
+
+    def list_investable_assets(
+        self,
+        asset_type: str,
+        min_score: float,
+        limit: int,
+    ) -> List[dict]:
+        pool_entries = AssetPoolEntry._default_manager.filter(
+            pool_type=PoolType.INVESTABLE.value,
+            asset_category=asset_type,
+            is_active=True,
+            total_score__gte=min_score,
+        ).order_by("-total_score")[:limit]
+
+        candidates = []
+        for entry in pool_entries:
+            candidates.append({
+                "asset_code": entry.asset_code,
+                "asset_name": entry.asset_name,
+                "asset_type": asset_type,
+                "score": entry.total_score,
+                "regime_score": entry.regime_score,
+                "policy_score": entry.policy_score,
+                "sentiment_score": entry.sentiment_score,
+                "signal_score": entry.signal_score,
+                "entry_date": entry.entry_date,
+                "entry_reason": entry.entry_reason,
+                "risk_level": entry.risk_level,
+            })
+        return candidates
+
+    def get_latest_pool_type(self, asset_code: str) -> Optional[str]:
+        entry = AssetPoolEntry._default_manager.filter(
+            asset_code=asset_code,
+            is_active=True,
+        ).order_by("-entry_date").first()
+        return entry.pool_type if entry else None
+
+    def summarize_pool_counts(self, asset_type: Optional[str] = None) -> Dict[str, int]:
+        queryset = AssetPoolEntry._default_manager.filter(is_active=True)
+        if asset_type:
+            queryset = queryset.filter(asset_category=asset_type)
+        return {
+            pool_type.value: queryset.filter(pool_type=pool_type.value).count()
+            for pool_type in PoolType
+        }
 

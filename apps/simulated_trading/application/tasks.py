@@ -27,14 +27,13 @@ from apps.simulated_trading.infrastructure.repositories import (
     DjangoSimulatedAccountRepository,
     DjangoPositionRepository,
     DjangoTradeRepository,
+    DjangoInspectionRepository,
 )
 from apps.simulated_trading.infrastructure.market_data_provider import MarketDataProvider
 from apps.simulated_trading.application.asset_pool_query_service import AssetPoolQueryService
 from apps.simulated_trading.application.daily_inspection_service import DailyInspectionService
-from apps.simulated_trading.infrastructure.models import (
-    SimulatedAccountModel,
-    DailyInspectionNotificationConfigModel,
-)
+from apps.asset_analysis.infrastructure.repositories import DjangoAssetPoolQueryRepository
+from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
 logger = logging.getLogger(__name__)
 
@@ -81,13 +80,17 @@ def daily_auto_trading_task(
         account_repo = DjangoSimulatedAccountRepository()
         position_repo = DjangoPositionRepository()
         trade_repo = DjangoTradeRepository()
+        signal_repo = DjangoSignalRepository()
 
-        buy_use_case = ExecuteBuyOrderUseCase(account_repo, position_repo, trade_repo)
+        buy_use_case = ExecuteBuyOrderUseCase(account_repo, position_repo, trade_repo, signal_repo=signal_repo)
         sell_use_case = ExecuteSellOrderUseCase(account_repo, position_repo, trade_repo)
         performance_use_case = GetAccountPerformanceUseCase(account_repo, position_repo, trade_repo)
 
         market_data = MarketDataProvider(cache_ttl_minutes=60)  # 1小时缓存
-        asset_pool_service = AssetPoolQueryService()
+        asset_pool_service = AssetPoolQueryService(
+            asset_pool_repo=DjangoAssetPoolQueryRepository(),
+            signal_repo=signal_repo,
+        )
 
         # 3. 创建引擎
         engine = AutoTradingEngine(
@@ -99,6 +102,7 @@ def daily_auto_trading_task(
             performance_use_case=performance_use_case,
             asset_pool_service=asset_pool_service,
             market_data_provider=market_data,
+            signal_service=signal_repo,
         )
 
         # 4. 执行交易
@@ -556,6 +560,7 @@ def daily_portfolio_inspection_task(
         auto_create_proposal,
     )
     try:
+        inspection_repo = DjangoInspectionRepository()
         # 使用新方法运行巡检并可能创建再平衡建议
         result = DailyInspectionService.run_and_create_proposal(
             account_id=account_id,
@@ -584,10 +589,10 @@ def daily_portfolio_inspection_task(
             result.get("proposal_id"),
         )
         return {"success": True, **result}
-    except SimulatedAccountModel.DoesNotExist:
+    except ValueError as exc:
         return {
             "success": False,
-            "error": f"账户不存在: {account_id}",
+            "error": str(exc),
             "account_id": account_id,
             "inspection_date": target_date.isoformat(),
         }
@@ -606,26 +611,25 @@ def _send_daily_inspection_email(result: Dict[str, Any]) -> None:
     if not getattr(settings, "DAILY_INSPECTION_EMAIL_ENABLED", True):
         return
 
-    account = SimulatedAccountModel._default_manager.filter(id=result["account_id"]).select_related("user").first()
-    if not account:
+    inspection_repo = DjangoInspectionRepository()
+    context = inspection_repo.get_account_notification_context(result["account_id"])
+    if not context:
         return
 
-    config, _ = DailyInspectionNotificationConfigModel._default_manager.get_or_create(
-        account=account
-    )
-    if not config.is_enabled:
+    config = context["config"]
+    if not config["is_enabled"]:
         return
 
     status_value = str(result.get("status", "ok")).lower()
-    notify_on = {"ok", "warning", "error"} if config.notify_on == "all" else {"warning", "error"}
+    notify_on = {"ok", "warning", "error"} if config["notify_on"] == "all" else {"warning", "error"}
     if status_value not in notify_on:
         return
 
     recipients: list[str] = []
-    if config.include_owner_email and account.user and account.user.email:
-        recipients.append(account.user.email)
+    if config["include_owner_email"] and context.get("user_email"):
+        recipients.append(context["user_email"])
 
-    recipients.extend([str(x).strip() for x in (config.recipient_emails or []) if str(x).strip()])
+    recipients.extend([str(x).strip() for x in (config["recipient_emails"] or []) if str(x).strip()])
 
     recipients = sorted(set(recipients))
     if not recipients:
@@ -682,57 +686,52 @@ def _send_rebalance_proposal_notification(result: Dict[str, Any]) -> None:
     proposal_id = result["proposal_id"]
     summary = result.get("summary", {})
 
-    account = SimulatedAccountModel._default_manager.filter(id=account_id).select_related("user").first()
-    if not account:
+    inspection_repo = DjangoInspectionRepository()
+    context = inspection_repo.get_account_notification_context(account_id)
+    if not context:
         logger.warning("无法发送再平衡建议通知：账户不存在 account_id=%s", account_id)
         return
 
-    # 获取再平衡建议详情
-    from apps.simulated_trading.infrastructure.models import RebalanceProposalModel
-    proposal = RebalanceProposalModel._default_manager.filter(id=proposal_id).first()
+    proposal = inspection_repo.get_rebalance_proposal_detail(proposal_id)
     if not proposal:
         logger.warning("无法发送再平衡建议通知：建议不存在 proposal_id=%s", proposal_id)
         return
 
-    # 获取通知配置
-    config, _ = DailyInspectionNotificationConfigModel._default_manager.get_or_create(
-        account=account
-    )
-
-    if not config.is_enabled:
+    config = context["config"]
+    if not config["is_enabled"]:
         return
 
     # 收集收件人邮箱
     recipients: list[str] = []
-    if config.include_owner_email and account.user and account.user.email:
-        recipients.append(account.user.email)
+    if config["include_owner_email"] and context.get("user_email"):
+        recipients.append(context["user_email"])
 
-    recipients.extend([str(x).strip() for x in (config.recipient_emails or []) if str(x).strip()])
+    recipients.extend([str(x).strip() for x in (config["recipient_emails"] or []) if str(x).strip()])
     recipients = sorted(set(recipients))
 
     # 发送邮件通知
     if recipients:
         subject = (
             f"[AgomSAAF] 再平衡建议待审核 "
-            f"account={account.account_name} proposal_id={proposal_id}"
+            f"account={context['account_name']} proposal_id={proposal_id}"
         )
         lines = [
-            f"账户: {account.account_name} (ID: {account_id})",
+            f"账户: {context['account_name']} (ID: {account_id})",
             f"建议ID: {proposal_id}",
             f"巡检日期: {result.get('inspection_date')}",
-            f"优先级: {proposal.get_priority_display()}",
-            f"状态: {proposal.get_status_display()}",
+            f"优先级: {proposal['priority_display']}",
+            f"状态: {proposal['status_display']}",
             "",
             "再平衡摘要:",
             f"- 需要调整的资产数: {summary.get('rebalance_required_count', 0)}",
-            f"- 买入操作: {len([p for p in proposal.proposals if p['action'] == 'buy'])}",
-            f"- 卖出操作: {len([p for p in proposal.proposals if p['action'] == 'sell'])}",
-            f"- 预计交易金额: {sum(p.get('estimated_amount', 0) for p in proposal.proposals):.2f} 元",
+            f"- 买入操作: {len([p for p in proposal['proposals'] if p['action'] == 'buy'])}",
+            f"- 卖出操作: {len([p for p in proposal['proposals'] if p['action'] == 'sell'])}",
+            f"- 预计交易金额: {sum(p.get('estimated_amount', 0) for p in proposal['proposals']):.2f} 元",
             "",
             "调整明细:",
         ]
 
-        for item in proposal.proposals[:10]:
+        for item in proposal["proposals"][:10]:
             action_emoji = "🔴" if item["action"] == "sell" else "🟢"
             lines.append(
                 f"{action_emoji} {item['asset_code']} ({item['asset_name']}): "
@@ -740,12 +739,12 @@ def _send_rebalance_proposal_notification(result: Dict[str, Any]) -> None:
                 f"金额约 {item['estimated_amount']:.2f} 元"
             )
 
-        if len(proposal.proposals) > 10:
-            lines.append(f"... 还有 {len(proposal.proposals) - 10} 个资产")
+        if len(proposal["proposals"]) > 10:
+            lines.append(f"... 还有 {len(proposal['proposals']) - 10} 个资产")
 
         lines.extend([
             "",
-            f"原因: {proposal.source_description}",
+            f"原因: {proposal['source_description']}",
             "",
             "请登录系统审核并执行此再平衡建议。",
             "-" * 50,
@@ -761,7 +760,7 @@ def _send_rebalance_proposal_notification(result: Dict[str, Any]) -> None:
         logger.info("再平衡建议邮件已发送: proposal_id=%s recipients=%s", proposal_id, recipients)
 
     # 创建站内通知（如果用户存在）
-    if account.user:
+    if context.get("user_id"):
         from shared.infrastructure.notification_service import (
             InAppNotificationChannel,
             NotificationMessage,
@@ -773,7 +772,7 @@ def _send_rebalance_proposal_notification(result: Dict[str, Any]) -> None:
             channel = InAppNotificationChannel()
             message = NotificationMessage(
                 subject="再平衡建议待审核",
-                body=f"账户 {account.account_name} 的日更巡检发现了 {summary.get('rebalance_required_count', 0)} 个需要调整的资产，请审核再平衡建议 #{proposal_id}。",
+                body=f"账户 {context['account_name']} 的日更巡检发现了 {summary.get('rebalance_required_count', 0)} 个需要调整的资产，请审核再平衡建议 #{proposal_id}。",
                 priority=NotificationPriority.HIGH,
                 metadata={
                     "proposal_id": proposal_id,
@@ -783,11 +782,11 @@ def _send_rebalance_proposal_notification(result: Dict[str, Any]) -> None:
                 tags=["rebalance", "daily_inspection"],
             )
 
-            recipient = NotificationRecipient(user_id=account.user.id)
+            recipient = NotificationRecipient(user_id=context["user_id"])
             result_notify = channel.send(message, recipient, NotificationConfig())
 
             if result_notify.success:
-                logger.info("站内通知已发送: user_id=%s proposal_id=%s", account.user.id, proposal_id)
+                logger.info("站内通知已发送: user_id=%s proposal_id=%s", context["user_id"], proposal_id)
             else:
                 logger.warning("站内通知发送失败: %s", result_notify.error_message)
 
@@ -796,7 +795,9 @@ def _send_rebalance_proposal_notification(result: Dict[str, Any]) -> None:
 
     # 记录通知历史
     _record_notification_history(
-        account=account,
+        account_id=account_id,
+        account_name=context["account_name"],
+        account_user_id=context.get("user_id"),
         proposal=proposal,
         notification_type="rebalance_proposal",
         recipients=recipients,
@@ -805,31 +806,29 @@ def _send_rebalance_proposal_notification(result: Dict[str, Any]) -> None:
 
 
 def _record_notification_history(
-    account: SimulatedAccountModel,
+    account_id: int,
+    account_name: str,
+    account_user_id: Optional[int],
     proposal: Any,
     notification_type: str,
     recipients: list[str],
     status: str,
 ) -> None:
     """记录通知历史"""
-    from apps.simulated_trading.infrastructure.models import NotificationHistoryModel
-
     try:
-        # 为每个收件人创建记录
-        for email in recipients:
-            NotificationHistoryModel._default_manager.create(
-                account=account,
-                rebalance_proposal=proposal,
-                notification_type=notification_type,
-                channel="email",
-                recipient_user_id=account.user.id if account.user else None,
-                recipient_email=email,
-                subject=f"再平衡建议待审核 #{proposal.id}",
-                body=f"账户 {account.account_name} 的再平衡建议需要审核。",
-                status=status,
-            )
+        inspection_repo = DjangoInspectionRepository()
+        inspection_repo.record_notification_history(
+            account_id=account_id,
+            proposal_id=proposal.get("proposal_id"),
+            notification_type=notification_type,
+            recipients=recipients,
+            status=status,
+            subject=f"再平衡建议待审核 #{proposal.get('proposal_id')}",
+            body=f"账户 {account_name} 的再平衡建议需要审核。",
+            recipient_user_id=account_user_id,
+        )
 
-        logger.debug("通知历史已记录: account_id=%s type=%s", account.id, notification_type)
+        logger.debug("通知历史已记录: account_id=%s type=%s", account_id, notification_type)
 
     except Exception as e:
         logger.warning("记录通知历史失败: %s", e)

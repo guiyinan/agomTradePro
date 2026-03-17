@@ -8,11 +8,12 @@ Application层:
 """
 import logging
 from typing import List, Optional, Dict
-from datetime import date
 
-from apps.asset_analysis.domain.pool import PoolType, PoolCategory
-from apps.asset_analysis.infrastructure.models import AssetPoolEntry
-from apps.signal.infrastructure.models import InvestmentSignalModel
+from apps.asset_analysis.domain.pool import PoolType
+from apps.simulated_trading.application.ports import (
+    AssetPoolQueryRepositoryProtocol,
+    SignalQueryRepositoryProtocol,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,14 @@ class AssetPoolQueryService:
 
     提供可投池资产查询，用于自动交易引擎的买入逻辑
     """
+
+    def __init__(
+        self,
+        asset_pool_repo: AssetPoolQueryRepositoryProtocol,
+        signal_repo: SignalQueryRepositoryProtocol,
+    ) -> None:
+        self.asset_pool_repo = asset_pool_repo
+        self.signal_repo = signal_repo
 
     def get_investable_assets(
         self,
@@ -54,35 +63,13 @@ class AssetPoolQueryService:
             }
         """
         try:
-            # 1. 查询可投池的资产
-            pool_entries = AssetPoolEntry._default_manager.filter(
-                pool_type=PoolType.INVESTABLE.value,
-                asset_category=asset_type,
-                is_active=True,
-                total_score__gte=min_score
-            ).order_by('-total_score')[:limit]
-
-            logger.info(f"从资产池查询到 {len(pool_entries)} 个可投资产（类型: {asset_type}, 最低评分: {min_score}）")
-
-            # 2. 转换为候选格式
-            candidates = []
-            for entry in pool_entries:
-                candidates.append({
-                    'asset_code': entry.asset_code,
-                    'asset_name': entry.asset_name,
-                    'asset_type': asset_type,
-                    'score': entry.total_score,
-                    'regime_score': entry.regime_score,
-                    'policy_score': entry.policy_score,
-                    'sentiment_score': entry.sentiment_score,
-                    'signal_score': entry.signal_score,
-                    'entry_date': entry.entry_date,
-                    'entry_reason': entry.entry_reason,
-                    'risk_level': entry.risk_level,
-                })
-
+            candidates = self.asset_pool_repo.list_investable_assets(
+                asset_type=asset_type,
+                min_score=min_score,
+                limit=limit,
+            )
+            logger.info(f"从资产池查询到 {len(candidates)} 个可投资产（类型: {asset_type}, 最低评分: {min_score}）")
             return candidates
-
         except Exception as e:
             logger.error(f"查询可投池失败: {e}")
             return []
@@ -114,22 +101,18 @@ class AssetPoolQueryService:
         asset_codes = [c['asset_code'] for c in candidates]
 
         # 查询有效信号
-        valid_signals = InvestmentSignalModel._default_manager.filter(
-            asset_code__in=asset_codes,
-            status='valid',
-            is_active=True
-        )
+        valid_signals = self.signal_repo.get_valid_signal_summaries(asset_codes=asset_codes)
 
         # 创建信号映射: {asset_code: signal}
-        signal_map = {signal.asset_code: signal for signal in valid_signals}
+        signal_map = {signal['asset_code']: signal for signal in valid_signals}
 
         # 3. 只保留有信号的资产
         candidates_with_signals = []
         for candidate in candidates:
             signal = signal_map.get(candidate['asset_code'])
             if signal:
-                candidate['signal_id'] = signal.id
-                candidate['signal_logic'] = signal.logic_desc
+                candidate['signal_id'] = signal['signal_id']
+                candidate['signal_logic'] = signal['logic_desc']
                 candidates_with_signals.append(candidate)
 
         logger.info(
@@ -150,15 +133,7 @@ class AssetPoolQueryService:
             池类型（investable/prohibited/watch/candidate）
         """
         try:
-            entry = AssetPoolEntry._default_manager.filter(
-                asset_code=asset_code,
-                is_active=True
-            ).order_by('-entry_date').first()
-
-            if entry:
-                return entry.pool_type
-            return None
-
+            return self.asset_pool_repo.get_latest_pool_type(asset_code)
         except Exception as e:
             logger.error(f"查询资产池类型失败: {asset_code}, 错误: {e}")
             return None
@@ -174,18 +149,11 @@ class AssetPoolQueryService:
             {pool_type: count}
         """
         try:
-            queryset = AssetPoolEntry._default_manager.filter(is_active=True)
-
-            if asset_type:
-                queryset = queryset.filter(asset_category=asset_type)
-
-            summary = {}
-            for pool_type in PoolType:
-                count = queryset.filter(pool_type=pool_type.value).count()
-                summary[pool_type.value] = count
-
-            return summary
-
+            summary = self.asset_pool_repo.summarize_pool_counts(asset_type=asset_type)
+            return {
+                pool_type.value: summary.get(pool_type.value, 0)
+                for pool_type in PoolType
+            }
         except Exception as e:
             logger.error(f"获取资产池摘要失败: {e}")
             return {}

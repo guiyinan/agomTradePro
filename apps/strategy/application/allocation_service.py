@@ -17,6 +17,7 @@ from apps.strategy.domain.allocation_matrix import (
     AllocationTarget,
     AssetAllocation,
 )
+from apps.strategy.domain.protocols import AssetNameResolverProtocol
 from apps.account.domain.entities import Position
 
 
@@ -77,6 +78,7 @@ class AllocationService:
         policy_level: Optional[str],
         total_assets: float,
         current_positions: List[Position],
+        asset_name_resolver: Optional[AssetNameResolverProtocol] = None,
     ) -> AllocationAdvice:
         """
         计算资产配置建议
@@ -107,6 +109,7 @@ class AllocationService:
             target.allocation,
             total_assets,
             current_regime,
+            asset_name_resolver=asset_name_resolver,
         )
 
         # 5. 生成摘要
@@ -193,6 +196,7 @@ class AllocationService:
         target_allocation: AssetAllocation,
         total_assets: float,
         regime: str,
+        asset_name_resolver: Optional[AssetNameResolverProtocol] = None,
     ) -> List[TradeAction]:
         """生成具体操作建议"""
         actions = []
@@ -214,7 +218,10 @@ class AllocationService:
         all_candidate_codes = {p.asset_code for p in positions}
         for assets_by_class in recommended_assets_map.get(regime, {}).values():
             all_candidate_codes.update(assets_by_class)
-        asset_name_map = cls._resolve_asset_names(list(all_candidate_codes))
+        asset_name_map = cls._resolve_asset_names(
+            list(all_candidate_codes),
+            asset_name_resolver=asset_name_resolver,
+        )
 
         for asset_class in asset_classes:
             diff = target_dict[asset_class] - current_allocation.get(asset_class, 0.0)
@@ -293,39 +300,16 @@ class AllocationService:
         return configured
 
     @classmethod
-    def _resolve_asset_names(cls, codes: List[str]) -> Dict[str, str]:
-        """批量解析证券名称，只从数据库解析。"""
+    def _resolve_asset_names(
+        cls,
+        codes: List[str],
+        asset_name_resolver: Optional[AssetNameResolverProtocol] = None,
+    ) -> Dict[str, str]:
+        """批量解析证券名称，由调用方注入解析器。"""
         code_set = {code for code in codes if code}
-        if not code_set:
+        if not code_set or asset_name_resolver is None:
             return {}
-
-        resolved: Dict[str, str] = {}
-        try:
-            from apps.equity.infrastructure.models import StockInfoModel
-
-            stock_rows = StockInfoModel._default_manager.filter(stock_code__in=list(code_set)).values("stock_code", "name")
-            for row in stock_rows:
-                resolved[row["stock_code"]] = row["name"]
-        except Exception:
-            pass
-
-        unresolved = [code for code in code_set if code not in resolved]
-        if unresolved:
-            try:
-                from apps.fund.infrastructure.models import FundInfoModel
-
-                code_to_fund_code = {code: code.split(".")[0] for code in unresolved}
-                fund_rows = FundInfoModel._default_manager.filter(
-                    fund_code__in=list(set(code_to_fund_code.values()))
-                ).values("fund_code", "fund_name")
-                fund_name_map = {row["fund_code"]: row["fund_name"] for row in fund_rows}
-                for code, fund_code in code_to_fund_code.items():
-                    if fund_code in fund_name_map:
-                        resolved[code] = fund_name_map[fund_code]
-            except Exception:
-                pass
-
-        return resolved
+        return asset_name_resolver.resolve_asset_names(list(code_set))
 
     @classmethod
     def _get_sell_reason(cls, asset_class: str, regime: str) -> str:
