@@ -31,8 +31,17 @@ from apps.account.infrastructure.backup_service import (
     generate_download_token,
     get_backup_email_connection,
 )
+from apps.account.infrastructure.repositories import (
+    PortfolioRepository,
+    PositionRepository,
+    SystemSettingsRepository,
+)
 
 logger = get_task_logger(__name__)
+
+system_settings_repo = SystemSettingsRepository()
+position_repo = PositionRepository()
+portfolio_repo = PortfolioRepository()
 
 
 @shared_task(
@@ -45,9 +54,7 @@ logger = get_task_logger(__name__)
 def send_database_backup_email_task(self):
     """按系统配置定期发送数据库全量备份下载链接。"""
     try:
-        from apps.account.infrastructure.models import SystemSettingsModel
-
-        config = SystemSettingsModel.get_settings()
+        config = system_settings_repo.get_settings()
         if not config.is_backup_due():
             return {"status": "skipped", "reason": "not_due"}
 
@@ -271,9 +278,8 @@ def _send_stop_loss_notifications(results: List, user_id: int = None):
             """.strip()
 
             # 获取用户邮箱
-            from apps.account.infrastructure.models import PositionModel
-            position = PositionModel._default_manager.get(id=result.position_id)
-            user_email = position.portfolio.user.email
+            position = position_repo.get_position_notification_context(result.position_id)
+            user_email = position["user_email"] if position else None
 
             if user_email:
                 send_mail(
@@ -313,9 +319,8 @@ def _send_take_profit_notifications(results: List, user_id: int = None):
             """.strip()
 
             # 获取用户邮箱
-            from apps.account.infrastructure.models import PositionModel
-            position = PositionModel._default_manager.get(id=result.position_id)
-            user_email = position.portfolio.user.email
+            position = position_repo.get_position_notification_context(result.position_id)
+            user_email = position["user_email"] if position else None
 
             if user_email:
                 send_mail(
@@ -380,13 +385,8 @@ def check_volatility_and_adjust_task(self, user_id: int = None):
         user_id: 用户ID，None表示检查所有用户
     """
     try:
-        from apps.account.infrastructure.models import PortfolioModel, AccountProfileModel
-
         # 获取需要检查的投资组合
-        if user_id:
-            portfolios = PortfolioModel._default_manager.filter(user_id=user_id, is_active=True)
-        else:
-            portfolios = PortfolioModel._default_manager.filter(is_active=True)
+        portfolios = portfolio_repo.list_active_portfolios(user_id=user_id)
 
         adjusted_count = 0
         warning_count = 0
@@ -396,28 +396,28 @@ def check_volatility_and_adjust_task(self, user_id: int = None):
                 # 分析波动率
                 analysis_use_case = VolatilityAnalysisUseCase()
                 analysis = analysis_use_case.analyze_portfolio_volatility(
-                    portfolio_id=portfolio.id,
-                    user_id=portfolio.user_id,
+                    portfolio_id=portfolio["id"],
+                    user_id=portfolio["user_id"],
                 )
 
                 # 如果需要调整，执行降仓
                 if analysis.adjustment_result.should_reduce:
                     adjustment_use_case = VolatilityAdjustmentUseCase()
                     result = adjustment_use_case.execute_volatility_adjustment(
-                        portfolio_id=portfolio.id,
-                        user_id=portfolio.user_id,
+                        portfolio_id=portfolio["id"],
+                        user_id=portfolio["user_id"],
                     )
 
                     if result['status'] == 'executed':
                         adjusted_count += 1
                         _send_volatility_adjustment_notification(
-                            portfolio_id=portfolio.id,
-                            user_id=portfolio.user_id,
+                            portfolio_id=portfolio["id"],
+                            user_id=portfolio["user_id"],
                             analysis=analysis,
                             result=result,
                         )
                     logger.info(
-                        f"投资组合 {portfolio.id} 波动率调整完成: "
+                        f"投资组合 {portfolio['id']} 波动率调整完成: "
                         f"{result['status']}"
                     )
 
@@ -425,13 +425,13 @@ def check_volatility_and_adjust_task(self, user_id: int = None):
                 elif analysis.adjustment_result.volatility_ratio > 1.0:
                     warning_count += 1
                     _send_volatility_warning_notification(
-                        portfolio_id=portfolio.id,
-                        user_id=portfolio.user_id,
+                        portfolio_id=portfolio["id"],
+                        user_id=portfolio["user_id"],
                         analysis=analysis,
                     )
 
             except Exception as e:
-                logger.error(f"处理投资组合 {portfolio.id} 波动率检查失败: {e}")
+                logger.error(f"处理投资组合 {portfolio['id']} 波动率检查失败: {e}")
                 continue
 
         logger.info(
@@ -467,14 +467,14 @@ def _send_volatility_adjustment_notification(
         result: 调整结果
     """
     try:
-        from apps.account.infrastructure.models import PortfolioModel
+        portfolio = portfolio_repo.get_portfolio_notification_context(portfolio_id)
+        if not portfolio:
+            raise ValueError(f"投资组合 {portfolio_id} 不存在")
 
-        portfolio = PortfolioModel._default_manager.get(id=portfolio_id)
-
-        subject = f"【波动率控制】投资组合 {portfolio.name} 已降仓"
+        subject = f"【波动率控制】投资组合 {portfolio['name']} 已降仓"
 
         message = f"""
-您的投资组合 "{portfolio.name}" 因波动率超标已自动降仓
+您的投资组合 "{portfolio['name']}" 因波动率超标已自动降仓
 
 当前波动率（30天）: {analysis.current_volatility_30d:.2%}
 目标波动率: {analysis.target_volatility:.2%}
@@ -489,7 +489,7 @@ def _send_volatility_adjustment_notification(
         """.strip()
 
         # 获取用户邮箱
-        user_email = portfolio.user.email
+        user_email = portfolio["user_email"]
 
         if user_email:
             send_mail(
@@ -519,14 +519,14 @@ def _send_volatility_warning_notification(
         analysis: 波动率分析结果
     """
     try:
-        from apps.account.infrastructure.models import PortfolioModel
+        portfolio = portfolio_repo.get_portfolio_notification_context(portfolio_id)
+        if not portfolio:
+            raise ValueError(f"投资组合 {portfolio_id} 不存在")
 
-        portfolio = PortfolioModel._default_manager.get(id=portfolio_id)
-
-        subject = f"【波动率警告】投资组合 {portfolio.name} 波动率偏高"
+        subject = f"【波动率警告】投资组合 {portfolio['name']} 波动率偏高"
 
         message = f"""
-您的投资组合 "{portfolio.name}" 当前波动率偏高，请关注
+您的投资组合 "{portfolio['name']}" 当前波动率偏高，请关注
 
 当前波动率（30天）: {analysis.current_volatility_30d:.2%}
 当前波动率（60天）: {analysis.current_volatility_60d:.2%}
@@ -540,7 +540,7 @@ def _send_volatility_warning_notification(
         """.strip()
 
         # 获取用户邮箱
-        user_email = portfolio.user.email
+        user_email = portfolio["user_email"]
 
         if user_email:
             send_mail(

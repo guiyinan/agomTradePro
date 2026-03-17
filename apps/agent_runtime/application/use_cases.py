@@ -28,6 +28,7 @@ from apps.agent_runtime.domain.services import (
     get_task_state_machine,
 )
 from apps.agent_runtime.application.services import TimelineEventWriterService
+from apps.agent_runtime.infrastructure.repositories import AgentTaskRepository
 
 
 logger = logging.getLogger(__name__)
@@ -145,10 +146,12 @@ class CreateTaskUseCase:
         state_machine: Optional[TaskStateMachine] = None,
         timeline_service: Optional[TimelineEventWriterService] = None,
         audit_service: Optional["AgentRuntimeAuditService"] = None,
+        task_repo: Optional[AgentTaskRepository] = None,
     ):
         self.state_machine = state_machine or get_task_state_machine()
         self.timeline_service = timeline_service or TimelineEventWriterService()
         self.audit_service = audit_service
+        self.task_repo = task_repo or AgentTaskRepository()
         if self.audit_service is None:
             try:
                 from apps.agent_runtime.application.services.audit_service import get_audit_service
@@ -169,8 +172,6 @@ class CreateTaskUseCase:
         Raises:
             ValueError: If input validation fails
         """
-        from apps.agent_runtime.infrastructure.models import AgentTaskModel
-
         # Validate domain
         try:
             domain = TaskDomain(input_dto.task_domain)
@@ -182,35 +183,13 @@ class CreateTaskUseCase:
         # Generate request ID
         request_id = generate_request_id()
 
-        # Create task model
-        task_model = AgentTaskModel._default_manager.create(
+        task = self.task_repo.create_task(
             request_id=request_id,
-            schema_version="v1",
             task_domain=input_dto.task_domain,
             task_type=input_dto.task_type,
-            status=TaskStatus.DRAFT.value,
             input_payload=input_dto.input_payload,
-            current_step=None,
-            last_error=None,
-            requires_human=False,
-            created_by_id=input_dto.created_by,
-        )
-
-        # Convert to domain entity
-        task = AgentTask(
-            id=task_model.id,
-            request_id=task_model.request_id,
-            schema_version=task_model.schema_version,
-            task_domain=TaskDomain(task_model.task_domain),
-            task_type=task_model.task_type,
-            status=TaskStatus(task_model.status),
-            input_payload=task_model.input_payload,
-            current_step=task_model.current_step,
-            last_error=task_model.last_error,
-            requires_human=task_model.requires_human,
-            created_by=task_model.created_by_id,
-            created_at=task_model.created_at,
-            updated_at=task_model.updated_at,
+            created_by=input_dto.created_by,
+            status=TaskStatus.DRAFT.value,
         )
 
         # Emit timeline event
@@ -249,8 +228,8 @@ class GetTaskUseCase:
     Use case for retrieving a single AgentTask.
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, task_repo: Optional[AgentTaskRepository] = None):
+        self.task_repo = task_repo or AgentTaskRepository()
 
     def execute(self, task_id: int) -> GetTaskOutput:
         """
@@ -265,30 +244,11 @@ class GetTaskUseCase:
         Raises:
             AgentTaskModel.DoesNotExist: If task not found
         """
-        from apps.agent_runtime.infrastructure.models import AgentTaskModel
-
-        task_model = AgentTaskModel._default_manager.get(pk=task_id)
-
-        # Convert to domain entity
-        task = AgentTask(
-            id=task_model.id,
-            request_id=task_model.request_id,
-            schema_version=task_model.schema_version,
-            task_domain=TaskDomain(task_model.task_domain),
-            task_type=task_model.task_type,
-            status=TaskStatus(task_model.status),
-            input_payload=task_model.input_payload,
-            current_step=task_model.current_step,
-            last_error=task_model.last_error,
-            requires_human=task_model.requires_human,
-            created_by=task_model.created_by_id,
-            created_at=task_model.created_at,
-            updated_at=task_model.updated_at,
-        )
+        task = self.task_repo.get_task(task_id)
 
         return GetTaskOutput(
             task=task,
-            request_id=task_model.request_id,
+            request_id=task.request_id,
         )
 
 
@@ -297,8 +257,8 @@ class ListTasksUseCase:
     Use case for listing AgentTasks with filters.
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, task_repo: Optional[AgentTaskRepository] = None):
+        self.task_repo = task_repo or AgentTaskRepository()
 
     def execute(
         self,
@@ -314,59 +274,25 @@ class ListTasksUseCase:
         Returns:
             ListTasksOutput with tasks and total count
         """
-        from apps.agent_runtime.infrastructure.models import AgentTaskModel
-
         if input_dto is None:
             input_dto = ListTasksInput(**filters)
         elif filters:
             raise TypeError("Pass either input_dto or keyword filters, not both")
 
         request_id = generate_request_id()
-        queryset = AgentTaskModel._default_manager.all()
-
-        # Apply filters
-        if input_dto.status:
-            queryset = queryset.filter(status=input_dto.status)
-        if input_dto.task_domain:
-            queryset = queryset.filter(task_domain=input_dto.task_domain)
-        if input_dto.task_type:
-            queryset = queryset.filter(task_type__icontains=input_dto.task_type)
-        if input_dto.requires_human is not None:
-            queryset = queryset.filter(requires_human=input_dto.requires_human)
-        if input_dto.search:
-            queryset = queryset.filter(
-                task_type__icontains=input_dto.search
-            ) | queryset.filter(request_id__icontains=input_dto.search)
-
-        # Get total count before pagination
-        total_count = queryset.count()
-
-        # Apply pagination
-        queryset = queryset.order_by("-created_at")[input_dto.offset : input_dto.offset + input_dto.limit]
-
-        # Convert to domain entities
-        tasks = []
-        for task_model in queryset:
-            task = AgentTask(
-                id=task_model.id,
-                request_id=task_model.request_id,
-                schema_version=task_model.schema_version,
-                task_domain=TaskDomain(task_model.task_domain),
-                task_type=task_model.task_type,
-                status=TaskStatus(task_model.status),
-                input_payload=task_model.input_payload,
-                current_step=task_model.current_step,
-                last_error=task_model.last_error,
-                requires_human=task_model.requires_human,
-                created_by=task_model.created_by_id,
-                created_at=task_model.created_at,
-                updated_at=task_model.updated_at,
-            )
-            tasks.append(task)
+        listing = self.task_repo.list_tasks(
+            status=input_dto.status,
+            task_domain=input_dto.task_domain,
+            task_type=input_dto.task_type,
+            requires_human=input_dto.requires_human,
+            search=input_dto.search,
+            limit=input_dto.limit,
+            offset=input_dto.offset,
+        )
 
         return ListTasksOutput(
-            tasks=tasks,
-            total_count=total_count,
+            tasks=listing["tasks"],
+            total_count=listing["total_count"],
             request_id=request_id,
         )
 
@@ -384,10 +310,12 @@ class ResumeTaskUseCase:
         state_machine: Optional[TaskStateMachine] = None,
         timeline_service: Optional[TimelineEventWriterService] = None,
         audit_service: Optional["AgentRuntimeAuditService"] = None,
+        task_repo: Optional[AgentTaskRepository] = None,
     ):
         self.state_machine = state_machine or get_task_state_machine()
         self.timeline_service = timeline_service or TimelineEventWriterService()
         self.audit_service = audit_service
+        self.task_repo = task_repo or AgentTaskRepository()
         if self.audit_service is None:
             try:
                 from apps.agent_runtime.application.services.audit_service import get_audit_service
@@ -410,27 +338,7 @@ class ResumeTaskUseCase:
             InvalidStateTransitionError: If transition is not allowed
             ValueError: If task is not in a resumable state
         """
-        from apps.agent_runtime.infrastructure.models import AgentTaskModel
-
-        # Get the task
-        task_model = AgentTaskModel._default_manager.get(pk=input_dto.task_id)
-
-        # Convert to domain entity
-        task = AgentTask(
-            id=task_model.id,
-            request_id=task_model.request_id,
-            schema_version=task_model.schema_version,
-            task_domain=TaskDomain(task_model.task_domain),
-            task_type=task_model.task_type,
-            status=TaskStatus(task_model.status),
-            input_payload=task_model.input_payload,
-            current_step=task_model.current_step,
-            last_error=task_model.last_error,
-            requires_human=task_model.requires_human,
-            created_by=task_model.created_by_id,
-            created_at=task_model.created_at,
-            updated_at=task_model.updated_at,
-        )
+        task = self.task_repo.get_task(input_dto.task_id)
 
         # Check if task is in a resumable state
         if not self.state_machine.is_resumable(task.status.value):
@@ -470,9 +378,11 @@ class ResumeTaskUseCase:
         updated_task = self.state_machine.transition(task, target_status, input_dto.reason)
 
         # Update model
-        task_model.status = updated_task.status.value
-        task_model.requires_human = False  # Clear flag on resume
-        task_model.save(update_fields=["status", "requires_human", "updated_at"])
+        updated_task = self.task_repo.update_task_state(
+            updated_task.id,
+            status=updated_task.status.value,
+            requires_human=False,
+        )
 
         # Emit timeline events
         timeline_event_id = self.timeline_service.write_state_changed_event(
@@ -497,7 +407,7 @@ class ResumeTaskUseCase:
             try:
                 self.audit_service.log_task_resumed(
                     task_id=updated_task.id,
-                    request_id=task_model.request_id,
+                    request_id=task.request_id,
                     from_status=old_status.value,
                     to_status=target_status.value,
                     reason=input_dto.reason,
@@ -511,7 +421,7 @@ class ResumeTaskUseCase:
 
         return ResumeTaskOutput(
             task=updated_task,
-            request_id=task_model.request_id,
+            request_id=task.request_id,
             timeline_event_id=timeline_event_id,
         )
 
@@ -529,10 +439,12 @@ class CancelTaskUseCase:
         state_machine: Optional[TaskStateMachine] = None,
         timeline_service: Optional[TimelineEventWriterService] = None,
         audit_service: Optional["AgentRuntimeAuditService"] = None,
+        task_repo: Optional[AgentTaskRepository] = None,
     ):
         self.state_machine = state_machine or get_task_state_machine()
         self.timeline_service = timeline_service or TimelineEventWriterService()
         self.audit_service = audit_service
+        self.task_repo = task_repo or AgentTaskRepository()
         if self.audit_service is None:
             try:
                 from apps.agent_runtime.application.services.audit_service import get_audit_service
@@ -554,27 +466,7 @@ class CancelTaskUseCase:
             AgentTaskModel.DoesNotExist: If task not found
             InvalidStateTransitionError: If task is in terminal state
         """
-        from apps.agent_runtime.infrastructure.models import AgentTaskModel
-
-        # Get the task
-        task_model = AgentTaskModel._default_manager.get(pk=input_dto.task_id)
-
-        # Convert to domain entity
-        task = AgentTask(
-            id=task_model.id,
-            request_id=task_model.request_id,
-            schema_version=task_model.schema_version,
-            task_domain=TaskDomain(task_model.task_domain),
-            task_type=task_model.task_type,
-            status=TaskStatus(task_model.status),
-            input_payload=task_model.input_payload,
-            current_step=task_model.current_step,
-            last_error=task_model.last_error,
-            requires_human=task_model.requires_human,
-            created_by=task_model.created_by_id,
-            created_at=task_model.created_at,
-            updated_at=task_model.updated_at,
-        )
+        task = self.task_repo.get_task(input_dto.task_id)
 
         # Check if task is already in terminal state
         if self.state_machine.is_terminal(task.status.value):
@@ -601,8 +493,10 @@ class CancelTaskUseCase:
         updated_task = self.state_machine.transition(task, target_status, input_dto.reason)
 
         # Update model
-        task_model.status = updated_task.status.value
-        task_model.save(update_fields=["status", "updated_at"])
+        updated_task = self.task_repo.update_task_state(
+            updated_task.id,
+            status=updated_task.status.value,
+        )
 
         # Emit timeline events
         timeline_event_id = self.timeline_service.write_task_cancelled_event(
@@ -627,7 +521,7 @@ class CancelTaskUseCase:
             try:
                 self.audit_service.log_task_cancelled(
                     task_id=updated_task.id,
-                    request_id=task_model.request_id,
+                    request_id=task.request_id,
                     from_status=old_status.value,
                     reason=input_dto.reason,
                     user_id=input_dto.actor.get("user_id") if input_dto.actor else None,
@@ -640,6 +534,6 @@ class CancelTaskUseCase:
 
         return CancelTaskOutput(
             task=updated_task,
-            request_id=task_model.request_id,
+            request_id=task.request_id,
             timeline_event_id=timeline_event_id,
         )

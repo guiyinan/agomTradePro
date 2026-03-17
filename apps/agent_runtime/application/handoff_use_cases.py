@@ -16,6 +16,13 @@ from apps.agent_runtime.domain.entities import (
     EventSource,
 )
 from apps.agent_runtime.application.services import TimelineEventWriterService
+from apps.agent_runtime.domain.entities import TERMINAL_PROPOSAL_STATUSES
+from apps.agent_runtime.infrastructure.repositories import (
+    AgentContextRepository,
+    AgentHandoffRepository,
+    AgentProposalRepository,
+    AgentTaskRepository,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -55,60 +62,44 @@ class HandoffTaskUseCase:
     def __init__(
         self,
         timeline_service: Optional[TimelineEventWriterService] = None,
+        task_repo: Optional[AgentTaskRepository] = None,
+        context_repo: Optional[AgentContextRepository] = None,
+        proposal_repo: Optional[AgentProposalRepository] = None,
+        handoff_repo: Optional[AgentHandoffRepository] = None,
     ):
         self.timeline_service = timeline_service or TimelineEventWriterService()
+        self.task_repo = task_repo or AgentTaskRepository()
+        self.context_repo = context_repo or AgentContextRepository()
+        self.proposal_repo = proposal_repo or AgentProposalRepository()
+        self.handoff_repo = handoff_repo or AgentHandoffRepository()
 
     def execute(self, inp: HandoffInput) -> HandoffOutput:
-        from apps.agent_runtime.infrastructure.models import (
-            AgentTaskModel,
-            AgentTaskStepModel,
-            AgentHandoffModel,
-            AgentContextSnapshotModel,
-            AgentProposalModel,
-        )
-
-        task_model = AgentTaskModel._default_manager.get(pk=inp.task_id)
-
-        # Gather completed and pending steps
-        steps = AgentTaskStepModel._default_manager.filter(
-            task_id=task_model.id
-        ).order_by("step_index")
+        task = self.task_repo.get_task(inp.task_id)
+        steps = self.context_repo.list_task_steps(task.id)
 
         completed_steps = [
-            {"step_key": s.step_key, "step_name": s.step_name, "status": s.status}
-            for s in steps if s.status == "completed"
+            step
+            for step in steps if step["status"] == "completed"
         ]
         pending_steps = [
-            {"step_key": s.step_key, "step_name": s.step_name, "status": s.status}
-            for s in steps if s.status != "completed"
+            step
+            for step in steps if step["status"] != "completed"
         ]
 
         # Latest context snapshot
-        context_ref = None
-        snapshot = AgentContextSnapshotModel._default_manager.filter(
-            task_id=task_model.id
-        ).order_by("-created_at").first()
-        if snapshot:
-            context_ref = {
-                "snapshot_id": snapshot.id,
-                "domain": snapshot.domain,
-                "generated_at": snapshot.generated_at.isoformat() if snapshot.generated_at else None,
-            }
+        context_ref = self.context_repo.get_latest_context_reference(task.id)
 
         # Open proposals
-        open_proposals = list(
-            AgentProposalModel._default_manager.filter(
-                task_id=task_model.id,
-            ).exclude(
-                status__in=["executed", "expired"],
-            ).values("id", "proposal_type", "status", "risk_level")
+        open_proposals = self.proposal_repo.list_open_proposals(
+            task.id,
+            terminal_statuses=list(TERMINAL_PROPOSAL_STATUSES),
         )
 
         # Build handoff payload
         handoff_payload = {
-            "current_status": task_model.status,
-            "task_domain": task_model.task_domain,
-            "task_type": task_model.task_type,
+            "current_status": task.status.value,
+            "task_domain": task.task_domain.value,
+            "task_type": task.task_type,
             "completed_steps": completed_steps,
             "pending_steps": pending_steps,
             "latest_context_reference": context_ref,
@@ -119,19 +110,18 @@ class HandoffTaskUseCase:
         }
 
         # Create handoff record
-        handoff_model = AgentHandoffModel._default_manager.create(
-            request_id=task_model.request_id,
-            task_id=task_model.id,
+        handoff_id = self.handoff_repo.create_handoff(
+            request_id=task.request_id,
+            task_id=task.id,
             from_agent=inp.actor.get("agent_id", "system") if inp.actor else "system",
             to_agent=inp.to_agent,
             handoff_reason=inp.handoff_reason,
             handoff_payload=handoff_payload,
-            handoff_status="completed",
         )
 
         # Timeline event
         self.timeline_service.write_task_escalated_event(
-            task=task_model.id,
+            task=task.id,
             reason=inp.handoff_reason,
             event_source=EventSource.SYSTEM,
             actor=inp.actor,
@@ -139,8 +129,8 @@ class HandoffTaskUseCase:
         )
 
         return HandoffOutput(
-            task_id=task_model.id,
-            request_id=task_model.request_id,
-            handoff_id=handoff_model.id,
+            task_id=task.id,
+            request_id=task.request_id,
+            handoff_id=handoff_id,
             handoff_payload=handoff_payload,
         )

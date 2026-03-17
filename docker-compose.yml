@@ -1,10 +1,9 @@
 # AgomSAAF Docker Compose 配置
-# 用于开发和生产环境
+# 默认使用本地 SQLite + Redis，便于单机开发/打包复用同一份数据。
 
 version: '3.8'
 
 services:
-  # Redis 服务
   redis:
     image: redis:7-alpine
     container_name: agomsaaf_redis
@@ -20,26 +19,6 @@ services:
       timeout: 3s
       retries: 3
 
-  # PostgreSQL 数据库（生产环境使用）
-  postgres:
-    image: postgres:15-alpine
-    container_name: agomsaaf_postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: agomsaaf
-      POSTGRES_USER: agomsaaf
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5433:5432"  # 使用 5433 端口避免与其他项目冲突
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U agomsaaf"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Django Web 服务
   web:
     build:
       context: .
@@ -52,14 +31,13 @@ services:
       - .env
     environment:
       - DEBUG=False
-      - DATABASE_URL=postgresql://agomsaaf:${POSTGRES_PASSWORD:-changeme}@postgres:5432/agomsaaf
+      - DATABASE_URL=sqlite:////app/db.sqlite3
       - REDIS_URL=redis://redis:6379/0
     volumes:
+      - ./db.sqlite3:/app/db.sqlite3
       - static_files:/app/staticfiles
       - media_files:/app/media
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
@@ -69,7 +47,6 @@ services:
       retries: 3
       start_period: 10s
 
-  # Celery Worker
   celery_worker:
     build:
       context: .
@@ -81,18 +58,16 @@ services:
       - .env
     environment:
       - DEBUG=False
-      - DATABASE_URL=postgresql://agomsaaf:${POSTGRES_PASSWORD:-changeme}@postgres:5432/agomsaaf
+      - DATABASE_URL=sqlite:////app/db.sqlite3
       - REDIS_URL=redis://redis:6379/0
     volumes:
+      - ./db.sqlite3:/app/db.sqlite3
       - static_files:/app/staticfiles
       - media_files:/app/media
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
 
-  # Celery Beat（定时任务调度）
   celery_beat:
     build:
       context: .
@@ -104,18 +79,16 @@ services:
       - .env
     environment:
       - DEBUG=False
-      - DATABASE_URL=postgresql://agomsaaf:${POSTGRES_PASSWORD:-changeme}@postgres:5432/agomsaaf
+      - DATABASE_URL=sqlite:////app/db.sqlite3
       - REDIS_URL=redis://redis:6379/0
     volumes:
+      - ./db.sqlite3:/app/db.sqlite3
       - static_files:/app/staticfiles
       - media_files:/app/media
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
 
-  # Nginx 反向代理（可选）
   nginx:
     image: nginx:alpine
     container_name: agomsaaf_nginx
@@ -137,8 +110,6 @@ services:
       retries: 3
 
 volumes:
-  postgres_data:
-    driver: local
   redis_data:
     driver: local
   static_files:

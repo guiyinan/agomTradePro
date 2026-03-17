@@ -15,11 +15,11 @@ from apps.account.domain.services import (
     VolatilityMetrics,
     VolatilityAdjustmentResult,
 )
-from apps.account.infrastructure.models import (
-    PortfolioModel,
-    PortfolioDailySnapshotModel,
-    AccountProfileModel,
-    PositionModel,
+from apps.account.infrastructure.repositories import (
+    AccountRepository,
+    PortfolioRepository,
+    PortfolioSnapshotRepository,
+    PositionRepository,
 )
 
 
@@ -42,8 +42,15 @@ class VolatilityAnalysisUseCase:
     分析投资组合的波动率，评估是否需要调整仓位。
     """
 
-    def __init__(self):
-        pass
+    def __init__(
+        self,
+        portfolio_repo: PortfolioRepository = None,
+        account_repo: AccountRepository = None,
+        snapshot_repo: PortfolioSnapshotRepository = None,
+    ):
+        self.portfolio_repo = portfolio_repo or PortfolioRepository()
+        self.account_repo = account_repo or AccountRepository()
+        self.snapshot_repo = snapshot_repo or PortfolioSnapshotRepository()
 
     def analyze_portfolio_volatility(
         self,
@@ -61,35 +68,30 @@ class VolatilityAnalysisUseCase:
             VolatilityAnalysisOutput: 波动率分析结果
         """
         # 获取投资组合
-        try:
-            portfolio = PortfolioModel._default_manager.get(id=portfolio_id, user_id=user_id)
-        except PortfolioModel.DoesNotExist:
+        if not self.portfolio_repo.user_owns_portfolio(portfolio_id, user_id):
             raise ValueError(f"投资组合 {portfolio_id} 不存在或无权限")
 
         # 获取用户账户配置（目标波动率）
-        try:
-            profile = AccountProfileModel._default_manager.get(user_id=user_id)
-            target_volatility = profile.target_volatility
-            tolerance = profile.volatility_tolerance
-            max_reduction = profile.max_volatility_reduction
-        except AccountProfileModel.DoesNotExist:
+        profile = self.account_repo.get_volatility_settings(user_id)
+        if profile:
+            target_volatility = profile["target_volatility"]
+            tolerance = profile["volatility_tolerance"]
+            max_reduction = profile["max_volatility_reduction"]
+        else:
             # 使用默认值
             target_volatility = 0.15
             tolerance = 0.2
             max_reduction = 0.5
 
         # 获取历史快照数据（最近90天）
-        snapshots = PortfolioDailySnapshotModel._default_manager.filter(
-            portfolio_id=portfolio_id
-        ).order_by('-snapshot_date')[:90]
-
-        # 转换为字典列表
-        snapshot_data = []
-        for snap in reversed(list(snapshots)):
-            snapshot_data.append({
-                "date": snap.snapshot_date,
-                "total_value": float(snap.total_value),
-            })
+        snapshots = self.snapshot_repo.get_snapshots_for_volatility(portfolio_id=portfolio_id, days=90)
+        snapshot_data = [
+            {
+                "date": snap["snapshot_date"],
+                "total_value": snap["total_value"],
+            }
+            for snap in snapshots
+        ]
 
         # 计算不同窗口的波动率
         vol_30d = self._calculate_volatility_for_window(snapshot_data, 30)
@@ -170,8 +172,8 @@ class VolatilityAdjustmentUseCase:
     根据波动率分析结果执行仓位调整。
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, position_repo: PositionRepository = None):
+        self.position_repo = position_repo or PositionRepository()
 
     def execute_volatility_adjustment(
         self,
@@ -210,30 +212,24 @@ class VolatilityAdjustmentUseCase:
         multiplier = adjustment.suggested_position_multiplier
 
         # 获取所有持仓
-        positions = PositionModel._default_manager.filter(
-            portfolio_id=portfolio_id,
-            is_closed=False,
-        )
+        positions = self.position_repo.list_open_positions_for_adjustment(portfolio_id)
 
         reduced_positions = []
         for position in positions:
             # 计算需要减少的数量
-            shares_to_reduce = position.shares * (1 - multiplier)
+            shares_to_reduce = position["shares"] * (1 - multiplier)
 
             if shares_to_reduce > 0:
-                from apps.account.infrastructure.repositories import PositionRepository
-                repo = PositionRepository()
-
                 # 执行平仓
-                repo.close_position(
-                    position_id=position.id,
+                self.position_repo.close_position(
+                    position_id=position["id"],
                     shares=shares_to_reduce,
-                    price=position.current_price or position.avg_cost,
+                    price=position["current_price"] or position["avg_cost"],
                     reason=f"波动率控制降仓: {adjustment.reduction_reason}",
                 )
 
                 reduced_positions.append({
-                    "asset_code": position.asset_code,
+                    "asset_code": position["asset_code"],
                     "shares_reduced": shares_to_reduce,
                 })
 
@@ -261,7 +257,7 @@ class UpdateTargetVolatilityUseCase:
         target_volatility: Optional[float] = None,
         volatility_tolerance: Optional[float] = None,
         max_volatility_reduction: Optional[float] = None,
-    ) -> AccountProfileModel:
+    ) -> Dict:
         """
         更新目标波动率配置
 
@@ -274,20 +270,15 @@ class UpdateTargetVolatilityUseCase:
         Returns:
             更新后的账户配置
         """
-        try:
-            profile = AccountProfileModel._default_manager.get(user_id=user_id)
-        except AccountProfileModel.DoesNotExist:
+        account_repo = AccountRepository()
+        profile = account_repo.update_volatility_settings(
+            user_id,
+            target_volatility=target_volatility,
+            volatility_tolerance=volatility_tolerance,
+            max_volatility_reduction=max_volatility_reduction,
+        )
+        if profile is None:
             raise ValueError(f"用户 {user_id} 账户配置不存在")
-
-        # 更新字段
-        if target_volatility is not None:
-            profile.target_volatility = target_volatility
-        if volatility_tolerance is not None:
-            profile.volatility_tolerance = volatility_tolerance
-        if max_volatility_reduction is not None:
-            profile.max_volatility_reduction = max_volatility_reduction
-
-        profile.save()
 
         return profile
 

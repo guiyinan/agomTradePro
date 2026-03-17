@@ -98,9 +98,85 @@ class AccountRepository:
             created_at=profile.created_at,
         )
 
+    def get_volatility_settings(self, user_id: int) -> Optional[Dict[str, Any]]:
+        """获取用户波动率控制配置。"""
+        try:
+            model = AccountProfileModel._default_manager.get(user_id=user_id)
+        except AccountProfileModel.DoesNotExist:
+            return None
+
+        return {
+            "user_id": model.user_id,
+            "target_volatility": model.target_volatility,
+            "volatility_tolerance": model.volatility_tolerance,
+            "max_volatility_reduction": model.max_volatility_reduction,
+        }
+
+    def update_volatility_settings(
+        self,
+        user_id: int,
+        *,
+        target_volatility: Optional[float] = None,
+        volatility_tolerance: Optional[float] = None,
+        max_volatility_reduction: Optional[float] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """更新用户波动率控制配置。"""
+        try:
+            model = AccountProfileModel._default_manager.get(user_id=user_id)
+        except AccountProfileModel.DoesNotExist:
+            return None
+
+        if target_volatility is not None:
+            model.target_volatility = target_volatility
+        if volatility_tolerance is not None:
+            model.volatility_tolerance = volatility_tolerance
+        if max_volatility_reduction is not None:
+            model.max_volatility_reduction = max_volatility_reduction
+        model.save(update_fields=[
+            "target_volatility",
+            "volatility_tolerance",
+            "max_volatility_reduction",
+            "updated_at",
+        ])
+        return self.get_volatility_settings(user_id)
+
 
 class PortfolioRepository:
     """投资组合仓储"""
+
+    def user_owns_portfolio(self, portfolio_id: int, user_id: int) -> bool:
+        """检查投资组合归属。"""
+        return PortfolioModel._default_manager.filter(id=portfolio_id, user_id=user_id).exists()
+
+    def list_active_portfolios(self, user_id: Optional[int] = None) -> List[Dict[str, Any]]:
+        """列出激活中的投资组合摘要。"""
+        queryset = PortfolioModel._default_manager.filter(is_active=True)
+        if user_id is not None:
+            queryset = queryset.filter(user_id=user_id)
+        portfolios = queryset.select_related("user").order_by("-created_at")
+        return [
+            {
+                "id": portfolio.id,
+                "user_id": portfolio.user_id,
+                "name": portfolio.name,
+                "user_email": portfolio.user.email,
+            }
+            for portfolio in portfolios
+        ]
+
+    def get_portfolio_notification_context(self, portfolio_id: int) -> Optional[Dict[str, Any]]:
+        """获取投资组合通知所需的最小上下文。"""
+        try:
+            portfolio = PortfolioModel._default_manager.select_related("user").get(id=portfolio_id)
+        except PortfolioModel.DoesNotExist:
+            return None
+
+        return {
+            "id": portfolio.id,
+            "user_id": portfolio.user_id,
+            "name": portfolio.name,
+            "user_email": portfolio.user.email,
+        }
 
     def get_user_portfolios(self, user_id: int) -> List[Dict]:
         """获取用户的所有投资组合"""
@@ -311,6 +387,62 @@ class PositionRepository:
             return PortfolioRepository()._convert_to_position_entities([model])[0]
         except PositionModel.DoesNotExist:
             return None
+
+    def list_open_positions_for_adjustment(self, portfolio_id: int) -> List[Dict[str, Any]]:
+        """获取用于风控调仓的活跃持仓。"""
+        models = PositionModel._default_manager.filter(
+            portfolio_id=portfolio_id,
+            is_closed=False,
+        ).only("id", "asset_code", "shares", "current_price", "avg_cost")
+        return [
+            {
+                "id": model.id,
+                "asset_code": model.asset_code,
+                "shares": model.shares,
+                "current_price": model.current_price,
+                "avg_cost": model.avg_cost,
+            }
+            for model in models
+        ]
+
+    def list_portfolio_position_weights(self, portfolio_id: int) -> List[Dict[str, Any]]:
+        """获取组合中各持仓的权重。"""
+        positions = list(
+            PositionModel._default_manager.filter(
+                portfolio_id=portfolio_id,
+                market_value__gt=0,
+            ).values("asset_code", "market_value")
+        )
+        if not positions:
+            return []
+
+        total_value = sum(float(position["market_value"]) for position in positions)
+        if total_value <= 0:
+            return []
+
+        return [
+            {
+                "asset_code": position["asset_code"],
+                "weight": float(position["market_value"]) / total_value,
+            }
+            for position in positions
+        ]
+
+    def get_position_notification_context(self, position_id: int) -> Optional[Dict[str, Any]]:
+        """获取持仓通知所需的最小上下文。"""
+        try:
+            model = PositionModel._default_manager.select_related("portfolio__user").get(id=position_id)
+        except PositionModel.DoesNotExist:
+            return None
+
+        return {
+            "id": model.id,
+            "asset_code": model.asset_code,
+            "user_id": model.portfolio.user_id,
+            "user_email": model.portfolio.user.email,
+            "portfolio_id": model.portfolio_id,
+            "portfolio_name": model.portfolio.name,
+        }
 
     def create_position(
         self,
@@ -533,6 +665,91 @@ class TransactionRepository:
                 notes=model.notes,
             ))
         return transactions
+
+    def get_transaction_cost_record(self, transaction_id: int) -> Optional[Dict[str, Any]]:
+        """获取交易成本分析所需的交易明细。"""
+        try:
+            model = TransactionModel._default_manager.get(id=transaction_id)
+        except TransactionModel.DoesNotExist:
+            return None
+
+        return self._to_transaction_cost_dict(model)
+
+    def update_transaction_costs(
+        self,
+        transaction_id: int,
+        *,
+        commission: Decimal,
+        slippage: Optional[Decimal] = None,
+        stamp_duty: Optional[Decimal] = None,
+        transfer_fee: Optional[Decimal] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """更新交易的实际成本并返回最新明细。"""
+        try:
+            model = TransactionModel._default_manager.get(id=transaction_id)
+        except TransactionModel.DoesNotExist:
+            return None
+
+        model.commission = commission
+        if slippage is not None:
+            model.slippage = slippage
+        if stamp_duty is not None:
+            model.stamp_duty = stamp_duty
+        if transfer_fee is not None:
+            model.transfer_fee = transfer_fee
+
+        total_actual = (
+            commission
+            + (slippage or Decimal("0"))
+            + (stamp_duty or Decimal("0"))
+            + (transfer_fee or Decimal("0"))
+        )
+        if model.estimated_cost:
+            variance = total_actual - model.estimated_cost
+            variance_pct = float(variance) / float(model.estimated_cost) if model.estimated_cost > 0 else 0
+            model.cost_variance = variance
+            model.cost_variance_pct = variance_pct
+
+        model.save()
+        return self._to_transaction_cost_dict(model)
+
+    def list_user_transaction_costs(
+        self,
+        user_id: int,
+        *,
+        portfolio_id: Optional[int] = None,
+        since_date: Optional[datetime] = None,
+    ) -> List[Dict[str, Any]]:
+        """列出用户指定时间范围内的交易成本明细。"""
+        queryset = TransactionModel._default_manager.filter(portfolio__user_id=user_id)
+        if portfolio_id is not None:
+            queryset = queryset.filter(portfolio_id=portfolio_id)
+        if since_date is not None:
+            queryset = queryset.filter(created_at__gte=since_date)
+        return [
+            self._to_transaction_cost_dict(model)
+            for model in queryset.order_by("-created_at").all()
+        ]
+
+    @staticmethod
+    def _to_transaction_cost_dict(model: TransactionModel) -> Dict[str, Any]:
+        """转换为交易成本分析用的字典。"""
+        return {
+            "id": model.id,
+            "portfolio_id": model.portfolio_id,
+            "position_id": model.position_id,
+            "asset_code": model.asset_code,
+            "action": model.action,
+            "notional": model.notional,
+            "commission": model.commission,
+            "slippage": model.slippage,
+            "stamp_duty": model.stamp_duty,
+            "transfer_fee": model.transfer_fee,
+            "estimated_cost": model.estimated_cost,
+            "cost_variance": model.cost_variance,
+            "cost_variance_pct": model.cost_variance_pct,
+            "traded_at": model.traded_at,
+        }
 
 
 class AssetMetadataRepository:
@@ -1008,3 +1225,18 @@ class TransactionCostConfigRepository:
             "cost_warning_threshold": 0.005,
         }
 
+
+class SystemSettingsRepository:
+    """系统设置仓储。"""
+
+    def get_settings(self):
+        """返回系统设置模型实例。"""
+        from apps.account.infrastructure.models import SystemSettingsModel
+
+        return SystemSettingsModel.get_settings()
+
+    def get_runtime_asset_proxy_code(self, asset_class: str, default: str = "") -> str:
+        """获取运行时资产代理代码。"""
+        from apps.account.infrastructure.models import SystemSettingsModel
+
+        return SystemSettingsModel.get_runtime_asset_proxy_code(asset_class, default)

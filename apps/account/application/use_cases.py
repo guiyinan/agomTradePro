@@ -34,10 +34,13 @@ from apps.account.infrastructure.repositories import (
     PositionRepository,
     TransactionRepository,
     AssetMetadataRepository,
+    SystemSettingsRepository,
 )
 from apps.account.infrastructure.market_price_service import MarketPriceService
+from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
 from apps.regime.infrastructure.repositories import DjangoRegimeRepository
 from apps.regime.application.current_regime import resolve_current_regime
+from apps.signal.infrastructure.repositories import DjangoSignalRepository
 
 
 @dataclass
@@ -178,10 +181,12 @@ class CreatePositionFromSignalUseCase:
         position_repo: PositionRepository,
         account_repo: AccountRepository,
         market_price_service: MarketPriceService = None,
+        signal_repo: DjangoSignalRepository = None,
     ):
         self.position_repo = position_repo
         self.account_repo = account_repo
         self.market_price_service = market_price_service or MarketPriceService()
+        self.signal_repo = signal_repo or DjangoSignalRepository()
 
     def execute(
         self,
@@ -199,22 +204,19 @@ class CreatePositionFromSignalUseCase:
         4. 创建持仓
         5. 记录信号关联
         """
-        from apps.signal.infrastructure.models import InvestmentSignalModel
-
         # 获取用户配置
         profile = self.account_repo.get_by_user_id(user_id)
         if not profile:
             raise ValueError(f"用户 {user_id} 账户配置不存在")
 
         # 获取信号信息
-        try:
-            signal = InvestmentSignalModel._default_manager.get(id=signal_id, user_id=user_id)
-        except InvestmentSignalModel.DoesNotExist:
+        signal = self.signal_repo.get_signal_snapshot(signal_id)
+        if not signal or signal.get("user_id") != user_id:
             raise ValueError(f"信号 {signal_id} 不存在或无权限")
 
         # 确定价格（从行情接口获取，而非硬编码）
         if price is None:
-            asset_code = signal.asset_code
+            asset_code = signal["asset_code"]
             price_metadata = self.market_price_service.get_price_with_metadata(asset_code)
             if price_metadata:
                 price = price_metadata["price"]
@@ -405,11 +407,15 @@ class CreatePositionFromBacktestUseCase:
         account_repo: AccountRepository,
         asset_meta_repo: AssetMetadataRepository,
         market_price_service: MarketPriceService = None,
+        backtest_repo: DjangoBacktestRepository = None,
+        settings_repo: SystemSettingsRepository = None,
     ):
         self.position_repo = position_repo
         self.account_repo = account_repo
         self.asset_meta_repo = asset_meta_repo
         self.market_price_service = market_price_service or MarketPriceService()
+        self.backtest_repo = backtest_repo or DjangoBacktestRepository()
+        self.settings_repo = settings_repo or SystemSettingsRepository()
 
     def execute(self, input: CreatePositionFromBacktestInput) -> CreatePositionFromBacktestOutput:
         """
@@ -421,13 +427,9 @@ class CreatePositionFromBacktestUseCase:
         3. 为每个资产创建持仓记录
         4. 记录交易历史
         """
-        from apps.backtest.infrastructure.models import BacktestResultModel
-        from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
-
         # 1. 获取回测结果
-        try:
-            backtest_model = BacktestResultModel._default_manager.get(id=input.backtest_id)
-        except BacktestResultModel.DoesNotExist:
+        backtest_model = self.backtest_repo.get_backtest_by_id(input.backtest_id)
+        if backtest_model is None:
             raise ValueError(f"回测 {input.backtest_id} 不存在")
 
         # 验证归属
@@ -565,9 +567,7 @@ class CreatePositionFromBacktestUseCase:
         1. 用户选择具体ETF或基金
         2. 或者使用系统默认的标的映射表
         """
-        from apps.account.infrastructure.models import SystemSettingsModel
-
-        mapped_code = SystemSettingsModel.get_runtime_asset_proxy_code(asset_class, "")
+        mapped_code = self.settings_repo.get_runtime_asset_proxy_code(asset_class, "")
         return mapped_code or asset_class
 
     def _infer_asset_class_type(self, asset_class: str) -> AssetClassType:

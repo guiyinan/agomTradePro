@@ -11,6 +11,8 @@ from datetime import datetime, date
 from dataclasses import dataclass
 import statistics
 
+from apps.account.infrastructure.repositories import PositionRepository
+
 logger = logging.getLogger(__name__)
 
 
@@ -161,8 +163,8 @@ class StressTestingUseCase:
     对投资组合进行历史情景压力测试。
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, position_repo: PositionRepository = None):
+        self.position_repo = position_repo or PositionRepository()
 
     def run_historical_scenario_test(
         self,
@@ -235,27 +237,7 @@ class StressTestingUseCase:
         self, portfolio_id: int
     ) -> List[Dict]:
         """获取组合持仓及权重"""
-        from apps.account.infrastructure.models import PositionModel
-
-        positions = PositionModel._default_manager.filter(
-            portfolio_id=portfolio_id,
-            market_value__gt=0,
-        ).values('asset_code', 'market_value')
-
-        if not positions:
-            return []
-
-        total_value = sum(float(p['market_value']) for p in positions)
-        if total_value <= 0:
-            return []
-
-        return [
-            {
-                'asset_code': p['asset_code'],
-                'weight': float(p['market_value']) / total_value,
-            }
-            for p in positions
-        ]
+        return self.position_repo.list_portfolio_position_weights(portfolio_id)
 
     def _simulate_portfolio_returns(
         self,

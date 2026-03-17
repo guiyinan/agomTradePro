@@ -28,6 +28,10 @@ from apps.agent_runtime.domain.guardrails import (
     get_guardrail_engine,
 )
 from apps.agent_runtime.application.services import TimelineEventWriterService
+from apps.agent_runtime.infrastructure.repositories import (
+    AgentProposalRepository,
+    AgentTaskRepository,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -156,9 +160,13 @@ class CreateProposalUseCase:
         self,
         timeline_service: Optional[TimelineEventWriterService] = None,
         audit_service: Optional[Any] = None,
+        proposal_repo: Optional[AgentProposalRepository] = None,
+        task_repo: Optional[AgentTaskRepository] = None,
     ):
         self.timeline_service = timeline_service or TimelineEventWriterService()
         self.audit_service = audit_service
+        self.proposal_repo = proposal_repo or AgentProposalRepository()
+        self.task_repo = task_repo or AgentTaskRepository()
         if self.audit_service is None:
             try:
                 from apps.agent_runtime.application.services.audit_service import get_audit_service
@@ -167,8 +175,6 @@ class CreateProposalUseCase:
                 self.audit_service = None
 
     def execute(self, inp: CreateProposalInput) -> CreateProposalOutput:
-        from apps.agent_runtime.infrastructure.models import AgentProposalModel, AgentTaskModel
-
         request_id = _generate_proposal_request_id()
 
         # Validate risk_level
@@ -184,15 +190,14 @@ class CreateProposalUseCase:
 
         # Validate task exists if task_id given
         if inp.task_id is not None:
-            if not AgentTaskModel._default_manager.filter(pk=inp.task_id).exists():
+            if not self.task_repo.task_exists(inp.task_id):
                 raise ValueError(f"Task {inp.task_id} not found")
 
         # Determine initial status
         initial_status = ProposalStatus.GENERATED
 
-        model = AgentProposalModel._default_manager.create(
+        proposal = self.proposal_repo.create_proposal(
             request_id=request_id,
-            schema_version="v1",
             task_id=inp.task_id,
             proposal_type=inp.proposal_type,
             status=initial_status.value,
@@ -201,10 +206,8 @@ class CreateProposalUseCase:
             approval_status=ApprovalStatus.PENDING.value if approval_required else ApprovalStatus.NOT_REQUIRED.value,
             proposal_payload=inp.proposal_payload or {},
             approval_reason=inp.approval_reason,
-            created_by_id=inp.created_by,
+            created_by=inp.created_by,
         )
-
-        proposal = model.to_domain_entity()
 
         # Timeline event on linked task
         if inp.task_id is not None:
@@ -228,15 +231,15 @@ class CreateProposalUseCase:
                     module="agent_runtime",
                     action="CREATE",
                     resource_type="agent_proposal",
-                    resource_id=str(model.id),
+                    resource_id=str(proposal.id),
                     request_params={
                         "proposal_type": inp.proposal_type,
                         "risk_level": risk.value,
                         "task_id": inp.task_id,
                     },
-                    response_payload={"proposal_id": model.id, "status": initial_status.value},
+                    response_payload={"proposal_id": proposal.id, "status": initial_status.value},
                     response_status=201,
-                    response_message=f"Proposal {model.id} created",
+                    response_message=f"Proposal {proposal.id} created",
                 )
             except Exception as e:
                 logger.warning(f"Failed to log audit: {e}")
@@ -247,12 +250,13 @@ class CreateProposalUseCase:
 class GetProposalUseCase:
     """Retrieve a single proposal."""
 
-    def execute(self, proposal_id: int) -> GetProposalOutput:
-        from apps.agent_runtime.infrastructure.models import AgentProposalModel
+    def __init__(self, proposal_repo: Optional[AgentProposalRepository] = None):
+        self.proposal_repo = proposal_repo or AgentProposalRepository()
 
-        model = AgentProposalModel._default_manager.get(pk=proposal_id)
+    def execute(self, proposal_id: int) -> GetProposalOutput:
+        model = self.proposal_repo.get_proposal(proposal_id)
         return GetProposalOutput(
-            proposal=model.to_domain_entity(),
+            proposal=model,
             request_id=model.request_id,
         )
 
@@ -264,9 +268,11 @@ class SubmitProposalForApprovalUseCase:
         self,
         guardrail_engine: Optional[GuardrailEngine] = None,
         timeline_service: Optional[TimelineEventWriterService] = None,
+        proposal_repo: Optional[AgentProposalRepository] = None,
     ):
         self.guardrail_engine = guardrail_engine or get_guardrail_engine()
         self.timeline_service = timeline_service or TimelineEventWriterService()
+        self.proposal_repo = proposal_repo or AgentProposalRepository()
 
     def execute(
         self,
@@ -274,13 +280,7 @@ class SubmitProposalForApprovalUseCase:
         actor: Optional[Dict[str, Any]] = None,
         context: Optional[Dict[str, Any]] = None,
     ) -> SubmitApprovalOutput:
-        from apps.agent_runtime.infrastructure.models import (
-            AgentProposalModel,
-            AgentGuardrailDecisionModel,
-        )
-
-        model = AgentProposalModel._default_manager.get(pk=proposal_id)
-        proposal = model.to_domain_entity()
+        proposal = self.proposal_repo.get_proposal(proposal_id)
 
         _validate_proposal_transition(proposal.status.value, ProposalStatus.SUBMITTED.value)
 
@@ -288,24 +288,16 @@ class SubmitProposalForApprovalUseCase:
         check = self.guardrail_engine.check_pre_approval(proposal, actor, context)
 
         # Persist guardrail decision
-        gd_model = AgentGuardrailDecisionModel._default_manager.create(
-            request_id=model.request_id,
-            task_id=model.task_id,
-            proposal_id=model.id,
+        guardrail_dict = self.proposal_repo.create_guardrail_decision(
+            request_id=proposal.request_id,
+            task_id=proposal.task_id,
+            proposal_id=proposal.id,
             decision=check.overall_decision.value,
             reason_code=check.reason_code,
             message=check.message,
             evidence=check.evidence,
             requires_human=check.requires_human,
         )
-
-        guardrail_dict = {
-            "id": gd_model.id,
-            "decision": check.overall_decision.value,
-            "reason_code": check.reason_code,
-            "message": check.message,
-            "requires_human": check.requires_human,
-        }
 
         if check.overall_decision == GuardrailDecision.BLOCKED:
             raise GuardrailBlockedError(
@@ -316,25 +308,25 @@ class SubmitProposalForApprovalUseCase:
             )
 
         # Transition
-        model.status = ProposalStatus.SUBMITTED.value
-        model.save(update_fields=["status", "updated_at"])
-
-        proposal = model.to_domain_entity()
+        proposal = self.proposal_repo.update_proposal_status(
+            proposal.id,
+            status=ProposalStatus.SUBMITTED.value,
+        )
 
         # Timeline event
-        if model.task_id:
+        if proposal.task_id:
             self.timeline_service.write_state_changed_event(
-                task=model.task_id,
+                task=proposal.task_id,
                 old_status="proposal_generated",
                 new_status="awaiting_approval",
                 event_source=EventSource.API,
                 actor=actor,
-                reason=f"Proposal {model.request_id} submitted for approval",
+                reason=f"Proposal {proposal.request_id} submitted for approval",
             )
 
         return SubmitApprovalOutput(
             proposal=proposal,
-            request_id=model.request_id,
+            request_id=proposal.request_id,
             guardrail_decision=guardrail_dict,
         )
 
@@ -345,8 +337,10 @@ class ApproveProposalUseCase:
     def __init__(
         self,
         timeline_service: Optional[TimelineEventWriterService] = None,
+        proposal_repo: Optional[AgentProposalRepository] = None,
     ):
         self.timeline_service = timeline_service or TimelineEventWriterService()
+        self.proposal_repo = proposal_repo or AgentProposalRepository()
 
     def execute(
         self,
@@ -354,23 +348,20 @@ class ApproveProposalUseCase:
         reason: Optional[str] = None,
         actor: Optional[Dict[str, Any]] = None,
     ) -> ApproveRejectOutput:
-        from apps.agent_runtime.infrastructure.models import AgentProposalModel
-
-        model = AgentProposalModel._default_manager.get(pk=proposal_id)
-        proposal = model.to_domain_entity()
+        proposal = self.proposal_repo.get_proposal(proposal_id)
 
         _validate_proposal_transition(proposal.status.value, ProposalStatus.APPROVED.value)
 
-        model.status = ProposalStatus.APPROVED.value
-        model.approval_status = ApprovalStatus.APPROVED.value
-        model.approval_reason = reason or "Approved"
-        model.save(update_fields=["status", "approval_status", "approval_reason", "updated_at"])
+        proposal = self.proposal_repo.update_proposal_status(
+            proposal_id,
+            status=ProposalStatus.APPROVED.value,
+            approval_status=ApprovalStatus.APPROVED.value,
+            approval_reason=reason or "Approved",
+        )
 
-        proposal = model.to_domain_entity()
-
-        if model.task_id:
+        if proposal.task_id:
             self.timeline_service.write_state_changed_event(
-                task=model.task_id,
+                task=proposal.task_id,
                 old_status="awaiting_approval",
                 new_status="approved",
                 event_source=EventSource.HUMAN,
@@ -378,7 +369,7 @@ class ApproveProposalUseCase:
                 reason=reason or "Approved",
             )
 
-        return ApproveRejectOutput(proposal=proposal, request_id=model.request_id)
+        return ApproveRejectOutput(proposal=proposal, request_id=proposal.request_id)
 
 
 class RejectProposalUseCase:
@@ -387,8 +378,10 @@ class RejectProposalUseCase:
     def __init__(
         self,
         timeline_service: Optional[TimelineEventWriterService] = None,
+        proposal_repo: Optional[AgentProposalRepository] = None,
     ):
         self.timeline_service = timeline_service or TimelineEventWriterService()
+        self.proposal_repo = proposal_repo or AgentProposalRepository()
 
     def execute(
         self,
@@ -396,23 +389,20 @@ class RejectProposalUseCase:
         reason: Optional[str] = None,
         actor: Optional[Dict[str, Any]] = None,
     ) -> ApproveRejectOutput:
-        from apps.agent_runtime.infrastructure.models import AgentProposalModel
-
-        model = AgentProposalModel._default_manager.get(pk=proposal_id)
-        proposal = model.to_domain_entity()
+        proposal = self.proposal_repo.get_proposal(proposal_id)
 
         _validate_proposal_transition(proposal.status.value, ProposalStatus.REJECTED.value)
 
-        model.status = ProposalStatus.REJECTED.value
-        model.approval_status = ApprovalStatus.REJECTED.value
-        model.approval_reason = reason or "Rejected"
-        model.save(update_fields=["status", "approval_status", "approval_reason", "updated_at"])
+        proposal = self.proposal_repo.update_proposal_status(
+            proposal_id,
+            status=ProposalStatus.REJECTED.value,
+            approval_status=ApprovalStatus.REJECTED.value,
+            approval_reason=reason or "Rejected",
+        )
 
-        proposal = model.to_domain_entity()
-
-        if model.task_id:
+        if proposal.task_id:
             self.timeline_service.write_state_changed_event(
-                task=model.task_id,
+                task=proposal.task_id,
                 old_status="awaiting_approval",
                 new_status="rejected",
                 event_source=EventSource.HUMAN,
@@ -420,7 +410,7 @@ class RejectProposalUseCase:
                 reason=reason or "Rejected",
             )
 
-        return ApproveRejectOutput(proposal=proposal, request_id=model.request_id)
+        return ApproveRejectOutput(proposal=proposal, request_id=proposal.request_id)
 
 
 class ExecuteProposalUseCase:
@@ -435,10 +425,12 @@ class ExecuteProposalUseCase:
         guardrail_engine: Optional[GuardrailEngine] = None,
         timeline_service: Optional[TimelineEventWriterService] = None,
         audit_service: Optional[Any] = None,
+        proposal_repo: Optional[AgentProposalRepository] = None,
     ):
         self.guardrail_engine = guardrail_engine or get_guardrail_engine()
         self.timeline_service = timeline_service or TimelineEventWriterService()
         self.audit_service = audit_service
+        self.proposal_repo = proposal_repo or AgentProposalRepository()
         if self.audit_service is None:
             try:
                 from apps.agent_runtime.application.services.audit_service import get_audit_service
@@ -452,14 +444,7 @@ class ExecuteProposalUseCase:
         actor: Optional[Dict[str, Any]] = None,
         context: Optional[Dict[str, Any]] = None,
     ) -> ExecuteProposalOutput:
-        from apps.agent_runtime.infrastructure.models import (
-            AgentProposalModel,
-            AgentExecutionRecordModel,
-            AgentGuardrailDecisionModel,
-        )
-
-        model = AgentProposalModel._default_manager.get(pk=proposal_id)
-        proposal = model.to_domain_entity()
+        proposal = self.proposal_repo.get_proposal(proposal_id)
 
         _validate_proposal_transition(proposal.status.value, ProposalStatus.EXECUTED.value)
 
@@ -467,24 +452,16 @@ class ExecuteProposalUseCase:
         check = self.guardrail_engine.check_pre_execution(proposal, actor, context)
 
         # Persist guardrail decision
-        gd_model = AgentGuardrailDecisionModel._default_manager.create(
-            request_id=model.request_id,
-            task_id=model.task_id,
-            proposal_id=model.id,
+        guardrail_dict = self.proposal_repo.create_guardrail_decision(
+            request_id=proposal.request_id,
+            task_id=proposal.task_id,
+            proposal_id=proposal.id,
             decision=check.overall_decision.value,
             reason_code=check.reason_code,
             message=check.message,
             evidence=check.evidence,
             requires_human=check.requires_human,
         )
-
-        guardrail_dict = {
-            "id": gd_model.id,
-            "decision": check.overall_decision.value,
-            "reason_code": check.reason_code,
-            "message": check.message,
-            "requires_human": check.requires_human,
-        }
 
         if check.overall_decision == GuardrailDecision.BLOCKED:
             raise GuardrailBlockedError(
@@ -496,14 +473,14 @@ class ExecuteProposalUseCase:
 
         # Create execution record
         exec_started = timezone.now()
-        exec_record = AgentExecutionRecordModel._default_manager.create(
-            request_id=model.request_id,
-            task_id=model.task_id or 0,
-            proposal_id=model.id,
+        execution_record_id = self.proposal_repo.create_execution_record(
+            request_id=proposal.request_id,
+            task_id=proposal.task_id or 0,
+            proposal_id=proposal.id,
             execution_status="success",
             execution_output={
-                "proposal_type": model.proposal_type,
-                "payload": model.proposal_payload,
+                "proposal_type": proposal.proposal_type,
+                "payload": proposal.proposal_payload,
                 "guardrail_decision": check.overall_decision.value,
             },
             started_at=exec_started,
@@ -511,26 +488,27 @@ class ExecuteProposalUseCase:
         )
 
         # Transition proposal
-        model.status = ProposalStatus.EXECUTED.value
-        model.save(update_fields=["status", "updated_at"])
-        proposal = model.to_domain_entity()
+        proposal = self.proposal_repo.update_proposal_status(
+            proposal.id,
+            status=ProposalStatus.EXECUTED.value,
+        )
 
         # Timeline events
-        if model.task_id:
+        if proposal.task_id:
             self.timeline_service.write_state_changed_event(
-                task=model.task_id,
+                task=proposal.task_id,
                 old_status="approved",
                 new_status="executing",
                 event_source=EventSource.SYSTEM,
                 actor=actor,
-                reason=f"Executing proposal {model.request_id}",
+                reason=f"Executing proposal {proposal.request_id}",
             )
             self.timeline_service.write_step_completed_event(
-                task=model.task_id,
+                task=proposal.task_id,
                 step_key="proposal_execution",
                 event_source=EventSource.SYSTEM,
                 output={
-                    "execution_record_id": exec_record.id,
+                    "execution_record_id": execution_record_id,
                     "execution_status": "success",
                 },
             )
@@ -539,36 +517,36 @@ class ExecuteProposalUseCase:
         if self.audit_service:
             try:
                 self.audit_service._log_operation(
-                    request_id=model.request_id,
+                    request_id=proposal.request_id,
                     user_id=actor.get("user_id") if actor else None,
                     source="API",
                     operation_type="DATA_MODIFY",
                     module="agent_runtime",
                     action="UPDATE",
                     resource_type="agent_proposal",
-                    resource_id=str(model.id),
+                    resource_id=str(proposal.id),
                     request_params={
-                        "proposal_id": model.id,
-                        "task_id": model.task_id,
+                        "proposal_id": proposal.id,
+                        "task_id": proposal.task_id,
                         "guardrail_decision": check.overall_decision.value,
                         "approval_actor": actor,
                         "execution_result": "success",
                     },
                     response_payload={
-                        "proposal_id": model.id,
-                        "execution_record_id": exec_record.id,
+                        "proposal_id": proposal.id,
+                        "execution_record_id": execution_record_id,
                         "status": "executed",
                     },
                     response_status=200,
-                    response_message=f"Proposal {model.id} executed successfully",
+                    response_message=f"Proposal {proposal.id} executed successfully",
                 )
             except Exception as e:
                 logger.warning(f"Failed to log audit: {e}")
 
         return ExecuteProposalOutput(
             proposal=proposal,
-            request_id=model.request_id,
-            execution_record_id=exec_record.id,
+            request_id=proposal.request_id,
+            execution_record_id=execution_record_id,
             guardrail_decision=guardrail_dict,
         )
 
