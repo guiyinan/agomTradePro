@@ -477,12 +477,12 @@ class TestPortfolioStrategyAssignment(TestCase):
         # 使用 UUID 确保唯一性
         unique_id = str(uuid.uuid4())[:8]
 
-        django_user = User.objects.create_user(
+        self.django_user = User.objects.create_user(
             username=f'testuser_fk_{unique_id}',
             email=f'test_fk_{unique_id}@example.com'
         )
         # 获取信号自动创建的 AccountProfileModel
-        self.test_user = AccountProfileModel.objects.get(user=django_user)
+        self.test_user = AccountProfileModel.objects.get(user=self.django_user)
 
     def test_simulated_account_can_have_strategy(self):
         """测试 SimulatedAccount 可以通过关联表绑定 Strategy"""
@@ -497,7 +497,7 @@ class TestPortfolioStrategyAssignment(TestCase):
 
         # 2. 创建账户并关联策略
         account = SimulatedAccountModel.objects.create(
-            user=None,  # 测试时可以为空
+            user=self.django_user,
             account_name='测试账户',
             account_type='simulated',
             initial_capital=100000.00,
@@ -523,7 +523,7 @@ class TestPortfolioStrategyAssignment(TestCase):
     def test_strategy_assignment_optional(self):
         """测试账户可以不绑定策略"""
         account = SimulatedAccountModel.objects.create(
-            user=None,
+            user=self.django_user,
             account_name='无策略账户',
             account_type='simulated',
             initial_capital=100000.00,
@@ -552,7 +552,7 @@ class TestPortfolioStrategyAssignment(TestCase):
 
         # 2. 创建账户并关联策略
         account = SimulatedAccountModel.objects.create(
-            user=None,
+            user=self.django_user,
             account_name='测试账户',
             account_type='simulated',
             initial_capital=100000.00,

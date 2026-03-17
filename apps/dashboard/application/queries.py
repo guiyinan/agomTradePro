@@ -568,8 +568,8 @@ class RegimeSummaryQuery:
                     current_regime=current_state.dominant_regime or "Unknown",
                     regime_date=current_state.observed_at,
                     regime_confidence=float(current_state.confidence or 0.0),
-                    growth_momentum_z=0.0,  # TODO: 从 current_state 获取
-                    inflation_momentum_z=0.0,  # TODO: 从 current_state 获取
+                    growth_momentum_z=float(current_state.growth_momentum_z),
+                    inflation_momentum_z=float(current_state.inflation_momentum_z),
                     pmi_value=self._get_latest_macro_value("PMI"),
                     cpi_value=self._get_latest_macro_value("CPI"),
                     regime_distribution={},

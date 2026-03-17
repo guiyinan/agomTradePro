@@ -273,3 +273,39 @@ class MacroIndicator(models.Model):
             return (self.period_type.endswith('M') and self.period_type != 'M') or \
                    (self.period_type.endswith('Y') and self.period_type != 'Y')
         return False
+
+
+class ExchangeRateModel(models.Model):
+    """
+    汇率记录表
+
+    存储货币对的历史汇率，支持按日期查询。
+    数据来源：AKShare fx_spot_quote() 或手动录入。
+    """
+
+    from_currency = models.CharField(max_length=10, verbose_name="源货币")
+    to_currency = models.CharField(max_length=10, verbose_name="目标货币")
+    rate = models.DecimalField(
+        max_digits=16, decimal_places=6, verbose_name="汇率"
+    )
+    effective_date = models.DateField(verbose_name="生效日期", db_index=True)
+    source = models.CharField(
+        max_length=30, default="akshare", verbose_name="数据来源"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    class Meta:
+        db_table = "macro_exchange_rate"
+        verbose_name = "汇率记录"
+        verbose_name_plural = "汇率记录"
+        ordering = ["-effective_date"]
+        unique_together = [("from_currency", "to_currency", "effective_date")]
+        indexes = [
+            models.Index(
+                fields=["from_currency", "to_currency", "-effective_date"],
+                name="exchange_rate_lookup_idx",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.from_currency}/{self.to_currency} = {self.rate} ({self.effective_date})"

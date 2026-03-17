@@ -61,10 +61,20 @@ class EventBusInitializer:
         Returns:
             初始化完成的事件总线
         """
-        # 创建事件总线
+        # 创建事件总线（Celery 可用时使用 CeleryEventBus）
         from ..domain.entities import EventBusConfig
         config = EventBusConfig()
-        self.event_bus = InMemoryEventBus(config)
+
+        try:
+            from ..infrastructure.celery_event_bus import CeleryEventBus, is_celery_available
+            if is_celery_available():
+                self.event_bus = CeleryEventBus(config)
+                logger.info("Using CeleryEventBus for async event publishing")
+            else:
+                self.event_bus = InMemoryEventBus(config)
+                logger.info("Celery not available, using InMemoryEventBus")
+        except ImportError:
+            self.event_bus = InMemoryEventBus(config)
 
         # 注册所有处理器
         self._register_all_handlers()

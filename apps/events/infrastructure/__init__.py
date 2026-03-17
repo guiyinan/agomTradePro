@@ -16,6 +16,7 @@ from .event_store import (
     get_replay_handler,
 )
 from .models import FailedEventModel
+from .celery_event_bus import CeleryEventBus, is_celery_available
 
 __all__ = [
     "StoredEventModel",
@@ -28,4 +29,6 @@ __all__ = [
     "get_snapshot_store",
     "get_replay_handler",
     "FailedEventModel",
+    "CeleryEventBus",
+    "is_celery_available",
 ]

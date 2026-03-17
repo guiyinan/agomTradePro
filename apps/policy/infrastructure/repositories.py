@@ -943,7 +943,8 @@ class WorkbenchRepository:
         operator_id: Optional[int],
         before_state: dict,
         after_state: dict,
-        reason: str
+        reason: str,
+        rule_version: str = '1.0',
     ) -> 'GateActionAuditLog':
         """创建审计日志"""
         return self._audit_log_model.objects.create(
@@ -953,7 +954,7 @@ class WorkbenchRepository:
             before_state=before_state,
             after_state=after_state,
             reason=reason,
-            rule_version='1.0'  # TODO: 从配置获取
+            rule_version=rule_version,
         )
 
 

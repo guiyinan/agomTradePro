@@ -27,8 +27,8 @@ class SimulatedAccountModel(models.Model):
     - 替代老的 PortfolioModel 系统
     """
 
-    # ⭐ 新增：用户外键
-    # TODO: 创建迁移后需要数据迁移为现有数据分配用户，然后改为 null=False
+    # Data migration 0013 assigns a default user to existing null records.
+    # Kept nullable until use cases and mappers pass user consistently.
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -36,7 +36,7 @@ class SimulatedAccountModel(models.Model):
         verbose_name="用户",
         db_index=True,
         null=True,
-        blank=True
+        blank=True,
     )
 
     account_name = models.CharField("账户名称", max_length=100)  # ⭐ 删除 unique 约束

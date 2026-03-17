@@ -187,27 +187,41 @@ def calculate_ic_drift():
             logger.warning(f"缓存数据不足 ({caches.count()} 条)，跳过 IC 漂移计算")
             return {"status": "skipped", "reason": "insufficient_data"}
 
-        # 计算滚动 IC（简化：使用模拟数据）
-        # TODO: 实际应该从 AlphaScoreCache 中提取预测值和真实值
+        # 使用 cache_evaluation 计算滚动 IC
+        from apps.alpha.infrastructure.cache_evaluation import calculate_rolling_metrics
 
-        # 模拟历史 IC
-        import random
-        historical_ics = [random.gauss(0.05, 0.02) for _ in range(min(50, caches.count()))]
+        first_cache = caches.first()
+        last_cache = caches.last()
+
+        rolling = calculate_rolling_metrics(
+            model_artifact_hash=active_model.artifact_hash,
+            universe_id=first_cache.universe_id,
+            start_date=first_cache.intended_trade_date,
+            end_date=last_cache.intended_trade_date,
+            window=20,
+        )
+
+        if not rolling:
+            logger.warning("滚动 IC 计算无结果（可能缺少真实收益数据），标记为 skipped")
+            return {"status": "skipped", "reason": "no_rolling_ic_data"}
+
+        historical_ics = [r.ic for r in rolling]
         current_ic = historical_ics[-1]
 
         # 记录 IC 指标
         metrics.record_ic_metrics(current_ic, historical_ics, window=20)
 
+        hist_mean = sum(historical_ics[-20:]) / len(historical_ics[-20:])
         logger.info(
             f"IC 漂移计算完成: 当前 IC={current_ic:.4f}, "
-            f"历史均值={sum(historical_ics[-20:])/20:.4f}"
+            f"历史均值={hist_mean:.4f}"
         )
 
         return {
             "status": "success",
             "current_ic": current_ic,
-            "historical_mean": sum(historical_ics[-20:]) / 20,
-            "drift": current_ic - sum(historical_ics[-20:]) / 20,
+            "historical_mean": hist_mean,
+            "drift": current_ic - hist_mean,
             "timestamp": timezone.now().isoformat()
         }
 

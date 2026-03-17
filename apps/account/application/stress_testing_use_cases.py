@@ -4,11 +4,14 @@ Account Application - Stress Testing Use Cases
 压力测试用例。
 """
 
+import logging
 from decimal import Decimal
 from typing import List, Dict, Optional
 from datetime import datetime, date
 from dataclasses import dataclass
 import statistics
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -180,25 +183,163 @@ class StressTestingUseCase:
         if not scenario:
             raise ValueError(f"情景 {scenario_id} 不存在")
 
-        # TODO: 获取该时间段的历史数据，模拟回测
-        # 这里返回模拟结果
+        # 获取组合持仓
+        positions = self._get_portfolio_positions(portfolio_id)
+        if not positions:
+            raise ValueError(f"组合 {portfolio_id} 没有持仓")
+
+        # 获取持仓在场景期间的历史日线收益率
+        portfolio_returns = self._simulate_portfolio_returns(
+            positions, scenario.start_date, scenario.end_date
+        )
+
+        if not portfolio_returns:
+            raise ValueError("无法获取场景期间的历史行情数据")
+
+        # 计算指标
+        initial_value = Decimal('1000000')
+        equity_curve = [float(initial_value)]
+        for r in portfolio_returns:
+            equity_curve.append(equity_curve[-1] * (1 + r))
+
+        final_value = Decimal(str(round(equity_curve[-1], 2)))
+        total_return = Decimal(str(round(
+            (float(final_value) - float(initial_value)) / float(initial_value), 6
+        )))
+
+        max_dd, recovery = VaRService.calculate_max_drawdown(equity_curve)
+        volatility = statistics.stdev(portfolio_returns) if len(portfolio_returns) > 1 else 0.0
+        var_95 = VaRService.calculate_historical_var(portfolio_returns, 0.95)
+        var_99 = VaRService.calculate_historical_var(portfolio_returns, 0.99)
+
+        # 生成建议
+        recommendations = self._generate_recommendations(
+            total_return, max_dd, volatility
+        )
+
         return StressTestResult(
             scenario_id=scenario_id,
             scenario_name=scenario.name,
-            initial_value=Decimal('1000000'),
-            final_value=Decimal('850000'),
-            total_return=Decimal('-0.15'),
-            max_drawdown=0.35,
-            recovery_days=180,
-            volatility=0.45,
-            var_95=-0.08,
-            var_99=-0.12,
-            recommendations=[
-                "建议增加政策档位变化的快速响应机制",
-                "建议设置动态止损以限制极端损失",
-                "建议增加对冲工具以降低组合Beta",
-            ],
+            initial_value=initial_value,
+            final_value=final_value,
+            total_return=total_return,
+            max_drawdown=max_dd,
+            recovery_days=recovery,
+            volatility=volatility,
+            var_95=var_95,
+            var_99=var_99,
+            recommendations=recommendations,
         )
+
+    def _get_portfolio_positions(
+        self, portfolio_id: int
+    ) -> List[Dict]:
+        """获取组合持仓及权重"""
+        from apps.account.infrastructure.models import PositionModel
+
+        positions = PositionModel._default_manager.filter(
+            portfolio_id=portfolio_id,
+            market_value__gt=0,
+        ).values('asset_code', 'market_value')
+
+        if not positions:
+            return []
+
+        total_value = sum(float(p['market_value']) for p in positions)
+        if total_value <= 0:
+            return []
+
+        return [
+            {
+                'asset_code': p['asset_code'],
+                'weight': float(p['market_value']) / total_value,
+            }
+            for p in positions
+        ]
+
+    def _simulate_portfolio_returns(
+        self,
+        positions: List[Dict],
+        start_date: date,
+        end_date: date,
+    ) -> List[float]:
+        """模拟组合在历史场景中的收益率序列"""
+        try:
+            from apps.equity.infrastructure.adapters import TushareStockAdapter
+            adapter = TushareStockAdapter()
+        except Exception as e:
+            logger.warning(f"无法初始化 TushareStockAdapter: {e}")
+            return []
+
+        # 获取每个持仓的日线收益率
+        stock_returns = {}
+        common_dates = None
+
+        for pos in positions:
+            try:
+                df = adapter.fetch_daily_data(
+                    pos['asset_code'], start_date, end_date
+                )
+                if df is None or df.empty:
+                    continue
+
+                # 以 trade_date 为 index，pct_chg 为值
+                daily = {}
+                for _, row in df.iterrows():
+                    d = row['trade_date'].date() if hasattr(row['trade_date'], 'date') else row['trade_date']
+                    daily[d] = row['pct_chg'] / 100.0
+
+                if daily:
+                    stock_returns[pos['asset_code']] = daily
+                    dates_set = set(daily.keys())
+                    common_dates = dates_set if common_dates is None else common_dates & dates_set
+
+            except Exception as e:
+                logger.debug(f"获取 {pos['asset_code']} 历史数据失败: {e}")
+                continue
+
+        if not stock_returns or not common_dates:
+            return []
+
+        # 按权重计算组合日收益率
+        sorted_dates = sorted(common_dates)
+        weight_map = {p['asset_code']: p['weight'] for p in positions}
+
+        portfolio_returns = []
+        for d in sorted_dates:
+            daily_return = 0.0
+            weight_sum = 0.0
+            for code, returns in stock_returns.items():
+                if d in returns and code in weight_map:
+                    daily_return += weight_map[code] * returns[d]
+                    weight_sum += weight_map[code]
+
+            if weight_sum > 0:
+                # 归一化权重
+                portfolio_returns.append(daily_return / weight_sum)
+
+        return portfolio_returns
+
+    @staticmethod
+    def _generate_recommendations(
+        total_return: Decimal, max_drawdown: float, volatility: float
+    ) -> List[str]:
+        """根据测试结果生成改进建议"""
+        recommendations = []
+
+        if float(total_return) < -0.20:
+            recommendations.append("建议增加政策档位变化的快速响应机制")
+        if max_drawdown > 0.30:
+            recommendations.append("建议设置动态止损以限制极端损失")
+        if volatility > 0.03:
+            recommendations.append("建议增加对冲工具以降低组合Beta")
+        if max_drawdown > 0.20 and float(total_return) < -0.10:
+            recommendations.append("建议分散持仓以降低集中度风险")
+
+        if not recommendations:
+            recommendations.append("组合在该场景下表现尚可，继续保持当前策略")
+
+        return recommendations
 
     def run_all_scenarios(
         self,

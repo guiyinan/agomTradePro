@@ -277,6 +277,9 @@ def qlib_evaluate_model(
     """
     try:
         from ...infrastructure.models import QlibModelRegistryModel
+        from ...infrastructure.cache_evaluation import evaluate_model_from_cache
+        from datetime import timedelta
+        from django.utils import timezone as tz
 
         logger.info(f"开始评估模型: {model_artifact_hash}")
 
@@ -284,9 +287,30 @@ def qlib_evaluate_model(
             artifact_hash=model_artifact_hash
         )
 
-        # TODO: 实现 IC/ICIR 计算
+        # 计算 IC/ICIR：取最近 60 天缓存数据评估
+        end_date = tz.now().date()
+        start_date = end_date - timedelta(days=60)
 
-        logger.info(f"模型评估完成: {model_artifact_hash}")
+        metrics = evaluate_model_from_cache(
+            model_artifact_hash=model_artifact_hash,
+            universe_id=model.universe,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        # 更新模型记录
+        if metrics.ic is not None:
+            model.ic = metrics.ic
+        if metrics.icir is not None:
+            model.icir = metrics.icir
+        if metrics.rank_ic is not None:
+            model.rank_ic = metrics.rank_ic
+        model.save(update_fields=['ic', 'icir', 'rank_ic'])
+
+        logger.info(
+            f"模型评估完成: {model_artifact_hash}, "
+            f"IC={metrics.ic}, ICIR={metrics.icir}"
+        )
 
         return {
             "status": "success",

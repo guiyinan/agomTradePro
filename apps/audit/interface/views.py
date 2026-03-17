@@ -1495,7 +1495,12 @@ class AuditHealthCheckView(APIView):
 class AuditFailureCounterView(APIView):
     """审计失败计数器 API"""
 
-    permission_classes = []  # 公开访问（可配置权限）
+    def get_permissions(self):
+        """GET 公开访问；POST 需要审计管理员权限"""
+        if self.request.method == 'POST':
+            from apps.audit.interface.permissions import IsAuditAdmin
+            return [IsAuditAdmin()]
+        return []
 
     @extend_schema(
         summary="获取审计失败计数",
@@ -1524,13 +1529,6 @@ class AuditFailureCounterView(APIView):
     def post(self, request):
         """重置计数器"""
         from apps.audit.infrastructure.failure_counter import get_audit_failure_counter
-
-        # TODO: 添加管理员权限检查
-        # if not request.user.is_staff:
-        #     return Response(
-        #         {'error': '需要管理员权限'},
-        #         status=status.HTTP_403_FORBIDDEN
-        #     )
 
         counter = get_audit_failure_counter()
         counter.reset()

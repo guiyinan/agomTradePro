@@ -7,6 +7,7 @@
 - 不包含业务逻辑
 """
 
+import logging
 from dataclasses import dataclass
 from typing import List, Optional, Dict
 from datetime import date, timedelta
@@ -16,6 +17,8 @@ from ..domain.entities import SectorInfo, SectorIndex, SectorRelativeStrength, S
 from ..domain.services import SectorRotationAnalyzer
 from ..infrastructure.repositories import DjangoSectorRepository
 from shared.infrastructure.config_loader import get_sector_weights
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -71,16 +74,19 @@ class AnalyzeSectorRotationUseCase:
     def __init__(
         self,
         sector_repo: DjangoSectorRepository,
-        regime_repo=None
+        regime_repo=None,
+        market_adapter=None,
     ):
         """初始化用例
 
         Args:
             sector_repo: 板块数据仓储
             regime_repo: Regime 数据仓储（可选，用于自动获取当前 Regime）
+            market_adapter: 市场数据适配器（可选，用于获取大盘收益率）
         """
         self.sector_repo = sector_repo
         self.regime_repo = regime_repo
+        self.market_adapter = market_adapter
         self.analyzer = SectorRotationAnalyzer()
 
     def execute(
@@ -162,9 +168,8 @@ class AnalyzeSectorRotationUseCase:
                     lookback_days=min(request.lookback_days, len(returns))
                 )
 
-                # 获取大盘指数数据（这里简化处理，使用沪深300）
-                # TODO: 实际应该从 macro 模块获取大盘指数
-                market_returns = [0.01] * len(returns)  # 临时占位
+                # 获取大盘指数收益率（沪深300）
+                market_returns = self._get_market_returns(start_date, end_date, len(returns))
 
                 # 计算相对强弱（简化版）
                 relative_strength = momentum - sum(market_returns) / len(market_returns) * 100
@@ -216,6 +221,54 @@ class AnalyzeSectorRotationUseCase:
                 top_sectors=[],
                 error=str(e)
             )
+
+    def _get_market_returns(
+        self, start_date: date, end_date: date, expected_length: int
+    ) -> list:
+        """获取大盘指数收益率（沪深300）
+
+        Args:
+            start_date: 起始日期
+            end_date: 结束日期
+            expected_length: 期望的收益率序列长度
+
+        Returns:
+            收益率列表
+        """
+        fallback = [0.0] * expected_length
+
+        if self.market_adapter is None:
+            try:
+                from apps.equity.infrastructure.adapters import MarketDataRepositoryAdapter
+                self.market_adapter = MarketDataRepositoryAdapter()
+            except Exception:
+                logger.warning("无法初始化市场数据适配器，使用零收益率 fallback")
+                return fallback
+
+        try:
+            returns_dict = self.market_adapter.get_index_daily_returns(
+                index_code='000300.SH',
+                start_date=start_date,
+                end_date=end_date,
+            )
+            if not returns_dict:
+                logger.warning("沪深300 收益率数据为空，使用零收益率 fallback")
+                return fallback
+
+            # 按日期排序并提取收益率
+            sorted_returns = [v for _, v in sorted(returns_dict.items())]
+
+            # 对齐到 expected_length
+            if len(sorted_returns) >= expected_length:
+                return sorted_returns[-expected_length:]
+            else:
+                # 不足时前面补零
+                padding = [0.0] * (expected_length - len(sorted_returns))
+                return padding + sorted_returns
+
+        except Exception as e:
+            logger.warning(f"获取大盘收益率失败: {e}，使用零收益率 fallback")
+            return fallback
 
 
 @dataclass

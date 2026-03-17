@@ -28,6 +28,7 @@ def create_user_accounts(sender, instance, created, **kwargs):
             with transaction.atomic():
                 # 1. 创建实仓（账户类型为 real）
                 real_account = SimulatedAccountModel._default_manager.create(
+                    user=instance,
                     account_name=f"{instance.username}_实仓",
                     account_type="real",
                     initial_capital=0,  # 实仓初始资金为0，需要用户手动入金
@@ -41,6 +42,7 @@ def create_user_accounts(sender, instance, created, **kwargs):
                 # 使用用户配置的初始资金，默认100万
                 initial_capital = 1000000.00  # 默认100万
                 simulated_account = SimulatedAccountModel._default_manager.create(
+                    user=instance,
                     account_name=f"{instance.username}_模拟仓",
                     account_type="simulated",
                     initial_capital=initial_capital,

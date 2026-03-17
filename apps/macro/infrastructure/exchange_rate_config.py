@@ -9,11 +9,14 @@
 不用于历史回测的精确分析
 """
 
+import logging
 import os
 from typing import Optional
 from datetime import date
 
 from django.core.cache import cache
+
+logger = logging.getLogger(__name__)
 
 
 class ExchangeRateService:
@@ -45,27 +48,26 @@ class ExchangeRateService:
         if cached_rate is not None:
             return float(cached_rate)
 
-        # 2. 尝试从数据库获取（如果实现了汇率表）
-        # TODO: 实现 ExchangeRateModel
-        # try:
-        #     from apps.macro.infrastructure.models import ExchangeRateModel
-        #     if as_of_date:
-        #         rate = ExchangeRateModel._default_manager.filter(
-        #             from_currency='USD',
-        #             to_currency='CNY',
-        #             effective_date__lte=as_of_date
-        #         ).order_by('-effective_date').first()
-        #     else:
-        #         rate = ExchangeRateModel._default_manager.filter(
-        #             from_currency='USD',
-        #             to_currency='CNY'
-        #         ).order_by('-effective_date').first()
-        #
-        #     if rate:
-        #         cache.set(cache_key, rate.rate, 3600)  # 缓存 1 小时
-        #         return float(rate.rate)
-        # except:
-        #     pass
+        # 2. 尝试从数据库获取
+        try:
+            from apps.macro.infrastructure.models import ExchangeRateModel
+            if as_of_date:
+                rate_obj = ExchangeRateModel._default_manager.filter(
+                    from_currency='USD',
+                    to_currency='CNY',
+                    effective_date__lte=as_of_date
+                ).order_by('-effective_date').first()
+            else:
+                rate_obj = ExchangeRateModel._default_manager.filter(
+                    from_currency='USD',
+                    to_currency='CNY'
+                ).order_by('-effective_date').first()
+
+            if rate_obj:
+                cache.set(cache_key, float(rate_obj.rate), 3600)  # 缓存 1 小时
+                return float(rate_obj.rate)
+        except Exception as e:
+            logger.debug(f"从数据库获取汇率失败: {e}")
 
         # 3. 从环境变量获取
         env_rate = os.getenv('USD_CNY_EXCHANGE_RATE')
