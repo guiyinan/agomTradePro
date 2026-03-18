@@ -73,7 +73,7 @@ class AgomTerminal {
         this.updateSessionInfo();
         this.focusInput();
 
-        console.log('AgomSAAF Terminal initialized. Type "help" for commands.');
+        console.log('AgomSAAF Terminal initialized. Type "/help" for commands.');
     }
 
     /**
@@ -205,10 +205,17 @@ class AgomTerminal {
      */
     handleTabCompletion() {
         const input = this.elements.input.value;
-        const parts = input.split(' ');
+        
+        // Only complete commands that start with /
+        if (!input.startsWith('/')) {
+            return;
+        }
+        
+        const withoutSlash = input.slice(1);
+        const parts = withoutSlash.split(' ');
         const lastPart = parts[parts.length - 1];
 
-        // Complete command names
+        // Complete command names (after the /)
         if (parts.length === 1) {
             // Combine built-in and dynamic commands
             const allCommands = [
@@ -221,7 +228,7 @@ class AgomTerminal {
             );
             
             if (matches.length === 1) {
-                this.elements.input.value = matches[0] + ' ';
+                this.elements.input.value = '/' + matches[0] + ' ';
             } else if (matches.length > 1) {
                 // Show all matches
                 const grouped = {};
@@ -230,7 +237,7 @@ class AgomTerminal {
                     const isDynamic = this.dynamicCommands[m];
                     const type = isBuiltin ? 'builtin' : (isDynamic?.type || 'unknown');
                     if (!grouped[type]) grouped[type] = [];
-                    grouped[type].push(m);
+                    grouped[type].push('/' + m);
                 });
                 
                 let output = '';
@@ -290,16 +297,26 @@ class AgomTerminal {
 
     /**
      * Execute a command
+     * CLI-style: commands start with /, plain text defaults to chat
      */
     async executeCommand(input) {
         // If input is a string, parse it
         let cmd, args;
         if (typeof input === 'string') {
-            const parts = input.split(/\s+/);
-            cmd = parts[0].toLowerCase();
-            args = parts.slice(1);
+            // Check if it starts with / (command mode)
+            if (input.startsWith('/')) {
+                // Remove the / prefix and parse
+                const withoutSlash = input.slice(1);
+                const parts = withoutSlash.split(/\s+/);
+                cmd = parts[0].toLowerCase();
+                args = parts.slice(1);
+            } else {
+                // No / prefix - treat as chat message
+                await this.cmdChat([input]);
+                return;
+            }
         } else {
-            // Direct command name
+            // Direct command name (from button clicks, etc.)
             cmd = input.toLowerCase();
             args = [];
         }
@@ -316,8 +333,8 @@ class AgomTerminal {
             return;
         }
 
-        // Default to chat
-        await this.cmdChat([cmd, ...args]);
+        // Unknown command
+        this.printError(`Unknown command: /${cmd}. Type /help for available commands.`);
     }
 
     /**
@@ -533,7 +550,7 @@ class AgomTerminal {
         // Built-in commands
         output += '<span style="color: var(--terminal-yellow);">Built-in:</span>\n';
         Object.keys(this.builtinCommands).forEach(cmd => {
-            output += `  ${cmd.padEnd(15)} \n`;
+            output += `  /${cmd.padEnd(14)} \n`;
         });
         
         // Dynamic commands by category
@@ -549,11 +566,12 @@ class AgomTerminal {
                 output += `\n<span style="color: var(--terminal-yellow);">${cat}:</span>\n`;
                 cmds.forEach(cmd => {
                     const typeIcon = cmd.type === 'prompt' ? '🤖' : (cmd.type === 'api' ? '📡' : '⚡');
-                    output += `  ${typeIcon} ${(cmd.name).padEnd(15)} - ${cmd.display_name || cmd.description || ''}\n`;
+                    output += `  ${typeIcon} /${(cmd.name).padEnd(14)} - ${cmd.display_name || cmd.description || ''}\n`;
                 });
             });
         }
         
+        output += '\n<span style="color: var(--terminal-text-dim);">Tip: Type without / prefix to chat with AI</span>';
         output += '</div>';
         this.printOutput(output);
     }
@@ -688,7 +706,7 @@ class AgomTerminal {
      */
     cmdClear() {
         this.elements.output.innerHTML = '';
-        this.printInfo('Terminal cleared. Type "help" for commands.');
+        this.printInfo('Terminal cleared. Type "/help" for commands.');
     }
 
     /**
@@ -699,13 +717,12 @@ class AgomTerminal {
 <div style="padding: 8px 0;">
 <strong style="color: var(--terminal-cyan);">Built-in Commands:</strong>
 
-  <span class="terminal-cmd">help</span>              Show this help message
-  <span class="terminal-cmd">clear</span>             Clear the terminal screen
-  <span class="terminal-cmd">chat &lt;message&gt;</span>    Send a message to AI assistant
-  <span class="terminal-cmd">history</span>           Show command history
-  <span class="terminal-cmd">commands</span>          List all available commands
-  <span class="terminal-cmd">version</span>           Show system version
-  <span class="terminal-cmd">export</span>            Export chat history`;
+  <span class="terminal-cmd">/help</span>              Show this help message
+  <span class="terminal-cmd">/clear</span>             Clear the terminal screen
+  <span class="terminal-cmd">/history</span>           Show command history
+  <span class="terminal-cmd">/commands</span>          List all available commands
+  <span class="terminal-cmd">/version</span>           Show system version
+  <span class="terminal-cmd">/export</span>            Export chat history`;
         
         // Add dynamic commands by category
         if (Object.keys(this.dynamicCommands).length > 0) {
@@ -720,8 +737,7 @@ class AgomTerminal {
                 helpText += `\n\n<strong style="color: var(--terminal-cyan);">${cat}:</strong>`;
                 cmds.forEach(cmd => {
                     const typeIcon = cmd.type === 'prompt' ? '🤖' : (cmd.type === 'api' ? '📡' : '⚡');
-                    const usage = cmd.usage || cmd.name;
-                    helpText += `\n  ${typeIcon} <span class="terminal-cmd">${usage}</span>`;
+                    helpText += `\n  ${typeIcon} <span class="terminal-cmd">/${cmd.name}</span>`;
                     if (cmd.display_name && cmd.display_name !== cmd.name) {
                         helpText += ` - ${cmd.display_name}`;
                     }
@@ -731,16 +747,20 @@ class AgomTerminal {
         
         helpText += `
 
+<strong style="color: var(--terminal-cyan);">Chat Mode:</strong>
+  Just type your message and press Enter to chat with AI.
+  No command prefix needed - plain text is sent as chat.
+
 <strong style="color: var(--terminal-cyan);">Shortcuts:</strong>
-  <span class="terminal-key">Tab</span>               Auto-complete command
+  <span class="terminal-key">Tab</span>               Auto-complete command (after /)
   <span class="terminal-key">↑/↓</span>               Navigate command history
   <span class="terminal-key">Ctrl+L</span>            Clear screen
-  <span class="terminal-key">Esc</span>               Clear input line / Cancel parameter input
+  <span class="terminal-key">Esc</span>               Clear input line
 
-<strong style="color: var(--terminal-cyan);">Tips:</strong>
-  • Type any text without a command to chat with AI
-  • Commands with parameters will prompt for missing values
-  • Use <span class="terminal-cmd">commands</span> to see detailed command list
+<strong style="color: var(--terminal-cyan);">Examples:</strong>
+  <span class="terminal-cmd">/help</span>              → Show help
+  <span class="terminal-cmd">Hello, how are you?</span> → Chat with AI
+  <span class="terminal-cmd">/regime</span>           → Get current market regime
 </div>`;
         this.printOutput(helpText);
     }
