@@ -1,13 +1,190 @@
 """
-Terminal Infrastructure Models.
-
-重新导出prompt模块中的TerminalCommandORM，保持向后兼容。
-新模块通过仓储层实现解耦。
-
-注意：TerminalCommandORM实际定义在apps.prompt.infrastructure.models中
+Terminal infrastructure ORM models.
 """
 
-# 重新导出，保持向后兼容
-from apps.prompt.infrastructure.models import TerminalCommandORM
+from django.core.exceptions import ValidationError
+from django.db import models
+
+from apps.prompt.infrastructure.models import PromptTemplateORM
+from ..domain.entities import CommandParameter, CommandType, TerminalCommand
+
+
+class TerminalCommandORM(models.Model):
+    """Terminal command configuration persisted in the terminal app."""
+
+    COMMAND_TYPE_CHOICES = [
+        (CommandType.PROMPT.value, 'Prompt模板调用'),
+        (CommandType.API.value, 'API端点调用'),
+    ]
+
+    name = models.CharField(
+        max_length=50,
+        unique=True,
+        db_index=True,
+        help_text="命令名称（如：analyze, report）",
+    )
+    description = models.TextField(
+        blank=True,
+        help_text="命令描述",
+    )
+    command_type = models.CharField(
+        max_length=20,
+        choices=COMMAND_TYPE_CHOICES,
+        default=CommandType.PROMPT.value,
+        help_text="命令类型",
+    )
+    prompt_template = models.ForeignKey(
+        PromptTemplateORM,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='terminal_commands',
+        help_text="关联的Prompt模板（command_type=prompt时使用）",
+    )
+    system_prompt = models.TextField(
+        blank=True,
+        help_text="系统提示词（可选）",
+    )
+    user_prompt_template = models.TextField(
+        blank=True,
+        help_text="用户Prompt模板",
+    )
+    api_endpoint = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="API端点路径（command_type=api时使用）",
+    )
+    api_method = models.CharField(
+        max_length=10,
+        default='GET',
+        help_text="HTTP方法（GET/POST）",
+    )
+    response_jq_filter = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="JQ过滤器，从API响应中提取数据",
+    )
+    parameters = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="参数定义列表",
+    )
+    timeout = models.IntegerField(
+        default=60,
+        help_text="超时时间（秒）",
+    )
+    provider_name = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="默认AI提供商名称",
+    )
+    model_name = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="默认模型名称",
+    )
+    category = models.CharField(
+        max_length=50,
+        default='general',
+        db_index=True,
+        help_text="命令分类",
+    )
+    tags = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="标签列表",
+    )
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text="是否启用",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, help_text="更新时间")
+
+    class Meta:
+        db_table = 'terminal_command'
+        ordering = ['category', 'name']
+        verbose_name = "终端命令"
+        verbose_name_plural = "终端命令配置"
+        indexes = [
+            models.Index(fields=['category', 'is_active']),
+            models.Index(fields=['command_type', 'is_active']),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.command_type})"
+
+    def clean(self):
+        super().clean()
+
+        if self.command_type == CommandType.PROMPT.value and not self.prompt_template:
+            raise ValidationError({
+                'prompt_template': 'Prompt类型命令必须关联Prompt模板',
+            })
+
+        if self.command_type == CommandType.PROMPT.value and not (
+            self.user_prompt_template or self.system_prompt or self.prompt_template_id
+        ):
+            raise ValidationError({
+                'user_prompt_template': 'Prompt类型命令至少需要模板或提示词配置',
+            })
+
+        if self.command_type == CommandType.API.value and not self.api_endpoint:
+            raise ValidationError({
+                'api_endpoint': 'API类型命令必须配置API端点',
+            })
+
+        if self.timeout <= 0:
+            raise ValidationError({
+                'timeout': 'timeout必须为正数',
+            })
+
+    def to_entity(self) -> TerminalCommand:
+        """Map ORM model to domain entity."""
+        return TerminalCommand(
+            id=str(self.pk),
+            name=self.name,
+            description=self.description,
+            command_type=self.command_type,
+            is_active=self.is_active,
+            prompt_template_id=str(self.prompt_template_id) if self.prompt_template_id else None,
+            system_prompt=self.system_prompt or None,
+            user_prompt_template=self.user_prompt_template,
+            api_endpoint=self.api_endpoint or None,
+            api_method=self.api_method,
+            response_jq_filter=self.response_jq_filter or None,
+            parameters=[CommandParameter.from_dict(p) for p in (self.parameters or [])],
+            timeout=self.timeout,
+            provider_name=self.provider_name or None,
+            model_name=self.model_name or None,
+            category=self.category,
+            tags=list(self.tags or []),
+            created_at=self.created_at,
+            updated_at=self.updated_at,
+        )
+
+    @classmethod
+    def from_entity(cls, entity: TerminalCommand) -> 'TerminalCommandORM':
+        """Map domain entity to ORM model."""
+        instance = cls(pk=int(entity.id)) if entity.id and str(entity.id).isdigit() else cls()
+        instance.name = entity.name
+        instance.description = entity.description
+        instance.command_type = entity.command_type.value
+        instance.prompt_template_id = int(entity.prompt_template_id) if entity.prompt_template_id else None
+        instance.system_prompt = entity.system_prompt or ''
+        instance.user_prompt_template = entity.user_prompt_template
+        instance.api_endpoint = entity.api_endpoint or ''
+        instance.api_method = entity.api_method
+        instance.response_jq_filter = entity.response_jq_filter or ''
+        instance.parameters = [p.to_dict() for p in entity.parameters]
+        instance.timeout = entity.timeout
+        instance.provider_name = entity.provider_name or ''
+        instance.model_name = entity.model_name or ''
+        instance.category = entity.category
+        instance.tags = entity.tags or []
+        instance.is_active = entity.is_active
+        return instance
+
 
 __all__ = ['TerminalCommandORM']
