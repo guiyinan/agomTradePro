@@ -212,6 +212,7 @@ class ExecutePromptSerializer(serializers.Serializer):
     """执行Prompt请求序列化器"""
     template_id = serializers.IntegerField()
     placeholder_values = serializers.JSONField(default=dict)
+    provider_ref = serializers.JSONField(required=False)
     provider_name = serializers.CharField(allow_blank=True, required=False)
     model = serializers.CharField(allow_blank=True, required=False)
     temperature = serializers.FloatField(allow_null=True, required=False)
@@ -238,6 +239,7 @@ class ExecuteChainSerializer(serializers.Serializer):
     """执行链请求序列化器"""
     chain_id = serializers.IntegerField()
     placeholder_values = serializers.JSONField(default=dict)
+    provider_ref = serializers.JSONField(required=False)
     provider_name = serializers.CharField(allow_blank=True, required=False)
     model = serializers.CharField(allow_blank=True, required=False)
 
@@ -266,6 +268,7 @@ class GenerateReportSerializer(serializers.Serializer):
         allow_null=True,
         required=False
     )
+    provider_ref = serializers.JSONField(required=False)
     provider_name = serializers.CharField(allow_blank=True, required=False)
     model = serializers.CharField(allow_blank=True, required=False)
 
@@ -280,6 +283,7 @@ class GenerateSignalSerializer(serializers.Serializer):
     """生成信号请求序列化器"""
     asset_code = serializers.CharField(max_length=20)
     analysis_context = serializers.JSONField(default=dict)
+    provider_ref = serializers.JSONField(required=False)
     provider_name = serializers.CharField(allow_blank=True, required=False)
 
 
@@ -299,6 +303,7 @@ class ChatRequestSerializer(serializers.Serializer):
     message = serializers.CharField()
     session_id = serializers.CharField(allow_blank=True, required=False)
     context = serializers.JSONField(allow_null=True, required=False)
+    provider_ref = serializers.JSONField(required=False)
     provider_name = serializers.CharField(allow_blank=True, required=False)
     model = serializers.CharField(allow_blank=True, required=False)
 

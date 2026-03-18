@@ -92,7 +92,7 @@ class ExecutePromptUseCase:
             )
 
             # 4. 调用AI
-            ai_client = self.ai_client_factory.get_client(request.provider_name)
+            ai_client = self.ai_client_factory.get_client(self._resolve_provider_ref(request))
             ai_response = ai_client.chat_completion(
                 messages=[
                     {"role": "system", "content": template.system_prompt or ""},
@@ -159,6 +159,13 @@ class ExecutePromptUseCase:
             response_time_ms = int((time.time() - start_time) * 1000)
             self._log_error(execution_id, request.template_id, str(e), response_time_ms)
             raise
+
+    @staticmethod
+    def _resolve_provider_ref(request) -> Any:
+        """Support both provider_ref and the legacy provider_name field."""
+        if isinstance(request, dict):
+            return request.get("provider_ref", request.get("provider_name"))
+        return getattr(request, "provider_ref", getattr(request, "provider_name", None))
 
     def _resolve_placeholders(
         self,
@@ -350,7 +357,7 @@ class ExecuteChainUseCase:
             step_request = ExecutePromptRequest(
                 template_id=int(step.template_id),
                 placeholder_values=step_context,
-                provider_name=request.provider_name
+                provider_ref=self.prompt_use_case._resolve_provider_ref(request)
             )
             step_response = self.prompt_use_case.execute(step_request)
 
@@ -469,7 +476,7 @@ class GenerateReportUseCase:
         chain_request = ExecuteChainRequest(
             chain_id=1,  # 预定义的报告生成链ID
             placeholder_values=placeholder_values,
-            provider_name=request.provider_name
+            provider_ref=getattr(request, "provider_ref", getattr(request, "provider_name", None))
         )
 
         chain_result = self.chain_use_case.execute(chain_request)
@@ -513,7 +520,7 @@ class GenerateSignalUseCase:
         chain_request = ExecuteChainRequest(
             chain_id=2,  # 预定义的信号生成链ID
             placeholder_values=placeholder_values,
-            provider_name=request.provider_name
+            provider_ref=getattr(request, "provider_ref", getattr(request, "provider_name", None))
         )
 
         chain_result = self.chain_use_case.execute(chain_request)

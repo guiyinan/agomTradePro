@@ -85,6 +85,7 @@ class ExecutePromptRequest:
     """执行Prompt的请求DTO"""
     template_id: int
     placeholder_values: Dict[str, Any]
+    provider_ref: Optional[Any] = None
     provider_name: Optional[str] = None
     model: Optional[str] = None
     temperature: Optional[float] = None
@@ -113,6 +114,7 @@ class ExecuteChainRequest:
     """执行链式的请求DTO"""
     chain_id: int
     placeholder_values: Dict[str, Any]
+    provider_ref: Optional[Any] = None
     provider_name: Optional[str] = None
     model: Optional[str] = None
 
@@ -139,6 +141,7 @@ class GenerateReportRequest:
     include_policy: bool = True
     include_macro: bool = True
     indicators: Optional[List[str]] = None
+    provider_ref: Optional[Any] = None
     provider_name: Optional[str] = None
     model: Optional[str] = None
 
@@ -155,6 +158,7 @@ class GenerateSignalRequest:
     """生成投资信号的请求DTO"""
     asset_code: str
     analysis_context: Dict[str, Any]
+    provider_ref: Optional[Any] = None
     provider_name: Optional[str] = None
 
 
@@ -176,6 +180,7 @@ class ChatRequest:
     message: str
     session_id: Optional[str] = None
     context: Optional[Dict[str, Any]] = None
+    provider_ref: Optional[Any] = None
     provider_name: Optional[str] = None
     model: Optional[str] = None
 

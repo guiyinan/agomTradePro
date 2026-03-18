@@ -186,7 +186,8 @@ class PromptExecutionContext:
         placeholder_values: 占位符值
         regime_snapshot: Regime快照数据
         policy_level: 政策档位
-        provider_name: 指定AI提供商
+        provider_ref: 指定AI提供商标识，可为名称或ID
+        provider_name: 兼容旧字段，等价于 provider_ref
         model: 指定模型
         chain_execution_id: 链式执行ID
         step_outputs: 前序步骤输出
@@ -194,6 +195,7 @@ class PromptExecutionContext:
     placeholder_values: Dict[str, Any]
     regime_snapshot: Optional[Dict] = None
     policy_level: Optional[int] = None
+    provider_ref: Optional[Any] = None
     provider_name: Optional[str] = None
     model: Optional[str] = None
     chain_execution_id: Optional[str] = None
