@@ -35,86 +35,9 @@ from .serializers import (
 
 import logging
 
+from apps.ai_provider.infrastructure.client_factory import AIClientFactory
+
 logger = logging.getLogger(__name__)
-
-
-class AIClientFactory:
-    """AI客户端工厂 - 从 ai_provider 模块获取真实 AI 客户端"""
-
-    def __init__(self):
-        from apps.ai_provider.infrastructure.repositories import AIProviderRepository
-        self._provider_repo = AIProviderRepository()
-
-    def get_client(self, provider_name=None):
-        """获取AI客户端（支持指定提供商或自动 failover）"""
-        from apps.ai_provider.infrastructure.adapters import (
-            OpenAICompatibleAdapter, AIFailoverHelper
-        )
-
-        if provider_name:
-            # 使用指定的提供商
-            provider = self._provider_repo.get_by_name(provider_name)
-            if provider:
-                api_key = self._provider_repo.get_api_key(provider)
-                return OpenAICompatibleAdapter(
-                    base_url=provider.base_url,
-                    api_key=api_key,
-                    default_model=provider.default_model,
-                    api_mode=getattr(provider, 'api_mode', None),
-                    fallback_enabled=getattr(provider, 'fallback_enabled', None),
-                )
-            logger.warning("Provider '%s' not found, falling back to failover", provider_name)
-
-        # 使用所有活跃提供商构建 failover 链
-        providers = self._provider_repo.get_active_providers()
-        if not providers:
-            logger.error("No active AI providers configured")
-            return _NullAIClient()
-
-        provider_dicts = []
-        for p in providers:
-            provider_dicts.append({
-                "name": p.name,
-                "base_url": p.base_url,
-                "api_key_decrypted": self._provider_repo.get_api_key(p),
-                "default_model": p.default_model,
-                "api_mode": getattr(p, 'api_mode', None),
-                "fallback_enabled": getattr(p, 'fallback_enabled', None),
-            })
-
-        return _FailoverAIClient(AIFailoverHelper(provider_dicts))
-
-
-class _FailoverAIClient:
-    """Failover AI 客户端包装器，适配 chat_completion 接口"""
-
-    def __init__(self, failover_helper):
-        self._helper = failover_helper
-
-    def chat_completion(self, messages, model=None, temperature=0.7, max_tokens=None):
-        return self._helper.chat_completion_with_failover(
-            messages=messages,
-            model=model,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
-
-
-class _NullAIClient:
-    """无可用提供商时返回的空客户端"""
-
-    def chat_completion(self, messages, model=None, temperature=0.7, max_tokens=None):
-        return {
-            "status": "error",
-            "content": "",
-            "provider_used": "",
-            "model": model or "",
-            "prompt_tokens": 0,
-            "completion_tokens": 0,
-            "total_tokens": 0,
-            "estimated_cost": 0.0,
-            "error_message": "没有可用的AI提供商，请先在 ai_provider 模块配置",
-        }
 
 
 class PromptTemplateViewSet(viewsets.ModelViewSet):
@@ -337,7 +260,7 @@ class ChatView(APIView):
         # 获取参数
         message = serializer.validated_data['message']
         session_id = serializer.validated_data.get('session_id') or self._generate_session_id()
-        provider_name = serializer.validated_data.get('provider_name')
+        provider_ref = serializer.validated_data.get('provider_ref', serializer.validated_data.get('provider_name'))
         model = serializer.validated_data.get('model')
         context = serializer.validated_data.get('context', {})
 
@@ -351,7 +274,7 @@ class ChatView(APIView):
 
         try:
             ai_factory = AIClientFactory()
-            ai_client = ai_factory.get_client(provider_name)
+            ai_client = ai_factory.get_client(provider_ref)
             ai_response = ai_client.chat_completion(
                 messages=messages,
                 model=model,
@@ -521,4 +444,3 @@ class ExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
 def prompt_manage_view(request):
     """Prompt 模板管理页面"""
     return render(request, 'prompt/manage.html')
-

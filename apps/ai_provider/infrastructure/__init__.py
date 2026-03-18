@@ -1,1 +1,5 @@
-"""Infrastructure Layer - Django ORM and external adapters."""
+"""Infrastructure layer exports."""
+
+from .client_factory import AIClientFactory
+
+__all__ = ["AIClientFactory"]

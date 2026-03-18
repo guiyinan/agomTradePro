@@ -27,7 +27,7 @@ class CommandExecutionService:
     def ai_client_factory(self):
         """延迟加载AI客户端工厂"""
         if self._ai_client_factory is None:
-            from apps.prompt.interface.views import AIClientFactory
+            from apps.ai_provider.infrastructure.client_factory import AIClientFactory
             self._ai_client_factory = AIClientFactory()
         return self._ai_client_factory
     
