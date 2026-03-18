@@ -97,3 +97,4 @@ tmp_asset_screen_before.png
 docs/DEV_DIARY.md
 *.sqlite3-journal
 /data/qlib
+*.type

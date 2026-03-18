@@ -101,22 +101,24 @@ class AssetNameResolver:
         return resolved
 
     def _resolve_indices(self, codes: Set[str]) -> Dict[str, str]:
-        """从指数配置表解析名称（如果存在）"""
+        """从资产池条目表解析名称"""
         if not codes:
             return {}
 
         resolved: Dict[str, str] = {}
         try:
-            from apps.asset_analysis.infrastructure.models import AssetConfigModel
+            from apps.asset_analysis.infrastructure.models import AssetPoolEntry
 
-            rows = AssetConfigModel._default_manager.filter(asset_code__in=list(codes)).values(
-                "asset_code", "asset_name"
+            rows = (
+                AssetPoolEntry._default_manager.filter(asset_code__in=list(codes))
+                .values("asset_code", "asset_name")
+                .distinct()
             )
             for row in rows:
                 if row["asset_name"]:
                     resolved[row["asset_code"]] = row["asset_name"]
         except Exception as e:
-            logger.debug("Failed to resolve index names from AssetConfig: %s", e)
+            logger.debug("Failed to resolve index names from AssetPoolEntry: %s", e)
 
         return resolved
 
@@ -169,6 +171,21 @@ def enrich_with_asset_names(
     """
     if not items:
         return items
+
+    codes = [item.get(code_field) for item in items if item.get(code_field)]
+    if not codes:
+        return items
+
+    # 直接创建解析器实例，绕过缓存
+    resolver = AssetNameResolver()
+    name_map = resolver.resolve_asset_names(codes)
+
+    for item in items:
+        code = item.get(code_field)
+        if code and not item.get(name_field):
+            item[name_field] = name_map.get(code, code)
+
+    return items
 
     codes = [item.get(code_field) for item in items if item.get(code_field)]
     if not codes:

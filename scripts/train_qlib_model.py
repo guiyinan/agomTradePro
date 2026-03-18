@@ -112,11 +112,10 @@ def train_model():
     model_dir.mkdir(parents=True, exist_ok=True)
     
     model_name = f"lgb_{universe}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    model_path = model_dir / f"{model_name}.pkl"
+    model_file = model_dir / f"{model_name}.pkl"
     
-    # 使用 dump_all 保存模型
-    model.dump_all(str(model_dir), model_name)
-    model_file = model_dir / model_name / "model.pkl"
+    # 使用 to_pickle 保存模型
+    model.to_pickle(str(model_file))
     print(f"\n模型已保存: {model_file}")
     
     # 计算模型哈希
