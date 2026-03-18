@@ -476,7 +476,8 @@ pip install -r requirements.txt
 
 | 文档 | 说明 |
 |------|------|
-| `SYSTEM_OVERVIEW.md` | 系统全景概览 |
+| `governance/SYSTEM_BASELINE.md` | 系统基线（单一叙事来源） |
+| `SYSTEM_SPECIFICATION.md` | 系统完整说明书 |
 | `project_structure.md` | 项目结构详解 |
 | `module-dependency-graph.md` | 模块依赖关系图 |
 | `AgomSAAF_V3.4.md` | 业务需求文档 |

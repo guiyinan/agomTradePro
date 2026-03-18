@@ -1334,6 +1334,36 @@ class SystemSettingsModel(models.Model):
         verbose_name="上次备份邮件发送时间"
     )
 
+    # ========== Qlib 配置 ==========
+    qlib_enabled = models.BooleanField(
+        default=False,
+        verbose_name="启用 Qlib",
+        help_text="开启后系统将使用 Qlib 进行量化分析"
+    )
+
+    qlib_provider_uri = models.CharField(
+        max_length=500,
+        blank=True,
+        default="",
+        verbose_name="Qlib 数据目录",
+        help_text="Qlib 数据存储路径，如 D:/qlib_data/cn_data 或 /var/lib/qlib/cn_data"
+    )
+
+    qlib_region = models.CharField(
+        max_length=10,
+        default="CN",
+        verbose_name="Qlib 区域",
+        help_text="市场区域，如 CN（中国）、US（美国）"
+    )
+
+    qlib_model_path = models.CharField(
+        max_length=500,
+        blank=True,
+        default="",
+        verbose_name="Qlib 模型目录",
+        help_text="Qlib 模型存储路径，留空使用默认路径"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
 
@@ -1515,6 +1545,51 @@ class SystemSettingsModel(models.Model):
     @classmethod
     def get_runtime_macro_publication_lags(cls) -> dict:
         return cls.get_settings().get_macro_publication_lags()
+
+    # ========== Qlib 配置获取方法 ==========
+    def get_qlib_provider_uri(self) -> str:
+        """获取 Qlib 数据目录，如果数据库未配置则回退到 settings.QLIB_SETTINGS"""
+        if self.qlib_provider_uri:
+            return self.qlib_provider_uri
+        # 回退到 settings
+        from django.conf import settings
+        return settings.QLIB_SETTINGS.get('provider_uri', '~/.qlib/qlib_data/cn_data')
+
+    def get_qlib_region(self) -> str:
+        """获取 Qlib 区域配置"""
+        if self.qlib_region:
+            return self.qlib_region
+        from django.conf import settings
+        return settings.QLIB_SETTINGS.get('region', 'CN')
+
+    def get_qlib_model_path(self) -> str:
+        """获取 Qlib 模型目录"""
+        if self.qlib_model_path:
+            return self.qlib_model_path
+        from django.conf import settings
+        return settings.QLIB_SETTINGS.get('model_path', '/models/qlib')
+
+    def is_qlib_configured(self) -> bool:
+        """检查 Qlib 是否已配置且数据目录存在"""
+        if not self.qlib_enabled:
+            return False
+        provider_uri = self.get_qlib_provider_uri()
+        if not provider_uri:
+            return False
+        from pathlib import Path
+        return Path(provider_uri).expanduser().exists()
+
+    @classmethod
+    def get_runtime_qlib_config(cls) -> dict:
+        """获取运行时 Qlib 配置（类方法，便于调用）"""
+        settings_obj = cls.get_settings()
+        return {
+            'enabled': settings_obj.qlib_enabled,
+            'provider_uri': settings_obj.get_qlib_provider_uri(),
+            'region': settings_obj.get_qlib_region(),
+            'model_path': settings_obj.get_qlib_model_path(),
+            'is_configured': settings_obj.is_qlib_configured(),
+        }
 
     @staticmethod
     def _get_default_agreement():

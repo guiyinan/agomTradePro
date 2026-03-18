@@ -436,17 +436,32 @@ class QlibModelRegistryAdmin(admin.ModelAdmin):
             passed = False
 
         qlib_settings = getattr(settings, "QLIB_SETTINGS", {}) or {}
-        qlib_data_path = str(Path(qlib_settings.get("provider_uri", "~/.qlib/qlib_data/cn_data")).expanduser())
-        data_path_obj = Path(qlib_data_path)
-        qlib_data_ok = data_path_obj.exists()
+        
+        # 优先从数据库读取 Qlib 配置
+        try:
+            from apps.account.infrastructure.models import SystemSettingsModel
+            qlib_runtime_config = SystemSettingsModel.get_runtime_qlib_config()
+            qlib_data_path = qlib_runtime_config.get('provider_uri', '')
+            qlib_enabled = qlib_runtime_config.get('enabled', False)
+        except Exception:
+            qlib_data_path = str(Path(qlib_settings.get("provider_uri", "~/.qlib/qlib_data/cn_data")).expanduser())
+            qlib_enabled = False
+        
+        if qlib_data_path:
+            data_path_obj = Path(qlib_data_path).expanduser()
+            qlib_data_ok = data_path_obj.exists()
+        else:
+            qlib_data_ok = False
+            
+        status_text = "启用" if qlib_enabled else "未启用"
         checks.append(
             {
                 "label": "Qlib 数据目录",
                 "ok": qlib_data_ok,
-                "detail": qlib_data_path if qlib_data_ok else f"目录不存在: {qlib_data_path}",
+                "detail": f"{qlib_data_path} ({status_text})" if qlib_data_ok else f"目录不存在: {qlib_data_path} ({status_text})",
             }
         )
-        passed = passed and qlib_data_ok
+        passed = passed and qlib_data_ok and qlib_enabled
 
         if file_exists and pickle_ok and qlib_import_ok and qlib_data_ok:
             try:

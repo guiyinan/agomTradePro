@@ -456,9 +456,14 @@ def _execute_qlib_prediction(
         from qlib.constant import REG_CN
         import pandas as pd
 
-        # 获取 Qlib 配置
-        from django.conf import settings
-        qlib_config = getattr(settings, 'QLIB_SETTINGS', {})
+        # 获取 Qlib 配置（优先从数据库读取）
+        from apps.account.infrastructure.models import SystemSettingsModel
+        qlib_config = SystemSettingsModel.get_runtime_qlib_config()
+        
+        if not qlib_config.get('enabled'):
+            logger.warning("Qlib 未启用，跳过预测")
+            return None
+            
         provider_uri = qlib_config.get('provider_uri', '~/.qlib/qlib_data/cn_data')
         region = qlib_config.get('region', 'CN')
 
@@ -677,9 +682,13 @@ def _train_qlib_model(
         from qlib.data import D
         import pandas as pd
 
-        # 获取 Qlib 配置
-        from django.conf import settings
-        qlib_config = getattr(settings, 'QLIB_SETTINGS', {})
+        # 获取 Qlib 配置（优先从数据库读取）
+        from apps.account.infrastructure.models import SystemSettingsModel
+        qlib_config = SystemSettingsModel.get_runtime_qlib_config()
+        
+        if not qlib_config.get('enabled'):
+            raise ValueError("Qlib 未启用，请先在系统配置中启用 Qlib")
+            
         provider_uri = qlib_config.get('provider_uri', '~/.qlib/qlib_data/cn_data')
         region = qlib_config.get('region', 'CN')
 

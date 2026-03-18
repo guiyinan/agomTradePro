@@ -377,9 +377,19 @@ class AlphaService:
         # 1. Qlib Provider（最高优先级，但可能不可用）
         try:
             from ..infrastructure.adapters.qlib_adapter import QlibAlphaProvider
-            qlib_provider = QlibAlphaProvider()
-            self._registry.register(qlib_provider)
-            logger.info("Qlib Provider 已注册")
+            from apps.account.infrastructure.models import SystemSettingsModel
+            
+            qlib_config = SystemSettingsModel.get_runtime_qlib_config()
+            if qlib_config.get('enabled'):
+                qlib_provider = QlibAlphaProvider(
+                    provider_uri=qlib_config.get('provider_uri', '~/.qlib/qlib_data/cn_data'),
+                    model_path=qlib_config.get('model_path', '/models/qlib'),
+                    region=qlib_config.get('region', 'CN')
+                )
+                self._registry.register(qlib_provider)
+                logger.info(f"Qlib Provider 已注册: {qlib_config.get('provider_uri')}")
+            else:
+                logger.info("Qlib 未启用，跳过注册")
         except Exception as e:
             logger.warning(f"Qlib Provider 初始化失败（预期，如果未安装 Qlib）: {e}")
 

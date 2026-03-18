@@ -504,15 +504,19 @@ class TakeProfitConfigAdmin(admin.ModelAdmin):
 class SystemSettingsAdmin(admin.ModelAdmin):
     """系统配置管理（单例模式）"""
 
-    list_display = ['require_user_approval_display', 'auto_approve_first_admin', 'updated_at']
+    list_display = ['require_user_approval_display', 'auto_approve_first_admin', 'qlib_status', 'updated_at']
     list_display_links = None  # 禁止从列表页进入编辑
 
     fieldsets = (
         ('用户审批配置', {
-            'fields': ('require_user_approval', 'auto_approve_first_admin')
+            'fields': ('require_user_approval', 'auto_approve_first_admin', 'default_mcp_enabled', 'allow_token_plaintext_view')
         }),
         ('协议内容', {
             'fields': ('user_agreement_content', 'risk_warning_content')
+        }),
+        ('Qlib 量化配置', {
+            'fields': ('qlib_enabled', 'qlib_provider_uri', 'qlib_region', 'qlib_model_path'),
+            'description': '配置 Qlib 量化分析数据目录。启用后可进行量化策略训练和预测。'
         }),
         ('其他', {
             'fields': ('notes',)
@@ -538,6 +542,14 @@ class SystemSettingsAdmin(admin.ModelAdmin):
         color = 'green' if obj.require_user_approval else 'orange'
         return format_html('<span style="color:{}">{}</span>', color, status)
     require_user_approval_display.short_description = '审批开关'
+
+    def qlib_status(self, obj):
+        if not obj.qlib_enabled:
+            return format_html('<span style="color:gray">未启用</span>')
+        if obj.is_qlib_configured():
+            return format_html('<span style="color:green">已配置 ✓</span>')
+        return format_html('<span style="color:red">数据目录不存在</span>')
+    qlib_status.short_description = 'Qlib 状态'
 
     def response_add(self, request, obj, post_url_continue=None):
         """保存后重定向到列表页"""

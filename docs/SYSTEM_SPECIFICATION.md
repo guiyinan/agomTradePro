@@ -1652,7 +1652,9 @@ tools = [
 ### 10.2 参考资料
 
 **内部文档**：
-- [系统全景概览](architecture/SYSTEM_OVERVIEW.md)
+- [系统基线](governance/SYSTEM_BASELINE.md) - 单一叙事来源
+- [模块分级表](governance/MODULE_CLASSIFICATION.md) - 模块治理
+- [开发禁令](governance/DEVELOPMENT_BANLIST.md) - 开发约束
 - [业务需求文档](business/AgomSAAF_V3.4.md)
 - [开发快速参考](development/quick-reference.md)
 - [测试策略文档](testing/master-test-strategy-2026-02.md)
