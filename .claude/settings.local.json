@@ -221,7 +221,8 @@
       "mcp__agomsaaf_local__analyze_sentiment",
       "mcp__agomsaaf_local__get_sentiment_index",
       "Bash(cd D:/githv/agomSAAF && mkdir -p apps/agent_runtime/domain apps/agent_runtime/application apps/agent_runtime/infrastructure apps/agent_runtime/interface apps/agent_runtime/migrations)",
-      "Bash(python -c \":*)"
+      "Bash(python -c \":*)",
+      "Bash(CSRF=\"x3r18qmciLZ1r8XJeLdRZIvT8YkBeBWmKfC6ufPHy24MIAWZYJxLFnLpnkG9tdy0\")"
     ]
   },
   "enableAllProjectMcpServers": true,

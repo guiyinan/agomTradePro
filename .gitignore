@@ -98,3 +98,4 @@ docs/DEV_DIARY.md
 *.sqlite3-journal
 /data/qlib
 *.type
+/mlruns
