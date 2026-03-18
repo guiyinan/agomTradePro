@@ -40,61 +40,9 @@ from apps.prompt.infrastructure.repositories import (
     DjangoChainRepository,
     DjangoExecutionLogRepository
 )
-from apps.ai_provider.infrastructure.adapters import OpenAICompatibleAdapter
-from apps.ai_provider.infrastructure.repositories import AIProviderRepository
+from apps.ai_provider.infrastructure.client_factory import AIClientFactory
 
 logger = logging.getLogger(__name__)
-
-
-# ========================================================================
-# AI 客户端工厂（复用 AI Provider 系统）
-# ========================================================================
-
-class AIClientFactory:
-    """
-    AI 客户端工厂
-
-    复用 AI Provider 系统的配置，提供统一的 AI 客户端接口
-    """
-
-    def __init__(self):
-        self.provider_repository = AIProviderRepository()
-        self._clients = {}  # 缓存已创建的客户端
-
-    def get_client(self, provider_id: int) -> OpenAICompatibleAdapter:
-        """
-        获取 AI 客户端
-
-        Args:
-            provider_id: AI 服务商ID
-
-        Returns:
-            OpenAICompatibleAdapter 实例
-        """
-        # 检查缓存
-        if provider_id in self._clients:
-            return self._clients[provider_id]
-
-        # 从数据库加载配置
-        provider_config = self.provider_repository.get_by_id(provider_id)
-        if not provider_config:
-            raise ValueError(f"AI Provider not found: {provider_id}")
-
-        # 创建客户端 - 使用 repository 的 get_api_key 方法解密
-        extra_config = provider_config.extra_config if isinstance(provider_config.extra_config, dict) else {}
-        api_key = self.provider_repository.get_api_key(provider_config)
-        client = OpenAICompatibleAdapter(
-            base_url=provider_config.base_url,
-            api_key=api_key,
-            default_model=provider_config.default_model,
-            api_mode=extra_config.get("api_mode"),
-            fallback_enabled=extra_config.get("fallback_enabled"),
-        )
-
-        # 缓存
-        self._clients[provider_id] = client
-
-        return client
 
 
 # ========================================================================
@@ -474,7 +422,7 @@ class AIStrategyExecutor:
         request = ExecutePromptRequest(
             template_id=ai_config.prompt_template_id,
             placeholder_values=context,
-            provider_name=ai_config.ai_provider_id or 1,  # 默认使用第一个服务商
+            provider_ref=ai_config.ai_provider_id or 1,  # 默认使用第一个服务商
             model=None,  # 使用服务商默认模型
             temperature=ai_config.temperature,
             max_tokens=ai_config.max_tokens
@@ -507,7 +455,7 @@ class AIStrategyExecutor:
         request = ExecuteChainRequest(
             chain_id=ai_config.chain_config_id,
             placeholder_values=context,
-            provider_name=ai_config.ai_provider_id or 1
+            provider_ref=ai_config.ai_provider_id or 1
         )
 
         # 执行 Chain
