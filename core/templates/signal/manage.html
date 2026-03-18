@@ -127,6 +127,7 @@
             <div class="signal-main">
                 <div class="signal-title">
                     <span class="signal-code">{{ signal.asset_code }}</span>
+                    <span class="signal-name">{{ signal.asset_name }}</span>
                     <span class="signal-tag">{{ signal.asset_class }}</span>
                     <span class="status-badge status-{{ signal.status }}">
                         {% if signal.status == 'pending' %}待审核

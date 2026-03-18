@@ -636,6 +636,7 @@
                         <div class="signal-item">
                             <div class="signal-header">
                                 <span class="signal-asset">{{ signal.asset_code }}</span>
+                                <span class="signal-name">{{ signal.asset_name }}</span>
                                 <span class="signal-badge badge-{{ signal.direction|lower }}">{{ signal.direction }}</span>
                             </div>
                             <p class="signal-logic">{{ signal.logic_desc|truncatewords:12 }}</p>
@@ -1370,6 +1371,12 @@ chatSendBtn.onclick = async function() {
 
 <style>
 /* 新增样式 */
+.signal-name {
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-left: 8px;
+}
+
 .sort-select {
     padding: 4px 8px;
     border: 1px solid var(--border-color);

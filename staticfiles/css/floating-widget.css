@@ -383,9 +383,9 @@
 }
 
 /* ========================================
-   Mobile Responsive
+   Mobile Responsive (仅针对真正的移动设备)
    ======================================== */
-@media (max-width: 768px) {
+@media (max-width: 768px) and (hover: none) {
     .floating-widget.position-bottom-right,
     .floating-widget.position-bottom-left,
     .floating-widget.position-top-right,
@@ -447,6 +447,19 @@
     .floating-widget .section-content,
     .floating-widget .accordion-body {
         font-size: 12px;
+    }
+}
+
+/* 小屏幕但非触屏设备（页面放大等情况）：确保面板不超出可视区域 */
+@media (max-width: 768px) and (hover: hover) {
+    .floating-widget .widget-content {
+        max-width: calc(100vw - 48px);
+        right: 0;
+    }
+    
+    .floating-widget.position-bottom-right .widget-content {
+        right: 0;
+        left: auto;
     }
 }
 

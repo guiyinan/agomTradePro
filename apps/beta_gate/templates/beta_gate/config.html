@@ -157,6 +157,7 @@
             <thead>
                 <tr>
                     <th>资产代码</th>
+                    <th>名称</th>
                     <th>资产类别</th>
                     <th>状态</th>
                     <th>Regime</th>
@@ -168,6 +169,7 @@
                 {% for decision in recent_decisions %}
                 <tr>
                     <td><strong>{{ decision.asset_code }}</strong></td>
+                    <td>{{ decision.asset_name|default:"-" }}</td>
                     <td>{{ decision.asset_class }}</td>
                     <td class="status-{{ decision.status }}">{{ decision.status|title }}</td>
                     <td>{{ decision.current_regime }}</td>

@@ -74,7 +74,7 @@
     <div class="edit-header">
         <div>
             <h1>编辑 Alpha 触发器</h1>
-            <p style="color: #64748b; margin-top: 4px;">{{ trigger.trigger_id }}</p>
+            <p style="color: #64748b; margin-top: 4px;">{{ trigger.asset_code }} {{ trigger.asset_name|default:"" }}</p>
         </div>
     </div>
 
@@ -94,6 +94,10 @@
                     <label class="form-label">资产代码</label>
                     <input type="text" class="form-input" value="{{ trigger.asset_code }}" disabled>
                     <span class="form-label-readonly">不可修改</span>
+                </div>
+                <div>
+                    <label class="form-label">资产名称</label>
+                    <input type="text" class="form-input" value="{{ trigger.asset_name|default:"-" }}" disabled>
                 </div>
                 <div>
                     <label class="form-label">资产类别</label>

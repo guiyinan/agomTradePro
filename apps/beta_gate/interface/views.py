@@ -40,30 +40,45 @@ class BetaGateVersionCompareAPIView(APIView):
         GET /api/beta-gate/version/compare/?version1=1&version2=2
         """
         try:
-            version1_id = request.query_params.get("version1") or request.query_params.get("version_a")
-            version2_id = request.query_params.get("version2") or request.query_params.get("version_b")
+            version1_id = request.query_params.get("version1") or request.query_params.get(
+                "version_a"
+            )
+            version2_id = request.query_params.get("version2") or request.query_params.get(
+                "version_b"
+            )
 
             if not version1_id or not version2_id:
                 # 返回最新10个版本的列表
                 from ..infrastructure.models import GateConfigModel
-                configs = list(GateConfigModel._default_manager.all().order_by('-version')[:10])
+
+                configs = list(GateConfigModel._default_manager.all().order_by("-version")[:10])
 
                 results = []
                 for config in configs:
-                    results.append({
-                        "config_id": config.config_id,
-                        "version": config.version,
-                        "risk_profile": config.risk_profile,
-                        "is_active": config.is_active,
-                        "effective_date": config.effective_date.isoformat() if config.effective_date else None,
-                        "expires_at": config.expires_at.isoformat() if config.expires_at else None,
-                        "created_at": config.created_at.isoformat() if config.created_at else None,
-                    })
+                    results.append(
+                        {
+                            "config_id": config.config_id,
+                            "version": config.version,
+                            "risk_profile": config.risk_profile,
+                            "is_active": config.is_active,
+                            "effective_date": config.effective_date.isoformat()
+                            if config.effective_date
+                            else None,
+                            "expires_at": config.expires_at.isoformat()
+                            if config.expires_at
+                            else None,
+                            "created_at": config.created_at.isoformat()
+                            if config.created_at
+                            else None,
+                        }
+                    )
 
-                return Response({
-                    "success": True,
-                    "results": results,
-                })
+                return Response(
+                    {
+                        "success": True,
+                        "results": results,
+                    }
+                )
 
             # 对比两个版本
             from ..infrastructure.models import GateConfigModel
@@ -72,12 +87,16 @@ class BetaGateVersionCompareAPIView(APIView):
             config2 = GateConfigModel._default_manager.filter(config_id=version2_id).first()
             if not config1:
                 try:
-                    config1 = GateConfigModel._default_manager.filter(version=int(version1_id)).first()
+                    config1 = GateConfigModel._default_manager.filter(
+                        version=int(version1_id)
+                    ).first()
                 except (TypeError, ValueError):
                     config1 = None
             if not config2:
                 try:
-                    config2 = GateConfigModel._default_manager.filter(version=int(version2_id)).first()
+                    config2 = GateConfigModel._default_manager.filter(
+                        version=int(version2_id)
+                    ).first()
                 except (TypeError, ValueError):
                     config2 = None
 
@@ -96,6 +115,7 @@ class BetaGateVersionCompareAPIView(APIView):
             def parse_constraints(constraints_str):
                 try:
                     import json
+
                     if isinstance(constraints_str, str):
                         return json.loads(constraints_str)
                     return constraints_str or {}
@@ -109,7 +129,9 @@ class BetaGateVersionCompareAPIView(APIView):
                     "version": config.version,
                     "risk_profile": config.risk_profile,
                     "is_active": config.is_active,
-                    "effective_date": config.effective_date.isoformat() if config.effective_date else None,
+                    "effective_date": config.effective_date.isoformat()
+                    if config.effective_date
+                    else None,
                     "expires_at": config.expires_at.isoformat() if config.expires_at else None,
                     "regime_constraints": parse_constraints(config.regime_constraints),
                     "policy_constraints": parse_constraints(config.policy_constraints),
@@ -122,12 +144,14 @@ class BetaGateVersionCompareAPIView(APIView):
             # 计算差异
             differences = self._compare_configs(config1_dict, config2_dict)
 
-            return Response({
-                "success": True,
-                "config1": config1_dict,
-                "config2": config2_dict,
-                "differences": differences,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "config1": config1_dict,
+                    "config2": config2_dict,
+                    "differences": differences,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Failed to compare versions: {e}", exc_info=True)
@@ -140,8 +164,13 @@ class BetaGateVersionCompareAPIView(APIView):
         """对比两个配置，返回差异列表"""
         differences = []
         fields = [
-            "risk_profile", "is_active", "effective_date", "expires_at",
-            "regime_constraints", "policy_constraints", "portfolio_constraints"
+            "risk_profile",
+            "is_active",
+            "effective_date",
+            "expires_at",
+            "regime_constraints",
+            "policy_constraints",
+            "portfolio_constraints",
         ]
 
         for field in fields:
@@ -149,11 +178,13 @@ class BetaGateVersionCompareAPIView(APIView):
             val2 = config2.get(field)
 
             if val1 != val2:
-                differences.append({
-                    "field": field,
-                    "config1": val1,
-                    "config2": val2,
-                })
+                differences.append(
+                    {
+                        "field": field,
+                        "config1": val1,
+                        "config2": val2,
+                    }
+                )
 
         return differences
 
@@ -187,7 +218,9 @@ class RollbackConfigView(APIView):
 
             # 获取目标版本配置
             try:
-                target_config = GateConfigModel._default_manager.filter(version=target_version).first()
+                target_config = GateConfigModel._default_manager.filter(
+                    version=target_version
+                ).first()
             except ValueError:
                 return Response(
                     {"success": False, "error": "Invalid version number"},
@@ -208,11 +241,13 @@ class RollbackConfigView(APIView):
             target_config.effective_date = timezone.now().date()
             target_config.save()
 
-            return Response({
-                "success": True,
-                "message": f"已回滚到版本 {target_version}",
-                "config_id": target_config.config_id,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "message": f"已回滚到版本 {target_version}",
+                    "config_id": target_config.config_id,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Failed to rollback config: {e}", exc_info=True)
@@ -412,6 +447,7 @@ def beta_gate_test_view(request):
         current_regime = None
         try:
             from apps.regime.application.current_regime import resolve_current_regime
+
             current_regime = resolve_current_regime()
         except Exception as e:
             logger.warning(f"Failed to get current regime: {e}")
@@ -421,6 +457,7 @@ def beta_gate_test_view(request):
         try:
             from apps.policy.application.use_cases import GetCurrentPolicyUseCase
             from apps.policy.infrastructure.repositories import get_policy_repository
+
             policy_use_case = GetCurrentPolicyUseCase(get_policy_repository())
             policy_response = policy_use_case.execute()
             if policy_response.success and policy_response.policy_level:
@@ -431,16 +468,23 @@ def beta_gate_test_view(request):
         # 获取最近测试记录
         recent_tests = []
         try:
-            recent_tests = list(GateDecisionModel._default_manager.all().order_by('-evaluated_at')[:10])
+            recent_tests = list(
+                GateDecisionModel._default_manager.all().order_by("-evaluated_at")[:10]
+            )
         except Exception as e:
             logger.warning(f"Failed to query recent tests: {e}")
             recent_tests = []
 
+        # 批量解析资产名称
+        from shared.infrastructure.asset_name_resolver import resolve_asset_names
+
+        asset_codes = [t.asset_code for t in recent_tests if t.asset_code]
+        asset_name_map = resolve_asset_names(asset_codes)
+        for test in recent_tests:
+            test.asset_name = asset_name_map.get(test.asset_code, test.asset_code)
+
         # 获取所有资产类别
-        all_asset_classes = [
-            "a_股票", "a_债券", "a_商品", "a_现金",
-            "港股", "美股", "黄金", "原油"
-        ]
+        all_asset_classes = ["a_股票", "a_债券", "a_商品", "a_现金", "港股", "美股", "黄金", "原油"]
 
         context = {
             "active_config": active_config,
@@ -559,7 +603,13 @@ class BetaGateTestAPIView(APIView):
                     if configs:
                         return configs[0]
                     # 返回默认配置
-                    from ..domain.entities import GateConfig, RegimeConstraint, PolicyConstraint, PortfolioConstraint
+                    from ..domain.entities import (
+                        GateConfig,
+                        RegimeConstraint,
+                        PolicyConstraint,
+                        PortfolioConstraint,
+                    )
+
                     allowed_asset_classes = [asset_class] if asset_class else []
                     return GateConfig(
                         config_id="default",
@@ -604,20 +654,26 @@ class BetaGateTestAPIView(APIView):
             if response.success:
                 results = []
                 for decision in response.decisions:
-                    results.append({
-                        "asset_code": decision.asset_code,
-                        "asset_class": decision.asset_class,
-                        "passed": decision.is_passed,
-                        "status": decision.status.value,
-                        "blocking_reason": decision.blocking_reason if not decision.is_passed else None,
-                        "evaluated_at": decision.evaluated_at.isoformat(),
-                    })
+                    results.append(
+                        {
+                            "asset_code": decision.asset_code,
+                            "asset_class": decision.asset_class,
+                            "passed": decision.is_passed,
+                            "status": decision.status.value,
+                            "blocking_reason": decision.blocking_reason
+                            if not decision.is_passed
+                            else None,
+                            "evaluated_at": decision.evaluated_at.isoformat(),
+                        }
+                    )
 
-                return Response({
-                    "success": True,
-                    "results": results,
-                    "summary": response.summary,
-                })
+                return Response(
+                    {
+                        "success": True,
+                        "results": results,
+                        "summary": response.summary,
+                    }
+                )
             else:
                 return Response(
                     {"success": False, "error": response.error},
@@ -645,22 +701,28 @@ class GateConfigViewSet(viewsets.ViewSet):
             configs = self.config_repository.get_all_active()
             results = []
             for config in configs:
-                results.append({
-                    "config_id": config.config_id,
-                    "risk_profile": config.risk_profile.value,
-                    "version": config.version,
-                    "is_active": config.is_active,
-                    "regime_constraints": config.regime_constraint.to_dict(),
-                    "policy_constraints": config.policy_constraint.to_dict(),
-                    "portfolio_constraints": config.portfolio_constraint.to_dict(),
-                    "effective_date": config.effective_date.isoformat() if config.effective_date else None,
-                    "expires_at": config.expires_at.isoformat() if config.expires_at else None,
-                })
-            return Response({
-                "success": True,
-                "count": len(results),
-                "results": results,
-            })
+                results.append(
+                    {
+                        "config_id": config.config_id,
+                        "risk_profile": config.risk_profile.value,
+                        "version": config.version,
+                        "is_active": config.is_active,
+                        "regime_constraints": config.regime_constraint.to_dict(),
+                        "policy_constraints": config.policy_constraint.to_dict(),
+                        "portfolio_constraints": config.portfolio_constraint.to_dict(),
+                        "effective_date": config.effective_date.isoformat()
+                        if config.effective_date
+                        else None,
+                        "expires_at": config.expires_at.isoformat() if config.expires_at else None,
+                    }
+                )
+            return Response(
+                {
+                    "success": True,
+                    "count": len(results),
+                    "results": results,
+                }
+            )
         except Exception as e:
             logger.error(f"Failed to list configs: {e}", exc_info=True)
             return Response(
@@ -677,18 +739,20 @@ class GateConfigViewSet(viewsets.ViewSet):
                     {"success": False, "error": "Config not found"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-            return Response({
-                "success": True,
-                "result": {
-                    "config_id": config.config_id,
-                    "risk_profile": config.risk_profile.value,
-                    "version": config.version,
-                    "is_active": config.is_active,
-                    "regime_constraints": config.regime_constraint.to_dict(),
-                    "policy_constraints": config.policy_constraint.to_dict(),
-                    "portfolio_constraints": config.portfolio_constraint.to_dict(),
-                },
-            })
+            return Response(
+                {
+                    "success": True,
+                    "result": {
+                        "config_id": config.config_id,
+                        "risk_profile": config.risk_profile.value,
+                        "version": config.version,
+                        "is_active": config.is_active,
+                        "regime_constraints": config.regime_constraint.to_dict(),
+                        "policy_constraints": config.policy_constraint.to_dict(),
+                        "portfolio_constraints": config.portfolio_constraint.to_dict(),
+                    },
+                }
+            )
         except Exception as e:
             logger.error(f"Failed to retrieve config: {e}", exc_info=True)
             return Response(
@@ -713,16 +777,24 @@ class GateConfigViewSet(viewsets.ViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            level_raw = payload.get("max_policy_level", policy_constraints.get("max_allowed_level", 2))
+            level_raw = payload.get(
+                "max_policy_level", policy_constraints.get("max_allowed_level", 2)
+            )
             if isinstance(level_raw, str) and level_raw.upper().startswith("P"):
                 level_raw = level_raw[1:]
 
             config = create_gate_config(
                 risk_profile=risk_profile,
-                allowed_regimes=payload.get("allowed_regimes", regime_constraints.get("allowed_regimes")),
-                min_confidence=float(payload.get("min_confidence", regime_constraints.get("min_confidence", 0.3))),
+                allowed_regimes=payload.get(
+                    "allowed_regimes", regime_constraints.get("allowed_regimes")
+                ),
+                min_confidence=float(
+                    payload.get("min_confidence", regime_constraints.get("min_confidence", 0.3))
+                ),
                 max_policy_level=int(level_raw),
-                veto_on_p3=bool(payload.get("veto_on_p3", policy_constraints.get("veto_on_p3", True))),
+                veto_on_p3=bool(
+                    payload.get("veto_on_p3", policy_constraints.get("veto_on_p3", True))
+                ),
                 max_total_position=float(
                     payload.get(
                         "max_total_position",
@@ -751,7 +823,9 @@ class GateConfigViewSet(viewsets.ViewSet):
                         "regime_constraints": saved.regime_constraints,
                         "policy_constraints": saved.policy_constraints,
                         "portfolio_constraints": saved.portfolio_constraints,
-                        "effective_date": saved.effective_date.isoformat() if saved.effective_date else None,
+                        "effective_date": saved.effective_date.isoformat()
+                        if saved.effective_date
+                        else None,
                         "expires_at": saved.expires_at.isoformat() if saved.expires_at else None,
                     },
                 },
@@ -771,6 +845,7 @@ class GateDecisionViewSet(viewsets.ViewSet):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         from ..infrastructure.repositories import get_decision_repository
+
         self.decision_repository = get_decision_repository()
 
     def list(self, request) -> Response:
@@ -780,21 +855,25 @@ class GateDecisionViewSet(viewsets.ViewSet):
             decisions = self.decision_repository.get_recent(days)
             results = []
             for decision in decisions:
-                results.append({
-                    "decision_id": getattr(decision, "decision_id", ""),
-                    "asset_code": decision.asset_code,
-                    "asset_class": decision.asset_class,
-                    "status": decision.status.value,
-                    "current_regime": decision.current_regime,
-                    "policy_level": decision.policy_level,
-                    "regime_confidence": decision.regime_confidence,
-                    "evaluated_at": decision.evaluated_at.isoformat(),
-                })
-            return Response({
-                "success": True,
-                "count": len(results),
-                "results": results,
-            })
+                results.append(
+                    {
+                        "decision_id": getattr(decision, "decision_id", ""),
+                        "asset_code": decision.asset_code,
+                        "asset_class": decision.asset_class,
+                        "status": decision.status.value,
+                        "current_regime": decision.current_regime,
+                        "policy_level": decision.policy_level,
+                        "regime_confidence": decision.regime_confidence,
+                        "evaluated_at": decision.evaluated_at.isoformat(),
+                    }
+                )
+            return Response(
+                {
+                    "success": True,
+                    "count": len(results),
+                    "results": results,
+                }
+            )
         except Exception as e:
             logger.error(f"Failed to list decisions: {e}", exc_info=True)
             return Response(
@@ -811,19 +890,21 @@ class GateDecisionViewSet(viewsets.ViewSet):
                     {"success": False, "error": "Decision not found"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-            return Response({
-                "success": True,
-                "result": {
-                    "decision_id": getattr(decision, "decision_id", ""),
-                    "asset_code": decision.asset_code,
-                    "asset_class": decision.asset_class,
-                    "status": decision.status.value,
-                    "current_regime": decision.current_regime,
-                    "policy_level": decision.policy_level,
-                    "regime_confidence": decision.regime_confidence,
-                    "evaluated_at": decision.evaluated_at.isoformat(),
-                },
-            })
+            return Response(
+                {
+                    "success": True,
+                    "result": {
+                        "decision_id": getattr(decision, "decision_id", ""),
+                        "asset_code": decision.asset_code,
+                        "asset_class": decision.asset_class,
+                        "status": decision.status.value,
+                        "current_regime": decision.current_regime,
+                        "policy_level": decision.policy_level,
+                        "regime_confidence": decision.regime_confidence,
+                        "evaluated_at": decision.evaluated_at.isoformat(),
+                    },
+                }
+            )
         except Exception as e:
             logger.error(f"Failed to retrieve decision: {e}", exc_info=True)
             return Response(
@@ -838,6 +919,7 @@ class VisibilityUniverseViewSet(viewsets.ViewSet):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         from ..infrastructure.repositories import get_universe_repository
+
         self.universe_repository = get_universe_repository()
 
     def list(self, request) -> Response:
@@ -848,11 +930,13 @@ class VisibilityUniverseViewSet(viewsets.ViewSet):
             limit = int(request.query_params.get("limit", 100))
 
             snapshots = self.universe_repository.get_history(regime, policy_level, limit)
-            return Response({
-                "success": True,
-                "count": len(snapshots),
-                "results": snapshots,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "count": len(snapshots),
+                    "results": snapshots,
+                }
+            )
         except Exception as e:
             logger.error(f"Failed to list universe snapshots: {e}", exc_info=True)
             return Response(
@@ -869,10 +953,12 @@ class VisibilityUniverseViewSet(viewsets.ViewSet):
                     {"success": False, "error": "Snapshot not found"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
-            return Response({
-                "success": True,
-                "result": snapshot,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "result": snapshot,
+                }
+            )
         except Exception as e:
             logger.error(f"Failed to retrieve snapshot: {e}", exc_info=True)
             return Response(
@@ -903,10 +989,20 @@ def beta_gate_config_view(request):
 
         # 获取最近决策
         try:
-            recent_decisions = list(GateDecisionModel._default_manager.all().order_by('-evaluated_at')[:10])
+            recent_decisions = list(
+                GateDecisionModel._default_manager.all().order_by("-evaluated_at")[:10]
+            )
         except Exception as e:
             logger.warning(f"Failed to query recent decisions: {e}")
             recent_decisions = []
+
+        # 批量解析资产名称
+        from shared.infrastructure.asset_name_resolver import resolve_asset_names
+
+        asset_codes = [d.asset_code for d in recent_decisions if d.asset_code]
+        asset_name_map = resolve_asset_names(asset_codes)
+        for decision in recent_decisions:
+            decision.asset_name = asset_name_map.get(decision.asset_code, decision.asset_code)
 
         # 构建上下文数据
         context_data = {
@@ -919,9 +1015,21 @@ def beta_gate_config_view(request):
         # 如果有配置，构建简化的数据结构供模板使用
         if active_config:
             # 从 JSON 字段提取数据
-            regime_constraints = active_config.regime_constraints if isinstance(active_config.regime_constraints, dict) else {}
-            policy_constraints = active_config.policy_constraints if isinstance(active_config.policy_constraints, dict) else {}
-            portfolio_constraints = active_config.portfolio_constraints if isinstance(active_config.portfolio_constraints, dict) else {}
+            regime_constraints = (
+                active_config.regime_constraints
+                if isinstance(active_config.regime_constraints, dict)
+                else {}
+            )
+            policy_constraints = (
+                active_config.policy_constraints
+                if isinstance(active_config.policy_constraints, dict)
+                else {}
+            )
+            portfolio_constraints = (
+                active_config.portfolio_constraints
+                if isinstance(active_config.portfolio_constraints, dict)
+                else {}
+            )
 
             # 构建简化的配置对象
             class SimpleConfig:
@@ -933,29 +1041,42 @@ def beta_gate_config_view(request):
                     self.effective_date = model.effective_date
                     self.expires_at = model.expires_at
                     # Regime 约束
-                    self.regime_constraint = type('obj', (), {
-                        'current_regime': regime_c.get('current_regime', '未知'),
-                        'confidence': regime_c.get('confidence', 0.5),
-                        'allowed_asset_classes': regime_c.get('allowed_asset_classes', []),
-                    })()
+                    self.regime_constraint = type(
+                        "obj",
+                        (),
+                        {
+                            "current_regime": regime_c.get("current_regime", "未知"),
+                            "confidence": regime_c.get("confidence", 0.5),
+                            "allowed_asset_classes": regime_c.get("allowed_asset_classes", []),
+                        },
+                    )()
                     # Policy 约束
-                    self.policy_constraint = type('obj', (), {
-                        'current_level': policy_c.get('current_level', 0),
-                        'max_risk_exposure': policy_c.get('max_risk_exposure', 100),
-                        'hard_exclusions': policy_c.get('hard_exclusions', []),
-                    })()
+                    self.policy_constraint = type(
+                        "obj",
+                        (),
+                        {
+                            "current_level": policy_c.get("current_level", 0),
+                            "max_risk_exposure": policy_c.get("max_risk_exposure", 100),
+                            "hard_exclusions": policy_c.get("hard_exclusions", []),
+                        },
+                    )()
                     # 组合约束
-                    self.portfolio_constraint = type('obj', (), {
-                        'max_positions': portfolio_c.get('max_positions', 10),
-                        'max_single_position_weight': portfolio_c.get('max_single_position_weight', 20),
-                        'max_concentration_ratio': portfolio_c.get('max_concentration_ratio', 60),
-                    })()
+                    self.portfolio_constraint = type(
+                        "obj",
+                        (),
+                        {
+                            "max_positions": portfolio_c.get("max_positions", 10),
+                            "max_single_position_weight": portfolio_c.get(
+                                "max_single_position_weight", 20
+                            ),
+                            "max_concentration_ratio": portfolio_c.get(
+                                "max_concentration_ratio", 60
+                            ),
+                        },
+                    )()
 
             context_data["active_config"] = SimpleConfig(
-                active_config,
-                regime_constraints,
-                policy_constraints,
-                portfolio_constraints
+                active_config, regime_constraints, policy_constraints, portfolio_constraints
             )
 
         return render(request, "beta_gate/config.html", context_data)
@@ -1032,4 +1153,3 @@ def beta_gate_config_activate_view(request, config_id):
     config.save(update_fields=["is_active", "effective_date", "updated_at"])
     messages.success(request, f"已激活配置 {config.config_id}")
     return redirect("beta_gate:version")
-

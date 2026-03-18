@@ -85,6 +85,7 @@
             <thead>
                 <tr>
                     <th>资产代码</th>
+                    <th>名称</th>
                     <th>资产类别</th>
                     <th>状态</th>
                     <th>拦截原因</th>
@@ -95,6 +96,7 @@
                 {% for test in recent_tests %}
                 <tr>
                     <td><strong>{{ test.asset_code }}</strong></td>
+                    <td>{{ test.asset_name|default:"-" }}</td>
                     <td>{{ test.asset_class }}</td>
                     <td>
                         {% if test.status == "PASSED" %}

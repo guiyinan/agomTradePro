@@ -116,11 +116,13 @@ class DecisionQuotaViewSet(viewsets.ViewSet):
 
             serializer = DecisionQuotaSerializer(quotas, many=True)
 
-            return Response({
-                "success": True,
-                "count": len(quotas),
-                "results": serializer.data,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "count": len(quotas),
+                    "results": serializer.data,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Failed to list quotas: {e}", exc_info=True)
@@ -161,10 +163,12 @@ class DecisionQuotaViewSet(viewsets.ViewSet):
 
             serializer = DecisionQuotaSerializer(quota)
 
-            return Response({
-                "success": True,
-                "result": serializer.data,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "result": serializer.data,
+                }
+            )
 
         except ValueError as e:
             return Response(
@@ -207,11 +211,13 @@ class CooldownPeriodViewSet(viewsets.ViewSet):
 
             serializer = CooldownPeriodSerializer(cooldowns, many=True)
 
-            return Response({
-                "success": True,
-                "count": len(cooldowns),
-                "results": serializer.data,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "count": len(cooldowns),
+                    "results": serializer.data,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Failed to list cooldowns: {e}", exc_info=True)
@@ -231,18 +237,22 @@ class CooldownPeriodViewSet(viewsets.ViewSet):
             cooldown = self.cooldown_repository.get_active_cooldown(asset_code)
 
             if cooldown is None:
-                return Response({
-                    "success": True,
-                    "result": None,
-                    "message": "No active cooldown for this asset",
-                })
+                return Response(
+                    {
+                        "success": True,
+                        "result": None,
+                        "message": "No active cooldown for this asset",
+                    }
+                )
 
             serializer = CooldownPeriodSerializer(cooldown)
 
-            return Response({
-                "success": True,
-                "result": serializer.data,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "result": serializer.data,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Failed to get cooldown by asset: {e}", exc_info=True)
@@ -270,14 +280,16 @@ class CooldownPeriodViewSet(viewsets.ViewSet):
 
             remaining = self.cooldown_repository.get_remaining_hours(asset_code, direction)
 
-            return Response({
-                "success": True,
-                "result": {
-                    "asset_code": asset_code,
-                    "remaining_hours": remaining,
-                    "is_active": remaining > 0,
-                },
-            })
+            return Response(
+                {
+                    "success": True,
+                    "result": {
+                        "asset_code": asset_code,
+                        "remaining_hours": remaining,
+                        "is_active": remaining > 0,
+                    },
+                }
+            )
 
         except Exception as e:
             logger.error(f"Failed to get remaining hours: {e}", exc_info=True)
@@ -318,11 +330,13 @@ class DecisionRequestViewSet(viewsets.ViewSet):
 
             serializer = DecisionRequestSerializer(requests, many=True)
 
-            return Response({
-                "success": True,
-                "count": len(requests),
-                "results": serializer.data,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "count": len(requests),
+                    "results": serializer.data,
+                }
+            )
 
         except (TypeError, ValueError) as e:
             return _bad_request_response(f"Invalid query params: {e}")
@@ -346,10 +360,12 @@ class DecisionRequestViewSet(viewsets.ViewSet):
 
             serializer = DecisionRequestSerializer(decision_request)
 
-            return Response({
-                "success": True,
-                "result": serializer.data,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "result": serializer.data,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Failed to retrieve request: {e}", exc_info=True)
@@ -370,10 +386,12 @@ class DecisionRequestViewSet(viewsets.ViewSet):
 
             stats = self.request_repository.get_statistics(days)
 
-            return Response({
-                "success": True,
-                "result": stats,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "result": stats,
+                }
+            )
 
         except (TypeError, ValueError) as e:
             return _bad_request_response(f"Invalid query params: {e}")
@@ -429,23 +447,27 @@ class SubmitDecisionRequestView(APIView):
                 open_by_candidate = self.request_repository.get_open_by_candidate_id(candidate_id)
             if open_by_candidate:
                 request_serializer = DecisionRequestSerializer(open_by_candidate)
-                return Response({
-                    "success": True,
-                    "result": request_serializer.data,
-                    "deduplicated": True,
-                    "message": "该候选已有待执行请求，已复用",
-                })
+                return Response(
+                    {
+                        "success": True,
+                        "result": request_serializer.data,
+                        "deduplicated": True,
+                        "message": "该候选已有待执行请求，已复用",
+                    }
+                )
 
             # 幂等控制2：同证券已有待执行请求则直接返回
             open_by_asset = self.request_repository.get_open_by_asset_code(data["asset_code"])
             if open_by_asset:
                 request_serializer = DecisionRequestSerializer(open_by_asset)
-                return Response({
-                    "success": True,
-                    "result": request_serializer.data,
-                    "deduplicated": True,
-                    "message": "该证券已有待执行请求，已复用",
-                })
+                return Response(
+                    {
+                        "success": True,
+                        "result": request_serializer.data,
+                        "deduplicated": True,
+                        "message": "该证券已有待执行请求，已复用",
+                    }
+                )
 
             # 构建请求
             req = SubmitDecisionRequestRequest(
@@ -486,7 +508,10 @@ class SubmitDecisionRequestView(APIView):
                 # Legacy 接口转调：创建或更新 UnifiedRecommendation
                 recommendation_id = None
                 try:
-                    from ..infrastructure.models import UnifiedRecommendationModel, DecisionFeatureSnapshotModel
+                    from ..infrastructure.models import (
+                        UnifiedRecommendationModel,
+                        DecisionFeatureSnapshotModel,
+                    )
                     from ..domain.entities import RecommendationStatus
                     from uuid import uuid4
 
@@ -494,11 +519,15 @@ class SubmitDecisionRequestView(APIView):
                     account_id = data.get("account_id") or "default"
 
                     # 检查是否已存在同账户同证券同方向的推荐
-                    existing_rec = UnifiedRecommendationModel.objects.filter(
-                        account_id=account_id,
-                        security_code=data["asset_code"],
-                        side=data["direction"],
-                    ).exclude(status="CONFLICT").first()
+                    existing_rec = (
+                        UnifiedRecommendationModel.objects.filter(
+                            account_id=account_id,
+                            security_code=data["asset_code"],
+                            side=data["direction"],
+                        )
+                        .exclude(status="CONFLICT")
+                        .first()
+                    )
 
                     if existing_rec:
                         # 复用现有推荐，关联 legacy request
@@ -509,7 +538,9 @@ class SubmitDecisionRequestView(APIView):
                             if candidate_id not in existing_ids:
                                 existing_ids = existing_ids + [candidate_id]
                                 existing_rec.source_candidate_ids = existing_ids
-                                existing_rec.save(update_fields=["source_candidate_ids", "updated_at"])
+                                existing_rec.save(
+                                    update_fields=["source_candidate_ids", "updated_at"]
+                                )
                     else:
                         # 创建新的 UnifiedRecommendation（简化版本，不含完整评分）
                         snapshot = DecisionFeatureSnapshotModel.objects.create(
@@ -533,7 +564,9 @@ class SubmitDecisionRequestView(APIView):
                             beta_gate_passed=True,
                             composite_score=0.0,
                             confidence=data.get("expected_confidence", 0.5),
-                            reason_codes=[data.get("reason", "legacy_submit")] if data.get("reason") else ["legacy_submit"],
+                            reason_codes=[data.get("reason", "legacy_submit")]
+                            if data.get("reason")
+                            else ["legacy_submit"],
                             human_rationale=f"Legacy submit: {data.get('reason', 'N/A')}",
                             fair_value=Decimal("0"),
                             entry_price_low=Decimal("0"),
@@ -550,16 +583,23 @@ class SubmitDecisionRequestView(APIView):
                             status=RecommendationStatus.NEW.value,
                         )
                         recommendation_id = new_rec.recommendation_id
-                        logger.info(f"Created UnifiedRecommendation {recommendation_id} from legacy submit")
+                        logger.info(
+                            f"Created UnifiedRecommendation {recommendation_id} from legacy submit"
+                        )
 
                 except Exception as e:
-                    logger.warning(f"Failed to create UnifiedRecommendation from legacy submit: {e}")
+                    logger.warning(
+                        f"Failed to create UnifiedRecommendation from legacy submit: {e}"
+                    )
 
                 # 提交成功后收口候选状态，避免继续停留在 ACTIONABLE
                 if response.response.approved and response.decision_request.candidate_id:
                     try:
-                        from apps.alpha_trigger.infrastructure.repositories import get_candidate_repository
+                        from apps.alpha_trigger.infrastructure.repositories import (
+                            get_candidate_repository,
+                        )
                         from apps.alpha_trigger.domain.entities import CandidateStatus
+
                         candidate_repo = get_candidate_repository()
                         candidate_repo.update_status(
                             candidate_id=response.decision_request.candidate_id,
@@ -575,11 +615,13 @@ class SubmitDecisionRequestView(APIView):
 
                 request_serializer = DecisionRequestSerializer(response.decision_request)
 
-                return Response({
-                    "success": True,
-                    "result": request_serializer.data,
-                    "recommendation_id": recommendation_id,  # 添加 UnifiedRecommendation ID
-                })
+                return Response(
+                    {
+                        "success": True,
+                        "result": request_serializer.data,
+                        "recommendation_id": recommendation_id,  # 添加 UnifiedRecommendation ID
+                    }
+                )
             else:
                 return Response(
                     {"success": False, "error": response.error},
@@ -642,7 +684,9 @@ class SubmitBatchRequestView(APIView):
                         expected_confidence=req_data.get("expected_confidence", 0.0),
                         quantity=req_data.get("quantity"),
                         notional=req_data.get("notional"),
-                        quota_period=QuotaPeriod(data.get("quota_period", QuotaPeriod.WEEKLY.value)),
+                        quota_period=QuotaPeriod(
+                            data.get("quota_period", QuotaPeriod.WEEKLY.value)
+                        ),
                     )
                 )
 
@@ -673,15 +717,16 @@ class SubmitBatchRequestView(APIView):
                     )
 
                 request_serializer = DecisionRequestSerializer(
-                    response.decision_requests,
-                    many=True
+                    response.decision_requests, many=True
                 )
 
-                return Response({
-                    "success": True,
-                    "requests": request_serializer.data,
-                    "summary": response.summary,
-                })
+                return Response(
+                    {
+                        "success": True,
+                        "requests": request_serializer.data,
+                        "summary": response.summary,
+                    }
+                )
             else:
                 return Response(
                     {"success": False, "error": response.error},
@@ -731,10 +776,12 @@ class GetRhythmSummaryView(APIView):
             response = use_case.execute(GetRhythmSummaryRequest())
 
             if response.success:
-                return Response({
-                    "success": True,
-                    "result": response.summary,
-                })
+                return Response(
+                    {
+                        "success": True,
+                        "result": response.summary,
+                    }
+                )
             else:
                 return Response(
                     {"success": False, "error": response.error},
@@ -792,10 +839,12 @@ class ResetQuotaView(APIView):
             response = use_case.execute(ResetQuotaRequest(period))
 
             if response.success:
-                return Response({
-                    "success": True,
-                    "message": response.message,
-                })
+                return Response(
+                    {
+                        "success": True,
+                        "message": response.message,
+                    }
+                )
             else:
                 return Response(
                     {"success": False, "error": response.error},
@@ -872,32 +921,39 @@ class TrendDataView(APIView):
                 # 模拟数据：实际应该从数据库查询
                 # 这里生成一些合理的模拟数据用于演示
                 import random
+
                 random.seed(hash(date_str))  # 使用日期作为种子，保证数据一致性
 
                 decisions = min(random.randint(0, daily_quota + 2), daily_quota * 1.5)
                 executions = min(random.randint(0, decisions), decisions)
 
-                daily_decisions.append({
-                    "date": date_str,
-                    "value": decisions,
-                    "max_quota": daily_quota,
-                })
+                daily_decisions.append(
+                    {
+                        "date": date_str,
+                        "value": decisions,
+                        "max_quota": daily_quota,
+                    }
+                )
 
-                daily_executions.append({
-                    "date": date_str,
-                    "value": executions,
-                    "max_quota": daily_quota // 2,  # 假设执行限制是决策限制的一半
-                })
+                daily_executions.append(
+                    {
+                        "date": date_str,
+                        "value": executions,
+                        "max_quota": daily_quota // 2,  # 假设执行限制是决策限制的一半
+                    }
+                )
 
-            return Response({
-                "success": True,
-                "data": {
-                    "daily_decisions": daily_decisions,
-                    "daily_executions": daily_executions,
-                    "period_days": days,
-                    "daily_quota_limit": daily_quota,
+            return Response(
+                {
+                    "success": True,
+                    "data": {
+                        "daily_decisions": daily_decisions,
+                        "daily_executions": daily_executions,
+                        "period_days": days,
+                        "daily_quota_limit": daily_quota,
+                    },
                 }
-            })
+            )
 
         except (TypeError, ValueError) as e:
             return _bad_request_response(f"Invalid query params: {e}")
@@ -923,27 +979,42 @@ def decision_rhythm_quota_view(request):
 
         # 直接查询 ORM 模型
         try:
-            current_quota = DecisionQuotaModel._default_manager.filter(
-                is_active=True
-            ).order_by('-period_start').first()
+            current_quota = (
+                DecisionQuotaModel._default_manager.filter(is_active=True)
+                .order_by("-period_start")
+                .first()
+            )
         except Exception as e:
             logger.warning(f"Failed to query current quota: {e}")
             current_quota = None
 
         try:
             # CooldownPeriodModel 没有 status 字段，查询所有记录
-            active_cooldowns = list(CooldownPeriodModel._default_manager.all().order_by('-created_at')[:10])
+            active_cooldowns = list(
+                CooldownPeriodModel._default_manager.all().order_by("-created_at")[:10]
+            )
         except Exception as e:
             logger.warning(f"Failed to query active cooldowns: {e}")
             active_cooldowns = []
 
         try:
-            recent_requests = list(DecisionRequestModel._default_manager.all().order_by(
-                '-requested_at'
-            )[:20])
+            recent_requests = list(
+                DecisionRequestModel._default_manager.all().order_by("-requested_at")[:20]
+            )
         except Exception as e:
             logger.warning(f"Failed to query recent requests: {e}")
             recent_requests = []
+
+        # 批量解析资产名称
+        from shared.infrastructure.asset_name_resolver import resolve_asset_names
+
+        asset_codes = [r.asset_code for r in recent_requests if r.asset_code]
+        asset_codes += [c.asset_code for c in active_cooldowns if c.asset_code]
+        asset_name_map = resolve_asset_names(asset_codes)
+        for request in recent_requests:
+            request.asset_name = asset_name_map.get(request.asset_code, request.asset_code)
+        for cooldown in active_cooldowns:
+            cooldown.asset_name = asset_name_map.get(cooldown.asset_code, cooldown.asset_code)
 
         # 计算配额使用情况
         quota_used = 0
@@ -962,7 +1033,9 @@ def decision_rhythm_quota_view(request):
             "quota_used": quota_used,
             "quota_remaining": max(0, quota_remaining),
             "quota_total": quota_total,
-            "quota_usage_percent": round(quota_used / quota_total * 100, 1) if quota_total > 0 else 0,
+            "quota_usage_percent": round(quota_used / quota_total * 100, 1)
+            if quota_total > 0
+            else 0,
             "page_title": "决策配额管理",
             "page_description": "决策频率约束与配额监控",
         }
@@ -989,7 +1062,7 @@ def decision_rhythm_config_view(request):
         from django.utils import timezone
 
         # 获取所有配额
-        quotas = list(DecisionQuotaModel._default_manager.all().order_by('period'))
+        quotas = list(DecisionQuotaModel._default_manager.all().order_by("period"))
 
         # 按周期分组
         quota_by_period = {}
@@ -1082,6 +1155,7 @@ class PrecheckDecisionView(APIView):
             beta_gate_passed = True
             try:
                 from apps.beta_gate.domain.services import BetaGateMatcher
+
                 matcher = BetaGateMatcher(self.beta_gate_repo)
                 # 简化检查：假设通过
                 beta_gate_passed = True
@@ -1106,7 +1180,7 @@ class PrecheckDecisionView(APIView):
             try:
                 remaining = self.cooldown_repo.get_remaining_hours(
                     candidate.asset_code,
-                    candidate.direction if hasattr(candidate, 'direction') else None
+                    candidate.direction if hasattr(candidate, "direction") else None,
                 )
                 cooldown_ok = remaining <= 0
                 if not cooldown_ok:
@@ -1116,22 +1190,25 @@ class PrecheckDecisionView(APIView):
 
             # 4. 候选状态检查
             from apps.alpha_trigger.domain.entities import CandidateStatus
+
             candidate_valid = candidate.status == CandidateStatus.ACTIONABLE
             if not candidate_valid:
                 errors.append(f"候选状态不是 ACTIONABLE，当前状态: {candidate.status}")
 
-            return Response({
-                "success": True,
-                "result": {
-                    "candidate_id": candidate_id,
-                    "beta_gate_passed": beta_gate_passed,
-                    "quota_ok": quota_ok,
-                    "cooldown_ok": cooldown_ok,
-                    "candidate_valid": candidate_valid,
-                    "warnings": warnings,
-                    "errors": errors,
+            return Response(
+                {
+                    "success": True,
+                    "result": {
+                        "candidate_id": candidate_id,
+                        "beta_gate_passed": beta_gate_passed,
+                        "quota_ok": quota_ok,
+                        "cooldown_ok": cooldown_ok,
+                        "candidate_valid": candidate_valid,
+                        "warnings": warnings,
+                        "errors": errors,
+                    },
                 }
-            })
+            )
 
         except Exception as e:
             logger.error(f"Precheck failed: {e}", exc_info=True)
@@ -1233,16 +1310,26 @@ class ExecuteDecisionRequestView(APIView):
             response = use_case.execute(exec_request)
 
             if response.success:
-                return Response({
-                    "success": True,
-                    "result": {
-                        "request_id": request_id,
-                        "execution_status": response.result.execution_status if response.result else "EXECUTED",
-                        "executed_at": response.result.executed_at.isoformat() if response.result and response.result.executed_at else None,
-                        "execution_ref": response.result.execution_ref if response.result else None,
-                        "candidate_status": response.result.candidate_status if response.result else None,
+                return Response(
+                    {
+                        "success": True,
+                        "result": {
+                            "request_id": request_id,
+                            "execution_status": response.result.execution_status
+                            if response.result
+                            else "EXECUTED",
+                            "executed_at": response.result.executed_at.isoformat()
+                            if response.result and response.result.executed_at
+                            else None,
+                            "execution_ref": response.result.execution_ref
+                            if response.result
+                            else None,
+                            "candidate_status": response.result.candidate_status
+                            if response.result
+                            else None,
+                        },
                     }
-                })
+                )
             else:
                 return Response(
                     {"success": False, "error": response.error},
@@ -1298,7 +1385,10 @@ class CancelDecisionRequestView(APIView):
             # 检查状态是否可取消
             if decision_request.execution_status not in ["PENDING", "FAILED"]:
                 return Response(
-                    {"success": False, "error": f"Cannot cancel request with status: {decision_request.execution_status}"},
+                    {
+                        "success": False,
+                        "error": f"Cannot cancel request with status: {decision_request.execution_status}",
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -1317,14 +1407,16 @@ class CancelDecisionRequestView(APIView):
                 except Exception as e:
                     logger.warning(f"Failed to update candidate status: {e}")
 
-            return Response({
-                "success": True,
-                "result": {
-                    "request_id": request_id,
-                    "status": "CANCELLED",
-                    "reason": reason,
+            return Response(
+                {
+                    "success": True,
+                    "result": {
+                        "request_id": request_id,
+                        "status": "CANCELLED",
+                        "reason": reason,
+                    },
                 }
-            })
+            )
 
         except Exception as e:
             logger.error(f"Cancel decision failed: {e}", exc_info=True)
@@ -1375,7 +1467,7 @@ class UpdateQuotaConfigView(APIView):
                     "quota_id": f"quota_{uuid.uuid4().hex[:12]}",
                     "max_decisions": max_decisions,
                     "max_execution_count": max_executions,
-                }
+                },
             )
 
             if not created:
@@ -1383,13 +1475,15 @@ class UpdateQuotaConfigView(APIView):
                 quota.max_execution_count = max_executions
                 quota.save()
 
-            return Response({
-                "success": True,
-                "quota_id": quota.quota_id,
-                "period": quota.period,
-                "max_decisions": quota.max_decisions,
-                "max_executions": quota.max_execution_count,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "quota_id": quota.quota_id,
+                    "period": quota.period,
+                    "max_decisions": quota.max_decisions,
+                    "max_executions": quota.max_execution_count,
+                }
+            )
 
         except (TypeError, ValueError, KeyError) as e:
             return _bad_request_response(e)

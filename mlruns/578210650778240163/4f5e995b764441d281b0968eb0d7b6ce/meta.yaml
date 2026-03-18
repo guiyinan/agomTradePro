@@ -1,0 +1,14 @@
+artifact_uri: file:D:\githv\agomSAAF\mlruns/578210650778240163/4f5e995b764441d281b0968eb0d7b6ce/artifacts
+end_time: 1773815589556
+entry_point_name: ''
+experiment_id: '578210650778240163'
+lifecycle_stage: active
+run_id: 4f5e995b764441d281b0968eb0d7b6ce
+run_name: mlflow_recorder
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1773815588630
+status: 4
+tags: []
+user_id: muku

@@ -160,7 +160,7 @@ def get_alerts(request) -> Dict[str, List[Dict[str, str]]]:
                     'message': '请及时处理这些紧急决策请求。',
                     'action_url': '/decision/workspace/',
                     'action_text': '立即处理',
-                    'dismissible': False,
+                    'dismissible': True,
                 })
         except Exception as e:
             logger.warning(f"Failed to check pending requests: {e}")

@@ -524,6 +524,7 @@
                         <tr>
                             <th>请求ID</th>
                             <th>资产代码</th>
+                            <th>名称</th>
                             <th>方向</th>
                             <th>执行状态</th>
                             <th>优先级</th>
@@ -536,6 +537,7 @@
                         <tr>
                             <td><code class="asset-code">{{ request.request_id|slice:":8" }}</code></td>
                             <td><code class="asset-code">{{ request.asset_code }}</code></td>
+                            <td>{{ request.asset_name|default:"-" }}</td>
                             <td>
                                 <span class="type-badge">
                                     {{ request.direction|default:"-" }}
@@ -578,7 +580,7 @@
                 {% if active_cooldowns %}
                 {% for cooldown in active_cooldowns|slice:":10" %}
                 <div class="cooldown-item">
-                    <div class="cooldown-asset">{{ cooldown.asset_code }}</div>
+                    <div class="cooldown-asset">{{ cooldown.asset_code }} <span style="color: #64748b; font-weight: 400;">{{ cooldown.asset_name|default:"" }}</span></div>
                     <div class="cooldown-reason">冷却 {{ cooldown.min_decision_interval_hours }}h / {{ cooldown.min_execution_interval_hours }}h</div>
                     <div class="cooldown-timer">
                         {% if cooldown.last_decision_at %}

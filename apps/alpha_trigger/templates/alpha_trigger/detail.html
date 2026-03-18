@@ -68,7 +68,7 @@
     <!-- 头部 -->
     <div class="detail-header">
         <div class="detail-title">
-            <h1>{{ trigger.asset_code }}</h1>
+            <h1>{{ trigger.asset_code }} <span style="color: #64748b; font-weight: 400;">{{ trigger.asset_name }}</span></h1>
             <p>{{ trigger.get_trigger_type_display }} - 创建于 {{ trigger.created_at|date:"Y-m-d H:i" }}</p>
         </div>
         <div class="detail-actions">
@@ -125,6 +125,10 @@
                 <div class="info-item">
                     <div class="info-label">资产代码</div>
                     <div class="info-value"><strong>{{ trigger.asset_code }}</strong></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">资产名称</div>
+                    <div class="info-value">{{ trigger.asset_name|default:"-" }}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">资产类别</div>

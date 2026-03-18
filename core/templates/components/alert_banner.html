@@ -1,254 +1,725 @@
 {% load static %}
 {% if alerts %}
-<div class="global-alerts" id="globalAlerts">
-    {% for alert in alerts %}
-    <div class="alert alert-{{ alert.type }} {% if not alert.dismissible %}alert-non-dismissible{% endif %}"
-         role="alert"
-         data-alert-id="{{ forloop.counter }}">
-        <div class="alert-icon-wrapper">
-            <span class="alert-icon">{{ alert.icon }}</span>
+<!-- 信息中心浮动按钮 -->
+<div class="info-center" id="infoCenter">
+    <button class="info-center-trigger" id="infoCenterTrigger" aria-label="信息中心">
+        <span class="info-icon">🔔</span>
+        <span class="info-badge" id="infoBadge">{{ alerts|length }}</span>
+    </button>
+    
+    <!-- 信息面板 -->
+    <div class="info-center-panel" id="infoCenterPanel">
+        <div class="info-panel-header">
+            <div class="info-tabs">
+                <button class="info-tab active" data-tab="unread">未读</button>
+                <button class="info-tab" data-tab="history">已读</button>
+            </div>
+            <button class="info-clear-all" id="infoClearAll" title="全部已读">全部已读</button>
         </div>
-        <div class="alert-content">
-            <div class="alert-title">{{ alert.title }}</div>
-            <div class="alert-message">{{ alert.message }}</div>
+        <div class="info-panel-body" id="infoPanelBody">
+            <!-- 未读列表 -->
+            <div class="info-list info-list-unread" id="infoListUnread">
+                {% for alert in alerts %}
+                <div class="info-item info-item-{{ alert.type }}" 
+                     data-alert-id="{{ forloop.counter }}"
+                     data-alert-icon="{{ alert.icon }}"
+                     data-alert-type="{{ alert.type }}"
+                     data-alert-title="{{ alert.title }}"
+                     data-alert-message="{{ alert.message }}"
+                     data-alert-url="{{ alert.action_url }}"
+                     data-alert-action="{{ alert.action_text|default:"查看" }}">
+                    <div class="info-item-icon">{{ alert.icon }}</div>
+                    <div class="info-item-content">
+                        <div class="info-item-title">{{ alert.title }}</div>
+                        <div class="info-item-message">{{ alert.message }}</div>
+                    </div>
+                    <div class="info-item-actions">
+                        {% if alert.action_url %}
+                        <a href="{{ alert.action_url }}" class="info-item-link">{{ alert.action_text|default:"查看" }}</a>
+                        {% endif %}
+                        <button class="info-item-close" title="标记已读">×</button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <!-- 已读历史 -->
+            <div class="info-list info-list-history" id="infoListHistory" style="display: none;">
+                <!-- 动态填充 -->
+            </div>
         </div>
-        {% if alert.action_url %}
-        <a href="{{ alert.action_url }}" class="alert-action">{{ alert.action_text|default:"查看详情" }} →</a>
-        {% endif %}
-        {% if alert.dismissible %}
-        <button type="button" 
-                class="alert-close" 
-                aria-label="关闭"
-                onclick="dismissAlert(this)">
-            <span aria-hidden="true">&times;</span>
-        </button>
-        {% endif %}
+        <div class="info-panel-empty" id="infoPanelEmpty" style="display: none;">
+            <span class="empty-icon">📭</span>
+            <span class="empty-text">暂无通知</span>
+        </div>
     </div>
-    {% endfor %}
 </div>
 
 <script>
-// 记录已关闭的告警
-function dismissAlert(button) {
-    const alert = button.closest('.alert');
-    const alertId = alert.dataset.alertId;
+(function() {
+    const trigger = document.getElementById('infoCenterTrigger');
+    const panel = document.getElementById('infoCenterPanel');
+    const badge = document.getElementById('infoBadge');
+    const clearAllBtn = document.getElementById('infoClearAll');
+    const panelBody = document.getElementById('infoPanelBody');
+    const emptyState = document.getElementById('infoPanelEmpty');
+    const listUnread = document.getElementById('infoListUnread');
+    const listHistory = document.getElementById('infoListHistory');
+    const tabs = document.querySelectorAll('.info-tab');
     
-    // 存储到 localStorage
-    const dismissed = JSON.parse(localStorage.getItem('dismissedAlerts') || '[]');
-    const key = 'alert_' + alertId + '_' + new Date().toDateString();
-    if (!dismissed.includes(key)) {
-        dismissed.push(key);
-        localStorage.setItem('dismissedAlerts', JSON.stringify(dismissed));
+    const STORAGE_KEY = 'infoCenterHistory';
+    let isOpen = false;
+    let currentTab = 'unread';
+    
+    // 初始化
+    function init() {
+        loadHistory();
+        restoreUnreadState();
+        updateUI();
+        renderHistory();
     }
     
-    // 动画移除
-    alert.style.opacity = '0';
-    alert.style.transform = 'translateX(-100%)';
-    setTimeout(() => {
-        alert.remove();
-        
-        // 如果没有告警了，移除容器
-        const container = document.getElementById('globalAlerts');
-        if (container && container.children.length === 0) {
-            container.remove();
+    // 获取历史记录
+    function getHistory() {
+        try {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (!stored) return [];
+            const data = JSON.parse(stored);
+            return Array.isArray(data) ? data : [];
+        } catch (e) {
+            return [];
         }
-    }, 300);
-}
-
-// 页面加载时检查 localStorage
-document.addEventListener('DOMContentLoaded', function() {
-    const dismissed = JSON.parse(localStorage.getItem('dismissedAlerts') || '[]');
-    const today = new Date().toDateString();
+    }
     
-    document.querySelectorAll('#globalAlerts .alert[data-alert-id]').forEach(function(alert) {
-        const alertId = alert.dataset.alertId;
-        const key = 'alert_' + alertId + '_' + today;
+    // 保存历史记录
+    function saveHistory(history) {
+        // 只保留最近 50 条
+        const trimmed = history.slice(-50);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+    }
+    
+    // 添加到历史
+    function addToHistory(item) {
+        const history = getHistory();
+        const record = {
+            id: item.dataset.alertId,
+            icon: item.dataset.alertIcon,
+            type: item.dataset.alertType,
+            title: item.dataset.alertTitle,
+            message: item.dataset.alertMessage,
+            url: item.dataset.alertUrl,
+            action: item.dataset.alertAction,
+            dismissedAt: new Date().toISOString()
+        };
         
-        if (dismissed.includes(key)) {
-            alert.remove();
+        // 避免重复
+        const existingIndex = history.findIndex(h => h.id === record.id);
+        if (existingIndex >= 0) {
+            history[existingIndex] = record;
+        } else {
+            history.push(record);
+        }
+        
+        saveHistory(history);
+    }
+    
+    // 从历史中恢复
+    function restoreFromHistory(alertId) {
+        const history = getHistory();
+        const index = history.findIndex(h => h.id === alertId);
+        if (index < 0) return;
+        
+        const record = history[index];
+        history.splice(index, 1);
+        saveHistory(history);
+        
+        // 创建未读项
+        const item = createInfoItem(record);
+        listUnread.appendChild(item);
+        
+        updateUI();
+    }
+    
+    // 创建信息项 DOM
+    function createInfoItem(data) {
+        const item = document.createElement('div');
+        item.className = `info-item info-item-${data.type}`;
+        item.dataset.alertId = data.id;
+        item.dataset.alertIcon = data.icon;
+        item.dataset.alertType = data.type;
+        item.dataset.alertTitle = data.title;
+        item.dataset.alertMessage = data.message;
+        item.dataset.alertUrl = data.url || '';
+        item.dataset.alertAction = data.action || '查看';
+        
+        item.innerHTML = `
+            <div class="info-item-icon">${data.icon}</div>
+            <div class="info-item-content">
+                <div class="info-item-title">${data.title}</div>
+                <div class="info-item-message">${data.message}</div>
+            </div>
+            <div class="info-item-actions">
+                ${data.url ? `<a href="${data.url}" class="info-item-link">${data.action}</a>` : ''}
+                <button class="info-item-close" title="标记已读">×</button>
+            </div>
+        `;
+        
+        return item;
+    }
+    
+    // 渲染历史列表
+    function renderHistory() {
+        const history = getHistory();
+        listHistory.innerHTML = '';
+        
+        if (history.length === 0) {
+            listHistory.innerHTML = `
+                <div class="info-history-empty">
+                    <span>📭</span>
+                    <span>暂无已读记录</span>
+                </div>
+            `;
+            return;
+        }
+        
+        // 按时间倒序
+        const sorted = [...history].reverse();
+        
+        sorted.forEach(function(record) {
+            const item = document.createElement('div');
+            item.className = `info-item info-item-${record.type} info-item-read`;
+            item.dataset.alertId = record.id;
+            
+            const timeAgo = formatTimeAgo(record.dismissedAt);
+            
+            item.innerHTML = `
+                <div class="info-item-icon">${record.icon}</div>
+                <div class="info-item-content">
+                    <div class="info-item-title">${record.title}</div>
+                    <div class="info-item-message">${record.message}</div>
+                    <div class="info-item-time">${timeAgo}</div>
+                </div>
+                <div class="info-item-actions">
+                    <button class="info-item-restore" title="恢复为未读">↩</button>
+                </div>
+            `;
+            
+            listHistory.appendChild(item);
+        });
+    }
+    
+    // 格式化时间
+    function formatTimeAgo(isoString) {
+        try {
+            const date = new Date(isoString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            if (diffMins < 1) return '刚刚';
+            if (diffMins < 60) return `${diffMins} 分钟前`;
+            if (diffHours < 24) return `${diffHours} 小时前`;
+            if (diffDays < 7) return `${diffDays} 天前`;
+            return date.toLocaleDateString();
+        } catch (e) {
+            return '';
+        }
+    }
+    
+    // 恢复未读状态（从历史记录）
+    function restoreUnreadState() {
+        const history = getHistory();
+        const historyIds = new Set(history.map(h => h.id));
+        
+        document.querySelectorAll('.info-list-unread .info-item').forEach(function(item) {
+            if (historyIds.has(item.dataset.alertId)) {
+                item.remove();
+            }
+        });
+    }
+    
+    // 更新 UI 状态
+    function updateUI() {
+        const unreadCount = document.querySelectorAll('.info-list-unread .info-item').length;
+        updateBadge(unreadCount);
+        
+        if (currentTab === 'unread') {
+            if (unreadCount === 0) {
+                showEmpty();
+            } else {
+                hideEmpty();
+            }
+        } else {
+            hideEmpty();
+        }
+    }
+    
+    // 更新徽章
+    function updateBadge(count) {
+        badge.textContent = count;
+        badge.style.display = count > 0 ? 'flex' : 'none';
+    }
+    
+    // 显示空状态
+    function showEmpty() {
+        panelBody.style.display = 'none';
+        emptyState.style.display = 'flex';
+    }
+    
+    // 隐藏空状态
+    function hideEmpty() {
+        panelBody.style.display = 'block';
+        emptyState.style.display = 'none';
+    }
+    
+    // 切换面板
+    function togglePanel() {
+        isOpen = !isOpen;
+        panel.classList.toggle('open', isOpen);
+        trigger.classList.toggle('active', isOpen);
+    }
+    
+    // 关闭面板
+    function closePanel() {
+        isOpen = false;
+        panel.classList.remove('open');
+        trigger.classList.remove('active');
+    }
+    
+    // 标记单个已读
+    function dismissItem(item) {
+        addToHistory(item);
+        
+        item.style.animation = 'slideOut 0.2s ease forwards';
+        setTimeout(function() {
+            item.remove();
+            updateUI();
+            renderHistory();
+        }, 200);
+    }
+    
+    // 全部已读
+    function clearAllItems() {
+        const items = document.querySelectorAll('.info-list-unread .info-item');
+        items.forEach(function(item) {
+            addToHistory(item);
+            item.style.animation = 'slideOut 0.2s ease forwards';
+        });
+        
+        setTimeout(function() {
+            listUnread.innerHTML = '';
+            updateUI();
+            renderHistory();
+        }, 200);
+    }
+    
+    // 切换标签
+    function switchTab(tabName) {
+        currentTab = tabName;
+        tabs.forEach(function(tab) {
+            tab.classList.toggle('active', tab.dataset.tab === tabName);
+        });
+        
+        if (tabName === 'unread') {
+            listUnread.style.display = 'block';
+            listHistory.style.display = 'none';
+            clearAllBtn.style.display = 'flex';
+            updateUI();
+        } else {
+            listUnread.style.display = 'none';
+            listHistory.style.display = 'block';
+            clearAllBtn.style.display = 'none';
+            hideEmpty();
+        }
+    }
+    
+    // 事件绑定
+    trigger.addEventListener('click', function(e) {
+        e.stopPropagation();
+        togglePanel();
+    });
+    
+    clearAllBtn.addEventListener('click', clearAllItems);
+    
+    // 标签切换
+    tabs.forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            switchTab(tab.dataset.tab);
+        });
+    });
+    
+    // 未读列表事件
+    listUnread.addEventListener('click', function(e) {
+        if (e.target.classList.contains('info-item-close')) {
+            const item = e.target.closest('.info-item');
+            if (item) dismissItem(item);
         }
     });
     
-    // 如果没有告警了，移除容器
-    const container = document.getElementById('globalAlerts');
-    if (container && container.children.length === 0) {
-        container.remove();
-    }
-});
+    // 历史列表事件
+    listHistory.addEventListener('click', function(e) {
+        if (e.target.classList.contains('info-item-restore')) {
+            const item = e.target.closest('.info-item');
+            if (item) {
+                restoreFromHistory(item.dataset.alertId);
+                item.style.animation = 'slideOut 0.2s ease forwards';
+                setTimeout(function() {
+                    renderHistory();
+                }, 200);
+            }
+        }
+    });
+    
+    // 点击外部关闭
+    document.addEventListener('click', function(e) {
+        if (isOpen && !panel.contains(e.target) && !trigger.contains(e.target)) {
+            closePanel();
+        }
+    });
+    
+    // ESC 关闭
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && isOpen) {
+            closePanel();
+        }
+    });
+    
+    // 初始化
+    init();
+})();
 </script>
 
 <style>
-.global-alerts {
+/* 信息中心浮动按钮 */
+.info-center {
     position: fixed;
-    top: var(--header-height, 56px);
-    left: 0;
-    right: 0;
-    z-index: 980;
-    padding: 0;
+    bottom: 32px;
+    right: 88px;
+    z-index: 1000;
+}
+
+.info-center-trigger {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
     background: var(--color-bg, #fff);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.alert {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border-color);
-    transition: all 0.3s ease;
-}
-
-.alert:last-child {
-    border-bottom: none;
-}
-
-.alert-icon-wrapper {
-    flex-shrink: 0;
-}
-
-.alert-icon {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    font-size: 16px;
+    transition: all 0.3s ease;
+    position: relative;
 }
 
-.alert-content {
+.info-center-trigger:hover {
+    transform: scale(1.08);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.info-center-trigger.active {
+    background: #f8f9fa;
+}
+
+.info-icon {
+    font-size: 20px;
+    line-height: 1;
+}
+
+.info-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: #ff4757;
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(255, 71, 87, 0.3);
+}
+
+/* 信息面板 */
+.info-center-panel {
+    position: absolute;
+    bottom: 64px;
+    right: 0;
+    width: 360px;
+    max-height: 480px;
+    background: var(--color-bg, #fff);
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px) scale(0.95);
+    transition: all 0.25s ease;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+@media (max-width: 520px) {
+    .info-center-panel {
+        right: auto;
+        left: 0;
+    }
+}
+
+.info-center-panel.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+}
+
+.info-panel-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color, #eee);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+
+/* 标签页 */
+.info-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--bg-tertiary, #f5f5f5);
+    padding: 3px;
+    border-radius: 8px;
+}
+
+.info-tab {
+    padding: 6px 14px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted, #888);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.info-tab:hover {
+    color: var(--text-primary, #333);
+}
+
+.info-tab.active {
+    background: var(--color-bg, #fff);
+    color: var(--text-primary, #333);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.info-clear-all {
+    border: none;
+    background: none;
+    color: var(--text-muted, #888);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.info-clear-all:hover {
+    background: var(--bg-tertiary, #f5f5f5);
+    color: var(--text-primary, #333);
+}
+
+.info-panel-body {
+    padding: 8px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* 信息列表 */
+.info-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* 通知项 */
+.info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 10px;
+    transition: all 0.2s;
+}
+
+.info-item:hover {
+    background: var(--bg-tertiary, #f8f9fa);
+}
+
+.info-item-read {
+    opacity: 0.7;
+}
+
+.info-item-icon {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+.info-item-content {
     flex: 1;
     min-width: 0;
 }
 
-.alert-title {
-    font-weight: 600;
+.info-item-title {
     font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a2e);
     margin-bottom: 2px;
 }
 
-.alert-message {
+.info-item-message {
     font-size: 13px;
-    color: var(--text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    color: var(--text-secondary, #666);
+    line-height: 1.4;
 }
 
-.alert-action {
+.info-item-time {
+    font-size: 11px;
+    color: var(--text-muted, #999);
+    margin-top: 4px;
+}
+
+.info-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     flex-shrink: 0;
-    padding: 6px 12px;
-    border-radius: var(--radius-sm);
-    font-size: 13px;
+}
+
+.info-item-link {
+    font-size: 12px;
     font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 6px;
     text-decoration: none;
     transition: all 0.2s;
 }
 
-.alert-close {
-    flex-shrink: 0;
-    width: 28px;
-    height: 28px;
-    padding: 0;
+.info-item-close,
+.info-item-restore {
+    width: 24px;
+    height: 24px;
     border: none;
-    background: transparent;
+    background: none;
     cursor: pointer;
-    font-size: 18px;
+    font-size: 16px;
     line-height: 1;
-    color: var(--text-muted);
-    transition: all 0.2s;
-}
-
-.alert-close:hover {
-    color: var(--text-primary);
-    background: var(--bg-tertiary);
+    color: var(--text-muted, #999);
     border-radius: 50%;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-/* 告警类型样式 */
-.alert-danger {
-    background: #FFEBEE;
+.info-item-close:hover,
+.info-item-restore:hover {
+    background: var(--bg-tertiary, #eee);
+    color: var(--text-primary, #333);
 }
 
-.alert-danger .alert-icon {
-    background: #FFCDD2;
+/* 历史空状态 */
+.info-history-empty {
+    padding: 40px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted, #999);
+    font-size: 13px;
 }
 
-.alert-danger .alert-action {
-    background: #C62828;
-    color: white;
+/* 通知类型样式 */
+.info-item-warning .info-item-icon { background: #FFF3E0; }
+.info-item-warning .info-item-link { background: #FF9800; color: white; }
+.info-item-warning .info-item-link:hover { background: #F57C00; }
+
+.info-item-danger .info-item-icon { background: #FFEBEE; }
+.info-item-danger .info-item-link { background: #E53935; color: white; }
+.info-item-danger .info-item-link:hover { background: #C62828; }
+
+.info-item-success .info-item-icon { background: #E8F5E9; }
+.info-item-success .info-item-link { background: #43A047; color: white; }
+.info-item-success .info-item-link:hover { background: #2E7D32; }
+
+.info-item-info .info-item-icon { background: #E3F2FD; }
+.info-item-info .info-item-link { background: #1E88E5; color: white; }
+.info-item-info .info-item-link:hover { background: #1565C0; }
+
+/* 空状态 */
+.info-panel-empty {
+    padding: 40px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
 }
 
-.alert-danger .alert-action:hover {
-    background: #B71C1C;
+.empty-icon {
+    font-size: 48px;
+    opacity: 0.6;
 }
 
-.alert-warning {
-    background: #FFF3E0;
+.empty-text {
+    font-size: 14px;
+    color: var(--text-muted, #999);
 }
 
-.alert-warning .alert-icon {
-    background: #FFE0B2;
-}
-
-.alert-warning .alert-action {
-    background: #E65100;
-    color: white;
-}
-
-.alert-warning .alert-action:hover {
-    background: #BF360C;
-}
-
-.alert-success {
-    background: #E8F5E9;
-}
-
-.alert-success .alert-icon {
-    background: #C8E6C9;
-}
-
-.alert-success .alert-action {
-    background: #2E7D32;
-    color: white;
-}
-
-.alert-success .alert-action:hover {
-    background: #1B5E20;
-}
-
-.alert-info {
-    background: #E3F2FD;
-}
-
-.alert-info .alert-icon {
-    background: #BBDEFB;
-}
-
-.alert-info .alert-action {
-    background: #1565C0;
-    color: white;
-}
-
-.alert-info .alert-action:hover {
-    background: #0D47A1;
+/* 动画 */
+@keyframes slideOut {
+    to {
+        opacity: 0;
+        transform: translateX(20px);
+    }
 }
 
 /* 响应式 */
-@media (max-width: 768px) {
-    .alert {
-        flex-wrap: wrap;
-        padding: 10px 12px;
+@media (max-width: 480px) {
+    .info-center {
+        bottom: 20px;
+        right: 76px;
     }
     
-    .alert-action {
-        width: 100%;
-        text-align: center;
-        margin-top: 4px;
+    .info-center-trigger {
+        width: 40px;
+        height: 40px;
     }
     
-    .alert-message {
-        white-space: normal;
+    .info-icon {
+        font-size: 18px;
+    }
+    
+    .info-center-panel {
+        width: calc(100vw - 32px);
+        right: auto;
+        left: 50%;
+        transform: translateX(-50%) translateY(10px) scale(0.95);
+        max-height: 60vh;
+    }
+    
+    .info-center-panel.open {
+        transform: translateX(-50%) translateY(0) scale(1);
     }
 }
 </style>

@@ -272,7 +272,7 @@
     <!-- 全局 Toast 通知 -->
     <div id="toast-container" class="toast-container"></div>
 
-    <!-- 全局告警横幅 -->
+    <!-- 信息中心（右下角浮动） -->
     {% load alert_tags %}
     {% alert_banner global_alerts %}
 
@@ -292,36 +292,7 @@
         {% block content %}{% endblock %}
     </main>
 
-    <script>
-    // 调整主内容区域的顶部间距以适应告警横幅
-    (function() {
-        function adjustMainContentPadding() {
-            const alerts = document.getElementById('globalAlerts');
-            const mainContent = document.getElementById('mainContent');
-            const headerHeight = getComputedStyle(document.documentElement)
-                .getPropertyValue('--header-height')
-                .trim() || '56px';
-            if (mainContent) {
-                if (alerts && alerts.children.length > 0) {
-                    const alertHeight = alerts.offsetHeight;
-                    mainContent.style.paddingTop = `calc(${headerHeight} + ${alertHeight}px + var(--spacing-xl, 32px))`;
-                } else {
-                    mainContent.style.paddingTop = '';
-                }
-            }
-        }
 
-        // 初始检查
-        adjustMainContentPadding();
-
-        // 告警移除后重新计算
-        const observer = new MutationObserver(adjustMainContentPadding);
-        const alertsContainer = document.getElementById('globalAlerts');
-        if (alertsContainer) {
-            observer.observe(alertsContainer, { childList: true });
-        }
-    })();
-    </script>
 
     <!-- 页脚 -->
     <footer class="footer-full">

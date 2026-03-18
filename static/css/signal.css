@@ -213,6 +213,12 @@
     font-weight: var(--font-weight-semibold);
 }
 
+.signal-name {
+    font-size: var(--font-size-body);
+    color: var(--color-text-secondary);
+    margin-left: var(--spacing-xs);
+}
+
 .signal-tag {
     padding: 2px var(--spacing-sm);
     background: var(--color-surface);

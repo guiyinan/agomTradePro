@@ -1,0 +1,4468 @@
+diff --git a/.gitignore b/.gitignore
+index a1527c2..6c8568d 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -96,3 +96,4 @@ docs/docs.7z
+ tmp_asset_screen_before.png
+ docs/DEV_DIARY.md
+ *.sqlite3-journal
++/data/qlib
+diff --git a/apps/alpha_trigger/interface/views.py b/apps/alpha_trigger/interface/views.py
+index bc8e543..d96e8fa 100644
+--- a/apps/alpha_trigger/interface/views.py
++++ b/apps/alpha_trigger/interface/views.py
+@@ -98,11 +98,13 @@ class AlphaTriggerViewSet(viewsets.ViewSet):
+ 
+             serializer = AlphaTriggerSerializer(triggers, many=True)
+ 
+-            return Response({
+-                "success": True,
+-                "count": len(triggers),
+-                "results": serializer.data,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "count": len(triggers),
++                    "results": serializer.data,
++                }
++            )
+ 
+         except Exception as e:
+             logger.error(f"Failed to list triggers: {e}", exc_info=True)
+@@ -128,10 +130,12 @@ class AlphaTriggerViewSet(viewsets.ViewSet):
+ 
+             serializer = AlphaTriggerSerializer(trigger)
+ 
+-            return Response({
+-                "success": True,
+-                "result": serializer.data,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "result": serializer.data,
++                }
++            )
+ 
+         except Exception as e:
+             logger.error(f"Failed to retrieve trigger: {e}", exc_info=True)
+@@ -163,11 +167,13 @@ class AlphaTriggerViewSet(viewsets.ViewSet):
+ 
+             serializer = AlphaTriggerSerializer(triggers, many=True)
+ 
+-            return Response({
+-                "success": True,
+-                "count": len(triggers),
+-                "results": serializer.data,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "count": len(triggers),
++                    "results": serializer.data,
++                }
++            )
+ 
+         except Exception as e:
+             logger.error(f"Failed to get active triggers: {e}", exc_info=True)
+@@ -188,11 +194,13 @@ class AlphaTriggerViewSet(viewsets.ViewSet):
+ 
+             serializer = AlphaTriggerSerializer(triggers, many=True)
+ 
+-            return Response({
+-                "success": True,
+-                "count": len(triggers),
+-                "results": serializer.data,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "count": len(triggers),
++                    "results": serializer.data,
++                }
++            )
+ 
+         except Exception as e:
+             logger.error(f"Failed to get triggers by regime: {e}", exc_info=True)
+@@ -213,10 +221,12 @@ class AlphaTriggerViewSet(viewsets.ViewSet):
+ 
+             stats = self.trigger_repository.get_statistics(days)
+ 
+-            return Response({
+-                "success": True,
+-                "result": stats,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "result": stats,
++                }
++            )
+ 
+         except Exception as e:
+             logger.error(f"Failed to get statistics: {e}", exc_info=True)
+@@ -268,11 +278,13 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
+ 
+             serializer = AlphaCandidateSerializer(candidates, many=True)
+ 
+-            return Response({
+-                "success": True,
+-                "count": len(candidates),
+-                "results": serializer.data,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "count": len(candidates),
++                    "results": serializer.data,
++                }
++            )
+ 
+         except Exception as e:
+             logger.error(f"Failed to list candidates: {e}", exc_info=True)
+@@ -298,10 +310,12 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
+ 
+             serializer = AlphaCandidateSerializer(candidate)
+ 
+-            return Response({
+-                "success": True,
+-                "result": serializer.data,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "result": serializer.data,
++                }
++            )
+ 
+         except Exception as e:
+             logger.error(f"Failed to retrieve candidate: {e}", exc_info=True)
+@@ -331,11 +345,13 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
+ 
+             serializer = AlphaCandidateSerializer(candidates, many=True)
+ 
+-            return Response({
+-                "success": True,
+-                "count": len(candidates),
+-                "results": serializer.data,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "count": len(candidates),
++                    "results": serializer.data,
++                }
++            )
+ 
+         except Exception as e:
+             logger.error(f"Failed to get actionable candidates: {e}", exc_info=True)
+@@ -356,11 +372,13 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
+ 
+             serializer = AlphaCandidateSerializer(candidates, many=True)
+ 
+-            return Response({
+-                "success": True,
+-                "count": len(candidates),
+-                "results": serializer.data,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "count": len(candidates),
++                    "results": serializer.data,
++                }
++            )
+ 
+         except Exception as e:
+             logger.error(f"Failed to get watch list: {e}", exc_info=True)
+@@ -391,10 +409,12 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
+ 
+             candidate_serializer = AlphaCandidateSerializer(candidate)
+ 
+-            return Response({
+-                "success": True,
+-                "result": candidate_serializer.data,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "result": candidate_serializer.data,
++                }
++            )
+ 
+         except Exception as e:
+             logger.error(f"Failed to update candidate status: {e}", exc_info=True)
+@@ -415,10 +435,12 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
+ 
+             stats = self.candidate_repository.get_statistics(days)
+ 
+-            return Response({
+-                "success": True,
+-                "result": stats,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "result": stats,
++                }
++            )
+ 
+         except Exception as e:
+             logger.error(f"Failed to get statistics: {e}", exc_info=True)
+@@ -503,10 +525,12 @@ class CreateTriggerView(APIView):
+             if response.success:
+                 trigger_serializer = AlphaTriggerSerializer(response.trigger)
+ 
+-                return Response({
+-                    "success": True,
+-                    "result": trigger_serializer.data,
+-                })
++                return Response(
++                    {
++                        "success": True,
++                        "result": trigger_serializer.data,
++                    }
++                )
+             else:
+                 return Response(
+                     {"success": False, "error": response.error},
+@@ -568,12 +592,14 @@ class CheckInvalidationView(APIView):
+             response = use_case.execute(req)
+ 
+             if response.success:
+-                return Response({
+-                    "success": True,
+-                    "is_invalidated": response.is_invalidated,
+-                    "reason": response.reason,
+-                    "conditions_met": response.conditions_met,
+-                })
++                return Response(
++                    {
++                        "success": True,
++                        "is_invalidated": response.is_invalidated,
++                        "reason": response.reason,
++                        "conditions_met": response.conditions_met,
++                    }
++                )
+             else:
+                 return Response(
+                     {"success": False, "error": response.error},
+@@ -634,11 +660,13 @@ class EvaluateTriggerView(APIView):
+             response = use_case.execute(req)
+ 
+             if response.success:
+-                return Response({
+-                    "success": True,
+-                    "should_trigger": response.should_trigger,
+-                    "reason": response.reason,
+-                })
++                return Response(
++                    {
++                        "success": True,
++                        "should_trigger": response.should_trigger,
++                        "reason": response.reason,
++                    }
++                )
+             else:
+                 return Response(
+                     {"success": False, "error": response.error},
+@@ -704,10 +732,12 @@ class GenerateCandidateView(APIView):
+             if response.success:
+                 candidate_serializer = AlphaCandidateSerializer(response.candidate)
+ 
+-                return Response({
+-                    "success": True,
+-                    "result": candidate_serializer.data,
+-                })
++                return Response(
++                    {
++                        "success": True,
++                        "result": candidate_serializer.data,
++                    }
++                )
+             else:
+                 return Response(
+                     {"success": False, "error": response.error},
+@@ -736,29 +766,45 @@ def alpha_trigger_list_view(request):
+ 
+         # 直接查询 ORM 模型
+         try:
+-            active_triggers = list(AlphaTriggerModel._default_manager.filter(
+-                status="ACTIVE"
+-            ).order_by('-created_at')[:10])
++            active_triggers = list(
++                AlphaTriggerModel._default_manager.filter(status="ACTIVE").order_by("-created_at")[
++                    :10
++                ]
++            )
+         except Exception as e:
+             logger.warning(f"Failed to query active triggers: {e}")
+             active_triggers = []
+ 
+         try:
+-            actionable_candidates = list(AlphaCandidateModel._default_manager.filter(
+-                status="ACTIONABLE"
+-            ).order_by('-created_at')[:10])
++            actionable_candidates = list(
++                AlphaCandidateModel._default_manager.filter(status="ACTIONABLE").order_by(
++                    "-created_at"
++                )[:10]
++            )
+         except Exception as e:
+             logger.warning(f"Failed to query actionable candidates: {e}")
+             actionable_candidates = []
+ 
+         try:
+-            watch_list = list(AlphaCandidateModel._default_manager.filter(
+-                status="WATCH"
+-            ).order_by('-created_at')[:10])
++            watch_list = list(
++                AlphaCandidateModel._default_manager.filter(status="WATCH").order_by("-created_at")[
++                    :10
++                ]
++            )
+         except Exception as e:
+             logger.warning(f"Failed to query watch list: {e}")
+             watch_list = []
+ 
++        try:
++            candidate_list = list(
++                AlphaCandidateModel._default_manager.filter(status="CANDIDATE").order_by(
++                    "-created_at"
++                )[:10]
++            )
++        except Exception as e:
++            logger.warning(f"Failed to query candidate list: {e}")
++            candidate_list = []
++
+         # 统计各状态数量
+         try:
+             candidate_count = AlphaCandidateModel._default_manager.filter(
+@@ -779,9 +825,29 @@ def alpha_trigger_list_view(request):
+             "actionable_count": len(actionable_candidates),
+         }
+ 
++        # 批量解析资产名称
++        from shared.infrastructure.asset_name_resolver import resolve_asset_names
++
++        all_codes = (
++            [t.asset_code for t in active_triggers if t.asset_code]
++            + [c.asset_code for c in actionable_candidates if c.asset_code]
++            + [c.asset_code for c in watch_list if c.asset_code]
++            + [c.asset_code for c in candidate_list if c.asset_code]
++        )
++        asset_name_map = resolve_asset_names(all_codes)
++        for trigger in active_triggers:
++            trigger.asset_name = asset_name_map.get(trigger.asset_code, trigger.asset_code)
++        for candidate in actionable_candidates:
++            candidate.asset_name = asset_name_map.get(candidate.asset_code, candidate.asset_code)
++        for candidate in watch_list:
++            candidate.asset_name = asset_name_map.get(candidate.asset_code, candidate.asset_code)
++        for candidate in candidate_list:
++            candidate.asset_name = asset_name_map.get(candidate.asset_code, candidate.asset_code)
++
+         context = {
+             "active_triggers": active_triggers,
+-            "actionable_candidates": actionable_candidates,
++            "actionable_list": actionable_candidates,
++            "candidate_list": candidate_list,
+             "watch_list": watch_list,
+             "trigger_stats": trigger_stats,
+             "candidate_stats": candidate_stats,
+@@ -814,6 +880,7 @@ def alpha_trigger_create_view(request):
+         current_regime = None
+         try:
+             from apps.regime.application.current_regime import resolve_current_regime
++
+             current_regime = resolve_current_regime()
+         except Exception as e:
+             logger.warning(f"Failed to get current regime: {e}")
+@@ -823,6 +890,7 @@ def alpha_trigger_create_view(request):
+         try:
+             from apps.policy.application.use_cases import GetCurrentPolicyUseCase
+             from apps.policy.infrastructure.repositories import get_policy_repository
++
+             policy_use_case = GetCurrentPolicyUseCase(get_policy_repository())
+             policy_response = policy_use_case.execute()
+             if policy_response.success and policy_response.policy_level:
+@@ -834,18 +902,16 @@ def alpha_trigger_create_view(request):
+         available_indicators = []
+         try:
+             from apps.macro.infrastructure.models import MacroIndicatorModel
+-            indicators = MacroIndicatorModel._default_manager.filter(
+-                is_active=True
+-            ).values('code', 'name', 'unit', 'latest_value')[:50]
++
++            indicators = MacroIndicatorModel._default_manager.filter(is_active=True).values(
++                "code", "name", "unit", "latest_value"
++            )[:50]
+             available_indicators = list(indicators)
+         except Exception as e:
+             logger.warning(f"Failed to query indicators: {e}")
+ 
+         # 获取所有资产类别
+-        all_asset_classes = [
+-            "a_股票", "a_债券", "a_商品", "a_现金",
+-            "港股", "美股", "黄金", "原油"
+-        ]
++        all_asset_classes = ["a_股票", "a_债券", "a_商品", "a_现金", "港股", "美股", "黄金", "原油"]
+ 
+         # 获取触发器类型选项
+         trigger_type_choices = AlphaTriggerModel.TRIGGER_TYPE_CHOICES
+@@ -883,22 +949,25 @@ def alpha_trigger_edit_view(request, trigger_id):
+ 
+         trigger = get_object_or_404(AlphaTriggerModel, trigger_id=trigger_id)
+ 
++        # 解析资产名称
++        from shared.infrastructure.asset_name_resolver import resolve_asset_name
++
++        trigger.asset_name = resolve_asset_name(trigger.asset_code)
++
+         # 获取可用指标列表
+         available_indicators = []
+         try:
+             from apps.macro.infrastructure.models import MacroIndicatorModel
+-            indicators = MacroIndicatorModel._default_manager.filter(
+-                is_active=True
+-            ).values('code', 'name', 'unit', 'latest_value')[:50]
++
++            indicators = MacroIndicatorModel._default_manager.filter(is_active=True).values(
++                "code", "name", "unit", "latest_value"
++            )[:50]
+             available_indicators = list(indicators)
+         except Exception as e:
+             logger.warning(f"Failed to query indicators: {e}")
+ 
+         # 获取所有资产类别
+-        all_asset_classes = [
+-            "a_股票", "a_债券", "a_商品", "a_现金",
+-            "港股", "美股", "黄金", "原油"
+-        ]
++        all_asset_classes = ["a_股票", "a_债券", "a_商品", "a_现金", "港股", "美股", "黄金", "原油"]
+ 
+         context = {
+             "trigger": trigger,
+@@ -935,9 +1004,20 @@ def alpha_trigger_detail_view(request, trigger_id):
+         trigger = get_object_or_404(AlphaTriggerModel, trigger_id=trigger_id)
+ 
+         # 获取相关候选
+-        candidates = list(AlphaCandidateModel._default_manager.filter(
+-            source_trigger_id=trigger_id
+-        ).order_by('-created_at')[:20])
++        candidates = list(
++            AlphaCandidateModel._default_manager.filter(source_trigger_id=trigger_id).order_by(
++                "-created_at"
++            )[:20]
++        )
++
++        # 批量解析资产名称
++        from shared.infrastructure.asset_name_resolver import resolve_asset_names
++
++        all_codes = [trigger.asset_code] + [c.asset_code for c in candidates if c.asset_code]
++        asset_name_map = resolve_asset_names(all_codes)
++        trigger.asset_name = asset_name_map.get(trigger.asset_code, trigger.asset_code)
++        for candidate in candidates:
++            candidate.asset_name = asset_name_map.get(candidate.asset_code, candidate.asset_code)
+ 
+         # 统计候选状态
+         candidate_stats = {
+@@ -978,13 +1058,28 @@ def alpha_trigger_invalidation_builder_view(request):
+     try:
+         # 获取可用指标列表（预定义的常用指标）
+         available_indicators = [
+-            {"code": "CN_PMI_MANUFACTURING", "name": "中国制造业PMI", "unit": "指数", "latest_value": 50.1},
++            {
++                "code": "CN_PMI_MANUFACTURING",
++                "name": "中国制造业PMI",
++                "unit": "指数",
++                "latest_value": 50.1,
++            },
+             {"code": "CN_CPI_YOY", "name": "中国CPI同比", "unit": "%", "latest_value": 2.1},
+             {"code": "CN_PPI_YOY", "name": "中国PPI同比", "unit": "%", "latest_value": -2.8},
+             {"code": "US_FED_FUNDS_RATE", "name": "美联储利率", "unit": "%", "latest_value": 5.25},
+             {"code": "CN_SHIBOR_OVERNIGHT", "name": "SHIBOR隔夜", "unit": "%", "latest_value": 1.7},
+-            {"code": "CN_10Y_BOND_YIELD", "name": "中国10年期国债收益率", "unit": "%", "latest_value": 2.7},
+-            {"code": "US_10Y_TREASURY_YIELD", "name": "美国10年期国债收益率", "unit": "%", "latest_value": 4.2},
++            {
++                "code": "CN_10Y_BOND_YIELD",
++                "name": "中国10年期国债收益率",
++                "unit": "%",
++                "latest_value": 2.7,
++            },
++            {
++                "code": "US_10Y_TREASURY_YIELD",
++                "name": "美国10年期国债收益率",
++                "unit": "%",
++                "latest_value": 4.2,
++            },
+             {"code": "USD_CNY", "name": "美元兑人民币", "unit": "汇率", "latest_value": 7.2},
+         ]
+ 
+@@ -993,7 +1088,7 @@ def alpha_trigger_invalidation_builder_view(request):
+             "logic_operator": "AND",
+             "invalidation_delay_days": 0,
+             "consecutive_count": 1,
+-            "conditions": []
++            "conditions": [],
+         }
+ 
+         context = {
+@@ -1040,6 +1135,7 @@ def alpha_candidate_detail_view(request, candidate_id):
+         if candidate.last_decision_request_id:
+             try:
+                 from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
++
+                 decision_request = DecisionRequestModel._default_manager.filter(
+                     request_id=candidate.last_decision_request_id
+                 ).first()
+@@ -1053,6 +1149,7 @@ def alpha_candidate_detail_view(request, candidate_id):
+         if candidate.invalidation_conditions:
+             try:
+                 import json
++
+                 conditions = json.loads(candidate.invalidation_conditions)
+                 if isinstance(conditions, list):
+                     invalidation_conditions = conditions
+@@ -1064,21 +1161,26 @@ def alpha_candidate_detail_view(request, candidate_id):
+         # 模拟状态历史 (实际应该从数据库查询)
+         status_history = []
+         # 添加初始状态
+-        status_history.append({
+-            'status': 'CREATED',
+-            'created_at': candidate.created_at,
+-            'note': f'由触发器 {candidate.source_trigger_id[:12]}... 创建'
+-        })
++        status_history.append(
++            {
++                "status": "CREATED",
++                "created_at": candidate.created_at,
++                "note": f"由触发器 {candidate.source_trigger_id[:12]}... 创建",
++            }
++        )
+         # 如果状态有变化，添加历史记录
+-        if candidate.status != 'CREATED':
+-            status_history.append({
+-                'status': candidate.status,
+-                'created_at': candidate.updated_at,
+-                'note': '状态已更新'
+-            })
++        if candidate.status != "CREATED":
++            status_history.append(
++                {
++                    "status": candidate.status,
++                    "created_at": candidate.updated_at,
++                    "note": "状态已更新",
++                }
++            )
+ 
+         # 计算活跃天数
+         from django.utils import timezone
++
+         days_active = 0
+         if candidate.created_at:
+             days_active = (timezone.now() - candidate.created_at).days
+@@ -1123,9 +1225,9 @@ def alpha_trigger_performance_view(request):
+         from datetime import timedelta
+ 
+         # 获取所有活跃触发器
+-        triggers = list(AlphaTriggerModel._default_manager.filter(
+-            status='ACTIVE'
+-        ).order_by('-created_at'))
++        triggers = list(
++            AlphaTriggerModel._default_manager.filter(status="ACTIVE").order_by("-created_at")
++        )
+ 
+         # 为每个触发器计算性能指标
+         trigger_performance = []
+@@ -1137,11 +1239,9 @@ def alpha_trigger_performance_view(request):
+             )
+ 
+             total_candidates = candidates.count()
+-            executed_count = candidates.filter(status='EXECUTED').count()
+-            invalidated_count = candidates.filter(
+-                status__in=['INVALIDATED', 'EXPIRED']
+-            ).count()
+-            actionable_count = candidates.filter(status='ACTIONABLE').count()
++            executed_count = candidates.filter(status="EXECUTED").count()
++            invalidated_count = candidates.filter(status__in=["INVALIDATED", "EXPIRED"]).count()
++            actionable_count = candidates.filter(status="ACTIONABLE").count()
+ 
+             # 转化率（候选转为执行的比例）
+             conversion_rate = 0
+@@ -1154,16 +1254,11 @@ def alpha_trigger_performance_view(request):
+                 invalidation_rate = round(invalidated_count / total_candidates * 100, 1)
+ 
+             # 平均置信度
+-            avg_confidence = candidates.aggregate(
+-                avg_conf=Avg('confidence')
+-            )['avg_conf'] or 0
++            avg_confidence = candidates.aggregate(avg_conf=Avg("confidence"))["avg_conf"] or 0
+ 
+             # 平均持仓时间（从创建到执行的天数）
+             avg_holding_days = 0
+-            executed_candidates = candidates.filter(
+-                status='EXECUTED',
+-                executed_at__isnull=False
+-            )
++            executed_candidates = candidates.filter(status="EXECUTED", executed_at__isnull=False)
+             if executed_candidates.exists():
+                 days_list = []
+                 for c in executed_candidates:
+@@ -1188,34 +1283,36 @@ def alpha_trigger_performance_view(request):
+             performance_score = 0
+             if total_candidates > 0:
+                 score = (
+-                    conversion_rate * 0.4 +
+-                    (100 - invalidation_rate) * 0.3 +
+-                    (avg_confidence * 100) * 0.3
++                    conversion_rate * 0.4
++                    + (100 - invalidation_rate) * 0.3
++                    + (avg_confidence * 100) * 0.3
+                 )
+                 performance_score = round(score, 1)
+ 
+-            trigger_performance.append({
+-                'trigger': trigger,
+-                'total_candidates': total_candidates,
+-                'executed_count': executed_count,
+-                'invalidated_count': invalidated_count,
+-                'actionable_count': actionable_count,
+-                'conversion_rate': conversion_rate,
+-                'invalidation_rate': invalidation_rate,
+-                'avg_confidence': round(avg_confidence, 2),
+-                'avg_holding_days': avg_holding_days,
+-                'days_active': days_active,
+-                'trigger_frequency': trigger_frequency,
+-                'performance_score': performance_score,
+-            })
++            trigger_performance.append(
++                {
++                    "trigger": trigger,
++                    "total_candidates": total_candidates,
++                    "executed_count": executed_count,
++                    "invalidated_count": invalidated_count,
++                    "actionable_count": actionable_count,
++                    "conversion_rate": conversion_rate,
++                    "invalidation_rate": invalidation_rate,
++                    "avg_confidence": round(avg_confidence, 2),
++                    "avg_holding_days": avg_holding_days,
++                    "days_active": days_active,
++                    "trigger_frequency": trigger_frequency,
++                    "performance_score": performance_score,
++                }
++            )
+ 
+         # 按性能评分排序
+-        trigger_performance.sort(key=lambda x: x['performance_score'], reverse=True)
++        trigger_performance.sort(key=lambda x: x["performance_score"], reverse=True)
+ 
+         # 整体统计
+         total_triggers = len(triggers)
+         total_candidates = AlphaCandidateModel._default_manager.count()
+-        total_executed = AlphaCandidateModel._default_manager.filter(status='EXECUTED').count()
++        total_executed = AlphaCandidateModel._default_manager.filter(status="EXECUTED").count()
+         overall_conversion_rate = 0
+         if total_candidates > 0:
+             overall_conversion_rate = round(total_executed / total_candidates * 100, 1)
+@@ -1223,59 +1320,61 @@ def alpha_trigger_performance_view(request):
+         # 按类型分组统计
+         trigger_type_stats = {}
+         for perf in trigger_performance:
+-            trigger_type = perf['trigger'].get_trigger_type_display()
++            trigger_type = perf["trigger"].get_trigger_type_display()
+             if trigger_type not in trigger_type_stats:
+                 trigger_type_stats[trigger_type] = {
+-                    'count': 0,
+-                    'total_candidates': 0,
+-                    'total_executed': 0,
+-                    'avg_score': 0,
+-                    'scores': [],
++                    "count": 0,
++                    "total_candidates": 0,
++                    "total_executed": 0,
++                    "avg_score": 0,
++                    "scores": [],
+                 }
+             stats = trigger_type_stats[trigger_type]
+-            stats['count'] += 1
+-            stats['total_candidates'] += perf['total_candidates']
+-            stats['total_executed'] += perf['executed_count']
+-            stats['scores'].append(perf['performance_score'])
++            stats["count"] += 1
++            stats["total_candidates"] += perf["total_candidates"]
++            stats["total_executed"] += perf["executed_count"]
++            stats["scores"].append(perf["performance_score"])
+ 
+         # 计算各类型平均分
+         for trigger_type, stats in trigger_type_stats.items():
+-            if stats['scores']:
+-                stats['avg_score'] = round(sum(stats['scores']) / len(stats['scores']), 1)
+-            stats['conversion_rate'] = 0
+-            if stats['total_candidates'] > 0:
+-                stats['conversion_rate'] = round(
+-                    stats['total_executed'] / stats['total_candidates'] * 100, 1
++            if stats["scores"]:
++                stats["avg_score"] = round(sum(stats["scores"]) / len(stats["scores"]), 1)
++            stats["conversion_rate"] = 0
++            if stats["total_candidates"] > 0:
++                stats["conversion_rate"] = round(
++                    stats["total_executed"] / stats["total_candidates"] * 100, 1
+                 )
+-            del stats['scores']  # 移除临时列表
++            del stats["scores"]  # 移除临时列表
+ 
+         # 获取最近 30 天的趋势数据
+         thirty_days_ago = timezone.now() - timedelta(days=30)
+         recent_candidates = AlphaCandidateModel._default_manager.filter(
+             created_at__gte=thirty_days_ago
+-        ).order_by('created_at')
++        ).order_by("created_at")
+ 
+         # 按日期分组
+         daily_stats = {}
+         for candidate in recent_candidates:
+             date_str = candidate.created_at.date().isoformat()
+             if date_str not in daily_stats:
+-                daily_stats[date_str] = {'created': 0, 'executed': 0, 'invalidated': 0}
+-            daily_stats[date_str]['created'] += 1
+-            if candidate.status == 'EXECUTED':
+-                daily_stats[date_str]['executed'] += 1
+-            elif candidate.status in ['INVALIDATED', 'EXPIRED']:
+-                daily_stats[date_str]['invalidated'] += 1
++                daily_stats[date_str] = {"created": 0, "executed": 0, "invalidated": 0}
++            daily_stats[date_str]["created"] += 1
++            if candidate.status == "EXECUTED":
++                daily_stats[date_str]["executed"] += 1
++            elif candidate.status in ["INVALIDATED", "EXPIRED"]:
++                daily_stats[date_str]["invalidated"] += 1
+ 
+         # 转换为列表
+         trend_data = []
+         for date_str in sorted(daily_stats.keys()):
+-            trend_data.append({
+-                'date': date_str,
+-                'created': daily_stats[date_str]['created'],
+-                'executed': daily_stats[date_str]['executed'],
+-                'invalidated': daily_stats[date_str]['invalidated'],
+-            })
++            trend_data.append(
++                {
++                    "date": date_str,
++                    "created": daily_stats[date_str]["created"],
++                    "executed": daily_stats[date_str]["executed"],
++                    "invalidated": daily_stats[date_str]["invalidated"],
++                }
++            )
+ 
+         context = {
+             "trigger_performance": trigger_performance,
+@@ -1330,9 +1429,11 @@ class TriggerPerformanceAPIView(APIView):
+ 
+             # 获取触发器列表
+             if trigger_id:
+-                triggers = [AlphaTriggerModel._default_manager.filter(trigger_id=trigger_id).first()]
++                triggers = [
++                    AlphaTriggerModel._default_manager.filter(trigger_id=trigger_id).first()
++                ]
+             else:
+-                triggers = list(AlphaTriggerModel._default_manager.filter(status='ACTIVE'))
++                triggers = list(AlphaTriggerModel._default_manager.filter(status="ACTIVE"))
+ 
+             performance_data = []
+ 
+@@ -1341,35 +1442,38 @@ class TriggerPerformanceAPIView(APIView):
+                     continue
+ 
+                 candidates = AlphaCandidateModel._default_manager.filter(
+-                    source_trigger_id=trigger.trigger_id,
+-                    created_at__gte=start_date
++                    source_trigger_id=trigger.trigger_id, created_at__gte=start_date
+                 )
+ 
+                 total = candidates.count()
+-                executed = candidates.filter(status='EXECUTED').count()
+-                invalidated = candidates.filter(
+-                    status__in=['INVALIDATED', 'EXPIRED']
+-                ).count()
+-
+-                performance_data.append({
+-                    "trigger_id": trigger.trigger_id,
+-                    "asset_code": trigger.asset_code,
+-                    "trigger_type": trigger.trigger_type,
+-                    "total_candidates": total,
+-                    "executed": executed,
+-                    "invalidated": invalidated,
+-                    "conversion_rate": round(executed / total * 100, 1) if total > 0 else 0,
+-                    "invalidation_rate": round(invalidated / total * 100, 1) if total > 0 else 0,
+-                })
+-
+-            return Response({
+-                "success": True,
+-                "data": performance_data,
+-                "summary": {
+-                    "days": days,
+-                    "total_triggers": len(performance_data),
++                executed = candidates.filter(status="EXECUTED").count()
++                invalidated = candidates.filter(status__in=["INVALIDATED", "EXPIRED"]).count()
++
++                performance_data.append(
++                    {
++                        "trigger_id": trigger.trigger_id,
++                        "asset_code": trigger.asset_code,
++                        "trigger_type": trigger.trigger_type,
++                        "total_candidates": total,
++                        "executed": executed,
++                        "invalidated": invalidated,
++                        "conversion_rate": round(executed / total * 100, 1) if total > 0 else 0,
++                        "invalidation_rate": round(invalidated / total * 100, 1)
++                        if total > 0
++                        else 0,
++                    }
++                )
++
++            return Response(
++                {
++                    "success": True,
++                    "data": performance_data,
++                    "summary": {
++                        "days": days,
++                        "total_triggers": len(performance_data),
++                    },
+                 }
+-            })
++            )
+ 
+         except Exception as e:
+             logger.error(f"Failed to get performance data: {e}", exc_info=True)
+diff --git a/apps/alpha_trigger/templates/alpha_trigger/detail.html b/apps/alpha_trigger/templates/alpha_trigger/detail.html
+index cfa1ce2..d987e01 100644
+--- a/apps/alpha_trigger/templates/alpha_trigger/detail.html
++++ b/apps/alpha_trigger/templates/alpha_trigger/detail.html
+@@ -68,7 +68,7 @@
+     <!-- 头部 -->
+     <div class="detail-header">
+         <div class="detail-title">
+-            <h1>{{ trigger.asset_code }}</h1>
++            <h1>{{ trigger.asset_code }} <span style="color: #64748b; font-weight: 400;">{{ trigger.asset_name }}</span></h1>
+             <p>{{ trigger.get_trigger_type_display }} - 创建于 {{ trigger.created_at|date:"Y-m-d H:i" }}</p>
+         </div>
+         <div class="detail-actions">
+@@ -126,6 +126,10 @@
+                     <div class="info-label">资产代码</div>
+                     <div class="info-value"><strong>{{ trigger.asset_code }}</strong></div>
+                 </div>
++                <div class="info-item">
++                    <div class="info-label">资产名称</div>
++                    <div class="info-value">{{ trigger.asset_name|default:"-" }}</div>
++                </div>
+                 <div class="info-item">
+                     <div class="info-label">资产类别</div>
+                     <div class="info-value">{{ trigger.asset_class }}</div>
+diff --git a/apps/alpha_trigger/templates/alpha_trigger/edit.html b/apps/alpha_trigger/templates/alpha_trigger/edit.html
+index de41cdb..924615e 100644
+--- a/apps/alpha_trigger/templates/alpha_trigger/edit.html
++++ b/apps/alpha_trigger/templates/alpha_trigger/edit.html
+@@ -74,7 +74,7 @@
+     <div class="edit-header">
+         <div>
+             <h1>编辑 Alpha 触发器</h1>
+-            <p style="color: #64748b; margin-top: 4px;">{{ trigger.trigger_id }}</p>
++            <p style="color: #64748b; margin-top: 4px;">{{ trigger.asset_code }} {{ trigger.asset_name|default:"" }}</p>
+         </div>
+     </div>
+ 
+@@ -95,6 +95,10 @@
+                     <input type="text" class="form-input" value="{{ trigger.asset_code }}" disabled>
+                     <span class="form-label-readonly">不可修改</span>
+                 </div>
++                <div>
++                    <label class="form-label">资产名称</label>
++                    <input type="text" class="form-input" value="{{ trigger.asset_name|default:"-" }}" disabled>
++                </div>
+                 <div>
+                     <label class="form-label">资产类别</label>
+                     <select name="asset_class" class="form-select">
+diff --git a/apps/beta_gate/interface/views.py b/apps/beta_gate/interface/views.py
+index b60a6e8..cb4bc78 100644
+--- a/apps/beta_gate/interface/views.py
++++ b/apps/beta_gate/interface/views.py
+@@ -40,30 +40,45 @@ class BetaGateVersionCompareAPIView(APIView):
+         GET /api/beta-gate/version/compare/?version1=1&version2=2
+         """
+         try:
+-            version1_id = request.query_params.get("version1") or request.query_params.get("version_a")
+-            version2_id = request.query_params.get("version2") or request.query_params.get("version_b")
++            version1_id = request.query_params.get("version1") or request.query_params.get(
++                "version_a"
++            )
++            version2_id = request.query_params.get("version2") or request.query_params.get(
++                "version_b"
++            )
+ 
+             if not version1_id or not version2_id:
+                 # 返回最新10个版本的列表
+                 from ..infrastructure.models import GateConfigModel
+-                configs = list(GateConfigModel._default_manager.all().order_by('-version')[:10])
++
++                configs = list(GateConfigModel._default_manager.all().order_by("-version")[:10])
+ 
+                 results = []
+                 for config in configs:
+-                    results.append({
+-                        "config_id": config.config_id,
+-                        "version": config.version,
+-                        "risk_profile": config.risk_profile,
+-                        "is_active": config.is_active,
+-                        "effective_date": config.effective_date.isoformat() if config.effective_date else None,
+-                        "expires_at": config.expires_at.isoformat() if config.expires_at else None,
+-                        "created_at": config.created_at.isoformat() if config.created_at else None,
+-                    })
++                    results.append(
++                        {
++                            "config_id": config.config_id,
++                            "version": config.version,
++                            "risk_profile": config.risk_profile,
++                            "is_active": config.is_active,
++                            "effective_date": config.effective_date.isoformat()
++                            if config.effective_date
++                            else None,
++                            "expires_at": config.expires_at.isoformat()
++                            if config.expires_at
++                            else None,
++                            "created_at": config.created_at.isoformat()
++                            if config.created_at
++                            else None,
++                        }
++                    )
+ 
+-                return Response({
+-                    "success": True,
+-                    "results": results,
+-                })
++                return Response(
++                    {
++                        "success": True,
++                        "results": results,
++                    }
++                )
+ 
+             # 对比两个版本
+             from ..infrastructure.models import GateConfigModel
+@@ -72,12 +87,16 @@ class BetaGateVersionCompareAPIView(APIView):
+             config2 = GateConfigModel._default_manager.filter(config_id=version2_id).first()
+             if not config1:
+                 try:
+-                    config1 = GateConfigModel._default_manager.filter(version=int(version1_id)).first()
++                    config1 = GateConfigModel._default_manager.filter(
++                        version=int(version1_id)
++                    ).first()
+                 except (TypeError, ValueError):
+                     config1 = None
+             if not config2:
+                 try:
+-                    config2 = GateConfigModel._default_manager.filter(version=int(version2_id)).first()
++                    config2 = GateConfigModel._default_manager.filter(
++                        version=int(version2_id)
++                    ).first()
+                 except (TypeError, ValueError):
+                     config2 = None
+ 
+@@ -96,6 +115,7 @@ class BetaGateVersionCompareAPIView(APIView):
+             def parse_constraints(constraints_str):
+                 try:
+                     import json
++
+                     if isinstance(constraints_str, str):
+                         return json.loads(constraints_str)
+                     return constraints_str or {}
+@@ -109,7 +129,9 @@ class BetaGateVersionCompareAPIView(APIView):
+                     "version": config.version,
+                     "risk_profile": config.risk_profile,
+                     "is_active": config.is_active,
+-                    "effective_date": config.effective_date.isoformat() if config.effective_date else None,
++                    "effective_date": config.effective_date.isoformat()
++                    if config.effective_date
++                    else None,
+                     "expires_at": config.expires_at.isoformat() if config.expires_at else None,
+                     "regime_constraints": parse_constraints(config.regime_constraints),
+                     "policy_constraints": parse_constraints(config.policy_constraints),
+@@ -122,12 +144,14 @@ class BetaGateVersionCompareAPIView(APIView):
+             # 计算差异
+             differences = self._compare_configs(config1_dict, config2_dict)
+ 
+-            return Response({
+-                "success": True,
+-                "config1": config1_dict,
+-                "config2": config2_dict,
+-                "differences": differences,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "config1": config1_dict,
++                    "config2": config2_dict,
++                    "differences": differences,
++                }
++            )
+ 
+         except Exception as e:
+             logger.error(f"Failed to compare versions: {e}", exc_info=True)
+@@ -140,8 +164,13 @@ class BetaGateVersionCompareAPIView(APIView):
+         """对比两个配置，返回差异列表"""
+         differences = []
+         fields = [
+-            "risk_profile", "is_active", "effective_date", "expires_at",
+-            "regime_constraints", "policy_constraints", "portfolio_constraints"
++            "risk_profile",
++            "is_active",
++            "effective_date",
++            "expires_at",
++            "regime_constraints",
++            "policy_constraints",
++            "portfolio_constraints",
+         ]
+ 
+         for field in fields:
+@@ -149,11 +178,13 @@ class BetaGateVersionCompareAPIView(APIView):
+             val2 = config2.get(field)
+ 
+             if val1 != val2:
+-                differences.append({
+-                    "field": field,
+-                    "config1": val1,
+-                    "config2": val2,
+-                })
++                differences.append(
++                    {
++                        "field": field,
++                        "config1": val1,
++                        "config2": val2,
++                    }
++                )
+ 
+         return differences
+ 
+@@ -187,7 +218,9 @@ class RollbackConfigView(APIView):
+ 
+             # 获取目标版本配置
+             try:
+-                target_config = GateConfigModel._default_manager.filter(version=target_version).first()
++                target_config = GateConfigModel._default_manager.filter(
++                    version=target_version
++                ).first()
+             except ValueError:
+                 return Response(
+                     {"success": False, "error": "Invalid version number"},
+@@ -208,11 +241,13 @@ class RollbackConfigView(APIView):
+             target_config.effective_date = timezone.now().date()
+             target_config.save()
+ 
+-            return Response({
+-                "success": True,
+-                "message": f"已回滚到版本 {target_version}",
+-                "config_id": target_config.config_id,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "message": f"已回滚到版本 {target_version}",
++                    "config_id": target_config.config_id,
++                }
++            )
+ 
+         except Exception as e:
+             logger.error(f"Failed to rollback config: {e}", exc_info=True)
+@@ -412,6 +447,7 @@ def beta_gate_test_view(request):
+         current_regime = None
+         try:
+             from apps.regime.application.current_regime import resolve_current_regime
++
+             current_regime = resolve_current_regime()
+         except Exception as e:
+             logger.warning(f"Failed to get current regime: {e}")
+@@ -421,6 +457,7 @@ def beta_gate_test_view(request):
+         try:
+             from apps.policy.application.use_cases import GetCurrentPolicyUseCase
+             from apps.policy.infrastructure.repositories import get_policy_repository
++
+             policy_use_case = GetCurrentPolicyUseCase(get_policy_repository())
+             policy_response = policy_use_case.execute()
+             if policy_response.success and policy_response.policy_level:
+@@ -431,16 +468,23 @@ def beta_gate_test_view(request):
+         # 获取最近测试记录
+         recent_tests = []
+         try:
+-            recent_tests = list(GateDecisionModel._default_manager.all().order_by('-evaluated_at')[:10])
++            recent_tests = list(
++                GateDecisionModel._default_manager.all().order_by("-evaluated_at")[:10]
++            )
+         except Exception as e:
+             logger.warning(f"Failed to query recent tests: {e}")
+             recent_tests = []
+ 
++        # 批量解析资产名称
++        from shared.infrastructure.asset_name_resolver import resolve_asset_names
++
++        asset_codes = [t.asset_code for t in recent_tests if t.asset_code]
++        asset_name_map = resolve_asset_names(asset_codes)
++        for test in recent_tests:
++            test.asset_name = asset_name_map.get(test.asset_code, test.asset_code)
++
+         # 获取所有资产类别
+-        all_asset_classes = [
+-            "a_股票", "a_债券", "a_商品", "a_现金",
+-            "港股", "美股", "黄金", "原油"
+-        ]
++        all_asset_classes = ["a_股票", "a_债券", "a_商品", "a_现金", "港股", "美股", "黄金", "原油"]
+ 
+         context = {
+             "active_config": active_config,
+@@ -559,7 +603,13 @@ class BetaGateTestAPIView(APIView):
+                     if configs:
+                         return configs[0]
+                     # 返回默认配置
+-                    from ..domain.entities import GateConfig, RegimeConstraint, PolicyConstraint, PortfolioConstraint
++                    from ..domain.entities import (
++                        GateConfig,
++                        RegimeConstraint,
++                        PolicyConstraint,
++                        PortfolioConstraint,
++                    )
++
+                     allowed_asset_classes = [asset_class] if asset_class else []
+                     return GateConfig(
+                         config_id="default",
+@@ -604,20 +654,26 @@ class BetaGateTestAPIView(APIView):
+             if response.success:
+                 results = []
+                 for decision in response.decisions:
+-                    results.append({
+-                        "asset_code": decision.asset_code,
+-                        "asset_class": decision.asset_class,
+-                        "passed": decision.is_passed,
+-                        "status": decision.status.value,
+-                        "blocking_reason": decision.blocking_reason if not decision.is_passed else None,
+-                        "evaluated_at": decision.evaluated_at.isoformat(),
+-                    })
++                    results.append(
++                        {
++                            "asset_code": decision.asset_code,
++                            "asset_class": decision.asset_class,
++                            "passed": decision.is_passed,
++                            "status": decision.status.value,
++                            "blocking_reason": decision.blocking_reason
++                            if not decision.is_passed
++                            else None,
++                            "evaluated_at": decision.evaluated_at.isoformat(),
++                        }
++                    )
+ 
+-                return Response({
+-                    "success": True,
+-                    "results": results,
+-                    "summary": response.summary,
+-                })
++                return Response(
++                    {
++                        "success": True,
++                        "results": results,
++                        "summary": response.summary,
++                    }
++                )
+             else:
+                 return Response(
+                     {"success": False, "error": response.error},
+@@ -645,22 +701,28 @@ class GateConfigViewSet(viewsets.ViewSet):
+             configs = self.config_repository.get_all_active()
+             results = []
+             for config in configs:
+-                results.append({
+-                    "config_id": config.config_id,
+-                    "risk_profile": config.risk_profile.value,
+-                    "version": config.version,
+-                    "is_active": config.is_active,
+-                    "regime_constraints": config.regime_constraint.to_dict(),
+-                    "policy_constraints": config.policy_constraint.to_dict(),
+-                    "portfolio_constraints": config.portfolio_constraint.to_dict(),
+-                    "effective_date": config.effective_date.isoformat() if config.effective_date else None,
+-                    "expires_at": config.expires_at.isoformat() if config.expires_at else None,
+-                })
+-            return Response({
+-                "success": True,
+-                "count": len(results),
+-                "results": results,
+-            })
++                results.append(
++                    {
++                        "config_id": config.config_id,
++                        "risk_profile": config.risk_profile.value,
++                        "version": config.version,
++                        "is_active": config.is_active,
++                        "regime_constraints": config.regime_constraint.to_dict(),
++                        "policy_constraints": config.policy_constraint.to_dict(),
++                        "portfolio_constraints": config.portfolio_constraint.to_dict(),
++                        "effective_date": config.effective_date.isoformat()
++                        if config.effective_date
++                        else None,
++                        "expires_at": config.expires_at.isoformat() if config.expires_at else None,
++                    }
++                )
++            return Response(
++                {
++                    "success": True,
++                    "count": len(results),
++                    "results": results,
++                }
++            )
+         except Exception as e:
+             logger.error(f"Failed to list configs: {e}", exc_info=True)
+             return Response(
+@@ -677,18 +739,20 @@ class GateConfigViewSet(viewsets.ViewSet):
+                     {"success": False, "error": "Config not found"},
+                     status=status.HTTP_404_NOT_FOUND,
+                 )
+-            return Response({
+-                "success": True,
+-                "result": {
+-                    "config_id": config.config_id,
+-                    "risk_profile": config.risk_profile.value,
+-                    "version": config.version,
+-                    "is_active": config.is_active,
+-                    "regime_constraints": config.regime_constraint.to_dict(),
+-                    "policy_constraints": config.policy_constraint.to_dict(),
+-                    "portfolio_constraints": config.portfolio_constraint.to_dict(),
+-                },
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "result": {
++                        "config_id": config.config_id,
++                        "risk_profile": config.risk_profile.value,
++                        "version": config.version,
++                        "is_active": config.is_active,
++                        "regime_constraints": config.regime_constraint.to_dict(),
++                        "policy_constraints": config.policy_constraint.to_dict(),
++                        "portfolio_constraints": config.portfolio_constraint.to_dict(),
++                    },
++                }
++            )
+         except Exception as e:
+             logger.error(f"Failed to retrieve config: {e}", exc_info=True)
+             return Response(
+@@ -713,16 +777,24 @@ class GateConfigViewSet(viewsets.ViewSet):
+                     status=status.HTTP_400_BAD_REQUEST,
+                 )
+ 
+-            level_raw = payload.get("max_policy_level", policy_constraints.get("max_allowed_level", 2))
++            level_raw = payload.get(
++                "max_policy_level", policy_constraints.get("max_allowed_level", 2)
++            )
+             if isinstance(level_raw, str) and level_raw.upper().startswith("P"):
+                 level_raw = level_raw[1:]
+ 
+             config = create_gate_config(
+                 risk_profile=risk_profile,
+-                allowed_regimes=payload.get("allowed_regimes", regime_constraints.get("allowed_regimes")),
+-                min_confidence=float(payload.get("min_confidence", regime_constraints.get("min_confidence", 0.3))),
++                allowed_regimes=payload.get(
++                    "allowed_regimes", regime_constraints.get("allowed_regimes")
++                ),
++                min_confidence=float(
++                    payload.get("min_confidence", regime_constraints.get("min_confidence", 0.3))
++                ),
+                 max_policy_level=int(level_raw),
+-                veto_on_p3=bool(payload.get("veto_on_p3", policy_constraints.get("veto_on_p3", True))),
++                veto_on_p3=bool(
++                    payload.get("veto_on_p3", policy_constraints.get("veto_on_p3", True))
++                ),
+                 max_total_position=float(
+                     payload.get(
+                         "max_total_position",
+@@ -751,7 +823,9 @@ class GateConfigViewSet(viewsets.ViewSet):
+                         "regime_constraints": saved.regime_constraints,
+                         "policy_constraints": saved.policy_constraints,
+                         "portfolio_constraints": saved.portfolio_constraints,
+-                        "effective_date": saved.effective_date.isoformat() if saved.effective_date else None,
++                        "effective_date": saved.effective_date.isoformat()
++                        if saved.effective_date
++                        else None,
+                         "expires_at": saved.expires_at.isoformat() if saved.expires_at else None,
+                     },
+                 },
+@@ -771,6 +845,7 @@ class GateDecisionViewSet(viewsets.ViewSet):
+     def __init__(self, **kwargs):
+         super().__init__(**kwargs)
+         from ..infrastructure.repositories import get_decision_repository
++
+         self.decision_repository = get_decision_repository()
+ 
+     def list(self, request) -> Response:
+@@ -780,21 +855,25 @@ class GateDecisionViewSet(viewsets.ViewSet):
+             decisions = self.decision_repository.get_recent(days)
+             results = []
+             for decision in decisions:
+-                results.append({
+-                    "decision_id": getattr(decision, "decision_id", ""),
+-                    "asset_code": decision.asset_code,
+-                    "asset_class": decision.asset_class,
+-                    "status": decision.status.value,
+-                    "current_regime": decision.current_regime,
+-                    "policy_level": decision.policy_level,
+-                    "regime_confidence": decision.regime_confidence,
+-                    "evaluated_at": decision.evaluated_at.isoformat(),
+-                })
+-            return Response({
+-                "success": True,
+-                "count": len(results),
+-                "results": results,
+-            })
++                results.append(
++                    {
++                        "decision_id": getattr(decision, "decision_id", ""),
++                        "asset_code": decision.asset_code,
++                        "asset_class": decision.asset_class,
++                        "status": decision.status.value,
++                        "current_regime": decision.current_regime,
++                        "policy_level": decision.policy_level,
++                        "regime_confidence": decision.regime_confidence,
++                        "evaluated_at": decision.evaluated_at.isoformat(),
++                    }
++                )
++            return Response(
++                {
++                    "success": True,
++                    "count": len(results),
++                    "results": results,
++                }
++            )
+         except Exception as e:
+             logger.error(f"Failed to list decisions: {e}", exc_info=True)
+             return Response(
+@@ -811,19 +890,21 @@ class GateDecisionViewSet(viewsets.ViewSet):
+                     {"success": False, "error": "Decision not found"},
+                     status=status.HTTP_404_NOT_FOUND,
+                 )
+-            return Response({
+-                "success": True,
+-                "result": {
+-                    "decision_id": getattr(decision, "decision_id", ""),
+-                    "asset_code": decision.asset_code,
+-                    "asset_class": decision.asset_class,
+-                    "status": decision.status.value,
+-                    "current_regime": decision.current_regime,
+-                    "policy_level": decision.policy_level,
+-                    "regime_confidence": decision.regime_confidence,
+-                    "evaluated_at": decision.evaluated_at.isoformat(),
+-                },
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "result": {
++                        "decision_id": getattr(decision, "decision_id", ""),
++                        "asset_code": decision.asset_code,
++                        "asset_class": decision.asset_class,
++                        "status": decision.status.value,
++                        "current_regime": decision.current_regime,
++                        "policy_level": decision.policy_level,
++                        "regime_confidence": decision.regime_confidence,
++                        "evaluated_at": decision.evaluated_at.isoformat(),
++                    },
++                }
++            )
+         except Exception as e:
+             logger.error(f"Failed to retrieve decision: {e}", exc_info=True)
+             return Response(
+@@ -838,6 +919,7 @@ class VisibilityUniverseViewSet(viewsets.ViewSet):
+     def __init__(self, **kwargs):
+         super().__init__(**kwargs)
+         from ..infrastructure.repositories import get_universe_repository
++
+         self.universe_repository = get_universe_repository()
+ 
+     def list(self, request) -> Response:
+@@ -848,11 +930,13 @@ class VisibilityUniverseViewSet(viewsets.ViewSet):
+             limit = int(request.query_params.get("limit", 100))
+ 
+             snapshots = self.universe_repository.get_history(regime, policy_level, limit)
+-            return Response({
+-                "success": True,
+-                "count": len(snapshots),
+-                "results": snapshots,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "count": len(snapshots),
++                    "results": snapshots,
++                }
++            )
+         except Exception as e:
+             logger.error(f"Failed to list universe snapshots: {e}", exc_info=True)
+             return Response(
+@@ -869,10 +953,12 @@ class VisibilityUniverseViewSet(viewsets.ViewSet):
+                     {"success": False, "error": "Snapshot not found"},
+                     status=status.HTTP_404_NOT_FOUND,
+                 )
+-            return Response({
+-                "success": True,
+-                "result": snapshot,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "result": snapshot,
++                }
++            )
+         except Exception as e:
+             logger.error(f"Failed to retrieve snapshot: {e}", exc_info=True)
+             return Response(
+@@ -903,11 +989,21 @@ def beta_gate_config_view(request):
+ 
+         # 获取最近决策
+         try:
+-            recent_decisions = list(GateDecisionModel._default_manager.all().order_by('-evaluated_at')[:10])
++            recent_decisions = list(
++                GateDecisionModel._default_manager.all().order_by("-evaluated_at")[:10]
++            )
+         except Exception as e:
+             logger.warning(f"Failed to query recent decisions: {e}")
+             recent_decisions = []
+ 
++        # 批量解析资产名称
++        from shared.infrastructure.asset_name_resolver import resolve_asset_names
++
++        asset_codes = [d.asset_code for d in recent_decisions if d.asset_code]
++        asset_name_map = resolve_asset_names(asset_codes)
++        for decision in recent_decisions:
++            decision.asset_name = asset_name_map.get(decision.asset_code, decision.asset_code)
++
+         # 构建上下文数据
+         context_data = {
+             "active_config": None,
+@@ -919,9 +1015,21 @@ def beta_gate_config_view(request):
+         # 如果有配置，构建简化的数据结构供模板使用
+         if active_config:
+             # 从 JSON 字段提取数据
+-            regime_constraints = active_config.regime_constraints if isinstance(active_config.regime_constraints, dict) else {}
+-            policy_constraints = active_config.policy_constraints if isinstance(active_config.policy_constraints, dict) else {}
+-            portfolio_constraints = active_config.portfolio_constraints if isinstance(active_config.portfolio_constraints, dict) else {}
++            regime_constraints = (
++                active_config.regime_constraints
++                if isinstance(active_config.regime_constraints, dict)
++                else {}
++            )
++            policy_constraints = (
++                active_config.policy_constraints
++                if isinstance(active_config.policy_constraints, dict)
++                else {}
++            )
++            portfolio_constraints = (
++                active_config.portfolio_constraints
++                if isinstance(active_config.portfolio_constraints, dict)
++                else {}
++            )
+ 
+             # 构建简化的配置对象
+             class SimpleConfig:
+@@ -933,29 +1041,42 @@ def beta_gate_config_view(request):
+                     self.effective_date = model.effective_date
+                     self.expires_at = model.expires_at
+                     # Regime 约束
+-                    self.regime_constraint = type('obj', (), {
+-                        'current_regime': regime_c.get('current_regime', '未知'),
+-                        'confidence': regime_c.get('confidence', 0.5),
+-                        'allowed_asset_classes': regime_c.get('allowed_asset_classes', []),
+-                    })()
++                    self.regime_constraint = type(
++                        "obj",
++                        (),
++                        {
++                            "current_regime": regime_c.get("current_regime", "未知"),
++                            "confidence": regime_c.get("confidence", 0.5),
++                            "allowed_asset_classes": regime_c.get("allowed_asset_classes", []),
++                        },
++                    )()
+                     # Policy 约束
+-                    self.policy_constraint = type('obj', (), {
+-                        'current_level': policy_c.get('current_level', 0),
+-                        'max_risk_exposure': policy_c.get('max_risk_exposure', 100),
+-                        'hard_exclusions': policy_c.get('hard_exclusions', []),
+-                    })()
++                    self.policy_constraint = type(
++                        "obj",
++                        (),
++                        {
++                            "current_level": policy_c.get("current_level", 0),
++                            "max_risk_exposure": policy_c.get("max_risk_exposure", 100),
++                            "hard_exclusions": policy_c.get("hard_exclusions", []),
++                        },
++                    )()
+                     # 组合约束
+-                    self.portfolio_constraint = type('obj', (), {
+-                        'max_positions': portfolio_c.get('max_positions', 10),
+-                        'max_single_position_weight': portfolio_c.get('max_single_position_weight', 20),
+-                        'max_concentration_ratio': portfolio_c.get('max_concentration_ratio', 60),
+-                    })()
++                    self.portfolio_constraint = type(
++                        "obj",
++                        (),
++                        {
++                            "max_positions": portfolio_c.get("max_positions", 10),
++                            "max_single_position_weight": portfolio_c.get(
++                                "max_single_position_weight", 20
++                            ),
++                            "max_concentration_ratio": portfolio_c.get(
++                                "max_concentration_ratio", 60
++                            ),
++                        },
++                    )()
+ 
+             context_data["active_config"] = SimpleConfig(
+-                active_config,
+-                regime_constraints,
+-                policy_constraints,
+-                portfolio_constraints
++                active_config, regime_constraints, policy_constraints, portfolio_constraints
+             )
+ 
+         return render(request, "beta_gate/config.html", context_data)
+@@ -1032,4 +1153,3 @@ def beta_gate_config_activate_view(request, config_id):
+     config.save(update_fields=["is_active", "effective_date", "updated_at"])
+     messages.success(request, f"已激活配置 {config.config_id}")
+     return redirect("beta_gate:version")
+-
+diff --git a/apps/beta_gate/templates/beta_gate/config.html b/apps/beta_gate/templates/beta_gate/config.html
+index c752b88..978b062 100644
+--- a/apps/beta_gate/templates/beta_gate/config.html
++++ b/apps/beta_gate/templates/beta_gate/config.html
+@@ -157,6 +157,7 @@
+             <thead>
+                 <tr>
+                     <th>资产代码</th>
++                    <th>名称</th>
+                     <th>资产类别</th>
+                     <th>状态</th>
+                     <th>Regime</th>
+@@ -168,6 +169,7 @@
+                 {% for decision in recent_decisions %}
+                 <tr>
+                     <td><strong>{{ decision.asset_code }}</strong></td>
++                    <td>{{ decision.asset_name|default:"-" }}</td>
+                     <td>{{ decision.asset_class }}</td>
+                     <td class="status-{{ decision.status }}">{{ decision.status|title }}</td>
+                     <td>{{ decision.current_regime }}</td>
+diff --git a/apps/beta_gate/templates/beta_gate/test_asset.html b/apps/beta_gate/templates/beta_gate/test_asset.html
+index b99a676..f021082 100644
+--- a/apps/beta_gate/templates/beta_gate/test_asset.html
++++ b/apps/beta_gate/templates/beta_gate/test_asset.html
+@@ -85,6 +85,7 @@
+             <thead>
+                 <tr>
+                     <th>资产代码</th>
++                    <th>名称</th>
+                     <th>资产类别</th>
+                     <th>状态</th>
+                     <th>拦截原因</th>
+@@ -95,6 +96,7 @@
+                 {% for test in recent_tests %}
+                 <tr>
+                     <td><strong>{{ test.asset_code }}</strong></td>
++                    <td>{{ test.asset_name|default:"-" }}</td>
+                     <td>{{ test.asset_class }}</td>
+                     <td>
+                         {% if test.status == "PASSED" %}
+diff --git a/apps/dashboard/application/use_cases.py b/apps/dashboard/application/use_cases.py
+index e62c19b..4a84c30 100644
+--- a/apps/dashboard/application/use_cases.py
++++ b/apps/dashboard/application/use_cases.py
+@@ -71,6 +71,7 @@ def _normalize_regime_distribution(
+ @dataclass
+ class DashboardData:
+     """首页数据DTO"""
++
+     # 用户信息
+     user_id: int
+     username: str
+@@ -141,6 +142,7 @@ class DashboardData:
+ 
+ class GetDashboardDataUseCase:
+     """获取首页数据用例"""
++
+     MAX_MACRO_STALENESS_DAYS = 45
+     INDICATOR_STALENESS_DAYS = {
+         "PMI": 70,
+@@ -187,6 +189,7 @@ class GetDashboardDataUseCase:
+         # 判定矩阵：Recovery (PMI>50, CPI<=2%), Overheat (PMI>50, CPI>2%),
+         #          Stagflation (PMI<50, CPI>2%), Deflation (PMI<50, CPI<=2%)
+         from apps.regime.application.current_regime import resolve_current_regime
++
+         health = self._assess_macro_data_health(
+             growth_indicator="PMI",
+             inflation_indicator="CPI",
+@@ -246,6 +249,7 @@ class GetDashboardDataUseCase:
+ 
+         # 5. 计算Regime匹配度
+         from apps.account.domain.services import PositionService
++
+         match_analysis = PositionService.calculate_regime_match_score(
+             positions=snapshot.positions,
+             current_regime=current_regime,
+@@ -267,8 +271,9 @@ class GetDashboardDataUseCase:
+         )
+ 
+         # 9. 获取政策环境信息
+-        current_policy_level, current_policy_date, pending_review_count, recent_policies = \
++        current_policy_level, current_policy_date, pending_review_count, recent_policies = (
+             self._get_policy_environment(user_id)
++        )
+ 
+         # 10. 生成资产配置建议（新增）
+         allocation_advice = self._generate_allocation_advice(
+@@ -443,16 +448,27 @@ class GetDashboardDataUseCase:
+             status="approved",
+             limit=limit,
+         )
++        signal_list = list(signals)
++
++        # 批量解析资产名称
++        from shared.infrastructure.asset_name_resolver import resolve_asset_names
++
++        asset_codes = [s.asset_code for s in signal_list if s.asset_code]
++        asset_name_map = resolve_asset_names(asset_codes)
++
+         return [
+             {
+                 "id": s.id,
+                 "asset_code": s.asset_code,
++                "asset_name": asset_name_map.get(s.asset_code, s.asset_code),
+                 "direction": s.direction,
+                 "status": s.status,
+-                "logic_desc": s.logic_desc[:100] + "..." if len(s.logic_desc) > 100 else s.logic_desc,
++                "logic_desc": s.logic_desc[:100] + "..."
++                if len(s.logic_desc) > 100
++                else s.logic_desc,
+                 "created_at": s.created_at.strftime("%Y-%m-%d"),
+             }
+-            for s in signals
++            for s in signal_list
+         ]
+ 
+     def _calculate_signal_stats(self, user_id: int) -> Dict[str, int]:
+@@ -516,8 +532,7 @@ class GetDashboardDataUseCase:
+         # 如果有活跃信号，添加信号信息
+         if active_signals:
+             context["recent_signals"] = [
+-                {"asset": s["asset_code"], "direction": s["direction"]}
+-                for s in active_signals[:3]
++                {"asset": s["asset_code"], "direction": s["direction"]} for s in active_signals[:3]
+             ]
+ 
+         # 2. 构建 AI 提示词
+@@ -525,13 +540,13 @@ class GetDashboardDataUseCase:
+ 
+ 【宏观环境】
+ - 当前 Regime: {current_regime}
+-- 政策档位: {policy_level or 'P0'}
++- 政策档位: {policy_level or "P0"}
+ - Regime 匹配度: {match_analysis.total_match_score:.0f} 分
+ 
+ 【资产组合】
+ - 总资产: ¥{snapshot.total_value:,.0f}
+ - 收益率: {snapshot.total_return_pct:+.2f}%
+-- 仓位比例: {snapshot.get_invested_ratio()*100:.0f}% 股票 / { (1-snapshot.get_invested_ratio())*100:.0f}% 现金
++- 仓位比例: {snapshot.get_invested_ratio() * 100:.0f}% 股票 / {(1 - snapshot.get_invested_ratio()) * 100:.0f}% 现金
+ - 持仓数量: {len(snapshot.positions)} 个
+ - 活跃信号: {len(active_signals)} 个
+ 
+@@ -556,67 +571,71 @@ class GetDashboardDataUseCase:
+             api_url = _build_ai_api_url(provider.base_url)
+             headers = {
+                 "Content-Type": "application/json",
+-                "Authorization": f"Bearer {provider_repo.get_api_key(provider)}"
++                "Authorization": f"Bearer {provider_repo.get_api_key(provider)}",
+             }
+ 
+             # 根据不同的提供商调整请求格式
+-            if provider.provider_type == 'openai':
++            if provider.provider_type == "openai":
+                 payload = {
+                     "model": provider.default_model,
+                     "messages": [
+-                        {"role": "system", "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。"},
+-                        {"role": "user", "content": prompt}
++                        {
++                            "role": "system",
++                            "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。",
++                        },
++                        {"role": "user", "content": prompt},
+                     ],
+                     "temperature": 0.7,
+-                    "max_tokens": 500
++                    "max_tokens": 500,
+                 }
+-            elif provider.provider_type == 'deepseek':
++            elif provider.provider_type == "deepseek":
+                 payload = {
+                     "model": provider.default_model,
+                     "messages": [
+-                        {"role": "system", "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。"},
+-                        {"role": "user", "content": prompt}
++                        {
++                            "role": "system",
++                            "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。",
++                        },
++                        {"role": "user", "content": prompt},
+                     ],
+                     "temperature": 0.7,
+-                    "max_tokens": 500
++                    "max_tokens": 500,
+                 }
+             else:  # 通用格式
+                 payload = {
+                     "model": provider.default_model,
+                     "messages": [
+-                        {"role": "system", "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。"},
+-                        {"role": "user", "content": prompt}
++                        {
++                            "role": "system",
++                            "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。",
++                        },
++                        {"role": "user", "content": prompt},
+                     ],
+                     "temperature": 0.7,
+-                    "max_tokens": 500
++                    "max_tokens": 500,
+                 }
+ 
+             # 发送请求
+-            response = requests.post(
+-                api_url,
+-                headers=headers,
+-                json=payload,
+-                timeout=10
+-            )
++            response = requests.post(api_url, headers=headers, json=payload, timeout=10)
+ 
+             if response.status_code == 200:
+                 data = response.json()
+ 
+                 # 解析响应
+-                if provider.provider_type in ['openai', 'deepseek', 'qwen']:
+-                    content = data['choices'][0]['message']['content']
++                if provider.provider_type in ["openai", "deepseek", "qwen"]:
++                    content = data["choices"][0]["message"]["content"]
+                 else:
+                     content = str(data)
+ 
+                 # 分割建议（按行）
+-                lines = [line.strip() for line in content.split('\n') if line.strip()]
++                lines = [line.strip() for line in content.split("\n") if line.strip()]
+ 
+                 # 清理和限制建议数量
+                 insights = []
+                 for line in lines:
+                     # 移除序号、符号等
+-                    line = line.lstrip('0123456789.-*•、 ')
+-                    line = line.lstrip('【').rstrip('】')
++                    line = line.lstrip("0123456789.-*•、 ")
++                    line = line.lstrip("【").rstrip("】")
+                     if len(line) > 5 and len(line) < 100:  # 过滤太短或太长的
+                         insights.append(line)
+                     if len(insights) >= 5:  # 最多 5 条
+@@ -663,56 +682,56 @@ class GetDashboardDataUseCase:
+         # 获取所有启用的全局规则
+         all_rules = InvestmentRuleModel._default_manager.filter(
+             is_active=True,
+-            user__isnull=True  # 全局规则
+-        ).order_by('priority', 'id')
++            user__isnull=True,  # 全局规则
++        ).order_by("priority", "id")
+ 
+         # ==================== Level 1: 组合规则（最高优先级） ====================
+ 
+         # 1. Regime + Policy 组合规则
+-        combo_rules = all_rules.filter(rule_type='regime_policy_combo')
++        combo_rules = all_rules.filter(rule_type="regime_policy_combo")
+         for rule in combo_rules:
+             conditions = rule.conditions
+-            if conditions.get('regime') == current_regime:
+-                min_policy = conditions.get('min_policy_level', 0)
++            if conditions.get("regime") == current_regime:
++                min_policy = conditions.get("min_policy_level", 0)
+                 if policy_level_num >= min_policy:
+                     advice = rule.advice_template.format(
+                         regime=current_regime,
+                         policy_level=policy_level or "P0",
+                         match_score=f"{match_score:.0f}",
+-                        invested_ratio=f"{invested_ratio*100:.0f}%",
++                        invested_ratio=f"{invested_ratio * 100:.0f}%",
+                     )
+                     insights.append(advice)
+                     break  # 只取第一个匹配的
+ 
+         # 2. 匹配度 + 仓位 组合规则
+         if not insights:  # 只在前面没有匹配时检查
+-            match_pos_rules = all_rules.filter(rule_type='match_position_combo')
++            match_pos_rules = all_rules.filter(rule_type="match_position_combo")
+             for rule in match_pos_rules:
+                 conditions = rule.conditions
+-                max_match = conditions.get('max_match_score', 100)
+-                min_invested = conditions.get('min_invested_ratio', 0)
+-                max_invested = conditions.get('max_invested_ratio', 1)
++                max_match = conditions.get("max_match_score", 100)
++                min_invested = conditions.get("min_invested_ratio", 0)
++                max_invested = conditions.get("max_invested_ratio", 1)
+ 
+                 if match_score <= max_match and min_invested <= invested_ratio <= max_invested:
+                     advice = rule.advice_template.format(
+                         match_score=f"{match_score:.0f}",
+-                        invested_ratio=f"{invested_ratio*100:.0f}%",
++                        invested_ratio=f"{invested_ratio * 100:.0f}%",
+                     )
+                     insights.append(advice)
+                     break
+ 
+         # 3. Regime + 仓位 组合规则
+         if not insights:
+-            regime_pos_rules = all_rules.filter(rule_type='regime_position_combo')
++            regime_pos_rules = all_rules.filter(rule_type="regime_position_combo")
+             for rule in regime_pos_rules:
+                 conditions = rule.conditions
+-                if conditions.get('regime') == current_regime:
+-                    min_invested = conditions.get('min_invested_ratio', 0)
+-                    max_invested = conditions.get('max_invested_ratio', 1)
++                if conditions.get("regime") == current_regime:
++                    min_invested = conditions.get("min_invested_ratio", 0)
++                    max_invested = conditions.get("max_invested_ratio", 1)
+                     if min_invested <= invested_ratio <= max_invested:
+                         advice = rule.advice_template.format(
+                             regime=current_regime,
+-                            invested_ratio=f"{invested_ratio*100:.0f}%",
++                            invested_ratio=f"{invested_ratio * 100:.0f}%",
+                         )
+                         insights.append(advice)
+                         break
+@@ -721,25 +740,27 @@ class GetDashboardDataUseCase:
+ 
+         # 4. Regime环境建议
+         if len(insights) < 3:  # 限制建议数量
+-            regime_rules = all_rules.filter(rule_type='regime_advice')
++            regime_rules = all_rules.filter(rule_type="regime_advice")
+             for rule in regime_rules:
+                 conditions = rule.conditions
+-                if conditions.get('regime') == current_regime:
++                if conditions.get("regime") == current_regime:
+                     advice = rule.advice_template.format(
+                         regime=current_regime,
+-                        growth_direction="↑" if current_regime in ['Recovery', 'Overheat'] else "↓",
+-                        inflation_direction="↑" if current_regime in ['Overheat', 'Stagflation'] else "↓",
++                        growth_direction="↑" if current_regime in ["Recovery", "Overheat"] else "↓",
++                        inflation_direction="↑"
++                        if current_regime in ["Overheat", "Stagflation"]
++                        else "↓",
+                     )
+                     insights.append(advice)
+                     break
+ 
+         # 5. Policy档位建议
+         if len(insights) < 3:
+-            policy_rules = all_rules.filter(rule_type='policy_advice')
++            policy_rules = all_rules.filter(rule_type="policy_advice")
+             for rule in policy_rules:
+                 conditions = rule.conditions
+-                min_policy = conditions.get('min_policy_level', 0)
+-                max_policy = conditions.get('max_policy_level', 3)
++                min_policy = conditions.get("min_policy_level", 0)
++                max_policy = conditions.get("max_policy_level", 3)
+                 if min_policy <= policy_level_num <= max_policy:
+                     advice = rule.advice_template.format(
+                         policy_level=policy_level or "P0",
+@@ -749,26 +770,26 @@ class GetDashboardDataUseCase:
+ 
+         # 6. 仓位建议
+         if len(insights) < 3:
+-            position_rules = all_rules.filter(rule_type='position_advice')
++            position_rules = all_rules.filter(rule_type="position_advice")
+             for rule in position_rules:
+                 conditions = rule.conditions
+-                min_invested = conditions.get('min_invested_ratio', 0)
+-                max_invested = conditions.get('max_invested_ratio', 1)
++                min_invested = conditions.get("min_invested_ratio", 0)
++                max_invested = conditions.get("max_invested_ratio", 1)
+                 if min_invested <= invested_ratio <= max_invested:
+                     advice = rule.advice_template.format(
+-                        invested_ratio=f"{invested_ratio*100:.0f}%",
+-                        cash_ratio=f"{(1-invested_ratio)*100:.0f}%",
++                        invested_ratio=f"{invested_ratio * 100:.0f}%",
++                        cash_ratio=f"{(1 - invested_ratio) * 100:.0f}%",
+                     )
+                     insights.append(advice)
+                     break
+ 
+         # 7. 匹配度建议
+         if len(insights) < 3:
+-            match_rules = all_rules.filter(rule_type='match_advice')
++            match_rules = all_rules.filter(rule_type="match_advice")
+             for rule in match_rules:
+                 conditions = rule.conditions
+-                min_match = conditions.get('min_match_score', 0)
+-                max_match = conditions.get('max_match_score', 100)
++                min_match = conditions.get("min_match_score", 0)
++                max_match = conditions.get("max_match_score", 100)
+                 if min_match <= match_score <= max_match:
+                     advice = rule.advice_template.format(
+                         match_score=f"{match_score:.0f}",
+@@ -783,11 +804,11 @@ class GetDashboardDataUseCase:
+ 
+         # 8. 信号建议
+         if len(insights) < 3:
+-            signal_rules = all_rules.filter(rule_type='signal_advice')
++            signal_rules = all_rules.filter(rule_type="signal_advice")
+             for rule in signal_rules:
+                 conditions = rule.conditions
+-                min_count = conditions.get('min_signal_count', 0)
+-                has_active = conditions.get('has_active_signals', True)
++                min_count = conditions.get("min_signal_count", 0)
++                has_active = conditions.get("has_active_signals", True)
+ 
+                 match = False
+                 if has_active and len(active_signals) >= min_count:
+@@ -804,11 +825,11 @@ class GetDashboardDataUseCase:
+ 
+         # 9. 风险提示
+         if len(insights) < 3:
+-            risk_rules = all_rules.filter(rule_type='risk_alert')
++            risk_rules = all_rules.filter(rule_type="risk_alert")
+             for rule in risk_rules:
+                 conditions = rule.conditions
+-                min_return = conditions.get('min_return_pct', -100)
+-                max_return = conditions.get('max_return_pct', 100)
++                min_return = conditions.get("min_return_pct", -100)
++                max_return = conditions.get("max_return_pct", 100)
+                 if min_return <= snapshot.total_return_pct <= max_return:
+                     advice = rule.advice_template.format(
+                         return_pct=f"{snapshot.total_return_pct:.0f}",
+@@ -819,7 +840,7 @@ class GetDashboardDataUseCase:
+         # ==================== Level 3: 静态保底规则（永不空白） ====================
+ 
+         if len(insights) < 2:
+-            static_rules = all_rules.filter(rule_type='static_advice')
++            static_rules = all_rules.filter(rule_type="static_advice")
+             for rule in static_rules:
+                 insights.append(rule.advice_template)
+                 if len(insights) >= 2:
+@@ -857,9 +878,7 @@ class GetDashboardDataUseCase:
+         # 获取最新 PMI
+         try:
+             pmi_series = macro_repo.get_growth_series(
+-                indicator_code="PMI",
+-                end_date=date.today(),
+-                use_pit=False
++                indicator_code="PMI", end_date=date.today(), use_pit=False
+             )
+             pmi_value = float(pmi_series[-1]) if pmi_series else None
+         except Exception:
+@@ -868,9 +887,7 @@ class GetDashboardDataUseCase:
+         # 获取最新 CPI
+         try:
+             cpi_series = macro_repo.get_inflation_series(
+-                indicator_code="CPI",
+-                end_date=date.today(),
+-                use_pit=False
++                indicator_code="CPI", end_date=date.today(), use_pit=False
+             )
+             cpi_value = float(cpi_series[-1]) if cpi_series else None
+         except Exception:
+@@ -902,8 +919,7 @@ class GetDashboardDataUseCase:
+         pending_review_count = 0
+         try:
+             pending_review_count = PolicyAuditQueue._default_manager.filter(
+-                assigned_to__user_id=user_id,
+-                status__in=['pending', 'in_progress']
++                assigned_to__user_id=user_id, status__in=["pending", "in_progress"]
+             ).count()
+         except Exception:
+             pass
+@@ -913,19 +929,21 @@ class GetDashboardDataUseCase:
+         try:
+             recent_logs = PolicyLog._default_manager.filter(
+                 created_at__gte=timezone.now() - timedelta(days=7),
+-                audit_status__in=['auto_approved', 'manual_approved']
+-            ).order_by('-created_at')[:5]
++                audit_status__in=["auto_approved", "manual_approved"],
++            ).order_by("-created_at")[:5]
+ 
+             for p in recent_logs:
+-                recent_policies.append({
+-                    'id': p.id,
+-                    'title': p.title,
+-                    'level': p.level,
+-                    'level_display': p.get_level_display(),
+-                    'category': p.info_category,
+-                    'category_display': p.get_info_category_display(),
+-                    'created_at': p.created_at.strftime("%Y-%m-%d %H:%M"),
+-                })
++                recent_policies.append(
++                    {
++                        "id": p.id,
++                        "title": p.title,
++                        "level": p.level,
++                        "level_display": p.get_level_display(),
++                        "category": p.info_category,
++                        "category_display": p.get_info_category_display(),
++                        "created_at": p.created_at.strftime("%Y-%m-%d %H:%M"),
++                    }
++                )
+         except Exception:
+             pass
+ 
+@@ -996,16 +1014,15 @@ class GetDashboardDataUseCase:
+         """
+         allocation_chart_data = {}
+         for alloc in asset_allocation:
+-            dimension_display = alloc.get('dimension_display', alloc.get('dimension_value', 'Unknown'))
+-            market_value = alloc.get('market_value', 0)
++            dimension_display = alloc.get(
++                "dimension_display", alloc.get("dimension_value", "Unknown")
++            )
++            market_value = alloc.get("market_value", 0)
+             allocation_chart_data[dimension_display] = market_value
+         return allocation_chart_data
+ 
+     def _generate_performance_chart_data(
+-        self,
+-        portfolio_id: int,
+-        current_total_return_pct: float,
+-        days: int = 30
++        self, portfolio_id: int, current_total_return_pct: float, days: int = 30
+     ) -> List[Dict]:
+         """
+         生成收益趋势图表数据
+@@ -1065,4 +1082,3 @@ class GetDashboardDataUseCase:
+             )
+ 
+         return performance_data
+-
+diff --git a/apps/decision_rhythm/interface/views.py b/apps/decision_rhythm/interface/views.py
+index c0f5345..b6b37e3 100644
+--- a/apps/decision_rhythm/interface/views.py
++++ b/apps/decision_rhythm/interface/views.py
+@@ -116,11 +116,13 @@ class DecisionQuotaViewSet(viewsets.ViewSet):
+ 
+             serializer = DecisionQuotaSerializer(quotas, many=True)
+ 
+-            return Response({
+-                "success": True,
+-                "count": len(quotas),
+-                "results": serializer.data,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "count": len(quotas),
++                    "results": serializer.data,
++                }
++            )
+ 
+         except Exception as e:
+             logger.error(f"Failed to list quotas: {e}", exc_info=True)
+@@ -161,10 +163,12 @@ class DecisionQuotaViewSet(viewsets.ViewSet):
+ 
+             serializer = DecisionQuotaSerializer(quota)
+ 
+-            return Response({
+-                "success": True,
+-                "result": serializer.data,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "result": serializer.data,
++                }
++            )
+ 
+         except ValueError as e:
+             return Response(
+@@ -207,11 +211,13 @@ class CooldownPeriodViewSet(viewsets.ViewSet):
+ 
+             serializer = CooldownPeriodSerializer(cooldowns, many=True)
+ 
+-            return Response({
+-                "success": True,
+-                "count": len(cooldowns),
+-                "results": serializer.data,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "count": len(cooldowns),
++                    "results": serializer.data,
++                }
++            )
+ 
+         except Exception as e:
+             logger.error(f"Failed to list cooldowns: {e}", exc_info=True)
+@@ -231,18 +237,22 @@ class CooldownPeriodViewSet(viewsets.ViewSet):
+             cooldown = self.cooldown_repository.get_active_cooldown(asset_code)
+ 
+             if cooldown is None:
+-                return Response({
+-                    "success": True,
+-                    "result": None,
+-                    "message": "No active cooldown for this asset",
+-                })
++                return Response(
++                    {
++                        "success": True,
++                        "result": None,
++                        "message": "No active cooldown for this asset",
++                    }
++                )
+ 
+             serializer = CooldownPeriodSerializer(cooldown)
+ 
+-            return Response({
+-                "success": True,
+-                "result": serializer.data,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "result": serializer.data,
++                }
++            )
+ 
+         except Exception as e:
+             logger.error(f"Failed to get cooldown by asset: {e}", exc_info=True)
+@@ -270,14 +280,16 @@ class CooldownPeriodViewSet(viewsets.ViewSet):
+ 
+             remaining = self.cooldown_repository.get_remaining_hours(asset_code, direction)
+ 
+-            return Response({
+-                "success": True,
+-                "result": {
+-                    "asset_code": asset_code,
+-                    "remaining_hours": remaining,
+-                    "is_active": remaining > 0,
+-                },
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "result": {
++                        "asset_code": asset_code,
++                        "remaining_hours": remaining,
++                        "is_active": remaining > 0,
++                    },
++                }
++            )
+ 
+         except Exception as e:
+             logger.error(f"Failed to get remaining hours: {e}", exc_info=True)
+@@ -318,11 +330,13 @@ class DecisionRequestViewSet(viewsets.ViewSet):
+ 
+             serializer = DecisionRequestSerializer(requests, many=True)
+ 
+-            return Response({
+-                "success": True,
+-                "count": len(requests),
+-                "results": serializer.data,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "count": len(requests),
++                    "results": serializer.data,
++                }
++            )
+ 
+         except (TypeError, ValueError) as e:
+             return _bad_request_response(f"Invalid query params: {e}")
+@@ -346,10 +360,12 @@ class DecisionRequestViewSet(viewsets.ViewSet):
+ 
+             serializer = DecisionRequestSerializer(decision_request)
+ 
+-            return Response({
+-                "success": True,
+-                "result": serializer.data,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "result": serializer.data,
++                }
++            )
+ 
+         except Exception as e:
+             logger.error(f"Failed to retrieve request: {e}", exc_info=True)
+@@ -370,10 +386,12 @@ class DecisionRequestViewSet(viewsets.ViewSet):
+ 
+             stats = self.request_repository.get_statistics(days)
+ 
+-            return Response({
+-                "success": True,
+-                "result": stats,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "result": stats,
++                }
++            )
+ 
+         except (TypeError, ValueError) as e:
+             return _bad_request_response(f"Invalid query params: {e}")
+@@ -429,23 +447,27 @@ class SubmitDecisionRequestView(APIView):
+                 open_by_candidate = self.request_repository.get_open_by_candidate_id(candidate_id)
+             if open_by_candidate:
+                 request_serializer = DecisionRequestSerializer(open_by_candidate)
+-                return Response({
+-                    "success": True,
+-                    "result": request_serializer.data,
+-                    "deduplicated": True,
+-                    "message": "该候选已有待执行请求，已复用",
+-                })
++                return Response(
++                    {
++                        "success": True,
++                        "result": request_serializer.data,
++                        "deduplicated": True,
++                        "message": "该候选已有待执行请求，已复用",
++                    }
++                )
+ 
+             # 幂等控制2：同证券已有待执行请求则直接返回
+             open_by_asset = self.request_repository.get_open_by_asset_code(data["asset_code"])
+             if open_by_asset:
+                 request_serializer = DecisionRequestSerializer(open_by_asset)
+-                return Response({
+-                    "success": True,
+-                    "result": request_serializer.data,
+-                    "deduplicated": True,
+-                    "message": "该证券已有待执行请求，已复用",
+-                })
++                return Response(
++                    {
++                        "success": True,
++                        "result": request_serializer.data,
++                        "deduplicated": True,
++                        "message": "该证券已有待执行请求，已复用",
++                    }
++                )
+ 
+             # 构建请求
+             req = SubmitDecisionRequestRequest(
+@@ -486,7 +508,10 @@ class SubmitDecisionRequestView(APIView):
+                 # Legacy 接口转调：创建或更新 UnifiedRecommendation
+                 recommendation_id = None
+                 try:
+-                    from ..infrastructure.models import UnifiedRecommendationModel, DecisionFeatureSnapshotModel
++                    from ..infrastructure.models import (
++                        UnifiedRecommendationModel,
++                        DecisionFeatureSnapshotModel,
++                    )
+                     from ..domain.entities import RecommendationStatus
+                     from uuid import uuid4
+ 
+@@ -494,11 +519,15 @@ class SubmitDecisionRequestView(APIView):
+                     account_id = data.get("account_id") or "default"
+ 
+                     # 检查是否已存在同账户同证券同方向的推荐
+-                    existing_rec = UnifiedRecommendationModel.objects.filter(
+-                        account_id=account_id,
+-                        security_code=data["asset_code"],
+-                        side=data["direction"],
+-                    ).exclude(status="CONFLICT").first()
++                    existing_rec = (
++                        UnifiedRecommendationModel.objects.filter(
++                            account_id=account_id,
++                            security_code=data["asset_code"],
++                            side=data["direction"],
++                        )
++                        .exclude(status="CONFLICT")
++                        .first()
++                    )
+ 
+                     if existing_rec:
+                         # 复用现有推荐，关联 legacy request
+@@ -509,7 +538,9 @@ class SubmitDecisionRequestView(APIView):
+                             if candidate_id not in existing_ids:
+                                 existing_ids = existing_ids + [candidate_id]
+                                 existing_rec.source_candidate_ids = existing_ids
+-                                existing_rec.save(update_fields=["source_candidate_ids", "updated_at"])
++                                existing_rec.save(
++                                    update_fields=["source_candidate_ids", "updated_at"]
++                                )
+                     else:
+                         # 创建新的 UnifiedRecommendation（简化版本，不含完整评分）
+                         snapshot = DecisionFeatureSnapshotModel.objects.create(
+@@ -533,7 +564,9 @@ class SubmitDecisionRequestView(APIView):
+                             beta_gate_passed=True,
+                             composite_score=0.0,
+                             confidence=data.get("expected_confidence", 0.5),
+-                            reason_codes=[data.get("reason", "legacy_submit")] if data.get("reason") else ["legacy_submit"],
++                            reason_codes=[data.get("reason", "legacy_submit")]
++                            if data.get("reason")
++                            else ["legacy_submit"],
+                             human_rationale=f"Legacy submit: {data.get('reason', 'N/A')}",
+                             fair_value=Decimal("0"),
+                             entry_price_low=Decimal("0"),
+@@ -550,16 +583,23 @@ class SubmitDecisionRequestView(APIView):
+                             status=RecommendationStatus.NEW.value,
+                         )
+                         recommendation_id = new_rec.recommendation_id
+-                        logger.info(f"Created UnifiedRecommendation {recommendation_id} from legacy submit")
++                        logger.info(
++                            f"Created UnifiedRecommendation {recommendation_id} from legacy submit"
++                        )
+ 
+                 except Exception as e:
+-                    logger.warning(f"Failed to create UnifiedRecommendation from legacy submit: {e}")
++                    logger.warning(
++                        f"Failed to create UnifiedRecommendation from legacy submit: {e}"
++                    )
+ 
+                 # 提交成功后收口候选状态，避免继续停留在 ACTIONABLE
+                 if response.response.approved and response.decision_request.candidate_id:
+                     try:
+-                        from apps.alpha_trigger.infrastructure.repositories import get_candidate_repository
++                        from apps.alpha_trigger.infrastructure.repositories import (
++                            get_candidate_repository,
++                        )
+                         from apps.alpha_trigger.domain.entities import CandidateStatus
++
+                         candidate_repo = get_candidate_repository()
+                         candidate_repo.update_status(
+                             candidate_id=response.decision_request.candidate_id,
+@@ -575,11 +615,13 @@ class SubmitDecisionRequestView(APIView):
+ 
+                 request_serializer = DecisionRequestSerializer(response.decision_request)
+ 
+-                return Response({
+-                    "success": True,
+-                    "result": request_serializer.data,
+-                    "recommendation_id": recommendation_id,  # 添加 UnifiedRecommendation ID
+-                })
++                return Response(
++                    {
++                        "success": True,
++                        "result": request_serializer.data,
++                        "recommendation_id": recommendation_id,  # 添加 UnifiedRecommendation ID
++                    }
++                )
+             else:
+                 return Response(
+                     {"success": False, "error": response.error},
+@@ -642,7 +684,9 @@ class SubmitBatchRequestView(APIView):
+                         expected_confidence=req_data.get("expected_confidence", 0.0),
+                         quantity=req_data.get("quantity"),
+                         notional=req_data.get("notional"),
+-                        quota_period=QuotaPeriod(data.get("quota_period", QuotaPeriod.WEEKLY.value)),
++                        quota_period=QuotaPeriod(
++                            data.get("quota_period", QuotaPeriod.WEEKLY.value)
++                        ),
+                     )
+                 )
+ 
+@@ -673,15 +717,16 @@ class SubmitBatchRequestView(APIView):
+                     )
+ 
+                 request_serializer = DecisionRequestSerializer(
+-                    response.decision_requests,
+-                    many=True
++                    response.decision_requests, many=True
+                 )
+ 
+-                return Response({
+-                    "success": True,
+-                    "requests": request_serializer.data,
+-                    "summary": response.summary,
+-                })
++                return Response(
++                    {
++                        "success": True,
++                        "requests": request_serializer.data,
++                        "summary": response.summary,
++                    }
++                )
+             else:
+                 return Response(
+                     {"success": False, "error": response.error},
+@@ -731,10 +776,12 @@ class GetRhythmSummaryView(APIView):
+             response = use_case.execute(GetRhythmSummaryRequest())
+ 
+             if response.success:
+-                return Response({
+-                    "success": True,
+-                    "result": response.summary,
+-                })
++                return Response(
++                    {
++                        "success": True,
++                        "result": response.summary,
++                    }
++                )
+             else:
+                 return Response(
+                     {"success": False, "error": response.error},
+@@ -792,10 +839,12 @@ class ResetQuotaView(APIView):
+             response = use_case.execute(ResetQuotaRequest(period))
+ 
+             if response.success:
+-                return Response({
+-                    "success": True,
+-                    "message": response.message,
+-                })
++                return Response(
++                    {
++                        "success": True,
++                        "message": response.message,
++                    }
++                )
+             else:
+                 return Response(
+                     {"success": False, "error": response.error},
+@@ -872,32 +921,39 @@ class TrendDataView(APIView):
+                 # 模拟数据：实际应该从数据库查询
+                 # 这里生成一些合理的模拟数据用于演示
+                 import random
++
+                 random.seed(hash(date_str))  # 使用日期作为种子，保证数据一致性
+ 
+                 decisions = min(random.randint(0, daily_quota + 2), daily_quota * 1.5)
+                 executions = min(random.randint(0, decisions), decisions)
+ 
+-                daily_decisions.append({
+-                    "date": date_str,
+-                    "value": decisions,
+-                    "max_quota": daily_quota,
+-                })
+-
+-                daily_executions.append({
+-                    "date": date_str,
+-                    "value": executions,
+-                    "max_quota": daily_quota // 2,  # 假设执行限制是决策限制的一半
+-                })
+-
+-            return Response({
+-                "success": True,
+-                "data": {
+-                    "daily_decisions": daily_decisions,
+-                    "daily_executions": daily_executions,
+-                    "period_days": days,
+-                    "daily_quota_limit": daily_quota,
++                daily_decisions.append(
++                    {
++                        "date": date_str,
++                        "value": decisions,
++                        "max_quota": daily_quota,
++                    }
++                )
++
++                daily_executions.append(
++                    {
++                        "date": date_str,
++                        "value": executions,
++                        "max_quota": daily_quota // 2,  # 假设执行限制是决策限制的一半
++                    }
++                )
++
++            return Response(
++                {
++                    "success": True,
++                    "data": {
++                        "daily_decisions": daily_decisions,
++                        "daily_executions": daily_executions,
++                        "period_days": days,
++                        "daily_quota_limit": daily_quota,
++                    },
+                 }
+-            })
++            )
+ 
+         except (TypeError, ValueError) as e:
+             return _bad_request_response(f"Invalid query params: {e}")
+@@ -923,28 +979,43 @@ def decision_rhythm_quota_view(request):
+ 
+         # 直接查询 ORM 模型
+         try:
+-            current_quota = DecisionQuotaModel._default_manager.filter(
+-                is_active=True
+-            ).order_by('-period_start').first()
++            current_quota = (
++                DecisionQuotaModel._default_manager.filter(is_active=True)
++                .order_by("-period_start")
++                .first()
++            )
+         except Exception as e:
+             logger.warning(f"Failed to query current quota: {e}")
+             current_quota = None
+ 
+         try:
+             # CooldownPeriodModel 没有 status 字段，查询所有记录
+-            active_cooldowns = list(CooldownPeriodModel._default_manager.all().order_by('-created_at')[:10])
++            active_cooldowns = list(
++                CooldownPeriodModel._default_manager.all().order_by("-created_at")[:10]
++            )
+         except Exception as e:
+             logger.warning(f"Failed to query active cooldowns: {e}")
+             active_cooldowns = []
+ 
+         try:
+-            recent_requests = list(DecisionRequestModel._default_manager.all().order_by(
+-                '-requested_at'
+-            )[:20])
++            recent_requests = list(
++                DecisionRequestModel._default_manager.all().order_by("-requested_at")[:20]
++            )
+         except Exception as e:
+             logger.warning(f"Failed to query recent requests: {e}")
+             recent_requests = []
+ 
++        # 批量解析资产名称
++        from shared.infrastructure.asset_name_resolver import resolve_asset_names
++
++        asset_codes = [r.asset_code for r in recent_requests if r.asset_code]
++        asset_codes += [c.asset_code for c in active_cooldowns if c.asset_code]
++        asset_name_map = resolve_asset_names(asset_codes)
++        for request in recent_requests:
++            request.asset_name = asset_name_map.get(request.asset_code, request.asset_code)
++        for cooldown in active_cooldowns:
++            cooldown.asset_name = asset_name_map.get(cooldown.asset_code, cooldown.asset_code)
++
+         # 计算配额使用情况
+         quota_used = 0
+         quota_remaining = 0
+@@ -962,7 +1033,9 @@ def decision_rhythm_quota_view(request):
+             "quota_used": quota_used,
+             "quota_remaining": max(0, quota_remaining),
+             "quota_total": quota_total,
+-            "quota_usage_percent": round(quota_used / quota_total * 100, 1) if quota_total > 0 else 0,
++            "quota_usage_percent": round(quota_used / quota_total * 100, 1)
++            if quota_total > 0
++            else 0,
+             "page_title": "决策配额管理",
+             "page_description": "决策频率约束与配额监控",
+         }
+@@ -989,7 +1062,7 @@ def decision_rhythm_config_view(request):
+         from django.utils import timezone
+ 
+         # 获取所有配额
+-        quotas = list(DecisionQuotaModel._default_manager.all().order_by('period'))
++        quotas = list(DecisionQuotaModel._default_manager.all().order_by("period"))
+ 
+         # 按周期分组
+         quota_by_period = {}
+@@ -1082,6 +1155,7 @@ class PrecheckDecisionView(APIView):
+             beta_gate_passed = True
+             try:
+                 from apps.beta_gate.domain.services import BetaGateMatcher
++
+                 matcher = BetaGateMatcher(self.beta_gate_repo)
+                 # 简化检查：假设通过
+                 beta_gate_passed = True
+@@ -1106,7 +1180,7 @@ class PrecheckDecisionView(APIView):
+             try:
+                 remaining = self.cooldown_repo.get_remaining_hours(
+                     candidate.asset_code,
+-                    candidate.direction if hasattr(candidate, 'direction') else None
++                    candidate.direction if hasattr(candidate, "direction") else None,
+                 )
+                 cooldown_ok = remaining <= 0
+                 if not cooldown_ok:
+@@ -1116,22 +1190,25 @@ class PrecheckDecisionView(APIView):
+ 
+             # 4. 候选状态检查
+             from apps.alpha_trigger.domain.entities import CandidateStatus
++
+             candidate_valid = candidate.status == CandidateStatus.ACTIONABLE
+             if not candidate_valid:
+                 errors.append(f"候选状态不是 ACTIONABLE，当前状态: {candidate.status}")
+ 
+-            return Response({
+-                "success": True,
+-                "result": {
+-                    "candidate_id": candidate_id,
+-                    "beta_gate_passed": beta_gate_passed,
+-                    "quota_ok": quota_ok,
+-                    "cooldown_ok": cooldown_ok,
+-                    "candidate_valid": candidate_valid,
+-                    "warnings": warnings,
+-                    "errors": errors,
++            return Response(
++                {
++                    "success": True,
++                    "result": {
++                        "candidate_id": candidate_id,
++                        "beta_gate_passed": beta_gate_passed,
++                        "quota_ok": quota_ok,
++                        "cooldown_ok": cooldown_ok,
++                        "candidate_valid": candidate_valid,
++                        "warnings": warnings,
++                        "errors": errors,
++                    },
+                 }
+-            })
++            )
+ 
+         except Exception as e:
+             logger.error(f"Precheck failed: {e}", exc_info=True)
+@@ -1233,16 +1310,26 @@ class ExecuteDecisionRequestView(APIView):
+             response = use_case.execute(exec_request)
+ 
+             if response.success:
+-                return Response({
+-                    "success": True,
+-                    "result": {
+-                        "request_id": request_id,
+-                        "execution_status": response.result.execution_status if response.result else "EXECUTED",
+-                        "executed_at": response.result.executed_at.isoformat() if response.result and response.result.executed_at else None,
+-                        "execution_ref": response.result.execution_ref if response.result else None,
+-                        "candidate_status": response.result.candidate_status if response.result else None,
++                return Response(
++                    {
++                        "success": True,
++                        "result": {
++                            "request_id": request_id,
++                            "execution_status": response.result.execution_status
++                            if response.result
++                            else "EXECUTED",
++                            "executed_at": response.result.executed_at.isoformat()
++                            if response.result and response.result.executed_at
++                            else None,
++                            "execution_ref": response.result.execution_ref
++                            if response.result
++                            else None,
++                            "candidate_status": response.result.candidate_status
++                            if response.result
++                            else None,
++                        },
+                     }
+-                })
++                )
+             else:
+                 return Response(
+                     {"success": False, "error": response.error},
+@@ -1298,7 +1385,10 @@ class CancelDecisionRequestView(APIView):
+             # 检查状态是否可取消
+             if decision_request.execution_status not in ["PENDING", "FAILED"]:
+                 return Response(
+-                    {"success": False, "error": f"Cannot cancel request with status: {decision_request.execution_status}"},
++                    {
++                        "success": False,
++                        "error": f"Cannot cancel request with status: {decision_request.execution_status}",
++                    },
+                     status=status.HTTP_400_BAD_REQUEST,
+                 )
+ 
+@@ -1317,14 +1407,16 @@ class CancelDecisionRequestView(APIView):
+                 except Exception as e:
+                     logger.warning(f"Failed to update candidate status: {e}")
+ 
+-            return Response({
+-                "success": True,
+-                "result": {
+-                    "request_id": request_id,
+-                    "status": "CANCELLED",
+-                    "reason": reason,
++            return Response(
++                {
++                    "success": True,
++                    "result": {
++                        "request_id": request_id,
++                        "status": "CANCELLED",
++                        "reason": reason,
++                    },
+                 }
+-            })
++            )
+ 
+         except Exception as e:
+             logger.error(f"Cancel decision failed: {e}", exc_info=True)
+@@ -1375,7 +1467,7 @@ class UpdateQuotaConfigView(APIView):
+                     "quota_id": f"quota_{uuid.uuid4().hex[:12]}",
+                     "max_decisions": max_decisions,
+                     "max_execution_count": max_executions,
+-                }
++                },
+             )
+ 
+             if not created:
+@@ -1383,13 +1475,15 @@ class UpdateQuotaConfigView(APIView):
+                 quota.max_execution_count = max_executions
+                 quota.save()
+ 
+-            return Response({
+-                "success": True,
+-                "quota_id": quota.quota_id,
+-                "period": quota.period,
+-                "max_decisions": quota.max_decisions,
+-                "max_executions": quota.max_execution_count,
+-            })
++            return Response(
++                {
++                    "success": True,
++                    "quota_id": quota.quota_id,
++                    "period": quota.period,
++                    "max_decisions": quota.max_decisions,
++                    "max_executions": quota.max_execution_count,
++                }
++            )
+ 
+         except (TypeError, ValueError, KeyError) as e:
+             return _bad_request_response(e)
+diff --git a/apps/decision_rhythm/templates/decision_rhythm/quota.html b/apps/decision_rhythm/templates/decision_rhythm/quota.html
+index 3bd81f0..1260ec2 100644
+--- a/apps/decision_rhythm/templates/decision_rhythm/quota.html
++++ b/apps/decision_rhythm/templates/decision_rhythm/quota.html
+@@ -524,6 +524,7 @@
+                         <tr>
+                             <th>请求ID</th>
+                             <th>资产代码</th>
++                            <th>名称</th>
+                             <th>方向</th>
+                             <th>执行状态</th>
+                             <th>优先级</th>
+@@ -536,6 +537,7 @@
+                         <tr>
+                             <td><code class="asset-code">{{ request.request_id|slice:":8" }}</code></td>
+                             <td><code class="asset-code">{{ request.asset_code }}</code></td>
++                            <td>{{ request.asset_name|default:"-" }}</td>
+                             <td>
+                                 <span class="type-badge">
+                                     {{ request.direction|default:"-" }}
+@@ -578,7 +580,7 @@
+                 {% if active_cooldowns %}
+                 {% for cooldown in active_cooldowns|slice:":10" %}
+                 <div class="cooldown-item">
+-                    <div class="cooldown-asset">{{ cooldown.asset_code }}</div>
++                    <div class="cooldown-asset">{{ cooldown.asset_code }} <span style="color: #64748b; font-weight: 400;">{{ cooldown.asset_name|default:"" }}</span></div>
+                     <div class="cooldown-reason">冷却 {{ cooldown.min_decision_interval_hours }}h / {{ cooldown.min_execution_interval_hours }}h</div>
+                     <div class="cooldown-timer">
+                         {% if cooldown.last_decision_at %}
+diff --git a/apps/signal/interface/views.py b/apps/signal/interface/views.py
+index 6db9e21..0df6940 100644
+--- a/apps/signal/interface/views.py
++++ b/apps/signal/interface/views.py
+@@ -26,10 +26,10 @@ from datetime import date
+ def signal_manage_view(request):
+     """投资信号管理页面"""
+     # 获取筛选参数
+-    status_filter = request.GET.get('status', '')
+-    asset_class = request.GET.get('asset_class', '')
+-    direction = request.GET.get('direction', '')
+-    search = request.GET.get('search', '')
++    status_filter = request.GET.get("status", "")
++    asset_class = request.GET.get("asset_class", "")
++    direction = request.GET.get("direction", "")
++    search = request.GET.get("search", "")
+ 
+     # 基础查询
+     queryset = InvestmentSignalModel._default_manager.all()
+@@ -47,58 +47,69 @@ def signal_manage_view(request):
+         )
+ 
+     # 获取信号列表
+-    signals = queryset.order_by('-created_at')[:50]
++    signals = list(queryset.order_by("-created_at")[:50])
++
++    # 批量解析资产名称
++    from shared.infrastructure.asset_name_resolver import resolve_asset_names
++
++    asset_codes = [s.asset_code for s in signals if s.asset_code]
++    asset_name_map = resolve_asset_names(asset_codes)
++    for signal in signals:
++        signal.asset_name = asset_name_map.get(signal.asset_code, signal.asset_code)
+ 
+     # 统计信息
+     stats = {
+-        'total': InvestmentSignalModel._default_manager.count(),
+-        'pending': InvestmentSignalModel._default_manager.filter(status='pending').count(),
+-        'approved': InvestmentSignalModel._default_manager.filter(status='approved').count(),
+-        'rejected': InvestmentSignalModel._default_manager.filter(status='rejected').count(),
+-        'invalidated': InvestmentSignalModel._default_manager.filter(status='invalidated').count(),
++        "total": InvestmentSignalModel._default_manager.count(),
++        "pending": InvestmentSignalModel._default_manager.filter(status="pending").count(),
++        "approved": InvestmentSignalModel._default_manager.filter(status="approved").count(),
++        "rejected": InvestmentSignalModel._default_manager.filter(status="rejected").count(),
++        "invalidated": InvestmentSignalModel._default_manager.filter(status="invalidated").count(),
+     }
+ 
+     # 获取所有资产类别和方向
+-    asset_classes = InvestmentSignalModel._default_manager.values('asset_class').distinct()
+-    directions = InvestmentSignalModel._default_manager.values('direction').distinct()
++    asset_classes = InvestmentSignalModel._default_manager.values("asset_class").distinct()
++    directions = InvestmentSignalModel._default_manager.values("direction").distinct()
+ 
+     # 获取当前 Regime 信息
+     current_regime = get_current_regime()
+ 
+     # 获取推荐资产
+-    recommended_assets = get_recommended_assets(current_regime['dominant_regime'] if current_regime else 'Deflation')
++    recommended_assets = get_recommended_assets(
++        current_regime["dominant_regime"] if current_regime else "Deflation"
++    )
+ 
+     # 从数据库动态获取可用指标列表
+     from apps.macro.application.indicator_service import get_available_indicators_for_frontend
++
+     available_indicators = get_available_indicators_for_frontend()
+ 
+     context = {
+-        'signals': signals,
+-        'stats': stats,
+-        'asset_classes': [ac['asset_class'] for ac in asset_classes],
+-        'directions': [d['direction'] for d in directions],
+-        'filter_status': status_filter,
+-        'filter_asset_class': asset_class,
+-        'filter_direction': direction,
+-        'filter_search': search,
+-        'current_regime': current_regime,
+-        'recommended_assets': recommended_assets,
+-        'all_asset_classes': list(get_eligibility_matrix().keys()),
+-        'all_regimes': ['Recovery', 'Overheat', 'Stagflation', 'Deflation'],
+-        'available_indicators': available_indicators,
++        "signals": signals,
++        "stats": stats,
++        "asset_classes": [ac["asset_class"] for ac in asset_classes],
++        "directions": [d["direction"] for d in directions],
++        "filter_status": status_filter,
++        "filter_asset_class": asset_class,
++        "filter_direction": direction,
++        "filter_search": search,
++        "current_regime": current_regime,
++        "recommended_assets": recommended_assets,
++        "all_asset_classes": list(get_eligibility_matrix().keys()),
++        "all_regimes": ["Recovery", "Overheat", "Stagflation", "Deflation"],
++        "available_indicators": available_indicators,
+     }
+ 
+-    return render(request, 'signal/manage.html', context)
++    return render(request, "signal/manage.html", context)
+ 
+ 
+ def get_current_regime():
+     """获取当前 Regime 信息"""
+     latest = resolve_current_regime(as_of_date=date.today())
+     return {
+-        'dominant_regime': latest.dominant_regime,
+-        'confidence': latest.confidence,
+-        'observed_at': latest.observed_at,
+-        'distribution': {},
++        "dominant_regime": latest.dominant_regime,
++        "confidence": latest.confidence,
++        "observed_at": latest.observed_at,
++        "distribution": {},
+     }
+ 
+ 
+@@ -112,9 +123,9 @@ def get_recommended_assets(regime: str):
+     response = use_case.execute(request)
+ 
+     return {
+-        'recommended': response.recommended,
+-        'neutral': response.neutral,
+-        'hostile': response.hostile,
++        "recommended": response.recommended,
++        "neutral": response.neutral,
++        "hostile": response.hostile,
+     }
+ 
+ 
+@@ -126,41 +137,35 @@ def create_signal_view(request):
+ 
+     import json
+ 
+-    asset_code = request.POST.get('asset_code', '').strip()
+-    asset_class = request.POST.get('asset_class', '').strip()
+-    direction = request.POST.get('direction', 'LONG').strip()
+-    logic_desc = request.POST.get('logic_desc', '').strip()
+-    invalidation_rules_json = request.POST.get('invalidation_rules', '{}')
+-    target_regime = request.POST.get('target_regime', 'Recovery').strip()
++    asset_code = request.POST.get("asset_code", "").strip()
++    asset_class = request.POST.get("asset_class", "").strip()
++    direction = request.POST.get("direction", "LONG").strip()
++    logic_desc = request.POST.get("logic_desc", "").strip()
++    invalidation_rules_json = request.POST.get("invalidation_rules", "{}")
++    target_regime = request.POST.get("target_regime", "Recovery").strip()
+ 
+     # 基本验证
+     if not all([asset_code, asset_class, logic_desc]):
+-        return JsonResponse({
+-            'success': False,
+-            'error': '请填写所有必填字段'
+-        })
++        return JsonResponse({"success": False, "error": "请填写所有必填字段"})
+ 
+     # 解析证伪规则
+     try:
+         invalidation_rules = json.loads(invalidation_rules_json)
+     except json.JSONDecodeError:
+-        return JsonResponse({
+-            'success': False,
+-            'error': '证伪规则格式错误'
+-        })
++        return JsonResponse({"success": False, "error": "证伪规则格式错误"})
+ 
+     # 生成人类可读的描述
+     invalidation_logic = generate_invalidation_logic_text(invalidation_rules)
+ 
+     # 提取阈值（取第一个条件的阈值）
+     invalidation_threshold = None
+-    if invalidation_rules.get('conditions'):
+-        invalidation_threshold = invalidation_rules['conditions'][0].get('threshold')
++    if invalidation_rules.get("conditions"):
++        invalidation_threshold = invalidation_rules["conditions"][0].get("threshold")
+ 
+     # 获取当前 Regime
+     current_regime_data = get_current_regime()
+-    current_regime = current_regime_data['dominant_regime']
+-    confidence = current_regime_data['confidence']
++    current_regime = current_regime_data["dominant_regime"]
++    confidence = current_regime_data["confidence"]
+ 
+     # 执行准入检查
+     validate_use_case = ValidateSignalUseCase()
+@@ -189,95 +194,88 @@ def create_signal_view(request):
+         invalidation_threshold=invalidation_threshold,
+         invalidation_rules=invalidation_rules if invalidation_rules else None,
+         target_regime=target_regime,
+-        status='approved' if response.is_approved else 'rejected',
+-        rejection_reason=response.rejection_record.reason if response.rejection_record else '',
++        status="approved" if response.is_approved else "rejected",
++        rejection_reason=response.rejection_record.reason if response.rejection_record else "",
+     )
+ 
+-    return JsonResponse({
+-        'success': True,
+-        'signal_id': signal.id,
+-        'is_approved': response.is_approved,
+-        'warnings': response.warnings,
+-        'rejection_reason': signal.rejection_reason if not response.is_approved else None,
+-    })
++    return JsonResponse(
++        {
++            "success": True,
++            "signal_id": signal.id,
++            "is_approved": response.is_approved,
++            "warnings": response.warnings,
++            "rejection_reason": signal.rejection_reason if not response.is_approved else None,
++        }
++    )
+ 
+ 
+ def generate_invalidation_logic_text(rules: dict) -> str:
+     """从结构化规则生成人类可读的文本"""
+-    if not rules or not rules.get('conditions'):
++    if not rules or not rules.get("conditions"):
+         return "未设置证伪条件"
+ 
+     conditions = []
+-    for cond in rules.get('conditions', []):
+-        indicator = cond.get('indicator', '')
+-        op = cond.get('condition', '')
+-        threshold = cond.get('threshold', '')
++    for cond in rules.get("conditions", []):
++        indicator = cond.get("indicator", "")
++        op = cond.get("condition", "")
++        threshold = cond.get("threshold", "")
+ 
+-        op_map = {'lt': '<', 'lte': '≤', 'gt': '>', 'gte': '≥', 'eq': '='}
++        op_map = {"lt": "<", "lte": "≤", "gt": ">", "gte": "≥", "eq": "="}
+         cond_str = f"{indicator} {op_map.get(op, op)} {threshold}"
+ 
+-        if cond.get('duration'):
++        if cond.get("duration"):
+             cond_str += f" 连续{cond['duration']}期"
+-        if cond.get('compare_with'):
+-            compare_map = {'prev_value': '前值', 'prev_year': '同期'}
++        if cond.get("compare_with"):
++            compare_map = {"prev_value": "前值", "prev_year": "同期"}
+             cond_str += f" (较{compare_map.get(cond['compare_with'], cond['compare_with'])})"
+ 
+         conditions.append(cond_str)
+ 
+-    logic = rules.get('logic', 'AND')
+-    logic_text = ' 且 ' if logic == 'AND' else ' 或 '
++    logic = rules.get("logic", "AND")
++    logic_text = " 且 " if logic == "AND" else " 或 "
+     return f"当{' 且 '.join(conditions)}时证伪"
+ 
+ 
+ @require_http_methods(["POST"])
+ def approve_signal_view(request):
+     """手动批准信号"""
+-    signal_id = request.POST.get('signal_id')
++    signal_id = request.POST.get("signal_id")
+     signal = InvestmentSignalModel._default_manager.get(id=signal_id)
+ 
+-    signal.status = 'approved'
+-    signal.rejection_reason = ''
++    signal.status = "approved"
++    signal.rejection_reason = ""
+     signal.save()
+ 
+-    return JsonResponse({
+-        'success': True,
+-        'message': f'信号 {signal.asset_code} 已批准'
+-    })
++    return JsonResponse({"success": True, "message": f"信号 {signal.asset_code} 已批准"})
+ 
+ 
+ @require_http_methods(["POST"])
+ def reject_signal_view(request):
+     """手动拒绝信号"""
+-    signal_id = request.POST.get('signal_id')
+-    reason = request.POST.get('reason', '手动拒绝').strip()
++    signal_id = request.POST.get("signal_id")
++    reason = request.POST.get("reason", "手动拒绝").strip()
+ 
+     signal = InvestmentSignalModel._default_manager.get(id=signal_id)
+-    signal.status = 'rejected'
++    signal.status = "rejected"
+     signal.rejection_reason = reason
+     signal.save()
+ 
+-    return JsonResponse({
+-        'success': True,
+-        'message': f'信号 {signal.asset_code} 已拒绝'
+-    })
++    return JsonResponse({"success": True, "message": f"信号 {signal.asset_code} 已拒绝"})
+ 
+ 
+ @require_http_methods(["POST"])
+ def invalidate_signal_view(request):
+     """手动证伪信号"""
+-    signal_id = request.POST.get('signal_id')
+-    reason = request.POST.get('reason', '手动证伪').strip()
++    signal_id = request.POST.get("signal_id")
++    reason = request.POST.get("reason", "手动证伪").strip()
+ 
+     signal = InvestmentSignalModel._default_manager.get(id=signal_id)
+-    signal.status = 'invalidated'
++    signal.status = "invalidated"
+     signal.rejection_reason = reason
+     signal.invalidated_at = timezone.now()
+     signal.save()
+ 
+-    return JsonResponse({
+-        'success': True,
+-        'message': f'信号 {signal.asset_code} 已证伪'
+-    })
++    return JsonResponse({"success": True, "message": f"信号 {signal.asset_code} 已证伪"})
+ 
+ 
+ @require_http_methods(["DELETE"])
+@@ -287,10 +285,7 @@ def delete_signal_view(request, signal_id):
+     asset_code = signal.asset_code
+     signal.delete()
+ 
+-    return JsonResponse({
+-        'success': True,
+-        'message': f'信号 {asset_code} 已删除'
+-    })
++    return JsonResponse({"success": True, "message": f"信号 {asset_code} 已删除"})
+ 
+ 
+ @require_http_methods(["POST"])
+@@ -300,17 +295,16 @@ def check_invalidation_view(request, signal_id):
+     result = service.check_signal(signal_id)
+ 
+     if result:
+-        return JsonResponse({
+-            'success': True,
+-            'is_invalidated': result.is_invalidated,
+-            'reason': result.reason,
+-            'details': result.checked_conditions,
+-        })
++        return JsonResponse(
++            {
++                "success": True,
++                "is_invalidated": result.is_invalidated,
++                "reason": result.reason,
++                "details": result.checked_conditions,
++            }
++        )
+     else:
+-        return JsonResponse({
+-            'success': False,
+-            'error': '信号不存在'
+-        })
++        return JsonResponse({"success": False, "error": "信号不存在"})
+ 
+ 
+ @require_http_methods(["GET", "POST"])
+@@ -323,31 +317,30 @@ def run_batch_check_view(request):
+ 
+     result = check_and_invalidate_signals()
+ 
+-    return JsonResponse({
+-        'success': True,
+-        **result
+-    })
++    return JsonResponse({"success": True, **result})
+ 
+ 
+ def signal_eligibility_info_view(request):
+     """获取资产准入信息（AJAX）"""
+-    asset_class = request.GET.get('asset_class', '')
+-    regime = request.GET.get('regime', '')
++    asset_class = request.GET.get("asset_class", "")
++    regime = request.GET.get("regime", "")
+ 
+     if not asset_class or not regime:
+-        return JsonResponse({'error': '缺少参数'}, status=400)
++        return JsonResponse({"error": "缺少参数"}, status=400)
+ 
+     try:
+         eligibility = get_eligibility_matrix().get(asset_class, {}).get(regime, Eligibility.NEUTRAL)
+ 
+-        return JsonResponse({
+-            'asset_class': asset_class,
+-            'regime': regime,
+-            'eligibility': eligibility.value,
+-            'eligible': eligibility in [Eligibility.PREFERRED, Eligibility.NEUTRAL],
+-        })
++        return JsonResponse(
++            {
++                "asset_class": asset_class,
++                "regime": regime,
++                "eligibility": eligibility.value,
++                "eligible": eligibility in [Eligibility.PREFERRED, Eligibility.NEUTRAL],
++            }
++        )
+     except Exception as e:
+-        return JsonResponse({'error': str(e)}, status=500)
++        return JsonResponse({"error": str(e)}, status=500)
+ 
+ 
+ @require_http_methods(["POST"])
+@@ -358,36 +351,34 @@ def ai_parse_logic_view(request):
+ 
+     try:
+         data = json.loads(request.body)
+-        user_input = data.get('text', '').strip()
++        user_input = data.get("text", "").strip()
+ 
+         if not user_input:
+-            return JsonResponse({
+-                'success': False,
+-                'error': '请输入证伪逻辑描述'
+-            })
++            return JsonResponse({"success": False, "error": "请输入证伪逻辑描述"})
+ 
+         result = ai_parse_invalidation_logic(user_input)
+ 
+-        if 'error' in result:
+-            return JsonResponse({
+-                'success': False,
+-                'error': result['error'],
+-                'suggestions': result.get('suggestions', [])
+-            })
+-
+-        return JsonResponse({
+-            'success': True,
+-            'conditions': result['conditions'],
+-            'logic': result['logic'],
+-            'explanation': result['explanation'],
+-            'confidence': result.get('confidence', 0.8)
+-        })
++        if "error" in result:
++            return JsonResponse(
++                {
++                    "success": False,
++                    "error": result["error"],
++                    "suggestions": result.get("suggestions", []),
++                }
++            )
++
++        return JsonResponse(
++            {
++                "success": True,
++                "conditions": result["conditions"],
++                "logic": result["logic"],
++                "explanation": result["explanation"],
++                "confidence": result.get("confidence", 0.8),
++            }
++        )
+ 
+     except Exception as e:
+-        return JsonResponse({
+-            'success': False,
+-            'error': str(e)
+-        })
++        return JsonResponse({"success": False, "error": str(e)})
+ 
+ 
+ def get_indicators_view(request):
+@@ -400,23 +391,22 @@ def get_indicators_view(request):
+         # 按类别分组
+         grouped = {}
+         for ind in indicators:
+-            category = ind.get('category', '其他')
++            category = ind.get("category", "其他")
+             if category not in grouped:
+                 grouped[category] = []
+             grouped[category].append(ind)
+ 
+-        return JsonResponse({
+-            'success': True,
+-            'indicators': indicators,
+-            'grouped': grouped,
+-            'total': len(indicators)
+-        })
++        return JsonResponse(
++            {
++                "success": True,
++                "indicators": indicators,
++                "grouped": grouped,
++                "total": len(indicators),
++            }
++        )
+ 
+     except Exception as e:
+-        return JsonResponse({
+-            'success': False,
+-            'error': str(e)
+-        })
++        return JsonResponse({"success": False, "error": str(e)})
+ 
+ 
+ class UnifiedSignalViewSet(viewsets.ViewSet):
+@@ -427,9 +417,9 @@ class UnifiedSignalViewSet(viewsets.ViewSet):
+         from datetime import date, timedelta
+         from apps.signal.application.unified_service import UnifiedSignalService
+ 
+-        signal_date_str = request.query_params.get('date', date.today().isoformat())
+-        signal_source = request.query_params.get('source', None)
+-        min_priority = int(request.query_params.get('min_priority', 1))
++        signal_date_str = request.query_params.get("date", date.today().isoformat())
++        signal_source = request.query_params.get("source", None)
++        min_priority = int(request.query_params.get("min_priority", 1))
+ 
+         try:
+             signal_date = date.fromisoformat(signal_date_str)
+@@ -438,32 +428,32 @@ class UnifiedSignalViewSet(viewsets.ViewSet):
+ 
+         service = UnifiedSignalService()
+         signals = service.get_unified_signals(
+-            signal_date=signal_date,
+-            signal_source=signal_source,
+-            min_priority=min_priority
++            signal_date=signal_date, signal_source=signal_source, min_priority=min_priority
+         )
+ 
+-        return Response({
+-            'date': signal_date.isoformat(),
+-            'source': signal_source,
+-            'count': len(signals),
+-            'signals': signals
+-        })
++        return Response(
++            {
++                "date": signal_date.isoformat(),
++                "source": signal_source,
++                "count": len(signals),
++                "signals": signals,
++            }
++        )
+ 
+-    @action(detail=False, methods=['post'])
++    @action(detail=False, methods=["post"])
+     def collect(self, request):
+         """Collect signals from all modules"""
+         from datetime import date
+         from apps.signal.application.unified_service import UnifiedSignalService
+ 
+-        signal_date_str = request.data.get('date')
++        signal_date_str = request.data.get("date")
+         if signal_date_str:
+             try:
+                 calc_date = date.fromisoformat(signal_date_str)
+             except ValueError:
+                 return Response(
+-                    {'error': f'Invalid date format: {signal_date_str}'},
+-                    status=status.HTTP_400_BAD_REQUEST
++                    {"error": f"Invalid date format: {signal_date_str}"},
++                    status=status.HTTP_400_BAD_REQUEST,
+                 )
+         else:
+             calc_date = date.today()
+@@ -471,18 +461,15 @@ class UnifiedSignalViewSet(viewsets.ViewSet):
+         service = UnifiedSignalService()
+         results = service.collect_all_signals(calc_date)
+ 
+-        return Response({
+-            'date': calc_date.isoformat(),
+-            'results': results
+-        })
++        return Response({"date": calc_date.isoformat(), "results": results})
+ 
+-    @action(detail=False, methods=['get'])
++    @action(detail=False, methods=["get"])
+     def summary(self, request):
+         """Get signal summary for a date range"""
+         from datetime import date, timedelta
+         from apps.signal.application.unified_service import UnifiedSignalService
+ 
+-        days = int(request.query_params.get('days', 30))
++        days = int(request.query_params.get("days", 30))
+         start_date = date.today() - timedelta(days=days)
+ 
+         service = UnifiedSignalService()
+@@ -490,48 +477,39 @@ class UnifiedSignalViewSet(viewsets.ViewSet):
+ 
+         return Response(summary)
+ 
+-    @action(detail=False, methods=['get'])
++    @action(detail=False, methods=["get"])
+     def pending(self, request):
+         """Get pending (unexecuted) signals"""
+         from apps.signal.infrastructure.repositories import UnifiedSignalRepository
+ 
+-        min_priority = int(request.query_params.get('min_priority', 5))
+-        signal_type = request.query_params.get('type', None)
++        min_priority = int(request.query_params.get("min_priority", 5))
++        signal_type = request.query_params.get("type", None)
+ 
+         repo = UnifiedSignalRepository()
+         signals = repo.get_pending_signals(min_priority=min_priority, signal_type=signal_type)
+ 
+-        return Response({
+-            'count': len(signals),
+-            'signals': signals
+-        })
++        return Response({"count": len(signals), "signals": signals})
+ 
+-    @action(detail=False, methods=['get'])
++    @action(detail=False, methods=["get"])
+     def by_asset(self, request):
+         """Get signals for a specific asset"""
+         from apps.signal.infrastructure.repositories import UnifiedSignalRepository
+ 
+-        asset_code = request.query_params.get('asset_code')
++        asset_code = request.query_params.get("asset_code")
+         if not asset_code:
+-            return Response(
+-                {'error': 'asset_code is required'},
+-                status=status.HTTP_400_BAD_REQUEST
+-            )
++            return Response({"error": "asset_code is required"}, status=status.HTTP_400_BAD_REQUEST)
+ 
+-        days = int(request.query_params.get('days', 30))
+-        signal_source = request.query_params.get('source', None)
++        days = int(request.query_params.get("days", 30))
++        signal_source = request.query_params.get("source", None)
+ 
+         repo = UnifiedSignalRepository()
+         signals = repo.get_signals_by_asset(asset_code, days=days, signal_source=signal_source)
+ 
+-        return Response({
+-            'asset_code': asset_code,
+-            'days': days,
+-            'count': len(signals),
+-            'signals': signals
+-        })
++        return Response(
++            {"asset_code": asset_code, "days": days, "count": len(signals), "signals": signals}
++        )
+ 
+-    @action(detail=True, methods=['post'])
++    @action(detail=True, methods=["post"])
+     def execute(self, request, pk=None):
+         """Mark a signal as executed"""
+         from apps.signal.infrastructure.repositories import UnifiedSignalRepository
+@@ -540,9 +518,6 @@ class UnifiedSignalViewSet(viewsets.ViewSet):
+         success = repo.mark_executed(pk)
+ 
+         if success:
+-            return Response({'status': 'executed', 'signal_id': pk})
++            return Response({"status": "executed", "signal_id": pk})
+         else:
+-            return Response(
+-                {'error': 'Signal not found'},
+-                status=status.HTTP_404_NOT_FOUND
+-            )
++            return Response({"error": "Signal not found"}, status=status.HTTP_404_NOT_FOUND)
+diff --git a/core/context_processors.py b/core/context_processors.py
+index 18970c9..f95f626 100644
+--- a/core/context_processors.py
++++ b/core/context_processors.py
+@@ -160,7 +160,7 @@ def get_alerts(request) -> Dict[str, List[Dict[str, str]]]:
+                     'message': '请及时处理这些紧急决策请求。',
+                     'action_url': '/decision/workspace/',
+                     'action_text': '立即处理',
+-                    'dismissible': False,
++                    'dismissible': True,
+                 })
+         except Exception as e:
+             logger.warning(f"Failed to check pending requests: {e}")
+diff --git a/core/static/css/floating-widget.css b/core/static/css/floating-widget.css
+index e792234..f09d636 100644
+--- a/core/static/css/floating-widget.css
++++ b/core/static/css/floating-widget.css
+@@ -383,9 +383,9 @@
+ }
+ 
+ /* ========================================
+-   Mobile Responsive
++   Mobile Responsive (仅针对真正的移动设备)
+    ======================================== */
+-@media (max-width: 768px) {
++@media (max-width: 768px) and (hover: none) {
+     .floating-widget.position-bottom-right,
+     .floating-widget.position-bottom-left,
+     .floating-widget.position-top-right,
+@@ -450,6 +450,19 @@
+     }
+ }
+ 
++/* 小屏幕但非触屏设备（页面放大等情况）：确保面板不超出可视区域 */
++@media (max-width: 768px) and (hover: hover) {
++    .floating-widget .widget-content {
++        max-width: calc(100vw - 48px);
++        right: 0;
++    }
++    
++    .floating-widget.position-bottom-right .widget-content {
++        right: 0;
++        left: auto;
++    }
++}
++
+ /* ========================================
+    Accessibility
+    ======================================== */
+diff --git a/core/templates/base.html b/core/templates/base.html
+index e440aad..b2e0abd 100644
+--- a/core/templates/base.html
++++ b/core/templates/base.html
+@@ -272,7 +272,7 @@
+     <!-- 全局 Toast 通知 -->
+     <div id="toast-container" class="toast-container"></div>
+ 
+-    <!-- 全局告警横幅 -->
++    <!-- 信息中心（右下角浮动） -->
+     {% load alert_tags %}
+     {% alert_banner global_alerts %}
+ 
+@@ -292,36 +292,7 @@
+         {% block content %}{% endblock %}
+     </main>
+ 
+-    <script>
+-    // 调整主内容区域的顶部间距以适应告警横幅
+-    (function() {
+-        function adjustMainContentPadding() {
+-            const alerts = document.getElementById('globalAlerts');
+-            const mainContent = document.getElementById('mainContent');
+-            const headerHeight = getComputedStyle(document.documentElement)
+-                .getPropertyValue('--header-height')
+-                .trim() || '56px';
+-            if (mainContent) {
+-                if (alerts && alerts.children.length > 0) {
+-                    const alertHeight = alerts.offsetHeight;
+-                    mainContent.style.paddingTop = `calc(${headerHeight} + ${alertHeight}px + var(--spacing-xl, 32px))`;
+-                } else {
+-                    mainContent.style.paddingTop = '';
+-                }
+-            }
+-        }
+ 
+-        // 初始检查
+-        adjustMainContentPadding();
+-
+-        // 告警移除后重新计算
+-        const observer = new MutationObserver(adjustMainContentPadding);
+-        const alertsContainer = document.getElementById('globalAlerts');
+-        if (alertsContainer) {
+-            observer.observe(alertsContainer, { childList: true });
+-        }
+-    })();
+-    </script>
+ 
+     <!-- 页脚 -->
+     <footer class="footer-full">
+diff --git a/core/templates/components/alert_banner.html b/core/templates/components/alert_banner.html
+index 7ecc38d..00ecdca 100644
+--- a/core/templates/components/alert_banner.html
++++ b/core/templates/components/alert_banner.html
+@@ -1,254 +1,725 @@
+ {% load static %}
+ {% if alerts %}
+-<div class="global-alerts" id="globalAlerts">
+-    {% for alert in alerts %}
+-    <div class="alert alert-{{ alert.type }} {% if not alert.dismissible %}alert-non-dismissible{% endif %}"
+-         role="alert"
+-         data-alert-id="{{ forloop.counter }}">
+-        <div class="alert-icon-wrapper">
+-            <span class="alert-icon">{{ alert.icon }}</span>
++<!-- 信息中心浮动按钮 -->
++<div class="info-center" id="infoCenter">
++    <button class="info-center-trigger" id="infoCenterTrigger" aria-label="信息中心">
++        <span class="info-icon">🔔</span>
++        <span class="info-badge" id="infoBadge">{{ alerts|length }}</span>
++    </button>
++    
++    <!-- 信息面板 -->
++    <div class="info-center-panel" id="infoCenterPanel">
++        <div class="info-panel-header">
++            <div class="info-tabs">
++                <button class="info-tab active" data-tab="unread">未读</button>
++                <button class="info-tab" data-tab="history">已读</button>
++            </div>
++            <button class="info-clear-all" id="infoClearAll" title="全部已读">全部已读</button>
++        </div>
++        <div class="info-panel-body" id="infoPanelBody">
++            <!-- 未读列表 -->
++            <div class="info-list info-list-unread" id="infoListUnread">
++                {% for alert in alerts %}
++                <div class="info-item info-item-{{ alert.type }}" 
++                     data-alert-id="{{ forloop.counter }}"
++                     data-alert-icon="{{ alert.icon }}"
++                     data-alert-type="{{ alert.type }}"
++                     data-alert-title="{{ alert.title }}"
++                     data-alert-message="{{ alert.message }}"
++                     data-alert-url="{{ alert.action_url }}"
++                     data-alert-action="{{ alert.action_text|default:"查看" }}">
++                    <div class="info-item-icon">{{ alert.icon }}</div>
++                    <div class="info-item-content">
++                        <div class="info-item-title">{{ alert.title }}</div>
++                        <div class="info-item-message">{{ alert.message }}</div>
++                    </div>
++                    <div class="info-item-actions">
++                        {% if alert.action_url %}
++                        <a href="{{ alert.action_url }}" class="info-item-link">{{ alert.action_text|default:"查看" }}</a>
++                        {% endif %}
++                        <button class="info-item-close" title="标记已读">×</button>
++                    </div>
++                </div>
++                {% endfor %}
++            </div>
++            <!-- 已读历史 -->
++            <div class="info-list info-list-history" id="infoListHistory" style="display: none;">
++                <!-- 动态填充 -->
++            </div>
+         </div>
+-        <div class="alert-content">
+-            <div class="alert-title">{{ alert.title }}</div>
+-            <div class="alert-message">{{ alert.message }}</div>
++        <div class="info-panel-empty" id="infoPanelEmpty" style="display: none;">
++            <span class="empty-icon">📭</span>
++            <span class="empty-text">暂无通知</span>
+         </div>
+-        {% if alert.action_url %}
+-        <a href="{{ alert.action_url }}" class="alert-action">{{ alert.action_text|default:"查看详情" }} →</a>
+-        {% endif %}
+-        {% if alert.dismissible %}
+-        <button type="button" 
+-                class="alert-close" 
+-                aria-label="关闭"
+-                onclick="dismissAlert(this)">
+-            <span aria-hidden="true">&times;</span>
+-        </button>
+-        {% endif %}
+     </div>
+-    {% endfor %}
+ </div>
+ 
+ <script>
+-// 记录已关闭的告警
+-function dismissAlert(button) {
+-    const alert = button.closest('.alert');
+-    const alertId = alert.dataset.alertId;
+-    
+-    // 存储到 localStorage
+-    const dismissed = JSON.parse(localStorage.getItem('dismissedAlerts') || '[]');
+-    const key = 'alert_' + alertId + '_' + new Date().toDateString();
+-    if (!dismissed.includes(key)) {
+-        dismissed.push(key);
+-        localStorage.setItem('dismissedAlerts', JSON.stringify(dismissed));
+-    }
+-    
+-    // 动画移除
+-    alert.style.opacity = '0';
+-    alert.style.transform = 'translateX(-100%)';
+-    setTimeout(() => {
+-        alert.remove();
++(function() {
++    const trigger = document.getElementById('infoCenterTrigger');
++    const panel = document.getElementById('infoCenterPanel');
++    const badge = document.getElementById('infoBadge');
++    const clearAllBtn = document.getElementById('infoClearAll');
++    const panelBody = document.getElementById('infoPanelBody');
++    const emptyState = document.getElementById('infoPanelEmpty');
++    const listUnread = document.getElementById('infoListUnread');
++    const listHistory = document.getElementById('infoListHistory');
++    const tabs = document.querySelectorAll('.info-tab');
++    
++    const STORAGE_KEY = 'infoCenterHistory';
++    let isOpen = false;
++    let currentTab = 'unread';
++    
++    // 初始化
++    function init() {
++        loadHistory();
++        restoreUnreadState();
++        updateUI();
++        renderHistory();
++    }
++    
++    // 获取历史记录
++    function getHistory() {
++        try {
++            const stored = localStorage.getItem(STORAGE_KEY);
++            if (!stored) return [];
++            const data = JSON.parse(stored);
++            return Array.isArray(data) ? data : [];
++        } catch (e) {
++            return [];
++        }
++    }
++    
++    // 保存历史记录
++    function saveHistory(history) {
++        // 只保留最近 50 条
++        const trimmed = history.slice(-50);
++        localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
++    }
++    
++    // 添加到历史
++    function addToHistory(item) {
++        const history = getHistory();
++        const record = {
++            id: item.dataset.alertId,
++            icon: item.dataset.alertIcon,
++            type: item.dataset.alertType,
++            title: item.dataset.alertTitle,
++            message: item.dataset.alertMessage,
++            url: item.dataset.alertUrl,
++            action: item.dataset.alertAction,
++            dismissedAt: new Date().toISOString()
++        };
+         
+-        // 如果没有告警了，移除容器
+-        const container = document.getElementById('globalAlerts');
+-        if (container && container.children.length === 0) {
+-            container.remove();
++        // 避免重复
++        const existingIndex = history.findIndex(h => h.id === record.id);
++        if (existingIndex >= 0) {
++            history[existingIndex] = record;
++        } else {
++            history.push(record);
+         }
+-    }, 300);
+-}
+-
+-// 页面加载时检查 localStorage
+-document.addEventListener('DOMContentLoaded', function() {
+-    const dismissed = JSON.parse(localStorage.getItem('dismissedAlerts') || '[]');
+-    const today = new Date().toDateString();
++        
++        saveHistory(history);
++    }
++    
++    // 从历史中恢复
++    function restoreFromHistory(alertId) {
++        const history = getHistory();
++        const index = history.findIndex(h => h.id === alertId);
++        if (index < 0) return;
++        
++        const record = history[index];
++        history.splice(index, 1);
++        saveHistory(history);
++        
++        // 创建未读项
++        const item = createInfoItem(record);
++        listUnread.appendChild(item);
++        
++        updateUI();
++    }
++    
++    // 创建信息项 DOM
++    function createInfoItem(data) {
++        const item = document.createElement('div');
++        item.className = `info-item info-item-${data.type}`;
++        item.dataset.alertId = data.id;
++        item.dataset.alertIcon = data.icon;
++        item.dataset.alertType = data.type;
++        item.dataset.alertTitle = data.title;
++        item.dataset.alertMessage = data.message;
++        item.dataset.alertUrl = data.url || '';
++        item.dataset.alertAction = data.action || '查看';
++        
++        item.innerHTML = `
++            <div class="info-item-icon">${data.icon}</div>
++            <div class="info-item-content">
++                <div class="info-item-title">${data.title}</div>
++                <div class="info-item-message">${data.message}</div>
++            </div>
++            <div class="info-item-actions">
++                ${data.url ? `<a href="${data.url}" class="info-item-link">${data.action}</a>` : ''}
++                <button class="info-item-close" title="标记已读">×</button>
++            </div>
++        `;
++        
++        return item;
++    }
+     
+-    document.querySelectorAll('#globalAlerts .alert[data-alert-id]').forEach(function(alert) {
+-        const alertId = alert.dataset.alertId;
+-        const key = 'alert_' + alertId + '_' + today;
++    // 渲染历史列表
++    function renderHistory() {
++        const history = getHistory();
++        listHistory.innerHTML = '';
+         
+-        if (dismissed.includes(key)) {
+-            alert.remove();
++        if (history.length === 0) {
++            listHistory.innerHTML = `
++                <div class="info-history-empty">
++                    <span>📭</span>
++                    <span>暂无已读记录</span>
++                </div>
++            `;
++            return;
+         }
+-    });
++        
++        // 按时间倒序
++        const sorted = [...history].reverse();
++        
++        sorted.forEach(function(record) {
++            const item = document.createElement('div');
++            item.className = `info-item info-item-${record.type} info-item-read`;
++            item.dataset.alertId = record.id;
++            
++            const timeAgo = formatTimeAgo(record.dismissedAt);
++            
++            item.innerHTML = `
++                <div class="info-item-icon">${record.icon}</div>
++                <div class="info-item-content">
++                    <div class="info-item-title">${record.title}</div>
++                    <div class="info-item-message">${record.message}</div>
++                    <div class="info-item-time">${timeAgo}</div>
++                </div>
++                <div class="info-item-actions">
++                    <button class="info-item-restore" title="恢复为未读">↩</button>
++                </div>
++            `;
++            
++            listHistory.appendChild(item);
++        });
++    }
++    
++    // 格式化时间
++    function formatTimeAgo(isoString) {
++        try {
++            const date = new Date(isoString);
++            const now = new Date();
++            const diffMs = now - date;
++            const diffMins = Math.floor(diffMs / 60000);
++            const diffHours = Math.floor(diffMs / 3600000);
++            const diffDays = Math.floor(diffMs / 86400000);
++            
++            if (diffMins < 1) return '刚刚';
++            if (diffMins < 60) return `${diffMins} 分钟前`;
++            if (diffHours < 24) return `${diffHours} 小时前`;
++            if (diffDays < 7) return `${diffDays} 天前`;
++            return date.toLocaleDateString();
++        } catch (e) {
++            return '';
++        }
++    }
++    
++    // 恢复未读状态（从历史记录）
++    function restoreUnreadState() {
++        const history = getHistory();
++        const historyIds = new Set(history.map(h => h.id));
++        
++        document.querySelectorAll('.info-list-unread .info-item').forEach(function(item) {
++            if (historyIds.has(item.dataset.alertId)) {
++                item.remove();
++            }
++        });
++    }
++    
++    // 更新 UI 状态
++    function updateUI() {
++        const unreadCount = document.querySelectorAll('.info-list-unread .info-item').length;
++        updateBadge(unreadCount);
++        
++        if (currentTab === 'unread') {
++            if (unreadCount === 0) {
++                showEmpty();
++            } else {
++                hideEmpty();
++            }
++        } else {
++            hideEmpty();
++        }
++    }
++    
++    // 更新徽章
++    function updateBadge(count) {
++        badge.textContent = count;
++        badge.style.display = count > 0 ? 'flex' : 'none';
++    }
++    
++    // 显示空状态
++    function showEmpty() {
++        panelBody.style.display = 'none';
++        emptyState.style.display = 'flex';
++    }
++    
++    // 隐藏空状态
++    function hideEmpty() {
++        panelBody.style.display = 'block';
++        emptyState.style.display = 'none';
++    }
++    
++    // 切换面板
++    function togglePanel() {
++        isOpen = !isOpen;
++        panel.classList.toggle('open', isOpen);
++        trigger.classList.toggle('active', isOpen);
++    }
+     
+-    // 如果没有告警了，移除容器
+-    const container = document.getElementById('globalAlerts');
+-    if (container && container.children.length === 0) {
+-        container.remove();
++    // 关闭面板
++    function closePanel() {
++        isOpen = false;
++        panel.classList.remove('open');
++        trigger.classList.remove('active');
+     }
+-});
++    
++    // 标记单个已读
++    function dismissItem(item) {
++        addToHistory(item);
++        
++        item.style.animation = 'slideOut 0.2s ease forwards';
++        setTimeout(function() {
++            item.remove();
++            updateUI();
++            renderHistory();
++        }, 200);
++    }
++    
++    // 全部已读
++    function clearAllItems() {
++        const items = document.querySelectorAll('.info-list-unread .info-item');
++        items.forEach(function(item) {
++            addToHistory(item);
++            item.style.animation = 'slideOut 0.2s ease forwards';
++        });
++        
++        setTimeout(function() {
++            listUnread.innerHTML = '';
++            updateUI();
++            renderHistory();
++        }, 200);
++    }
++    
++    // 切换标签
++    function switchTab(tabName) {
++        currentTab = tabName;
++        tabs.forEach(function(tab) {
++            tab.classList.toggle('active', tab.dataset.tab === tabName);
++        });
++        
++        if (tabName === 'unread') {
++            listUnread.style.display = 'block';
++            listHistory.style.display = 'none';
++            clearAllBtn.style.display = 'flex';
++            updateUI();
++        } else {
++            listUnread.style.display = 'none';
++            listHistory.style.display = 'block';
++            clearAllBtn.style.display = 'none';
++            hideEmpty();
++        }
++    }
++    
++    // 事件绑定
++    trigger.addEventListener('click', function(e) {
++        e.stopPropagation();
++        togglePanel();
++    });
++    
++    clearAllBtn.addEventListener('click', clearAllItems);
++    
++    // 标签切换
++    tabs.forEach(function(tab) {
++        tab.addEventListener('click', function() {
++            switchTab(tab.dataset.tab);
++        });
++    });
++    
++    // 未读列表事件
++    listUnread.addEventListener('click', function(e) {
++        if (e.target.classList.contains('info-item-close')) {
++            const item = e.target.closest('.info-item');
++            if (item) dismissItem(item);
++        }
++    });
++    
++    // 历史列表事件
++    listHistory.addEventListener('click', function(e) {
++        if (e.target.classList.contains('info-item-restore')) {
++            const item = e.target.closest('.info-item');
++            if (item) {
++                restoreFromHistory(item.dataset.alertId);
++                item.style.animation = 'slideOut 0.2s ease forwards';
++                setTimeout(function() {
++                    renderHistory();
++                }, 200);
++            }
++        }
++    });
++    
++    // 点击外部关闭
++    document.addEventListener('click', function(e) {
++        if (isOpen && !panel.contains(e.target) && !trigger.contains(e.target)) {
++            closePanel();
++        }
++    });
++    
++    // ESC 关闭
++    document.addEventListener('keydown', function(e) {
++        if (e.key === 'Escape' && isOpen) {
++            closePanel();
++        }
++    });
++    
++    // 初始化
++    init();
++})();
+ </script>
+ 
+ <style>
+-.global-alerts {
++/* 信息中心浮动按钮 */
++.info-center {
+     position: fixed;
+-    top: var(--header-height, 56px);
+-    left: 0;
+-    right: 0;
+-    z-index: 980;
+-    padding: 0;
+-    background: var(--color-bg, #fff);
+-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
++    bottom: 32px;
++    right: 88px;
++    z-index: 1000;
+ }
+ 
+-.alert {
++.info-center-trigger {
++    width: 44px;
++    height: 44px;
++    border-radius: 50%;
++    border: none;
++    background: var(--color-bg, #fff);
++    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
++    cursor: pointer;
+     display: flex;
+     align-items: center;
+-    gap: 12px;
+-    padding: 12px 16px;
+-    border-bottom: 1px solid var(--border-color);
++    justify-content: center;
+     transition: all 0.3s ease;
++    position: relative;
+ }
+ 
+-.alert:last-child {
+-    border-bottom: none;
++.info-center-trigger:hover {
++    transform: scale(1.08);
++    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+ }
+ 
+-.alert-icon-wrapper {
+-    flex-shrink: 0;
++.info-center-trigger.active {
++    background: #f8f9fa;
+ }
+ 
+-.alert-icon {
++.info-icon {
++    font-size: 20px;
++    line-height: 1;
++}
++
++.info-badge {
++    position: absolute;
++    top: -2px;
++    right: -2px;
++    min-width: 18px;
++    height: 18px;
++    padding: 0 5px;
++    border-radius: 9px;
++    background: #ff4757;
++    color: white;
++    font-size: 11px;
++    font-weight: 600;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+-    width: 32px;
+-    height: 32px;
+-    border-radius: 50%;
+-    font-size: 16px;
++    box-shadow: 0 2px 6px rgba(255, 71, 87, 0.3);
+ }
+ 
+-.alert-content {
+-    flex: 1;
+-    min-width: 0;
++/* 信息面板 */
++.info-center-panel {
++    position: absolute;
++    bottom: 64px;
++    right: 0;
++    width: 360px;
++    max-height: 480px;
++    background: var(--color-bg, #fff);
++    border-radius: 16px;
++    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
++    opacity: 0;
++    visibility: hidden;
++    transform: translateY(10px) scale(0.95);
++    transition: all 0.25s ease;
++    overflow: hidden;
++    display: flex;
++    flex-direction: column;
+ }
+ 
+-.alert-title {
+-    font-weight: 600;
+-    font-size: 14px;
+-    margin-bottom: 2px;
++@media (max-width: 520px) {
++    .info-center-panel {
++        right: auto;
++        left: 0;
++    }
+ }
+ 
+-.alert-message {
+-    font-size: 13px;
+-    color: var(--text-secondary);
+-    white-space: nowrap;
+-    overflow: hidden;
+-    text-overflow: ellipsis;
++.info-center-panel.open {
++    opacity: 1;
++    visibility: visible;
++    transform: translateY(0) scale(1);
+ }
+ 
+-.alert-action {
++.info-panel-header {
++    padding: 12px 16px;
++    border-bottom: 1px solid var(--border-color, #eee);
++    display: flex;
++    align-items: center;
++    justify-content: space-between;
+     flex-shrink: 0;
+-    padding: 6px 12px;
+-    border-radius: var(--radius-sm);
++}
++
++/* 标签页 */
++.info-tabs {
++    display: flex;
++    gap: 4px;
++    background: var(--bg-tertiary, #f5f5f5);
++    padding: 3px;
++    border-radius: 8px;
++}
++
++.info-tab {
++    padding: 6px 14px;
++    border: none;
++    background: transparent;
++    color: var(--text-muted, #888);
+     font-size: 13px;
+     font-weight: 500;
+-    text-decoration: none;
++    cursor: pointer;
++    border-radius: 6px;
+     transition: all 0.2s;
+ }
+ 
+-.alert-close {
+-    flex-shrink: 0;
+-    width: 28px;
+-    height: 28px;
+-    padding: 0;
++.info-tab:hover {
++    color: var(--text-primary, #333);
++}
++
++.info-tab.active {
++    background: var(--color-bg, #fff);
++    color: var(--text-primary, #333);
++    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
++}
++
++.info-clear-all {
+     border: none;
+-    background: transparent;
++    background: none;
++    color: var(--text-muted, #888);
++    font-size: 13px;
+     cursor: pointer;
+-    font-size: 18px;
+-    line-height: 1;
+-    color: var(--text-muted);
++    padding: 6px 10px;
++    border-radius: 6px;
+     transition: all 0.2s;
+ }
+ 
+-.alert-close:hover {
+-    color: var(--text-primary);
+-    background: var(--bg-tertiary);
+-    border-radius: 50%;
++.info-clear-all:hover {
++    background: var(--bg-tertiary, #f5f5f5);
++    color: var(--text-primary, #333);
+ }
+ 
+-/* 告警类型样式 */
+-.alert-danger {
+-    background: #FFEBEE;
++.info-panel-body {
++    padding: 8px;
++    overflow-y: auto;
++    flex: 1;
+ }
+ 
+-.alert-danger .alert-icon {
+-    background: #FFCDD2;
++/* 信息列表 */
++.info-list {
++    display: flex;
++    flex-direction: column;
++    gap: 4px;
+ }
+ 
+-.alert-danger .alert-action {
+-    background: #C62828;
+-    color: white;
++/* 通知项 */
++.info-item {
++    display: flex;
++    align-items: flex-start;
++    gap: 12px;
++    padding: 12px;
++    border-radius: 10px;
++    transition: all 0.2s;
+ }
+ 
+-.alert-danger .alert-action:hover {
+-    background: #B71C1C;
++.info-item:hover {
++    background: var(--bg-tertiary, #f8f9fa);
+ }
+ 
+-.alert-warning {
+-    background: #FFF3E0;
++.info-item-read {
++    opacity: 0.7;
+ }
+ 
+-.alert-warning .alert-icon {
+-    background: #FFE0B2;
++.info-item-icon {
++    flex-shrink: 0;
++    width: 36px;
++    height: 36px;
++    border-radius: 10px;
++    display: flex;
++    align-items: center;
++    justify-content: center;
++    font-size: 18px;
+ }
+ 
+-.alert-warning .alert-action {
+-    background: #E65100;
+-    color: white;
++.info-item-content {
++    flex: 1;
++    min-width: 0;
+ }
+ 
+-.alert-warning .alert-action:hover {
+-    background: #BF360C;
++.info-item-title {
++    font-size: 14px;
++    font-weight: 600;
++    color: var(--text-primary, #1a1a2e);
++    margin-bottom: 2px;
+ }
+ 
+-.alert-success {
+-    background: #E8F5E9;
++.info-item-message {
++    font-size: 13px;
++    color: var(--text-secondary, #666);
++    line-height: 1.4;
+ }
+ 
+-.alert-success .alert-icon {
+-    background: #C8E6C9;
++.info-item-time {
++    font-size: 11px;
++    color: var(--text-muted, #999);
++    margin-top: 4px;
+ }
+ 
+-.alert-success .alert-action {
+-    background: #2E7D32;
+-    color: white;
++.info-item-actions {
++    display: flex;
++    align-items: center;
++    gap: 8px;
++    flex-shrink: 0;
+ }
+ 
+-.alert-success .alert-action:hover {
+-    background: #1B5E20;
++.info-item-link {
++    font-size: 12px;
++    font-weight: 500;
++    padding: 4px 10px;
++    border-radius: 6px;
++    text-decoration: none;
++    transition: all 0.2s;
+ }
+ 
+-.alert-info {
+-    background: #E3F2FD;
++.info-item-close,
++.info-item-restore {
++    width: 24px;
++    height: 24px;
++    border: none;
++    background: none;
++    cursor: pointer;
++    font-size: 16px;
++    line-height: 1;
++    color: var(--text-muted, #999);
++    border-radius: 50%;
++    transition: all 0.2s;
++    display: flex;
++    align-items: center;
++    justify-content: center;
+ }
+ 
+-.alert-info .alert-icon {
+-    background: #BBDEFB;
++.info-item-close:hover,
++.info-item-restore:hover {
++    background: var(--bg-tertiary, #eee);
++    color: var(--text-primary, #333);
+ }
+ 
+-.alert-info .alert-action {
+-    background: #1565C0;
+-    color: white;
++/* 历史空状态 */
++.info-history-empty {
++    padding: 40px 20px;
++    display: flex;
++    flex-direction: column;
++    align-items: center;
++    gap: 8px;
++    color: var(--text-muted, #999);
++    font-size: 13px;
++}
++
++/* 通知类型样式 */
++.info-item-warning .info-item-icon { background: #FFF3E0; }
++.info-item-warning .info-item-link { background: #FF9800; color: white; }
++.info-item-warning .info-item-link:hover { background: #F57C00; }
++
++.info-item-danger .info-item-icon { background: #FFEBEE; }
++.info-item-danger .info-item-link { background: #E53935; color: white; }
++.info-item-danger .info-item-link:hover { background: #C62828; }
++
++.info-item-success .info-item-icon { background: #E8F5E9; }
++.info-item-success .info-item-link { background: #43A047; color: white; }
++.info-item-success .info-item-link:hover { background: #2E7D32; }
++
++.info-item-info .info-item-icon { background: #E3F2FD; }
++.info-item-info .info-item-link { background: #1E88E5; color: white; }
++.info-item-info .info-item-link:hover { background: #1565C0; }
++
++/* 空状态 */
++.info-panel-empty {
++    padding: 40px 20px;
++    display: flex;
++    flex-direction: column;
++    align-items: center;
++    gap: 8px;
++}
++
++.empty-icon {
++    font-size: 48px;
++    opacity: 0.6;
+ }
+ 
+-.alert-info .alert-action:hover {
+-    background: #0D47A1;
++.empty-text {
++    font-size: 14px;
++    color: var(--text-muted, #999);
++}
++
++/* 动画 */
++@keyframes slideOut {
++    to {
++        opacity: 0;
++        transform: translateX(20px);
++    }
+ }
+ 
+ /* 响应式 */
+-@media (max-width: 768px) {
+-    .alert {
+-        flex-wrap: wrap;
+-        padding: 10px 12px;
++@media (max-width: 480px) {
++    .info-center {
++        bottom: 20px;
++        right: 76px;
++    }
++    
++    .info-center-trigger {
++        width: 40px;
++        height: 40px;
++    }
++    
++    .info-icon {
++        font-size: 18px;
+     }
+     
+-    .alert-action {
+-        width: 100%;
+-        text-align: center;
+-        margin-top: 4px;
++    .info-center-panel {
++        width: calc(100vw - 32px);
++        right: auto;
++        left: 50%;
++        transform: translateX(-50%) translateY(10px) scale(0.95);
++        max-height: 60vh;
+     }
+     
+-    .alert-message {
+-        white-space: normal;
++    .info-center-panel.open {
++        transform: translateX(-50%) translateY(0) scale(1);
+     }
+ }
+ </style>
+diff --git a/core/templates/dashboard/index.html b/core/templates/dashboard/index.html
+index 8bdbb61..af9ddf8 100644
+--- a/core/templates/dashboard/index.html
++++ b/core/templates/dashboard/index.html
+@@ -636,6 +636,7 @@
+                         <div class="signal-item">
+                             <div class="signal-header">
+                                 <span class="signal-asset">{{ signal.asset_code }}</span>
++                                <span class="signal-name">{{ signal.asset_name }}</span>
+                                 <span class="signal-badge badge-{{ signal.direction|lower }}">{{ signal.direction }}</span>
+                             </div>
+                             <p class="signal-logic">{{ signal.logic_desc|truncatewords:12 }}</p>
+@@ -1370,6 +1371,12 @@ chatSendBtn.onclick = async function() {
+ 
+ <style>
+ /* 新增样式 */
++.signal-name {
++    color: var(--text-secondary);
++    font-size: 13px;
++    margin-left: 8px;
++}
++
+ .sort-select {
+     padding: 4px 8px;
+     border: 1px solid var(--border-color);
+diff --git a/core/templates/signal/manage.html b/core/templates/signal/manage.html
+index eb05cdf..672352b 100644
+--- a/core/templates/signal/manage.html
++++ b/core/templates/signal/manage.html
+@@ -127,6 +127,7 @@
+             <div class="signal-main">
+                 <div class="signal-title">
+                     <span class="signal-code">{{ signal.asset_code }}</span>
++                    <span class="signal-name">{{ signal.asset_name }}</span>
+                     <span class="signal-tag">{{ signal.asset_class }}</span>
+                     <span class="status-badge status-{{ signal.status }}">
+                         {% if signal.status == 'pending' %}待审核
+diff --git a/static/css/signal.css b/static/css/signal.css
+index 8d0ce9e..6d5a97e 100644
+--- a/static/css/signal.css
++++ b/static/css/signal.css
+@@ -213,6 +213,12 @@
+     font-weight: var(--font-weight-semibold);
+ }
+ 
++.signal-name {
++    font-size: var(--font-size-body);
++    color: var(--color-text-secondary);
++    margin-left: var(--spacing-xs);
++}
++
+ .signal-tag {
+     padding: 2px var(--spacing-sm);
+     background: var(--color-surface);
+diff --git a/staticfiles/css/floating-widget.css b/staticfiles/css/floating-widget.css
+index e792234..f09d636 100644
+--- a/staticfiles/css/floating-widget.css
++++ b/staticfiles/css/floating-widget.css
+@@ -383,9 +383,9 @@
+ }
+ 
+ /* ========================================
+-   Mobile Responsive
++   Mobile Responsive (仅针对真正的移动设备)
+    ======================================== */
+-@media (max-width: 768px) {
++@media (max-width: 768px) and (hover: none) {
+     .floating-widget.position-bottom-right,
+     .floating-widget.position-bottom-left,
+     .floating-widget.position-top-right,
+@@ -450,6 +450,19 @@
+     }
+ }
+ 
++/* 小屏幕但非触屏设备（页面放大等情况）：确保面板不超出可视区域 */
++@media (max-width: 768px) and (hover: hover) {
++    .floating-widget .widget-content {
++        max-width: calc(100vw - 48px);
++        right: 0;
++    }
++    
++    .floating-widget.position-bottom-right .widget-content {
++        right: 0;
++        left: auto;
++    }
++}
++
+ /* ========================================
+    Accessibility
+    ======================================== */

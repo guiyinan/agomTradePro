@@ -98,11 +98,13 @@ class AlphaTriggerViewSet(viewsets.ViewSet):
 
             serializer = AlphaTriggerSerializer(triggers, many=True)
 
-            return Response({
-                "success": True,
-                "count": len(triggers),
-                "results": serializer.data,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "count": len(triggers),
+                    "results": serializer.data,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Failed to list triggers: {e}", exc_info=True)
@@ -128,10 +130,12 @@ class AlphaTriggerViewSet(viewsets.ViewSet):
 
             serializer = AlphaTriggerSerializer(trigger)
 
-            return Response({
-                "success": True,
-                "result": serializer.data,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "result": serializer.data,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Failed to retrieve trigger: {e}", exc_info=True)
@@ -163,11 +167,13 @@ class AlphaTriggerViewSet(viewsets.ViewSet):
 
             serializer = AlphaTriggerSerializer(triggers, many=True)
 
-            return Response({
-                "success": True,
-                "count": len(triggers),
-                "results": serializer.data,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "count": len(triggers),
+                    "results": serializer.data,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Failed to get active triggers: {e}", exc_info=True)
@@ -188,11 +194,13 @@ class AlphaTriggerViewSet(viewsets.ViewSet):
 
             serializer = AlphaTriggerSerializer(triggers, many=True)
 
-            return Response({
-                "success": True,
-                "count": len(triggers),
-                "results": serializer.data,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "count": len(triggers),
+                    "results": serializer.data,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Failed to get triggers by regime: {e}", exc_info=True)
@@ -213,10 +221,12 @@ class AlphaTriggerViewSet(viewsets.ViewSet):
 
             stats = self.trigger_repository.get_statistics(days)
 
-            return Response({
-                "success": True,
-                "result": stats,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "result": stats,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Failed to get statistics: {e}", exc_info=True)
@@ -268,11 +278,13 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
 
             serializer = AlphaCandidateSerializer(candidates, many=True)
 
-            return Response({
-                "success": True,
-                "count": len(candidates),
-                "results": serializer.data,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "count": len(candidates),
+                    "results": serializer.data,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Failed to list candidates: {e}", exc_info=True)
@@ -298,10 +310,12 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
 
             serializer = AlphaCandidateSerializer(candidate)
 
-            return Response({
-                "success": True,
-                "result": serializer.data,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "result": serializer.data,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Failed to retrieve candidate: {e}", exc_info=True)
@@ -331,11 +345,13 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
 
             serializer = AlphaCandidateSerializer(candidates, many=True)
 
-            return Response({
-                "success": True,
-                "count": len(candidates),
-                "results": serializer.data,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "count": len(candidates),
+                    "results": serializer.data,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Failed to get actionable candidates: {e}", exc_info=True)
@@ -356,11 +372,13 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
 
             serializer = AlphaCandidateSerializer(candidates, many=True)
 
-            return Response({
-                "success": True,
-                "count": len(candidates),
-                "results": serializer.data,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "count": len(candidates),
+                    "results": serializer.data,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Failed to get watch list: {e}", exc_info=True)
@@ -391,10 +409,12 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
 
             candidate_serializer = AlphaCandidateSerializer(candidate)
 
-            return Response({
-                "success": True,
-                "result": candidate_serializer.data,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "result": candidate_serializer.data,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Failed to update candidate status: {e}", exc_info=True)
@@ -415,10 +435,12 @@ class AlphaCandidateViewSet(viewsets.ViewSet):
 
             stats = self.candidate_repository.get_statistics(days)
 
-            return Response({
-                "success": True,
-                "result": stats,
-            })
+            return Response(
+                {
+                    "success": True,
+                    "result": stats,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Failed to get statistics: {e}", exc_info=True)
@@ -503,10 +525,12 @@ class CreateTriggerView(APIView):
             if response.success:
                 trigger_serializer = AlphaTriggerSerializer(response.trigger)
 
-                return Response({
-                    "success": True,
-                    "result": trigger_serializer.data,
-                })
+                return Response(
+                    {
+                        "success": True,
+                        "result": trigger_serializer.data,
+                    }
+                )
             else:
                 return Response(
                     {"success": False, "error": response.error},
@@ -568,12 +592,14 @@ class CheckInvalidationView(APIView):
             response = use_case.execute(req)
 
             if response.success:
-                return Response({
-                    "success": True,
-                    "is_invalidated": response.is_invalidated,
-                    "reason": response.reason,
-                    "conditions_met": response.conditions_met,
-                })
+                return Response(
+                    {
+                        "success": True,
+                        "is_invalidated": response.is_invalidated,
+                        "reason": response.reason,
+                        "conditions_met": response.conditions_met,
+                    }
+                )
             else:
                 return Response(
                     {"success": False, "error": response.error},
@@ -634,11 +660,13 @@ class EvaluateTriggerView(APIView):
             response = use_case.execute(req)
 
             if response.success:
-                return Response({
-                    "success": True,
-                    "should_trigger": response.should_trigger,
-                    "reason": response.reason,
-                })
+                return Response(
+                    {
+                        "success": True,
+                        "should_trigger": response.should_trigger,
+                        "reason": response.reason,
+                    }
+                )
             else:
                 return Response(
                     {"success": False, "error": response.error},
@@ -704,10 +732,12 @@ class GenerateCandidateView(APIView):
             if response.success:
                 candidate_serializer = AlphaCandidateSerializer(response.candidate)
 
-                return Response({
-                    "success": True,
-                    "result": candidate_serializer.data,
-                })
+                return Response(
+                    {
+                        "success": True,
+                        "result": candidate_serializer.data,
+                    }
+                )
             else:
                 return Response(
                     {"success": False, "error": response.error},
@@ -736,28 +766,44 @@ def alpha_trigger_list_view(request):
 
         # 直接查询 ORM 模型
         try:
-            active_triggers = list(AlphaTriggerModel._default_manager.filter(
-                status="ACTIVE"
-            ).order_by('-created_at')[:10])
+            active_triggers = list(
+                AlphaTriggerModel._default_manager.filter(status="ACTIVE").order_by("-created_at")[
+                    :10
+                ]
+            )
         except Exception as e:
             logger.warning(f"Failed to query active triggers: {e}")
             active_triggers = []
 
         try:
-            actionable_candidates = list(AlphaCandidateModel._default_manager.filter(
-                status="ACTIONABLE"
-            ).order_by('-created_at')[:10])
+            actionable_candidates = list(
+                AlphaCandidateModel._default_manager.filter(status="ACTIONABLE").order_by(
+                    "-created_at"
+                )[:10]
+            )
         except Exception as e:
             logger.warning(f"Failed to query actionable candidates: {e}")
             actionable_candidates = []
 
         try:
-            watch_list = list(AlphaCandidateModel._default_manager.filter(
-                status="WATCH"
-            ).order_by('-created_at')[:10])
+            watch_list = list(
+                AlphaCandidateModel._default_manager.filter(status="WATCH").order_by("-created_at")[
+                    :10
+                ]
+            )
         except Exception as e:
             logger.warning(f"Failed to query watch list: {e}")
             watch_list = []
+
+        try:
+            candidate_list = list(
+                AlphaCandidateModel._default_manager.filter(status="CANDIDATE").order_by(
+                    "-created_at"
+                )[:10]
+            )
+        except Exception as e:
+            logger.warning(f"Failed to query candidate list: {e}")
+            candidate_list = []
 
         # 统计各状态数量
         try:
@@ -779,9 +825,29 @@ def alpha_trigger_list_view(request):
             "actionable_count": len(actionable_candidates),
         }
 
+        # 批量解析资产名称
+        from shared.infrastructure.asset_name_resolver import resolve_asset_names
+
+        all_codes = (
+            [t.asset_code for t in active_triggers if t.asset_code]
+            + [c.asset_code for c in actionable_candidates if c.asset_code]
+            + [c.asset_code for c in watch_list if c.asset_code]
+            + [c.asset_code for c in candidate_list if c.asset_code]
+        )
+        asset_name_map = resolve_asset_names(all_codes)
+        for trigger in active_triggers:
+            trigger.asset_name = asset_name_map.get(trigger.asset_code, trigger.asset_code)
+        for candidate in actionable_candidates:
+            candidate.asset_name = asset_name_map.get(candidate.asset_code, candidate.asset_code)
+        for candidate in watch_list:
+            candidate.asset_name = asset_name_map.get(candidate.asset_code, candidate.asset_code)
+        for candidate in candidate_list:
+            candidate.asset_name = asset_name_map.get(candidate.asset_code, candidate.asset_code)
+
         context = {
             "active_triggers": active_triggers,
-            "actionable_candidates": actionable_candidates,
+            "actionable_list": actionable_candidates,
+            "candidate_list": candidate_list,
             "watch_list": watch_list,
             "trigger_stats": trigger_stats,
             "candidate_stats": candidate_stats,
@@ -814,6 +880,7 @@ def alpha_trigger_create_view(request):
         current_regime = None
         try:
             from apps.regime.application.current_regime import resolve_current_regime
+
             current_regime = resolve_current_regime()
         except Exception as e:
             logger.warning(f"Failed to get current regime: {e}")
@@ -823,6 +890,7 @@ def alpha_trigger_create_view(request):
         try:
             from apps.policy.application.use_cases import GetCurrentPolicyUseCase
             from apps.policy.infrastructure.repositories import get_policy_repository
+
             policy_use_case = GetCurrentPolicyUseCase(get_policy_repository())
             policy_response = policy_use_case.execute()
             if policy_response.success and policy_response.policy_level:
@@ -834,18 +902,16 @@ def alpha_trigger_create_view(request):
         available_indicators = []
         try:
             from apps.macro.infrastructure.models import MacroIndicatorModel
-            indicators = MacroIndicatorModel._default_manager.filter(
-                is_active=True
-            ).values('code', 'name', 'unit', 'latest_value')[:50]
+
+            indicators = MacroIndicatorModel._default_manager.filter(is_active=True).values(
+                "code", "name", "unit", "latest_value"
+            )[:50]
             available_indicators = list(indicators)
         except Exception as e:
             logger.warning(f"Failed to query indicators: {e}")
 
         # 获取所有资产类别
-        all_asset_classes = [
-            "a_股票", "a_债券", "a_商品", "a_现金",
-            "港股", "美股", "黄金", "原油"
-        ]
+        all_asset_classes = ["a_股票", "a_债券", "a_商品", "a_现金", "港股", "美股", "黄金", "原油"]
 
         # 获取触发器类型选项
         trigger_type_choices = AlphaTriggerModel.TRIGGER_TYPE_CHOICES
@@ -883,22 +949,25 @@ def alpha_trigger_edit_view(request, trigger_id):
 
         trigger = get_object_or_404(AlphaTriggerModel, trigger_id=trigger_id)
 
+        # 解析资产名称
+        from shared.infrastructure.asset_name_resolver import resolve_asset_name
+
+        trigger.asset_name = resolve_asset_name(trigger.asset_code)
+
         # 获取可用指标列表
         available_indicators = []
         try:
             from apps.macro.infrastructure.models import MacroIndicatorModel
-            indicators = MacroIndicatorModel._default_manager.filter(
-                is_active=True
-            ).values('code', 'name', 'unit', 'latest_value')[:50]
+
+            indicators = MacroIndicatorModel._default_manager.filter(is_active=True).values(
+                "code", "name", "unit", "latest_value"
+            )[:50]
             available_indicators = list(indicators)
         except Exception as e:
             logger.warning(f"Failed to query indicators: {e}")
 
         # 获取所有资产类别
-        all_asset_classes = [
-            "a_股票", "a_债券", "a_商品", "a_现金",
-            "港股", "美股", "黄金", "原油"
-        ]
+        all_asset_classes = ["a_股票", "a_债券", "a_商品", "a_现金", "港股", "美股", "黄金", "原油"]
 
         context = {
             "trigger": trigger,
@@ -935,9 +1004,20 @@ def alpha_trigger_detail_view(request, trigger_id):
         trigger = get_object_or_404(AlphaTriggerModel, trigger_id=trigger_id)
 
         # 获取相关候选
-        candidates = list(AlphaCandidateModel._default_manager.filter(
-            source_trigger_id=trigger_id
-        ).order_by('-created_at')[:20])
+        candidates = list(
+            AlphaCandidateModel._default_manager.filter(source_trigger_id=trigger_id).order_by(
+                "-created_at"
+            )[:20]
+        )
+
+        # 批量解析资产名称
+        from shared.infrastructure.asset_name_resolver import resolve_asset_names
+
+        all_codes = [trigger.asset_code] + [c.asset_code for c in candidates if c.asset_code]
+        asset_name_map = resolve_asset_names(all_codes)
+        trigger.asset_name = asset_name_map.get(trigger.asset_code, trigger.asset_code)
+        for candidate in candidates:
+            candidate.asset_name = asset_name_map.get(candidate.asset_code, candidate.asset_code)
 
         # 统计候选状态
         candidate_stats = {
@@ -978,13 +1058,28 @@ def alpha_trigger_invalidation_builder_view(request):
     try:
         # 获取可用指标列表（预定义的常用指标）
         available_indicators = [
-            {"code": "CN_PMI_MANUFACTURING", "name": "中国制造业PMI", "unit": "指数", "latest_value": 50.1},
+            {
+                "code": "CN_PMI_MANUFACTURING",
+                "name": "中国制造业PMI",
+                "unit": "指数",
+                "latest_value": 50.1,
+            },
             {"code": "CN_CPI_YOY", "name": "中国CPI同比", "unit": "%", "latest_value": 2.1},
             {"code": "CN_PPI_YOY", "name": "中国PPI同比", "unit": "%", "latest_value": -2.8},
             {"code": "US_FED_FUNDS_RATE", "name": "美联储利率", "unit": "%", "latest_value": 5.25},
             {"code": "CN_SHIBOR_OVERNIGHT", "name": "SHIBOR隔夜", "unit": "%", "latest_value": 1.7},
-            {"code": "CN_10Y_BOND_YIELD", "name": "中国10年期国债收益率", "unit": "%", "latest_value": 2.7},
-            {"code": "US_10Y_TREASURY_YIELD", "name": "美国10年期国债收益率", "unit": "%", "latest_value": 4.2},
+            {
+                "code": "CN_10Y_BOND_YIELD",
+                "name": "中国10年期国债收益率",
+                "unit": "%",
+                "latest_value": 2.7,
+            },
+            {
+                "code": "US_10Y_TREASURY_YIELD",
+                "name": "美国10年期国债收益率",
+                "unit": "%",
+                "latest_value": 4.2,
+            },
             {"code": "USD_CNY", "name": "美元兑人民币", "unit": "汇率", "latest_value": 7.2},
         ]
 
@@ -993,7 +1088,7 @@ def alpha_trigger_invalidation_builder_view(request):
             "logic_operator": "AND",
             "invalidation_delay_days": 0,
             "consecutive_count": 1,
-            "conditions": []
+            "conditions": [],
         }
 
         context = {
@@ -1040,6 +1135,7 @@ def alpha_candidate_detail_view(request, candidate_id):
         if candidate.last_decision_request_id:
             try:
                 from apps.decision_rhythm.infrastructure.models import DecisionRequestModel
+
                 decision_request = DecisionRequestModel._default_manager.filter(
                     request_id=candidate.last_decision_request_id
                 ).first()
@@ -1053,6 +1149,7 @@ def alpha_candidate_detail_view(request, candidate_id):
         if candidate.invalidation_conditions:
             try:
                 import json
+
                 conditions = json.loads(candidate.invalidation_conditions)
                 if isinstance(conditions, list):
                     invalidation_conditions = conditions
@@ -1064,21 +1161,26 @@ def alpha_candidate_detail_view(request, candidate_id):
         # 模拟状态历史 (实际应该从数据库查询)
         status_history = []
         # 添加初始状态
-        status_history.append({
-            'status': 'CREATED',
-            'created_at': candidate.created_at,
-            'note': f'由触发器 {candidate.source_trigger_id[:12]}... 创建'
-        })
+        status_history.append(
+            {
+                "status": "CREATED",
+                "created_at": candidate.created_at,
+                "note": f"由触发器 {candidate.source_trigger_id[:12]}... 创建",
+            }
+        )
         # 如果状态有变化，添加历史记录
-        if candidate.status != 'CREATED':
-            status_history.append({
-                'status': candidate.status,
-                'created_at': candidate.updated_at,
-                'note': '状态已更新'
-            })
+        if candidate.status != "CREATED":
+            status_history.append(
+                {
+                    "status": candidate.status,
+                    "created_at": candidate.updated_at,
+                    "note": "状态已更新",
+                }
+            )
 
         # 计算活跃天数
         from django.utils import timezone
+
         days_active = 0
         if candidate.created_at:
             days_active = (timezone.now() - candidate.created_at).days
@@ -1123,9 +1225,9 @@ def alpha_trigger_performance_view(request):
         from datetime import timedelta
 
         # 获取所有活跃触发器
-        triggers = list(AlphaTriggerModel._default_manager.filter(
-            status='ACTIVE'
-        ).order_by('-created_at'))
+        triggers = list(
+            AlphaTriggerModel._default_manager.filter(status="ACTIVE").order_by("-created_at")
+        )
 
         # 为每个触发器计算性能指标
         trigger_performance = []
@@ -1137,11 +1239,9 @@ def alpha_trigger_performance_view(request):
             )
 
             total_candidates = candidates.count()
-            executed_count = candidates.filter(status='EXECUTED').count()
-            invalidated_count = candidates.filter(
-                status__in=['INVALIDATED', 'EXPIRED']
-            ).count()
-            actionable_count = candidates.filter(status='ACTIONABLE').count()
+            executed_count = candidates.filter(status="EXECUTED").count()
+            invalidated_count = candidates.filter(status__in=["INVALIDATED", "EXPIRED"]).count()
+            actionable_count = candidates.filter(status="ACTIONABLE").count()
 
             # 转化率（候选转为执行的比例）
             conversion_rate = 0
@@ -1154,16 +1254,11 @@ def alpha_trigger_performance_view(request):
                 invalidation_rate = round(invalidated_count / total_candidates * 100, 1)
 
             # 平均置信度
-            avg_confidence = candidates.aggregate(
-                avg_conf=Avg('confidence')
-            )['avg_conf'] or 0
+            avg_confidence = candidates.aggregate(avg_conf=Avg("confidence"))["avg_conf"] or 0
 
             # 平均持仓时间（从创建到执行的天数）
             avg_holding_days = 0
-            executed_candidates = candidates.filter(
-                status='EXECUTED',
-                executed_at__isnull=False
-            )
+            executed_candidates = candidates.filter(status="EXECUTED", executed_at__isnull=False)
             if executed_candidates.exists():
                 days_list = []
                 for c in executed_candidates:
@@ -1188,34 +1283,36 @@ def alpha_trigger_performance_view(request):
             performance_score = 0
             if total_candidates > 0:
                 score = (
-                    conversion_rate * 0.4 +
-                    (100 - invalidation_rate) * 0.3 +
-                    (avg_confidence * 100) * 0.3
+                    conversion_rate * 0.4
+                    + (100 - invalidation_rate) * 0.3
+                    + (avg_confidence * 100) * 0.3
                 )
                 performance_score = round(score, 1)
 
-            trigger_performance.append({
-                'trigger': trigger,
-                'total_candidates': total_candidates,
-                'executed_count': executed_count,
-                'invalidated_count': invalidated_count,
-                'actionable_count': actionable_count,
-                'conversion_rate': conversion_rate,
-                'invalidation_rate': invalidation_rate,
-                'avg_confidence': round(avg_confidence, 2),
-                'avg_holding_days': avg_holding_days,
-                'days_active': days_active,
-                'trigger_frequency': trigger_frequency,
-                'performance_score': performance_score,
-            })
+            trigger_performance.append(
+                {
+                    "trigger": trigger,
+                    "total_candidates": total_candidates,
+                    "executed_count": executed_count,
+                    "invalidated_count": invalidated_count,
+                    "actionable_count": actionable_count,
+                    "conversion_rate": conversion_rate,
+                    "invalidation_rate": invalidation_rate,
+                    "avg_confidence": round(avg_confidence, 2),
+                    "avg_holding_days": avg_holding_days,
+                    "days_active": days_active,
+                    "trigger_frequency": trigger_frequency,
+                    "performance_score": performance_score,
+                }
+            )
 
         # 按性能评分排序
-        trigger_performance.sort(key=lambda x: x['performance_score'], reverse=True)
+        trigger_performance.sort(key=lambda x: x["performance_score"], reverse=True)
 
         # 整体统计
         total_triggers = len(triggers)
         total_candidates = AlphaCandidateModel._default_manager.count()
-        total_executed = AlphaCandidateModel._default_manager.filter(status='EXECUTED').count()
+        total_executed = AlphaCandidateModel._default_manager.filter(status="EXECUTED").count()
         overall_conversion_rate = 0
         if total_candidates > 0:
             overall_conversion_rate = round(total_executed / total_candidates * 100, 1)
@@ -1223,59 +1320,61 @@ def alpha_trigger_performance_view(request):
         # 按类型分组统计
         trigger_type_stats = {}
         for perf in trigger_performance:
-            trigger_type = perf['trigger'].get_trigger_type_display()
+            trigger_type = perf["trigger"].get_trigger_type_display()
             if trigger_type not in trigger_type_stats:
                 trigger_type_stats[trigger_type] = {
-                    'count': 0,
-                    'total_candidates': 0,
-                    'total_executed': 0,
-                    'avg_score': 0,
-                    'scores': [],
+                    "count": 0,
+                    "total_candidates": 0,
+                    "total_executed": 0,
+                    "avg_score": 0,
+                    "scores": [],
                 }
             stats = trigger_type_stats[trigger_type]
-            stats['count'] += 1
-            stats['total_candidates'] += perf['total_candidates']
-            stats['total_executed'] += perf['executed_count']
-            stats['scores'].append(perf['performance_score'])
+            stats["count"] += 1
+            stats["total_candidates"] += perf["total_candidates"]
+            stats["total_executed"] += perf["executed_count"]
+            stats["scores"].append(perf["performance_score"])
 
         # 计算各类型平均分
         for trigger_type, stats in trigger_type_stats.items():
-            if stats['scores']:
-                stats['avg_score'] = round(sum(stats['scores']) / len(stats['scores']), 1)
-            stats['conversion_rate'] = 0
-            if stats['total_candidates'] > 0:
-                stats['conversion_rate'] = round(
-                    stats['total_executed'] / stats['total_candidates'] * 100, 1
+            if stats["scores"]:
+                stats["avg_score"] = round(sum(stats["scores"]) / len(stats["scores"]), 1)
+            stats["conversion_rate"] = 0
+            if stats["total_candidates"] > 0:
+                stats["conversion_rate"] = round(
+                    stats["total_executed"] / stats["total_candidates"] * 100, 1
                 )
-            del stats['scores']  # 移除临时列表
+            del stats["scores"]  # 移除临时列表
 
         # 获取最近 30 天的趋势数据
         thirty_days_ago = timezone.now() - timedelta(days=30)
         recent_candidates = AlphaCandidateModel._default_manager.filter(
             created_at__gte=thirty_days_ago
-        ).order_by('created_at')
+        ).order_by("created_at")
 
         # 按日期分组
         daily_stats = {}
         for candidate in recent_candidates:
             date_str = candidate.created_at.date().isoformat()
             if date_str not in daily_stats:
-                daily_stats[date_str] = {'created': 0, 'executed': 0, 'invalidated': 0}
-            daily_stats[date_str]['created'] += 1
-            if candidate.status == 'EXECUTED':
-                daily_stats[date_str]['executed'] += 1
-            elif candidate.status in ['INVALIDATED', 'EXPIRED']:
-                daily_stats[date_str]['invalidated'] += 1
+                daily_stats[date_str] = {"created": 0, "executed": 0, "invalidated": 0}
+            daily_stats[date_str]["created"] += 1
+            if candidate.status == "EXECUTED":
+                daily_stats[date_str]["executed"] += 1
+            elif candidate.status in ["INVALIDATED", "EXPIRED"]:
+                daily_stats[date_str]["invalidated"] += 1
 
         # 转换为列表
         trend_data = []
         for date_str in sorted(daily_stats.keys()):
-            trend_data.append({
-                'date': date_str,
-                'created': daily_stats[date_str]['created'],
-                'executed': daily_stats[date_str]['executed'],
-                'invalidated': daily_stats[date_str]['invalidated'],
-            })
+            trend_data.append(
+                {
+                    "date": date_str,
+                    "created": daily_stats[date_str]["created"],
+                    "executed": daily_stats[date_str]["executed"],
+                    "invalidated": daily_stats[date_str]["invalidated"],
+                }
+            )
 
         context = {
             "trigger_performance": trigger_performance,
@@ -1330,9 +1429,11 @@ class TriggerPerformanceAPIView(APIView):
 
             # 获取触发器列表
             if trigger_id:
-                triggers = [AlphaTriggerModel._default_manager.filter(trigger_id=trigger_id).first()]
+                triggers = [
+                    AlphaTriggerModel._default_manager.filter(trigger_id=trigger_id).first()
+                ]
             else:
-                triggers = list(AlphaTriggerModel._default_manager.filter(status='ACTIVE'))
+                triggers = list(AlphaTriggerModel._default_manager.filter(status="ACTIVE"))
 
             performance_data = []
 
@@ -1341,35 +1442,38 @@ class TriggerPerformanceAPIView(APIView):
                     continue
 
                 candidates = AlphaCandidateModel._default_manager.filter(
-                    source_trigger_id=trigger.trigger_id,
-                    created_at__gte=start_date
+                    source_trigger_id=trigger.trigger_id, created_at__gte=start_date
                 )
 
                 total = candidates.count()
-                executed = candidates.filter(status='EXECUTED').count()
-                invalidated = candidates.filter(
-                    status__in=['INVALIDATED', 'EXPIRED']
-                ).count()
+                executed = candidates.filter(status="EXECUTED").count()
+                invalidated = candidates.filter(status__in=["INVALIDATED", "EXPIRED"]).count()
 
-                performance_data.append({
-                    "trigger_id": trigger.trigger_id,
-                    "asset_code": trigger.asset_code,
-                    "trigger_type": trigger.trigger_type,
-                    "total_candidates": total,
-                    "executed": executed,
-                    "invalidated": invalidated,
-                    "conversion_rate": round(executed / total * 100, 1) if total > 0 else 0,
-                    "invalidation_rate": round(invalidated / total * 100, 1) if total > 0 else 0,
-                })
+                performance_data.append(
+                    {
+                        "trigger_id": trigger.trigger_id,
+                        "asset_code": trigger.asset_code,
+                        "trigger_type": trigger.trigger_type,
+                        "total_candidates": total,
+                        "executed": executed,
+                        "invalidated": invalidated,
+                        "conversion_rate": round(executed / total * 100, 1) if total > 0 else 0,
+                        "invalidation_rate": round(invalidated / total * 100, 1)
+                        if total > 0
+                        else 0,
+                    }
+                )
 
-            return Response({
-                "success": True,
-                "data": performance_data,
-                "summary": {
-                    "days": days,
-                    "total_triggers": len(performance_data),
+            return Response(
+                {
+                    "success": True,
+                    "data": performance_data,
+                    "summary": {
+                        "days": days,
+                        "total_triggers": len(performance_data),
+                    },
                 }
-            })
+            )
 
         except Exception as e:
             logger.error(f"Failed to get performance data: {e}", exc_info=True)
