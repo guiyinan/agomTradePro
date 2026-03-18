@@ -36,7 +36,11 @@ AI Prompt管理系统是AgomSAAF的核心组件，提供统一的Prompt模板管
 
 ## 2. 架构设计
 
-系统遵循项目的四层架构：
+系统遵循项目的四层架构。
+
+执行 AI 时，`prompt` 模块统一通过
+`apps.ai_provider.infrastructure.client_factory.AIClientFactory`
+获取客户端，不再在 `prompt` 模块内部维护独立 provider 工厂。
 
 ```
 ┌─────────────────────────────────────┐
@@ -398,13 +402,14 @@ GET /api/prompt/logs/?template_id=1&limit=50
 ```python
 from apps.prompt.infrastructure.repositories import DjangoPromptRepository
 from apps.prompt.application.use_cases import ExecutePromptUseCase
+from apps.ai_provider.infrastructure.client_factory import AIClientFactory
 
 # 创建用例
 repository = DjangoPromptRepository()
 use_case = ExecutePromptUseCase(
     prompt_repository=repository,
     execution_log_repository=...,
-    ai_client_factory=...,
+    ai_client_factory=AIClientFactory(),
     macro_adapter=...,
     regime_adapter=...
 )
@@ -412,7 +417,8 @@ use_case = ExecutePromptUseCase(
 # 执行
 request = ExecutePromptRequest(
     template_id=1,
-    placeholder_values={"PMI": 50.8}
+    placeholder_values={"PMI": 50.8},
+    provider_ref="openai-main",  # 也可以传 provider ID，如 1
 )
 result = use_case.execute(request)
 

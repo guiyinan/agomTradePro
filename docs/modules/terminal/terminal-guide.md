@@ -2,7 +2,7 @@
 
 > **模块版本**: 1.0
 > **创建日期**: 2026-03-17
-> **依赖模块**: prompt（AI 能力、数据模型）
+> **依赖模块**: ai_provider（AI 客户端）, prompt（可选模板关联）
 
 ---
 
@@ -23,7 +23,7 @@ apps/terminal/
 │   ├── use_cases.py          # 业务用例
 │   └── services.py           # 命令执行服务
 ├── infrastructure/           # 基础设施层
-│   ├── models.py             # ORM 模型（重导出）
+│   ├── models.py             # ORM 模型（TerminalCommandORM）
 │   └── repositories.py       # 仓储实现
 └── interface/                # 接口层
     ├── views.py              # 页面视图
@@ -33,14 +33,14 @@ apps/terminal/
     └── api_urls.py           # API 路由
 ```
 
-### 与 prompt 模块的关系
+### 与 ai_provider / prompt 模块的关系
 
 ```
-terminal (上层交互界面)
+terminal
     │
-    ├── 依赖 prompt 的数据模型 (TerminalCommandORM)
-    ├── 依赖 prompt 的 AI 客户端 (AIClientFactory)
-    └── 可选依赖 prompt 的模板 (PromptTemplateORM)
+    ├── 依赖 ai_provider 的 AI 客户端工厂 (AIClientFactory)
+    ├── 自身持有 TerminalCommandORM
+    └── 可选关联 prompt 的模板 (PromptTemplateORM)
 ```
 
 ## 核心概念
@@ -77,7 +77,7 @@ class TerminalCommand:
     
     # 执行配置
     timeout: int                       # 超时时间（秒）
-    provider_name: Optional[str]       # 指定 AI 提供商
+    provider_name: Optional[str]       # 指定 AI 提供商名称
     model_name: Optional[str]          # 指定模型
 ```
 

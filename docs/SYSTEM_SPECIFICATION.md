@@ -869,8 +869,8 @@ class StrategyConfig:
 - 会话管理
 
 **依赖关系**：
-- 依赖 `prompt` 模块的 AI 客户端（AIClientFactory）
-- 依赖 `prompt` 模块的数据模型（TerminalCommandORM）
+- 依赖 `ai_provider` 模块的 AI 客户端工厂（AIClientFactory）
+- 自身持有 `TerminalCommandORM`
 - 可选关联 Prompt 模板
 
 ---

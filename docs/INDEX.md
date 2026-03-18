@@ -33,6 +33,7 @@
 | [SYSTEM_OVERVIEW.md](architecture/SYSTEM_OVERVIEW.md) | 系统全景概览（1620行） | 最新 |
 | [asset_analysis_framework.md](architecture/asset_analysis_framework.md) | 资产分析框架设计 | 完整 |
 | [project_structure.md](architecture/project_structure.md) | 项目结构说明 | 完整 |
+| [ai_module_boundaries.md](architecture/ai_module_boundaries.md) | AI 模块边界与依赖 | ✅ 2026-03-18 新增 |
 | [simulated_trading_design.md](architecture/simulated_trading_design.md) | 模拟盘交易设计 | 完整 |
 | [strategy_system_design.md](architecture/strategy_system_design.md) | 策略系统设计 | 完整 |
 | [frp-vps-local-runtime-architecture.md](architecture/frp-vps-local-runtime-architecture.md) | 三机架构方案：VPS FRP 转发 + 本地 Docker + C 端 AI Agent/MCP | ✅ 2026-03-08 新增 |
@@ -344,7 +345,7 @@
   - 可配置命令系统（参数定义、JQ 过滤、输出格式）
   - 终端风格 AI 交互界面
   - 完整的 REST API 和 Admin 管理
-  - 依赖 prompt 模块的 AI 能力和数据模型
+  - AI 客户端已统一收敛到 `ai_provider`，命令数据模型已独立到 `terminal`
 
 ### 2026-03-11
 - ✅ **估值修复策略参数配置系统**
