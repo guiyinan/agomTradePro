@@ -301,7 +301,7 @@ class GenerateSignalResponseSerializer(serializers.Serializer):
 class ChatRequestSerializer(serializers.Serializer):
     """聊天请求序列化器"""
     message = serializers.CharField()
-    session_id = serializers.CharField(allow_blank=True, required=False)
+    session_id = serializers.CharField(allow_blank=True, allow_null=True, required=False)
     context = serializers.JSONField(allow_null=True, required=False)
     provider_ref = serializers.JSONField(required=False)
     provider_name = serializers.CharField(allow_blank=True, required=False)

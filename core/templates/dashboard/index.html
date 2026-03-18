@@ -424,10 +424,7 @@
                     <div class="alpha-content-card provider-status-card">
                         <div class="card-header">
                             <h3>Provider 健康状态</h3>
-                            <button class="mini-refresh-btn"
-                                    hx-get="{% url 'dashboard:api_alpha_provider_status' %}"
-                                    hx-trigger="click"
-                                    hx-target="#providerStatusPanel">
+                            <button class="mini-refresh-btn" onclick="refreshProviderStatus()">
                                 🔄
                             </button>
                         </div>
@@ -868,11 +865,10 @@ function getCookie(name) {
     return cookieValue;
 }
 
-chatSendBtn.addEventListener('click', sendMessage);
 chatInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        sendMessage();
+        chatSendBtn.click();
     }
 });
 
@@ -880,7 +876,7 @@ chatInput.addEventListener('keypress', (e) => {
 document.querySelectorAll('.suggestion-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         chatInput.value = btn.dataset.query;
-        sendMessage();
+        chatSendBtn.click();
     });
 });
 
@@ -924,6 +920,7 @@ function renderProviderStatus() {
     for (const [name, info] of Object.entries(providerData.providers)) {
         const status = info.status || 'unknown';
         const metrics = providerData.metrics?.[name] || null;
+        const message = info.message || '';
 
         html += `
             <div class="provider-item provider-${status}">
@@ -933,6 +930,7 @@ function renderProviderStatus() {
                         ${status === 'available' ? '✓ 可用' : status === 'degraded' ? '⚠ 降级' : '✗ 不可用'}
                     </span>
                 </div>
+                ${message ? `<div class="provider-message">${message}</div>` : ''}
                 ${metrics ? `
                     <div class="provider-metrics">
                         <span class="metric">成功率: <strong>${metrics.success_rate.toFixed(1)}%</strong></span>
@@ -944,6 +942,33 @@ function renderProviderStatus() {
     }
 
     container.innerHTML = html;
+}
+
+// 刷新 Provider 状态
+async function refreshProviderStatus() {
+    const container = document.getElementById('providerListContainer');
+    if (!container) return;
+
+    container.innerHTML = '<div class="loading-state"><p>刷新中...</p></div>';
+
+    try {
+        const response = await fetch('/api/dashboard/alpha/provider-status/');
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const result = await response.json();
+
+        if (result.success && result.data) {
+            // 更新 providerData 元素
+            const providerDataElement = document.getElementById('providerData');
+            if (providerDataElement) {
+                providerDataElement.textContent = JSON.stringify(result.data);
+            }
+            renderProviderStatus();
+        }
+    } catch (error) {
+        container.innerHTML = '<div class="error-state"><p>刷新失败: ' + error.message + '</p></div>';
+    }
 }
 
 // 页面加载时渲染 Provider 状态
@@ -976,10 +1001,12 @@ async function checkQlibStatus() {
                     desc.innerHTML = `✓ 可用 (成功率: ${qlibMetrics?.success_rate.toFixed(1) || 0}%)`;
                 } else if (qlibProvider.status === 'degraded') {
                     indicator.className = 'status-indicator status-warning';
-                    desc.textContent = '⚠ 降级运行中';
+                    const msg = qlibProvider.message || '降级运行中';
+                    desc.innerHTML = `⚠ ${msg}`;
                 } else {
                     indicator.className = 'status-indicator status-error';
-                    desc.textContent = '✗ 不可用 (使用缓存)';
+                    const msg = qlibProvider.message || '不可用';
+                    desc.innerHTML = `✗ ${msg}`;
                 }
             } else {
                 indicator.className = 'status-indicator status-warning';
@@ -1274,10 +1301,10 @@ document.querySelectorAll('.sortable').forEach(th => {
 });
 
 // ========================================
-// AI 聊天流式响应优化
+// AI 聊天（统一入口，自动检测流式/普通响应）
 // ========================================
 
-async function sendMessageStream() {
+chatSendBtn.onclick = async function() {
     const text = chatInput.value.trim();
     if (!text) return;
 
@@ -1286,8 +1313,9 @@ async function sendMessageStream() {
 
     addMessage(text, false);
     chatInput.value = '';
+    chatHistory.push({ role: 'user', content: text });
 
-    // 添加一个临时消息用于流式显示
+    // 添加临时消息
     const tempMsgDiv = document.createElement('div');
     tempMsgDiv.className = 'message message-system';
     const tempContentDiv = document.createElement('div');
@@ -1307,12 +1335,21 @@ async function sendMessageStream() {
             body: JSON.stringify({
                 message: text,
                 session_id: chatSessionId,
-                context: { history: chatHistory },
-                stream: true
+                context: { history: chatHistory }
             })
         });
 
-        if (response.ok) {
+        if (!response.ok) {
+            const data = await response.json();
+            const errorMsg = data.error || 'AI 服务暂时不可用';
+            tempContentDiv.innerHTML = `<p>⚠️ ${errorMsg}<br><br>请前往 <a href="${API_URLS.aiProviderManage}">AI 接口管理</a> 配置 AI 提供商。</p>`;
+            return;
+        }
+
+        const contentType = response.headers.get('Content-Type') || '';
+
+        if (contentType.includes('text/event-stream')) {
+            // 流式响应
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let fullReply = '';
@@ -1326,45 +1363,41 @@ async function sendMessageStream() {
 
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
-                        const data = JSON.parse(line.slice(6));
-                        if (data.content) {
-                            fullReply += data.content;
-                            tempContentDiv.innerHTML = `<p>${fullReply}</p>`;
-                            chatMessages.scrollTop = chatMessages.scrollHeight;
-                        }
-                        if (data.session_id) {
-                            chatSessionId = data.session_id;
-                        }
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            if (data.content) {
+                                fullReply += data.content;
+                                tempContentDiv.innerHTML = `<p>${fullReply}</p>`;
+                                chatMessages.scrollTop = chatMessages.scrollHeight;
+                            }
+                            if (data.session_id) {
+                                chatSessionId = data.session_id;
+                            }
+                        } catch (_) { /* skip malformed line */ }
                     }
                 }
             }
 
             chatHistory.push({ role: 'assistant', content: fullReply });
         } else {
+            // 普通 JSON 响应
             const data = await response.json();
-            const errorMsg = data.error || 'AI 服务暂时不可用';
-            tempContentDiv.innerHTML = `<p>⚠️ ${errorMsg}</p>`;
+            if (data.reply) {
+                chatSessionId = data.session_id;
+                tempContentDiv.innerHTML = `<p>${data.reply}</p>`;
+                chatHistory.push({ role: 'assistant', content: data.reply });
+            } else {
+                const errorMsg = data.error || 'AI 服务暂时不可用';
+                tempContentDiv.innerHTML = `<p>⚠️ ${errorMsg}</p>`;
+            }
         }
     } catch (error) {
         tempContentDiv.innerHTML = `<p>❌ 网络错误: ${error.message}</p>`;
     } finally {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
         chatInput.disabled = false;
         chatSendBtn.disabled = false;
         chatInput.focus();
-    }
-}
-
-// 检查是否支持流式响应
-chatSendBtn.onclick = async function() {
-    const text = chatInput.value.trim();
-    if (!text) return;
-
-    // 尝试使用流式响应
-    try {
-        await sendMessageStream();
-    } catch (e) {
-        // 降级到普通响应
-        await sendMessage();
     }
 };
 </script>
@@ -2236,6 +2269,15 @@ chatSendBtn.onclick = async function() {
 .provider-status-badge.status-unavailable {
     background: #FFEBEE;
     color: #C62828;
+}
+
+.provider-message {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    padding: 4px 8px;
+    background: rgba(255, 152, 0, 0.1);
+    border-radius: 4px;
 }
 
 .provider-metrics {
