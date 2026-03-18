@@ -3,6 +3,7 @@
 {% block title %}{{ provider.name }} - 详情 - AgomSAAF{% endblock %}
 
 {% block content %}
+<a href="{% url 'ai_provider:manage' %}" style="display: inline-block; margin-bottom: 12px; color: var(--text-secondary, #6c757d); text-decoration: none; font-size: 14px;">&larr; 返回 AI 管理</a>
 <div class="page-header">
     <h1>{{ provider.name }}</h1>
     <p class="subtitle">{{ provider.get_provider_type_display }} - {{ provider.description }}</p>
@@ -56,7 +57,11 @@
             <a href="{% url 'ai_provider:edit' provider.id %}" class="tag">编辑配置</a>
             <a href="{% url 'ops-center' %}" class="tag">进入配置中心</a>
             <a href="{% url 'ai_provider:manage' %}" class="tag">返回列表</a>
+            <button id="btn-test-connection" class="tag" onclick="testConnection()" style="cursor: pointer; border: none; background: var(--color-warning, #f0ad4e); color: #fff;">测试连接</button>
         </div>
+
+        <!-- 测试结果 -->
+        <div id="test-result" style="display: none; margin-top: 16px; padding: 12px; border-radius: 4px;"></div>
     </div>
 </div>
 
@@ -163,7 +168,7 @@
         <tbody>
             {% for log in recent_logs %}
             <tr style="border-bottom: 1px solid var(--color-border-light);">
-                <td style="padding: 8px;">{{ log.created_at|date="m-d H:i:s" }}</td>
+                <td style="padding: 8px;">{{ log.created_at|date:"m-d H:i:s" }}</td>
                 <td style="padding: 8px;"><code>{{ log.model }}</code></td>
                 <td style="padding: 8px; text-align: right;">{{ log.total_tokens }}</td>
                 <td style="padding: 8px; text-align: right;">${{ log.estimated_cost|floatformat:6 }}</td>
@@ -182,4 +187,71 @@
 </div>
 {% endif %}
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function testConnection() {
+    const btn = document.getElementById('btn-test-connection');
+    const resultDiv = document.getElementById('test-result');
+
+    btn.disabled = true;
+    btn.textContent = '测试中...';
+    resultDiv.style.display = 'block';
+    resultDiv.style.background = 'var(--color-bg-secondary, #f5f5f5)';
+    resultDiv.innerHTML = '<span>正在连接 AI 提供商，请稍候...</span>';
+
+    fetch('/api/ai/providers/{{ provider.id }}/test-connection/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.textContent = '测试连接';
+
+        if (data.status === 'success') {
+            resultDiv.style.background = 'rgba(40, 167, 69, 0.1)';
+            resultDiv.style.border = '1px solid var(--color-success, #28a745)';
+            resultDiv.innerHTML =
+                '<strong style="color: var(--color-success, #28a745);">连接成功</strong>' +
+                '<table style="margin-top: 8px; border-collapse: collapse; width: 100%;">' +
+                '<tr><td style="padding: 4px 8px; width: 100px;">模型:</td><td style="padding: 4px 8px;"><code>' + escapeHtml(data.model) + '</code></td></tr>' +
+                '<tr><td style="padding: 4px 8px;">回复:</td><td style="padding: 4px 8px;">' + escapeHtml(data.content || '') + '</td></tr>' +
+                '<tr><td style="padding: 4px 8px;">耗时:</td><td style="padding: 4px 8px;">' + data.response_time_ms + 'ms</td></tr>' +
+                '<tr><td style="padding: 4px 8px;">Tokens:</td><td style="padding: 4px 8px;">' + data.total_tokens + '</td></tr>' +
+                '<tr><td style="padding: 4px 8px;">调用方式:</td><td style="padding: 4px 8px;">' + escapeHtml(data.request_type || '') + (data.fallback_used ? ' (fallback)' : '') + '</td></tr>' +
+                '</table>';
+        } else {
+            resultDiv.style.background = 'rgba(220, 53, 69, 0.1)';
+            resultDiv.style.border = '1px solid var(--color-error, #dc3545)';
+            resultDiv.innerHTML =
+                '<strong style="color: var(--color-error, #dc3545);">连接失败</strong>' +
+                '<p style="margin: 8px 0 0; word-break: break-all;">' + escapeHtml(data.error_message || '未知错误') + '</p>' +
+                (data.response_time_ms ? '<p style="margin: 4px 0 0;">耗时: ' + data.response_time_ms + 'ms</p>' : '');
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.textContent = '测试连接';
+        resultDiv.style.background = 'rgba(220, 53, 69, 0.1)';
+        resultDiv.style.border = '1px solid var(--color-error, #dc3545)';
+        resultDiv.innerHTML = '<strong style="color: var(--color-error, #dc3545);">请求失败</strong><p style="margin: 8px 0 0;">' + escapeHtml(err.message) + '</p>';
+    });
+}
+
+function getCsrfToken() {
+    const cookie = document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='));
+    return cookie ? cookie.split('=')[1] : '';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
 {% endblock %}

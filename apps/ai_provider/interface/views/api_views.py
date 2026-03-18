@@ -117,6 +117,61 @@ class AIProviderConfigViewSet(viewsets.ModelViewSet):
         except ValueError as e:
             return Response({'error': str(e)}, status=status.HTTP_404_NOT_FOUND)
 
+    @action(detail=True, methods=['post'], url_path='test-connection')
+    def test_connection(self, request, pk=None):
+        """测试 AI 提供商连接是否可用"""
+        from ...infrastructure.repositories import AIProviderRepository
+        from ...infrastructure.adapters import OpenAICompatibleAdapter
+
+        provider_repo = AIProviderRepository()
+        provider = provider_repo.get_by_id(pk)
+        if provider is None:
+            return Response({'error': f'Provider {pk} not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        api_key = provider_repo.get_api_key(provider)
+        if not api_key:
+            return Response({
+                'status': 'error',
+                'error_message': 'API Key 未配置',
+                'response_time_ms': 0,
+            })
+
+        try:
+            adapter = OpenAICompatibleAdapter(
+                base_url=provider.base_url,
+                api_key=api_key,
+                default_model=provider.default_model,
+                api_mode=provider.api_mode,
+                fallback_enabled=provider.fallback_enabled,
+            )
+            result = adapter.chat_completion(
+                messages=[{"role": "user", "content": "Hi, reply with 'OK' only."}],
+                max_tokens=10,
+                temperature=0,
+            )
+            return Response({
+                'status': result.get('status', 'error'),
+                'content': result.get('content', ''),
+                'model': result.get('model', ''),
+                'response_time_ms': result.get('response_time_ms', 0),
+                'total_tokens': result.get('total_tokens', 0),
+                'error_message': result.get('error_message', ''),
+                'request_type': result.get('request_type', ''),
+                'fallback_used': result.get('fallback_used', False),
+            })
+        except ImportError:
+            return Response({
+                'status': 'error',
+                'error_message': 'openai 库未安装',
+                'response_time_ms': 0,
+            })
+        except Exception as e:
+            return Response({
+                'status': 'error',
+                'error_message': str(e),
+                'response_time_ms': 0,
+            })
+
     @action(detail=True, methods=['get'])
     def usage_stats(self, request, pk=None):
         """获取使用统计"""
