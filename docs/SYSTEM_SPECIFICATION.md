@@ -2,7 +2,7 @@
 
 > **版本**: V3.5
 > **生成日期**: 2026-03-05
-> **更新日期**: 2026-03-17
+> **更新日期**: 2026-03-18
 > **项目状态**: 生产就绪（RC2 阶段）
 > **文档性质**: 技术与功能完整说明
 
@@ -35,7 +35,7 @@
 
 | 指标 | 数值 |
 |------|------|
-| 业务模块 | 29个 |
+| 业务模块 | 32个 |
 | 测试用例 | 1,600+ |
 | 代码行数 | 50,000+ |
 | API 端点 | 100+ |
@@ -179,7 +179,7 @@ AgomSAAF/
 │   ├── celery.py                 # Celery 配置
 │   └── exceptions.py             # 统一异常类
 │
-├── apps/                          # 业务模块 (29个)
+├── apps/                          # 业务模块 (32个)
 │   ├── macro/                    # 宏观数据采集
 │   │   ├── domain/
 │   │   │   ├── entities.py       # 数据实体
@@ -211,6 +211,7 @@ AgomSAAF/
 │   ├── account/                  # 账户管理
 │   ├── simulated_trading/        # 模拟交易
 │   ├── realtime/                 # 实时监控
+│   ├── market_data/              # 市场数据统一接口
 │   ├── strategy/                 # 策略系统
 │   ├── backtest/                 # 回测引擎
 │   ├── audit/                    # 事后审计
@@ -222,6 +223,9 @@ AgomSAAF/
 │   ├── dashboard/                # 仪表盘
 │   ├── filter/                   # 滤波器
 │   ├── events/                   # 事件系统
+│   ├── terminal/                 # 终端交互
+│   ├── agent_runtime/            # Agent 运行时
+│   ├── share/                    # 分享功能
 │   └── task_monitor/             # 任务监控
 │
 ├── shared/                        # 跨模块共享
@@ -274,7 +278,7 @@ AgomSAAF/
 
 ### 3.1 模块总览
 
-系统包含 **28 个业务模块**，按功能分为 5 大类：
+系统包含 **32 个业务模块**，按功能分为 6 大类：
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -290,12 +294,12 @@ AgomSAAF/
 │                   │                 │  rotation                 │
 │                   │                 │  hedge                    │
 ├─────────────────────────────────────────────────────────────────┤
-│  风控账户 (5)     │  工具模块 (7)   │                           │
-│  ─────────────    │  ─────────────  │                           │
-│  account          │  ai_provider    │                           │
-│  audit            │  prompt         │                           │
-│  simulated_trading│  dashboard      │                           │
-│  realtime         │  backtest       │                           │
+│  风控账户 (5)     │  工具模块 (7)   │  新增模块 (3)             │
+│  ─────────────    │  ─────────────  │  ────────────             │
+│  account          │  ai_provider    │  terminal                 │
+│  audit            │  prompt         │  agent_runtime            │
+│  simulated_trading│  dashboard      │  market_data              │
+│  realtime         │  backtest       │  share                    │
 │  strategy         │  events         │                           │
 │                   │  task_monitor   │                           │
 └─────────────────────────────────────────────────────────────────┘
@@ -872,6 +876,50 @@ class StrategyConfig:
 - 依赖 `ai_provider` 模块的 AI 客户端工厂（AIClientFactory）
 - 自身持有 `TerminalCommandORM`
 - 可选关联 Prompt 模板
+
+#### 3.6.8 Agent Runtime 模块 - Agent 运行时
+
+**功能**：Terminal AI 后端，支持任务编排和 Facade 模式
+
+**核心组件**：
+- **Task Facades** - 任务门面模式，按领域分组
+  - `ResearchTaskFacade` - 研究任务
+  - `DecisionTaskFacade` - 决策任务
+  - `ExecutionTaskFacade` - 执行任务
+  - `MonitoringTaskFacade` - 监控任务
+  - `OpsTaskFacade` - 运维任务
+- **Guardrails** - 守护规则，约束 AI 行为
+- **Timeline Events** - 时间线事件记录
+
+**任务领域**：
+- `RESEARCH` - 研究
+- `DECISION` - 决策
+- `EXECUTION` - 执行
+- `MONITORING` - 监控
+- `OPS` - 运维
+
+#### 3.6.9 Market Data 模块 - 市场数据统一接口
+
+**功能**：整合多数据源，提供统一的市场数据访问接口
+
+**数据源**：
+- Tushare Pro
+- AKShare
+- Redis 缓存
+
+**主要功能**：
+- 实时价格获取
+- 历史数据查询
+- 数据缓存管理
+
+#### 3.6.10 Share 模块 - 分享功能
+
+**功能**：支持决策分享
+
+**分享内容**：
+- 投资决策
+- 分析报告
+- 策略配置
 
 ---
 
@@ -1627,5 +1675,5 @@ tools = [
 ---
 
 **文档维护**: AgomSAAF Team
-**最后更新**: 2026-03-05
-**文档版本**: V1.0
+**最后更新**: 2026-03-18
+**文档版本**: V1.1

@@ -313,11 +313,12 @@ agomsaaf-mcp
 ## Project Status
 
 - **Version**: 1.2.0
-- **Modules**: 15 business modules
+- **App Modules**: 32 business modules
+- **SDK Modules**: 15 modules
 - **MCP Tools**: 65+ tools
 - **Test Coverage**: Core modules covered
 - **Documentation**: Complete
-- **Last Updated**: 2026-03-01
+- **Last Updated**: 2026-03-18
 
 ## License
 

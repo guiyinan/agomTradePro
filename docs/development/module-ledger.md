@@ -1,9 +1,10 @@
 # Module Ledger
 
-> Rules version: `2026-03-12.v1`
-> Generated at: `2026-03-12 04:27:40Z`
+> Rules version: `2026-03-18.v2`
+> Generated at: `2026-03-18`
 > Boundary rules: `4`
 > Violations: `0`
+> Business Modules: `32`
 
 ## Boundary Baseline
 
@@ -47,6 +48,10 @@
 | `simulated_trading` | business | 11 | 5 | Facade, Gateway | out: ai_provider, asset_analysis, equity, fund, macro, policy, prompt, realtime, ...; in: account, decision_rhythm, realtime, rotation, strategy; Simulated trading should not reach strategy ORM directly. |
 | `strategy` | business | 10 | 2 | Facade, Gateway | out: account, ai_provider, asset_analysis, equity, fund, macro, prompt, regime, ...; in: dashboard, simulated_trading; Strategy should not reach simulated_trading ORM directly. |
 | `task_monitor` |  | 0 | 0 |  |  |
+| `agent_runtime` |  | 0 | 0 |  | Terminal AI backend, supports task orchestration and Facade pattern |
+| `market_data` |  | 1 | 1 |  | out: realtime; in: realtime; Unified market data interface |
+| `share` |  | 2 | 0 |  | out: decision_rhythm, simulated_trading; Decision sharing module |
+| `terminal` |  | 1 | 0 |  | out: prompt; Terminal CLI, AI interaction interface |
 
 ## Violations
 

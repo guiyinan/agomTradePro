@@ -3,7 +3,7 @@
 > 生成时间: 2025-12-30
 > 更新时间: 2026-02-20
 > 项目版本: 1.2
-> 模块数量: 27个业务模块
+> 模块数量: 32个业务模块
 
 ## 1. 项目概述
 
@@ -311,7 +311,7 @@ AgomSAAF/
 │   │   ├── strategy_system_design.md
 │   │   └── frontend_design_guide.md
 │   ├── business/                #   业务文档
-│   │   ├── AgomSAAF_V3.4.md    #     业务需求
+│   │   ├── AgomSAAF_V3.5.md    #     业务需求
 │   │   ├── signal_and_position.md
 │   │   └── equity-valuation-logic.md
 │   ├── development/             #   开发文档
@@ -889,7 +889,7 @@ rg -n "from .*infrastructure\\." apps/*/interface -S
 
 ## 14. 相关文档
 
-- [业务需求文档](../business/AgomSAAF_V3.4.md)
+- [业务需求文档](../business/AgomSAAF_V3.5.md)
 - [前端设计指南](frontend_design_guide.md)
 - [项目开发规则](../../CLAUDE.md)
 - [AI Prompt系统使用文档](../ai/ai_prompt_system.md)

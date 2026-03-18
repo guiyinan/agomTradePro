@@ -102,7 +102,13 @@
 - ux-user-journey-checklist-2026-02-18.md
 - ui-ux-full-page-audit-2026-02-18.md
 
+### 8. 开发文档归档 (development/)
+
+| 原文件 | 说明 | 归档日期 |
+|--------|------|----------|
+| module-dependency-graph.md | 模块依赖关系图（已被 `architecture/MODULE_DEPENDENCIES.md` 取代） | 2026-03-18 |
+
 ---
 
 **归档维护**: AgomSAAF Team
-**最后更新**: 2026-03-04
+**最后更新**: 2026-03-18

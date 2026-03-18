@@ -4,10 +4,10 @@
 
 ## 项目概述
 
-> **最后更新**: 2026-03-17
+> **最后更新**: 2026-03-18
 > **系统版本**: AgomSAAF V3.5
 > **项目状态**: 生产就绪
-> **业务模块**: 28个
+> **业务模块**: 32个
 > **测试覆盖**: 1,500+ 个测试用例
 
 AgomSAAF (Agom Strategic Asset Allocation Framework) 是一个宏观环境准入系统，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
@@ -68,7 +68,7 @@ AgomSAAF/
 │   │   └── production.py
 │   ├── urls.py
 │   └── celery.py
-├── apps/                     # 28个业务模块
+├── apps/                     # 32个业务模块
 │   ├── macro/                # 宏观数据采集
 │   ├── regime/               # Regime 判定引擎
 │   ├── policy/               # 政策事件管理
@@ -83,6 +83,7 @@ AgomSAAF/
 │   ├── account/              # 账户与持仓管理
 │   ├── simulated_trading/    # 模拟盘自动交易
 │   ├── realtime/             # 实时价格监控
+│   ├── market_data/          # 市场数据统一接口
 │   ├── strategy/             # 策略系统
 │   ├── ai_provider/          # AI 服务商管理
 │   ├── prompt/               # AI Prompt 模板
@@ -96,7 +97,10 @@ AgomSAAF/
 │   ├── rotation/             # 板块轮动
 │   ├── hedge/                # 对冲策略
 │   ├── events/               # 事件系统
-│   └── terminal/             # 终端 CLI（AI 交互界面）
+│   ├── terminal/             # 终端 CLI（AI 交互界面）
+│   ├── agent_runtime/        # Agent 运行时（Terminal AI 后端）
+│   ├── share/                # 分享功能
+│   └── task_monitor/         # 任务监控
 ├── shared/                   # 跨 App 共享（仅技术性组件）
 │   ├── domain/interfaces.py  # Protocol 定义
 │   ├── infrastructure/       # 通用算法实现（如 Kalman 滤波）
@@ -440,6 +444,10 @@ ak.macro_china_money_supply()
 - ✅ Rotation 模块（板块轮动）
 - ✅ Hedge 模块（对冲策略）
 - ✅ Terminal 模块（终端 CLI，AI 交互界面）
+- ✅ Agent Runtime 模块（Terminal AI 后端）
+- ✅ Market Data 模块（市场数据统一接口）
+- ✅ Share 模块（决策分享）
+- ✅ Task Monitor 模块（任务监控）
 
 **Phase 8: 功能完善** (进行中):
 - [x] Audit 模块补全 ✅ (含 Brinson 归因 + 完整测试覆盖)
@@ -497,3 +505,7 @@ ak.macro_china_money_supply()
 - `rotation/` - 板块轮动模块，基于 Regime 的板块配置建议
 - `hedge/` - 对冲策略模块，支持期货对冲计算和管理
 - `terminal/` - 终端 CLI 模块，提供终端风格的 AI 交互界面，支持可配置命令系统
+- `agent_runtime/` - Agent 运行时模块，Terminal AI 后端，支持任务编排和 Facade 模式
+- `market_data/` - 市场数据统一接口，整合多数据源
+- `share/` - 分享功能模块，支持决策分享
+- `task_monitor/` - 任务监控模块，Celery 任务状态追踪

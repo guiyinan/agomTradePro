@@ -1,7 +1,7 @@
 # AgomSAAF 文档索引
 
 > **AgomSAAF V3.5** - 宏观环境准入系统
-> **最后更新**: 2026-03-17
+> **最后更新**: 2026-03-18
 > **项目状态**: 生产就绪
 
 ---
@@ -11,26 +11,34 @@
 | 角色 | 入口文档 | 说明 |
 |------|----------|------|
 | **系统概览** | [SYSTEM_SPECIFICATION.md](SYSTEM_SPECIFICATION.md) | **完整系统说明书（技术+功能）** |
+| **系统基线** | [governance/SYSTEM_BASELINE.md](governance/SYSTEM_BASELINE.md) | **单一叙事来源（版本/模块/部署/测试）** |
 | **新用户** | [QUICK_START.md](QUICK_START.md) | **个人实战上手手册（冷启动版）** |
 | 开发人员 | [development/quick-reference.md](development/quick-reference.md) | 命令速查、API端点、模块速查 |
-| 新加入者 | [architecture/SYSTEM_OVERVIEW.md](architecture/SYSTEM_OVERVIEW.md) | 系统全景、模块说明、数据流 |
+| 新加入者 | [governance/SYSTEM_BASELINE.md](governance/SYSTEM_BASELINE.md) | 系统基线、模块清单、核心链路 |
 | AI Agent/集成开发 | [../sdk/README.md](../sdk/README.md) | SDK 与 MCP 服务接入、认证、工具清单 |
 | 外包团队 | [development/outsourcing-work-guidelines.md](development/outsourcing-work-guidelines.md) | **外包工作指南、代码规范、自查清单** |
 | 产品/业务 | [business/AgomSAAF_V3.4.md](business/AgomSAAF_V3.4.md) | 业务逻辑、金融规则、数据源 |
 | 最终用户 | [user/topdown-bottomup-execution-playbook.md](user/topdown-bottomup-execution-playbook.md) | 环境-标的-执行-审计一体化操作手册 |
-| 产品/设计 | [archive/process/frontend/ui-ux-full-page-audit-2026-02-18.md](archive/process/frontend/ui-ux-full-page-audit-2026-02-18.md) | 全站页面 UI/UX 与功能清单（归档） |
-| 运维人员 | [deployment/DOCKER_DEPLOYMENT.md](deployment/DOCKER_DEPLOYMENT.md) | 部署指南 |
+| 运维人员 | [deployment/VPS_BUNDLE_DEPLOYMENT.md](deployment/VPS_BUNDLE_DEPLOYMENT.md) | VPS Bundle 部署指南 |
 | FRP 三机部署 | [architecture/frp-vps-local-runtime-architecture.md](architecture/frp-vps-local-runtime-architecture.md) | VPS 入口 + 本地运行 + C 端 AI Agent/MCP 架构与落地配置 |
 
 ---
 
 ## 文档目录
 
+### 0. 治理文档 (`governance/`) - 新增
+
+| 文档 | 说明 | 状态 |
+|------|------|------|
+| [SYSTEM_BASELINE.md](governance/SYSTEM_BASELINE.md) | **系统基线（单一叙事来源）** | ✅ 2026-03-18 新增 |
+| [MODULE_CLASSIFICATION.md](governance/MODULE_CLASSIFICATION.md) | **模块分级表（核心/成熟/试验）** | ✅ 2026-03-18 新增 |
+| [DEVELOPMENT_BANLIST.md](governance/DEVELOPMENT_BANLIST.md) | **开发禁令（5条核心约束）** | ✅ 2026-03-18 新增 |
+
 ### 1. 架构设计 (`architecture/`)
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [SYSTEM_OVERVIEW.md](architecture/SYSTEM_OVERVIEW.md) | 系统全景概览（1620行） | 最新 |
+| [MODULE_DEPENDENCIES.md](architecture/MODULE_DEPENDENCIES.md) | **模块依赖关系文档（拓扑图+改进建议）** | ✅ 2026-03-18 新增 |
 | [asset_analysis_framework.md](architecture/asset_analysis_framework.md) | 资产分析框架设计 | 完整 |
 | [project_structure.md](architecture/project_structure.md) | 项目结构说明 | 完整 |
 | [ai_module_boundaries.md](architecture/ai_module_boundaries.md) | AI 模块边界与依赖 | ✅ 2026-03-18 新增 |
@@ -65,8 +73,8 @@
 | [decision-platform.md](development/decision-platform.md) | 决策平台实现 | 完整 |
 | [debug-automation-log-api.md](development/debug-automation-log-api.md) | Codex/Claude 自动化调试日志 API | 完整 |
 | [startup-scripts.md](development/startup-scripts.md) | 启动脚本使用指南 | 完整 |
-| [module-dependency-graph.md](development/module-dependency-graph.md) | 模块依赖关系图 | ✅ 2026-02-20 更新 |
-| [system-review-report.md](development/system-review-report.md) | 系统审视报告 | ✅ 2026-02-20 |
+| [module-ledger.md](development/module-ledger.md) | 模块账本（边界规则/依赖统计） | ✅ 2026-03-18 更新 |
+| [system-review-report.md](development/system-review-report.md) | 系统审视报告 | ✅ 2026-03-18 更新 |
 | [regime-chain-unification-2026-03-02.md](development/regime-chain-unification-2026-03-02.md) | Regime 统一计算链路说明 | ✅ 2026-03-02 |
 | [api-route-consistency.md](development/api-route-consistency.md) | API 路由一致性分析 | ✅ 2026-02-20 |
 | [frontend-performance-analysis.md](development/frontend-performance-analysis.md) | 前端性能优化分析 | ✅ 2026-02-20 |
@@ -76,20 +84,17 @@
 
 ### 4. 实施计划 (`plans/`)
 
+> **说明**: 大部分计划已完成并归档到 `archive/plans/`，以下为进行中的重要计划
+
 | 文档 | 说明 | 状态 |
 |------|------|------|
 | [implementation-progress-summary.md](plans/implementation-progress-summary.md) | **总体进度总结（Phase 1-5 完成）** | 最新 |
-| [post-v34-followup-roadmap-2026-02-26.md](archive/process/plans/post-v34-followup-roadmap-2026-02-26.md) | V3.4 后续开发与完善路线图（12周）（归档） | ✅ 已归档 |
-| [agomsaaf-qlib-integration-plan-v1.1.md](plans/agomsaaf-qlib-integration-plan-v1.1.md) | Qlib 集成方案 v1.1 | 完整 |
-| [factor-rotation-hedge-implementation-plan.md](plans/factor-rotation-hedge-implementation-plan.md) | 因子轮动对冲实施计划 | 完整 |
-| [sdk-mcp-implementation.md](plans/sdk-mcp-implementation.md) | SDK & MCP 实施方案 | 完整 |
-| [sdk_mcp_coverage_matrix_20260226.md](archive/process/plans/sdk_mcp_coverage_matrix_20260226.md) | SDK/MCP 覆盖矩阵（按模块）（归档） | ✅ 已归档 |
-| [decision-making-improvement.md](plans/decision-making-improvement.md) | 决策流程改进方案 | 完整 |
-| [outsourcing-valuation-pricing-execution-plan-2026-03-02.md](archive/process/plans/outsourcing-valuation-pricing-execution-plan-2026-03-02.md) | 外包落实计划：估值定价引擎与执行审批闭环（归档） | ✅ 已归档 |
-| [decision-workspace-topdown-bottomup-outsourcing-spec-2026-03-02.md](archive/process/plans/decision-workspace-topdown-bottomup-outsourcing-spec-2026-03-02.md) | 外包实施规格：Top-down + Bottom-up 决策融合一体化需求/计划/验收（归档） | ✅ 已归档 |
+| [AI-native-blueprint-260315.md](plans/AI-native-blueprint-260315.md) | **AI Native 升级蓝图** | 进行中 |
+| [AI-Native-upgrade-implement-plan-260315.md](plans/AI-Native-upgrade-implement-plan-260315.md) | **AI Native 升级实施计划** | 进行中 |
+| [ai-native/README.md](plans/ai-native/README.md) | **AI Native 子项目索引** | 进行中 |
+| [ai-native/execution-backlog.md](plans/ai-native/execution-backlog.md) | **AI Native 执行积压** | 进行中 |
+| [eastmoney-integration.md](plans/eastmoney-integration.md) | **东方财富数据源集成计划** | 进行中 |
 | [streamlit-dashboard-upgrade-plan.md](plans/streamlit-dashboard-upgrade-plan.md) | Streamlit 仪表盘交互升级实施方案 | 最新 |
-| [admin-to-modern-interaction-migration-plan.md](plans/admin-to-modern-interaction-migration-plan.md) | Admin 依赖迁移实施方案 | 最新 |
-| [system-code-doc-alignment-implementation-plan-2026-02-06.md](archive/process/plans/system-code-doc-alignment-implementation-plan-2026-02-06.md) | 代码巡检与文档对齐实施方案（归档） | ✅ 已归档 |
 
 ### 5. 测试文档 (`testing/`)
 
@@ -219,9 +224,9 @@
 
 ## 项目状态
 
-**系统版本**: AgomSAAF V3.4
+**系统版本**: AgomSAAF V3.5
 
-**业务模块**: 28个
+**业务模块**: 32个
 
 **完成度**: 持续迭代（请以里程碑文档与代码状态为准）
 
@@ -237,12 +242,12 @@
 
 - 宏观环境统一入口文案：`政策/情绪/热点工作台`（`/policy/workbench/`）
 - 顶部导航按主流程重构：`系统首页 -> 决策工作台 -> 账户与执行 -> 策略研究 -> 决策引擎`
-- 投资管理账户入口文案：`我的投资账户`（替代“我的模拟仓”）
-- API 文档入口：仅保留“系统”菜单中的 `/api/docs/`
+- 投资管理账户入口文案：`我的投资账户`（替代"我的模拟仓"）
+- API 文档入口：仅保留"系统"菜单中的 `/api/docs/`
 - 页面导航规范：业务页面链接使用 Django `{% url %}`，禁止硬编码业务路径
 - 页面与 API 边界：页面导航不得直连业务 API（`/api/*`），仅 `/api/docs/` 例外
 
-### 完整四层架构模块 (28个)
+### 完整四层架构模块 (32个)
 
 #### 核心引擎模块 (5个)
 - `macro` - 宏观数据采集
@@ -275,7 +280,7 @@
 - `strategy` - 策略系统
 
 #### 数据接入模块 (1个)
-- `market_data` - 统一数据源接入层（东方财富/AKShare/Tushare 自动 failover + 交叉校验）（✅ 新增）
+- `market_data` - 统一数据源接入层（东方财富/AKShare/Tushare 自动 failover + 交叉校验）
 
 #### 工具模块 (7个)
 - `ai_provider` - AI 服务商管理
@@ -286,6 +291,11 @@
 - `task_monitor` - 定时任务监控
 - `terminal` - 终端 CLI（AI 交互界面）
 
+#### 新增模块 (3个)
+- `agent_runtime` - Agent 运行时（Terminal AI 后端，支持任务编排和 Facade 模式）
+- `share` - 分享功能模块，支持决策分享
+- `terminal` - 终端 CLI（AI 交互界面）（注：从工具模块移至此分类）
+
 ---
 
 ## 阅读路径
@@ -293,13 +303,14 @@
 ### 新加入开发人员
 1. [QUICK_START.md](QUICK_START.md) - 系统实战理念
 2. [development/quick-reference.md](development/quick-reference.md) - 快速了解常用命令和 API
-3. [architecture/SYSTEM_OVERVIEW.md](architecture/SYSTEM_OVERVIEW.md) - 理解系统架构
-4. [business/AgomSAAF_V3.4.md](business/AgomSAAF_V3.4.md) - 学习业务逻辑
-5. [development/coding_standards.md](development/coding_standards.md) - 遵循代码规范
+3. [governance/SYSTEM_BASELINE.md](governance/SYSTEM_BASELINE.md) - **系统基线（单一叙事来源）**
+4. [SYSTEM_SPECIFICATION.md](SYSTEM_SPECIFICATION.md) - 理解系统架构
+5. [business/AgomSAAF_V3.4.md](business/AgomSAAF_V3.4.md) - 学习业务逻辑
+6. [development/coding_standards.md](development/coding_standards.md) - 遵循代码规范
 
 ### 理解 AI 选股
-1. [business/alpha-quickstart.md](business/alpha-quickstart.md) - Alpha 模块快速开始
-2. [plans/agomsaaf-qlib-integration-plan-v1.1.md](plans/agomsaaf-qlib-integration-plan-v1.1.md) - Qlib 集成方案
+1. [business/alpha-quickstart.md](business/alpha-alpha-quickstart.md) - Alpha 模块快速开始
+2. [modules/alpha/qlib-model-import-guide.md](modules/alpha/qlib-model-import-guide.md) - Qlib 模型导入说明
 3. [plans/implementation-progress-summary.md](plans/implementation-progress-summary.md) - 实施进度
 
 ### 部署运维
@@ -336,7 +347,14 @@
 
 ---
 
-## 最近更新 (2026-02-20 ~ 2026-03-17)
+## 最近更新 (2026-02-20 ~ 2026-03-18)
+
+### 2026-03-18
+- ✅ **P1 真相对齐完成**
+  - 新增 `docs/governance/` 治理文档目录（3个文件）
+  - 删除冗余文档 5 个（SYSTEM_OVERVIEW.md 等）
+  - 归档过程性文档 ~40 个到 `archive/`
+  - 更新文档索引，建立三层文档体系
 
 ### 2026-03-17
 - ✅ **Terminal CLI 模块（V3.5）**
