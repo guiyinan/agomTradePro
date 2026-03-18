@@ -24,7 +24,7 @@ jobs:
       - name: Detect changed modules
         id: changes
         run: |
-          if ${{ github.event_name == 'pull_request' ]]; then
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             BASE=${{ github.event.pull_request.base.sha }}
           else
             BASE=${{ github.event.before }}

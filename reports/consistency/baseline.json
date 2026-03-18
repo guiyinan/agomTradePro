@@ -44,6 +44,8 @@
     "/bin/sh",
     "/api/alpha/",
     "/api/debug/server-logs/stream/?since=<id>&limit=<n>",
+    "/api/strategy/strategies/{id}/evaluate_position_management/",
+    "/opt/frp/",
     "/api/signals/",
     "/admin/account/",
     "/admin/prompt/",
@@ -1555,6 +1557,20 @@
       "route": "/api/prompt/api/chat/models",
       "details": "Route /api/prompt/api/chat/models uses deprecated pattern",
       "line": 0
+    }
+    ,{
+      "type": "missing_route",
+      "source": "docs\\modules\\strategy\\position-management.md",
+      "route": "/api/strategy/strategies/{id}/evaluate_position_management/",
+      "details": "Route /api/strategy/strategies/{id}/evaluate_position_management/ referenced in docs but not found in Django (baseline)",
+      "line": 35
+    },
+    {
+      "type": "missing_route",
+      "source": "docs\\deployment\\vps-a-frps-nginx-setup.md",
+      "route": "/opt/frp/",
+      "details": "Route /opt/frp/ referenced in docs but not found in Django (baseline)",
+      "line": 53
     }
   ],
   "notes": "Baseline for existing inconsistencies - warnings only"

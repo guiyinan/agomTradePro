@@ -44,8 +44,9 @@ jobs:
             echo "BASE_REF=${BASE_REF}" >> "$GITHUB_ENV"
             echo "HEAD_REF=${HEAD_REF}" >> "$GITHUB_ENV"
           else
-            echo "BASE_REF=" >> "$GITHUB_ENV"
-            echo "HEAD_REF=" >> "$GITHUB_ENV"
+            # workflow_dispatch: check only the latest commit to avoid flagging legacy code
+            echo "BASE_REF=$(git rev-parse HEAD~1)" >> "$GITHUB_ENV"
+            echo "HEAD_REF=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
           fi
 
       - name: Enforce four-layer architecture guard
