@@ -98,25 +98,30 @@ class QlibAlphaProvider(BaseAlphaProvider):
         # 检查数据目录
         if not self._data_path.exists():
             logger.warning(f"Qlib 数据目录不存在: {self._data_path}")
+            self._last_health_message = f"数据目录不存在: {self._data_path}"
             return AlphaProviderStatus.UNAVAILABLE
 
         # 检查是否有激活的模型
         active_model = self._get_active_model()
         if not active_model:
             logger.warning("没有激活的 Qlib 模型")
+            self._last_health_message = "没有激活的模型，请在 Admin 中激活模型"
             return AlphaProviderStatus.UNAVAILABLE
 
-        # 检查模型文件
-        model_file_path = Path(active_model.model_path)
+        # 检查模型文件（active_model 是字典）
+        model_file_path = Path(active_model['model_path'])
         if not model_file_path.exists():
             logger.warning(f"模型文件不存在: {model_file_path}")
+            self._last_health_message = f"模型文件不存在: {model_file_path}"
             return AlphaProviderStatus.UNAVAILABLE
 
         # 检查缓存是否有数据
         has_recent_cache = self._has_recent_cache()
         if not has_recent_cache:
+            self._last_health_message = "缓存无数据，需运行推理任务"
             return AlphaProviderStatus.DEGRADED
 
+        self._last_health_message = None
         return AlphaProviderStatus.AVAILABLE
 
     @provider_safe()
@@ -349,7 +354,7 @@ class QlibAlphaProvider(BaseAlphaProvider):
             top_n: 返回前 N 只
         """
         try:
-            from ..tasks import qlib_predict_scores
+            from apps.alpha.application.tasks import qlib_predict_scores
 
             # 异步投递任务，不等待结果
             result = qlib_predict_scores.apply_async(

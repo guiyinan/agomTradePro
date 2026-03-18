@@ -127,6 +127,7 @@ class BaseAlphaProvider(AlphaProvider):
         """
         self._initialized = False
         self._config = config or {}
+        self._last_health_message: Optional[str] = None
 
     def initialize(self) -> None:
         """

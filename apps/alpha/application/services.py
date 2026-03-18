@@ -481,11 +481,15 @@ class AlphaService:
         for provider in self._registry.get_all_providers():
             try:
                 health = provider.health_check()
-                status[provider.name] = {
+                provider_info = {
                     "priority": provider.priority,
                     "status": health.value,
                     "max_staleness_days": provider.max_staleness_days,
                 }
+                # 添加健康检查消息（用于显示降级原因）
+                if hasattr(provider, '_last_health_message') and provider._last_health_message:
+                    provider_info["message"] = provider._last_health_message
+                status[provider.name] = provider_info
             except Exception as e:
                 status[provider.name] = {
                     "priority": provider.priority,
