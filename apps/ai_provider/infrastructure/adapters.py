@@ -14,6 +14,7 @@ try:
 
     OPENAI_AVAILABLE = True
 except ImportError:
+    OpenAI = None  # type: ignore[misc,assignment]
     OPENAI_AVAILABLE = False
 
 
