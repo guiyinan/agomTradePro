@@ -4,12 +4,17 @@ Asset Name Resolver - 资产名称解析服务
 提供统一的资产代码到资产名称的解析功能，支持股票、基金、指数等多种资产类型。
 """
 
+import hashlib
+import json
 import logging
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Set
 
-from core.cache_utils import cached_api, CACHE_TTL
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
+
+CACHE_PREFIX = "asset_names"
+CACHE_TTL = 3600
 
 
 class AssetNameResolver:
@@ -123,7 +128,13 @@ class AssetNameResolver:
         return resolved
 
 
-@cached_api(key_prefix="asset_names", ttl_seconds=3600)
+def _build_cache_key(codes: List[str]) -> str:
+    """构建缓存键"""
+    sorted_codes = sorted(set(c for c in codes if c))
+    codes_hash = hashlib.md5(json.dumps(sorted_codes).encode()).hexdigest()
+    return f"{CACHE_PREFIX}:{codes_hash}"
+
+
 def resolve_asset_names(codes: List[str]) -> Dict[str, str]:
     """
     批量解析资产代码对应的名称（带缓存）。
@@ -134,8 +145,28 @@ def resolve_asset_names(codes: List[str]) -> Dict[str, str]:
     Returns:
         Dict[str, str]: 资产代码到名称的映射
     """
+    code_set = {code for code in codes if code}
+    if not code_set:
+        return {}
+
+    cache_key = _build_cache_key(list(code_set))
+
+    try:
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
+    except Exception as e:
+        logger.warning("Cache get failed: %s", e)
+
     resolver = AssetNameResolver()
-    return resolver.resolve_asset_names(codes)
+    result = resolver.resolve_asset_names(list(code_set))
+
+    try:
+        cache.set(cache_key, result, CACHE_TTL)
+    except Exception as e:
+        logger.warning("Cache set failed: %s", e)
+
+    return result
 
 
 def resolve_asset_name(code: str) -> str:
@@ -171,21 +202,6 @@ def enrich_with_asset_names(
     """
     if not items:
         return items
-
-    codes = [item.get(code_field) for item in items if item.get(code_field)]
-    if not codes:
-        return items
-
-    # 直接创建解析器实例，绕过缓存
-    resolver = AssetNameResolver()
-    name_map = resolver.resolve_asset_names(codes)
-
-    for item in items:
-        code = item.get(code_field)
-        if code and not item.get(name_field):
-            item[name_field] = name_map.get(code, code)
-
-    return items
 
     codes = [item.get(code_field) for item in items if item.get(code_field)]
     if not codes:
