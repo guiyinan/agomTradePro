@@ -498,8 +498,8 @@ class CorrelationHistoryModel(models.Model):
             models.Index(fields=['calc_date', 'asset1', 'asset2']),
         ]
 
-class HedgePortfolioHoldingModel(models.Model):
-    """对冲组合持仓表"""
+class HedgePortfolioSnapshotModel(models.Model):
+    """对冲组合快照表"""
     config = models.ForeignKey(HedgePairModel, on_delete=models.CASCADE)
     trade_date = models.DateField()
     long_weight = models.DecimalField(max_digits=5, decimal_places=4)

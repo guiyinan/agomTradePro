@@ -11,7 +11,7 @@ from django.http import JsonResponse
 from apps.hedge.interface.views import (
     HedgePairViewSet,
     CorrelationHistoryViewSet,
-    HedgePortfolioHoldingViewSet,
+    HedgePortfolioSnapshotViewSet,
     HedgeAlertViewSet,
     HedgeActionViewSet,
 )
@@ -21,7 +21,7 @@ app_name = "api_hedge"
 router = DefaultRouter()
 router.register(r"pairs", HedgePairViewSet, basename="hedge-pair")
 router.register(r"correlations", CorrelationHistoryViewSet, basename="hedge-correlation")
-router.register(r"holdings", HedgePortfolioHoldingViewSet, basename="hedge-holding")
+router.register(r"snapshots", HedgePortfolioSnapshotViewSet, basename="hedge-snapshot")
 router.register(r"alerts", HedgeAlertViewSet, basename="hedge-alert")
 router.register(r"actions", HedgeActionViewSet, basename="hedge-action")
 
@@ -33,7 +33,7 @@ def api_home(request):
             "endpoints": {
                 "pairs": "/api/hedge/pairs/",
                 "correlations": "/api/hedge/correlations/",
-                "holdings": "/api/hedge/holdings/",
+                "snapshots": "/api/hedge/snapshots/",
                 "alerts": "/api/hedge/alerts/",
                 "actions": "/api/hedge/actions/",
             },

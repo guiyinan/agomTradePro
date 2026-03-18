@@ -11,12 +11,12 @@ from rest_framework.routers import DefaultRouter
 from apps.hedge.interface.views import (
     HedgePairViewSet,
     CorrelationHistoryViewSet,
-    HedgePortfolioHoldingViewSet,
+    HedgePortfolioSnapshotViewSet,
     HedgeAlertViewSet,
     HedgeActionViewSet,
     # Page views
     hedge_pairs_view,
-    hedge_holdings_view,
+    hedge_snapshots_view,
     hedge_alerts_view,
     # Action views
     activate_pair_view,
@@ -33,7 +33,7 @@ app_name = 'hedge'
 router = DefaultRouter()
 router.register(r'pairs', HedgePairViewSet, basename='hedge-pair')
 router.register(r'correlations', CorrelationHistoryViewSet, basename='hedge-correlation')
-router.register(r'holdings', HedgePortfolioHoldingViewSet, basename='hedge-holding')
+router.register(r'snapshots', HedgePortfolioSnapshotViewSet, basename='hedge-snapshot')
 router.register(r'alerts', HedgeAlertViewSet, basename='hedge-alert')
 router.register(r'actions', HedgeActionViewSet, basename='hedge-action')
 
@@ -47,7 +47,7 @@ urlpatterns = [
     # Page routes
     path('', hedge_home_redirect, name='home'),
     path('pairs/', hedge_pairs_view, name='pairs'),
-    path('holdings/', hedge_holdings_view, name='holdings'),
+    path('snapshots/', hedge_snapshots_view, name='snapshots'),
     path('alerts/', hedge_alerts_view, name='alerts'),
 
     # Action routes

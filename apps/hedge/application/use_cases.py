@@ -217,25 +217,25 @@ class HedgePairsViewResponse:
 class GetHedgePairsForViewUseCase:
     """
     UseCase for hedge pairs page.
-    Retrieves pairs with correlation and holding data.
+    Retrieves pairs with correlation and snapshot data.
     """
 
     def __init__(
         self,
         pair_repo,
         correlation_repo,
-        holding_repo,
+        snapshot_repo,
     ):
         self.pair_repo = pair_repo
         self.correlation_repo = correlation_repo
-        self.holding_repo = holding_repo
+        self.snapshot_repo = snapshot_repo
 
     def execute(self, request: HedgePairsViewRequest) -> HedgePairsViewResponse:
         """Execute hedge pairs view query"""
         # Get pairs from repository
         pairs = self._filter_pairs(request)
 
-        # Enrich with correlation and holding data
+        # Enrich with correlation and snapshot data
         pair_data = []
         for pair in pairs:
             pair_info = self._build_pair_info(pair)
@@ -271,7 +271,7 @@ class GetHedgePairsForViewUseCase:
         return pairs
 
     def _build_pair_info(self, pair: HedgePair) -> Dict[str, Any]:
-        """Build pair info dict with correlation and holding data"""
+        """Build pair info dict with correlation and snapshot data"""
         pair_info = {
             'id': pair.id if hasattr(pair, 'id') else id(pair),
             'name': pair.name,
@@ -310,8 +310,8 @@ class GetHedgePairsForViewUseCase:
             pair_info['correlation_trend'] = None
             pair_info['correlation_calc_date'] = None
 
-        # Get latest holding data
-        # Note: This would require a method in holding_repo that gets by pair name
+        # Get latest snapshot data
+        # Note: This would require a method in snapshot_repo that gets by pair name
         # For now, set defaults
         pair_info['hedge_ratio'] = None
         pair_info['hedge_effectiveness'] = None
@@ -344,48 +344,48 @@ class GetHedgePairsForViewUseCase:
 
 
 @dataclass
-class HedgeHoldingsViewRequest:
-    """Request for hedge holdings view"""
+class HedgeSnapshotsViewRequest:
+    """Request for hedge snapshots view"""
     pair_name: Optional[str] = None
     rebalance_needed: Optional[bool] = None
     limit: int = 50
 
 
 @dataclass
-class HedgeHoldingsViewResponse:
-    """Response for hedge holdings view"""
-    holdings: List[Dict[str, Any]]
+class HedgeSnapshotsViewResponse:
+    """Response for hedge snapshots view"""
+    snapshots: List[Dict[str, Any]]
     stats: Dict[str, int]
     pair_names: List[str]
 
 
-class GetHedgeHoldingsForViewUseCase:
+class GetHedgeSnapshotsForViewUseCase:
     """
-    UseCase for hedge holdings page.
-    Retrieves holdings with filtering and statistics.
+    UseCase for hedge snapshots page.
+    Retrieves snapshots with filtering and statistics.
     """
 
-    def __init__(self, holding_repo, pair_repo):
-        self.holding_repo = holding_repo
+    def __init__(self, snapshot_repo, pair_repo):
+        self.snapshot_repo = snapshot_repo
         self.pair_repo = pair_repo
 
-    def execute(self, request: HedgeHoldingsViewRequest) -> HedgeHoldingsViewResponse:
-        """Execute hedge holdings view query"""
-        # Get holdings from repository (already formatted)
-        holdings = self.holding_repo.get_recent_holdings(
+    def execute(self, request: HedgeSnapshotsViewRequest) -> HedgeSnapshotsViewResponse:
+        """Execute hedge snapshots view query"""
+        # Get snapshots from repository (already formatted)
+        snapshots = self.snapshot_repo.get_recent_snapshots(
             pair_name=request.pair_name,
             rebalance_needed=request.rebalance_needed,
             limit=request.limit,
         )
 
         # Get statistics
-        stats = self.holding_repo.get_statistics()
+        stats = self.snapshot_repo.get_statistics()
 
         # Get all pair names for filter
         pair_names = self._get_pair_names()
 
-        return HedgeHoldingsViewResponse(
-            holdings=holdings,
+        return HedgeSnapshotsViewResponse(
+            snapshots=snapshots,
             stats=stats,
             pair_names=pair_names,
         )

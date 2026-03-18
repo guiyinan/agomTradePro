@@ -164,12 +164,12 @@ class HedgeModule:
         Returns:
             组合状态
         """
-        holdings = self._client.get("/api/hedge/holdings/latest/")
-        results = holdings.get("results", holdings) if isinstance(holdings, dict) else holdings
+        snapshots = self._client.get("/api/hedge/snapshots/latest/")
+        results = snapshots.get("results", snapshots) if isinstance(snapshots, dict) else snapshots
 
-        for holding in results:
-            if holding.get("pair_name") == pair_name:
-                return holding
+        for snapshot in results:
+            if snapshot.get("pair_name") == pair_name:
+                return snapshot
 
         return None
 
@@ -180,7 +180,7 @@ class HedgeModule:
         Returns:
             更新结果
         """
-        return self._client.post("/api/hedge/holdings/update_all/")
+        return self._client.post("/api/hedge/snapshots/update_all/")
 
     # ========================================================================
     # Alerts

@@ -21,7 +21,7 @@ from apps.hedge.domain.entities import (
 from apps.hedge.infrastructure.models import (
     HedgePairModel,
     CorrelationHistoryModel,
-    HedgePortfolioHoldingModel,
+    HedgePortfolioSnapshotModel,
     HedgeAlertModel,
     HedgePerformanceModel,
 )
@@ -208,7 +208,7 @@ class CorrelationHistoryRepository:
 
 
 class HedgePortfolioRepository:
-    """Repository for hedge portfolio holdings"""
+    """Repository for hedge portfolio snapshots"""
 
     def save_portfolio(self, portfolio: HedgePortfolio) -> HedgePortfolio:
         """Save hedge portfolio state"""
@@ -236,7 +236,7 @@ class HedgePortfolioRepository:
             'rebalance_reason': portfolio.rebalance_reason,
         }
 
-        model, created = HedgePortfolioHoldingModel._default_manager.get_or_create(
+        model, created = HedgePortfolioSnapshotModel._default_manager.get_or_create(
             pair=pair_model,
             trade_date=portfolio.trade_date,
             defaults=portfolio_values,
@@ -251,7 +251,7 @@ class HedgePortfolioRepository:
 
     def get_latest_portfolio(self, pair_name: str) -> Optional[HedgePortfolio]:
         """Get latest portfolio state for a pair"""
-        model = HedgePortfolioHoldingModel._default_manager.filter(
+        model = HedgePortfolioSnapshotModel._default_manager.filter(
             pair__name=pair_name
         ).order_by('-trade_date').first()
 
@@ -266,7 +266,7 @@ class HedgePortfolioRepository:
         end_date: Optional[date] = None
     ) -> List[HedgePortfolio]:
         """Get portfolio history for a date range"""
-        queryset = HedgePortfolioHoldingModel._default_manager.filter(
+        queryset = HedgePortfolioSnapshotModel._default_manager.filter(
             pair__name=pair_name,
             trade_date__gte=start_date
         )
@@ -276,67 +276,67 @@ class HedgePortfolioRepository:
 
         return [model.to_domain() for model in queryset.order_by('trade_date')]
 
-    def get_recent_holdings(
+    def get_recent_snapshots(
         self,
         pair_name: Optional[str] = None,
         rebalance_needed: Optional[bool] = None,
         limit: int = 50
     ) -> List[dict]:
         """
-        Get recent holdings with filtering.
+        Get recent snapshots with filtering.
         Returns dict representations for view rendering.
         """
-        queryset = HedgePortfolioHoldingModel._default_manager.select_related('pair').all()
+        queryset = HedgePortfolioSnapshotModel._default_manager.select_related('pair').all()
 
         if pair_name:
             queryset = queryset.filter(pair__name__icontains=pair_name)
         if rebalance_needed is not None:
             queryset = queryset.filter(rebalance_needed=rebalance_needed)
 
-        holdings = queryset.order_by('-trade_date', '-created_at')[:limit]
+        snapshots = queryset.order_by('-trade_date', '-created_at')[:limit]
 
         return [
             {
-                'id': h.id,
-                'pair_name': h.pair.name if h.pair else 'Unknown',
-                'pair_id': h.pair_id,
-                'trade_date': h.trade_date,
-                'long_weight': round(h.long_weight * 100, 2),
-                'hedge_weight': round(h.hedge_weight * 100, 2),
-                'hedge_ratio': round(h.hedge_ratio, 3),
-                'target_hedge_ratio': round(h.target_hedge_ratio, 3),
-                'current_correlation': round(h.current_correlation, 4),
-                'correlation_20d': round(h.correlation_20d, 4),
-                'correlation_60d': round(h.correlation_60d, 4),
-                'portfolio_beta': round(h.portfolio_beta, 3),
-                'portfolio_volatility': round(h.portfolio_volatility * 100, 2),
-                'hedge_effectiveness': round(h.hedge_effectiveness * 100, 1),
-                'daily_return': round(h.daily_return * 100, 3),
-                'unhedged_return': round(h.unhedged_return * 100, 3),
-                'hedge_return': round(h.hedge_return * 100, 3),
-                'value_at_risk': round(h.value_at_risk * 100, 2),
-                'max_drawdown': round(h.max_drawdown * 100, 2),
-                'rebalance_needed': h.rebalance_needed,
-                'rebalance_reason': h.rebalance_reason,
-                'created_at': h.created_at,
+                'id': s.id,
+                'pair_name': s.pair.name if s.pair else 'Unknown',
+                'pair_id': s.pair_id,
+                'trade_date': s.trade_date,
+                'long_weight': round(s.long_weight * 100, 2),
+                'hedge_weight': round(s.hedge_weight * 100, 2),
+                'hedge_ratio': round(s.hedge_ratio, 3),
+                'target_hedge_ratio': round(s.target_hedge_ratio, 3),
+                'current_correlation': round(s.current_correlation, 4),
+                'correlation_20d': round(s.correlation_20d, 4),
+                'correlation_60d': round(s.correlation_60d, 4),
+                'portfolio_beta': round(s.portfolio_beta, 3),
+                'portfolio_volatility': round(s.portfolio_volatility * 100, 2),
+                'hedge_effectiveness': round(s.hedge_effectiveness * 100, 1),
+                'daily_return': round(s.daily_return * 100, 3),
+                'unhedged_return': round(s.unhedged_return * 100, 3),
+                'hedge_return': round(s.hedge_return * 100, 3),
+                'value_at_risk': round(s.value_at_risk * 100, 2),
+                'max_drawdown': round(s.max_drawdown * 100, 2),
+                'rebalance_needed': s.rebalance_needed,
+                'rebalance_reason': s.rebalance_reason,
+                'created_at': s.created_at,
             }
-            for h in holdings
+            for s in snapshots
         ]
 
     def get_statistics(self) -> Dict[str, int]:
-        """Get statistics for holdings"""
+        """Get statistics for snapshots"""
         from django.db.models import Count
 
-        total = HedgePortfolioHoldingModel._default_manager.count()
-        rebalance_needed = HedgePortfolioHoldingModel._default_manager.filter(
+        total = HedgePortfolioSnapshotModel._default_manager.count()
+        rebalance_needed = HedgePortfolioSnapshotModel._default_manager.filter(
             rebalance_needed=True
         ).count()
-        unique_pairs = HedgePortfolioHoldingModel._default_manager.values(
+        unique_pairs = HedgePortfolioSnapshotModel._default_manager.values(
             'pair__name'
         ).distinct().count()
 
         return {
-            'total_holdings': total,
+            'total_snapshots': total,
             'rebalance_needed': rebalance_needed,
             'unique_pairs': unique_pairs,
         }

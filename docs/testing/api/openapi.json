@@ -14113,10 +14113,10 @@
                 }
             }
         },
-        "/api/hedge/holdings/": {
+        "/api/hedge/snapshots/": {
             "get": {
-                "operationId": "hedge_holdings_list",
-                "description": "ViewSet for HedgePortfolioHolding model",
+                "operationId": "hedge_snapshots_list",
+                "description": "ViewSet for HedgePortfolioSnapshot model",
                 "parameters": [
                     {
                         "name": "page",
@@ -14144,7 +14144,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/PaginatedHedgePortfolioHoldingList"
+                                    "$ref": "#/components/schemas/PaginatedHedgePortfolioSnapshotList"
                                 }
                             }
                         },
@@ -14153,10 +14153,10 @@
                 }
             }
         },
-        "/api/hedge/holdings/{id}/": {
+        "/api/hedge/snapshots/{id}/": {
             "get": {
-                "operationId": "hedge_holdings_retrieve",
-                "description": "ViewSet for HedgePortfolioHolding model",
+                "operationId": "hedge_snapshots_retrieve",
+                "description": "ViewSet for HedgePortfolioSnapshot model",
                 "parameters": [
                     {
                         "in": "path",
@@ -14184,7 +14184,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HedgePortfolioHolding"
+                                    "$ref": "#/components/schemas/HedgePortfolioSnapshot"
                                 }
                             }
                         },
@@ -14193,9 +14193,9 @@
                 }
             }
         },
-        "/api/hedge/holdings/latest/": {
+        "/api/hedge/snapshots/latest/": {
             "get": {
-                "operationId": "hedge_holdings_latest_retrieve",
+                "operationId": "hedge_snapshots_latest_retrieve",
                 "description": "Get the latest holding for each hedge pair",
                 "tags": [
                     "hedge"
@@ -14213,7 +14213,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HedgePortfolioHolding"
+                                    "$ref": "#/components/schemas/HedgePortfolioSnapshot"
                                 }
                             }
                         },
@@ -14222,9 +14222,9 @@
                 }
             }
         },
-        "/api/hedge/holdings/update_all/": {
+        "/api/hedge/snapshots/update_all/": {
             "post": {
-                "operationId": "hedge_holdings_update_all_create",
+                "operationId": "hedge_snapshots_update_all_create",
                 "description": "Update all hedge portfolios",
                 "tags": [
                     "hedge"
@@ -14233,17 +14233,17 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/HedgePortfolioHoldingRequest"
+                                "$ref": "#/components/schemas/HedgePortfolioSnapshotRequest"
                             }
                         },
                         "application/x-www-form-urlencoded": {
                             "schema": {
-                                "$ref": "#/components/schemas/HedgePortfolioHoldingRequest"
+                                "$ref": "#/components/schemas/HedgePortfolioSnapshotRequest"
                             }
                         },
                         "multipart/form-data": {
                             "schema": {
-                                "$ref": "#/components/schemas/HedgePortfolioHoldingRequest"
+                                "$ref": "#/components/schemas/HedgePortfolioSnapshotRequest"
                             }
                         }
                     },
@@ -14262,7 +14262,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HedgePortfolioHolding"
+                                    "$ref": "#/components/schemas/HedgePortfolioSnapshot"
                                 }
                             }
                         },
@@ -40869,9 +40869,9 @@
                     "name"
                 ]
             },
-            "HedgePortfolioHolding": {
+            "HedgePortfolioSnapshot": {
                 "type": "object",
-                "description": "Serializer for HedgePortfolioHolding",
+                "description": "Serializer for HedgePortfolioSnapshot",
                 "properties": {
                     "id": {
                         "type": "integer",
@@ -40988,9 +40988,9 @@
                     "trade_date"
                 ]
             },
-            "HedgePortfolioHoldingRequest": {
+            "HedgePortfolioSnapshotRequest": {
                 "type": "object",
-                "description": "Serializer for HedgePortfolioHolding",
+                "description": "Serializer for HedgePortfolioSnapshot",
                 "properties": {
                     "pair": {
                         "type": "integer",
@@ -42750,7 +42750,7 @@
                     }
                 }
             },
-            "PaginatedHedgePortfolioHoldingList": {
+            "PaginatedHedgePortfolioSnapshotList": {
                 "type": "object",
                 "required": [
                     "count",
@@ -42776,7 +42776,7 @@
                     "results": {
                         "type": "array",
                         "items": {
-                            "$ref": "#/components/schemas/HedgePortfolioHolding"
+                            "$ref": "#/components/schemas/HedgePortfolioSnapshot"
                         }
                     }
                 }

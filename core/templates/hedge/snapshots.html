@@ -1,0 +1,188 @@
+{% extends "hedge/base.html" %}
+{% load static %}
+
+{% block hedge_page_title %}对冲快照{% endblock %}
+
+{% block hedge_content %}
+<!-- 统计卡片 -->
+<div class="hedge-stats-row">
+    <div class="hedge-stat-card">
+        <div class="hedge-stat-value">{{ stats.total_snapshots }}</div>
+        <div class="hedge-stat-label">总快照记录</div>
+    </div>
+    <div class="hedge-stat-card">
+        <div class="hedge-stat-value" style="color: #10b981;">{{ stats.unique_pairs }}</div>
+        <div class="hedge-stat-label">对冲对数量</div>
+    </div>
+    <div class="hedge-stat-card">
+        <div class="hedge-stat-value {% if stats.rebalance_needed > 0 %}text-warning{% endif %}">{{ stats.rebalance_needed }}</div>
+        <div class="hedge-stat-label">需要调仓</div>
+    </div>
+</div>
+
+<!-- 操作栏 -->
+<div class="hedge-actions-bar">
+    <button class="hedge-btn hedge-btn-primary" onclick="updateAllPortfolios()">
+        <i class="bi bi-arrow-clockwise"></i> 更新所有快照
+    </button>
+    <button class="hedge-btn hedge-btn-secondary" onclick="filterRebalance()">
+        <i class="bi bi-funnel"></i> 筛选需调仓
+    </button>
+</div>
+
+<!-- 快照列表 -->
+<div class="hedge-snapshot-list">
+    {% for snapshot in snapshots %}
+    <div class="hedge-snapshot-card {% if snapshot.rebalance_needed %}needs-rebalance{% endif %}">
+        <div class="hedge-snapshot-header">
+            <div class="hedge-snapshot-title">
+                <span class="hedge-snapshot-pair">{{ snapshot.pair_name }}</span>
+                <span class="hedge-snapshot-date">{{ snapshot.trade_date }}</span>
+                {% if snapshot.rebalance_needed %}
+                <span class="hedge-snapshot-badge badge-warning">
+                    <i class="bi bi-exclamation-triangle"></i> 需要调仓
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="hedge-snapshot-body">
+            <div class="hedge-snapshot-section">
+                <h4 class="hedge-section-title">权重配置</h4>
+                <div class="hedge-snapshot-grid">
+                    <div class="hedge-snapshot-item">
+                        <span class="hedge-item-label">多头权重</span>
+                        <span class="hedge-item-value">{{ snapshot.long_weight }}%</span>
+                    </div>
+                    <div class="hedge-snapshot-item">
+                        <span class="hedge-item-label">对冲权重</span>
+                        <span class="hedge-item-value">{{ snapshot.hedge_weight }}%</span>
+                    </div>
+                    <div class="hedge-snapshot-item">
+                        <span class="hedge-item-label">对冲比例</span>
+                        <span class="hedge-item-value hedge-highlight">{{ snapshot.hedge_ratio }}</span>
+                    </div>
+                    <div class="hedge-snapshot-item">
+                        <span class="hedge-item-label">目标比例</span>
+                        <span class="hedge-item-value">{{ snapshot.target_hedge_ratio }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hedge-snapshot-section">
+                <h4 class="hedge-section-title">相关性指标</h4>
+                <div class="hedge-snapshot-grid">
+                    <div class="hedge-snapshot-item">
+                        <span class="hedge-item-label">当前相关性</span>
+                        <span class="hedge-item-value">{{ snapshot.current_correlation }}</span>
+                    </div>
+                    <div class="hedge-snapshot-item">
+                        <span class="hedge-item-label">20日相关性</span>
+                        <span class="hedge-item-value">{{ snapshot.correlation_20d }}</span>
+                    </div>
+                    <div class="hedge-snapshot-item">
+                        <span class="hedge-item-label">60日相关性</span>
+                        <span class="hedge-item-value">{{ snapshot.correlation_60d }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hedge-snapshot-section">
+                <h4 class="hedge-section-title">组合风险</h4>
+                <div class="hedge-snapshot-grid">
+                    <div class="hedge-snapshot-item">
+                        <span class="hedge-item-label">组合Beta</span>
+                        <span class="hedge-item-value">{{ snapshot.portfolio_beta }}</span>
+                    </div>
+                    <div class="hedge-snapshot-item">
+                        <span class="hedge-item-label">波动率</span>
+                        <span class="hedge-item-value">{{ snapshot.portfolio_volatility }}%</span>
+                    </div>
+                    <div class="hedge-snapshot-item">
+                        <span class="hedge-item-label">VaR</span>
+                        <span class="hedge-item-value">{{ snapshot.value_at_risk }}%</span>
+                    </div>
+                    <div class="hedge-snapshot-item">
+                        <span class="hedge-item-label">最大回撤</span>
+                        <span class="hedge-item-value">{{ snapshot.max_drawdown }}%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hedge-snapshot-section">
+                <h4 class="hedge-section-title">收益表现</h4>
+                <div class="hedge-snapshot-grid">
+                    <div class="hedge-snapshot-item">
+                        <span class="hedge-item-label">日收益率</span>
+                        <span class="hedge-item-value {% if snapshot.daily_return >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ snapshot.daily_return }}%
+                        </span>
+                    </div>
+                    <div class="hedge-snapshot-item">
+                        <span class="hedge-item-label">未对冲收益</span>
+                        <span class="hedge-item-value">{{ snapshot.unhedged_return }}%</span>
+                    </div>
+                    <div class="hedge-snapshot-item">
+                        <span class="hedge-item-label">对冲部位收益</span>
+                        <span class="hedge-item-value">{{ snapshot.hedge_return }}%</span>
+                    </div>
+                    <div class="hedge-snapshot-item">
+                        <span class="hedge-item-label">对冲有效性</span>
+                        <span class="hedge-item-value {% if snapshot.hedge_effectiveness >= 70 %}text-success{% elif snapshot.hedge_effectiveness >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                            {{ snapshot.hedge_effectiveness }}%
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            {% if snapshot.rebalance_needed and snapshot.rebalance_reason %}
+            <div class="hedge-rebalance-reason">
+                <i class="bi bi-exclamation-triangle"></i>
+                <strong>调仓原因:</strong> {{ snapshot.rebalance_reason }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="hedge-snapshot-footer">
+            <span class="hedge-meta">
+                <i class="bi bi-clock"></i> 创建于 {{ snapshot.created_at|date:"Y-m-d H:i" }}
+            </span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not snapshots %}
+<div class="hedge-empty-state">
+    <div style="font-size: 48px; margin-bottom: 16px;"><i class="bi bi-camera"></i></div>
+    <div>暂无快照记录</div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block hedge_extra_js %}
+<script>
+async function updateAllPortfolios() {
+    if (!await window.uiConfirm('确认更新所有对冲快照？', { title: '更新快照', icon: 'info' })) return;
+
+    const res = await fetch(HEDGE_URLS.updatePortfolios, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': window.csrfToken || '' },
+    });
+    const data = await res.json();
+
+    if (data.success) {
+        showToast(`已更新 ${data.updated} 个对冲组合`);
+        location.reload();
+    } else {
+        showToast('更新失败', 'error');
+    }
+}
+
+function filterRebalance() {
+    const url = new URL(window.location);
+    url.searchParams.set('rebalance_needed', 'true');
+    window.location = url.toString();
+}
+</script>
+{% endblock %}

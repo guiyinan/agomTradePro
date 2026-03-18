@@ -38,7 +38,7 @@
 | fund | `/api/fund/` | 读取 `rank/info/nav/holding/style` |
 | sector | `/api/sector/` | 当前对外可用入口为 `rotation/` |
 | rotation | `/api/rotation/` | recommendation/assets/configs/signals/templates/account-configs |
-| hedge | `/api/hedge/` | pairs/alerts/holdings/actions |
+| hedge | `/api/hedge/` | pairs/alerts/snapshots/actions |
 | factor | `/api/factor/` | `all-factors/all-configs/top-stocks/create-portfolio/explain-stock` |
 | backtest | `/api/backtest/` | `api/backtests/` 与 `api/run/` 为当前挂载结果 |
 | equity | `/api/equity/` | valuation repair config 已对齐 |

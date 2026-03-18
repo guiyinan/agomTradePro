@@ -328,7 +328,7 @@ def register_hedge_tools(server: FastMCP) -> None:
         """
         获取对冲组合当前状态
 
-        获取指定对冲对的当前持仓状态和风险指标。
+        获取指定对冲对的当前快照状态和风险指标。
 
         Args:
             pair_name: 对冲对名称

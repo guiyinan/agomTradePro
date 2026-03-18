@@ -17,7 +17,7 @@ from datetime import date, datetime
 from apps.hedge.infrastructure.models import (
     HedgePairModel,
     CorrelationHistoryModel,
-    HedgePortfolioHoldingModel,
+    HedgePortfolioSnapshotModel,
     HedgeAlertModel,
 )
 from apps.hedge.infrastructure.services import HedgeIntegrationService
@@ -30,7 +30,7 @@ from apps.hedge.infrastructure.repositories import (
 from apps.hedge.interface.serializers import (
     HedgePairSerializer,
     CorrelationHistorySerializer,
-    HedgePortfolioHoldingSerializer,
+    HedgePortfolioSnapshotSerializer,
     HedgeAlertSerializer,
     HedgeEffectivenessRequestSerializer,
 )
@@ -38,13 +38,13 @@ from apps.hedge.interface.serializers import (
 # Application layer UseCases - for page views
 from apps.hedge.application.use_cases import (
     GetHedgePairsForViewUseCase,
-    GetHedgeHoldingsForViewUseCase,
+    GetHedgeSnapshotsForViewUseCase,
     GetHedgeAlertsForViewUseCase,
     ActivateHedgePairUseCase,
     DeactivateHedgePairUseCase,
     ResolveHedgeAlertUseCase,
     HedgePairsViewRequest,
-    HedgeHoldingsViewRequest,
+    HedgeSnapshotsViewRequest,
     HedgeAlertsViewRequest,
     ActivateHedgePairRequest,
     DeactivateHedgePairRequest,
@@ -163,24 +163,24 @@ class CorrelationHistoryViewSet(viewsets.ReadOnlyModelViewSet):
         })
 
 
-class HedgePortfolioHoldingViewSet(viewsets.ReadOnlyModelViewSet):
-    """ViewSet for HedgePortfolioHolding model"""
-    queryset = HedgePortfolioHoldingModel._default_manager.all()
-    serializer_class = HedgePortfolioHoldingSerializer
+class HedgePortfolioSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet for HedgePortfolioSnapshot model"""
+    queryset = HedgePortfolioSnapshotModel._default_manager.all()
+    serializer_class = HedgePortfolioSnapshotSerializer
     filterset_fields = ['pair', 'trade_date', 'rebalance_needed']
     ordering = ['-trade_date']
 
     @action(detail=False, methods=['get'])
     def latest(self, request):
-        """Get the latest holding for each hedge pair"""
+        """Get the latest snapshot for each hedge pair"""
         service = HedgeIntegrationService()
         pairs = service.get_all_pairs(active_only=True)
 
-        holdings = []
+        snapshots = []
         for pair in pairs:
             latest = service.get_hedge_portfolio(pair.name)
             if latest:
-                holdings.append({
+                snapshots.append({
                     'pair_name': latest.pair_name,
                     'trade_date': latest.trade_date.isoformat(),
                     'long_weight': round(latest.long_weight * 100, 2),
@@ -193,8 +193,8 @@ class HedgePortfolioHoldingViewSet(viewsets.ReadOnlyModelViewSet):
                 })
 
         return Response({
-            'count': len(holdings),
-            'results': holdings,
+            'count': len(snapshots),
+            'results': snapshots,
         })
 
     @action(detail=False, methods=['post'])
@@ -426,10 +426,10 @@ def hedge_pairs_view(request):
     # Instantiate repositories
     pair_repo = HedgePairRepository()
     correlation_repo = CorrelationHistoryRepository()
-    holding_repo = HedgePortfolioRepository()
+    snapshot_repo = HedgePortfolioRepository()
 
     # Execute UseCase
-    use_case = GetHedgePairsForViewUseCase(pair_repo, correlation_repo, holding_repo)
+    use_case = GetHedgePairsForViewUseCase(pair_repo, correlation_repo, snapshot_repo)
     response = use_case.execute(usecase_request)
 
     # Hedge method choices (for filter dropdown)
@@ -454,9 +454,9 @@ def hedge_pairs_view(request):
 
 
 @ensure_csrf_cookie
-def hedge_holdings_view(request):
+def hedge_snapshots_view(request):
     """
-    Hedge holdings status page.
+    Hedge snapshots status page.
     Uses UseCase to access data through Application layer.
     """
     # Get filter parameters
@@ -470,29 +470,29 @@ def hedge_holdings_view(request):
         rebalance_needed = (rebalance_filter == 'true')
 
     # Create request DTO
-    usecase_request = HedgeHoldingsViewRequest(
+    usecase_request = HedgeSnapshotsViewRequest(
         pair_name=pair_name,
         rebalance_needed=rebalance_needed,
         limit=50,
     )
 
     # Instantiate repositories
-    holding_repo = HedgePortfolioRepository()
+    snapshot_repo = HedgePortfolioRepository()
     pair_repo = HedgePairRepository()
 
     # Execute UseCase
-    use_case = GetHedgeHoldingsForViewUseCase(holding_repo, pair_repo)
+    use_case = GetHedgeSnapshotsForViewUseCase(snapshot_repo, pair_repo)
     response = use_case.execute(usecase_request)
 
     context = {
-        'holdings': response.holdings,
+        'snapshots': response.snapshots,
         'stats': response.stats,
         'pair_names': response.pair_names,
         'filter_pair_name': pair_name_filter,
         'filter_rebalance_needed': rebalance_filter,
     }
 
-    return render(request, 'hedge/holdings.html', context)
+    return render(request, 'hedge/snapshots.html', context)
 
 
 @ensure_csrf_cookie

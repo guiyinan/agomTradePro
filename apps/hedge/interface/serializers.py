@@ -8,7 +8,7 @@ from rest_framework import serializers
 from apps.hedge.infrastructure.models import (
     HedgePairModel,
     CorrelationHistoryModel,
-    HedgePortfolioHoldingModel,
+    HedgePortfolioSnapshotModel,
     HedgeAlertModel,
     HedgePerformanceModel,
 )
@@ -45,12 +45,12 @@ class CorrelationHistorySerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
 
-class HedgePortfolioHoldingSerializer(serializers.ModelSerializer):
-    """Serializer for HedgePortfolioHolding"""
+class HedgePortfolioSnapshotSerializer(serializers.ModelSerializer):
+    """Serializer for HedgePortfolioSnapshot"""
     pair_name = serializers.CharField(source='pair.name', read_only=True)
 
     class Meta:
-        model = HedgePortfolioHoldingModel
+        model = HedgePortfolioSnapshotModel
         fields = [
             'id', 'pair', 'pair_name', 'trade_date',
             'long_weight', 'hedge_weight',

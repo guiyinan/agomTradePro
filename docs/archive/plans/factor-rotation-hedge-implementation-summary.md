@@ -115,7 +115,7 @@ apps/hedge/
 |------|------|
 | `hedge_pair` | 对冲对配置（10个对冲对） |
 | `hedge_correlation_history` | 相关性历史 |
-| `hedge_portfolio_holdings` | 对冲组合持仓 |
+| `hedge_portfolio_snapshots` | 对冲组合快照 |
 | `hedge_alert` | 对冲告警 |
 | `hedge_performance` | 对冲表现跟踪 |
 
@@ -215,7 +215,7 @@ GET    /rotation/api/signals/latest/  # 获取最新信号
 GET    /hedge/api/pairs/              # 获取所有对冲对
 POST   /hedge/api/pairs/{id}/check_effectiveness/ # 检查对冲效果
 GET    /hedge/api/correlations/       # 获取相关性历史
-GET    /hedge/api/holdings/latest/    # 获取最新持仓
+GET    /hedge/api/snapshots/latest/   # 获取最新快照
 GET    /hedge/api/alerts/             # 获取告警列表
 POST   /hedge/api/alerts/{id}/resolve/ # 解决告警
 ```

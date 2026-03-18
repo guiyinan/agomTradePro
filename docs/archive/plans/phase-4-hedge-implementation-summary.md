@@ -45,14 +45,14 @@ class HedgeIntegrationService:
 **Views** (`apps/hedge/interface/views.py`)
 - `HedgePairViewSet` - Hedge pair CRUD with effectiveness checking
 - `CorrelationHistoryViewSet` - Correlation data with calculation action
-- `HedgePortfolioHoldingViewSet` - Portfolio state with update actions
+- `HedgePortfolioSnapshotViewSet` - Portfolio state with update actions
 - `HedgeAlertViewSet` - Alert management with resolution
 - `HedgeActionViewSet` - Action endpoints for calculations
 
 **URLs** (`apps/hedge/interface/urls.py`)
 - `/hedge/api/pairs/` - Hedge pair management
 - `/hedge/api/correlations/` - Correlation history
-- `/hedge/api/holdings/` - Portfolio holdings
+- `/hedge/api/snapshots/` - Portfolio snapshots
 - `/hedge/api/alerts/` - Alert management
 - `/hedge/api/actions/` - Calculation actions
 
@@ -134,8 +134,8 @@ Repository (ORM)
 | `/hedge/api/pairs/all_effectiveness/` | GET | Get all effectiveness |
 | `/hedge/api/correlations/` | GET | Correlation history |
 | `/hedge/api/correlations/calculate/` | POST | Calculate correlation |
-| `/hedge/api/holdings/latest/` | GET | Latest holdings |
-| `/hedge/api/holdings/update_all/` | POST | Update all portfolios |
+| `/hedge/api/snapshots/latest/` | GET | Latest snapshots |
+| `/hedge/api/snapshots/update_all/` | POST | Update all portfolios |
 | `/hedge/api/alerts/` | GET | Active alerts |
 | `/hedge/api/alerts/active/` | GET | Recent alerts |
 | `/hedge/api/alerts/monitor/` | POST | Run monitoring |

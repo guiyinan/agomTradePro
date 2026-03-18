@@ -14,8 +14,8 @@
             <a href="{% url 'hedge:pairs' %}" class="hedge-nav-item {% if request.resolver_match.url_name == 'pairs' %}active{% endif %}">
                 <i class="bi bi-link-45deg"></i> 对冲对配置
             </a>
-            <a href="{% url 'hedge:holdings' %}" class="hedge-nav-item {% if request.resolver_match.url_name == 'holdings' %}active{% endif %}">
-                <i class="bi bi-briefcase"></i> 持仓状态
+            <a href="{% url 'hedge:snapshots' %}" class="hedge-nav-item {% if request.resolver_match.url_name == 'snapshots' %}active{% endif %}">
+                <i class="bi bi-camera"></i> 对冲快照
             </a>
             <a href="{% url 'hedge:alerts' %}" class="hedge-nav-item {% if request.resolver_match.url_name == 'alerts' %}active{% endif %}">
                 <i class="bi bi-bell"></i> 告警中心

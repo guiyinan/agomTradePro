@@ -212,13 +212,13 @@ class CorrelationHistoryModel(models.Model):
         return f"{self.asset1}-{self.asset2} {self.calc_date}"
 
 
-class HedgePortfolioHoldingModel(models.Model):
-    """Hedge portfolio holdings table"""
+class HedgePortfolioSnapshotModel(models.Model):
+    """Hedge portfolio snapshot table"""
 
     pair = models.ForeignKey(
         HedgePairModel,
         on_delete=models.CASCADE,
-        related_name='holdings',
+        related_name='snapshots',
         verbose_name="对冲对"
     )
     trade_date = models.DateField(
@@ -307,9 +307,9 @@ class HedgePortfolioHoldingModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'hedge_portfolio_holdings'
-        verbose_name = '对冲组合持仓'
-        verbose_name_plural = '对冲组合持仓'
+        db_table = 'hedge_portfolio_snapshots'
+        verbose_name = '对冲组合快照'
+        verbose_name_plural = '对冲组合快照'
         unique_together = [('pair', 'trade_date')]
         indexes = [
             models.Index(fields=['pair', 'trade_date']),

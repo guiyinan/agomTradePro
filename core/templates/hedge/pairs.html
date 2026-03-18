@@ -26,7 +26,7 @@
         <i class="bi bi-plus-circle"></i> 新增对冲对
     </button>
     <button class="hedge-btn hedge-btn-primary" onclick="updateAllPortfolios()">
-        <i class="bi bi-arrow-clockwise"></i> 更新所有持仓
+        <i class="bi bi-arrow-clockwise"></i> 更新所有快照
     </button>
 </div>
 
@@ -130,7 +130,7 @@
 
             {% if pair.hedge_ratio is not None %}
             <div class="hedge-pair-section">
-                <h4 class="hedge-section-title">持仓状态</h4>
+                <h4 class="hedge-section-title">快照状态</h4>
                 <div class="hedge-pair-grid">
                     <div class="hedge-pair-item">
                         <span class="hedge-item-label">对冲比例</span>
@@ -468,7 +468,7 @@ async function deactivatePair(id) {
 }
 
 async function updateAllPortfolios() {
-    if (!await window.uiConfirm('确认更新所有对冲持仓？', { title: '更新持仓', icon: 'info' })) return;
+    if (!await window.uiConfirm('确认更新所有对冲快照？', { title: '更新快照', icon: 'info' })) return;
 
     try {
         const res = await fetch(HEDGE_URLS.updatePortfolios, {

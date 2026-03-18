@@ -124,7 +124,7 @@
 
 /* Pair Cards */
 .hedge-pairs-list,
-.hedge-holdings-list,
+.hedge-snapshot-list,
 .hedge-alerts-list {
     display: flex;
     flex-direction: column;
@@ -132,7 +132,7 @@
 }
 
 .hedge-pair-card,
-.hedge-holding-card,
+.hedge-snapshot-card,
 .hedge-alert-card {
     background-color: #ffffff;
     border: 1px solid #e5e7eb;
@@ -142,7 +142,7 @@
 }
 
 .hedge-pair-card:hover,
-.hedge-holding-card:hover,
+.hedge-snapshot-card:hover,
 .hedge-alert-card:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
@@ -156,7 +156,7 @@
     opacity: 0.7;
 }
 
-.hedge-holding-card.needs-rebalance {
+.hedge-snapshot-card.needs-rebalance {
     border-left: 4px solid #f59e0b;
 }
 
@@ -183,7 +183,7 @@
 
 /* Card Headers */
 .hedge-pair-header,
-.hedge-holding-header,
+.hedge-snapshot-header,
 .hedge-alert-header {
     display: flex;
     justify-content: space-between;
@@ -194,7 +194,7 @@
 }
 
 .hedge-pair-title,
-.hedge-holding-title,
+.hedge-snapshot-title,
 .hedge-alert-title {
     display: flex;
     align-items: center;
@@ -203,7 +203,7 @@
 }
 
 .hedge-pair-name,
-.hedge-holding-pair,
+.hedge-snapshot-pair,
 .hedge-alert-pair {
     font-size: 16px;
     font-weight: 600;
@@ -220,7 +220,7 @@
 }
 
 .hedge-pair-status,
-.hedge-holding-badge,
+.hedge-snapshot-badge,
 .hedge-alert-severity,
 .hedge-alert-status {
     font-size: 12px;
@@ -240,13 +240,13 @@
     color: #6b7280;
 }
 
-.hedge-holding-badge {
+.hedge-snapshot-badge {
     display: flex;
     align-items: center;
     gap: 4px;
 }
 
-.hedge-holding-badge.badge-warning {
+.hedge-snapshot-badge.badge-warning {
     background-color: #fef3c7;
     color: #92400e;
 }
@@ -271,7 +271,7 @@
     color: #4b5563;
 }
 
-.hedge-holding-date {
+.hedge-snapshot-date {
     font-size: 13px;
     color: #6b7280;
 }
@@ -309,18 +309,18 @@
 
 /* Card Body */
 .hedge-pair-body,
-.hedge-holding-body,
+.hedge-snapshot-body,
 .hedge-alert-body {
     padding: 16px;
 }
 
 .hedge-pair-section,
-.hedge-holding-section {
+.hedge-snapshot-section {
     margin-bottom: 16px;
 }
 
 .hedge-pair-section:last-child,
-.hedge-holding-section:last-child {
+.hedge-snapshot-section:last-child {
     margin-bottom: 0;
 }
 
@@ -334,7 +334,7 @@
 }
 
 .hedge-pair-grid,
-.hedge-holding-grid,
+.hedge-snapshot-grid,
 .hedge-alert-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -342,7 +342,7 @@
 }
 
 .hedge-pair-item,
-.hedge-holding-item,
+.hedge-snapshot-item,
 .hedge-alert-item {
     display: flex;
     flex-direction: column;
@@ -461,7 +461,7 @@
 
 /* Card Footer */
 .hedge-pair-footer,
-.hedge-holding-footer,
+.hedge-snapshot-footer,
 .hedge-alert-footer {
     padding: 12px 16px;
     border-top: 1px solid #f3f4f6;
@@ -641,7 +641,7 @@ body.hedge-modal-open {
     }
 
     .hedge-pair-grid,
-    .hedge-holding-grid,
+    .hedge-snapshot-grid,
     .hedge-alert-grid {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -664,7 +664,7 @@ body.hedge-modal-open {
     }
 
     .hedge-pair-title,
-    .hedge-holding-title,
+    .hedge-snapshot-title,
     .hedge-alert-title {
         flex-direction: column;
         align-items: flex-start;

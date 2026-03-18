@@ -22,7 +22,7 @@ apps/hedge/
 |------|------|
 | `GET /hedge/api/pairs/` | 对冲配对 |
 | `GET /hedge/api/correlations/` | 相关性分析 |
-| `GET /hedge/api/holdings/` | 对冲持仓 |
+| `GET /hedge/api/snapshots/` | 对冲快照 |
 | `GET /hedge/api/alerts/` | 对冲告警 |
 | `POST /hedge/api/` | 执行操作 |
 

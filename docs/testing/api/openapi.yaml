@@ -9662,10 +9662,10 @@ paths:
               schema:
                 $ref: '#/components/schemas/CorrelationHistory'
           description: ''
-  /api/hedge/holdings/:
+  /api/hedge/snapshots/:
     get:
-      operationId: hedge_holdings_list
-      description: ViewSet for HedgePortfolioHolding model
+      operationId: hedge_snapshots_list
+      description: ViewSet for HedgePortfolioSnapshot model
       parameters:
       - name: page
         required: false
@@ -9683,12 +9683,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedHedgePortfolioHoldingList'
+                $ref: '#/components/schemas/PaginatedHedgePortfolioSnapshotList'
           description: ''
-  /api/hedge/holdings/{id}/:
+  /api/hedge/snapshots/{id}/:
     get:
-      operationId: hedge_holdings_retrieve
-      description: ViewSet for HedgePortfolioHolding model
+      operationId: hedge_snapshots_retrieve
+      description: ViewSet for HedgePortfolioSnapshot model
       parameters:
       - in: path
         name: id
@@ -9706,11 +9706,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HedgePortfolioHolding'
+                $ref: '#/components/schemas/HedgePortfolioSnapshot'
           description: ''
-  /api/hedge/holdings/latest/:
+  /api/hedge/snapshots/latest/:
     get:
-      operationId: hedge_holdings_latest_retrieve
+      operationId: hedge_snapshots_latest_retrieve
       description: Get the latest holding for each hedge pair
       tags:
       - hedge
@@ -9722,11 +9722,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HedgePortfolioHolding'
+                $ref: '#/components/schemas/HedgePortfolioSnapshot'
           description: ''
-  /api/hedge/holdings/update_all/:
+  /api/hedge/snapshots/update_all/:
     post:
-      operationId: hedge_holdings_update_all_create
+      operationId: hedge_snapshots_update_all_create
       description: Update all hedge portfolios
       tags:
       - hedge
@@ -9734,13 +9734,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/HedgePortfolioHoldingRequest'
+              $ref: '#/components/schemas/HedgePortfolioSnapshotRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/HedgePortfolioHoldingRequest'
+              $ref: '#/components/schemas/HedgePortfolioSnapshotRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/HedgePortfolioHoldingRequest'
+              $ref: '#/components/schemas/HedgePortfolioSnapshotRequest'
         required: true
       security:
       - cookieAuth: []
@@ -9750,7 +9750,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HedgePortfolioHolding'
+                $ref: '#/components/schemas/HedgePortfolioSnapshot'
           description: ''
   /api/hedge/pairs/:
     get:
@@ -27149,9 +27149,9 @@ components:
       - hedge_asset
       - long_asset
       - name
-    HedgePortfolioHolding:
+    HedgePortfolioSnapshot:
       type: object
-      description: Serializer for HedgePortfolioHolding
+      description: Serializer for HedgePortfolioSnapshot
       properties:
         id:
           type: integer
@@ -27243,9 +27243,9 @@ components:
       - long_weight
       - pair
       - trade_date
-    HedgePortfolioHoldingRequest:
+    HedgePortfolioSnapshotRequest:
       type: object
-      description: Serializer for HedgePortfolioHolding
+      description: Serializer for HedgePortfolioSnapshot
       properties:
         pair:
           type: integer
@@ -28587,7 +28587,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/HedgePair'
-    PaginatedHedgePortfolioHoldingList:
+    PaginatedHedgePortfolioSnapshotList:
       type: object
       required:
       - count
@@ -28609,7 +28609,7 @@ components:
         results:
           type: array
           items:
-            $ref: '#/components/schemas/HedgePortfolioHolding'
+            $ref: '#/components/schemas/HedgePortfolioSnapshot'
     PaginatedInvestmentSignalList:
       type: object
       required:
