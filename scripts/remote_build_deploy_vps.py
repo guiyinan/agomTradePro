@@ -658,13 +658,19 @@ else
   printf '\nSECRET_KEY=%s\n' "$SECRET_KEY" >> deploy/.env
 fi
 
-AGOM_KEY="$(grep '^AGOMSAAF_ENCRYPTION_KEY=' deploy/.env | cut -d '=' -f2- || true)"
-if [ -z "$AGOM_KEY" ]; then
-  AGOM_KEY="$(python3 - <<'PY'
+if [ -n "$PRESET_ENCRYPTION_KEY" ]; then
+  AGOM_KEY="$PRESET_ENCRYPTION_KEY"
+else
+  AGOM_KEY="$(grep '^AGOMSAAF_ENCRYPTION_KEY=' deploy/.env | cut -d '=' -f2- || true)"
+  if [ -z "$AGOM_KEY" ]; then
+    AGOM_KEY="$(python3 - <<'PY'
 from cryptography.fernet import Fernet
 print(Fernet.generate_key().decode())
 PY
 )"
+    echo "[INFO] Auto-generated AGOMSAAF_ENCRYPTION_KEY=$AGOM_KEY"
+    echo "[WARN] Save this key! You will need it to decrypt existing API keys."
+  fi
 fi
 
 if grep -q '^AGOMSAAF_ENCRYPTION_KEY=' deploy/.env; then
@@ -898,6 +904,7 @@ def main() -> int:
     ap.add_argument("--enable-rsshub", action="store_true", default=True)
     ap.add_argument("--disable-rsshub", action="store_true", default=False)
     ap.add_argument("--enable-celery", action="store_true", default=False)
+    ap.add_argument("--encryption-key", default="", help="AGOMSAAF_ENCRYPTION_KEY to set on VPS (blank = keep existing)")
     args = ap.parse_args()
 
     project_root = Path(__file__).resolve().parents[1]
@@ -954,6 +961,18 @@ def main() -> int:
             http_port = int(_prompt("Public HTTP port", str(args.http_port)))
             domain = _prompt("Domain (blank for HTTP-only)", args.domain)
             allowed_hosts = _prompt("ALLOWED_HOSTS (blank for auto)", args.allowed_hosts)
+            # Encryption key for AI provider API keys
+            _info("AGOMSAAF_ENCRYPTION_KEY is used to encrypt AI provider API keys.")
+            _info("If the VPS already has a key, press Enter to keep it.")
+            gen_key = _prompt_bool("Generate a new encryption key?", False)
+            if gen_key:
+                from cryptography.fernet import Fernet
+                encryption_key = Fernet.generate_key().decode()
+                _info(f"Generated encryption key: {encryption_key}")
+                _info("Save this key! You will need it if you redeploy from scratch.")
+            else:
+                encryption_key = _prompt("Encryption key (blank = keep existing on VPS)", "")
+
         else:
             wipe_docker = False
             wipe_volumes = False
@@ -961,6 +980,7 @@ def main() -> int:
             http_port = args.http_port
             domain = args.domain
             allowed_hosts = args.allowed_hosts
+            encryption_key = ""
     else:
         include_sqlite = args.include_sqlite
         wipe_docker = args.wipe_docker
@@ -969,6 +989,7 @@ def main() -> int:
         http_port = args.http_port
         domain = args.domain
         allowed_hosts = args.allowed_hosts
+        encryption_key = getattr(args, "encryption_key", "") or ""
 
     enable_rsshub = False if args.disable_rsshub else True
     enable_celery = args.enable_celery
@@ -1085,6 +1106,7 @@ def main() -> int:
                 "INCLUDE_SQLITE": _bool_env(include_sqlite),
                 "ENABLE_RSSHUB": _bool_env(enable_rsshub),
                 "ENABLE_CELERY": _bool_env(enable_celery),
+                "PRESET_ENCRYPTION_KEY": encryption_key,
             }
             deploy_exports = " ".join(
                 f"{key}={shlex.quote(value)}" for key, value in deploy_env.items()
