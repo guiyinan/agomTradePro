@@ -62,6 +62,18 @@ class AIChatRequest:
     model: Optional[str] = None
     temperature: float = 0.7
     max_tokens: Optional[int] = None
+    tools: Optional[list] = None  # List[Dict] - OpenAI function calling format
+    tool_choice: Optional[str] = None  # "auto" | "none" | "required" | specific tool
+    response_format: Optional[Dict] = None  # {"type": "json_object"} etc.
+    metadata: Optional[Dict] = None
+
+
+@dataclass(frozen=True)
+class ToolCallInfo:
+    """工具调用信息（值对象）"""
+    id: str
+    tool_name: str
+    arguments: str  # JSON string of arguments
 
 
 @dataclass(frozen=True)
@@ -77,3 +89,6 @@ class AIChatResponse:
     status: str
     error_message: Optional[str] = None
     estimated_cost: Optional[float] = None
+    tool_calls: Optional[list] = None  # List[ToolCallInfo]
+    raw_response: Optional[Dict] = None
+    request_type: Optional[str] = None  # "responses" | "chat"

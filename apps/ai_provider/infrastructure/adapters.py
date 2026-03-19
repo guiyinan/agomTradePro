@@ -80,18 +80,30 @@ class OpenAICompatibleAdapter:
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
         stream: bool = False,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        tool_choice: Optional[str] = None,
+        response_format: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         统一聊天接口，内部按 api_mode 决定调用 Responses 或 Chat Completions。
+
+        支持 tools / tool_choice / response_format 参数，用于 Agent Runtime
+        的工具调用闭环。返回结果中包含 tool_calls 字段。
         """
         model = model or self.default_model
         start_time = time.time()
 
         if self.api_mode == "chat_only":
-            return self._chat_completion_chat(messages, model, temperature, max_tokens, stream, start_time)
+            return self._chat_completion_chat(
+                messages, model, temperature, max_tokens, stream, start_time,
+                tools=tools, tool_choice=tool_choice, response_format=response_format,
+            )
 
         # responses_only / dual
-        result = self._chat_completion_responses(messages, model, temperature, max_tokens, start_time)
+        result = self._chat_completion_responses(
+            messages, model, temperature, max_tokens, start_time,
+            tools=tools, tool_choice=tool_choice, response_format=response_format,
+        )
         if result["status"] == "success":
             return result
 
@@ -99,7 +111,10 @@ class OpenAICompatibleAdapter:
             return result
 
         # dual 模式且允许回退
-        fallback = self._chat_completion_chat(messages, model, temperature, max_tokens, stream, start_time)
+        fallback = self._chat_completion_chat(
+            messages, model, temperature, max_tokens, stream, start_time,
+            tools=tools, tool_choice=tool_choice, response_format=response_format,
+        )
         if fallback["status"] == "success":
             fallback["fallback_used"] = True
         else:
@@ -116,6 +131,9 @@ class OpenAICompatibleAdapter:
         temperature: float,
         max_tokens: Optional[int],
         start_time: float,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        tool_choice: Optional[str] = None,
+        response_format: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         try:
             kwargs: dict[str, Any] = {
@@ -125,9 +143,16 @@ class OpenAICompatibleAdapter:
             }
             if max_tokens is not None:
                 kwargs["max_output_tokens"] = max_tokens
+            if tools:
+                kwargs["tools"] = tools
+            if tool_choice is not None:
+                kwargs["tool_choice"] = tool_choice
+            if response_format is not None:
+                kwargs["text"] = {"format": response_format}
 
             response = self.client.responses.create(**kwargs)
             content = self._extract_text_from_responses(response)
+            tool_calls = self._extract_tool_calls_from_responses(response)
             usage = getattr(response, "usage", None)
             prompt_tokens = int(getattr(usage, "input_tokens", 0) or 0)
             completion_tokens = int(getattr(usage, "output_tokens", 0) or 0)
@@ -136,16 +161,22 @@ class OpenAICompatibleAdapter:
                 or (prompt_tokens + completion_tokens)
             )
 
-            return self._success_result(
+            finish_reason = getattr(response, "status", "completed")
+
+            result = self._success_result(
                 content=content,
                 model=getattr(response, "model", model),
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 total_tokens=total_tokens,
-                finish_reason=getattr(response, "status", "completed"),
+                finish_reason=finish_reason,
                 response_time_ms=int((time.time() - start_time) * 1000),
                 request_type="responses",
             )
+            if tool_calls:
+                result["tool_calls"] = tool_calls
+                result["finish_reason"] = "tool_calls"
+            return result
         except Exception as exc:
             return self._error_result(
                 model=model,
@@ -162,15 +193,26 @@ class OpenAICompatibleAdapter:
         max_tokens: Optional[int],
         stream: bool,
         start_time: float,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        tool_choice: Optional[str] = None,
+        response_format: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         try:
-            response = self.client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                stream=stream,
-            )
+            create_kwargs: dict[str, Any] = {
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "stream": stream,
+            }
+            if tools:
+                create_kwargs["tools"] = tools
+            if tool_choice is not None:
+                create_kwargs["tool_choice"] = tool_choice
+            if response_format is not None:
+                create_kwargs["response_format"] = response_format
+
+            response = self.client.chat.completions.create(**create_kwargs)
             # 不支持在此路径向上层透传 stream generator，统一走非流式数据对象
             if stream:
                 return self._error_result(
@@ -181,16 +223,35 @@ class OpenAICompatibleAdapter:
                 )
 
             usage = getattr(response, "usage", None)
-            return self._success_result(
-                content=(response.choices[0].message.content if response.choices else ""),
+            message = response.choices[0].message if response.choices else None
+            content = (message.content or "") if message else ""
+            finish_reason = (response.choices[0].finish_reason if response.choices else None)
+
+            # 提取 tool_calls
+            tool_calls = None
+            if message and getattr(message, "tool_calls", None):
+                tool_calls = []
+                for tc in message.tool_calls:
+                    tool_calls.append({
+                        "id": tc.id,
+                        "tool_name": tc.function.name,
+                        "arguments": tc.function.arguments,
+                    })
+
+            result = self._success_result(
+                content=content,
                 model=getattr(response, "model", model),
                 prompt_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
                 completion_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
                 total_tokens=int(getattr(usage, "total_tokens", 0) or 0),
-                finish_reason=(response.choices[0].finish_reason if response.choices else None),
+                finish_reason=finish_reason,
                 response_time_ms=int((time.time() - start_time) * 1000),
                 request_type="chat",
             )
+            if tool_calls:
+                result["tool_calls"] = tool_calls
+                result["finish_reason"] = "tool_calls"
+            return result
         except Exception as exc:
             return self._error_result(
                 model=model,
@@ -198,6 +259,21 @@ class OpenAICompatibleAdapter:
                 response_time_ms=int((time.time() - start_time) * 1000),
                 request_type="chat",
             )
+
+    @staticmethod
+    def _extract_tool_calls_from_responses(response: Any) -> Optional[List[Dict[str, Any]]]:
+        """从 Responses API 返回中提取 tool_calls。"""
+        output = getattr(response, "output", None) or []
+        tool_calls: list[Dict[str, Any]] = []
+        for item in output:
+            item_type = getattr(item, "type", None)
+            if item_type == "function_call":
+                tool_calls.append({
+                    "id": getattr(item, "call_id", getattr(item, "id", "")),
+                    "tool_name": getattr(item, "name", ""),
+                    "arguments": getattr(item, "arguments", "{}"),
+                })
+        return tool_calls if tool_calls else None
 
     @staticmethod
     def _extract_text_from_responses(response: Any) -> str:
@@ -241,6 +317,7 @@ class OpenAICompatibleAdapter:
             "request_type": request_type,
             "api_mode_used": self.api_mode,
             "fallback_used": False,
+            "tool_calls": None,
         }
 
     def _error_result(
@@ -272,6 +349,7 @@ class OpenAICompatibleAdapter:
             "request_type": request_type,
             "api_mode_used": self.api_mode,
             "fallback_used": False,
+            "tool_calls": None,
         }
 
     def is_available(self) -> bool:
@@ -319,6 +397,9 @@ class AIFailoverHelper:
         model: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        tool_choice: Optional[str] = None,
+        response_format: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         last_error = None
 
@@ -332,6 +413,9 @@ class AIFailoverHelper:
                     model=model,
                     temperature=temperature,
                     max_tokens=max_tokens,
+                    tools=tools,
+                    tool_choice=tool_choice,
+                    response_format=response_format,
                 )
                 result["provider_used"] = item["name"]
                 if result["status"] == "success":
@@ -356,4 +440,5 @@ class AIFailoverHelper:
             "request_type": "chat",
             "api_mode_used": None,
             "fallback_used": False,
+            "tool_calls": None,
         }

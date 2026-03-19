@@ -1,7 +1,7 @@
 """
 Terminal Application Services.
 
-命令执行服务实现。
+命令执行服务实现。通过 AgentRuntime 提供基于系统数据的 AI 问答能力。
 """
 
 import json
@@ -17,12 +17,23 @@ from ..domain.entities import TerminalCommand
 logger = logging.getLogger(__name__)
 
 
+# Terminal 默认允许的上下文域和工具
+_DEFAULT_CONTEXT_SCOPE = ["macro", "regime"]
+_DEFAULT_TOOL_NAMES = [
+    "get_macro_summary",
+    "get_macro_indicator",
+    "get_regime_status",
+    "get_regime_distribution",
+]
+
+
 class CommandExecutionService:
     """命令执行服务"""
-    
+
     def __init__(self):
         self._ai_client_factory = None
-    
+        self._agent_runtime = None
+
     @property
     def ai_client_factory(self):
         """延迟加载AI客户端工厂"""
@@ -30,7 +41,48 @@ class CommandExecutionService:
             from apps.ai_provider.infrastructure.client_factory import AIClientFactory
             self._ai_client_factory = AIClientFactory()
         return self._ai_client_factory
-    
+
+    def _get_agent_runtime(self):
+        """延迟构建 AgentRuntime 实例。"""
+        if self._agent_runtime is not None:
+            return self._agent_runtime
+
+        from apps.prompt.application.agent_runtime import AgentRuntime
+        from apps.prompt.application.context_builders import (
+            ContextBundleBuilder,
+            MacroContextProvider,
+            RegimeContextProvider,
+        )
+        from apps.prompt.application.tool_execution import create_agent_tool_registry
+        from apps.prompt.application.trace_logging import AgentExecutionLogger
+        from apps.prompt.infrastructure.adapters.macro_adapter import MacroDataAdapter
+        from apps.prompt.infrastructure.adapters.regime_adapter import RegimeDataAdapter
+        from apps.prompt.infrastructure.repositories import DjangoExecutionLogRepository
+
+        macro_adapter = MacroDataAdapter()
+        regime_adapter = RegimeDataAdapter()
+
+        tool_registry = create_agent_tool_registry(
+            macro_adapter=macro_adapter,
+            regime_adapter=regime_adapter,
+        )
+
+        context_builder = ContextBundleBuilder()
+        context_builder.register_provider(MacroContextProvider(macro_adapter))
+        context_builder.register_provider(RegimeContextProvider(regime_adapter))
+
+        execution_logger = AgentExecutionLogger(
+            execution_log_repository=DjangoExecutionLogRepository()
+        )
+
+        self._agent_runtime = AgentRuntime(
+            ai_client_factory=self.ai_client_factory,
+            tool_registry=tool_registry,
+            context_builder=context_builder,
+            execution_logger=execution_logger,
+        )
+        return self._agent_runtime
+
     def execute_prompt_command(
         self,
         command: TerminalCommand,
@@ -40,41 +92,55 @@ class CommandExecutionService:
         model_name: Optional[str] = None,
     ) -> dict[str, Any]:
         """
-        执行Prompt类型命令
-        
+        执行Prompt类型命令 - 通过 AgentRuntime 执行。
+
+        支持系统数据注入和工具调用，AI 可以按需查询宏观、Regime 等数据。
+
         Returns:
             dict with 'output' and 'metadata' keys
         """
+        from apps.prompt.domain.agent_entities import AgentExecutionRequest
+
         # 构建用户提示
         user_prompt = command.user_prompt_template
         for key, value in params.items():
             placeholder = f"{{{key}}}"
             user_prompt = user_prompt.replace(placeholder, str(value))
-        
-        # 构建消息
-        messages = []
-        if command.system_prompt:
-            messages.append({"role": "system", "content": command.system_prompt})
-        messages.append({"role": "user", "content": user_prompt})
-        
-        # 获取AI客户端
-        client = self.ai_client_factory.get_client(provider_name)
-        
-        # 调用AI
-        response = client.chat_completion(
-            messages=messages,
+
+        # 通过 AgentRuntime 执行
+        runtime = self._get_agent_runtime()
+
+        agent_request = AgentExecutionRequest(
+            task_type="terminal",
+            user_input=user_prompt,
+            provider_ref=provider_name,
             model=model_name,
-            temperature=0.7,
-            max_tokens=2000,
+            system_prompt=command.system_prompt,
+            context_scope=_DEFAULT_CONTEXT_SCOPE,
+            tool_names=_DEFAULT_TOOL_NAMES,
+            max_rounds=4,
+            session_id=session_id,
         )
-        
+
+        response = runtime.execute(agent_request)
+
+        # 构建 trace 摘要
+        trace_summary = {}
+        if response.tool_calls:
+            trace_summary["tools_used"] = [tc.tool_name for tc in response.tool_calls]
+        if response.used_context:
+            trace_summary["context_domains"] = response.used_context
+        trace_summary["turn_count"] = response.turn_count
+
         return {
-            'output': response.get('content', ''),
+            'output': response.final_answer or response.error_message or '',
             'metadata': {
-                'provider': provider_name or 'default',
-                'model': model_name or 'default',
-                'tokens': response.get('usage', {}).get('total_tokens', 0),
+                'provider': response.provider_used or provider_name or 'default',
+                'model': response.model_used or model_name or 'default',
+                'tokens': response.total_tokens,
                 'session_id': session_id,
+                'execution_id': response.execution_id,
+                'trace': trace_summary,
             }
         }
     

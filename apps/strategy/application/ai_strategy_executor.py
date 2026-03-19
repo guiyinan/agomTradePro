@@ -297,6 +297,8 @@ class AIStrategyExecutor:
         """
         执行 AI 驱动策略
 
+        通过 AgentRuntime 执行，支持上下文注入和工具调用。
+
         Args:
             strategy: 策略实体（必须包含 ai_config）
             portfolio_id: 投资组合ID
@@ -313,18 +315,18 @@ class AIStrategyExecutor:
         ai_config = strategy.ai_config
 
         try:
-            # 1. 准备上下文数据
-            context = self._prepare_context(portfolio_id)
+            # 尝试通过 AgentRuntime 执行
+            ai_response = self._execute_via_runtime(ai_config, portfolio_id)
 
-            # 2. 执行 AI 策略
-            if ai_config.chain_config_id:
-                # 使用链式执行
-                ai_response = self._execute_chain_strategy(ai_config, context)
-            elif ai_config.prompt_template_id:
-                # 使用单个 Prompt 执行
-                ai_response = self._execute_prompt_strategy(ai_config, context)
-            else:
-                raise ValueError("AI strategy must have either prompt_template_id or chain_config_id")
+            if ai_response is None:
+                # 回退到旧路径
+                context = self._prepare_context(portfolio_id)
+                if ai_config.chain_config_id:
+                    ai_response = self._execute_chain_strategy(ai_config, context)
+                elif ai_config.prompt_template_id:
+                    ai_response = self._execute_prompt_strategy(ai_config, context)
+                else:
+                    raise ValueError("AI strategy must have either prompt_template_id or chain_config_id")
 
             # 3. 解析 AI 响应为信号
             signals = AIResponseParser.parse_signals(
@@ -349,6 +351,132 @@ class AIStrategyExecutor:
         except Exception as e:
             logger.error(f"AI strategy execution failed: {e}", exc_info=True)
             raise
+
+    def _execute_via_runtime(
+        self,
+        ai_config: AIConfig,
+        portfolio_id: int,
+    ) -> Optional[str]:
+        """
+        通过 AgentRuntime 执行策略（新路径）。
+
+        返回 AI 文本响应，如果 Runtime 不可用则返回 None 以回退到旧路径。
+        """
+        try:
+            from apps.prompt.application.agent_runtime import AgentRuntime
+            from apps.prompt.application.context_builders import (
+                ContextBundleBuilder,
+                MacroContextProvider,
+                RegimeContextProvider,
+                PortfolioContextProvider,
+                SignalContextProvider,
+                AssetPoolContextProvider,
+            )
+            from apps.prompt.application.tool_execution import create_agent_tool_registry
+            from apps.prompt.domain.agent_entities import AgentExecutionRequest
+            from apps.prompt.domain.services import TemplateRenderer
+            from apps.prompt.infrastructure.adapters.macro_adapter import MacroDataAdapter
+            from apps.prompt.infrastructure.adapters.regime_adapter import RegimeDataAdapter
+
+            macro_adapter = MacroDataAdapter()
+            regime_adapter = RegimeDataAdapter()
+
+            tool_registry = create_agent_tool_registry(
+                macro_adapter=macro_adapter,
+                regime_adapter=regime_adapter,
+                portfolio_provider=self.portfolio_provider,
+                signal_provider=self.signal_provider,
+                asset_pool_provider=self.asset_pool_provider,
+            )
+
+            context_builder = ContextBundleBuilder()
+            context_builder.register_provider(MacroContextProvider(macro_adapter))
+            context_builder.register_provider(RegimeContextProvider(regime_adapter))
+            context_builder.register_provider(PortfolioContextProvider(self.portfolio_provider))
+            context_builder.register_provider(SignalContextProvider(self.signal_provider))
+            context_builder.register_provider(AssetPoolContextProvider(self.asset_pool_provider))
+
+            runtime = AgentRuntime(
+                ai_client_factory=self.ai_client_factory,
+                tool_registry=tool_registry,
+                context_builder=context_builder,
+            )
+
+            # 加载模板获取 system_prompt 和 user_input
+            system_prompt = None
+            user_input = None
+
+            if ai_config.chain_config_id and not ai_config.prompt_template_id:
+                # 链式策略需要多步骤编排，Runtime 不支持，回退到旧路径
+                logger.info("Chain-based strategy, falling back to legacy execution path")
+                return None
+
+            if ai_config.prompt_template_id:
+                template = self.prompt_repository.get_template_by_id(
+                    ai_config.prompt_template_id
+                )
+                if template:
+                    # Preserve legacy prompt semantics by rendering the template
+                    # against the same prepared strategy context before handing it
+                    # to the Runtime for tool-augmented execution.
+                    render_context = self._prepare_context(portfolio_id)
+                    user_input = TemplateRenderer().render_simple(
+                        template.template_content,
+                        render_context,
+                    )
+                    system_prompt = template.system_prompt
+                else:
+                    logger.warning(
+                        "Prompt template %d not found, falling back",
+                        ai_config.prompt_template_id,
+                    )
+                    return None
+
+            if not user_input:
+                # 无模板配置，回退到旧路径
+                logger.info("No prompt template configured, falling back to legacy execution path")
+                return None
+
+            agent_request = AgentExecutionRequest(
+                task_type="strategy",
+                user_input=user_input,
+                provider_ref=ai_config.ai_provider_id or 1,
+                temperature=ai_config.temperature,
+                max_tokens=ai_config.max_tokens,
+                context_scope=["macro", "regime", "portfolio", "signals", "asset_pool"],
+                context_params={"portfolio_id": portfolio_id},
+                tool_names=[
+                    "get_macro_summary", "get_macro_indicator", "get_regime_status",
+                    "get_regime_distribution", "get_portfolio_snapshot",
+                    "get_portfolio_positions", "get_portfolio_cash",
+                    "get_valid_signals", "get_asset_pool",
+                ],
+                system_prompt=system_prompt,
+                max_rounds=4,
+            )
+
+            response = runtime.execute(agent_request)
+
+            if response.success and response.final_answer:
+                logger.info(
+                    "Strategy executed via AgentRuntime: turns=%d, tokens=%d",
+                    response.turn_count, response.total_tokens,
+                )
+                return response.final_answer
+
+            if not response.success:
+                logger.warning(
+                    "AgentRuntime strategy execution failed: %s, falling back",
+                    response.error_message,
+                )
+            return None
+
+        except ImportError:
+            logger.info("AgentRuntime not available, using legacy execution path")
+            return None
+        except Exception as exc:
+            logger.warning("AgentRuntime execution error: %s, falling back", exc)
+            return None
 
     def _prepare_context(self, portfolio_id: int) -> Dict[str, Any]:
         """

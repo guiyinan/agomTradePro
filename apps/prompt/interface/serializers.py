@@ -336,3 +336,59 @@ class ChatSessionSerializer(serializers.ModelSerializer):
         model = ChatSessionORM
         fields = ['id', 'session_id', 'user_message', 'ai_response', 'context', 'created_at']
         read_only_fields = ['id', 'created_at']
+
+
+# ==================== Agent Runtime Serializers ====================
+
+
+class AgentExecuteRequestSerializer(serializers.Serializer):
+    """Agent Runtime 执行请求序列化器"""
+    task_type = serializers.CharField(max_length=50)
+    user_input = serializers.CharField()
+    provider_ref = serializers.JSONField(required=False, allow_null=True)
+    model = serializers.CharField(allow_blank=True, required=False, allow_null=True)
+    temperature = serializers.FloatField(required=False, allow_null=True)
+    max_tokens = serializers.IntegerField(required=False, allow_null=True)
+    context_scope = serializers.ListField(
+        child=serializers.CharField(), required=False, allow_null=True
+    )
+    context_params = serializers.JSONField(required=False, allow_null=True)
+    tool_names = serializers.ListField(
+        child=serializers.CharField(), required=False, allow_null=True
+    )
+    response_schema = serializers.JSONField(required=False, allow_null=True)
+    max_rounds = serializers.IntegerField(default=4, required=False)
+    session_id = serializers.CharField(allow_blank=True, required=False, allow_null=True)
+    system_prompt = serializers.CharField(required=False, allow_null=True)
+    metadata = serializers.JSONField(required=False, allow_null=True)
+
+
+class ToolCallRecordSerializer(serializers.Serializer):
+    """工具调用记录序列化器"""
+    tool_name = serializers.CharField()
+    arguments = serializers.JSONField()
+    success = serializers.BooleanField()
+    result = serializers.JSONField(allow_null=True)
+    error_message = serializers.CharField(allow_null=True, required=False)
+    duration_ms = serializers.IntegerField()
+
+
+class AgentExecuteResponseSerializer(serializers.Serializer):
+    """Agent Runtime 执行响应序列化器"""
+    success = serializers.BooleanField()
+    final_answer = serializers.CharField(allow_null=True, allow_blank=True)
+    structured_output = serializers.JSONField(allow_null=True, required=False)
+    used_context = serializers.ListField(
+        child=serializers.CharField(), allow_null=True, required=False
+    )
+    tool_calls = ToolCallRecordSerializer(many=True, allow_null=True, required=False)
+    turn_count = serializers.IntegerField()
+    provider_used = serializers.CharField(allow_null=True, allow_blank=True)
+    model_used = serializers.CharField(allow_null=True, allow_blank=True)
+    total_tokens = serializers.IntegerField()
+    prompt_tokens = serializers.IntegerField()
+    completion_tokens = serializers.IntegerField()
+    estimated_cost = serializers.FloatField()
+    response_time_ms = serializers.IntegerField()
+    error_message = serializers.CharField(allow_null=True, required=False)
+    execution_id = serializers.CharField(allow_null=True)

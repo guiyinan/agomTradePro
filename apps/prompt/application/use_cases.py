@@ -385,26 +385,227 @@ class ExecuteChainUseCase:
         chain: ChainConfig,
         request: ExecuteChainRequest
     ) -> ChainExecutionResult:
-        """并行执行（简化版，实际应使用asyncio）"""
-        # 简化实现：按并行组顺序执行
-        return self._execute_serial(chain, request)
+        """并行执行 - 按 parallel_group 分组，组内并行（concurrent.futures），组间串行。"""
+        from collections import defaultdict
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        step_results = {}
+        accumulated_output = {}
+
+        # 按 parallel_group 和 order 分组
+        groups: dict[str | None, list] = defaultdict(list)
+        for step in sorted(chain.steps, key=lambda s: s.order):
+            groups[step.parallel_group].append(step)
+
+        # 按 order 排序组
+        sorted_groups = sorted(groups.items(), key=lambda g: min(s.order for s in g[1]))
+
+        for group_key, steps in sorted_groups:
+            if group_key is None or len(steps) == 1:
+                # 非并行步骤或单步骤组：串行执行
+                for step in steps:
+                    step_context = self._build_step_context(
+                        step, request.placeholder_values, accumulated_output
+                    )
+                    step_request = ExecutePromptRequest(
+                        template_id=int(step.template_id),
+                        placeholder_values=step_context,
+                        provider_ref=self.prompt_use_case._resolve_provider_ref(request)
+                    )
+                    step_response = self.prompt_use_case.execute(step_request)
+                    step_results[step.step_id] = step_response
+                    if step_response.success:
+                        accumulated_output[step.step_id] = step_response.parsed_output or {
+                            "content": step_response.content
+                        }
+            else:
+                # 并行组：使用线程池并行执行
+                def _run_step(s):
+                    ctx = self._build_step_context(
+                        s, request.placeholder_values, accumulated_output
+                    )
+                    req = ExecutePromptRequest(
+                        template_id=int(s.template_id),
+                        placeholder_values=ctx,
+                        provider_ref=self.prompt_use_case._resolve_provider_ref(request)
+                    )
+                    return s.step_id, self.prompt_use_case.execute(req)
+
+                with ThreadPoolExecutor(max_workers=len(steps)) as executor:
+                    futures = {executor.submit(_run_step, step): step for step in steps}
+                    for future in as_completed(futures):
+                        step_id, step_response = future.result()
+                        step_results[step_id] = step_response
+                        if step_response.success:
+                            accumulated_output[step_id] = step_response.parsed_output or {
+                                "content": step_response.content
+                            }
+
+        return ChainExecutionResult(
+            success=all(r.success for r in step_results.values()),
+            chain_name=chain.name,
+            execution_mode=chain.execution_mode,
+            step_results=step_results,
+            final_output=self._resolve_final_output(chain, accumulated_output),
+            total_tokens=sum(r.total_tokens for r in step_results.values()),
+            total_cost=sum(r.estimated_cost for r in step_results.values()),
+            total_time_ms=sum(r.response_time_ms for r in step_results.values())
+        )
 
     def _execute_tool_calling(
         self,
         chain: ChainConfig,
         request: ExecuteChainRequest
     ) -> ChainExecutionResult:
-        """工具调用模式"""
-        # 简化实现：串行执行
-        return self._execute_serial(chain, request)
+        """工具调用模式 - 使用 AgentRuntime 执行真正的 tool calling。"""
+        from .agent_runtime import AgentRuntime
+        from .context_builders import ContextBundleBuilder, MacroContextProvider, RegimeContextProvider
+        from .tool_execution import create_agent_tool_registry
+        from .trace_logging import AgentExecutionLogger
+        from ..domain.agent_entities import AgentExecutionRequest
+        from ..infrastructure.adapters.macro_adapter import MacroDataAdapter
+        from ..infrastructure.adapters.regime_adapter import RegimeDataAdapter
+        from apps.ai_provider.infrastructure.client_factory import AIClientFactory
+
+        step_results = {}
+        accumulated_output = {}
+
+        for step in sorted(chain.steps, key=lambda s: s.order):
+            if step.enable_tool_calling and step.available_tools:
+                # 使用 AgentRuntime 执行工具调用步骤
+                step_context = self._build_step_context(
+                    step, request.placeholder_values, accumulated_output
+                )
+
+                # 加载模板以获取 system prompt
+                template = None
+                try:
+                    template = self.prompt_use_case.prompt_repository.get_template_by_id(
+                        int(step.template_id)
+                    )
+                except Exception:
+                    pass
+
+                ai_factory = AIClientFactory()
+                macro_adapter = MacroDataAdapter()
+                regime_adapter = RegimeDataAdapter()
+
+                tool_registry = create_agent_tool_registry(
+                    macro_adapter=macro_adapter,
+                    regime_adapter=regime_adapter,
+                )
+                context_builder = ContextBundleBuilder()
+                context_builder.register_provider(MacroContextProvider(macro_adapter))
+                context_builder.register_provider(RegimeContextProvider(regime_adapter))
+
+                runtime = AgentRuntime(
+                    ai_client_factory=ai_factory,
+                    tool_registry=tool_registry,
+                    context_builder=context_builder,
+                )
+
+                # 构建用户输入
+                user_input = step_context.get("user_input", "")
+                if not user_input and template:
+                    from ..domain.services import TemplateRenderer
+                    renderer = TemplateRenderer()
+                    user_input = renderer.render_simple(
+                        template.template_content, step_context
+                    )
+
+                agent_request = AgentExecutionRequest(
+                    task_type="tool_calling",
+                    user_input=user_input,
+                    provider_ref=self.prompt_use_case._resolve_provider_ref(request),
+                    tool_names=step.available_tools,
+                    system_prompt=template.system_prompt if template else None,
+                    max_rounds=4,
+                )
+
+                agent_response = runtime.execute(agent_request)
+
+                # 转为 ExecutePromptResponse 兼容格式
+                from .dtos import ExecutePromptResponse
+                step_response = ExecutePromptResponse(
+                    success=agent_response.success,
+                    content=agent_response.final_answer or "",
+                    provider_used=agent_response.provider_used or "",
+                    model_used=agent_response.model_used or "",
+                    prompt_tokens=agent_response.prompt_tokens,
+                    completion_tokens=agent_response.completion_tokens,
+                    total_tokens=agent_response.total_tokens,
+                    estimated_cost=agent_response.estimated_cost,
+                    response_time_ms=agent_response.response_time_ms,
+                    error_message=agent_response.error_message,
+                    parsed_output=agent_response.structured_output,
+                    template_name=template.name if template else step.step_name,
+                )
+            else:
+                # 非工具调用步骤：普通执行
+                step_context = self._build_step_context(
+                    step, request.placeholder_values, accumulated_output
+                )
+                step_request = ExecutePromptRequest(
+                    template_id=int(step.template_id),
+                    placeholder_values=step_context,
+                    provider_ref=self.prompt_use_case._resolve_provider_ref(request)
+                )
+                step_response = self.prompt_use_case.execute(step_request)
+
+            step_results[step.step_id] = step_response
+            if step_response.success:
+                accumulated_output[step.step_id] = step_response.parsed_output or {
+                    "content": step_response.content
+                }
+
+        return ChainExecutionResult(
+            success=all(r.success for r in step_results.values()),
+            chain_name=chain.name,
+            execution_mode=chain.execution_mode,
+            step_results=step_results,
+            final_output=self._resolve_final_output(chain, accumulated_output),
+            total_tokens=sum(r.total_tokens for r in step_results.values()),
+            total_cost=sum(r.estimated_cost for r in step_results.values()),
+            total_time_ms=sum(r.response_time_ms for r in step_results.values())
+        )
 
     def _execute_hybrid(
         self,
         chain: ChainConfig,
         request: ExecuteChainRequest
     ) -> ChainExecutionResult:
-        """混合模式"""
-        return self._execute_serial(chain, request)
+        """混合模式 - 按步骤配置决定是否走工具调用。
+
+        步骤中 enable_tool_calling=True 的走 AgentRuntime，
+        其余走普通串行执行。逻辑与 _execute_tool_calling 相同。
+        """
+        return self._execute_tool_calling(chain, request)
+
+    @staticmethod
+    def _resolve_final_output(
+        chain: ChainConfig,
+        accumulated_output: Dict[str, Any],
+    ) -> Optional[str]:
+        """
+        Resolve final output by chain order, not completion order.
+
+        This keeps parallel execution deterministic even when steps in the
+        last parallel group finish in different orders.
+        """
+        if not accumulated_output:
+            return None
+
+        sorted_steps = sorted(chain.steps, key=lambda s: (s.order, s.step_id))
+        for step in reversed(sorted_steps):
+            step_output = accumulated_output.get(step.step_id)
+            if not step_output:
+                continue
+            if isinstance(step_output, dict):
+                content = step_output.get("content")
+                if content is not None:
+                    return content
+            return str(step_output)
+        return None
 
     def _build_step_context(
         self,

@@ -403,6 +403,146 @@ class ChatModelsView(APIView):
         return [m for m in AICostCalculator.MODEL_PRICING if m.startswith(prefix)]
 
 
+class AgentExecuteView(APIView):
+    """Agent Runtime 统一执行入口"""
+
+    def post(self, request):
+        """执行 Agent 任务"""
+        from .serializers import AgentExecuteRequestSerializer, AgentExecuteResponseSerializer
+        from ..application.agent_runtime import AgentRuntime
+        from ..application.context_builders import (
+            ContextBundleBuilder,
+            MacroContextProvider,
+            RegimeContextProvider,
+            PortfolioContextProvider,
+            SignalContextProvider,
+            AssetPoolContextProvider,
+        )
+        from ..application.tool_execution import create_agent_tool_registry
+        from ..application.trace_logging import AgentExecutionLogger
+        from ..domain.agent_entities import AgentExecutionRequest
+
+        serializer = AgentExecuteRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        try:
+            # 构建依赖
+            ai_factory = AIClientFactory()
+            macro_adapter = MacroDataAdapter()
+            regime_adapter = RegimeDataAdapter()
+
+            # 构建 portfolio/signal/asset_pool providers（按需加载）
+            portfolio_provider = None
+            signal_provider = None
+            asset_pool_provider = None
+            try:
+                from apps.strategy.infrastructure.providers import (
+                    DjangoPortfolioDataProvider,
+                    DjangoSignalProvider,
+                    DjangoAssetPoolProvider,
+                )
+                portfolio_provider = DjangoPortfolioDataProvider()
+                signal_provider = DjangoSignalProvider()
+                asset_pool_provider = DjangoAssetPoolProvider()
+            except ImportError:
+                logger.warning("Strategy providers not available, portfolio/signal/asset_pool context disabled")
+
+            # 构建工具注册表
+            tool_registry = create_agent_tool_registry(
+                macro_adapter=macro_adapter,
+                regime_adapter=regime_adapter,
+                portfolio_provider=portfolio_provider,
+                signal_provider=signal_provider,
+                asset_pool_provider=asset_pool_provider,
+            )
+
+            # 构建上下文构建器
+            context_builder = ContextBundleBuilder()
+            context_builder.register_provider(MacroContextProvider(macro_adapter))
+            context_builder.register_provider(RegimeContextProvider(regime_adapter))
+            if portfolio_provider:
+                context_builder.register_provider(PortfolioContextProvider(portfolio_provider))
+            if signal_provider:
+                context_builder.register_provider(SignalContextProvider(signal_provider))
+            if asset_pool_provider:
+                context_builder.register_provider(AssetPoolContextProvider(asset_pool_provider))
+
+            # 构建执行日志器
+            execution_logger = AgentExecutionLogger(
+                execution_log_repository=DjangoExecutionLogRepository()
+            )
+
+            # 构建 Runtime
+            runtime = AgentRuntime(
+                ai_client_factory=ai_factory,
+                tool_registry=tool_registry,
+                context_builder=context_builder,
+                execution_logger=execution_logger,
+            )
+
+            # 构建执行请求
+            agent_request = AgentExecutionRequest(
+                task_type=data["task_type"],
+                user_input=data["user_input"],
+                provider_ref=data.get("provider_ref"),
+                model=data.get("model"),
+                temperature=data.get("temperature"),
+                max_tokens=data.get("max_tokens"),
+                context_scope=data.get("context_scope"),
+                context_params=data.get("context_params"),
+                tool_names=data.get("tool_names"),
+                response_schema=data.get("response_schema"),
+                max_rounds=data.get("max_rounds", 4),
+                session_id=data.get("session_id"),
+                system_prompt=data.get("system_prompt"),
+                metadata=data.get("metadata"),
+            )
+
+            # 执行
+            response = runtime.execute(agent_request)
+
+            # 序列化响应
+            response_data = {
+                "success": response.success,
+                "final_answer": response.final_answer,
+                "structured_output": response.structured_output,
+                "used_context": response.used_context,
+                "tool_calls": [
+                    {
+                        "tool_name": tc.tool_name,
+                        "arguments": tc.arguments,
+                        "success": tc.success,
+                        "result": tc.result,
+                        "error_message": tc.error_message,
+                        "duration_ms": tc.duration_ms,
+                    }
+                    for tc in (response.tool_calls or [])
+                ] if response.tool_calls else None,
+                "turn_count": response.turn_count,
+                "provider_used": response.provider_used,
+                "model_used": response.model_used,
+                "total_tokens": response.total_tokens,
+                "prompt_tokens": response.prompt_tokens,
+                "completion_tokens": response.completion_tokens,
+                "estimated_cost": response.estimated_cost,
+                "response_time_ms": response.response_time_ms,
+                "error_message": response.error_message,
+                "execution_id": response.execution_id,
+            }
+
+            resp_serializer = AgentExecuteResponseSerializer(response_data)
+            http_status = status.HTTP_200_OK if response.success else status.HTTP_422_UNPROCESSABLE_ENTITY
+            return Response(resp_serializer.data, status=http_status)
+
+        except Exception as e:
+            logger.error("Agent execution failed: %s", e, exc_info=True)
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
 class ExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
     """执行日志ViewSet（只读）"""
 

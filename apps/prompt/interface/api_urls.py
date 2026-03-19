@@ -6,6 +6,7 @@ from rest_framework.routers import DefaultRouter
 from rest_framework.views import APIView
 
 from .views import (
+    AgentExecuteView,
     ChainConfigViewSet,
     ChatModelsView,
     ChatProvidersView,
@@ -37,6 +38,7 @@ class PromptApiRootView(APIView):
                     "chat": "/api/prompt/chat",
                     "chat_providers": "/api/prompt/chat/providers",
                     "chat_models": "/api/prompt/chat/models",
+                    "agent_execute": "/api/prompt/agent/execute",
                 }
             }
         )
@@ -50,4 +52,5 @@ urlpatterns = [
     path("chat", ChatView.as_view(), name="chat"),
     path("chat/providers", ChatProvidersView.as_view(), name="chat-providers"),
     path("chat/models", ChatModelsView.as_view(), name="chat-models"),
+    path("agent/execute", AgentExecuteView.as_view(), name="agent-execute"),
 ]

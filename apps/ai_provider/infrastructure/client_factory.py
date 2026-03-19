@@ -84,19 +84,28 @@ class _FailoverAIClient:
     def __init__(self, failover_helper):
         self._helper = failover_helper
 
-    def chat_completion(self, messages, model=None, temperature=0.7, max_tokens=None):
+    def chat_completion(
+        self, messages, model=None, temperature=0.7, max_tokens=None,
+        tools=None, tool_choice=None, response_format=None,
+    ):
         return self._helper.chat_completion_with_failover(
             messages=messages,
             model=model,
             temperature=temperature,
             max_tokens=max_tokens,
+            tools=tools,
+            tool_choice=tool_choice,
+            response_format=response_format,
         )
 
 
 class _NullAIClient:
     """Fallback client returned when no providers are configured."""
 
-    def chat_completion(self, messages, model=None, temperature=0.7, max_tokens=None):
+    def chat_completion(
+        self, messages, model=None, temperature=0.7, max_tokens=None,
+        tools=None, tool_choice=None, response_format=None,
+    ):
         return {
             "status": "error",
             "content": "",
@@ -107,4 +116,5 @@ class _NullAIClient:
             "total_tokens": 0,
             "estimated_cost": 0.0,
             "error_message": "没有可用的AI提供商，请先在 ai_provider 模块配置",
+            "tool_calls": None,
         }
