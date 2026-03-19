@@ -2,8 +2,9 @@ import json
 from datetime import date
 
 import pytest
+from django.conf import settings
 from django.contrib.auth.models import User
-from django.test import Client, override_settings
+from django.test import Client
 
 from apps.ai_provider.infrastructure.models import AIProviderConfig
 from apps.beta_gate.infrastructure.models import GateConfigModel
@@ -13,7 +14,8 @@ from apps.beta_gate.infrastructure.models import GateConfigModel
 class TestOpsModernizedFlows:
     @pytest.fixture(autouse=True)
     def _setup_client(self, monkeypatch):
-        monkeypatch.setenv("AGOMSAAF_ENCRYPTION_KEY", "test-encryption-key-for-ci")
+        # Patch Django setting so FieldEncryptionService can initialize
+        monkeypatch.setattr(settings, "AGOMSAAF_ENCRYPTION_KEY", "test-encryption-key-for-ci")
         user = User.objects.create_user(
             username="ops_user",
             email="ops@example.com",
