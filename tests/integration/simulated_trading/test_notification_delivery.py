@@ -398,8 +398,10 @@ class TestNotificationHistory:
         recipients = ["user1@example.com", "user2@example.com"]
 
         _record_notification_history(
-            account=account,
-            proposal=proposal,
+            account_id=account.id,
+            account_name=account.account_name,
+            account_user_id=user.id,
+            proposal={"proposal_id": proposal.id},
             notification_type="rebalance_proposal",
             recipients=recipients,
             status="sent",
@@ -407,8 +409,7 @@ class TestNotificationHistory:
 
         # Verify history records were created
         history_count = NotificationHistoryModel.objects.filter(
-            account=account,
-            rebalance_proposal=proposal,
+            account_id=account.id,
             notification_type="rebalance_proposal",
         ).count()
 
@@ -441,15 +442,17 @@ class TestNotificationHistory:
         )
 
         _record_notification_history(
-            account=account,
-            proposal=proposal,
+            account_id=account.id,
+            account_name=account.account_name,
+            account_user_id=user.id,
+            proposal={"proposal_id": proposal.id},
             notification_type="daily_inspection",
             recipients=["test@example.com"],
             status="sent",
         )
 
         history = NotificationHistoryModel.objects.filter(
-            account=account,
+            account_id=account.id,
             notification_type="daily_inspection",
         ).first()
 

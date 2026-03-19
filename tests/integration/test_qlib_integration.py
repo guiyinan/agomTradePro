@@ -280,23 +280,35 @@ class TestQlibIntegrationWithAlphaService:
     """Qlib 与 AlphaService 集成测试"""
 
     def test_qlib_provider_registered(self):
-        """测试 Qlib Provider 已注册"""
+        """测试 Qlib Provider 注册状态（qlib 为可选依赖）"""
         service = AlphaService()
         providers = service._registry.get_all_providers()
 
         provider_names = {p.name for p in providers}
 
-        # Qlib Provider 应该已注册
-        assert "qlib" in provider_names
+        # 基础 Provider 必须注册
+        assert "cache" in provider_names
+        assert "simple" in provider_names
+        assert "etf" in provider_names
+
+        # Qlib Provider 仅在 qlib 已安装且启用时注册
+        qlib_installed = importlib.util.find_spec("qlib") is not None
+        if qlib_installed and "qlib" in provider_names:
+            assert True  # qlib 已安装且已注册
+        elif not qlib_installed:
+            assert "qlib" not in provider_names, (
+                "qlib provider should not be registered when qlib is not installed"
+            )
 
     def test_qlib_provider_priority(self):
-        """测试 Qlib Provider 优先级最高"""
+        """测试 Qlib Provider 优先级最高（仅在 qlib 可用时）"""
         service = AlphaService()
         providers = service._registry.get_all_providers()
 
-        # Qlib 应该是第一个（priority=1）
-        if providers and providers[0].name == "qlib":
-            assert providers[0].priority == 1
+        # Qlib 应该是第一个（priority=1），但仅在已注册时检查
+        qlib_providers = [p for p in providers if p.name == "qlib"]
+        if qlib_providers:
+            assert qlib_providers[0].priority == 1
 
     def test_fallback_includes_qlib(self):
         """测试降级链路包含 Qlib"""

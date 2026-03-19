@@ -519,11 +519,11 @@ class DjangoSignalRepository:
 
     def get_signal_snapshot(self, signal_id: int) -> Optional[dict]:
         signal = self._model.objects.filter(id=signal_id).values(
-            'id', 'asset_code', 'status', 'logic_desc', 'is_active'
+            'id', 'asset_code', 'status', 'logic_desc', 'user_id'
         ).first()
         if signal is None:
             return None
-        signal['is_valid'] = signal['status'] == 'valid' and bool(signal['is_active'])
+        signal['is_valid'] = signal['status'] == 'approved'
         signal['signal_id'] = signal.pop('id')
         return signal
 

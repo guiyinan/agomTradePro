@@ -120,28 +120,28 @@ class TestRebalanceProposalCreation:
 
         # Verify proposal was created
         assert proposal is not None
-        assert proposal.account == account
-        assert proposal.source == RebalanceProposalModel.SOURCE_DAILY_INSPECTION
-        assert proposal.status == RebalanceProposalModel.STATUS_PENDING
-        assert proposal.priority in ["low", "normal", "high", "urgent"]
+        assert proposal["account_id"] == account.id
+        assert proposal["source"] == RebalanceProposalModel.SOURCE_DAILY_INSPECTION
+        assert proposal["status"] == RebalanceProposalModel.STATUS_PENDING
+        assert proposal["priority"] in ["low", "normal", "high", "urgent"]
 
         # Verify proposals
-        assert len(proposal.proposals) == 2  # Only non-hold actions
+        assert len(proposal["proposals"]) == 2  # Only non-hold actions
 
         # Check sell action
-        sell_proposal = next(p for p in proposal.proposals if p["action"] == "sell")
+        sell_proposal = next(p for p in proposal["proposals"] if p["action"] == "sell")
         assert sell_proposal["asset_code"] == "512880.SH"
         assert sell_proposal["suggested_quantity"] == 400
 
         # Check buy action
-        buy_proposal = next(p for p in proposal.proposals if p["action"] == "buy")
+        buy_proposal = next(p for p in proposal["proposals"] if p["action"] == "buy")
         assert buy_proposal["asset_code"] == "515050.SH"
         assert buy_proposal["suggested_quantity"] == 9500
 
         # Verify summary
-        assert proposal.summary["buy_count"] == 1
-        assert proposal.summary["sell_count"] == 1
-        assert proposal.summary["rebalance_assets"] == ["512880.SH", "515050.SH"]
+        assert proposal["summary"]["buy_count"] == 1
+        assert proposal["summary"]["sell_count"] == 1
+        assert proposal["summary"]["rebalance_assets"] == ["512880.SH", "515050.SH"]
 
     def test_proposal_not_created_when_no_rebalance_needed(self):
         """Test proposal is not created when no rebalance is needed."""
@@ -207,9 +207,9 @@ class TestRebalanceProposalCreation:
 
         # Proposal should be created but with empty proposals list
         assert proposal is not None
-        assert len(proposal.proposals) == 0
-        assert proposal.summary["buy_count"] == 0
-        assert proposal.summary["sell_count"] == 0
+        assert len(proposal["proposals"]) == 0
+        assert proposal["summary"]["buy_count"] == 0
+        assert proposal["summary"]["sell_count"] == 0
 
 
 @pytest.mark.django_db
@@ -480,9 +480,9 @@ class TestRebalanceProposalTracing:
         )
 
         # Verify metadata
-        assert proposal.metadata["inspection_date"] == "2026-02-26"
-        assert proposal.metadata["macro_regime"] == "growth_stable"
-        assert proposal.metadata["policy_gear"] == "neutral"
+        assert proposal["metadata"]["inspection_date"] == "2026-02-26"
+        assert proposal["metadata"]["macro_regime"] == "growth_stable"
+        assert proposal["metadata"]["policy_gear"] == "neutral"
 
     def test_proposal_inspection_report_link(self):
         """Test proposal is linked to inspection report."""
@@ -537,8 +537,10 @@ class TestRebalanceProposalTracing:
         )
 
         # Verify link
-        assert proposal.inspection_report_id == report.id
-        assert proposal.inspection_report == report
+        assert proposal["inspection_report_id"] == report.id
+        # Verify the DB record is correctly linked
+        db_proposal = RebalanceProposalModel.objects.get(id=proposal["proposal_id"])
+        assert db_proposal.inspection_report == report
 
 
 @pytest.mark.django_db
@@ -768,7 +770,7 @@ class TestProposalPriorityDetermination:
             inspection_result=inspection_result,
         )
 
-        assert proposal.priority == "high"
+        assert proposal["priority"] == "high"
 
     def test_high_priority_for_low_cash(self):
         """Test high priority when cash ratio is low."""
@@ -821,7 +823,7 @@ class TestProposalPriorityDetermination:
             inspection_result=inspection_result,
         )
 
-        assert proposal.priority == "high"
+        assert proposal["priority"] == "high"
 
     def test_normal_priority_for_minor_rebalance(self):
         """Test normal priority for minor rebalancing."""
@@ -874,4 +876,4 @@ class TestProposalPriorityDetermination:
             inspection_result=inspection_result,
         )
 
-        assert proposal.priority == "normal"
+        assert proposal["priority"] == "normal"

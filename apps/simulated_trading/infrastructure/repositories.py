@@ -766,8 +766,17 @@ class DjangoInspectionRepository:
         proposal = RebalanceProposalModel._default_manager.create(**payload)
         return {
             "proposal_id": proposal.id,
+            "account_id": proposal.account_id,
+            "inspection_report_id": proposal.inspection_report_id,
+            "strategy_id": proposal.strategy_id,
+            "source": proposal.source,
+            "source_description": proposal.source_description,
             "priority": proposal.priority,
             "status": proposal.status,
+            "proposals": list(proposal.proposals or []),
+            "summary": dict(proposal.summary or {}),
+            "metadata": dict(proposal.metadata or {}),
+            "proposed_by": proposal.proposed_by,
         }
 
     def get_account_notification_context(self, account_id: int) -> Optional[dict]:
