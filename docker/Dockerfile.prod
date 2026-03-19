@@ -3,6 +3,13 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /app
 ARG PIP_OFFLINE_ONLY=1
+ARG INSTALL_QLIB=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements-prod.txt /tmp/requirements-prod.txt
 COPY requirements-prod.lock /tmp/requirements-prod.lock
@@ -34,6 +41,17 @@ RUN set -eu; \
         echo "No local Linux wheelhouse found, using China mirrors first (HTTP)"; \
         (pip_install "$ALIYUN_URL" "mirrors.aliyun.com" || pip_install "$TUNA_URL" "pypi.tuna.tsinghua.edu.cn" || pip_install "$PYPI_URL" "pypi.org"); \
       fi; \
+    fi
+
+RUN if [ "$INSTALL_QLIB" = "1" ]; then \
+      echo "Installing qlib (requires Linux wheels)..."; \
+      pip install --prefer-binary --retries 25 --timeout 300 \
+        --index-url https://pypi.org/simple/ \
+        qlib>=0.9.0 || \
+      pip install --prefer-binary --retries 25 --timeout 300 \
+        --index-url http://mirrors.aliyun.com/pypi/simple/ \
+        --trusted-host mirrors.aliyun.com \
+        qlib>=0.9.0; \
     fi
 
 FROM python:3.11-slim

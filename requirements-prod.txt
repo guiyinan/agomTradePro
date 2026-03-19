@@ -14,6 +14,12 @@ redis
 django-celery-beat
 kombu
 
+# AI / ML
+openai>=1.0
+
+# Qlib (installed separately in Dockerfile for Linux compatibility)
+# qlib>=0.9.0  -- requires Linux wheels, install during docker build
+
 # Data processing
 pandas>=2.0
 numpy>=1.24

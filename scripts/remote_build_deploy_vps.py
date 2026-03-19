@@ -89,12 +89,67 @@ def _run(ssh, cmd: str, timeout: int) -> tuple[int, str, str]:
     return stdout.channel.recv_exit_status(), out, err
 
 
-def _validate_ssh_credentials(host: str, port: int, username: str, password: str, timeout: int) -> None:
+def _validate_ssh_credentials(
+    host: str, port: int, username: str, password: str, timeout: int
+) -> None:
     ssh = _ssh_connect(host=host, port=port, username=username, password=password, timeout=timeout)
     try:
         code, _out, err = _run(ssh, "true", timeout=timeout)
         if code != 0:
             _die(f"SSH login succeeded but remote shell check failed. Stderr={err.strip()}")
+    finally:
+        ssh.close()
+
+
+def _check_remote_dependencies(
+    host: str, port: int, username: str, password: str, timeout: int
+) -> None:
+    """Check that all required tools are installed on the remote server."""
+    required_tools = [
+        ("docker", "docker --version"),
+        (
+            "docker compose",
+            "docker compose version 2>/dev/null || docker-compose --version 2>/dev/null",
+        ),
+        ("tar", "tar --version"),
+        ("python3", "python3 --version"),
+        ("curl", "curl --version"),
+        ("sed", "sed --version"),
+    ]
+
+    ssh = _ssh_connect(host=host, port=port, username=username, password=password, timeout=timeout)
+    try:
+        _info("Checking remote server dependencies...")
+        missing: list[str] = []
+
+        for name, cmd in required_tools:
+            code, out, err = _run(
+                ssh,
+                f"command -v {name.split()[0]} >/dev/null 2>&1 && {cmd} || echo MISSING",
+                timeout=timeout,
+            )
+            result = out.strip()
+            if "MISSING" in result or code != 0:
+                missing.append(name)
+                _warn(f"Missing: {name}")
+            else:
+                # Extract version info (first line)
+                version_info = result.split("\n")[0][:60]
+                _info(f"Found: {name} - {version_info}")
+
+        if missing:
+            install_hint = """
+Missing required tools on remote server. Install with:
+
+  # Ubuntu/Debian
+  apt update && apt install -y docker.io docker-compose python3 curl sed tar
+  # Or use Docker's official install script:
+  curl -fsSL https://get.docker.com | sh
+
+  # CentOS/RHEL
+  yum install -y docker docker-compose python3 curl sed tar
+"""
+            _die(f"Remote server missing required tools: {', '.join(missing)}{install_hint}")
     finally:
         ssh.close()
 
@@ -147,7 +202,12 @@ def _make_source_bundle(
                 continue
             if any(part == "__pycache__" for part in parts):
                 continue
-            if path.name in {"db.sqlite3", "celerybeat-schedule", "celerybeat-schedule-shm", "celerybeat-schedule-wal"}:
+            if path.name in {
+                "db.sqlite3",
+                "celerybeat-schedule",
+                "celerybeat-schedule-shm",
+                "celerybeat-schedule-wal",
+            }:
                 continue
             if path.is_file() and any(path.name.endswith(sfx) for sfx in skip_suffixes):
                 continue
@@ -289,9 +349,23 @@ docker compose down
 
 def _redact_sensitive_text(text: str) -> str:
     text = re.sub(r"(Authorization:\s*Token\s+)[A-Za-z0-9]+", r"\1<REDACTED_TOKEN>", text)
-    text = re.sub(r"(AGOMSAAF_API_TOKEN[\"']?\s*[:=]\s*[\"'])[A-Za-z0-9]+([\"'])", r"\1<REDACTED_TOKEN>\2", text)
-    text = re.sub(r"(token[\"']?\s*[:=]\s*[\"'])[A-Za-z0-9]{20,}([\"'])", r"\1<REDACTED_TOKEN>\2", text, flags=re.IGNORECASE)
-    text = re.sub(r"(API Token\**:\s*`?)[A-Za-z0-9]{20,}(`?)", r"\1<REDACTED_TOKEN>\2", text, flags=re.IGNORECASE)
+    text = re.sub(
+        r"(AGOMSAAF_API_TOKEN[\"']?\s*[:=]\s*[\"'])[A-Za-z0-9]+([\"'])",
+        r"\1<REDACTED_TOKEN>\2",
+        text,
+    )
+    text = re.sub(
+        r"(token[\"']?\s*[:=]\s*[\"'])[A-Za-z0-9]{20,}([\"'])",
+        r"\1<REDACTED_TOKEN>\2",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"(API Token\**:\s*`?)[A-Za-z0-9]{20,}(`?)",
+        r"\1<REDACTED_TOKEN>\2",
+        text,
+        flags=re.IGNORECASE,
+    )
     return text
 
 
@@ -338,11 +412,19 @@ def _create_local_runtime_bundle(
 
     with zipfile.ZipFile(bundle_zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         zf.write(local_image_path, arcname=f"{bundle_root_name}/images/{image_filename}")
-        zf.writestr(f"{bundle_root_name}/docker-compose.yml", compose_src.read_text(encoding="utf-8"))
+        zf.writestr(
+            f"{bundle_root_name}/docker-compose.yml", compose_src.read_text(encoding="utf-8")
+        )
         zf.writestr(f"{bundle_root_name}/.env.example", env_text)
         zf.writestr(f"{bundle_root_name}/Caddyfile", caddy_text)
-        zf.writestr(f"{bundle_root_name}/scripts/start-local.ps1", _local_start_ps1(image_filename, include_sqlite))
-        zf.writestr(f"{bundle_root_name}/scripts/start-local.sh", _local_start_sh(image_filename, include_sqlite))
+        zf.writestr(
+            f"{bundle_root_name}/scripts/start-local.ps1",
+            _local_start_ps1(image_filename, include_sqlite),
+        )
+        zf.writestr(
+            f"{bundle_root_name}/scripts/start-local.sh",
+            _local_start_sh(image_filename, include_sqlite),
+        )
         zf.writestr(f"{bundle_root_name}/scripts/stop-local.ps1", _local_stop_ps1())
         _add_runtime_docs(zf, bundle_root_name, project_root)
         zf.writestr(
@@ -501,9 +583,9 @@ def _cleanup_remote_build_artifacts(
             "rm -f /tmp/agomsaaf-build-report.json /tmp/agomsaaf-deploy-report.json /tmp/agomsaaf-health.json /tmp/agomsaaf-compose-ps.txt 2>/dev/null || true",
             f"docker image rm -f {shlex.quote(f'agomsaaf-web:{tag}')} 2>/dev/null || true",
             "dangling=$(docker images -f dangling=true -q 2>/dev/null || true)",
-            "if [ -n \"$dangling\" ]; then docker rmi -f $dangling 2>/dev/null || true; fi",
+            'if [ -n "$dangling" ]; then docker rmi -f $dangling 2>/dev/null || true; fi',
             f"rmdir {shlex.quote(remote_dir)} 2>/dev/null || true",
-            f"if [ -d {shlex.quote(target_dir)} ] && [ -z \"$(find {shlex.quote(target_dir)} -mindepth 1 -maxdepth 1 2>/dev/null)\" ]; then rmdir {shlex.quote(target_dir)} 2>/dev/null || true; fi",
+            f'if [ -d {shlex.quote(target_dir)} ] && [ -z "$(find {shlex.quote(target_dir)} -mindepth 1 -maxdepth 1 2>/dev/null)" ]; then rmdir {shlex.quote(target_dir)} 2>/dev/null || true; fi',
         ]
     )
 
@@ -521,6 +603,7 @@ ACTION="${ACTION:-fresh}"
 DOMAIN="${DOMAIN:-}"
 ALLOWED_HOSTS_INPUT="${ALLOWED_HOSTS_INPUT:-}"
 WIPE_DOCKER="${WIPE_DOCKER:-0}"
+WIPE_VOLUMES="${WIPE_VOLUMES:-0}"
 INCLUDE_SQLITE="${INCLUDE_SQLITE:-0}"
 ENABLE_RSSHUB="${ENABLE_RSSHUB:-1}"
 ENABLE_CELERY="${ENABLE_CELERY:-0}"
@@ -540,9 +623,24 @@ RELEASE_DIR="$TARGET_DIR/releases/source-$RELEASE_TAG"
 cd "$RELEASE_DIR"
 
 if [ "$WIPE_DOCKER" = "1" ]; then
+  SAVED_IMAGE=""
+  if docker image inspect "agomsaaf-web:$RELEASE_TAG" >/dev/null 2>&1; then
+    SAVED_IMAGE="/tmp/agomsaaf-web-saved-$RELEASE_TAG.tar"
+    docker save -o "$SAVED_IMAGE" "agomsaaf-web:$RELEASE_TAG"
+  fi
   docker ps -aq | xargs -r docker rm -f || true
-  docker system prune -af --volumes || true
+  if [ "$WIPE_VOLUMES" = "1" ]; then
+    echo "[INFO] Wiping all Docker resources including volumes (DATA WILL BE LOST)"
+    docker system prune -af --volumes || true
+  else
+    echo "[INFO] Wiping containers and images (preserving data volumes)"
+    docker system prune -af || true
+  fi
   rm -rf "$TARGET_DIR/current" || true
+  if [ -n "$SAVED_IMAGE" ] && [ -f "$SAVED_IMAGE" ]; then
+    docker load -i "$SAVED_IMAGE"
+    rm -f "$SAVED_IMAGE"
+  fi
 fi
 
 SECRET_KEY="$(grep '^SECRET_KEY=' deploy/.env | cut -d '=' -f2- || true)"
@@ -767,21 +865,34 @@ def main() -> int:
     ap.add_argument("--host", default=os.environ.get("AGOM_VPS_HOST", "").strip() or None)
     ap.add_argument("--port", type=int, default=int(os.environ.get("AGOM_VPS_PORT", "22")))
     ap.add_argument("--user", default=os.environ.get("AGOM_VPS_USER", "").strip() or None)
-    ap.add_argument("--password-file", default=os.environ.get("AGOM_VPS_PASS_FILE", "").strip() or None)
-    ap.add_argument("--remote-dir", default=os.environ.get("AGOM_VPS_REMOTE_DIR", "/tmp/agomsaaf-source-upload"))
+    ap.add_argument(
+        "--password-file", default=os.environ.get("AGOM_VPS_PASS_FILE", "").strip() or None
+    )
+    ap.add_argument(
+        "--remote-dir", default=os.environ.get("AGOM_VPS_REMOTE_DIR", "/tmp/agomsaaf-source-upload")
+    )
     ap.add_argument("--target-dir", default=os.environ.get("AGOM_VPS_TARGET_DIR", "/opt/agomsaaf"))
-    ap.add_argument("--http-port", type=int, default=int(os.environ.get("AGOM_VPS_HTTP_PORT", "8000")))
+    ap.add_argument(
+        "--http-port", type=int, default=int(os.environ.get("AGOM_VPS_HTTP_PORT", "8000"))
+    )
     ap.add_argument("--domain", default=os.environ.get("AGOM_VPS_DOMAIN", "").strip())
     ap.add_argument("--allowed-hosts", default=os.environ.get("AGOM_VPS_ALLOWED_HOSTS", "").strip())
-    ap.add_argument("--action", choices=["fresh", "upgrade"], default=os.environ.get("AGOM_VPS_ACTION", "fresh"))
+    ap.add_argument(
+        "--action", choices=["fresh", "upgrade"], default=os.environ.get("AGOM_VPS_ACTION", "fresh")
+    )
     ap.add_argument("--include-sqlite", action="store_true", default=False)
     ap.add_argument("--wipe-docker", action="store_true", default=False)
+    ap.add_argument("--wipe-volumes", action="store_true", default=False)
     ap.add_argument("--keep-remote-temp", action="store_true", default=False)
     ap.add_argument("--download-report", action="store_true", default=True)
-    ap.add_argument("--report-dir", default=os.environ.get("AGOM_VPS_REPORT_DIR", "dist/remote-build-reports"))
+    ap.add_argument(
+        "--report-dir", default=os.environ.get("AGOM_VPS_REPORT_DIR", "dist/remote-build-reports")
+    )
     ap.add_argument("--download-built-image", action="store_true", default=False)
     ap.add_argument("--built-image-dir", default=os.environ.get("AGOM_VPS_IMAGE_DIR", "dist"))
-    ap.add_argument("--skip-deploy-after-build", action="store_false", dest="deploy_after_build", default=True)
+    ap.add_argument(
+        "--skip-deploy-after-build", action="store_false", dest="deploy_after_build", default=True
+    )
     ap.add_argument("--prompt-before-deploy", action="store_true", default=False)
     ap.add_argument("--timeout", type=int, default=int(os.environ.get("AGOM_VPS_TIMEOUT", "1800")))
     ap.add_argument("--enable-rsshub", action="store_true", default=True)
@@ -804,8 +915,14 @@ def main() -> int:
         _die("Empty password")
 
     _info(f"Validating SSH credentials for {user}@{host}:{args.port}")
-    _validate_ssh_credentials(host=host, port=args.port, username=user, password=password, timeout=min(args.timeout, 30))
+    _validate_ssh_credentials(
+        host=host, port=args.port, username=user, password=password, timeout=min(args.timeout, 30)
+    )
     _info("SSH credentials validated")
+
+    _check_remote_dependencies(
+        host=host, port=args.port, username=user, password=password, timeout=min(args.timeout, 60)
+    )
 
     deploy_after_build = args.deploy_after_build
     cleanup_build_only_after_download = False
@@ -814,12 +931,32 @@ def main() -> int:
         deploy_after_build = _prompt_bool("Deploy to VPS after remote build?", False)
         if deploy_after_build:
             wipe_docker = _prompt_bool("Wipe existing Docker resources first?", False)
-            action = _prompt("Deploy action", args.action)
+            if wipe_docker:
+                print("  WARNING: This will stop all containers and remove unused images.")
+                wipe_volumes = _prompt_bool(
+                    "  Also DELETE all data volumes (SQLite DB, Redis, Media)?", False
+                )
+                if wipe_volumes:
+                    print("  >>> ALL DATA WILL BE LOST! Only proceed if you want a fresh start.")
+                else:
+                    print("  >>> Data volumes (SQLite, Redis, Media) will be preserved.")
+            else:
+                wipe_volumes = False
+            print("  Deploy action:")
+            print("    fresh   - Stop and recreate containers (default, safer)")
+            print("    upgrade - Rolling update without full restart")
+            action_input = _prompt("Action", args.action)
+            if action_input not in ("fresh", "upgrade"):
+                print(f"  Invalid action '{action_input}', using 'fresh'")
+                action = "fresh"
+            else:
+                action = action_input
             http_port = int(_prompt("Public HTTP port", str(args.http_port)))
             domain = _prompt("Domain (blank for HTTP-only)", args.domain)
             allowed_hosts = _prompt("ALLOWED_HOSTS (blank for auto)", args.allowed_hosts)
         else:
             wipe_docker = False
+            wipe_volumes = False
             action = args.action
             http_port = args.http_port
             domain = args.domain
@@ -827,6 +964,7 @@ def main() -> int:
     else:
         include_sqlite = args.include_sqlite
         wipe_docker = args.wipe_docker
+        wipe_volumes = args.wipe_volumes
         action = args.action
         http_port = args.http_port
         domain = args.domain
@@ -852,7 +990,9 @@ def main() -> int:
     )
 
     _info(f"Connecting to {user}@{host}:{args.port}")
-    ssh = _ssh_connect(host=host, port=args.port, username=user, password=password, timeout=args.timeout)
+    ssh = _ssh_connect(
+        host=host, port=args.port, username=user, password=password, timeout=args.timeout
+    )
     try:
         remote_dir = args.remote_dir.rstrip("/")
         remote_bundle = posixpath.join(remote_dir, bundle_name)
@@ -941,11 +1081,14 @@ def main() -> int:
                 "DOMAIN": domain,
                 "ALLOWED_HOSTS_INPUT": allowed_hosts,
                 "WIPE_DOCKER": _bool_env(wipe_docker),
+                "WIPE_VOLUMES": _bool_env(wipe_volumes),
                 "INCLUDE_SQLITE": _bool_env(include_sqlite),
                 "ENABLE_RSSHUB": _bool_env(enable_rsshub),
                 "ENABLE_CELERY": _bool_env(enable_celery),
             }
-            deploy_exports = " ".join(f"{key}={shlex.quote(value)}" for key, value in deploy_env.items())
+            deploy_exports = " ".join(
+                f"{key}={shlex.quote(value)}" for key, value in deploy_env.items()
+            )
             deploy_cmd = f"{deploy_exports} bash -lc {shlex.quote(remote_deploy_script)}"
             _info("Running remote deploy")
             code, deploy_out, deploy_err = _run(ssh, deploy_cmd, timeout=args.timeout)
