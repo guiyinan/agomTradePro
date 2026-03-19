@@ -6,7 +6,7 @@ API路由配置。
 
 from rest_framework.routers import DefaultRouter
 from django.urls import path, include
-from .api_views import TerminalCommandViewSet, TerminalSessionView, TerminalAuditView
+from .api_views import TerminalCommandViewSet, TerminalSessionView, TerminalAuditView, TerminalChatView
 
 app_name = 'terminal_api'
 
@@ -18,5 +18,6 @@ router.register(r'commands', TerminalCommandViewSet, basename='terminal-command'
 urlpatterns = [
     path('', include(router.urls)),
     path('session/', TerminalSessionView.as_view(), name='terminal-session'),
+    path('chat/', TerminalChatView.as_view(), name='terminal-chat'),
     path('audit/', TerminalAuditView.as_view(), name='terminal-audit'),
 ]

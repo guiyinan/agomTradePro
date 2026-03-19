@@ -30,6 +30,7 @@ from ..application.use_cases import (
     UpdateCommandRequest,
     DeleteCommandUseCase,
 )
+from ..application.chat_router import TerminalChatRouterService
 from ..application.services import CommandExecutionService
 from .permissions import IsStaffOrAdmin
 from .serializers import (
@@ -42,6 +43,8 @@ from .serializers import (
     ConfirmExecuteSerializer,
     TerminalCapabilitiesSerializer,
     TerminalAuditEntrySerializer,
+    TerminalChatRequestSerializer,
+    TerminalChatResponseSerializer,
 )
 
 
@@ -314,6 +317,38 @@ class TerminalSessionView(APIView):
             'session_id': session_id,
             'username': request.user.username,
         })
+
+
+class TerminalChatView(APIView):
+    """Terminal 自然语言聊天入口，先做意图路由，再决定是否走系统查询。"""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = TerminalChatRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        data = serializer.validated_data
+        provider_ref = data.get('provider_ref', data.get('provider_name'))
+        router = TerminalChatRouterService()
+
+        try:
+            response_data = router.route_message(
+                message=data['message'],
+                session_id=data.get('session_id'),
+                provider_ref=provider_ref,
+                model=data.get('model'),
+                context=data.get('context', {}) or {},
+            )
+        except Exception as e:
+            logger.error("Terminal chat routing failed: %s", e)
+            return Response(
+                {'error': f'AI 调用异常: {str(e)}'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        response_serializer = TerminalChatResponseSerializer(response_data)
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
 
 
 class TerminalAuditView(APIView):

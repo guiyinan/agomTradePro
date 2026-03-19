@@ -51,6 +51,8 @@ class AgomTerminal {
             'help': this.cmdHelp.bind(this),
             'clear': this.cmdClear.bind(this),
             'history': this.cmdHistory.bind(this),
+            'status': this.cmdStatus.bind(this),
+            'regime': this.cmdRegime.bind(this),
             'version': this.cmdVersion.bind(this),
             'export': this.cmdExport.bind(this),
             'commands': this.cmdListCommands.bind(this),
@@ -63,8 +65,9 @@ class AgomTerminal {
 
         // Governance state
         this.terminalMode = 'confirm_each';
-        this.terminalState = 'normal'; // normal | pending_params | pending_confirmation
+        this.terminalState = 'normal'; // normal | pending_params | pending_confirmation | pending_route_confirmation
         this.pendingConfirmation = null; // {name, params, token, details}
+        this.pendingRouteSuggestion = null; // {command, intent, prompt}
         this.userCapabilities = null;
 
         // Initialize
@@ -315,16 +318,24 @@ class AgomTerminal {
         if (!input) return;
 
         // Check if we're in confirmation mode
-        if (this.terminalState === 'pending_confirmation') {
+        if (this.terminalState === 'pending_confirmation' || this.terminalState === 'pending_route_confirmation') {
             this.elements.input.value = '';
             this.autoResizeInput();
             this.updateInputState();
             this.printCommand(input);
             const answer = input.toLowerCase();
             if (answer === 'y' || answer === 'yes') {
-                this.confirmExecution();
+                if (this.terminalState === 'pending_route_confirmation') {
+                    this.confirmRouteSuggestion();
+                } else {
+                    this.confirmExecution();
+                }
             } else {
-                this.cancelConfirmation();
+                if (this.terminalState === 'pending_route_confirmation') {
+                    this.cancelRouteSuggestion();
+                } else {
+                    this.cancelConfirmation();
+                }
             }
             return;
         }
@@ -686,6 +697,64 @@ class AgomTerminal {
     }
 
     /**
+     * Handle mid-confidence route suggestion from terminal chat router.
+     */
+    handleRouteSuggestion(data) {
+        this.terminalState = 'pending_route_confirmation';
+        this.pendingRouteSuggestion = {
+            command: data.suggested_command,
+            intent: data.suggested_intent,
+            prompt: data.suggestion_prompt,
+        };
+
+        this.printOutput(`
+<div style="padding: 8px 0; border: 1px solid var(--terminal-yellow); border-radius: 4px; padding: 12px; margin: 4px 0;">
+<strong style="color: var(--terminal-yellow);">Route confirmation required</strong>
+
+  <span style="color: var(--terminal-text-dim);">Suggested command:</span> ${this.escapeHtml(data.suggested_command || '')}
+  <span style="color: var(--terminal-text-dim);">Detected intent:</span>   ${this.escapeHtml(data.suggested_intent || 'unknown')}
+
+  Type <span class="terminal-cmd">Y</span> to execute, <span class="terminal-cmd">N</span> to cancel:
+</div>`, 'warning');
+
+        this.updatePromptIndicator('confirm');
+        this.updateInputState();
+    }
+
+    /**
+     * Execute suggested builtin command after user confirms.
+     */
+    async confirmRouteSuggestion() {
+        if (!this.pendingRouteSuggestion) return;
+
+        const suggestion = this.pendingRouteSuggestion;
+        this.terminalState = 'normal';
+        this.pendingRouteSuggestion = null;
+        this.updatePromptIndicator();
+        this.updateInputState();
+
+        const commandName = (suggestion.command || '').replace(/^\//, '').toLowerCase();
+        if (commandName && this.builtinCommands[commandName]) {
+            this.printInfo(`Executing suggested command: /${commandName}`);
+            await this.builtinCommands[commandName]([]);
+            return;
+        }
+
+        this.printError(`Suggested command is unavailable: ${suggestion.command || 'unknown'}`);
+    }
+
+    /**
+     * Cancel route suggestion confirmation.
+     */
+    cancelRouteSuggestion() {
+        this.terminalState = 'normal';
+        this.pendingRouteSuggestion = null;
+        this.updatePromptIndicator();
+        this.updateInputState();
+        this.printInfo('Suggested command cancelled');
+    }
+
+    /**
      * Load terminal capabilities from server
      */
     async loadCapabilities() {
@@ -943,6 +1012,8 @@ class AgomTerminal {
   <span class="terminal-cmd">/help</span>              Show this help message
   <span class="terminal-cmd">/clear</span>             Clear the terminal screen
   <span class="terminal-cmd">/history</span>           Show command history
+  <span class="terminal-cmd">/status</span>            Show live system readiness
+  <span class="terminal-cmd">/regime</span>            Show current market regime
   <span class="terminal-cmd">/commands</span>          List all available commands
   <span class="terminal-cmd">/version</span>           Show system version
   <span class="terminal-cmd">/export</span>            Export chat history`;
@@ -982,7 +1053,9 @@ class AgomTerminal {
 
 <strong style="color: var(--terminal-cyan);">Examples:</strong>
   <span class="terminal-cmd">/help</span>              → Show help
+  <span class="terminal-cmd">/status</span>            → Show live system readiness
   <span class="terminal-cmd">Hello, how are you?</span> → Chat with AI
+  <span class="terminal-cmd">目前系统是什么状态</span>  → Routed to /status
   <span class="terminal-cmd">/regime</span>           → Get current market regime
 </div>`;
         this.printOutput(helpText);
@@ -995,20 +1068,49 @@ class AgomTerminal {
         this.printInfo('Fetching system status...');
         
         try {
-            const response = await fetch('/api/health/');
+            const response = await fetch('/api/ready/');
             const data = await response.json();
-            
+            const checks = data.checks || {};
+            const overallStatus = data.status || (response.ok ? 'ok' : 'error');
+
+            const statusColor = overallStatus === 'ok'
+                ? 'var(--terminal-green)'
+                : 'var(--terminal-red)';
+
+            const renderCheck = (name, result) => {
+                const checkStatus = result?.status || 'unknown';
+                const colorMap = {
+                    ok: 'var(--terminal-green)',
+                    warning: 'var(--terminal-yellow)',
+                    skipped: 'var(--terminal-blue)',
+                    error: 'var(--terminal-red)',
+                    unknown: 'var(--terminal-text-dim)',
+                };
+                const detail = result?.error
+                    || result?.reason
+                    || (result?.workers ? `${result.workers} workers` : '')
+                    || (result?.empty_tables ? `empty: ${result.empty_tables.join(', ')}` : '')
+                    || '';
+
+                return `
+  ${name.padEnd(14)} <span style="color: ${colorMap[checkStatus] || colorMap.unknown};">${checkStatus}</span>${detail ? ` <span style="color: var(--terminal-text-dim);">(${this.escapeHtml(detail)})</span>` : ''}`;
+            };
+
             this.printOutput(`
 <div style="padding: 8px 0;">
-<strong style="color: var(--terminal-green);">System Status: Online</strong>
+<strong style="color: ${statusColor};">System Readiness: ${this.escapeHtml(overallStatus.toUpperCase())}</strong>
 
-  API Status:     <span class="status-indicator online">Healthy</span>
-  Database:       <span class="status-indicator online">Connected</span>
+  API Liveness:   <span style="color: var(--terminal-green);">ok</span>
+${renderCheck('Database:', checks.database)}
+${renderCheck('Redis:', checks.redis)}
+${renderCheck('Celery:', checks.celery)}
+${renderCheck('Critical Data:', checks.critical_data)}
   Provider:       <span style="color: var(--terminal-cyan);">${this.currentProvider || 'Not selected'}</span>
   Model:          <span style="color: var(--terminal-cyan);">${this.currentModel || 'Not selected'}</span>
   Session ID:     <span style="color: var(--terminal-text-dim);">${this.sessionId || 'New session'}</span>
   Messages:       <span style="color: var(--terminal-yellow);">${this.messageCount}</span>
   Tokens Used:    <span style="color: var(--terminal-purple);">${this.tokenCount}</span>
+  Timestamp:      <span style="color: var(--terminal-text-dim);">${this.escapeHtml(data.timestamp || '-')}</span>
 </div>`);
         } catch (error) {
             this.printError('Failed to fetch system status');
@@ -1285,11 +1387,6 @@ class AgomTerminal {
             return;
         }
 
-        if (!this.currentProvider || !this.currentModel) {
-            this.printError('Please select a provider and model first. Use "provider" and "model" commands.');
-            return;
-        }
-
         const message = args.join(' ');
         
         // Show loading
@@ -1297,7 +1394,7 @@ class AgomTerminal {
         this.showTypingIndicator();
 
         try {
-            const response = await fetch('/api/prompt/chat', {
+            const response = await fetch('/api/terminal/chat/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1322,7 +1419,10 @@ class AgomTerminal {
                 if (data.metadata?.tokens) {
                     this.tokenCount += data.metadata.tokens;
                 }
-                
+
+                if (data.route_confirmation_required) {
+                    this.handleRouteSuggestion(data);
+                }
                 this.printAIResponse(data.reply, data.metadata);
                 this.updateSessionInfo();
             } else {
@@ -1515,6 +1615,8 @@ class AgomTerminal {
             this.setInputStatus('Large input detected. Review before sending.', 'warning');
         } else if (this.terminalState === 'pending_confirmation') {
             this.setInputStatus('Confirmation mode: type Y to continue or N to cancel.', 'warning');
+        } else if (this.terminalState === 'pending_route_confirmation') {
+            this.setInputStatus('Route suggestion: type Y to execute suggested command or N to cancel.', 'warning');
         } else {
             this.setInputStatus('', 'info');
         }

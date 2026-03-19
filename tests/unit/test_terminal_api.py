@@ -319,6 +319,101 @@ class TestRouteContracts:
         resp = api_client.get('/api/terminal/commands/available/')
         assert resp.status_code == 200
 
+    def test_terminal_chat(self, api_client, staff_user):
+        api_client.force_authenticate(user=staff_user)
+        with patch('apps.terminal.interface.api_views.TerminalChatRouterService.route_message') as mock_route:
+            mock_route.return_value = {
+                'reply': 'ok',
+                'session_id': 'sess-1',
+                'metadata': {'route': 'chat'},
+            }
+            resp = api_client.post('/api/terminal/chat/', {
+                'message': 'hello',
+                'provider_name': 'test-provider',
+                'model': 'test-model',
+            }, format='json')
+        assert resp.status_code == 200
+        assert resp.json()['reply'] == 'ok'
+
+
+@pytest.mark.django_db
+class TestTerminalChatRouting:
+    """Tests for terminal natural language routing endpoint."""
+
+    def test_terminal_chat_routes_system_status(self, api_client, staff_user):
+        api_client.force_authenticate(user=staff_user)
+        with patch('apps.terminal.interface.api_views.TerminalChatRouterService.route_message') as mock_route:
+            mock_route.return_value = {
+                'reply': '## System Readiness: `ok`',
+                'session_id': 'sess-status',
+                'metadata': {
+                    'route': 'system_status',
+                    'intent': 'system_status',
+                    'intent_confidence': 0.96,
+                },
+            }
+            resp = api_client.post('/api/terminal/chat/', {
+                'message': '目前系统是什么状态',
+                'provider_name': 'test-provider',
+                'model': 'test-model',
+            }, format='json')
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data['metadata']['route'] == 'system_status'
+        assert 'System Readiness' in data['reply']
+
+    def test_terminal_chat_routes_regular_chat(self, api_client, staff_user):
+        api_client.force_authenticate(user=staff_user)
+        with patch('apps.terminal.interface.api_views.TerminalChatRouterService.route_message') as mock_route:
+            mock_route.return_value = {
+                'reply': 'general answer',
+                'session_id': 'sess-chat',
+                'metadata': {
+                    'route': 'chat',
+                    'intent': 'chat',
+                    'intent_confidence': 0.21,
+                },
+            }
+            resp = api_client.post('/api/terminal/chat/', {
+                'message': 'hello there',
+                'provider_name': 'test-provider',
+                'model': 'test-model',
+            }, format='json')
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data['metadata']['route'] == 'chat'
+        assert data['reply'] == 'general answer'
+
+    def test_terminal_chat_returns_route_confirmation_payload(self, api_client, staff_user):
+        api_client.force_authenticate(user=staff_user)
+        with patch('apps.terminal.interface.api_views.TerminalChatRouterService.route_message') as mock_route:
+            mock_route.return_value = {
+                'reply': 'detected possible system status intent',
+                'session_id': 'sess-suggest',
+                'metadata': {
+                    'route': 'intent_suggestion',
+                    'intent': 'system_status',
+                    'intent_confidence': 0.72,
+                },
+                'route_confirmation_required': True,
+                'suggested_command': '/status',
+                'suggested_intent': 'system_status',
+                'suggestion_prompt': 'Type Y to execute /status',
+            }
+            resp = api_client.post('/api/terminal/chat/', {
+                'message': '系统是不是有问题',
+                'provider_name': 'test-provider',
+                'model': 'test-model',
+            }, format='json')
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data['route_confirmation_required'] is True
+        assert data['suggested_command'] == '/status'
+        assert data['suggested_intent'] == 'system_status'
+
     def test_capabilities(self, api_client, staff_user):
         api_client.force_authenticate(user=staff_user)
         resp = api_client.get('/api/terminal/commands/capabilities/')

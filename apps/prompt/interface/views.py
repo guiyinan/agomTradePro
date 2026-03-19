@@ -348,7 +348,6 @@ class ChatModelsView(APIView):
         provider_name = request.query_params.get('provider', '')
 
         from apps.ai_provider.infrastructure.repositories import AIProviderRepository
-        from apps.ai_provider.domain.services import AICostCalculator
 
         provider_repo = AIProviderRepository()
 
@@ -360,47 +359,24 @@ class ChatModelsView(APIView):
                 extra = provider.extra_config or {}
                 models = extra.get('supported_models')
                 if not models:
-                    # 取同 provider_type 的所有已知模型 + 当前 default_model
-                    models = self._models_by_type(provider.provider_type)
-                    if provider.default_model not in models:
-                        models.insert(0, provider.default_model)
+                    models = [provider.default_model] if provider.default_model else []
                 return Response({'models': models})
 
             # 按 provider_type 查询（兼容传入 "openai" / "deepseek" 等类型名）
             providers = provider_repo.get_by_type(provider_name)
             if providers:
-                models = list({p.default_model for p in providers})
-                type_models = self._models_by_type(provider_name)
-                for m in type_models:
-                    if m not in models:
-                        models.append(m)
+                models = list(dict.fromkeys([
+                    p.default_model for p in providers if p.default_model
+                ]))
                 return Response({'models': models})
 
         # 无指定提供商：汇总所有活跃提供商的模型
         active_providers = provider_repo.get_active_providers()
-        models = list({p.default_model for p in active_providers})
-        # 补充定价表中的已知模型
-        for m in AICostCalculator.MODEL_PRICING:
-            if m not in models:
-                models.append(m)
+        models = list(dict.fromkeys([
+            p.default_model for p in active_providers if p.default_model
+        ]))
 
         return Response({'models': models})
-
-    @staticmethod
-    def _models_by_type(provider_type: str) -> list:
-        """从定价表中按 provider_type 归类已知模型"""
-        from apps.ai_provider.domain.services import AICostCalculator
-
-        type_prefixes = {
-            'openai': 'gpt-',
-            'deepseek': 'deepseek-',
-            'qwen': 'qwen-',
-            'moonshot': 'moonshot-',
-        }
-        prefix = type_prefixes.get(provider_type, '')
-        if not prefix:
-            return []
-        return [m for m in AICostCalculator.MODEL_PRICING if m.startswith(prefix)]
 
 
 class AgentExecuteView(APIView):

@@ -172,3 +172,24 @@ class TerminalAuditEntrySerializer(serializers.Serializer):
     error_message = serializers.CharField(allow_blank=True)
     duration_ms = serializers.IntegerField()
     created_at = serializers.DateTimeField()
+
+
+class TerminalChatRequestSerializer(serializers.Serializer):
+    """Terminal 自然语言输入请求"""
+    message = serializers.CharField()
+    session_id = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+    context = serializers.JSONField(allow_null=True, required=False)
+    provider_ref = serializers.JSONField(required=False)
+    provider_name = serializers.CharField(allow_blank=True, required=False)
+    model = serializers.CharField(allow_blank=True, required=False)
+
+
+class TerminalChatResponseSerializer(serializers.Serializer):
+    """Terminal 自然语言输出响应"""
+    reply = serializers.CharField()
+    session_id = serializers.CharField()
+    metadata = serializers.JSONField()
+    route_confirmation_required = serializers.BooleanField(default=False)
+    suggested_command = serializers.CharField(allow_null=True, allow_blank=True, default=None)
+    suggested_intent = serializers.CharField(allow_null=True, allow_blank=True, default=None)
+    suggestion_prompt = serializers.CharField(allow_null=True, allow_blank=True, default=None)
