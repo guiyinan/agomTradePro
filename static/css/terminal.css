@@ -262,10 +262,16 @@
 /* ===== Input Line ===== */
 .terminal-input-line {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     margin-top: 8px;
     padding-top: 8px;
     border-top: 1px solid var(--terminal-border);
+    gap: 8px;
+}
+
+.terminal-input-wrap {
+    flex: 1;
+    min-width: 0;
 }
 
 .terminal-input {
@@ -277,13 +283,54 @@
     font-size: var(--terminal-font-size);
     color: var(--terminal-text-bright);
     caret-color: var(--terminal-green);
-    /* 增强原生光标可见性 */
+    width: 100%;
+    min-height: 24px;
+    max-height: 220px;
+    resize: none;
+    overflow-y: auto;
+    line-height: 1.5;
+    padding: 0;
+    margin: 0;
     text-shadow: 0 0 1px var(--terminal-glow);
 }
 
 .terminal-input::placeholder {
     color: var(--terminal-text-dim);
     opacity: 0.5;
+}
+
+.terminal-input-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+    min-height: 16px;
+    font-size: 11px;
+    color: var(--terminal-text-dim);
+}
+
+.terminal-input-status {
+    color: var(--terminal-yellow);
+}
+
+.terminal-input-status.warning {
+    color: var(--terminal-yellow);
+}
+
+.terminal-input-status.danger {
+    color: var(--terminal-red);
+}
+
+.terminal-input-count {
+    color: var(--terminal-text-dim);
+}
+
+.terminal-input-count.warning {
+    color: var(--terminal-yellow);
+}
+
+.terminal-input-count.danger {
+    color: var(--terminal-red);
 }
 
 /* ===== Cursor (Hidden - using native input cursor) ===== */
@@ -340,6 +387,87 @@
     padding: 12px 16px;
     margin: 8px 0 8px 16px;
     border-radius: 0 8px 8px 0;
+    white-space: normal;
+}
+
+.terminal-output-line.ai-response p,
+.terminal-output-line.ai-response ul,
+.terminal-output-line.ai-response ol,
+.terminal-output-line.ai-response blockquote,
+.terminal-output-line.ai-response h1,
+.terminal-output-line.ai-response h2,
+.terminal-output-line.ai-response h3,
+.terminal-output-line.ai-response h4 {
+    margin: 0 0 10px;
+}
+
+.terminal-output-line.ai-response ul,
+.terminal-output-line.ai-response ol {
+    padding-left: 20px;
+}
+
+.terminal-output-line.ai-response a {
+    color: var(--terminal-cyan);
+}
+
+.terminal-output-line.ai-response hr {
+    border: none;
+    border-top: 1px solid var(--terminal-border);
+    margin: 14px 0;
+}
+
+.terminal-output-line.ai-response table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+}
+
+.terminal-output-line.ai-response th,
+.terminal-output-line.ai-response td {
+    border: 1px solid var(--terminal-border);
+    padding: 6px 8px;
+    text-align: left;
+}
+
+.terminal-output-line.ai-response thead {
+    background: var(--terminal-bg-secondary);
+}
+
+.terminal-code-block {
+    background: var(--terminal-bg-secondary);
+    padding: 12px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 8px 0;
+}
+
+.terminal-inline-code {
+    background: var(--terminal-bg-secondary);
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.terminal-mermaid-wrap {
+    margin: 12px 0;
+    padding: 12px;
+    border: 1px solid var(--terminal-border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    overflow-x: auto;
+}
+
+.terminal-mermaid-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 11px;
+    color: var(--terminal-text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.terminal-mermaid-error {
+    color: var(--terminal-red);
+    font-size: 12px;
 }
 
 /* ===== Typing Indicator ===== */

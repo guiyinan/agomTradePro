@@ -18,6 +18,8 @@ class AgomTerminal {
         this.messageCount = 0;
         this.tokenCount = 0;
         this.isLoading = false;
+        this.maxInputChars = 12000;
+        this.largePasteThreshold = 1200;
         
         // Save original prompt (username@agomSAAF:~$)
         this.originalPrompt = document.getElementById('terminal-prompt')?.textContent || 'guest@agomSAAF:~$';
@@ -40,6 +42,8 @@ class AgomTerminal {
             tokenCount: document.getElementById('token-count'),
             sidebar: document.getElementById('terminal-sidebar'),
             sidebarToggle: document.getElementById('sidebar-toggle'),
+            inputStatus: document.getElementById('terminal-input-status'),
+            inputCount: document.getElementById('terminal-input-count'),
         };
 
         // Built-in commands (always available)
@@ -57,6 +61,12 @@ class AgomTerminal {
         this.pendingParams = {};
         this.paramIndex = 0;
 
+        // Governance state
+        this.terminalMode = 'confirm_each';
+        this.terminalState = 'normal'; // normal | pending_params | pending_confirmation
+        this.pendingConfirmation = null; // {name, params, token, details}
+        this.userCapabilities = null;
+
         // Initialize
         this.init();
     }
@@ -66,11 +76,15 @@ class AgomTerminal {
      */
     async init() {
         this.bindEvents();
+        this.initializeRichTextRenderer();
         await Promise.all([
             this.loadProviders(),
-            this.loadDynamicCommands()
+            this.loadDynamicCommands(),
+            this.loadCapabilities(),
         ]);
         this.updateSessionInfo();
+        this.autoResizeInput();
+        this.updateInputState();
         this.focusInput();
 
         console.log('AgomSAAF Terminal initialized. Type "/help" for commands.');
@@ -81,7 +95,7 @@ class AgomTerminal {
      */
     async loadDynamicCommands() {
         try {
-            const response = await fetch('/api/prompt/terminal/available/');
+            const response = await fetch('/api/terminal/commands/available/');
             const data = await response.json();
             
             if (data.success && data.commands) {
@@ -122,10 +136,14 @@ class AgomTerminal {
                     'api': '📡',
                     'builtin': '⚡'
                 };
-                
+
+                const riskBadge = cmd.risk_level && cmd.risk_level !== 'read'
+                    ? `<span class="risk-badge risk-${cmd.risk_level}" style="font-size:9px;margin-left:4px;padding:1px 4px;border-radius:3px;background:${cmd.risk_level === 'admin' ? '#dc3545' : cmd.risk_level === 'write_high' ? '#fd7e14' : '#ffc107'};color:#000;">${cmd.risk_level}</span>`
+                    : '';
+
                 btn.innerHTML = `
                     <span class="quick-cmd-icon">${iconMap[cmd.type] || '▶'}</span>
-                    <span>${cmd.display_name || name}</span>
+                    <span>${cmd.display_name || name}${riskBadge}</span>
                 `;
                 
                 btn.addEventListener('click', () => {
@@ -143,6 +161,11 @@ class AgomTerminal {
     bindEvents() {
         // Main input handling
         this.elements.input.addEventListener('keydown', (e) => this.handleKeyDown(e));
+        this.elements.input.addEventListener('input', () => {
+            this.autoResizeInput();
+            this.updateInputState();
+        });
+        this.elements.input.addEventListener('paste', (e) => this.handlePaste(e));
 
         // Provider/Model selection
         this.elements.providerSelect.addEventListener('change', (e) => this.onProviderChange(e));
@@ -158,6 +181,12 @@ class AgomTerminal {
                 this.executeCommand(cmd);
             });
         });
+
+        // Terminal mode selector
+        const modeSelect = document.getElementById('terminal-mode-select');
+        if (modeSelect) {
+            modeSelect.addEventListener('change', (e) => this.setMode(e.target.value));
+        }
 
         // Click anywhere to focus input
         this.elements.body.addEventListener('click', () => this.focusInput());
@@ -177,19 +206,27 @@ class AgomTerminal {
     handleKeyDown(e) {
         switch (e.key) {
             case 'Enter':
-                e.preventDefault();
-                this.submitCommand();
+                if (!e.shiftKey) {
+                    e.preventDefault();
+                    this.submitCommand();
+                }
                 break;
             case 'ArrowUp':
-                e.preventDefault();
-                this.navigateHistory(-1);
+                if (this.canNavigateHistory(-1)) {
+                    e.preventDefault();
+                    this.navigateHistory(-1);
+                }
                 break;
             case 'ArrowDown':
-                e.preventDefault();
-                this.navigateHistory(1);
+                if (this.canNavigateHistory(1)) {
+                    e.preventDefault();
+                    this.navigateHistory(1);
+                }
                 break;
             case 'Escape':
                 this.elements.input.value = '';
+                this.autoResizeInput();
+                this.updateInputState();
                 break;
             case 'l':
                 if (e.ctrlKey) {
@@ -266,14 +303,31 @@ class AgomTerminal {
         }
 
         this.elements.input.value = this.commandHistory[this.historyIndex];
+        this.autoResizeInput();
+        this.updateInputState();
     }
 
     /**
      * Submit command
      */
     submitCommand() {
-        const input = this.elements.input.value.trim();
+        const input = this.normalizeInput(this.elements.input.value).trim();
         if (!input) return;
+
+        // Check if we're in confirmation mode
+        if (this.terminalState === 'pending_confirmation') {
+            this.elements.input.value = '';
+            this.autoResizeInput();
+            this.updateInputState();
+            this.printCommand(input);
+            const answer = input.toLowerCase();
+            if (answer === 'y' || answer === 'yes') {
+                this.confirmExecution();
+            } else {
+                this.cancelConfirmation();
+            }
+            return;
+        }
 
         // Check if we're in parameter collection mode
         if (this.pendingCommand) {
@@ -290,6 +344,8 @@ class AgomTerminal {
 
         // Clear input
         this.elements.input.value = '';
+        this.autoResizeInput();
+        this.updateInputState();
 
         // Execute
         this.executeCommand(input);
@@ -479,7 +535,7 @@ class AgomTerminal {
         this.isLoading = true;
 
         try {
-            const response = await fetch('/api/prompt/terminal/commands/execute_by_name/', {
+            const response = await fetch('/api/terminal/commands/execute_by_name/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -488,16 +544,23 @@ class AgomTerminal {
                 body: JSON.stringify({
                     name: cmdName,
                     params: params,
-                    session_id: this.sessionId
+                    session_id: this.sessionId,
+                    mode: this.terminalMode,
                 })
             });
 
             const data = await response.json();
             this.hideTypingIndicator();
 
+            // Handle confirmation required
+            if (data.confirmation_required && data.confirmation_token) {
+                this.handleConfirmationResponse(data, cmdName, params);
+                return;
+            }
+
             if (data.success) {
                 this.printOutput(data.output || 'Command executed successfully');
-                
+
                 if (data.metadata) {
                     this.messageCount++;
                     if (data.metadata.tokens) {
@@ -521,6 +584,170 @@ class AgomTerminal {
             this.printError(`Network error: ${error.message}`);
         } finally {
             this.isLoading = false;
+        }
+    }
+
+    /**
+     * Handle confirmation response from server
+     */
+    handleConfirmationResponse(data, cmdName, params) {
+        this.terminalState = 'pending_confirmation';
+        this.pendingConfirmation = {
+            name: cmdName,
+            params: params,
+            token: data.confirmation_token,
+            details: data,
+        };
+
+        const riskLevel = data.risk_level || 'unknown';
+        const prompt = data.confirmation_prompt || '';
+
+        this.printOutput(`
+<div style="padding: 8px 0; border: 1px solid var(--terminal-yellow); border-radius: 4px; padding: 12px; margin: 4px 0;">
+<strong style="color: var(--terminal-yellow);">Confirmation required</strong>
+
+  <span style="color: var(--terminal-text-dim);">Command:</span>    ${this.escapeHtml(cmdName)}
+  <span style="color: var(--terminal-text-dim);">Risk Level:</span> <span style="color: ${riskLevel === 'admin' ? 'var(--terminal-red)' : riskLevel === 'write_high' ? '#fd7e14' : 'var(--terminal-yellow)'};">${riskLevel}</span>
+  <span style="color: var(--terminal-text-dim);">Parameters:</span> ${this.escapeHtml(JSON.stringify(params))}
+  <span style="color: var(--terminal-text-dim);">Mode:</span>       ${this.terminalMode}
+
+  Type <span class="terminal-cmd">Y</span> to confirm, <span class="terminal-cmd">N</span> to cancel:
+</div>`, 'warning');
+
+        // Update prompt to confirm>
+        this.updatePromptIndicator('confirm');
+        this.updateInputState();
+    }
+
+    /**
+     * Confirm pending execution
+     */
+    async confirmExecution() {
+        if (!this.pendingConfirmation) return;
+
+        const { name, params, token } = this.pendingConfirmation;
+
+        // Reset state
+        this.terminalState = 'normal';
+        const confirmation = this.pendingConfirmation;
+        this.pendingConfirmation = null;
+        this.updatePromptIndicator();
+        this.updateInputState();
+
+        this.showTypingIndicator();
+        this.isLoading = true;
+
+        try {
+            const response = await fetch('/api/terminal/commands/confirm_execute/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken()
+                },
+                body: JSON.stringify({
+                    name: confirmation.name,
+                    params: confirmation.params,
+                    confirmation_token: confirmation.token,
+                    session_id: this.sessionId,
+                    mode: this.terminalMode,
+                })
+            });
+
+            const data = await response.json();
+            this.hideTypingIndicator();
+
+            if (data.success) {
+                this.printSuccess('Command confirmed and executed');
+                this.printOutput(data.output || '');
+                if (data.metadata) {
+                    this.messageCount++;
+                    this.updateSessionInfo();
+                }
+            } else {
+                this.printError(data.error || 'Confirmed execution failed');
+            }
+        } catch (error) {
+            this.hideTypingIndicator();
+            this.printError(`Network error: ${error.message}`);
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    /**
+     * Cancel pending confirmation
+     */
+    cancelConfirmation() {
+        this.terminalState = 'normal';
+        this.pendingConfirmation = null;
+        this.updatePromptIndicator();
+        this.updateInputState();
+        this.printInfo('Command cancelled');
+    }
+
+    /**
+     * Load terminal capabilities from server
+     */
+    async loadCapabilities() {
+        try {
+            const response = await fetch('/api/terminal/commands/capabilities/');
+            const data = await response.json();
+
+            if (data.success) {
+                this.userCapabilities = data;
+
+                // Lock mode if needed
+                if (data.available_modes && data.available_modes.length === 1) {
+                    this.terminalMode = data.available_modes[0];
+                }
+
+                // Update mode selector if present
+                this.updateModeSelector();
+            }
+        } catch (error) {
+            console.error('Failed to load capabilities:', error);
+        }
+    }
+
+    /**
+     * Set terminal mode
+     */
+    setMode(mode) {
+        if (this.userCapabilities && this.userCapabilities.available_modes) {
+            if (!this.userCapabilities.available_modes.includes(mode)) {
+                this.printError(`Mode "${mode}" is not available. Available: ${this.userCapabilities.available_modes.join(', ')}`);
+                return;
+            }
+        }
+        this.terminalMode = mode;
+        this.updateModeSelector();
+        this.printSuccess(`Terminal mode set to: ${mode}`);
+    }
+
+    /**
+     * Update mode selector UI
+     */
+    updateModeSelector() {
+        const modeSelect = document.getElementById('terminal-mode-select');
+        const modeStatus = document.getElementById('mode-status');
+        if (!modeSelect) return;
+
+        modeSelect.value = this.terminalMode;
+
+        // Disable unavailable options
+        if (this.userCapabilities && this.userCapabilities.available_modes) {
+            Array.from(modeSelect.options).forEach(opt => {
+                opt.disabled = !this.userCapabilities.available_modes.includes(opt.value);
+            });
+        }
+
+        if (modeStatus) {
+            if (this.userCapabilities && this.userCapabilities.reason_if_locked) {
+                modeStatus.textContent = this.userCapabilities.reason_if_locked;
+                modeStatus.style.color = 'var(--terminal-yellow)';
+            } else {
+                modeStatus.textContent = '';
+            }
         }
     }
 
@@ -620,32 +847,28 @@ class AgomTerminal {
 
         this.elements.output.appendChild(container);
         this.scrollToBottom();
+        this.renderRichContent(container);
     }
 
     /**
      * Format AI response with syntax highlighting
      */
     formatAIResponse(text) {
-        // Basic markdown-like formatting
-        let formatted = this.escapeHtml(text);
-        
-        // Code blocks
-        formatted = formatted.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
-            return `<pre class="terminal-code-block" style="background: var(--terminal-bg-secondary); padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0;"><code>${code}</code></pre>`;
-        });
-        
-        // Inline code
-        formatted = formatted.replace(/`([^`]+)`/g, '<code style="background: var(--terminal-bg-secondary); padding: 2px 6px; border-radius: 3px;">$1</code>');
-        
-        // Bold
-        formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-        
-        // Italic
-        formatted = formatted.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-        
-        // Line breaks
-        formatted = formatted.replace(/\n/g, '<br>');
+        const source = this.escapeHtml(text || '');
 
+        if (window.marked?.parse) {
+            return window.marked.parse(source);
+        }
+
+        let formatted = source;
+        formatted = formatted.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
+            const className = lang ? ` class="language-${lang}"` : '';
+            return `<pre class="terminal-code-block"><code${className}>${code}</code></pre>`;
+        });
+        formatted = formatted.replace(/`([^`]+)`/g, '<code class="terminal-inline-code">$1</code>');
+        formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        formatted = formatted.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+        formatted = formatted.replace(/\n/g, '<br>');
         return formatted;
     }
 
@@ -1074,7 +1297,7 @@ class AgomTerminal {
         this.showTypingIndicator();
 
         try {
-            const response = await fetch('/prompt/api/chat', {
+            const response = await fetch('/api/prompt/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1118,7 +1341,7 @@ class AgomTerminal {
      */
     async loadProviders() {
         try {
-            const response = await fetch('/prompt/api/chat/providers');
+            const response = await fetch('/api/prompt/chat/providers');
             const data = await response.json();
             
             this.providers = data.providers || [];
@@ -1156,7 +1379,7 @@ class AgomTerminal {
         if (!providerName) return;
         
         try {
-            const response = await fetch(`/prompt/api/chat/models?provider=${providerName}`);
+            const response = await fetch(`/api/prompt/chat/models?provider=${providerName}`);
             const data = await response.json();
             
             this.models = data.models || [];
@@ -1235,6 +1458,180 @@ class AgomTerminal {
      */
     focusInput() {
         this.elements.input.focus();
+    }
+
+    /**
+     * Initialize markdown and mermaid renderers
+     */
+    initializeRichTextRenderer() {
+        if (window.marked?.setOptions) {
+            window.marked.setOptions({
+                gfm: true,
+                breaks: true,
+            });
+        }
+
+        if (window.mermaid?.initialize) {
+            window.mermaid.initialize({
+                startOnLoad: false,
+                securityLevel: 'strict',
+                theme: 'dark',
+            });
+        }
+    }
+
+    /**
+     * Adjust textarea height to its content.
+     */
+    autoResizeInput() {
+        const input = this.elements.input;
+        if (!input) return;
+        input.style.height = 'auto';
+        input.style.height = `${Math.min(input.scrollHeight, 220)}px`;
+    }
+
+    /**
+     * Track current input size and state.
+     */
+    updateInputState(message = null, level = 'info') {
+        const value = this.elements.input.value || '';
+        const count = value.length;
+        const ratio = count / this.maxInputChars;
+
+        if (this.elements.inputCount) {
+            this.elements.inputCount.textContent = `${count}/${this.maxInputChars}`;
+            this.elements.inputCount.classList.toggle('warning', ratio >= 0.8 && ratio < 1);
+            this.elements.inputCount.classList.toggle('danger', ratio >= 1);
+        }
+
+        if (message !== null) {
+            this.setInputStatus(message, level);
+            return;
+        }
+
+        if (ratio >= 1) {
+            this.setInputStatus(`Input capped at ${this.maxInputChars} characters`, 'danger');
+        } else if (ratio >= 0.8) {
+            this.setInputStatus('Large input detected. Review before sending.', 'warning');
+        } else if (this.terminalState === 'pending_confirmation') {
+            this.setInputStatus('Confirmation mode: type Y to continue or N to cancel.', 'warning');
+        } else {
+            this.setInputStatus('', 'info');
+        }
+    }
+
+    /**
+     * Show inline input status.
+     */
+    setInputStatus(text, level = 'info') {
+        if (!this.elements.inputStatus) return;
+        this.elements.inputStatus.textContent = text || 'Enter to send, Shift+Enter for newline';
+        this.elements.inputStatus.classList.remove('warning', 'danger');
+        if (level === 'warning' || level === 'danger') {
+            this.elements.inputStatus.classList.add(level);
+        }
+    }
+
+    /**
+     * Trim input to the supported size.
+     */
+    normalizeInput(raw, source = 'input') {
+        const value = raw || '';
+        if (value.length <= this.maxInputChars) {
+            return value;
+        }
+
+        const trimmed = value.slice(0, this.maxInputChars);
+        const message = source === 'paste'
+            ? `Pasted content was truncated to ${this.maxInputChars} characters`
+            : `Input was truncated to ${this.maxInputChars} characters`;
+        this.setInputStatus(message, 'warning');
+        return trimmed;
+    }
+
+    /**
+     * Keep large pasted content usable without breaking the input.
+     */
+    handlePaste(e) {
+        const pastedText = e.clipboardData?.getData('text') || '';
+        if (!pastedText) return;
+
+        window.requestAnimationFrame(() => {
+            const normalized = this.normalizeInput(this.elements.input.value, 'paste');
+            if (normalized !== this.elements.input.value) {
+                this.elements.input.value = normalized;
+            }
+
+            this.autoResizeInput();
+            if (pastedText.length >= this.largePasteThreshold) {
+                this.updateInputState('Large paste captured. Multi-line input enabled for review.', 'warning');
+            } else {
+                this.updateInputState();
+            }
+        });
+    }
+
+    /**
+     * Only use history navigation when the caret is at a safe edge.
+     */
+    canNavigateHistory(direction) {
+        const input = this.elements.input;
+        const value = input.value || '';
+        if (!value.includes('\n')) {
+            return true;
+        }
+
+        const caret = input.selectionStart ?? value.length;
+        if (direction < 0) {
+            return caret === 0;
+        }
+        return caret === value.length;
+    }
+
+    /**
+     * Render Mermaid diagrams after markdown conversion.
+     */
+    async renderRichContent(container) {
+        container.querySelectorAll('pre').forEach((pre) => {
+            pre.classList.add('terminal-code-block');
+        });
+        container.querySelectorAll(':not(pre) > code').forEach((code) => {
+            code.classList.add('terminal-inline-code');
+        });
+
+        if (!window.mermaid?.render) {
+            return;
+        }
+
+        const mermaidBlocks = container.querySelectorAll('pre code.language-mermaid');
+        for (const block of mermaidBlocks) {
+            const pre = block.closest('pre');
+            if (!pre) continue;
+
+            const source = block.textContent || '';
+            const wrapper = document.createElement('div');
+            wrapper.className = 'terminal-mermaid-wrap';
+            wrapper.innerHTML = `
+                <div class="terminal-mermaid-label">Mermaid</div>
+                <div class="terminal-mermaid-diagram"></div>
+            `;
+
+            pre.replaceWith(wrapper);
+
+            try {
+                const id = `terminal-mermaid-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+                const result = await window.mermaid.render(id, source);
+                wrapper.querySelector('.terminal-mermaid-diagram').innerHTML = result.svg;
+            } catch (error) {
+                wrapper.innerHTML = `
+                    <div class="terminal-mermaid-label">Mermaid</div>
+                    <pre class="terminal-code-block"><code class="language-mermaid">${this.escapeHtml(source)}</code></pre>
+                    <div class="terminal-mermaid-error">Diagram render failed: ${this.escapeHtml(error?.message || 'unknown error')}</div>
+                `;
+            }
+        }
+
+        this.scrollToBottom();
     }
 
     /**
