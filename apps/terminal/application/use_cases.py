@@ -4,12 +4,21 @@ Terminal Application Use Cases.
 定义终端命令相关的业务用例。
 """
 
+import json
+import time
 from dataclasses import dataclass, field
 from typing import Any, Optional
 import logging
 
-from ..domain.entities import TerminalCommand, CommandType
-from ..domain.interfaces import TerminalCommandRepository
+from ..domain.entities import (
+    TerminalAuditEntry,
+    TerminalCommand,
+    TerminalMode,
+    TerminalRiskLevel,
+    CommandType,
+)
+from ..domain.interfaces import TerminalAuditRepository, TerminalCommandRepository
+from ..domain.services import TerminalPermissionService
 
 
 logger = logging.getLogger(__name__)
@@ -25,6 +34,13 @@ class ExecuteCommandRequest:
     session_id: Optional[str] = None
     provider_name: Optional[str] = None
     model_name: Optional[str] = None
+    # 治理字段
+    user_id: Optional[int] = None
+    username: str = 'unknown'
+    user_role: str = 'read_only'
+    mcp_enabled: bool = False
+    terminal_mode: str = 'confirm_each'
+    confirmation_token: Optional[str] = None
 
 
 @dataclass
@@ -35,6 +51,12 @@ class ExecuteCommandResponse:
     metadata: dict[str, Any] = field(default_factory=dict)
     error: Optional[str] = None
     command: Optional[TerminalCommand] = None
+    # 确认相关
+    confirmation_required: bool = False
+    confirmation_token: Optional[str] = None
+    confirmation_prompt: Optional[str] = None
+    command_summary: Optional[str] = None
+    risk_level: Optional[str] = None
 
 
 @dataclass
@@ -103,41 +125,171 @@ class UpdateCommandResponse:
 
 class ExecuteCommandUseCase:
     """执行终端命令用例"""
-    
-    def __init__(self, repository: TerminalCommandRepository, execution_service):
+
+    def __init__(
+        self,
+        repository: TerminalCommandRepository,
+        execution_service,
+        audit_repository: Optional[TerminalAuditRepository] = None,
+    ):
         self._repository = repository
         self._execution_service = execution_service
-    
+        self._audit_repository = audit_repository
+        self._permission_service = TerminalPermissionService()
+
+    def _log_audit(
+        self,
+        request: ExecuteCommandRequest,
+        command: Optional[TerminalCommand],
+        result_status: str,
+        confirmation_status: str = 'not_required',
+        confirmation_required: bool = False,
+        error_message: str = '',
+        duration_ms: int = 0,
+    ) -> None:
+        """记录审计日志"""
+        if not self._audit_repository:
+            return
+        try:
+            entry = TerminalAuditEntry(
+                user_id=request.user_id,
+                username=request.username,
+                session_id=request.session_id or '',
+                command_name=request.command_name,
+                risk_level=command.risk_level.value if command else 'unknown',
+                mode=request.terminal_mode,
+                params_summary=json.dumps(request.params, default=str)[:500],
+                confirmation_required=confirmation_required,
+                confirmation_status=confirmation_status,
+                result_status=result_status,
+                error_message=error_message,
+                duration_ms=duration_ms,
+            )
+            self._audit_repository.save(entry)
+        except Exception:
+            logger.exception("Failed to save terminal audit log")
+
     def execute(self, request: ExecuteCommandRequest) -> ExecuteCommandResponse:
-        """执行命令"""
+        """执行命令（含治理逻辑）"""
+        start_time = time.monotonic()
+
         # 1. 获取命令定义
         command = self._repository.get_by_name(request.command_name)
         if not command:
             return ExecuteCommandResponse(
                 success=False,
-                error=f"Command '{request.command_name}' not found"
+                error=f"Command '{request.command_name}' not found",
             )
-        
-        if not command.is_active:
+
+        if not command.is_active or not command.enabled_in_terminal:
+            self._log_audit(request, command, 'blocked', error_message='Command inactive or disabled')
             return ExecuteCommandResponse(
                 success=False,
-                error=f"Command '{request.command_name}' is not active"
+                error=f"Command '{request.command_name}' is not available",
             )
-        
-        # 2. 检查必需参数
+
+        # 2. MCP 检查
+        if command.requires_mcp and not request.mcp_enabled:
+            self._log_audit(request, command, 'blocked', error_message='MCP access required')
+            return ExecuteCommandResponse(
+                success=False,
+                error="This command requires MCP access which is disabled for your account",
+                risk_level=command.risk_level.value,
+            )
+
+        # 3. 角色权限检查
+        if not self._permission_service.can_execute(request.user_role, command.risk_level):
+            self._log_audit(request, command, 'blocked', error_message='Permission denied')
+            return ExecuteCommandResponse(
+                success=False,
+                error=f"Your role '{request.user_role}' cannot execute {command.risk_level.value} commands",
+                risk_level=command.risk_level.value,
+            )
+
+        # 4. 模式逻辑
+        mode = request.terminal_mode
+        is_write = command.risk_level != TerminalRiskLevel.READ
+
+        if mode == TerminalMode.READONLY.value and is_write:
+            self._log_audit(request, command, 'blocked', error_message='Readonly mode')
+            return ExecuteCommandResponse(
+                success=False,
+                error="Terminal is in read-only mode. Write commands are not allowed.",
+                risk_level=command.risk_level.value,
+            )
+
+        if mode == TerminalMode.CONFIRM_EACH.value and is_write:
+            if not request.confirmation_token:
+                # 生成确认令牌
+                from .confirmation import ConfirmationTokenService
+                token_service = ConfirmationTokenService()
+                token, details = token_service.create_token(
+                    user_id=request.user_id or 0,
+                    command_name=request.command_name,
+                    params=request.params,
+                    risk_level=command.risk_level.value,
+                    mode=mode,
+                )
+                self._log_audit(
+                    request, command, 'pending',
+                    confirmation_status='not_required',
+                    confirmation_required=True,
+                )
+                return ExecuteCommandResponse(
+                    success=False,
+                    confirmation_required=True,
+                    confirmation_token=token,
+                    confirmation_prompt=(
+                        f"Command: {request.command_name}\n"
+                        f"Risk Level: {command.risk_level.value}\n"
+                        f"Parameters: {json.dumps(request.params, default=str)}\n"
+                        f"Mode: {mode}\n\n"
+                        f"Type Y to confirm, N to cancel:"
+                    ),
+                    command_summary=command.description,
+                    risk_level=command.risk_level.value,
+                    command=command,
+                )
+            else:
+                # 验证令牌
+                from .confirmation import ConfirmationTokenService
+                token_service = ConfirmationTokenService()
+                is_valid, error_msg = token_service.validate_token(
+                    token=request.confirmation_token,
+                    user_id=request.user_id or 0,
+                    command_name=request.command_name,
+                    params=request.params,
+                    risk_level=command.risk_level.value,
+                    mode=mode,
+                )
+                if not is_valid:
+                    self._log_audit(
+                        request, command, 'blocked',
+                        confirmation_status='expired',
+                        confirmation_required=True,
+                        error_message=error_msg,
+                    )
+                    return ExecuteCommandResponse(
+                        success=False,
+                        error=f"Confirmation failed: {error_msg}",
+                        risk_level=command.risk_level.value,
+                    )
+
+        # 5. 检查必需参数
         missing_params = command.get_missing_params(request.params)
         if missing_params:
             return ExecuteCommandResponse(
                 success=False,
                 error="Missing required parameters",
                 metadata={'missing_params': [p.to_dict() for p in missing_params]},
-                command=command
+                command=command,
+                risk_level=command.risk_level.value,
             )
-        
-        # 3. 合并默认值
+
+        # 6. 合并默认值
         params = {**command.get_param_defaults(), **request.params}
-        
-        # 4. 根据命令类型执行
+
+        # 7. 执行
         try:
             if command.is_prompt_type:
                 result = self._execution_service.execute_prompt_command(
@@ -152,20 +304,37 @@ class ExecuteCommandUseCase:
                     command=command,
                     params=params,
                 )
-            
+
+            duration_ms = int((time.monotonic() - start_time) * 1000)
+            confirmation_status = 'confirmed' if is_write and mode == TerminalMode.CONFIRM_EACH.value else 'not_required'
+            self._log_audit(
+                request, command, 'success',
+                confirmation_status=confirmation_status,
+                confirmation_required=is_write and mode == TerminalMode.CONFIRM_EACH.value,
+                duration_ms=duration_ms,
+            )
+
             return ExecuteCommandResponse(
                 success=True,
                 output=result.get('output', ''),
                 metadata=result.get('metadata', {}),
-                command=command
+                command=command,
+                risk_level=command.risk_level.value,
             )
-            
+
         except Exception as e:
+            duration_ms = int((time.monotonic() - start_time) * 1000)
             logger.exception(f"Failed to execute command '{request.command_name}'")
+            self._log_audit(
+                request, command, 'error',
+                error_message=str(e),
+                duration_ms=duration_ms,
+            )
             return ExecuteCommandResponse(
                 success=False,
                 error=str(e),
-                command=command
+                command=command,
+                risk_level=command.risk_level.value,
             )
 
 

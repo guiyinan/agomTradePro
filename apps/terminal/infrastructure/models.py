@@ -2,11 +2,18 @@
 Terminal infrastructure ORM models.
 """
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
 from apps.prompt.infrastructure.models import PromptTemplateORM
-from ..domain.entities import CommandParameter, CommandType, TerminalCommand
+from ..domain.entities import (
+    CommandParameter,
+    CommandType,
+    TerminalAuditEntry,
+    TerminalCommand,
+    TerminalRiskLevel,
+)
 
 
 class TerminalCommandORM(models.Model):
@@ -15,6 +22,13 @@ class TerminalCommandORM(models.Model):
     COMMAND_TYPE_CHOICES = [
         (CommandType.PROMPT.value, 'Prompt模板调用'),
         (CommandType.API.value, 'API端点调用'),
+    ]
+
+    RISK_LEVEL_CHOICES = [
+        (TerminalRiskLevel.READ.value, '只读'),
+        (TerminalRiskLevel.WRITE_LOW.value, '低风险写入'),
+        (TerminalRiskLevel.WRITE_HIGH.value, '高风险写入'),
+        (TerminalRiskLevel.ADMIN.value, '管理员'),
     ]
 
     name = models.CharField(
@@ -99,6 +113,22 @@ class TerminalCommandORM(models.Model):
         db_index=True,
         help_text="是否启用",
     )
+    risk_level = models.CharField(
+        max_length=20,
+        choices=RISK_LEVEL_CHOICES,
+        default=TerminalRiskLevel.READ.value,
+        db_index=True,
+        help_text="风险等级",
+    )
+    requires_mcp = models.BooleanField(
+        default=True,
+        help_text="是否需要 MCP 权限",
+    )
+    enabled_in_terminal = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text="是否在终端中显示",
+    )
     created_at = models.DateTimeField(auto_now_add=True, help_text="创建时间")
     updated_at = models.DateTimeField(auto_now=True, help_text="更新时间")
 
@@ -158,6 +188,9 @@ class TerminalCommandORM(models.Model):
             timeout=self.timeout,
             provider_name=self.provider_name or None,
             model_name=self.model_name or None,
+            risk_level=TerminalRiskLevel(self.risk_level),
+            requires_mcp=self.requires_mcp,
+            enabled_in_terminal=self.enabled_in_terminal,
             category=self.category,
             tags=list(self.tags or []),
             created_at=self.created_at,
@@ -184,7 +217,82 @@ class TerminalCommandORM(models.Model):
         instance.category = entity.category
         instance.tags = entity.tags or []
         instance.is_active = entity.is_active
+        instance.risk_level = entity.risk_level.value if isinstance(entity.risk_level, TerminalRiskLevel) else entity.risk_level
+        instance.requires_mcp = entity.requires_mcp
+        instance.enabled_in_terminal = entity.enabled_in_terminal
         return instance
 
 
-__all__ = ['TerminalCommandORM']
+class TerminalAuditLogORM(models.Model):
+    """终端审计日志"""
+
+    CONFIRMATION_STATUS_CHOICES = [
+        ('confirmed', '已确认'),
+        ('cancelled', '已取消'),
+        ('not_required', '无需确认'),
+        ('expired', '已过期'),
+    ]
+
+    RESULT_STATUS_CHOICES = [
+        ('success', '成功'),
+        ('error', '错误'),
+        ('blocked', '被阻止'),
+        ('pending', '等待确认'),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    username = models.CharField(max_length=150, db_index=True)
+    session_id = models.CharField(max_length=100, db_index=True)
+    command_name = models.CharField(max_length=50, db_index=True)
+    risk_level = models.CharField(max_length=20)
+    mode = models.CharField(max_length=20)
+    params_summary = models.TextField(blank=True)
+    confirmation_required = models.BooleanField(default=False)
+    confirmation_status = models.CharField(
+        max_length=20,
+        choices=CONFIRMATION_STATUS_CHOICES,
+        default='not_required',
+    )
+    result_status = models.CharField(
+        max_length=20,
+        choices=RESULT_STATUS_CHOICES,
+        default='pending',
+    )
+    error_message = models.TextField(blank=True)
+    duration_ms = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        db_table = 'terminal_audit_log'
+        ordering = ['-created_at']
+        verbose_name = "终端审计日志"
+        verbose_name_plural = "终端审计日志"
+
+    def __str__(self) -> str:
+        return f"{self.username}:{self.command_name} [{self.result_status}]"
+
+    def to_entity(self) -> TerminalAuditEntry:
+        """Map ORM model to domain entity."""
+        return TerminalAuditEntry(
+            user_id=self.user_id,
+            username=self.username,
+            session_id=self.session_id,
+            command_name=self.command_name,
+            risk_level=self.risk_level,
+            mode=self.mode,
+            params_summary=self.params_summary,
+            confirmation_required=self.confirmation_required,
+            confirmation_status=self.confirmation_status,
+            result_status=self.result_status,
+            error_message=self.error_message,
+            duration_ms=self.duration_ms,
+            created_at=self.created_at,
+        )
+
+
+__all__ = ['TerminalCommandORM', 'TerminalAuditLogORM']

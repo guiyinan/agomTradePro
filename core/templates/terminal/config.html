@@ -366,11 +366,6 @@ textarea.form-control {
                                placeholder="例如: analyze" pattern="[a-z_]+">
                         <div class="form-hint">小写字母和下划线，用于终端调用</div>
                     </div>
-                    <div class="form-group">
-                        <label for="cmd-display-name">显示名称 *</label>
-                        <input type="text" id="cmd-display-name" class="form-control" required
-                               placeholder="例如: 股票分析">
-                    </div>
                 </div>
                 
                 <div class="form-row">
@@ -393,6 +388,22 @@ textarea.form-control {
                     <textarea id="cmd-description" class="form-control" 
                               placeholder="命令用途描述"></textarea>
                 </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="cmd-timeout">超时时间（秒）</label>
+                        <input type="number" id="cmd-timeout" class="form-control" min="1" value="60">
+                    </div>
+                    <div class="form-group">
+                        <label for="cmd-risk-level">风险等级 *</label>
+                        <select id="cmd-risk-level" class="form-control">
+                            <option value="read">只读</option>
+                            <option value="write_low">低风险写入</option>
+                            <option value="write_high">高风险写入</option>
+                            <option value="admin">管理员</option>
+                        </select>
+                    </div>
+                </div>
                 
                 <!-- Prompt Type Fields -->
                 <div id="prompt-fields">
@@ -406,6 +417,11 @@ textarea.form-control {
                         <label for="cmd-system-prompt">系统提示词（覆盖）</label>
                         <textarea id="cmd-system-prompt" class="form-control"
                                   placeholder="可选，覆盖模板的系统提示词"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="cmd-user-prompt-template">用户 Prompt 模板</label>
+                        <textarea id="cmd-user-prompt-template" class="form-control"
+                                  placeholder="例如：请分析 {symbol} 的当前状态"></textarea>
                     </div>
                 </div>
                 
@@ -426,11 +442,6 @@ textarea.form-control {
                         </div>
                     </div>
                     <div class="form-group">
-                        <label for="cmd-api-payload">请求体模板 (JSON)</label>
-                        <textarea id="cmd-api-payload" class="form-control"
-                                  placeholder='{"key": "{{param_name}}"}'></textarea>
-                    </div>
-                    <div class="form-group">
                         <label for="cmd-jq-filter">JQ过滤器</label>
                         <input type="text" id="cmd-jq-filter" class="form-control"
                                placeholder="例如: .data.regime">
@@ -439,34 +450,22 @@ textarea.form-control {
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="cmd-output-format">输出格式</label>
-                        <select id="cmd-output-format" class="form-control">
-                            <option value="text">纯文本</option>
-                            <option value="json">JSON</option>
-                            <option value="table">表格</option>
-                            <option value="markdown">Markdown</option>
-                        </select>
+                        <label for="cmd-provider-name">默认 Provider</label>
+                        <input type="text" id="cmd-provider-name" class="form-control"
+                               placeholder="例如: openai">
                     </div>
                     <div class="form-group">
-                        <label for="cmd-sort-order">排序</label>
-                        <input type="number" id="cmd-sort-order" class="form-control" value="0">
+                        <label for="cmd-model-name">默认 Model</label>
+                        <input type="text" id="cmd-model-name" class="form-control"
+                               placeholder="例如: gpt-4.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="cmd-tags">标签（逗号分隔）</label>
+                        <input type="text" id="cmd-tags" class="form-control"
+                               placeholder="例如: macro,read-only">
                     </div>
                 </div>
-                
-                <div class="form-group">
-                    <label for="cmd-output-template">输出模板 (Jinja2)</label>
-                    <textarea id="cmd-output-template" class="form-control"
-                              placeholder="{{ data.field_name }}或自定义格式"></textarea>
-                </div>
-                
-                <div class="form-group">
-                    <label for="cmd-parameters">交互参数定义 (JSON)</label>
-                    <textarea id="cmd-parameters" class="form-control" rows="5">[]</textarea>
-                    <div class="form-hint">
-                        示例: [{"name": "symbol", "type": "text", "prompt": "股票代码", "required": true}]
-                    </div>
-                </div>
-                
+
                 <div class="form-row">
                     <div class="form-group">
                         <label class="status-toggle">
@@ -477,11 +476,32 @@ textarea.form-control {
                     </div>
                     <div class="form-group">
                         <label class="status-toggle">
-                            <input type="checkbox" id="cmd-requires-auth" checked>
+                            <input type="checkbox" id="cmd-requires-mcp" checked>
                             <span class="toggle-slider"></span>
                         </label>
-                        <span style="margin-left: 8px;">需要登录</span>
+                        <span style="margin-left: 8px;">需要 MCP 权限</span>
                     </div>
+                    <div class="form-group">
+                        <label class="status-toggle">
+                            <input type="checkbox" id="cmd-enabled-in-terminal" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span style="margin-left: 8px;">在终端显示</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="cmd-parameters">交互参数定义 (JSON)</label>
+                    <textarea id="cmd-parameters" class="form-control" rows="5">[]</textarea>
+                    <div class="form-hint">
+                        示例: [{"name": "symbol", "type": "text", "prompt": "股票代码", "required": true}]
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="cmd-response-preview">当前治理摘要</label>
+                    <textarea id="cmd-response-preview" class="form-control" rows="4" readonly
+                              placeholder="保存前会根据表单生成治理摘要"></textarea>
                 </div>
             </form>
         </div>
@@ -506,7 +526,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadCommands() {
     try {
-        const response = await fetch('/api/prompt/terminal/commands/');
+        const response = await fetch('/api/terminal/commands/');
         const data = await response.json();
         commands = data.results || [];
         renderCommands();
@@ -557,13 +577,13 @@ function renderCommands() {
                 <span class="command-name">${cmd.name}</span>
                 <span class="command-type-badge ${cmd.command_type}">${cmd.command_type}</span>
             </div>
-            <div class="command-description">${cmd.description || cmd.display_name}</div>
+            <div class="command-description">${cmd.description || ''}</div>
             <div class="command-meta">
                 <div class="command-meta-item">
                     <span>📁 ${cmd.category}</span>
                 </div>
                 <div class="command-meta-item">
-                    <span>📊 ${cmd.usage_count || 0} 次调用</span>
+                    <span>⚠️ ${cmd.risk_level || 'read'}</span>
                 </div>
                 <div class="command-meta-item">
                     <span>${cmd.is_active ? '✅ 启用' : '⏸️ 禁用'}</span>
@@ -582,9 +602,13 @@ function openCreateModal() {
     document.getElementById('command-form').reset();
     document.getElementById('command-id').value = '';
     document.getElementById('cmd-is-active').checked = true;
-    document.getElementById('cmd-requires-auth').checked = true;
+    document.getElementById('cmd-requires-mcp').checked = true;
+    document.getElementById('cmd-enabled-in-terminal').checked = true;
+    document.getElementById('cmd-timeout').value = 60;
+    document.getElementById('cmd-risk-level').value = 'read';
     document.getElementById('cmd-parameters').value = '[]';
     toggleTypeFields();
+    updateGovernancePreview();
     document.getElementById('command-modal').classList.add('active');
 }
 
@@ -605,57 +629,88 @@ function editCommand(id) {
     document.getElementById('modal-title').textContent = '编辑命令';
     document.getElementById('command-id').value = cmd.id;
     document.getElementById('cmd-name').value = cmd.name;
-    document.getElementById('cmd-display-name').value = cmd.display_name || '';
     document.getElementById('cmd-type').value = cmd.command_type;
     document.getElementById('cmd-category').value = cmd.category || 'general';
     document.getElementById('cmd-description').value = cmd.description || '';
-    document.getElementById('cmd-output-format').value = cmd.output_format || 'text';
-    document.getElementById('cmd-sort-order').value = cmd.sort_order || 0;
+    document.getElementById('cmd-timeout').value = cmd.timeout || 60;
+    document.getElementById('cmd-risk-level').value = cmd.risk_level || 'read';
     document.getElementById('cmd-is-active').checked = cmd.is_active;
-    document.getElementById('cmd-requires-auth').checked = cmd.requires_auth;
+    document.getElementById('cmd-requires-mcp').checked = cmd.requires_mcp;
+    document.getElementById('cmd-enabled-in-terminal').checked = cmd.enabled_in_terminal;
+    document.getElementById('cmd-provider-name').value = cmd.provider_name || '';
+    document.getElementById('cmd-model-name').value = cmd.model_name || '';
+    document.getElementById('cmd-tags').value = (cmd.tags || []).join(', ');
     document.getElementById('cmd-parameters').value = JSON.stringify(cmd.parameters || [], null, 2);
-    
+    document.getElementById('cmd-prompt-template').value = cmd.prompt_template || '';
+    document.getElementById('cmd-system-prompt').value = cmd.system_prompt || '';
+    document.getElementById('cmd-user-prompt-template').value = cmd.user_prompt_template || '';
+    document.getElementById('cmd-api-endpoint').value = cmd.api_endpoint || '';
+    document.getElementById('cmd-api-method').value = cmd.api_method || 'GET';
+    document.getElementById('cmd-jq-filter').value = cmd.response_jq_filter || '';
+
     toggleTypeFields();
-    
-    // Load other fields based on type (would need to fetch full details)
+    updateGovernancePreview();
     document.getElementById('command-modal').classList.add('active');
+}
+
+function parseTags(value) {
+    return (value || '')
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(Boolean);
+}
+
+function updateGovernancePreview() {
+    const preview = document.getElementById('cmd-response-preview');
+    const summary = {
+        command_type: document.getElementById('cmd-type').value,
+        risk_level: document.getElementById('cmd-risk-level').value,
+        requires_mcp: document.getElementById('cmd-requires-mcp').checked,
+        enabled_in_terminal: document.getElementById('cmd-enabled-in-terminal').checked,
+        timeout: parseInt(document.getElementById('cmd-timeout').value, 10) || 60,
+        tags: parseTags(document.getElementById('cmd-tags').value),
+    };
+    preview.value = JSON.stringify(summary, null, 2);
 }
 
 async function saveCommand() {
     const id = document.getElementById('command-id').value;
-    const data = {
-        name: document.getElementById('cmd-name').value,
-        display_name: document.getElementById('cmd-display-name').value,
-        command_type: document.getElementById('cmd-type').value,
-        category: document.getElementById('cmd-category').value || 'general',
-        description: document.getElementById('cmd-description').value,
-        output_format: document.getElementById('cmd-output-format').value,
-        sort_order: parseInt(document.getElementById('cmd-sort-order').value) || 0,
-        is_active: document.getElementById('cmd-is-active').checked,
-        requires_auth: document.getElementById('cmd-requires-auth').checked,
-        parameters: JSON.parse(document.getElementById('cmd-parameters').value || '[]'),
-    };
-    
-    // Add type-specific fields
-    if (data.command_type === 'prompt') {
-        const templateId = document.getElementById('cmd-prompt-template').value;
-        if (templateId) data.prompt_template = parseInt(templateId);
-        data.system_prompt_override = document.getElementById('cmd-system-prompt').value;
-    } else {
-        data.api_endpoint = document.getElementById('cmd-api-endpoint').value;
-        data.api_method = document.getElementById('cmd-api-method').value;
-        try {
-            data.api_payload_template = JSON.parse(document.getElementById('cmd-api-payload').value || '{}');
-        } catch (e) {
-            data.api_payload_template = {};
-        }
-        data.response_jq_filter = document.getElementById('cmd-jq-filter').value;
-    }
-    
-    data.output_template = document.getElementById('cmd-output-template').value;
-    
     try {
-        const url = id ? `/api/prompt/terminal/commands/${id}/` : '/api/prompt/terminal/commands/';
+        const parameters = JSON.parse(document.getElementById('cmd-parameters').value || '[]');
+        const data = {
+            name: document.getElementById('cmd-name').value.trim(),
+            command_type: document.getElementById('cmd-type').value,
+            category: document.getElementById('cmd-category').value.trim() || 'general',
+            description: document.getElementById('cmd-description').value,
+            timeout: parseInt(document.getElementById('cmd-timeout').value, 10) || 60,
+            risk_level: document.getElementById('cmd-risk-level').value,
+            requires_mcp: document.getElementById('cmd-requires-mcp').checked,
+            enabled_in_terminal: document.getElementById('cmd-enabled-in-terminal').checked,
+            is_active: document.getElementById('cmd-is-active').checked,
+            provider_name: document.getElementById('cmd-provider-name').value.trim(),
+            model_name: document.getElementById('cmd-model-name').value.trim(),
+            tags: parseTags(document.getElementById('cmd-tags').value),
+            parameters: parameters,
+            prompt_template: null,
+            system_prompt: '',
+            user_prompt_template: '',
+            api_endpoint: '',
+            api_method: 'GET',
+            response_jq_filter: '',
+        };
+
+        if (data.command_type === 'prompt') {
+            const templateId = document.getElementById('cmd-prompt-template').value;
+            data.prompt_template = templateId ? parseInt(templateId, 10) : null;
+            data.system_prompt = document.getElementById('cmd-system-prompt').value;
+            data.user_prompt_template = document.getElementById('cmd-user-prompt-template').value;
+        } else {
+            data.api_endpoint = document.getElementById('cmd-api-endpoint').value.trim();
+            data.api_method = document.getElementById('cmd-api-method').value;
+            data.response_jq_filter = document.getElementById('cmd-jq-filter').value.trim();
+        }
+
+        const url = id ? `/api/terminal/commands/${id}/` : '/api/terminal/commands/';
         const method = id ? 'PUT' : 'POST';
         
         const response = await fetch(url, {
@@ -684,7 +739,7 @@ async function deleteCommand(id) {
     if (!confirm('确定要删除此命令吗？')) return;
     
     try {
-        const response = await fetch(`/api/prompt/terminal/commands/${id}/`, {
+        const response = await fetch(`/api/terminal/commands/${id}/`, {
             method: 'DELETE',
             headers: {
                 'X-CSRFToken': getCsrfToken()
@@ -716,5 +771,11 @@ function showToast(message, type = 'info') {
         alert(message);
     }
 }
+
+document.addEventListener('input', (event) => {
+    if (event.target.closest('#command-form')) {
+        updateGovernancePreview();
+    }
+});
 </script>
 {% endblock %}

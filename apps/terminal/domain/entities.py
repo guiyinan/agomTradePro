@@ -16,6 +16,21 @@ class CommandType(Enum):
     API = 'api'        # 调用系统API
 
 
+class TerminalRiskLevel(str, Enum):
+    """终端命令风险等级"""
+    READ = 'read'
+    WRITE_LOW = 'write_low'
+    WRITE_HIGH = 'write_high'
+    ADMIN = 'admin'
+
+
+class TerminalMode(str, Enum):
+    """终端操作模式"""
+    READONLY = 'readonly'
+    CONFIRM_EACH = 'confirm_each'
+    AUTO_CONFIRM = 'auto_confirm'
+
+
 class ParameterType(Enum):
     """参数类型枚举"""
     TEXT = 'text'
@@ -91,6 +106,11 @@ class TerminalCommand:
     provider_name: Optional[str] = None
     model_name: Optional[str] = None
     
+    # 治理配置
+    risk_level: TerminalRiskLevel = TerminalRiskLevel.READ
+    requires_mcp: bool = True
+    enabled_in_terminal: bool = True
+
     # 元数据
     category: str = 'general'
     tags: list[str] = field(default_factory=list)
@@ -100,6 +120,8 @@ class TerminalCommand:
     def __post_init__(self):
         if isinstance(self.command_type, str):
             self.command_type = CommandType(self.command_type)
+        if isinstance(self.risk_level, str):
+            self.risk_level = TerminalRiskLevel(self.risk_level)
     
     @property
     def is_prompt_type(self) -> bool:
@@ -142,6 +164,9 @@ class TerminalCommand:
             'timeout': self.timeout,
             'provider_name': self.provider_name,
             'model_name': self.model_name,
+            'risk_level': self.risk_level.value,
+            'requires_mcp': self.requires_mcp,
+            'enabled_in_terminal': self.enabled_in_terminal,
             'category': self.category,
             'tags': self.tags,
         }
@@ -149,6 +174,7 @@ class TerminalCommand:
     @classmethod
     def from_dict(cls, data: dict) -> 'TerminalCommand':
         params = [CommandParameter.from_dict(p) for p in data.get('parameters', [])]
+        risk_level_val = data.get('risk_level', 'read')
         return cls(
             id=data['id'],
             name=data['name'],
@@ -165,6 +191,27 @@ class TerminalCommand:
             timeout=data.get('timeout', 60),
             provider_name=data.get('provider_name'),
             model_name=data.get('model_name'),
+            risk_level=TerminalRiskLevel(risk_level_val) if risk_level_val else TerminalRiskLevel.READ,
+            requires_mcp=data.get('requires_mcp', True),
+            enabled_in_terminal=data.get('enabled_in_terminal', True),
             category=data.get('category', 'general'),
             tags=data.get('tags', []),
         )
+
+
+@dataclass
+class TerminalAuditEntry:
+    """终端审计日志条目"""
+    user_id: Optional[int]
+    username: str
+    session_id: str
+    command_name: str
+    risk_level: str
+    mode: str
+    params_summary: str = ''
+    confirmation_required: bool = False
+    confirmation_status: str = 'not_required'  # confirmed/cancelled/not_required/expired
+    result_status: str = 'pending'  # success/error/blocked/pending
+    error_message: str = ''
+    duration_ms: int = 0
+    created_at: Optional[datetime] = None
