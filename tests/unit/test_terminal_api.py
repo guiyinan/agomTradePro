@@ -196,6 +196,8 @@ class TestCapabilitiesEndpoint:
         assert 'available_modes' in data
         assert 'mcp_enabled' in data
         assert 'max_risk_level' in data
+        assert 'answer_chain_enabled' in data
+        assert 'answer_chain_visibility' in data
 
 
 # ========== Execute Endpoint Tests ==========
@@ -321,11 +323,13 @@ class TestRouteContracts:
 
     def test_terminal_chat(self, api_client, staff_user):
         api_client.force_authenticate(user=staff_user)
-        with patch('apps.terminal.interface.api_views.TerminalChatRouterService.route_message') as mock_route:
+        with patch('apps.terminal.interface.api_views.CapabilityRoutingFacade.route') as mock_route:
             mock_route.return_value = {
+                'decision': 'chat',
                 'reply': 'ok',
                 'session_id': 'sess-1',
                 'metadata': {'route': 'chat'},
+                'requires_confirmation': False,
             }
             resp = api_client.post('/api/terminal/chat/', {
                 'message': 'hello',
@@ -342,15 +346,16 @@ class TestTerminalChatRouting:
 
     def test_terminal_chat_routes_system_status(self, api_client, staff_user):
         api_client.force_authenticate(user=staff_user)
-        with patch('apps.terminal.interface.api_views.TerminalChatRouterService.route_message') as mock_route:
+        with patch('apps.terminal.interface.api_views.CapabilityRoutingFacade.route') as mock_route:
             mock_route.return_value = {
+                'decision': 'capability',
+                'selected_capability_key': 'builtin.system_status',
                 'reply': '## System Readiness: `ok`',
                 'session_id': 'sess-status',
                 'metadata': {
-                    'route': 'system_status',
-                    'intent': 'system_status',
-                    'intent_confidence': 0.96,
+                    'route': 'capability',
                 },
+                'requires_confirmation': False,
             }
             resp = api_client.post('/api/terminal/chat/', {
                 'message': '目前系统是什么状态',
@@ -360,20 +365,20 @@ class TestTerminalChatRouting:
 
         assert resp.status_code == 200
         data = resp.json()
-        assert data['metadata']['route'] == 'system_status'
+        assert data['metadata']['route'] == 'capability'
         assert 'System Readiness' in data['reply']
 
     def test_terminal_chat_routes_regular_chat(self, api_client, staff_user):
         api_client.force_authenticate(user=staff_user)
-        with patch('apps.terminal.interface.api_views.TerminalChatRouterService.route_message') as mock_route:
+        with patch('apps.terminal.interface.api_views.CapabilityRoutingFacade.route') as mock_route:
             mock_route.return_value = {
+                'decision': 'chat',
                 'reply': 'general answer',
                 'session_id': 'sess-chat',
                 'metadata': {
                     'route': 'chat',
-                    'intent': 'chat',
-                    'intent_confidence': 0.21,
                 },
+                'requires_confirmation': False,
             }
             resp = api_client.post('/api/terminal/chat/', {
                 'message': 'hello there',
@@ -388,16 +393,16 @@ class TestTerminalChatRouting:
 
     def test_terminal_chat_returns_route_confirmation_payload(self, api_client, staff_user):
         api_client.force_authenticate(user=staff_user)
-        with patch('apps.terminal.interface.api_views.TerminalChatRouterService.route_message') as mock_route:
+        with patch('apps.terminal.interface.api_views.CapabilityRoutingFacade.route') as mock_route:
             mock_route.return_value = {
+                'decision': 'ask_confirmation',
+                'selected_capability_key': 'builtin.system_status',
                 'reply': 'detected possible system status intent',
                 'session_id': 'sess-suggest',
                 'metadata': {
                     'route': 'intent_suggestion',
-                    'intent': 'system_status',
-                    'intent_confidence': 0.72,
                 },
-                'route_confirmation_required': True,
+                'requires_confirmation': True,
                 'suggested_command': '/status',
                 'suggested_intent': 'system_status',
                 'suggestion_prompt': 'Type Y to execute /status',

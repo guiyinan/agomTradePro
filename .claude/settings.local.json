@@ -222,7 +222,20 @@
       "mcp__agomsaaf_local__get_sentiment_index",
       "Bash(cd D:/githv/agomSAAF && mkdir -p apps/agent_runtime/domain apps/agent_runtime/application apps/agent_runtime/infrastructure apps/agent_runtime/interface apps/agent_runtime/migrations)",
       "Bash(python -c \":*)",
-      "Bash(CSRF=\"x3r18qmciLZ1r8XJeLdRZIvT8YkBeBWmKfC6ufPHy24MIAWZYJxLFnLpnkG9tdy0\")"
+      "Bash(CSRF=\"x3r18qmciLZ1r8XJeLdRZIvT8YkBeBWmKfC6ufPHy24MIAWZYJxLFnLpnkG9tdy0\")",
+      "Bash(gh run:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:pypi.org)",
+      "Bash(winget install:*)",
+      "Bash(GH=/c/Users/muku/gh/bin/gh.exe)",
+      "Bash($GH auth:*)",
+      "Bash($GH workflow:*)",
+      "Bash($GH run:*)",
+      "Bash(/c/Users/muku/gh/bin/gh.exe run:*)",
+      "Bash(PATH=\"$PATH:/c/Users/muku/gh/bin\")",
+      "Bash(AGOMSAAF_ENCRYPTION_KEY=\"\" python -m pytest tests/integration/decision_platform/test_ops_modernized_flows.py::TestOpsModernizedFlows::test_ai_provider_edit_form_updates_without_admin -x --tb=short)",
+      "Bash(gh workflow:*)",
+      "Bash(PATH=$PATH:/c/Users/muku/gh/bin)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -912,11 +912,66 @@ class AgomTerminal {
             meta.style.cssText = 'color: var(--terminal-text-dim); font-size: 11px; margin-top: 4px; padding-left: 16px;';
             meta.innerHTML = `└─ ${metadata.provider || 'AI'} | ${metadata.model || 'unknown'}${metadata.tokens ? ` | ${metadata.tokens} tokens` : ''}`;
             container.appendChild(meta);
+
+            if (metadata.answer_chain) {
+                const chain = this.renderAnswerChain(metadata.answer_chain);
+                if (chain) {
+                    container.appendChild(chain);
+                }
+            }
         }
 
         this.elements.output.appendChild(container);
         this.scrollToBottom();
         this.renderRichContent(container);
+    }
+
+    /**
+     * Render collapsible answer chain panel.
+     */
+    renderAnswerChain(answerChain) {
+        if (!answerChain || !Array.isArray(answerChain.steps) || answerChain.steps.length === 0) {
+            return null;
+        }
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'terminal-answer-chain';
+
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'terminal-answer-chain-toggle';
+        toggle.textContent = answerChain.label || 'View answer chain';
+
+        const panel = document.createElement('div');
+        panel.className = 'terminal-answer-chain-panel';
+        panel.hidden = true;
+
+        const steps = answerChain.steps.map((step, index) => {
+            const details = Array.isArray(step.technical_details) && step.technical_details.length > 0
+                ? `<div class="terminal-answer-chain-tech">${step.technical_details.map((item) => `<code>${this.escapeHtml(item)}</code>`).join('')}</div>`
+                : '';
+            return `
+                <div class="terminal-answer-chain-step">
+                    <div class="terminal-answer-chain-stepno">${index + 1}</div>
+                    <div class="terminal-answer-chain-stepbody">
+                        <div class="terminal-answer-chain-title">${this.escapeHtml(step.title || 'Step')}</div>
+                        <div class="terminal-answer-chain-summary">${this.escapeHtml(step.summary || '')}</div>
+                        <div class="terminal-answer-chain-source">${this.escapeHtml(step.source || '')}</div>
+                        ${details}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        panel.innerHTML = steps;
+        toggle.addEventListener('click', () => {
+            panel.hidden = !panel.hidden;
+            toggle.classList.toggle('expanded', !panel.hidden);
+        });
+
+        wrapper.appendChild(toggle);
+        wrapper.appendChild(panel);
+        return wrapper;
     }
 
     /**
@@ -1073,45 +1128,37 @@ class AgomTerminal {
             const checks = data.checks || {};
             const overallStatus = data.status || (response.ok ? 'ok' : 'error');
 
-            const statusColor = overallStatus === 'ok'
-                ? 'var(--terminal-green)'
-                : 'var(--terminal-red)';
-
             const renderCheck = (name, result) => {
                 const checkStatus = result?.status || 'unknown';
-                const colorMap = {
-                    ok: 'var(--terminal-green)',
-                    warning: 'var(--terminal-yellow)',
-                    skipped: 'var(--terminal-blue)',
-                    error: 'var(--terminal-red)',
-                    unknown: 'var(--terminal-text-dim)',
-                };
                 const detail = result?.error
                     || result?.reason
                     || (result?.workers ? `${result.workers} workers` : '')
                     || (result?.empty_tables ? `empty: ${result.empty_tables.join(', ')}` : '')
                     || '';
-
-                return `
-  ${name.padEnd(14)} <span style="color: ${colorMap[checkStatus] || colorMap.unknown};">${checkStatus}</span>${detail ? ` <span style="color: var(--terminal-text-dim);">(${this.escapeHtml(detail)})</span>` : ''}`;
+                return `- **${name}**: \`${checkStatus}\`${detail ? ` (${detail})` : ''}`;
             };
 
-            this.printOutput(`
-<div style="padding: 8px 0;">
-<strong style="color: ${statusColor};">System Readiness: ${this.escapeHtml(overallStatus.toUpperCase())}</strong>
+            const reply = [
+                `## System Readiness: \`${overallStatus.toUpperCase()}\``,
+                '- **API Liveness**: `ok`',
+                renderCheck('Database', checks.database),
+                renderCheck('Redis', checks.redis),
+                renderCheck('Celery', checks.celery),
+                renderCheck('Critical Data', checks.critical_data),
+                `- **Provider**: \`${this.currentProvider || 'Not selected'}\``,
+                `- **Model**: \`${this.currentModel || 'Not selected'}\``,
+                `- **Session ID**: \`${this.sessionId || 'New session'}\``,
+                `- **Messages**: \`${this.messageCount}\``,
+                `- **Tokens Used**: \`${this.tokenCount}\``,
+                `- **Timestamp**: \`${data.timestamp || '-'}\``,
+            ].join('\n');
 
-  API Liveness:   <span style="color: var(--terminal-green);">ok</span>
-${renderCheck('Database:', checks.database)}
-${renderCheck('Redis:', checks.redis)}
-${renderCheck('Celery:', checks.celery)}
-${renderCheck('Critical Data:', checks.critical_data)}
-  Provider:       <span style="color: var(--terminal-cyan);">${this.currentProvider || 'Not selected'}</span>
-  Model:          <span style="color: var(--terminal-cyan);">${this.currentModel || 'Not selected'}</span>
-  Session ID:     <span style="color: var(--terminal-text-dim);">${this.sessionId || 'New session'}</span>
-  Messages:       <span style="color: var(--terminal-yellow);">${this.messageCount}</span>
-  Tokens Used:    <span style="color: var(--terminal-purple);">${this.tokenCount}</span>
-  Timestamp:      <span style="color: var(--terminal-text-dim);">${this.escapeHtml(data.timestamp || '-')}</span>
-</div>`);
+            this.printAIResponse(reply, {
+                provider: 'terminal',
+                model: 'builtin-status',
+                route: 'system_status',
+                answer_chain: this.buildLocalAnswerChain('system_status', { checks }),
+            });
         } catch (error) {
             this.printError('Failed to fetch system status');
         }
@@ -1132,24 +1179,20 @@ ${renderCheck('Critical Data:', checks.critical_data)}
             const regime = regimeData.dominant_regime || regimeData.regime || 'Unknown';
             const confidence = regimeData.confidence;
             
-            const regimeColors = {
-                'Recovery': 'var(--terminal-green)',
-                'Overheat': 'var(--terminal-red)',
-                'Stagflation': 'var(--terminal-yellow)',
-                'Deflation': 'var(--terminal-blue)',
-            };
-            
-            const color = regimeColors[regime] || 'var(--terminal-text)';
-            
-            this.printOutput(`
-<div style="padding: 8px 0;">
-<strong style="color: var(--terminal-cyan);">Current Market Regime</strong>
+            const reply = [
+                '## Current Market Regime',
+                `- **Regime**: \`${regime}\``,
+                `- **Confidence**: \`${confidence ? (confidence * 100).toFixed(1) + '%' : 'N/A'}\``,
+                `- **Source**: \`${regimeData.source || 'N/A'}\``,
+                `- **Observed**: \`${regimeData.observed_at || 'N/A'}\``,
+            ].join('\n');
 
-  Regime:         <span style="color: ${color}; font-weight: bold;">${regime}</span>
-  Confidence:     <span style="color: var(--terminal-cyan);">${confidence ? (confidence * 100).toFixed(1) + '%' : 'N/A'}</span>
-  Source:         <span style="color: var(--terminal-text-dim);">${regimeData.source || 'N/A'}</span>
-  Observed:       <span style="color: var(--terminal-text-dim);">${regimeData.observed_at || 'N/A'}</span>
-</div>`);
+            this.printAIResponse(reply, {
+                provider: 'terminal',
+                model: 'builtin-regime',
+                route: 'market_regime',
+                answer_chain: this.buildLocalAnswerChain('market_regime', { regimeData }),
+            });
         } catch (error) {
             this.printError('Failed to fetch regime data');
         }
@@ -1558,6 +1601,73 @@ ${renderCheck('Critical Data:', checks.critical_data)}
      */
     focusInput() {
         this.elements.input.focus();
+    }
+
+    canShowAnswerChain() {
+        return Boolean(this.userCapabilities?.answer_chain_enabled);
+    }
+
+    answerChainVisibility() {
+        return this.userCapabilities?.answer_chain_visibility || 'masked';
+    }
+
+    buildLocalAnswerChain(type, payload = {}) {
+        if (!this.canShowAnswerChain()) {
+            return null;
+        }
+
+        const visibility = this.answerChainVisibility();
+        if (type === 'system_status') {
+            const checks = payload.checks || {};
+            const steps = [
+                {
+                    title: 'Readiness request',
+                    summary: 'Fetched current readiness checks from the running system.',
+                    source: 'GET /api/ready/',
+                },
+                {
+                    title: 'Health aggregation',
+                    summary: 'Combined database, cache, worker, and critical data readiness into one status view.',
+                    source: 'Terminal status command',
+                },
+            ];
+            if (visibility === 'technical') {
+                steps[1].technical_details = [
+                    `checks.database.status=${checks.database?.status || 'unknown'}`,
+                    `checks.redis.status=${checks.redis?.status || 'unknown'}`,
+                    `checks.celery.status=${checks.celery?.status || 'unknown'}`,
+                    `checks.critical_data.status=${checks.critical_data?.status || 'unknown'}`,
+                ];
+            }
+            return { label: 'View answer chain', visibility, steps };
+        }
+
+        if (type === 'market_regime') {
+            const regimeData = payload.regimeData || {};
+            const steps = [
+                {
+                    title: 'Regime request',
+                    summary: 'Fetched the current market regime snapshot from the system.',
+                    source: 'GET /api/regime/current/',
+                },
+                {
+                    title: 'Answer assembly',
+                    summary: 'Prepared a concise regime summary for terminal display.',
+                    source: 'Terminal regime command',
+                },
+            ];
+            if (visibility === 'technical') {
+                steps[1].technical_details = [
+                    `dominant_regime=${regimeData.dominant_regime || regimeData.regime || 'Unknown'}`,
+                    `confidence=${regimeData.confidence ?? 'N/A'}`,
+                    `source=${regimeData.source || 'N/A'}`,
+                    `observed_at=${regimeData.observed_at || 'N/A'}`,
+                ];
+            }
+            return { label: 'View answer chain', visibility, steps };
+        }
+
+        return null;
     }
 
     /**

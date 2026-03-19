@@ -5,7 +5,7 @@ Django Admin配置。
 """
 
 from django.contrib import admin
-from ..infrastructure.models import TerminalAuditLogORM, TerminalCommandORM
+from ..infrastructure.models import TerminalAuditLogORM, TerminalCommandORM, TerminalRuntimeSettingsORM
 
 
 @admin.register(TerminalCommandORM)
@@ -67,4 +67,26 @@ class TerminalAuditLogAdmin(admin.ModelAdmin):
         return False
 
     def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(TerminalRuntimeSettingsORM)
+class TerminalRuntimeSettingsAdmin(admin.ModelAdmin):
+    """Terminal runtime settings admin."""
+
+    list_display = ['singleton_key', 'answer_chain_enabled', 'updated_at']
+    readonly_fields = ['singleton_key', 'created_at', 'updated_at']
+    fieldsets = (
+        ('显示开关', {
+            'fields': ('singleton_key', 'answer_chain_enabled')
+        }),
+        ('时间', {
+            'fields': ('created_at', 'updated_at')
+        }),
+    )
+
+    def has_add_permission(self, request):
+        return not TerminalRuntimeSettingsORM._default_manager.exists()
+
+    def has_delete_permission(self, request, obj=None):
         return False

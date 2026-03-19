@@ -42,6 +42,7 @@
 | [asset_analysis_framework.md](architecture/asset_analysis_framework.md) | 资产分析框架设计 | 完整 |
 | [project_structure.md](architecture/project_structure.md) | 项目结构说明 | 完整 |
 | [ai_module_boundaries.md](architecture/ai_module_boundaries.md) | AI 模块边界与依赖 | ✅ 2026-03-18 新增 |
+| [ai-capability-architecture-review-2026-03-19.md](architecture/ai-capability-architecture-review-2026-03-19.md) | AI Capability Catalog 架构评估 | ✅ 2026-03-19 新增 |
 | [simulated_trading_design.md](architecture/simulated_trading_design.md) | 模拟盘交易设计 | 完整 |
 | [strategy_system_design.md](architecture/strategy_system_design.md) | 策略系统设计 | 完整 |
 | [frp-vps-local-runtime-architecture.md](architecture/frp-vps-local-runtime-architecture.md) | 三机架构方案：VPS FRP 转发 + 本地 Docker + C 端 AI Agent/MCP | ✅ 2026-03-08 新增 |
@@ -184,6 +185,7 @@
 | [rotation/rotation-guide.md](modules/rotation/rotation-guide.md) | Rotation 模块指南 | 完整 |
 | [hedge/hedge-guide.md](modules/hedge/hedge-guide.md) | Hedge 模块指南 | 完整 |
 | [terminal/terminal-guide.md](modules/terminal/terminal-guide.md) | Terminal 模块指南（终端 AI CLI） | ✅ 2026-03-17 新增 |
+| [ai_capability/ai-capability-guide.md](modules/ai_capability/ai-capability-guide.md) | **AI Capability Catalog 模块指南** | ✅ 2026-03-19 新增 |
 | [simulated_trading/daily-inspection.md](modules/simulated_trading/daily-inspection.md) | 模拟盘日更巡检 | ✅ 新增 |
 | [strategy/position-management.md](modules/strategy/position-management.md) | 策略仓位管理 | ✅ 新增 |
 
@@ -224,9 +226,9 @@
 
 ## 项目状态
 
-**系统版本**: AgomSAAF V3.5
+**系统版本**: AgomSAAF V3.6
 
-**业务模块**: 32个
+**业务模块**: 33个
 
 **完成度**: 持续迭代（请以里程碑文档与代码状态为准）
 
@@ -263,14 +265,26 @@
 - `sector` - 板块分析
 - `sentiment` - 舆情情感分析
 
-#### AI 智能模块 (7个)
-- `alpha` - Alpha 选股信号（Qlib 集成）
+#### AI 智能模块 (8个)
+- `ai_provider` - AI 服务商管理
+- `prompt` - AI Prompt 模板
+- `alpha` - Alpha AI 选股信号（Qlib 集成）
 - `alpha_trigger` - Alpha 离散触发
 - `beta_gate` - Beta 闸门
 - `decision_rhythm` - 决策频率约束
 - `factor` - 因子管理
 - `rotation` - 板块轮动
 - `hedge` - 对冲策略
+- `terminal` - 终端 CLI（AI 交互界面）
+- `agent_runtime` - Agent 运行时（Terminal AI 后端）
++ `ai_capability` - **系统级 AI 能力目录与统一路由** ✅ 2026-03-19 新增
+
+- `share` - 分享功能
+- `task_monitor` - 任务监控
+- `dashboard` - 仪表盘
+    - `events` - 事件总线
+    - `rotation` - 板块轮动
+- - `hedge` - 对冲策略
 
 #### 风控与账户模块 (5个)
 - `account` - 账户与持仓管理
@@ -347,7 +361,18 @@
 
 ---
 
-## 最近更新 (2026-02-20 ~ 2026-03-18)
+## 最近更新 (2026-02-20 ~ 2026-03-19)
+
+### 2026-03-19
+- ✅ **AI Capability Catalog 模块（V3.6）**
+  - 新增独立 `apps/ai_capability/` 模块（系统级 AI 能力目录）
+  - 四层架构完整实现（Domain/Application/Infrastructure/Interface）
+  - 支持四种能力来源：builtin/terminal_command/mcp_tool/api
+  - 统一路由 API：POST /api/ai-capability/route/
+  - 自动采集全站 API 并进行安全分层（read_api/write_api/unsafe_api）
+  - 三阶段路由：Retrieval → Decision → Dispatch
+  - 完整 Admin 管理、审计日志、同步命令
+  - 新增架构评估文档
 
 ### 2026-03-18
 - ✅ **P1 真相对齐完成**

@@ -156,6 +156,8 @@ class TerminalCapabilitiesSerializer(serializers.Serializer):
     current_mode = serializers.CharField()
     max_risk_level = serializers.CharField()
     reason_if_locked = serializers.CharField(allow_blank=True, allow_null=True, default=None)
+    answer_chain_enabled = serializers.BooleanField(default=False)
+    answer_chain_visibility = serializers.CharField(default='masked')
 
 
 class TerminalAuditEntrySerializer(serializers.Serializer):

@@ -45,6 +45,8 @@ class TerminalChatRouterService:
         provider_ref: Optional[str],
         model: Optional[str],
         context: Optional[dict[str, Any]] = None,
+        answer_chain_enabled: bool = False,
+        user_is_admin: bool = False,
     ) -> dict[str, Any]:
         resolved_session_id = session_id or str(uuid.uuid4())
         decision = self._classify_intent(
@@ -57,12 +59,16 @@ class TerminalChatRouterService:
             return self._build_system_status_response(
                 session_id=resolved_session_id,
                 decision=decision,
+                answer_chain_enabled=answer_chain_enabled,
+                user_is_admin=user_is_admin,
             )
 
         if decision.intent == "market_regime" and decision.confidence >= self.HIGH_CONFIDENCE:
             return self._build_regime_response(
                 session_id=resolved_session_id,
                 decision=decision,
+                answer_chain_enabled=answer_chain_enabled,
+                user_is_admin=user_is_admin,
             )
 
         if decision.intent != "chat" and decision.confidence >= self.SUGGEST_CONFIDENCE:
@@ -80,6 +86,15 @@ class TerminalChatRouterService:
                     "route": "intent_suggestion",
                     "intent": decision.intent,
                     "intent_confidence": decision.confidence,
+                    **self._metadata_answer_chain(
+                        answer_chain_enabled,
+                        self._build_router_chain(
+                            decision=decision,
+                            route="intent_suggestion",
+                            user_is_admin=user_is_admin,
+                            suggested_command=suggested_command,
+                        ),
+                    ),
                 },
                 "route_confirmation_required": True,
                 "suggested_command": suggested_command,
@@ -97,6 +112,8 @@ class TerminalChatRouterService:
             model=model,
             context=context or {},
             decision=decision,
+            answer_chain_enabled=answer_chain_enabled,
+            user_is_admin=user_is_admin,
         )
 
     def _classify_intent(
@@ -176,6 +193,8 @@ class TerminalChatRouterService:
         *,
         session_id: str,
         decision: TerminalIntentDecision,
+        answer_chain_enabled: bool,
+        user_is_admin: bool,
     ) -> dict[str, Any]:
         checks = run_readiness_checks()
         overall = "ok" if is_healthy(checks) else "error"
@@ -209,6 +228,10 @@ class TerminalChatRouterService:
                 "route": "system_status",
                 "intent": decision.intent,
                 "intent_confidence": decision.confidence,
+                **self._metadata_answer_chain(
+                    answer_chain_enabled,
+                    self._build_system_status_chain(decision, checks, user_is_admin),
+                ),
             },
             "route_confirmation_required": False,
             "suggested_command": None,
@@ -221,6 +244,8 @@ class TerminalChatRouterService:
         *,
         session_id: str,
         decision: TerminalIntentDecision,
+        answer_chain_enabled: bool,
+        user_is_admin: bool,
     ) -> dict[str, Any]:
         regime = resolve_current_regime()
         policy_repo = DjangoPolicyRepository()
@@ -244,6 +269,10 @@ class TerminalChatRouterService:
                 "route": "market_regime",
                 "intent": decision.intent,
                 "intent_confidence": decision.confidence,
+                **self._metadata_answer_chain(
+                    answer_chain_enabled,
+                    self._build_regime_chain(decision, regime, policy, user_is_admin),
+                ),
             },
             "route_confirmation_required": False,
             "suggested_command": None,
@@ -260,6 +289,8 @@ class TerminalChatRouterService:
         model: Optional[str],
         context: dict[str, Any],
         decision: TerminalIntentDecision,
+        answer_chain_enabled: bool,
+        user_is_admin: bool,
     ) -> dict[str, Any]:
         messages = context.get("history", [])
         messages.append({"role": "user", "content": message})
@@ -283,9 +314,125 @@ class TerminalChatRouterService:
                 "route": "chat",
                 "intent": decision.intent,
                 "intent_confidence": decision.confidence,
+                **self._metadata_answer_chain(
+                    answer_chain_enabled,
+                    self._build_chat_chain(
+                        decision=decision,
+                        provider=ai_response.get("provider_used", ""),
+                        model=ai_response.get("model", ""),
+                        user_is_admin=user_is_admin,
+                    ),
+                ),
             },
             "route_confirmation_required": False,
             "suggested_command": None,
             "suggested_intent": None,
             "suggestion_prompt": None,
         }
+
+    def _metadata_answer_chain(self, enabled: bool, chain: Optional[dict[str, Any]]) -> dict[str, Any]:
+        if not enabled or not chain:
+            return {}
+        return {"answer_chain": chain}
+
+    def _build_router_chain(
+        self,
+        *,
+        decision: TerminalIntentDecision,
+        route: str,
+        user_is_admin: bool,
+        suggested_command: str,
+    ) -> dict[str, Any]:
+        steps = [
+            {
+                "title": "Intent classification",
+                "summary": f"Classified input as {decision.intent} with confidence {decision.confidence:.2f}.",
+                "source": "AI intent router",
+            },
+            {
+                "title": "Route suggestion",
+                "summary": f"Suggested command {suggested_command} instead of executing directly.",
+                "source": "Terminal router policy",
+            },
+        ]
+        if user_is_admin:
+            steps[0]["technical_details"] = [
+                f"intent={decision.intent}",
+                f"confidence={decision.confidence:.2f}",
+                f"route={route}",
+            ]
+        return {"label": "Answer chain", "visibility": "technical" if user_is_admin else "masked", "steps": steps}
+
+    def _build_system_status_chain(self, decision, checks, user_is_admin: bool) -> dict[str, Any]:
+        steps = [
+            {
+                "title": "Intent classification",
+                "summary": f"Recognized a system status query with confidence {decision.confidence:.2f}.",
+                "source": "AI intent router",
+            },
+            {
+                "title": "Readiness checks",
+                "summary": "Collected current database, cache, worker, and critical data readiness.",
+                "source": "System readiness service",
+            },
+            {
+                "title": "Answer assembly",
+                "summary": "Summarized the current operational state for terminal display.",
+                "source": "Terminal router",
+            },
+        ]
+        if user_is_admin:
+            steps[1]["technical_details"] = [
+                f"checks.database.status={checks.get('database', {}).get('status', 'unknown')}",
+                f"checks.redis.status={checks.get('redis', {}).get('status', 'unknown')}",
+                f"checks.celery.status={checks.get('celery', {}).get('status', 'unknown')}",
+                f"checks.critical_data.status={checks.get('critical_data', {}).get('status', 'unknown')}",
+            ]
+        return {"label": "Answer chain", "visibility": "technical" if user_is_admin else "masked", "steps": steps}
+
+    def _build_regime_chain(self, decision, regime, policy, user_is_admin: bool) -> dict[str, Any]:
+        steps = [
+            {
+                "title": "Intent classification",
+                "summary": f"Recognized a market regime query with confidence {decision.confidence:.2f}.",
+                "source": "AI intent router",
+            },
+            {
+                "title": "Regime lookup",
+                "summary": "Loaded the current regime snapshot and current policy level.",
+                "source": "Regime service and policy repository",
+            },
+            {
+                "title": "Answer assembly",
+                "summary": "Prepared a user-facing summary of regime and policy context.",
+                "source": "Terminal router",
+            },
+        ]
+        if user_is_admin:
+            steps[1]["technical_details"] = [
+                f"RegimeSnapshot.dominant_regime={getattr(regime, 'dominant_regime', 'Unknown')}",
+                f"RegimeSnapshot.confidence={getattr(regime, 'confidence', 0)}",
+                f"RegimeSnapshot.source={getattr(regime, 'source', 'N/A')}",
+                f"PolicyLevel.value={getattr(policy, 'value', 'N/A')}",
+            ]
+        return {"label": "Answer chain", "visibility": "technical" if user_is_admin else "masked", "steps": steps}
+
+    def _build_chat_chain(self, *, decision, provider: str, model: str, user_is_admin: bool) -> dict[str, Any]:
+        steps = [
+            {
+                "title": "Intent classification",
+                "summary": f"Classified the input as general chat with confidence {decision.confidence:.2f}.",
+                "source": "AI intent router",
+            },
+            {
+                "title": "Model response",
+                "summary": "Sent the request to the selected AI provider and returned the generated answer.",
+                "source": provider or "AI provider",
+            },
+        ]
+        if user_is_admin:
+            steps[1]["technical_details"] = [
+                f"provider={provider or 'unknown'}",
+                f"model={model or 'unknown'}",
+            ]
+        return {"label": "Answer chain", "visibility": "technical" if user_is_admin else "masked", "steps": steps}

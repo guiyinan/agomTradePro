@@ -12,10 +12,12 @@ from rest_framework.permissions import IsAuthenticated
 import logging
 
 from apps.account.application.rbac import get_user_role
+from apps.ai_capability.application.facade import CapabilityRoutingFacade
 
 from ..domain.entities import TerminalMode, TerminalRiskLevel
 from ..domain.services import TerminalPermissionService
 from ..infrastructure.models import TerminalCommandORM
+from ..infrastructure.models import TerminalRuntimeSettingsORM
 from ..infrastructure.repositories import (
     get_terminal_audit_repository,
     get_terminal_command_repository,
@@ -30,7 +32,6 @@ from ..application.use_cases import (
     UpdateCommandRequest,
     DeleteCommandUseCase,
 )
-from ..application.chat_router import TerminalChatRouterService
 from ..application.services import CommandExecutionService
 from .permissions import IsStaffOrAdmin
 from .serializers import (
@@ -55,6 +56,16 @@ def _get_mcp_enabled(user) -> bool:
     """获取用户 MCP 启用状态"""
     profile = getattr(user, 'account_profile', None)
     return getattr(profile, 'mcp_enabled', False) if profile else False
+
+
+def _get_answer_chain_config(user) -> dict:
+    settings_obj = TerminalRuntimeSettingsORM.get_solo()
+    is_admin = bool(user and (user.is_staff or user.is_superuser))
+    return {
+        'enabled': bool(settings_obj.answer_chain_enabled),
+        'visibility': 'technical' if is_admin else 'masked',
+        'is_admin': is_admin,
+    }
 
 
 class TerminalCommandViewSet(viewsets.ModelViewSet):
@@ -246,6 +257,7 @@ class TerminalCommandViewSet(viewsets.ModelViewSet):
         permission_service = TerminalPermissionService()
         available_modes = permission_service.get_available_modes(user_role, mcp_enabled)
         max_risk = permission_service.get_max_risk_level(user_role)
+        answer_chain_config = _get_answer_chain_config(request.user)
 
         reason = None
         if not mcp_enabled:
@@ -258,6 +270,8 @@ class TerminalCommandViewSet(viewsets.ModelViewSet):
             'current_mode': available_modes[0] if len(available_modes) == 1 else 'confirm_each',
             'max_risk_level': max_risk.value,
             'reason_if_locked': reason,
+            'answer_chain_enabled': answer_chain_config['enabled'],
+            'answer_chain_visibility': answer_chain_config['visibility'],
         }
 
         serializer = TerminalCapabilitiesSerializer(data)
@@ -330,16 +344,44 @@ class TerminalChatView(APIView):
 
         data = serializer.validated_data
         provider_ref = data.get('provider_ref', data.get('provider_name'))
-        router = TerminalChatRouterService()
+        router = CapabilityRoutingFacade()
+        user_role = get_user_role(request.user)
+        mcp_enabled = _get_mcp_enabled(request.user)
 
         try:
-            response_data = router.route_message(
+            answer_chain_config = _get_answer_chain_config(request.user)
+            routed = router.route(
                 message=data['message'],
+                entrypoint='terminal',
                 session_id=data.get('session_id'),
-                provider_ref=provider_ref,
+                user_id=request.user.id,
+                user_is_admin=answer_chain_config['is_admin'],
+                mcp_enabled=mcp_enabled,
+                provider_name=provider_ref,
                 model=data.get('model'),
-                context=data.get('context', {}) or {},
+                context={
+                    **(data.get('context', {}) or {}),
+                    'username': request.user.username,
+                    'user_role': user_role,
+                    'terminal_mode': 'confirm_each',
+                },
+                answer_chain_enabled=answer_chain_config['enabled'],
             )
+            response_data = {
+                'reply': routed.get('reply', ''),
+                'session_id': routed.get('session_id', ''),
+                'metadata': {
+                    **(routed.get('metadata', {}) or {}),
+                    'decision': routed.get('decision'),
+                    'selected_capability_key': routed.get('selected_capability_key'),
+                },
+                'route_confirmation_required': routed.get('requires_confirmation', False),
+                'suggested_command': routed.get('suggested_command'),
+                'suggested_intent': routed.get('suggested_intent'),
+                'suggestion_prompt': routed.get('suggestion_prompt'),
+            }
+            if answer_chain_config['enabled'] and routed.get('answer_chain'):
+                response_data['metadata']['answer_chain'] = routed['answer_chain']
         except Exception as e:
             logger.error("Terminal chat routing failed: %s", e)
             return Response(
