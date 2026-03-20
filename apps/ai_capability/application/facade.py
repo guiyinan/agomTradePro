@@ -5,7 +5,10 @@ Provides a simplified interface for terminal to use the unified routing system.
 """
 
 import logging
+from dataclasses import replace
+from datetime import datetime, timezone
 from typing import Any, Optional
+import uuid
 
 from apps.ai_provider.infrastructure.client_factory import AIClientFactory
 from apps.policy.infrastructure.repositories import DjangoPolicyRepository
@@ -81,6 +84,75 @@ class CapabilityRoutingFacade:
             },
         )
         return self.route_use_case.execute(request_dto).to_dict()
+
+    def execute_capability(
+        self,
+        capability_key: str,
+        message: str,
+        entrypoint: str = "web",
+        session_id: Optional[str] = None,
+        user_id: Optional[int] = None,
+        user_is_admin: bool = False,
+        mcp_enabled: bool = True,
+        provider_name: Optional[str] = None,
+        model: Optional[str] = None,
+        context: Optional[dict[str, Any]] = None,
+        answer_chain_enabled: bool = False,
+    ) -> dict[str, Any]:
+        capability = self.capability_repo.get_by_key(capability_key)
+        if capability is None:
+            raise ValueError(f"Capability not found: {capability_key}")
+
+        session_id = session_id or str(uuid.uuid4())
+        request_context = {
+            **(context or {}),
+            "user_id": user_id,
+            "user_is_admin": user_is_admin,
+            "mcp_enabled": mcp_enabled,
+            "answer_chain_enabled": answer_chain_enabled,
+        }
+        request_dto = RouteRequestDTO(
+            message=message,
+            entrypoint=entrypoint,
+            session_id=session_id,
+            provider_name=provider_name,
+            model=model,
+            context=request_context,
+        )
+        routing_context = RoutingContext(
+            entrypoint=entrypoint,
+            session_id=session_id,
+            user_id=user_id,
+            user_is_admin=user_is_admin,
+            mcp_enabled=mcp_enabled,
+            provider_name=provider_name,
+            model=model,
+            context=request_context,
+            answer_chain_enabled=answer_chain_enabled,
+        )
+
+        # The user has already confirmed the suggestion in the web UI.
+        confirmed_capability = replace(capability, requires_confirmation=False)
+        decision = self.route_use_case._build_capability_decision(
+            confirmed_capability,
+            [capability.to_summary_dict()],
+            1.0,
+            request_dto,
+            routing_context,
+            reason="User explicitly executed the suggested action.",
+            rejected_candidates=[],
+        )
+        self.route_use_case._log_routing(
+            context=routing_context,
+            raw_message=message,
+            scores=[],
+            decision=decision,
+        )
+        return self.route_use_case._build_response(
+            decision,
+            session_id,
+            routing_context,
+        ).to_dict()
 
     def _handle_no_candidates(
         self,

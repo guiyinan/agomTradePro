@@ -12,6 +12,8 @@
 <link rel="stylesheet" href="{% static 'css/teaching.css' %}">
 <!-- Main Workflow Panel (WP-3) -->
 <link rel="stylesheet" href="{% static 'css/main-workflow.css' %}">
+<!-- Shared Chat Renderer -->
+<link rel="stylesheet" href="{% static 'css/shared/shared-chat-renderer.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -778,12 +780,31 @@
     </aside>
 </div>
 
+<script src="{% static 'js/marked.min.js' %}"></script>
+<script src="{% static 'js/mermaid.min.js' %}"></script>
+<script src="{% static 'js/shared/shared-chat-renderer.js' %}"></script>
 <script>
 // API 配置
 const API_URLS = {
-    promptChat: "/api/prompt/chat",
+    webChat: "/api/chat/web/",
+    promptChatProviders: "/api/prompt/chat/providers",
+    promptChatModels: "/api/prompt/chat/models",
     aiProviderManage: "{% url 'ai_provider:manage' %}"
 };
+
+// 初始化共享渲染器
+const chatRenderer = new AgomSharedChatRenderer({
+    cssPrefix: 'agom-chat',
+    enableMermaid: true,
+    enableAnswerChain: true,
+    enableSuggestionCard: true,
+    onSuggestionExecute: async (action, card) => {
+        await executeSuggestedAction(action);
+    },
+    onSuggestionCancel: (action, card) => {
+        card.remove();
+    }
+});
 
 // 聊天功能
 const chatMessages = document.getElementById('chatMessages');
@@ -798,11 +819,29 @@ function addMessage(content, isSystem = false) {
 
     const contentDiv = document.createElement('div');
     contentDiv.className = 'message-content';
-    contentDiv.innerHTML = `<p>${content}</p>`;
+    
+    if (isSystem && window.marked) {
+        contentDiv.innerHTML = chatRenderer.formatMarkdown(content);
+    } else {
+        contentDiv.innerHTML = `<p>${content}</p>`;
+    }
 
     msgDiv.appendChild(contentDiv);
     chatMessages.appendChild(msgDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
+    return contentDiv;
+}
+
+function showTypingIndicator() {
+    const indicator = chatRenderer.createTypingIndicator();
+    indicator.id = 'home-chat-typing';
+    chatMessages.appendChild(indicator);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function hideTypingIndicator() {
+    const indicator = document.getElementById('home-chat-typing');
+    if (indicator) indicator.remove();
 }
 
 async function sendMessage() {
@@ -817,8 +856,10 @@ async function sendMessage() {
 
     chatHistory.push({ role: 'user', content: text });
 
+    showTypingIndicator();
+
     try {
-        const response = await fetch(API_URLS.promptChat, {
+        const response = await fetch(API_URLS.webChat, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -832,21 +873,68 @@ async function sendMessage() {
         });
 
         const data = await response.json();
+        hideTypingIndicator();
 
         if (response.ok && data.reply) {
             chatSessionId = data.session_id;
-            addMessage(data.reply, true);
+
+            await chatRenderer.renderAIMessage(chatMessages, data, () => {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            });
+            
             chatHistory.push({ role: 'assistant', content: data.reply });
         } else {
             const errorMsg = data.error || 'AI 服务暂时不可用';
             addMessage(`⚠️ ${errorMsg}<br><br>请前往 <a href="${API_URLS.aiProviderManage}">AI 接口管理</a> 配置 AI 提供商。`, true);
         }
     } catch (error) {
+        hideTypingIndicator();
         addMessage(`❌ 网络错误: ${error.message}`, true);
     } finally {
         chatInput.disabled = false;
         chatSendBtn.disabled = false;
         chatInput.focus();
+    }
+}
+
+async function executeSuggestedAction(action) {
+    showTypingIndicator();
+    
+    try {
+        const response = await fetch(API_URLS.webChat, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                message: action.command || action.intent,
+                session_id: chatSessionId,
+                context: { 
+                    history: chatHistory,
+                    execute_capability: action.capability_key,
+                    action_type: action.action_type
+                }
+            })
+        });
+
+        const data = await response.json();
+        hideTypingIndicator();
+
+        if (response.ok && data.reply) {
+            chatSessionId = data.session_id;
+            
+            await chatRenderer.renderAIMessage(chatMessages, data, () => {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            });
+            
+            chatHistory.push({ role: 'assistant', content: data.reply });
+        } else {
+            addMessage(`⚠️ 执行失败: ${data.error || '未知错误'}`, true);
+        }
+    } catch (error) {
+        hideTypingIndicator();
+        addMessage(`❌ 执行错误: ${error.message}`, true);
     }
 }
 
@@ -871,6 +959,8 @@ chatInput.addEventListener('keypress', (e) => {
         chatSendBtn.click();
     }
 });
+
+chatSendBtn.addEventListener('click', sendMessage);
 
 // 快捷提问
 document.querySelectorAll('.suggestion-btn').forEach(btn => {

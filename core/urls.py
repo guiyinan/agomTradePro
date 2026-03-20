@@ -38,6 +38,7 @@ from core.views import (
 # 终端视图（从terminal模块导入）
 from apps.terminal.interface.views import terminal_view, terminal_config_view
 from core.api_views import ConfigCenterSnapshotView, ConfigCapabilitiesView
+from apps.ai_capability.interface.api_views import web_chat
 from core.admin_log_views import (
     server_logs_page,
     server_logs_stream,
@@ -95,6 +96,7 @@ core_patterns = [
     path("api/", api_root_view, name="api-root"),
     path("api/health/", health_view, name="health"),
     path("api/ready/", readiness_view, name="readiness"),
+    path("api/chat/web/", web_chat, name="api-chat-web"),
     path(
         "api/system/config-center/",
         ConfigCenterSnapshotView.as_view(),

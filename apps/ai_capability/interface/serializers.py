@@ -166,3 +166,90 @@ class CatalogStatsSerializer(serializers.Serializer):
     disabled = serializers.IntegerField()
     by_source = serializers.DictField()
     by_route_group = serializers.DictField()
+
+
+class WebChatRequestSerializer(serializers.Serializer):
+    """Serializer for shared web chat request."""
+
+    message = serializers.CharField(help_text="User message")
+    session_id = serializers.CharField(
+        required=False,
+        allow_null=True,
+        help_text="Session ID for conversation continuity",
+    )
+    provider_name = serializers.CharField(
+        required=False,
+        allow_null=True,
+        help_text="AI provider name",
+    )
+    model = serializers.CharField(
+        required=False,
+        allow_null=True,
+        help_text="AI model name",
+    )
+    context = serializers.DictField(
+        required=False,
+        default=dict,
+        help_text="Additional context including history",
+    )
+
+
+class SuggestedActionSerializer(serializers.Serializer):
+    """Serializer for suggested action object."""
+
+    action_type = serializers.CharField(help_text="Action type: execute_capability")
+    capability_key = serializers.CharField(help_text="Target capability key")
+    command = serializers.CharField(help_text="Suggested command string")
+    intent = serializers.CharField(help_text="Detected intent")
+    label = serializers.CharField(help_text="Display label for the action")
+    description = serializers.CharField(help_text="Action description")
+    payload = serializers.DictField(help_text="Additional payload for execution")
+
+
+class AnswerChainSerializer(serializers.Serializer):
+    """Serializer for answer chain."""
+
+    label = serializers.CharField()
+    visibility = serializers.CharField()
+    steps = serializers.ListField(child=serializers.DictField())
+
+
+class WebChatMetadataSerializer(serializers.Serializer):
+    """Serializer for web chat metadata."""
+
+    provider = serializers.CharField()
+    model = serializers.CharField()
+    tokens = serializers.IntegerField(default=0)
+    answer_chain = AnswerChainSerializer(required=False, allow_null=True)
+
+
+class WebChatResponseSerializer(serializers.Serializer):
+    """Serializer for shared web chat response."""
+
+    reply = serializers.CharField(help_text="AI response text")
+    session_id = serializers.CharField(help_text="Session ID")
+    metadata = WebChatMetadataSerializer(help_text="Response metadata")
+    route_confirmation_required = serializers.BooleanField(
+        default=False,
+        help_text="Whether confirmation is required",
+    )
+    suggested_command = serializers.CharField(
+        allow_null=True,
+        required=False,
+        help_text="Suggested command string",
+    )
+    suggested_intent = serializers.CharField(
+        allow_null=True,
+        required=False,
+        help_text="Detected intent",
+    )
+    suggestion_prompt = serializers.CharField(
+        allow_null=True,
+        required=False,
+        help_text="Suggestion prompt text",
+    )
+    suggested_action = SuggestedActionSerializer(
+        allow_null=True,
+        required=False,
+        help_text="Structured suggested action object",
+    )

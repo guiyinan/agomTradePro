@@ -58,6 +58,30 @@ def write_capability(db):
     )
 
 
+@pytest.fixture
+def builtin_status_capability(db):
+    return CapabilityCatalogModel.objects.create(
+        capability_key="builtin.system_status",
+        source_type="builtin",
+        source_ref="builtin://system_status",
+        name="System Status",
+        summary="Read system readiness",
+        description="Return the current system readiness summary",
+        route_group="builtin",
+        category="system",
+        execution_target={"handler": "system_status"},
+        risk_level="safe",
+        requires_confirmation=True,
+        enabled_for_routing=True,
+        enabled_for_terminal=True,
+        enabled_for_chat=True,
+        enabled_for_agent=True,
+        visibility="public",
+        auto_collected=False,
+        review_status="approved",
+    )
+
+
 @pytest.mark.django_db
 def test_non_admin_capability_detail_hides_technical_fields(api_client, regular_user, write_capability):
     api_client.force_authenticate(user=regular_user)
@@ -139,3 +163,48 @@ def test_non_admin_answer_chain_masks_technical_fields(write_capability, regular
     assert all("technical_details" not in step for step in steps)
     assert write_capability.capability_key not in steps[1]["summary"]
     assert write_capability.name in steps[1]["summary"]
+
+
+@pytest.mark.django_db
+def test_capability_list_endpoint_still_works(api_client, regular_user, write_capability):
+    api_client.force_authenticate(user=regular_user)
+
+    response = api_client.get("/api/ai-capability/capabilities/")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert any(item["capability_key"] == write_capability.capability_key for item in data)
+
+
+@pytest.mark.django_db
+def test_web_chat_execute_action_runs_selected_capability(api_client, staff_user, builtin_status_capability):
+    api_client.force_authenticate(user=staff_user)
+
+    with patch("apps.ai_capability.application.use_cases.run_readiness_checks") as mock_checks, patch(
+        "apps.ai_capability.application.use_cases.is_healthy",
+        return_value=True,
+    ):
+        mock_checks.return_value = {
+            "database": {"status": "ok"},
+            "redis": {"status": "ok"},
+            "celery": {"status": "ok"},
+            "critical_data": {"status": "ok"},
+        }
+
+        response = api_client.post(
+            "/api/chat/web/",
+            {
+                "message": "/status",
+                "context": {
+                    "execute_capability": builtin_status_capability.capability_key,
+                    "action_type": "execute_capability",
+                },
+            },
+            format="json",
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["route_confirmation_required"] is False
+    assert "System Readiness" in data["reply"]
+    assert data["metadata"]["provider"] == "capability-router"

@@ -498,6 +498,10 @@
     gap: 10px;
 }
 
+.terminal-answer-chain-panel[hidden] {
+    display: none !important;
+}
+
 .terminal-answer-chain-step {
     display: grid;
     grid-template-columns: 24px 1fr;

@@ -941,6 +941,7 @@ class AgomTerminal {
         toggle.type = 'button';
         toggle.className = 'terminal-answer-chain-toggle';
         toggle.textContent = answerChain.label || 'View answer chain';
+        toggle.setAttribute('aria-expanded', 'false');
 
         const panel = document.createElement('div');
         panel.className = 'terminal-answer-chain-panel';
@@ -967,6 +968,7 @@ class AgomTerminal {
         toggle.addEventListener('click', () => {
             panel.hidden = !panel.hidden;
             toggle.classList.toggle('expanded', !panel.hidden);
+            toggle.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
         });
 
         wrapper.appendChild(toggle);

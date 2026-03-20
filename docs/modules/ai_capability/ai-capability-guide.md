@@ -74,6 +74,19 @@ AI Capability Catalog 是系统级 AI 能力目录与统一路由服务，为 te
 
 ## 3. API 接口
 
+### 3.0 网页聊天接口索引
+
+如果你要接入首页聊天、`AgomChatWidget` 或其他页面内嵌 AI 助手，优先查看共享网页聊天接口文档：
+
+- [Shared Web Chat API 文档](/D:/githv/agomSAAF/docs/api/web-chat-api.md)
+
+该文档覆盖：
+
+1. `POST /api/chat/web/` 请求/响应契约
+2. suggestion card 的结构化执行方式
+3. `answer_chain` / `metadata` 字段说明
+4. 首页与 `AgomChatWidget` 的接入约束
+
 ### 3.1 统一路由接口
 
 **端点**: `POST /api/ai-capability/route/`

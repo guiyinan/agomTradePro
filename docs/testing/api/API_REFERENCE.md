@@ -421,6 +421,7 @@ POST /api/backtest/api/run/
 
 | 端点 | 方法 | 描述 |
 |------|------|------|
+| `/chat/web/` | POST | 网页端统一聊天接口，供首页与 `AgomChatWidget` 复用 |
 | `/prompt/chat/` | POST | AI 对话 |
 | `/prompt/providers/` | GET | 获取 AI 提供商列表 |
 | `/prompt/models/` | GET | 获取 AI 模型列表 |
@@ -429,9 +430,23 @@ POST /api/backtest/api/run/
 | `/prompt/chains/` | GET | 获取 Chain 列表 |
 | `/prompt/templates/` | GET | 获取 Prompt 模板 |
 
+补充文档：
+
+- [Shared Web Chat API 文档](/D:/githv/agomSAAF/docs/api/web-chat-api.md)
+
 #### 请求示例
 
 ```bash
+# 网页端统一聊天
+POST /api/chat/web/
+{
+  "message": "当前系统是什么状态",
+  "session_id": "optional-session-id",
+  "context": {
+    "history": []
+  }
+}
+
 # AI 对话
 POST /api/prompt/chat/
 {

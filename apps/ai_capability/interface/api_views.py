@@ -17,6 +17,7 @@ from ..application.use_cases import (
     RouteMessageUseCase,
     SyncCapabilitiesUseCase,
 )
+from ..infrastructure.repositories import DjangoCapabilityRepository
 from .serializers import (
     CatalogStatsSerializer,
     CapabilityDetailSerializer,
@@ -25,6 +26,8 @@ from .serializers import (
     RouteRequestSerializer,
     RouteResponseSerializer,
     SyncResultSerializer,
+    WebChatRequestSerializer,
+    WebChatResponseSerializer,
 )
 
 
@@ -95,6 +98,211 @@ def route_message(request):
             {"error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def web_chat(request):
+    """
+    Shared web chat API for homepage and AgomChatWidget.
+
+    POST /api/chat/web/
+
+    This API provides a neutral entrypoint for web-based chat interfaces,
+    reusing the capability routing system without terminal-specific logic.
+
+    Request body:
+    {
+        "message": "当前系统是什么状态",
+        "session_id": "optional-session-id",
+        "provider_name": "openai-main",
+        "model": "gpt-4.1",
+        "context": {
+            "history": []
+        }
+    }
+
+    Response:
+    {
+        "reply": "## System Readiness: `ok`",
+        "session_id": "uuid-string",
+        "metadata": {
+            "provider": "capability-router",
+            "model": "router",
+            "tokens": 0,
+            "answer_chain": {
+                "label": "View answer chain",
+                "visibility": "masked",
+                "steps": []
+            }
+        },
+        "route_confirmation_required": false,
+        "suggested_command": null,
+        "suggested_intent": null,
+        "suggestion_prompt": null,
+        "suggested_action": null
+    }
+
+    When confirmation is required:
+    {
+        "reply": "检测到你可能想执行系统状态检查。",
+        "session_id": "uuid-string",
+        "metadata": {...},
+        "route_confirmation_required": true,
+        "suggested_command": "/status",
+        "suggested_intent": "system_status",
+        "suggestion_prompt": "检测到你可能想执行 /status。",
+        "suggested_action": {
+            "action_type": "execute_capability",
+            "capability_key": "builtin.system_status",
+            "command": "/status",
+            "intent": "system_status",
+            "label": "执行系统状态检查",
+            "description": "读取当前系统健康状态并返回摘要",
+            "payload": {}
+        }
+    }
+    """
+    from ..application.facade import CapabilityRoutingFacade
+
+    serializer = WebChatRequestSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    data = serializer.validated_data
+    user_is_admin = request.user.is_staff if request.user.is_authenticated else False
+
+    facade = CapabilityRoutingFacade()
+    action = _extract_execute_action(data.get("context") or {})
+
+    try:
+        if action:
+            result = facade.execute_capability(
+                capability_key=action["capability_key"],
+                message=data["message"],
+                entrypoint="web",
+                session_id=data.get("session_id"),
+                user_id=request.user.id if request.user.is_authenticated else None,
+                user_is_admin=user_is_admin,
+                mcp_enabled=True,
+                provider_name=data.get("provider_name"),
+                model=data.get("model"),
+                context=data.get("context", {}),
+                answer_chain_enabled=True,
+            )
+        else:
+            result = facade.route(
+                message=data["message"],
+                entrypoint="web",
+                session_id=data.get("session_id"),
+                user_id=request.user.id if request.user.is_authenticated else None,
+                user_is_admin=user_is_admin,
+                mcp_enabled=True,
+                provider_name=data.get("provider_name"),
+                model=data.get("model"),
+                context=data.get("context", {}),
+                answer_chain_enabled=True,
+            )
+
+        response_data = _build_web_chat_response(result, user_is_admin)
+        return Response(response_data)
+    except Exception as e:
+        logger.exception("Web chat failed")
+        return Response(
+            {"error": str(e), "reply": f"聊天请求处理失败: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+def _extract_execute_action(context: dict) -> dict | None:
+    """Normalize explicit action execution requests from web clients."""
+    action = context.get("execute_action")
+    if isinstance(action, dict) and action.get("action_type") == "execute_capability":
+        capability_key = action.get("capability_key")
+        if capability_key:
+            return {
+                "action_type": "execute_capability",
+                "capability_key": capability_key,
+            }
+
+    capability_key = context.get("execute_capability")
+    action_type = context.get("action_type")
+    if action_type == "execute_capability" and capability_key:
+        return {
+            "action_type": "execute_capability",
+            "capability_key": capability_key,
+        }
+    return None
+
+
+def _build_web_chat_response(routed: dict, user_is_admin: bool) -> dict:
+    """Build web chat response from routing result."""
+    answer_chain = routed.get("answer_chain", {})
+    if answer_chain and not user_is_admin:
+        answer_chain = _mask_answer_chain(answer_chain)
+
+    suggested_action = None
+    if routed.get("requires_confirmation") and routed.get("selected_capability_key"):
+        suggested_action = {
+            "action_type": "execute_capability",
+            "capability_key": routed["selected_capability_key"],
+            "command": routed.get("suggested_command", ""),
+            "intent": routed.get("suggested_intent", ""),
+            "label": _get_capability_label(routed["selected_capability_key"]),
+            "description": _get_capability_description(routed["selected_capability_key"]),
+            "payload": {},
+        }
+
+    return {
+        "reply": routed.get("reply", ""),
+        "session_id": routed.get("session_id", ""),
+        "metadata": {
+            "provider": routed.get("metadata", {}).get("provider", "unknown"),
+            "model": routed.get("metadata", {}).get("model", "unknown"),
+            "tokens": routed.get("metadata", {}).get("tokens", 0),
+            "answer_chain": answer_chain,
+        },
+        "route_confirmation_required": routed.get("requires_confirmation", False),
+        "suggested_command": routed.get("suggested_command"),
+        "suggested_intent": routed.get("suggested_intent"),
+        "suggestion_prompt": routed.get("suggestion_prompt"),
+        "suggested_action": suggested_action,
+    }
+
+
+def _mask_answer_chain(answer_chain: dict) -> dict:
+    """Mask technical details in answer chain for non-admin users."""
+    masked_steps = []
+    for step in answer_chain.get("steps", []):
+        masked_step = {
+            "title": step.get("title", ""),
+            "summary": step.get("summary", ""),
+            "source": step.get("source", ""),
+        }
+        masked_steps.append(masked_step)
+
+    return {
+        "label": answer_chain.get("label", "Answer chain"),
+        "visibility": "masked",
+        "steps": masked_steps,
+    }
+
+
+def _get_capability_label(capability_key: str) -> str:
+    """Get human-readable label for a capability."""
+    labels = {
+        "builtin.system_status": "执行系统状态检查",
+        "builtin.market_regime": "查看市场 Regime",
+    }
+    return labels.get(capability_key, f"执行 {capability_key.split('.')[-1]}")
+
+
+def _get_capability_description(capability_key: str) -> str:
+    """Get description for a capability."""
+    descriptions = {
+        "builtin.system_status": "读取当前系统健康状态并返回摘要",
+        "builtin.market_regime": "获取当前市场 Regime 状态和 Policy 档位",
+    }
+    return descriptions.get(capability_key, f"执行能力: {capability_key}")
 
 
 @api_view(["GET"])
