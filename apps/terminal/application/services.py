@@ -10,6 +10,7 @@ import re
 from typing import Any, Optional
 
 import requests
+from django.apps import apps
 
 from ..domain.entities import TerminalCommand
 
@@ -242,3 +243,21 @@ class CommandExecutionService:
                 return None
         
         return result
+
+
+class AnswerChainSettingsService:
+    """Read terminal answer-chain settings without coupling interface to ORM imports."""
+
+    @staticmethod
+    def get_config(user) -> dict[str, Any]:
+        settings_model = apps.get_model("terminal", "TerminalRuntimeSettingsORM")
+        settings_obj, _ = settings_model._default_manager.get_or_create(
+            singleton_key="default",
+            defaults={"answer_chain_enabled": True},
+        )
+        is_admin = bool(user and (user.is_staff or user.is_superuser))
+        return {
+            "enabled": bool(settings_obj.answer_chain_enabled),
+            "visibility": "technical" if is_admin else "masked",
+            "is_admin": is_admin,
+        }

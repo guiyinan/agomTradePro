@@ -14,10 +14,10 @@ import logging
 from apps.account.application.rbac import get_user_role
 from apps.ai_capability.application.facade import CapabilityRoutingFacade
 
+from ..application.services import AnswerChainSettingsService, CommandExecutionService
 from ..domain.entities import TerminalMode, TerminalRiskLevel
 from ..domain.services import TerminalPermissionService
 from ..infrastructure.models import TerminalCommandORM
-from ..infrastructure.models import TerminalRuntimeSettingsORM
 from ..infrastructure.repositories import (
     get_terminal_audit_repository,
     get_terminal_command_repository,
@@ -32,7 +32,6 @@ from ..application.use_cases import (
     UpdateCommandRequest,
     DeleteCommandUseCase,
 )
-from ..application.services import CommandExecutionService
 from .permissions import IsStaffOrAdmin
 from .serializers import (
     TerminalCommandSerializer,
@@ -59,13 +58,7 @@ def _get_mcp_enabled(user) -> bool:
 
 
 def _get_answer_chain_config(user) -> dict:
-    settings_obj = TerminalRuntimeSettingsORM.get_solo()
-    is_admin = bool(user and (user.is_staff or user.is_superuser))
-    return {
-        'enabled': bool(settings_obj.answer_chain_enabled),
-        'visibility': 'technical' if is_admin else 'masked',
-        'is_admin': is_admin,
-    }
+    return AnswerChainSettingsService.get_config(user)
 
 
 class TerminalCommandViewSet(viewsets.ModelViewSet):

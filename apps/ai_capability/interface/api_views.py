@@ -11,11 +11,12 @@ from rest_framework.response import Response
 
 from ..application.dtos import RouteRequestDTO
 from ..application.use_cases import (
+    GetCatalogStatsUseCase,
+    GetCapabilityDetailUseCase,
     GetCapabilityListUseCase,
     RouteMessageUseCase,
     SyncCapabilitiesUseCase,
 )
-from ..infrastructure.repositories import DjangoCapabilityRepository
 from .serializers import (
     CatalogStatsSerializer,
     CapabilityDetailSerializer,
@@ -139,10 +140,10 @@ def get_capability(request, capability_key):
 
     GET /api/ai-capability/capabilities/{capability_key}/
     """
-    repo = DjangoCapabilityRepository()
+    use_case = GetCapabilityDetailUseCase()
 
     try:
-        capability = repo.get_by_key(capability_key)
+        capability = use_case.execute(capability_key)
         if capability is None:
             return Response(
                 {"error": "Capability not found"},
@@ -205,10 +206,10 @@ def catalog_stats(request):
 
     GET /api/ai-capability/stats/
     """
-    repo = DjangoCapabilityRepository()
+    use_case = GetCatalogStatsUseCase()
 
     try:
-        stats = repo.get_stats()
+        stats = use_case.execute()
         serializer = CatalogStatsSerializer(stats)
         return Response(serializer.data)
     except Exception as e:

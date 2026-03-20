@@ -947,6 +947,34 @@ class GetCapabilityListUseCase:
         ]
 
 
+class GetCapabilityDetailUseCase:
+    """Use case for getting a capability by key."""
+
+    def __init__(
+        self,
+        capability_repo: Optional[DjangoCapabilityRepository] = None,
+    ):
+        self.capability_repo = capability_repo or DjangoCapabilityRepository()
+
+    def execute(self, capability_key: str) -> Optional[CapabilityDefinition]:
+        """Get a single capability definition."""
+        return self.capability_repo.get_by_key(capability_key)
+
+
+class GetCatalogStatsUseCase:
+    """Use case for fetching catalog statistics."""
+
+    def __init__(
+        self,
+        capability_repo: Optional[DjangoCapabilityRepository] = None,
+    ):
+        self.capability_repo = capability_repo or DjangoCapabilityRepository()
+
+    def execute(self) -> dict[str, Any]:
+        """Get catalog statistics."""
+        return self.capability_repo.get_stats()
+
+
 class SyncCapabilitiesUseCase:
     """Use case for synchronizing capabilities from sources."""
 
@@ -1035,10 +1063,10 @@ class SyncCapabilitiesUseCase:
 
     def _sync_terminal_commands(self) -> list[CapabilityDefinition]:
         """Sync terminal commands."""
-        from apps.terminal.infrastructure.models import TerminalCommandORM
+        from apps.terminal.infrastructure.repositories import get_terminal_command_repository
 
         capabilities = []
-        commands = TerminalCommandORM.objects.filter(is_active=True)
+        commands = get_terminal_command_repository().get_all_active()
 
         for cmd in commands:
             cap = CapabilityDefinition(
@@ -1146,5 +1174,7 @@ __all__ = [
     "CapabilityExecutionDispatcher",
     "RouteMessageUseCase",
     "GetCapabilityListUseCase",
+    "GetCapabilityDetailUseCase",
+    "GetCatalogStatsUseCase",
     "SyncCapabilitiesUseCase",
 ]

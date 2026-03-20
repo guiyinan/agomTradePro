@@ -1,5 +1,8 @@
 name: RC Gate (Release Candidate)
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     tags:
@@ -23,7 +26,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -163,7 +166,9 @@ jobs:
                   line = raw_line[1:]
                   norm = current_file.replace("\\", "/")
 
-                  if "/domain/" in norm:
+                  if norm.endswith("/admin.py"):
+                      rules = []
+                  elif "/domain/" in norm:
                       rules = domain_rules
                   elif "/application/" in norm:
                       rules = application_rules

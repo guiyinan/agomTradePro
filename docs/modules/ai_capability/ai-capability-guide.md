@@ -204,7 +204,7 @@ AI Capability Catalog 是系统级 AI 能力目录与统一路由服务，为 te
 
 ### 3.3 能力详情接口
 
-**端点**: `GET /api/ai-capability/capabilities/{capability_key}/`
+**端点**: `GET /api/ai-capability/capabilities/<str:capability_key>/`
 
 **权限**: 需要登录
 
