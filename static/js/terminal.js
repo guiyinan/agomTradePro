@@ -53,6 +53,7 @@ class AgomTerminal {
             'history': this.cmdHistory.bind(this),
             'status': this.cmdStatus.bind(this),
             'regime': this.cmdRegime.bind(this),
+            'mcp-tools': this.cmdMcpTools.bind(this),
             'version': this.cmdVersion.bind(this),
             'export': this.cmdExport.bind(this),
             'commands': this.cmdListCommands.bind(this),
@@ -65,9 +66,9 @@ class AgomTerminal {
 
         // Governance state
         this.terminalMode = 'confirm_each';
-        this.terminalState = 'normal'; // normal | pending_params | pending_confirmation | pending_route_confirmation
+        this.terminalState = 'normal'; // normal | pending_params | pending_confirmation | pending_route_confirmation | pending_route_params
         this.pendingConfirmation = null; // {name, params, token, details}
-        this.pendingRouteSuggestion = null; // {command, intent, prompt}
+        this.pendingRouteSuggestion = null; // {command, intent, prompt, capabilityKey, missingParams, params, message}
         this.userCapabilities = null;
 
         // Initialize
@@ -329,23 +330,41 @@ class AgomTerminal {
         if (!input) return;
 
         // Check if we're in confirmation mode
-        if (this.terminalState === 'pending_confirmation' || this.terminalState === 'pending_route_confirmation') {
+        if (
+            this.terminalState === 'pending_confirmation'
+            || this.terminalState === 'pending_route_confirmation'
+            || this.terminalState === 'pending_route_params'
+        ) {
             this.elements.input.value = '';
             this.autoResizeInput();
             this.updateInputState();
             this.printCommand(input);
-            const answer = input.toLowerCase();
+            if (this.terminalState === 'pending_route_params') {
+                const normalized = input.trim().toLowerCase();
+                if (normalized === 'n' || normalized === 'no' || normalized === '/cancel') {
+                    this.cancelRouteSuggestion();
+                    return;
+                }
+                this.collectRouteParameter(input);
+                return;
+            }
+            const answer = input.trim().toLowerCase();
             if (answer === 'y' || answer === 'yes') {
                 if (this.terminalState === 'pending_route_confirmation') {
                     this.confirmRouteSuggestion();
                 } else {
                     this.confirmExecution();
                 }
-            } else {
+            } else if (answer === 'n' || answer === 'no' || answer === '/cancel') {
                 if (this.terminalState === 'pending_route_confirmation') {
                     this.cancelRouteSuggestion();
                 } else {
                     this.cancelConfirmation();
+                }
+            } else {
+                this.printWarning('Please enter Y to execute or N to cancel.');
+                if (this.terminalState === 'pending_route_confirmation') {
+                    this.updatePromptIndicator('confirm');
                 }
             }
             return;
@@ -411,8 +430,87 @@ class AgomTerminal {
             return;
         }
 
+        // Last chance: try exact capability alias resolution.
+        if (await this.tryExecuteCapabilityAlias(cmd)) {
+            return;
+        }
+
         // Unknown command
         this.printError(`Unknown command: /${cmd}. Type /help for available commands.`);
+    }
+
+    async tryExecuteCapabilityAlias(cmd) {
+        try {
+            const response = await fetch(`/api/ai-capability/capabilities/?enabled_only=true&q=${encodeURIComponent(cmd)}`);
+            const data = await response.json();
+            if (!response.ok || !Array.isArray(data) || data.length === 0) {
+                return false;
+            }
+
+            const normalizedCmd = this.normalizeCapabilityAlias(cmd);
+            const exactMatches = data.filter(item => this.collectCapabilityAliases(item).includes(normalizedCmd));
+            if (exactMatches.length === 0) {
+                return false;
+            }
+
+            const ranked = exactMatches.sort((a, b) => this.rankCapabilityAlias(a.capability_key) - this.rankCapabilityAlias(b.capability_key));
+            const target = ranked[0];
+            this.printInfo(`Executing capability alias: /${cmd} -> ${target.capability_key}`);
+            await this.executeCapabilityByKey(target.capability_key, `/${cmd}`);
+            return true;
+        } catch (error) {
+            console.error('Capability alias resolution failed:', error);
+            return false;
+        }
+    }
+
+    normalizeCapabilityAlias(value) {
+        const text = (value || '').toLowerCase();
+        const leaf = text.includes('.') ? text.split('.').pop() : text;
+        return leaf.trim();
+    }
+
+    collectCapabilityAliases(item) {
+        const aliases = new Set();
+        const addAlias = (value) => {
+            const normalized = this.normalizeCapabilityAlias(value);
+            if (normalized) {
+                aliases.add(normalized);
+            }
+        };
+
+        addAlias(item.capability_key || '');
+        addAlias(item.name || '');
+
+        const key = (item.capability_key || '').toLowerCase();
+        const name = (item.name || '').toLowerCase();
+        if (key.includes('.')) {
+            addAlias(key.split('.').slice(-2).join('.'));
+        }
+        if (name) {
+            addAlias(name.replace(/^(get|post|put|patch|delete|options)\s+/i, ''));
+            const words = name
+                .replace(/^(get|post|put|patch|delete|options)\s+/i, '')
+                .split(/\s+/)
+                .filter(Boolean);
+            if (words.length > 0) {
+                addAlias(words[words.length - 1]);
+                addAlias(words.slice(-2).join('-'));
+            }
+        }
+
+        return Array.from(aliases);
+    }
+
+    rankCapabilityAlias(capabilityKey) {
+        const key = (capabilityKey || '').toLowerCase();
+        if (key.startsWith('api.post.')) return 1;
+        if (key.startsWith('mcp_tool.')) return 2;
+        if (key.startsWith('api.get.')) return 3;
+        if (key.startsWith('builtin.')) return 4;
+        if (key.startsWith('terminal_command.')) return 5;
+        if (key.startsWith('api.options.')) return 8;
+        return 6;
     }
 
     /**
@@ -711,12 +809,31 @@ class AgomTerminal {
      * Handle mid-confidence route suggestion from terminal chat router.
      */
     handleRouteSuggestion(data) {
-        this.terminalState = 'pending_route_confirmation';
         this.pendingRouteSuggestion = {
             command: data.suggested_command,
             intent: data.suggested_intent,
             prompt: data.suggestion_prompt,
+            capabilityKey: data.selected_capability_key || data.metadata?.selected_capability_key || null,
+            missingParams: Array.isArray(data.missing_params) ? [...data.missing_params] : [],
+            params: {},
+            message: data.original_message || null,
         };
+
+        if (this.pendingRouteSuggestion.missingParams.length > 0) {
+            this.terminalState = 'pending_route_params';
+            this.printOutput(`
+<div style="padding: 8px 0; border: 1px solid var(--terminal-yellow); border-radius: 4px; padding: 12px; margin: 4px 0;">
+<strong style="color: var(--terminal-yellow);">Additional parameters required</strong>
+
+  <span style="color: var(--terminal-text-dim);">Suggested command:</span> ${this.escapeHtml(data.suggested_command || '')}
+  <span style="color: var(--terminal-text-dim);">Detected intent:</span>   ${this.escapeHtml(data.suggested_intent || 'unknown')}
+  <span style="color: var(--terminal-text-dim);">Missing params:</span>    ${this.escapeHtml(this.pendingRouteSuggestion.missingParams.join(', '))}
+</div>`, 'warning');
+            this.promptForNextRouteParameter();
+            return;
+        }
+
+        this.terminalState = 'pending_route_confirmation';
 
         this.printOutput(`
 <div style="padding: 8px 0; border: 1px solid var(--terminal-yellow); border-radius: 4px; padding: 12px; margin: 4px 0;">
@@ -732,10 +849,61 @@ class AgomTerminal {
         this.updateInputState();
     }
 
+    promptForNextRouteParameter() {
+        if (!this.pendingRouteSuggestion || this.pendingRouteSuggestion.missingParams.length === 0) {
+            return;
+        }
+
+        const paramName = this.pendingRouteSuggestion.missingParams[0];
+        let prompt = `${paramName}: `;
+        if (paramName === 'account_id') {
+            prompt = `${paramName} (直接输入数字 ID，例如 1；输入 N 或 /cancel 取消): `;
+        }
+        this.printOutput(`<span class="terminal-prompt" style="color: var(--terminal-yellow);">?</span>   ${this.escapeHtml(prompt)}`);
+        this.updatePromptIndicator(paramName);
+        this.updateInputState();
+    }
+
+    async collectRouteParameter(input) {
+        if (!this.pendingRouteSuggestion || this.pendingRouteSuggestion.missingParams.length === 0) {
+            return;
+        }
+
+        const value = input.trim();
+        const paramName = this.pendingRouteSuggestion.missingParams[0];
+        if (!value) {
+            this.printWarning(`Parameter "${paramName}" is required`);
+            this.promptForNextRouteParameter();
+            return;
+        }
+
+        if (this.looksLikeNaturalLanguageHelp(value, paramName)) {
+            this.printInfo(`这里需要直接输入参数值，不是查询指令。输入实际 ${paramName}，或输入 N 取消后再单独查询。`);
+            this.promptForNextRouteParameter();
+            return;
+        }
+
+        this.pendingRouteSuggestion.params[paramName] = value;
+        this.pendingRouteSuggestion.missingParams.shift();
+
+        if (this.pendingRouteSuggestion.missingParams.length > 0) {
+            this.promptForNextRouteParameter();
+            return;
+        }
+
+        await this.executeRouteSuggestion();
+    }
+
     /**
      * Execute suggested builtin command after user confirms.
      */
     async confirmRouteSuggestion() {
+        if (!this.pendingRouteSuggestion) return;
+
+        await this.executeRouteSuggestion();
+    }
+
+    async executeRouteSuggestion() {
         if (!this.pendingRouteSuggestion) return;
 
         const suggestion = this.pendingRouteSuggestion;
@@ -743,6 +911,17 @@ class AgomTerminal {
         this.pendingRouteSuggestion = null;
         this.updatePromptIndicator();
         this.updateInputState();
+
+        this.printInfo(`Executing suggested action: ${suggestion.command || suggestion.intent || suggestion.capabilityKey}`);
+
+        if (suggestion.capabilityKey) {
+            await this.executeCapabilityByKey(
+                suggestion.capabilityKey,
+                suggestion.message || suggestion.command || suggestion.intent || '',
+                suggestion.params || {},
+            );
+            return;
+        }
 
         const commandName = (suggestion.command || '').replace(/^\//, '').toLowerCase();
         if (commandName && this.builtinCommands[commandName]) {
@@ -752,6 +931,96 @@ class AgomTerminal {
         }
 
         this.printError(`Suggested command is unavailable: ${suggestion.command || 'unknown'}`);
+    }
+
+    async executeCapabilityByKey(capabilityKey, message, params = {}) {
+        this.showTypingIndicator();
+        this.isLoading = true;
+        try {
+            const response = await fetch('/api/chat/web/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken()
+                },
+                body: JSON.stringify({
+                    message: message || capabilityKey,
+                    session_id: this.sessionId,
+                    provider_name: this.currentProvider,
+                    model: this.currentModel,
+                    context: {
+                        execute_action: {
+                            action_type: 'execute_capability',
+                            capability_key: capabilityKey,
+                        },
+                        params: params || {},
+                    }
+                })
+            });
+
+            const data = await response.json();
+            this.hideTypingIndicator();
+
+            if (!response.ok) {
+                this.printError(data.error || data.reply || 'Suggested action execution failed');
+                return;
+            }
+
+            this.sessionId = data.session_id || this.sessionId;
+            this.messageCount++;
+            if (data.metadata?.tokens) {
+                this.tokenCount += data.metadata.tokens;
+            }
+
+            if (data.route_confirmation_required) {
+                this.handleRouteSuggestion(data);
+            }
+
+            const rendered = this.renderStructuredCapabilityReply(data.reply, data.metadata);
+            if (!rendered) {
+                this.printAIResponse(data.reply, data.metadata);
+            }
+            this.updateSessionInfo();
+        } catch (error) {
+            this.hideTypingIndicator();
+            this.printError(`Network error: ${error.message}`);
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    renderStructuredCapabilityReply(reply, metadata = null) {
+        if (typeof reply !== 'string') {
+            return false;
+        }
+
+        try {
+            const payload = JSON.parse(reply);
+            if (payload && typeof payload === 'object' && payload.success === false && payload.error) {
+                this.printError(payload.error);
+                if (metadata) {
+                    const meta = document.createElement('div');
+                    meta.className = 'terminal-output-line';
+                    meta.style.cssText = 'color: var(--terminal-text-dim); font-size: 11px; margin-top: 4px; padding-left: 16px;';
+                    meta.innerHTML = `└─ ${metadata.provider || 'AI'} | ${metadata.model || 'unknown'}`;
+                    this.elements.output.appendChild(meta);
+                    this.scrollToBottom();
+                }
+                return true;
+            }
+        } catch (error) {
+            return false;
+        }
+
+        return false;
+    }
+
+    looksLikeNaturalLanguageHelp(value, paramName) {
+        if (!paramName || !paramName.endsWith('_id')) {
+            return false;
+        }
+        const normalized = value.trim().toLowerCase();
+        return normalized.includes('查询') || normalized.includes('怎么') || normalized.includes('where') || normalized.includes('account id');
     }
 
     /**
@@ -1082,6 +1351,7 @@ class AgomTerminal {
   <span class="terminal-cmd">/history</span>           Show command history
   <span class="terminal-cmd">/status</span>            Show live system readiness
   <span class="terminal-cmd">/regime</span>            Show current market regime
+  <span class="terminal-cmd">/mcp-tools</span>         List synced MCP capability tools
   <span class="terminal-cmd">/commands</span>          List all available commands
   <span class="terminal-cmd">/version</span>           Show system version
   <span class="terminal-cmd">/export</span>            Export chat history`;
@@ -1122,6 +1392,7 @@ class AgomTerminal {
 <strong style="color: var(--terminal-cyan);">Examples:</strong>
   <span class="terminal-cmd">/help</span>              → Show help
   <span class="terminal-cmd">/status</span>            → Show live system readiness
+  <span class="terminal-cmd">/mcp-tools</span>         → Show synced MCP tools
   <span class="terminal-cmd">Hello, how are you?</span> → Chat with AI
   <span class="terminal-cmd">目前系统是什么状态</span>  → Routed to /status
   <span class="terminal-cmd">/regime</span>           → Get current market regime
@@ -1174,6 +1445,94 @@ class AgomTerminal {
             });
         } catch (error) {
             this.printError('Failed to fetch system status');
+        }
+    }
+
+    /**
+     * MCP tools command
+     */
+    async cmdMcpTools(args = []) {
+        this.printInfo('Loading MCP tools from capability catalog...');
+
+        try {
+            const response = await fetch('/api/ai-capability/capabilities/?source_type=mcp_tool&enabled_only=true');
+            const data = await response.json();
+
+            if (!response.ok) {
+                this.printError(data.error || 'Failed to load MCP tools');
+                return;
+            }
+
+            const tools = Array.isArray(data) ? data : [];
+            if (tools.length === 0) {
+                this.printWarning('No MCP tools are currently synced into the capability catalog');
+                return;
+            }
+
+            const pageSize = 40;
+            let visibleTools = [];
+            let pageLabel = 'page 1';
+            const firstArg = (args[0] || '').toLowerCase();
+
+            if (firstArg === 'all') {
+                visibleTools = tools;
+                pageLabel = 'all';
+            } else if (/^\d+$/.test(firstArg)) {
+                const numericArg = parseInt(firstArg, 10);
+                if (numericArg <= 10) {
+                    const page = Math.max(1, numericArg);
+                    const start = (page - 1) * pageSize;
+                    visibleTools = tools.slice(start, start + pageSize);
+                    pageLabel = `page ${page}`;
+                } else {
+                    visibleTools = tools.slice(0, numericArg);
+                    pageLabel = `top ${numericArg}`;
+                }
+            } else {
+                visibleTools = tools.slice(0, pageSize);
+            }
+
+            const rows = visibleTools.map((tool, index) => {
+                const absoluteIndex = tools.indexOf(tool) + 1;
+                const toolName = tool.capability_key?.replace(/^mcp_tool\./, '') || tool.name || 'unknown';
+                const moduleName = toolName.includes('_') ? toolName.split('_')[0] : 'misc';
+                const summary = (tool.summary || '').replace(/\s+/g, ' ').trim();
+                return {
+                    no: String(absoluteIndex),
+                    module: moduleName,
+                    name: toolName,
+                    summary: summary,
+                };
+            });
+
+            const clippedRows = rows.map(row => ({
+                no: row.no.padStart(3),
+                module: row.module.slice(0, 12).padEnd(12),
+                name: row.name.slice(0, 34).padEnd(34),
+                summary: row.summary.slice(0, 72),
+            }));
+
+            let output = '<div style="padding: 8px 0;">';
+            output += `<strong style="color: var(--terminal-cyan);">Synced MCP Tools</strong>\n\n`;
+            output += `<span style="color: var(--terminal-text-dim);">Total:</span> ${tools.length}\n`;
+            output += `<span style="color: var(--terminal-text-dim);">Shown:</span> ${visibleTools.length}\n`;
+            output += `<span style="color: var(--terminal-text-dim);">View:</span> ${this.escapeHtml(pageLabel)}\n\n`;
+            output += '<pre class="terminal-code-block"><code>';
+            output += this.escapeHtml(' NO  MODULE       TOOL NAME                          SUMMARY\n');
+            output += this.escapeHtml(' --- ----------- ---------------------------------- ------------------------------------------------------------------------\n');
+            clippedRows.forEach(row => {
+                output += this.escapeHtml(`${row.no} ${row.module} ${row.name} ${row.summary}\n`);
+            });
+            output += '</code></pre>';
+
+            if (tools.length > visibleTools.length && firstArg !== 'all') {
+                output += `\n<span style="color: var(--terminal-text-dim);">Tip:</span> use <span class="terminal-cmd">/mcp-tools 2</span>, <span class="terminal-cmd">/mcp-tools 5</span>, <span class="terminal-cmd">/mcp-tools 80</span>, or <span class="terminal-cmd">/mcp-tools all</span>`;
+            }
+
+            output += '\n</div>';
+            this.printOutput(output);
+        } catch (error) {
+            this.printError(`Network error: ${error.message}`);
         }
     }
 
@@ -1477,6 +1836,7 @@ class AgomTerminal {
                 }
 
                 if (data.route_confirmation_required) {
+                    data.original_message = message;
                     this.handleRouteSuggestion(data);
                 }
                 this.printAIResponse(data.reply, data.metadata);

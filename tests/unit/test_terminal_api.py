@@ -403,6 +403,7 @@ class TestTerminalChatRouting:
                     'route': 'intent_suggestion',
                 },
                 'requires_confirmation': True,
+                'missing_params': ['account_id'],
                 'suggested_command': '/status',
                 'suggested_intent': 'system_status',
                 'suggestion_prompt': 'Type Y to execute /status',
@@ -416,6 +417,8 @@ class TestTerminalChatRouting:
         assert resp.status_code == 200
         data = resp.json()
         assert data['route_confirmation_required'] is True
+        assert data['selected_capability_key'] == 'builtin.system_status'
+        assert data['missing_params'] == ['account_id']
         assert data['suggested_command'] == '/status'
         assert data['suggested_intent'] == 'system_status'
 

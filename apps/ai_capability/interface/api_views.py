@@ -34,6 +34,15 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
+def _get_mcp_enabled(user) -> bool:
+    if not getattr(user, "is_authenticated", False):
+        return False
+    profile = getattr(user, "account_profile", None)
+    if profile is not None:
+        return bool(getattr(profile, "mcp_enabled", False))
+    return bool(getattr(user, "mcp_enabled", False))
+
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def route_message(request):
@@ -73,9 +82,7 @@ def route_message(request):
     context = data.get("context", {})
     context["user_id"] = request.user.id if request.user.is_authenticated else None
     context["user_is_admin"] = request.user.is_staff if request.user.is_authenticated else False
-    context["mcp_enabled"] = (
-        getattr(request.user, "mcp_enabled", True) if request.user.is_authenticated else True
-    )
+    context["mcp_enabled"] = _get_mcp_enabled(request.user)
     context["answer_chain_enabled"] = context.get("answer_chain_enabled", False)
 
     use_case = RouteMessageUseCase()
@@ -170,6 +177,7 @@ def web_chat(request):
 
     data = serializer.validated_data
     user_is_admin = request.user.is_staff if request.user.is_authenticated else False
+    mcp_enabled = _get_mcp_enabled(request.user)
 
     facade = CapabilityRoutingFacade()
     action = _extract_execute_action(data.get("context") or {})
@@ -183,7 +191,7 @@ def web_chat(request):
                 session_id=data.get("session_id"),
                 user_id=request.user.id if request.user.is_authenticated else None,
                 user_is_admin=user_is_admin,
-                mcp_enabled=True,
+                mcp_enabled=mcp_enabled,
                 provider_name=data.get("provider_name"),
                 model=data.get("model"),
                 context=data.get("context", {}),
@@ -196,7 +204,7 @@ def web_chat(request):
                 session_id=data.get("session_id"),
                 user_id=request.user.id if request.user.is_authenticated else None,
                 user_is_admin=user_is_admin,
-                mcp_enabled=True,
+                mcp_enabled=mcp_enabled,
                 provider_name=data.get("provider_name"),
                 model=data.get("model"),
                 context=data.get("context", {}),
@@ -205,6 +213,11 @@ def web_chat(request):
 
         response_data = _build_web_chat_response(result, user_is_admin)
         return Response(response_data)
+    except PermissionError as e:
+        return Response(
+            {"error": str(e), "reply": str(e)},
+            status=status.HTTP_403_FORBIDDEN,
+        )
     except Exception as e:
         logger.exception("Web chat failed")
         return Response(
@@ -320,6 +333,7 @@ def list_capabilities(request):
     """
     source_type = request.query_params.get("source_type")
     route_group = request.query_params.get("route_group")
+    q = (request.query_params.get("q") or "").strip().lower()
     enabled_only = request.query_params.get("enabled_only", "true").lower() == "true"
 
     use_case = GetCapabilityListUseCase()
@@ -330,6 +344,13 @@ def list_capabilities(request):
             route_group=route_group,
             enabled_only=enabled_only,
         )
+        if q:
+            capabilities = [
+                item for item in capabilities
+                if q in (item.get("capability_key", "") or "").lower()
+                or q in (item.get("name", "") or "").lower()
+                or q in (item.get("summary", "") or "").lower()
+            ]
         serializer = CapabilitySummarySerializer(capabilities, many=True)
         return Response(serializer.data)
     except Exception as e:

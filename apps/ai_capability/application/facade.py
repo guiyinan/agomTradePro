@@ -23,6 +23,7 @@ from ..domain.entities import (
     RoutingDecision,
     SourceType,
 )
+from ..domain.services import CapabilityFilter
 from ..infrastructure.repositories import (
     DjangoCapabilityRepository,
     DjangoRoutingLogRepository,
@@ -130,6 +131,10 @@ class CapabilityRoutingFacade:
             context=request_context,
             answer_chain_enabled=answer_chain_enabled,
         )
+
+        allowed = CapabilityFilter().filter_by_context([capability], routing_context)
+        if not allowed:
+            raise PermissionError(f"Capability is not available in {entrypoint} for this user: {capability_key}")
 
         # The user has already confirmed the suggestion in the web UI.
         confirmed_capability = replace(capability, requires_confirmation=False)

@@ -369,9 +369,11 @@ class TerminalChatView(APIView):
                     'selected_capability_key': routed.get('selected_capability_key'),
                 },
                 'route_confirmation_required': routed.get('requires_confirmation', False),
+                'selected_capability_key': routed.get('selected_capability_key'),
                 'suggested_command': routed.get('suggested_command'),
                 'suggested_intent': routed.get('suggested_intent'),
                 'suggestion_prompt': routed.get('suggestion_prompt'),
+                'missing_params': routed.get('missing_params') or [],
             }
             if answer_chain_config['enabled'] and routed.get('answer_chain'):
                 response_data['metadata']['answer_chain'] = routed['answer_chain']

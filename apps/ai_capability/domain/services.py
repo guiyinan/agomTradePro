@@ -207,6 +207,7 @@ class CapabilityFilter:
         """Check if capability is enabled for the given entrypoint."""
         entrypoint_flags = {
             "terminal": capability.enabled_for_terminal,
+            "web": capability.enabled_for_chat,
             "chat": capability.enabled_for_chat,
             "agent": capability.enabled_for_agent,
         }
@@ -223,7 +224,7 @@ class CapabilityFilter:
         if capability.visibility == Visibility.PUBLIC:
             return True
         if capability.visibility == Visibility.INTERNAL:
-            return True
+            return user_is_admin
         if capability.visibility in (Visibility.ADMIN, Visibility.HIDDEN):
             return user_is_admin
         return False

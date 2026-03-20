@@ -2,17 +2,21 @@
 AI Capability Catalog Application Use Cases.
 """
 
+import asyncio
 import json
 import logging
+import os
 import re
+import sys
 import time
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Optional
 
 from django.apps import apps
 from django.contrib.auth import get_user_model
-from django.urls import resolve
+from django.urls import Resolver404, resolve
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from apps.ai_provider.infrastructure.client_factory import AIClientFactory
@@ -25,10 +29,12 @@ from ..domain.entities import (
     CapabilityDecision,
     CapabilityRoutingLog,
     CapabilitySyncLog,
+    RiskLevel,
     RoutingContext,
     RoutingDecision,
     RouteGroup,
     SourceType,
+    Visibility,
 )
 from ..domain.services import (
     BuiltinCapabilityRegistry,
@@ -49,6 +55,111 @@ from ..infrastructure.repositories import (
 
 
 logger = logging.getLogger(__name__)
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_SDK_ROOT = _REPO_ROOT / "sdk"
+_MCP_CONFIG_PATH = _REPO_ROOT / ".mcp.json"
+
+_MCP_MUTATING_KEYWORDS = (
+    "activate",
+    "add",
+    "approve",
+    "backfill",
+    "cancel",
+    "close",
+    "create",
+    "deactivate",
+    "delete",
+    "disable",
+    "enable",
+    "execute",
+    "export",
+    "fix",
+    "import",
+    "open",
+    "patch",
+    "rebalance",
+    "refresh",
+    "reject",
+    "remove",
+    "repair",
+    "reset",
+    "rollback",
+    "run",
+    "save",
+    "set",
+    "submit",
+    "sync",
+    "trade",
+    "update",
+    "upsert",
+    "write",
+)
+
+
+class _CapabilityRegimeAdapter:
+    """Adapter for exposing regime queries to tool registry."""
+
+    def get_current_regime(self, as_of_date=None):
+        result = resolve_current_regime(as_of_date=as_of_date)
+        return {
+            "dominant_regime": result.dominant_regime,
+            "confidence": result.confidence,
+            "observed_at": result.observed_at.isoformat() if result.observed_at else None,
+            "data_source": result.data_source,
+            "warnings": result.warnings,
+            "distribution": result.distribution or {},
+            "is_fallback": result.is_fallback,
+        }
+
+    def get_regime_distribution(self, as_of_date=None):
+        result = resolve_current_regime(as_of_date=as_of_date)
+        return {
+            "observed_at": result.observed_at.isoformat() if result.observed_at else None,
+            "distribution": result.distribution or {},
+            "dominant_regime": result.dominant_regime,
+            "confidence": result.confidence,
+            "data_source": result.data_source,
+            "warnings": result.warnings,
+            "is_fallback": result.is_fallback,
+        }
+
+
+def _ensure_sdk_on_path() -> None:
+    sdk_path = str(_SDK_ROOT)
+    if sdk_path not in sys.path:
+        sys.path.insert(0, sdk_path)
+
+
+def _load_mcp_env_from_repo_config() -> None:
+    if not _MCP_CONFIG_PATH.exists():
+        return
+
+    try:
+        payload = json.loads(_MCP_CONFIG_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        logger.exception("Failed to load MCP config from %s", _MCP_CONFIG_PATH)
+        return
+
+    server_conf = (payload.get("mcpServers") or {}).get("agomsaaf_local") or {}
+    for key, value in (server_conf.get("env") or {}).items():
+        if value is not None:
+            os.environ.setdefault(str(key), str(value))
+
+
+def _list_sdk_mcp_tools() -> list[Any]:
+    _ensure_sdk_on_path()
+    from agomsaaf_mcp.server import server
+
+    return asyncio.run(server.list_tools())
+
+
+def _call_sdk_mcp_tool(tool_name: str, params: dict[str, Any]) -> Any:
+    _ensure_sdk_on_path()
+    _load_mcp_env_from_repo_config()
+    from agomsaaf_mcp.server import server
+
+    return asyncio.run(server.call_tool(tool_name, params))
 
 
 _DEFAULT_FALLBACK_CHAT_SYSTEM_PROMPT = (
@@ -217,6 +328,7 @@ class CapabilityExecutionDispatcher:
     """Execute selected capabilities through the correct backend."""
 
     PATH_PARAM_RE = re.compile(r"<(?:[^:>]+:)?([^>]+)>")
+    PATH_SEGMENT_RE = re.compile(r"<(?:(?P<converter>[^:>]+):)?(?P<name>[^>]+)>")
 
     def dispatch(
         self,
@@ -343,13 +455,19 @@ class CapabilityExecutionDispatcher:
         capability: CapabilityDefinition,
         context: RoutingContext,
     ) -> dict[str, Any]:
-        from apps.macro.infrastructure.adapters.akshare_adapter import AKShareAdapter
-        from apps.prompt.infrastructure.adapters.function_registry import create_builtin_tools
-        from apps.regime.infrastructure.adapters import DjangoRegimeAdapter
-
-        registry = create_builtin_tools(AKShareAdapter(), DjangoRegimeAdapter())
         tool_name = capability.execution_target.get("tool_name")
-        result = registry.execute(tool_name, context.context.get("params", {}) or {})
+        params = context.context.get("params", {}) or {}
+
+        try:
+            result = _call_sdk_mcp_tool(tool_name, params)
+        except Exception:
+            logger.exception("SDK MCP tool execution failed for %s; falling back to builtin registry", tool_name)
+            from apps.macro.infrastructure.adapters.akshare_adapter import AKShareAdapter
+            from apps.prompt.infrastructure.adapters.function_registry import create_builtin_tools
+
+            registry = create_builtin_tools(AKShareAdapter(), _CapabilityRegimeAdapter())
+            result = registry.execute(tool_name, params)
+
         reply = json.dumps(result, indent=2, ensure_ascii=False) if isinstance(result, (dict, list)) else str(result)
         return {"reply": reply}
 
@@ -360,7 +478,8 @@ class CapabilityExecutionDispatcher:
     ) -> dict[str, Any]:
         params = dict(context.context.get("params", {}) or {})
         path_template = capability.execution_target.get("path", "")
-        path_params = self.PATH_PARAM_RE.findall(path_template)
+        path_segments = list(self.PATH_SEGMENT_RE.finditer(path_template))
+        path_params = [match.group("name") for match in path_segments]
         missing = [name for name in path_params if name not in params]
         if missing:
             return {
@@ -369,8 +488,17 @@ class CapabilityExecutionDispatcher:
             }
 
         path = path_template
-        for name in path_params:
-            path = re.sub(rf"<(?:[^:>]+:)?{name}>", str(params.pop(name)), path, count=1)
+        for segment in path_segments:
+            name = segment.group("name")
+            converter = segment.group("converter") or "str"
+            value = params.pop(name)
+            validation_error = self._validate_path_param(name, value, converter)
+            if validation_error:
+                return {
+                    "reply": validation_error,
+                    "missing_params": [name],
+                }
+            path = path.replace(segment.group(0), str(value), 1)
 
         factory = APIRequestFactory()
         method = capability.execution_target.get("method", "GET").upper()
@@ -389,10 +517,29 @@ class CapabilityExecutionDispatcher:
             except user_model.DoesNotExist:
                 pass
 
-        match = resolve(f"/{path}")
-        response = match.func(request, **match.kwargs)
-        if hasattr(response, "render"):
-            response.render()
+        try:
+            match = resolve(f"/{path}")
+        except Resolver404:
+            return {
+                "reply": (
+                    f"无法执行该能力，请检查参数是否有效。"
+                    f"当前路径: /{path}"
+                ),
+                "missing_params": [],
+                "metadata": {"path": f"/{path}", "status_code": 404},
+            }
+
+        try:
+            response = match.func(request, **match.kwargs)
+            if hasattr(response, "render"):
+                response.render()
+        except Exception as exc:
+            logger.exception("Capability API execution failed for path %s", path)
+            return {
+                "reply": f"能力执行失败: {str(exc)}",
+                "missing_params": [],
+                "metadata": {"path": f"/{path}", "status_code": 500},
+            }
 
         payload = getattr(response, "data", None)
         if payload is None:
@@ -402,6 +549,16 @@ class CapabilityExecutionDispatcher:
             "reply": reply,
             "metadata": {"status_code": getattr(response, "status_code", 200)},
         }
+
+    def _validate_path_param(self, name: str, value: Any, converter: str) -> Optional[str]:
+        if converter == "int":
+            value_str = str(value).strip()
+            if not value_str.isdigit():
+                return (
+                    f"参数 `{name}` 必须是整数。"
+                    f"请输入实际 ID，例如 `1`；如果你想先查询可用 ID，请先取消当前操作再单独查询。"
+                )
+        return None
 
 
 class RouteMessageUseCase:
@@ -1143,20 +1300,22 @@ class SyncCapabilitiesUseCase:
         }
         return mapping.get(terminal_risk, "medium")
 
+    def _classify_mcp_tool(self, tool_name: str) -> tuple[RiskLevel, bool, bool]:
+        normalized = (tool_name or "").lower()
+        is_mutating = any(keyword in normalized for keyword in _MCP_MUTATING_KEYWORDS)
+        if is_mutating:
+            return (RiskLevel.HIGH, True, False)
+        return (RiskLevel.LOW, True, True)
+
     def _sync_mcp_tools(self) -> list[CapabilityDefinition]:
         """Sync MCP tools."""
         capabilities = []
 
         try:
-            from apps.prompt.infrastructure.adapters.function_registry import create_builtin_tools
-            from apps.macro.infrastructure.adapters.akshare_adapter import AKShareAdapter
-            from apps.regime.infrastructure.adapters import DjangoRegimeAdapter
-
-            macro_adapter = AKShareAdapter()
-            regime_adapter = DjangoRegimeAdapter()
-            registry = create_builtin_tools(macro_adapter, regime_adapter)
-
-            for tool in registry.list_tools():
+            for tool in _list_sdk_mcp_tools():
+                risk_level, requires_confirmation, enabled_for_routing = self._classify_mcp_tool(
+                    tool.name
+                )
                 cap = CapabilityDefinition(
                     capability_key=f"mcp_tool.{tool.name}",
                     source_type=SourceType.MCP_TOOL,
@@ -1170,18 +1329,19 @@ class SyncCapabilitiesUseCase:
                     when_to_use=[],
                     when_not_to_use=[],
                     examples=[],
-                    input_schema=tool.parameters,
+                    input_schema=getattr(tool, "inputSchema", {}) or {},
                     execution_target={
                         "type": "mcp_tool",
                         "tool_name": tool.name,
                     },
-                    risk_level="safe",
+                    risk_level=risk_level,
                     requires_mcp=True,
-                    requires_confirmation=False,
-                    enabled_for_routing=True,
+                    requires_confirmation=requires_confirmation,
+                    enabled_for_routing=enabled_for_routing,
                     enabled_for_terminal=True,
                     enabled_for_chat=True,
                     enabled_for_agent=True,
+                    visibility=Visibility.ADMIN,
                     auto_collected=True,
                     review_status="auto",
                 )

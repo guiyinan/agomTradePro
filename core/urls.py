@@ -39,6 +39,11 @@ from core.views import (
 from apps.terminal.interface.views import terminal_view, terminal_config_view
 from core.api_views import ConfigCenterSnapshotView, ConfigCapabilitiesView
 from apps.ai_capability.interface.api_views import web_chat
+from apps.ai_capability.interface.views import (
+    mcp_tools_page,
+    sync_mcp_tools_view,
+    toggle_mcp_tool_flag_view,
+)
 from core.admin_log_views import (
     server_logs_page,
     server_logs_stream,
@@ -119,6 +124,13 @@ core_patterns = [
     path("asset-analysis/screen/", asset_screen_view, name="asset-screen"),
     path("decision/workspace/", decision_workspace_view, name="decision-workspace"),
     path("ops/", ops_center_view, name="ops-center"),
+    path("ops/mcp-tools/", mcp_tools_page, name="ops-mcp-tools"),
+    path("ops/mcp-tools/sync/", sync_mcp_tools_view, name="ops-mcp-tools-sync"),
+    path(
+        "ops/mcp-tools/<str:capability_key>/toggle/<str:flag>/",
+        toggle_mcp_tool_flag_view,
+        name="ops-mcp-tools-toggle",
+    ),
     # More specific pattern must come first.
     path("docs/<str:doc_slug>/", docs_view, name="docs-detail"),
     path("docs/", docs_view, name="docs"),

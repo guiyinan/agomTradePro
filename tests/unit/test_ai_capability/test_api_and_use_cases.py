@@ -1,5 +1,6 @@
 """API and use-case regression tests for AI capability routing."""
 
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -7,7 +8,11 @@ from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 
 from apps.ai_capability.application.dtos import RouteRequestDTO
-from apps.ai_capability.application.use_cases import RouteMessageUseCase, SyncCapabilitiesUseCase
+from apps.ai_capability.application.use_cases import (
+    CapabilityExecutionDispatcher,
+    RouteMessageUseCase,
+    SyncCapabilitiesUseCase,
+)
 from apps.ai_capability.infrastructure.models import CapabilityCatalogModel
 from apps.terminal.infrastructure.models import TerminalRuntimeSettingsORM
 
@@ -53,7 +58,7 @@ def write_capability(db):
         enabled_for_terminal=True,
         enabled_for_chat=False,
         enabled_for_agent=True,
-        visibility="internal",
+        visibility="public",
         auto_collected=True,
         review_status="auto",
     )
@@ -212,6 +217,51 @@ def test_web_chat_execute_action_runs_selected_capability(api_client, staff_user
 
 
 @pytest.mark.django_db
+def test_web_chat_execute_action_rejects_mcp_for_user_without_mcp_access(api_client, regular_user):
+    profile = regular_user.account_profile
+    profile.mcp_enabled = False
+    profile.save(update_fields=["mcp_enabled"])
+
+    capability = CapabilityCatalogModel.objects.create(
+        capability_key="mcp_tool.get_macro_summary",
+        source_type="mcp_tool",
+        source_ref="get_macro_summary",
+        name="get_macro_summary",
+        summary="Read macro summary",
+        description="Read macro summary",
+        route_group="tool",
+        category="mcp",
+        execution_target={"type": "mcp_tool", "tool_name": "get_macro_summary"},
+        risk_level="low",
+        requires_mcp=True,
+        requires_confirmation=True,
+        enabled_for_routing=True,
+        enabled_for_terminal=True,
+        enabled_for_chat=True,
+        enabled_for_agent=True,
+        visibility="public",
+        auto_collected=True,
+        review_status="auto",
+    )
+
+    api_client.force_authenticate(user=regular_user)
+    response = api_client.post(
+        "/api/chat/web/",
+        {
+            "message": "执行 get_macro_summary",
+            "context": {
+                "execute_capability": capability.capability_key,
+                "action_type": "execute_capability",
+            },
+        },
+        format="json",
+    )
+
+    assert response.status_code == 403
+    assert "not available" in response.json()["error"]
+
+
+@pytest.mark.django_db
 def test_chat_fallback_uses_admin_configured_system_prompt(regular_user):
     use_case = RouteMessageUseCase()
     settings_obj = TerminalRuntimeSettingsORM.get_solo()
@@ -248,3 +298,83 @@ def test_chat_fallback_uses_admin_configured_system_prompt(regular_user):
     assert sent_messages[0]["role"] == "system"
     assert sent_messages[0]["content"] == settings_obj.fallback_chat_system_prompt
     assert sent_messages[-1] == {"role": "user", "content": "系统推荐什么"}
+
+
+@pytest.mark.django_db
+def test_api_dispatcher_rejects_non_integer_path_param():
+    dispatcher = CapabilityExecutionDispatcher()
+    capability = CapabilityCatalogModel.objects.create(
+        capability_key="api.get.api.simulated_trading.positions",
+        source_type="api",
+        source_ref="GET api/simulated-trading/accounts/<int:account_id>/positions/",
+        name="Get Simulated-Trading Accounts Positions",
+        summary="Read positions for an account",
+        route_group="read_api",
+        category="simulated-trading",
+        execution_target={
+            "type": "api",
+            "method": "GET",
+            "path": "api/simulated-trading/accounts/<int:account_id>/positions/",
+        },
+        risk_level="low",
+        requires_confirmation=False,
+        enabled_for_routing=True,
+        enabled_for_terminal=True,
+        enabled_for_chat=True,
+        enabled_for_agent=True,
+        visibility="public",
+        auto_collected=True,
+        review_status="auto",
+    ).to_entity()
+
+    result = dispatcher._execute_api(
+        capability,
+        context=type(
+            "Ctx",
+            (),
+            {
+                "context": {"params": {"account_id": "查询account id"}},
+                "user_id": None,
+            },
+        )(),
+    )
+
+    assert "account_id" in result["reply"]
+    assert "整数" in result["reply"]
+
+
+@pytest.mark.django_db
+def test_sync_mcp_tools_discovers_builtin_registry_tools():
+    use_case = SyncCapabilitiesUseCase()
+
+    result = use_case.execute(sync_type="incremental", source="mcp_tool")
+
+    assert result.total_discovered >= 200
+    assert CapabilityCatalogModel.objects.filter(source_type="mcp_tool").exists()
+
+
+def test_sync_mcp_tools_marks_mutating_tools_high_risk_and_non_routable():
+    use_case = SyncCapabilitiesUseCase()
+
+    with patch(
+        "apps.ai_capability.application.use_cases._list_sdk_mcp_tools",
+        return_value=[
+            SimpleNamespace(name="update_portfolio_config", description="update", inputSchema={}),
+            SimpleNamespace(name="get_portfolio_status", description="get", inputSchema={}),
+        ],
+    ):
+        capabilities = use_case._sync_mcp_tools()
+
+    by_key = {cap.capability_key: cap for cap in capabilities}
+
+    mutating = by_key["mcp_tool.update_portfolio_config"]
+    assert mutating.risk_level.value == "high"
+    assert mutating.requires_confirmation is True
+    assert mutating.enabled_for_routing is False
+    assert mutating.visibility.value == "admin"
+
+    readonly = by_key["mcp_tool.get_portfolio_status"]
+    assert readonly.risk_level.value == "low"
+    assert readonly.requires_confirmation is True
+    assert readonly.enabled_for_routing is True
+    assert readonly.visibility.value == "admin"
