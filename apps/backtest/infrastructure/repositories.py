@@ -7,6 +7,7 @@ Infrastructure layer implementation using Django ORM.
 from datetime import date
 from typing import List, Optional, Dict, Any
 from django.db import transaction
+from django.db.models import Avg
 from django.utils import timezone
 
 from ..domain.entities import (
@@ -20,6 +21,7 @@ from .models import BacktestResultModel, BacktestTradeModel
 
 class BacktestRepositoryError(Exception):
     """回测仓储异常"""
+
     pass
 
 
@@ -34,11 +36,7 @@ class DjangoBacktestRepository:
         self._model = BacktestResultModel
         self._trade_model = BacktestTradeModel
 
-    def create_backtest(
-        self,
-        name: str,
-        config: BacktestConfig
-    ) -> BacktestResultModel:
+    def create_backtest(self, name: str, config: BacktestConfig) -> BacktestResultModel:
         """
         创建回测记录
 
@@ -51,7 +49,7 @@ class DjangoBacktestRepository:
         """
         return self._model.objects.create(
             name=name,
-            status='pending',
+            status="pending",
             start_date=config.start_date,
             end_date=config.end_date,
             initial_capital=config.initial_capital,
@@ -75,10 +73,7 @@ class DjangoBacktestRepository:
         except self._model.DoesNotExist:
             return None
 
-    def get_backtests_by_status(
-        self,
-        status: str
-    ) -> List[BacktestResultModel]:
+    def get_backtests_by_status(self, status: str) -> List[BacktestResultModel]:
         """
         按状态获取回测列表
 
@@ -88,12 +83,9 @@ class DjangoBacktestRepository:
         Returns:
             List[BacktestResultModel]: 回测 ORM 模型列表
         """
-        return list(self._model.objects.filter(status=status).order_by('-created_at'))
+        return list(self._model.objects.filter(status=status).order_by("-created_at"))
 
-    def get_all_backtests(
-        self,
-        limit: Optional[int] = None
-    ) -> List[BacktestResultModel]:
+    def get_all_backtests(self, limit: Optional[int] = None) -> List[BacktestResultModel]:
         """
         获取所有回测记录
 
@@ -103,16 +95,13 @@ class DjangoBacktestRepository:
         Returns:
             List[BacktestResultModel]: 回测 ORM 模型列表
         """
-        query = self._model.objects.all().order_by('-created_at')
+        query = self._model.objects.all().order_by("-created_at")
         if limit:
             return list(query[:limit])
         return list(query)
 
     def update_status(
-        self,
-        backtest_id: int,
-        status: str,
-        error_message: Optional[str] = None
+        self, backtest_id: int, status: str, error_message: Optional[str] = None
     ) -> bool:
         """
         更新回测状态
@@ -129,7 +118,7 @@ class DjangoBacktestRepository:
             orm_obj = self._model.objects.get(id=backtest_id)
             orm_obj.status = status
 
-            if status == 'failed' and error_message:
+            if status == "failed" and error_message:
                 orm_obj.mark_failed(error_message)
             else:
                 # 对于所有状态（除了 failed），都需要保存
@@ -139,11 +128,7 @@ class DjangoBacktestRepository:
         except self._model.DoesNotExist:
             return False
 
-    def save_result(
-        self,
-        backtest_id: int,
-        result: DomainBacktestResult
-    ) -> bool:
+    def save_result(self, backtest_id: int, result: DomainBacktestResult) -> bool:
         """
         保存回测结果
 
@@ -173,19 +158,18 @@ class DjangoBacktestRepository:
 
             # 转换权益曲线
             equity_curve_data = [
-                {"date": d.isoformat(), "value": v}
-                for d, v in result.equity_curve
+                {"date": d.isoformat(), "value": v} for d, v in result.equity_curve
             ]
 
             result_data = {
-                'total_return': result.total_return,
-                'annualized_return': result.annualized_return,
-                'max_drawdown': result.max_drawdown,
-                'sharpe_ratio': result.sharpe_ratio,
-                'equity_curve': equity_curve_data,
-                'regime_history': result.regime_history,
-                'trades': trades_data,
-                'warnings': result.warnings,
+                "total_return": result.total_return,
+                "annualized_return": result.annualized_return,
+                "max_drawdown": result.max_drawdown,
+                "sharpe_ratio": result.sharpe_ratio,
+                "equity_curve": equity_curve_data,
+                "regime_history": result.regime_history,
+                "trades": trades_data,
+                "warnings": result.warnings,
             }
 
             orm_obj.mark_completed(result.final_value, result_data)
@@ -222,36 +206,33 @@ class DjangoBacktestRepository:
             status_value = status_choice[0]
             count = self._model.objects.filter(status=status_value).count()
             status_stats[status_value] = {
-                'count': count,
-                'percentage': count / total if total > 0 else 0
+                "count": count,
+                "percentage": count / total if total > 0 else 0,
             }
 
         # 计算平均收益率（仅针对已完成的回测）
-        completed = self._model.objects.filter(
-            status='completed',
-            total_return__isnull=False
-        )
+        completed = self._model.objects.filter(status="completed", total_return__isnull=False)
         if completed.exists():
-            avg_return = completed.values_list('total_return', flat=True).average() or 0
-            max_return = completed.order_by('-total_return').first().total_return if completed.first() else 0
-            min_return = completed.order_by('total_return').first().total_return if completed.first() else 0
+            avg_result = completed.aggregate(avg=Avg("total_return"))
+            avg_return = avg_result["avg"] or 0
+            max_obj = completed.order_by("-total_return").first()
+            max_return = max_obj.total_return if max_obj else 0
+            min_obj = completed.order_by("total_return").first()
+            min_return = min_obj.total_return if min_obj else 0
         else:
             avg_return = 0
             max_return = 0
             min_return = 0
 
         return {
-            'total': total,
-            'by_status': status_stats,
-            'avg_return': avg_return,
-            'max_return': max_return,
-            'min_return': min_return,
+            "total": total,
+            "by_status": status_stats,
+            "avg_return": avg_return,
+            "max_return": max_return,
+            "min_return": min_return,
         }
 
-    def get_recent_results(
-        self,
-        limit: int = 10
-    ) -> List[Dict[str, Any]]:
+    def get_recent_results(self, limit: int = 10) -> List[Dict[str, Any]]:
         """
         获取最近的回测结果摘要
 
@@ -261,21 +242,19 @@ class DjangoBacktestRepository:
         Returns:
             List[Dict]: 回测摘要列表
         """
-        results = self._model.objects.filter(
-            status='completed'
-        ).order_by('-created_at')[:limit]
+        results = self._model.objects.filter(status="completed").order_by("-created_at")[:limit]
 
         return [
             {
-                'id': r.id,
-                'name': r.name,
-                'start_date': r.start_date.isoformat(),
-                'end_date': r.end_date.isoformat(),
-                'total_return': r.total_return,
-                'annualized_return': r.annualized_return,
-                'max_drawdown': r.max_drawdown,
-                'sharpe_ratio': r.sharpe_ratio,
-                'completed_at': r.completed_at.isoformat() if r.completed_at else None,
+                "id": r.id,
+                "name": r.name,
+                "start_date": r.start_date.isoformat(),
+                "end_date": r.end_date.isoformat(),
+                "total_return": r.total_return,
+                "annualized_return": r.annualized_return,
+                "max_drawdown": r.max_drawdown,
+                "sharpe_ratio": r.sharpe_ratio,
+                "completed_at": r.completed_at.isoformat() if r.completed_at else None,
             }
             for r in results
         ]
@@ -317,10 +296,7 @@ class DjangoBacktestRepository:
         ]
 
         # 转换权益曲线
-        equity_curve = [
-            (date.fromisoformat(e["date"]), e["value"])
-            for e in orm_obj.equity_curve
-        ]
+        equity_curve = [(date.fromisoformat(e["date"]), e["value"]) for e in orm_obj.equity_curve]
 
         return DomainBacktestResult(
             config=config,

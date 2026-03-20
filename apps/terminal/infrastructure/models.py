@@ -303,6 +303,15 @@ class TerminalRuntimeSettingsORM(models.Model):
         default=True,
         help_text="是否允许在 Terminal 回答中展开查看答案链条",
     )
+    fallback_chat_system_prompt = models.TextField(
+        blank=True,
+        default='',
+        help_text=(
+            "Terminal 与共享网页聊天在 fallback 普通对话时注入的系统提示词。"
+            "可由管理员控制回答范围，例如系统状态、Regime、持仓、信号、回测、"
+            "RSS 新闻、政策、热点、配置中心等。留空则使用系统默认提示词。"
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -318,7 +327,7 @@ class TerminalRuntimeSettingsORM(models.Model):
     def get_solo(cls) -> 'TerminalRuntimeSettingsORM':
         settings_obj, _ = cls.objects.get_or_create(
             singleton_key='default',
-            defaults={'answer_chain_enabled': True},
+            defaults={'answer_chain_enabled': True, 'fallback_chat_system_prompt': ''},
         )
         return settings_obj
 

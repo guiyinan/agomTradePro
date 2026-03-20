@@ -224,6 +224,8 @@
 /* ===== Output Area ===== */
 .terminal-output-area {
     flex: 1;
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 /* ===== Command Line Elements ===== */
@@ -388,6 +390,8 @@
     margin: 8px 0 8px 16px;
     border-radius: 0 8px 8px 0;
     white-space: normal;
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 .terminal-output-line.ai-response p,

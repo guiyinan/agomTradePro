@@ -191,8 +191,19 @@ class AgomTerminal {
             modeSelect.addEventListener('change', (e) => this.setMode(e.target.value));
         }
 
-        // Click anywhere to focus input
-        this.elements.body.addEventListener('click', () => this.focusInput());
+        // Only focus the input when the user clicks empty space, not when selecting output text.
+        this.elements.body.addEventListener('click', (e) => {
+            const selectionText = window.getSelection?.().toString().trim() || '';
+            if (selectionText) {
+                return;
+            }
+
+            if (e.target.closest('#terminal-output, .terminal-welcome, .terminal-answer-chain, a, button, code, pre')) {
+                return;
+            }
+
+            this.focusInput();
+        });
 
         // Tab completion
         this.elements.input.addEventListener('keydown', (e) => {

@@ -80,6 +80,10 @@ class TerminalRuntimeSettingsAdmin(admin.ModelAdmin):
         ('显示开关', {
             'fields': ('singleton_key', 'answer_chain_enabled')
         }),
+        ('聊天范围', {
+            'fields': ('fallback_chat_system_prompt',),
+            'description': '控制 Terminal 与共享网页聊天在 fallback 普通对话时的系统提示词范围。',
+        }),
         ('时间', {
             'fields': ('created_at', 'updated_at')
         }),

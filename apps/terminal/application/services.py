@@ -261,3 +261,32 @@ class AnswerChainSettingsService:
             "visibility": "technical" if is_admin else "masked",
             "is_admin": is_admin,
         }
+
+
+class ChatScopeSettingsService:
+    """Read shared fallback chat scope settings from terminal runtime settings."""
+
+    DEFAULT_FALLBACK_CHAT_SYSTEM_PROMPT = (
+        "You are the AgomSAAF system assistant for an investment decision platform. "
+        "Prioritize answers within AgomSAAF operational context, including system status, "
+        "macro environment, market regime, policy level, portfolio, positions, signals, "
+        "backtest, audit, AI provider configuration, terminal commands, RSS ingestion, "
+        "policy news, hotspot events, and other system modules already present in the platform. "
+        "If the user asks an ambiguous question such as recommendations, interpret it in this platform context first. "
+        "Do not drift into unrelated lifestyle topics like fitness, travel, entertainment, or generic life coaching. "
+        "If the request is underspecified, ask a short clarifying question tied to the platform context, "
+        "or provide the most relevant system-oriented answer."
+    )
+
+    @staticmethod
+    def get_fallback_chat_system_prompt() -> str:
+        settings_model = apps.get_model("terminal", "TerminalRuntimeSettingsORM")
+        settings_obj, _ = settings_model._default_manager.get_or_create(
+            singleton_key="default",
+            defaults={
+                "answer_chain_enabled": True,
+                "fallback_chat_system_prompt": "",
+            },
+        )
+        custom_prompt = (getattr(settings_obj, "fallback_chat_system_prompt", "") or "").strip()
+        return custom_prompt or ChatScopeSettingsService.DEFAULT_FALLBACK_CHAT_SYSTEM_PROMPT

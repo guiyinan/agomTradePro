@@ -10,6 +10,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.urls import resolve
 from rest_framework.test import APIRequestFactory, force_authenticate
@@ -48,6 +49,32 @@ from ..infrastructure.repositories import (
 
 
 logger = logging.getLogger(__name__)
+
+
+_DEFAULT_FALLBACK_CHAT_SYSTEM_PROMPT = (
+    "You are the AgomSAAF system assistant for an investment decision platform. "
+    "Prioritize answers within AgomSAAF operational context, including system status, "
+    "macro environment, market regime, policy level, portfolio, positions, signals, "
+    "backtest, audit, AI provider configuration, terminal commands, RSS ingestion, "
+    "policy news, hotspot events, and other system modules already present in the platform. "
+    "If the user asks an ambiguous question such as recommendations, interpret it in this platform context first. "
+    "Do not drift into unrelated lifestyle topics like fitness, travel, entertainment, or generic life coaching. "
+    "If the request is underspecified, ask a short clarifying question tied to the platform context, "
+    "or provide the most relevant system-oriented answer."
+)
+
+
+def _get_fallback_chat_system_prompt() -> str:
+    settings_model = apps.get_model("terminal", "TerminalRuntimeSettingsORM")
+    settings_obj, _ = settings_model._default_manager.get_or_create(
+        singleton_key="default",
+        defaults={
+            "answer_chain_enabled": True,
+            "fallback_chat_system_prompt": "",
+        },
+    )
+    custom_prompt = (getattr(settings_obj, "fallback_chat_system_prompt", "") or "").strip()
+    return custom_prompt or _DEFAULT_FALLBACK_CHAT_SYSTEM_PROMPT
 
 
 class CapabilityRegistryService:
@@ -735,7 +762,12 @@ class RouteMessageUseCase:
             ai_factory = AIClientFactory()
             ai_client = ai_factory.get_client(request.provider_name)
 
-            messages = request.context.get("history", [])
+            history = request.context.get("history", []) or []
+            messages = [{
+                "role": "system",
+                "content": _get_fallback_chat_system_prompt(),
+            }]
+            messages.extend(history)
             messages.append({"role": "user", "content": request.message})
 
             ai_response = ai_client.chat_completion(
