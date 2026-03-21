@@ -12,7 +12,7 @@
                 <p class="subtitle">{{ account_type }} - 历史交易</p>
             </div>
             <div class="header-actions">
-                <a href="{% url 'simulated_trading:my-account-detail' account_type_code %}" class="btn btn-secondary">返回账户详情</a>
+                <a href="{% url 'simulated_trading:my-account-detail' account.id %}" class="btn btn-secondary">返回账户详情</a>
                 <a href="{% url 'simulated_trading:my-accounts' %}" class="btn btn-secondary">账户列表</a>
             </div>
         </div>
@@ -28,11 +28,11 @@
             </div>
             <div class="stat-card">
                 <span class="stat-label">买入次数</span>
-                <span class="stat-value">{{ trades|filter_action:"buy"|length }}</span>
+                <span class="stat-value">{{ buy_count }}</span>
             </div>
             <div class="stat-card">
                 <span class="stat-label">卖出次数</span>
-                <span class="stat-value">{{ trades|filter_action:"sell"|length }}</span>
+                <span class="stat-value">{{ sell_count }}</span>
             </div>
             <div class="stat-card {% if total_realized_pnl >= 0 %}stat-positive{% else %}stat-negative{% endif %}">
                 <span class="stat-label">已实现盈亏</span>

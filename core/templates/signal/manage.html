@@ -88,7 +88,7 @@
                     <option value="">选择指标</option>
                     {% for ind in available_indicators %}
                     <option value="{{ ind.code }}" data-threshold="{{ ind.suggested_threshold }}">
-                        {{ ind.name }} (最新: {{ ind.latest }})
+                        {{ ind.name }} (最新: {{ ind.latest_value|default_if_none:"" }})
                     </option>
                     {% endfor %}
                 </select>

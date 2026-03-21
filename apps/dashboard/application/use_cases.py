@@ -243,9 +243,11 @@ class GetDashboardDataUseCase:
         # 3. 获取投资组合快照
         portfolio_id = self.account_repo.get_or_create_default_portfolio(user_id)
         snapshot = self.portfolio_repo.get_portfolio_snapshot(portfolio_id)
+        account_totals = self._get_user_account_totals(user_id)
 
-        # 4. 获取持仓列表（转换为字典格式）
-        positions_dict = self._format_positions(snapshot.positions)
+        # 4. 获取持仓列表（优先展示当前模拟账户体系的持仓）
+        simulated_positions = self._get_simulated_positions(user_id)
+        positions_dict = simulated_positions or self._format_positions(snapshot.positions)
 
         # 5. 计算Regime匹配度
         from apps.account.domain.services import PositionService
@@ -260,7 +262,11 @@ class GetDashboardDataUseCase:
         signal_stats = self._calculate_signal_stats(user_id)
 
         # 7. 资产配置分布
-        asset_allocation = self._format_asset_allocation(snapshot.positions)
+        asset_allocation = (
+            self._format_simulated_asset_allocation(simulated_positions)
+            if simulated_positions
+            else self._format_asset_allocation(snapshot.positions)
+        )
 
         # 8. 生成AI建议
         ai_insights = self._generate_ai_insights(
@@ -305,15 +311,15 @@ class GetDashboardDataUseCase:
             cpi_value=cpi_value,
             regime_data_health=regime_data_health,
             regime_warnings=regime_warnings,
-            total_assets=float(snapshot.total_value),
-            initial_capital=float(profile.initial_capital),
-            total_return=float(snapshot.total_return),
-            total_return_pct=snapshot.total_return_pct,
-            cash_balance=float(snapshot.cash_balance),
-            invested_value=float(snapshot.invested_value),
-            invested_ratio=snapshot.get_invested_ratio(),
+            total_assets=account_totals["total_assets"],
+            initial_capital=account_totals["initial_capital"] or float(profile.initial_capital),
+            total_return=account_totals["total_return"],
+            total_return_pct=account_totals["total_return_pct"],
+            cash_balance=account_totals["cash_balance"],
+            invested_value=account_totals["invested_value"],
+            invested_ratio=account_totals["invested_ratio"],
             positions=positions_dict,
-            position_count=len(snapshot.positions),
+            position_count=len(positions_dict),
             regime_match_score=match_analysis.total_match_score,
             regime_recommendations=match_analysis.recommendations,
             active_signals=active_signals,
@@ -328,6 +334,52 @@ class GetDashboardDataUseCase:
             allocation_data=allocation_data,
             performance_data=performance_data,
         )
+
+    def _get_user_account_totals(self, user_id: int) -> Dict[str, float]:
+        """Prefer the current simulated-account system for dashboard totals."""
+        from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+
+        accounts = SimulatedAccountModel._default_manager.filter(user_id=user_id)
+        if not accounts.exists():
+            portfolio_id = self.account_repo.get_or_create_default_portfolio(user_id)
+            snapshot = self.portfolio_repo.get_portfolio_snapshot(portfolio_id)
+            total_assets = float(snapshot.total_value)
+            cash_balance = float(snapshot.cash_balance)
+            invested_value = float(snapshot.invested_value)
+            invested_ratio = snapshot.get_invested_ratio()
+            return {
+                "total_assets": total_assets,
+                "initial_capital": float(snapshot.initial_capital),
+                "cash_balance": cash_balance,
+                "invested_value": invested_value,
+                "invested_ratio": invested_ratio,
+                "total_return": float(snapshot.total_return),
+                "total_return_pct": snapshot.total_return_pct,
+            }
+
+        total_assets = 0.0
+        initial_capital = 0.0
+        cash_balance = 0.0
+        invested_value = 0.0
+        for account in accounts:
+            total_assets += float(account.total_value or 0.0)
+            initial_capital += float(account.initial_capital or 0.0)
+            cash_balance += float(account.current_cash or 0.0)
+            invested_value += float(account.current_market_value or 0.0)
+
+        total_return = total_assets - initial_capital
+        total_return_pct = (total_return / initial_capital * 100) if initial_capital else 0.0
+        invested_ratio = (invested_value / total_assets) if total_assets else 0.0
+
+        return {
+            "total_assets": total_assets,
+            "initial_capital": initial_capital,
+            "cash_balance": cash_balance,
+            "invested_value": invested_value,
+            "invested_ratio": invested_ratio,
+            "total_return": total_return,
+            "total_return_pct": total_return_pct,
+        }
 
     def _assess_macro_data_health(
         self,
@@ -414,6 +466,39 @@ class GetDashboardDataUseCase:
             for p in positions
         ]
 
+    def _get_simulated_positions(self, user_id: int) -> List[Dict]:
+        """Load holdings from the active simulated-account system."""
+        from apps.simulated_trading.infrastructure.models import PositionModel
+
+        sim_positions = (
+            PositionModel._default_manager
+            .filter(account__user_id=user_id)
+            .select_related("account")
+            .order_by("-market_value", "asset_code")
+        )
+        if not sim_positions.exists():
+            return []
+
+        return [
+            {
+                "id": pos.id,
+                "asset_code": pos.asset_code,
+                "asset_name": pos.asset_name,
+                "asset_class": pos.asset_type,
+                "asset_class_display": self._get_asset_class_display(pos.asset_type),
+                "region": "CN",
+                "region_display": self._get_region_display("CN"),
+                "shares": float(pos.quantity),
+                "avg_cost": float(pos.avg_cost),
+                "current_price": float(pos.current_price),
+                "market_value": float(pos.market_value),
+                "unrealized_pnl": float(pos.unrealized_pnl),
+                "unrealized_pnl_pct": pos.unrealized_pnl_pct,
+                "opened_at": pos.first_buy_date.strftime("%Y-%m-%d") if pos.first_buy_date else "",
+            }
+            for pos in sim_positions
+        ]
+
     def _get_asset_class_display(self, value: str) -> str:
         """获取资产大类显示名称"""
         display_map = {
@@ -496,6 +581,31 @@ class GetDashboardDataUseCase:
                 "percentage": round(a.percentage, 1),
             }
             for a in allocations
+        ]
+
+    def _format_simulated_asset_allocation(self, positions: List[Dict]) -> List[Dict]:
+        """Format allocation data from simulated positions."""
+        total_market_value = sum(float(item.get("market_value") or 0.0) for item in positions)
+        if total_market_value <= 0:
+            return []
+
+        grouped: Dict[str, Dict[str, float]] = {}
+        for item in positions:
+            key = str(item.get("asset_class") or "other")
+            bucket = grouped.setdefault(key, {"count": 0, "market_value": 0.0})
+            bucket["count"] += 1
+            bucket["market_value"] += float(item.get("market_value") or 0.0)
+
+        return [
+            {
+                "dimension": "asset_class",
+                "dimension_value": key,
+                "dimension_display": self._get_asset_class_display(key),
+                "count": bucket["count"],
+                "market_value": bucket["market_value"],
+                "percentage": round(bucket["market_value"] / total_market_value * 100, 1),
+            }
+            for key, bucket in sorted(grouped.items(), key=lambda item: item[1]["market_value"], reverse=True)
         ]
 
     def _generate_ai_insights(

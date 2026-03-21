@@ -55,6 +55,51 @@ def _build_dashboard_data(user_id: int):
     return use_case.execute(user_id)
 
 
+def _load_simulated_positions_fallback(user_id: int) -> list[dict]:
+    """Read holdings directly from the current simulated-account tables."""
+    from apps.simulated_trading.infrastructure.models import PositionModel
+
+    positions = (
+        PositionModel._default_manager
+        .filter(account__user_id=user_id)
+        .select_related("account")
+        .order_by("-market_value", "asset_code")
+    )
+    return [
+        {
+            "id": pos.id,
+            "asset_code": pos.asset_code,
+            "asset_name": pos.asset_name,
+            "asset_class": pos.asset_type,
+            "asset_class_display": pos.get_asset_type_display(),
+            "region": "CN",
+            "region_display": "中国",
+            "shares": float(pos.quantity),
+            "avg_cost": float(pos.avg_cost),
+            "current_price": float(pos.current_price),
+            "market_value": float(pos.market_value),
+            "unrealized_pnl": float(pos.unrealized_pnl),
+            "unrealized_pnl_pct": pos.unrealized_pnl_pct,
+            "opened_at": pos.first_buy_date.strftime("%Y-%m-%d") if pos.first_buy_date else "",
+        }
+        for pos in positions
+    ]
+
+
+def _ensure_dashboard_positions(data, user_id: int):
+    """Backfill positions for page/HTMX rendering when portfolio snapshot is stale."""
+    if data.positions or data.invested_value <= 0:
+        return data
+
+    fallback_positions = _load_simulated_positions_fallback(user_id)
+    if not fallback_positions:
+        return data
+
+    data.positions = fallback_positions
+    data.position_count = len(fallback_positions)
+    return data
+
+
 # ========================================
 # Alpha 可视化数据获取函数（委托至 Query Services）
 # ========================================
@@ -243,6 +288,7 @@ def dashboard_view(request):
     """
     # 获取首页数据
     data = _build_dashboard_data(request.user.id)
+    data = _ensure_dashboard_positions(data, request.user.id)
 
     # 补充用户名
     data.username = request.user.username
@@ -359,6 +405,7 @@ def positions_list_htmx(request):
         return redirect('dashboard:index')
 
     data = _build_dashboard_data(request.user.id)
+    data = _ensure_dashboard_positions(data, request.user.id)
     positions = list(data.positions)
 
     # 获取排序参数
@@ -366,11 +413,17 @@ def positions_list_htmx(request):
 
     # 排序
     if sort_by == 'code':
-        positions.sort(key=lambda p: p.asset_code)
+        positions.sort(key=lambda p: p.get("asset_code", "") if isinstance(p, dict) else p.asset_code)
     elif sort_by == 'pnl_pct':
-        positions.sort(key=lambda p: p.unrealized_pnl_pct or 0, reverse=True)
+        positions.sort(
+            key=lambda p: p.get("unrealized_pnl_pct", 0) if isinstance(p, dict) else (p.unrealized_pnl_pct or 0),
+            reverse=True,
+        )
     elif sort_by == 'market_value':
-        positions.sort(key=lambda p: p.market_value or 0, reverse=True)
+        positions.sort(
+            key=lambda p: p.get("market_value", 0) if isinstance(p, dict) else (p.market_value or 0),
+            reverse=True,
+        )
 
     context = {
         'positions': positions,

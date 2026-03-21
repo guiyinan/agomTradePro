@@ -41,11 +41,11 @@ def _decimal(value: Any, *, default: Optional[Decimal] = None) -> Optional[Decim
 
 def _regime_context() -> Dict[str, Any]:
     try:
-        current = resolve_current_regime() or {}
+        current = resolve_current_regime()
         return {
-            "current_regime": current.get("regime", "UNKNOWN"),
-            "confidence": current.get("confidence", 0.0),
-            "source": current.get("source", "V2_CALCULATION"),
+            "current_regime": getattr(current, "dominant_regime", "UNKNOWN") or "UNKNOWN",
+            "confidence": float(getattr(current, "confidence", 0.0) or 0.0),
+            "source": getattr(current, "data_source", "V2_CALCULATION") or "V2_CALCULATION",
         }
     except Exception:
         return {

@@ -12,7 +12,7 @@
                 <p class="subtitle">{{ account_type }} - 所有持仓</p>
             </div>
             <div class="header-actions">
-                <a href="{% url 'simulated_trading:my-account-detail' account_type_code %}" class="btn btn-secondary">返回账户详情</a>
+                <a href="{% url 'simulated_trading:my-account-detail' account.id %}" class="btn btn-secondary">返回账户详情</a>
                 <a href="{% url 'simulated_trading:my-accounts' %}" class="btn btn-secondary">账户列表</a>
             </div>
         </div>

@@ -77,6 +77,11 @@
         updateUI();
         renderHistory();
     }
+
+    // 兼容历史初始化调用，历史记录实际由 localStorage 驱动。
+    function loadHistory() {
+        return getHistory();
+    }
     
     // 获取历史记录
     function getHistory() {

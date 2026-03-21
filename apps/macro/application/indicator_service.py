@@ -281,6 +281,22 @@ class IndicatorUnitService:
 class IndicatorService:
     """宏观经济指标服务"""
 
+    CODE_ALIASES: Dict[str, List[str]] = {
+        'CN_PMI_MANUFACTURING': ['CN_PMI_MANUFACTURING', 'CN_PMI'],
+        'CN_PMI_NON_MANUFACTURING': ['CN_PMI_NON_MANUFACTURING', 'CN_NON_MAN_PMI'],
+        'CN_CPI_YOY': ['CN_CPI_YOY', 'CN_CPI_NATIONAL_YOY', 'CN_CPI'],
+        'CN_CPI_NATIONAL_YOY': ['CN_CPI_NATIONAL_YOY', 'CN_CPI_YOY', 'CN_CPI'],
+        'CN_CPI_MOY': ['CN_CPI_MOY', 'CN_CPI_NATIONAL_MOM'],
+        'CN_PPI_YOY': ['CN_PPI_YOY', 'CN_PPI'],
+        'CN_M2_YOY': ['CN_M2_YOY', 'CN_M2'],
+        'CN_EXPORT_YOY': ['CN_EXPORT_YOY', 'CN_EXPORTS'],
+        'CN_IMPORT_YOY': ['CN_IMPORT_YOY', 'CN_IMPORTS'],
+        'CN_GDP_YOY': ['CN_GDP_YOY', 'CN_GDP'],
+        'CN_FAI_YOY': ['CN_FAI_YOY', 'CN_FAI'],
+        'CN_REALESTATE_INVESTMENT_YOY': ['CN_REALESTATE_INVESTMENT_YOY', 'CN_REALESTATE_INVESTMENT'],
+        'CN_RETAIL_SALES_YOY': ['CN_RETAIL_SALES_YOY', 'CN_RETAIL_SALES'],
+    }
+
     # 指标元数据配置
     INDICATOR_METADATA = {
         # 中国制造业PMI
@@ -497,6 +513,17 @@ class IndicatorService:
         return metadata
 
     @classmethod
+    def get_code_candidates(cls, code: str) -> List[str]:
+        aliases = cls.CODE_ALIASES.get(code, [code])
+        seen = set()
+        ordered = []
+        for item in aliases:
+            if item and item not in seen:
+                seen.add(item)
+                ordered.append(item)
+        return ordered
+
+    @classmethod
     def get_available_indicators(cls, include_stats: bool = True) -> List[Dict]:
         """
         获取所有可用的指标列表
@@ -652,23 +679,37 @@ def get_available_indicators_for_frontend(include_stats: bool = False) -> List[D
     metadata = IndicatorService.get_indicator_metadata_map()
     known_codes = list(metadata.keys())
     latest_by_code: Dict[str, float] = {}
+    candidate_to_requested: Dict[str, List[str]] = {}
+
+    query_codes: List[str] = []
+    for code in known_codes:
+        for candidate in IndicatorService.get_code_candidates(code):
+            candidate_to_requested.setdefault(candidate, []).append(code)
+            if candidate not in query_codes:
+                query_codes.append(candidate)
 
     # Single query to fetch recent values for known indicator set.
     rows = (
         MacroIndicator._default_manager
-        .filter(code__in=known_codes)
+        .filter(code__in=query_codes)
         .order_by('code', '-reporting_period')
         .values('code', 'value')
     )
 
     for row in rows:
-        code = row['code']
-        if code in latest_by_code:
+        candidate_code = row['code']
+        requested_codes = candidate_to_requested.get(candidate_code, [])
+        if not requested_codes:
             continue
         try:
-            latest_by_code[code] = float(row['value'])
+            value = float(row['value'])
         except (TypeError, ValueError):
-            latest_by_code[code] = None
+            value = None
+
+        for requested_code in requested_codes:
+            if requested_code in latest_by_code:
+                continue
+            latest_by_code[requested_code] = value
 
     indicators = []
     for code in known_codes:

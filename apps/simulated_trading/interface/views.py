@@ -273,12 +273,18 @@ def my_trades_page(request, account_id):
     )
 
     trades = account.trades.all()[:100]  # 最近100条交易
+    buy_count = trades.filter(action="buy").count()
+    sell_count = trades.filter(action="sell").count()
+    total_realized_pnl = sum(float(trade.realized_pnl or 0) for trade in trades)
 
     context = {
         'account': account,
         'account_type': '实仓' if account.account_type == 'real' else '模拟仓',
         'account_type_code': account.account_type,
         'trades': trades,
+        'buy_count': buy_count,
+        'sell_count': sell_count,
+        'total_realized_pnl': total_realized_pnl,
         'user': request.user,
     }
     return render(request, 'simulated_trading/my_trades.html', context)

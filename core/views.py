@@ -7,7 +7,7 @@ Core Views for AgomSAAF
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from apps.regime.application.current_regime import resolve_current_regime
 from core.health_checks import run_readiness_checks, is_healthy
 
