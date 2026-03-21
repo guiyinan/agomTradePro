@@ -27,7 +27,7 @@ FROM docker.1ms.run/library/python:3.11-slim
 
 WORKDIR /app
 ARG DEBIAN_FRONTEND=noninteractive
-ARG BUILD_AGOMSAAF_ENCRYPTION_KEY=QkZJTFQwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3OD0=
+ARG BUILD_AGOMTRADEPRO_ENCRYPTION_KEY=QkZJTFQwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3OD0=
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
@@ -42,7 +42,7 @@ COPY docker/entrypoint.prod.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh && \
     mkdir -p /app/staticfiles /app/media && \
-    AGOMSAAF_ENCRYPTION_KEY=$BUILD_AGOMSAAF_ENCRYPTION_KEY python manage.py collectstatic --noinput --clear
+    AGOMTRADEPRO_ENCRYPTION_KEY=$BUILD_AGOMTRADEPRO_ENCRYPTION_KEY python manage.py collectstatic --noinput --clear
 
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser

@@ -33,17 +33,17 @@ Phase 2 完成了资产轮动(Rotation)模块的完整实现，包括：
 
 | 文件 | 说明 |
 |------|------|
-| `sdk/agomsaaf/modules/rotation.py` | Rotation SDK模块 |
-| `sdk/agomsaaf/client.py` | 客户端 (添加rotation属性) |
+| `sdk/agomtradepro/modules/rotation.py` | Rotation SDK模块 |
+| `sdk/agomtradepro/client.py` | 客户端 (添加rotation属性) |
 
 ### MCP 工具 (2 文件)
 
 | 文件 | 说明 |
 |------|------|
-| `sdk/agomsaaf_mcp/tools/rotation_tools.py` | Rotation MCP工具 |
-| `sdk/agomsaaf_mcp/tools/hedge_tools.py` | Hedge MCP工具 (预备) |
-| `sdk/agomsaaf_mcp/server.py` | MCP服务器 (注册工具) |
-| `sdk/agomsaaf/modules/hedge.py` | Hedge SDK模块 (预备) |
+| `sdk/agomtradepro_mcp/tools/rotation_tools.py` | Rotation MCP工具 |
+| `sdk/agomtradepro_mcp/tools/hedge_tools.py` | Hedge MCP工具 (预备) |
+| `sdk/agomtradepro_mcp/server.py` | MCP服务器 (注册工具) |
+| `sdk/agomtradepro/modules/hedge.py` | Hedge SDK模块 (预备) |
 
 ## 核心功能实现
 
@@ -110,9 +110,9 @@ class FailoverPriceAdapter(PriceDataSource):
 ### Python SDK
 
 ```python
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 
-client = AgomSAAFClient()
+client = AgomTradeProClient()
 
 # 获取动量轮动推荐
 recommendation = client.rotation.get_recommendation("momentum")

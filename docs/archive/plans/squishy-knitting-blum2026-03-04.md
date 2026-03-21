@@ -1,4 +1,4 @@
-# AgomSAAF 系统治理改进计划（修订版）
+# AgomTradePro 系统治理改进计划（修订版）
 
 ## Context
 
@@ -43,7 +43,7 @@
 
 DoD：
 
-1. `AgomSAAFException` 子类均返回统一结构。
+1. `AgomTradeProException` 子类均返回统一结构。
 2. 未识别异常仍由 DRF 默认 handler 处理。
 3. 新增单测覆盖：业务异常、校验异常、未知异常。
 
@@ -109,7 +109,7 @@ DoD：
 
 实施：
 
-1. 增加 `sdk/agomsaaf_mcp/__main__.py` 作为标准启动入口。
+1. 增加 `sdk/agomtradepro_mcp/__main__.py` 作为标准启动入口。
 2. 提供 `sdk/.mcp/claude-desktop-config.json` 模板。
 3. 新增 `docs/mcp/mcp-deployment.md`，包含：
    - 本地调试
@@ -118,13 +118,13 @@ DoD：
 
 文件：
 
-- `sdk/agomsaaf_mcp/__main__.py`（新增）
+- `sdk/agomtradepro_mcp/__main__.py`（新增）
 - `sdk/.mcp/claude-desktop-config.json`（新增）
 - `docs/mcp/mcp-deployment.md`（新增）
 
 DoD：
 
-1. 本地 `python -m agomsaaf_mcp` 可启动。
+1. 本地 `python -m agomtradepro_mcp` 可启动。
 2. Claude Code 按文档可成功调用工具。
 3. RBAC 配置在文档中明确。
 
@@ -301,7 +301,7 @@ DoD：
 | `core/throttling.py` | 业务限流类（含方法过滤） |
 | `core/settings/base.py` | 全局配置增量接入 |
 | `.github/workflows/security-scan.yml` | 安全扫描门禁 |
-| `sdk/agomsaaf_mcp/__main__.py` | MCP 标准入口 |
+| `sdk/agomtradepro_mcp/__main__.py` | MCP 标准入口 |
 | `sdk/.mcp/claude-desktop-config.json` | Claude Desktop 配置模板 |
 | `docs/mcp/mcp-deployment.md` | MCP 部署文档 |
 | `shared/infrastructure/sanitization.py` | 输入消毒模块 |

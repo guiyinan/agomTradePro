@@ -187,7 +187,7 @@ def register_view(request):
                 login(request, user)
 
                 admin_msg = " 您已成为系统管理员。" if user.is_superuser else ""
-                messages.success(request, f"欢迎加入 AgomSAAF，{display_name}！{admin_msg}")
+                messages.success(request, f"欢迎加入 AgomTradePro，{display_name}！{admin_msg}")
                 return redirect("/dashboard/")
 
         except Exception as e:

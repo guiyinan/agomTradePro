@@ -58,7 +58,7 @@ class Command(BaseCommand):
         dry_run = options["dry_run"]
         skip_names = {s.strip() for s in options["skip"].split(",") if s.strip()}
 
-        self.stdout.write(self.style.MIGRATE_HEADING("AgomSAAF Initialization"))
+        self.stdout.write(self.style.MIGRATE_HEADING("AgomTradePro Initialization"))
         self.stdout.write(f"  Total scripts: {len(INIT_SCRIPTS)}")
         if skip_names:
             self.stdout.write(f"  Skipping: {', '.join(skip_names)}")

@@ -21,15 +21,19 @@
                         </span>
                     </div>
                     <div class="transaction-details">
+                        {% if show_amounts %}
                         <span class="transaction-detail">
                             <i class="bi bi-currency-yen"></i> {{ tx.price|floatformat:2 }}
                         </span>
+                        {% endif %}
                         <span class="transaction-detail">
                             <i class="bi bi-stack"></i> {{ tx.quantity|floatformat:0 }} 股
                         </span>
+                        {% if show_amounts %}
                         <span class="transaction-detail">
                             <i class="bi bi-wallet2"></i> {{ tx.amount|floatformat:2 }}
                         </span>
+                        {% endif %}
                     </div>
                     <div class="transaction-time">
                         <i class="bi bi-clock"></i> {{ tx.created_at|date:"Y-m-d H:i" }}

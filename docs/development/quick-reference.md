@@ -1,4 +1,4 @@
-# AgomSAAF 开发快速参考
+# AgomTradePro 开发快速参考
 
 > **文档版本**: V1.4
 > **更新日期**: 2026-03-18
@@ -8,7 +8,7 @@
 
 ## 项目信息
 
-| 项目 | AgomSAAF (Agom Strategic Asset Allocation Framework) |
+| 项目 | AgomTradePro (Agom Strategic Asset Allocation Framework) |
 |------|------------------------------------------------------|
 | 版本 | V3.5 |
 | 状态 | 生产就绪 |
@@ -26,32 +26,32 @@
 
 ```bash
 # 启动开发服务器
-agomsaaf/Scripts/python manage.py runserver
+agomtradepro/Scripts/python manage.py runserver
 
 # 数据库迁移
-agomsaaf/Scripts/python manage.py makemigrations
-agomsaaf/Scripts/python manage.py migrate
+agomtradepro/Scripts/python manage.py makemigrations
+agomtradepro/Scripts/python manage.py migrate
 
 # 创建超级用户
-agomsaaf/Scripts/python manage.py createsuperuser
+agomtradepro/Scripts/python manage.py createsuperuser
 
 # 同步宏观数据
-agomsaaf/Scripts/python manage.py sync_macro_data
+agomtradepro/Scripts/python manage.py sync_macro_data
 
 # 初始化配置数据
-agomsaaf/Scripts/python manage.py init_asset_codes
-agomsaaf/Scripts/python manage.py init_indicators
-agomsaaf/Scripts/python manage.py init_thresholds
-agomsaaf/Scripts/python manage.py init_weight_config
-agomsaaf/Scripts/python manage.py init_prompt_templates
-agomsaaf/Scripts/python manage.py init_fee_configs
+agomtradepro/Scripts/python manage.py init_asset_codes
+agomtradepro/Scripts/python manage.py init_indicators
+agomtradepro/Scripts/python manage.py init_thresholds
+agomtradepro/Scripts/python manage.py init_weight_config
+agomtradepro/Scripts/python manage.py init_prompt_templates
+agomtradepro/Scripts/python manage.py init_fee_configs
 
 # Alpha 模块（Qlib 集成）
-agomsaaf/Scripts/python manage.py init_qlib_data --check
-agomsaaf/Scripts/python manage.py train_qlib_model --name mlp_csi300 --type LGBModel --activate
-agomsaaf/Scripts/python manage.py activate_model --model-name mlp_csi300 --version <hash>
-agomsaaf/Scripts/python manage.py rollback_model --model-name mlp_csi300
-agomsaaf/Scripts/python manage.py list_models
+agomtradepro/Scripts/python manage.py init_qlib_data --check
+agomtradepro/Scripts/python manage.py train_qlib_model --name mlp_csi300 --type LGBModel --activate
+agomtradepro/Scripts/python manage.py activate_model --model-name mlp_csi300 --version <hash>
+agomtradepro/Scripts/python manage.py rollback_model --model-name mlp_csi300
+agomtradepro/Scripts/python manage.py list_models
 ```
 
 ### Streamlit 命令
@@ -385,8 +385,8 @@ ALERT_EMAIL=
 
 ```bash
 # 激活虚拟环境
-agomsaaf/Scripts/activate  # Windows
-source agomsaaf/bin/activate  # Linux/Mac
+agomtradepro/Scripts/activate  # Windows
+source agomtradepro/bin/activate  # Linux/Mac
 
 # 安装依赖
 pip install -r requirements.txt
@@ -480,5 +480,5 @@ pip install -r requirements.txt
 | `SYSTEM_SPECIFICATION.md` | 系统完整说明书 |
 | `project_structure.md` | 项目结构详解 |
 | `module-dependency-graph.md` | 模块依赖关系图 |
-| `AgomSAAF_V3.4.md` | 业务需求文档 |
+| `AgomTradePro_V3.4.md` | 业务需求文档 |
 | `CLAUDE.md` | 项目开发规则 |

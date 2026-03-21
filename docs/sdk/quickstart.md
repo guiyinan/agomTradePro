@@ -1,6 +1,6 @@
-# AgomSAAF SDK Quick Start Guide
+# AgomTradePro SDK Quick Start Guide
 
-This guide will help you get started with the AgomSAAF SDK in minutes.
+This guide will help you get started with the AgomTradePro SDK in minutes.
 
 ## Installation
 
@@ -27,8 +27,8 @@ python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','core.setti
 #### Windows PowerShell
 
 ```powershell
-$env:AGOMSAAF_BASE_URL="http://localhost:8000"
-$env:AGOMSAAF_API_TOKEN="your_token_here"
+$env:AGOMTRADEPRO_BASE_URL="http://localhost:8000"
+$env:AGOMTRADEPRO_API_TOKEN="your_token_here"
 $env:NO_PROXY="127.0.0.1,localhost"
 $env:no_proxy="127.0.0.1,localhost"
 ```
@@ -36,8 +36,8 @@ $env:no_proxy="127.0.0.1,localhost"
 #### Linux/macOS (bash)
 
 ```bash
-export AGOMSAAF_BASE_URL="http://localhost:8000"
-export AGOMSAAF_API_TOKEN="your_token_here"
+export AGOMTRADEPRO_BASE_URL="http://localhost:8000"
+export AGOMTRADEPRO_API_TOKEN="your_token_here"
 export NO_PROXY="127.0.0.1,localhost"
 export no_proxy="127.0.0.1,localhost"
 ```
@@ -47,22 +47,22 @@ export no_proxy="127.0.0.1,localhost"
 ### 1. Initialize the Client
 
 ```python
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 
 # Method 1: Using parameters
-client = AgomSAAFClient(
+client = AgomTradeProClient(
     base_url="http://localhost:8000",
     api_token="your_token_here"
 )
 
 # Method 2: Using environment variables
 import os
-os.environ["AGOMSAAF_BASE_URL"] = "http://localhost:8000"
-os.environ["AGOMSAAF_API_TOKEN"] = "your_token_here"
-client = AgomSAAFClient()
+os.environ["AGOMTRADEPRO_BASE_URL"] = "http://localhost:8000"
+os.environ["AGOMTRADEPRO_API_TOKEN"] = "your_token_here"
+client = AgomTradeProClient()
 
-# Method 3: Using config file (~/.agomsaaf/config.json)
-client = AgomSAAFClient()
+# Method 3: Using config file (~/.agomtradepro/config.json)
+client = AgomTradeProClient()
 ```
 
 If your machine has proxy variables configured, bypass localhost:
@@ -176,16 +176,16 @@ print(decision.get("success", False))
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `AGOMSAAF_BASE_URL` | API base URL | `http://localhost:8000` |
-| `AGOMSAAF_API_TOKEN` | API authentication token | - |
-| `AGOMSAAF_USERNAME` | Username (for password auth) | - |
-| `AGOMSAAF_PASSWORD` | Password (for password auth) | - |
-| `AGOMSAAF_TIMEOUT` | Request timeout (seconds) | `30` |
-| `AGOMSAAF_MAX_RETRIES` | Maximum retry attempts | `3` |
+| `AGOMTRADEPRO_BASE_URL` | API base URL | `http://localhost:8000` |
+| `AGOMTRADEPRO_API_TOKEN` | API authentication token | - |
+| `AGOMTRADEPRO_USERNAME` | Username (for password auth) | - |
+| `AGOMTRADEPRO_PASSWORD` | Password (for password auth) | - |
+| `AGOMTRADEPRO_TIMEOUT` | Request timeout (seconds) | `30` |
+| `AGOMTRADEPRO_MAX_RETRIES` | Maximum retry attempts | `3` |
 
 ### Config File
 
-Create `~/.agomsaaf/config.json`:
+Create `~/.agomtradepro/config.json`:
 
 ```json
 {
@@ -199,15 +199,15 @@ Create `~/.agomsaaf/config.json`:
 ## Error Handling
 
 ```python
-from agomsaaf import AgomSAAFClient
-from agomsaaf.exceptions import (
+from agomtradepro import AgomTradeProClient
+from agomtradepro.exceptions import (
     AuthenticationError,
     ValidationError,
     NotFoundError,
-    AgomSAAFAPIError
+    AgomTradeProAPIError
 )
 
-client = AgomSAAFClient()
+client = AgomTradeProClient()
 
 try:
     regime = client.regime.get_current()
@@ -217,7 +217,7 @@ except ValidationError as e:
     print(f"Validation error: {e.errors}")
 except NotFoundError:
     print("Resource not found")
-except AgomSAAFAPIError as e:
+except AgomTradeProAPIError as e:
     print(f"API error: {e}")
 ```
 

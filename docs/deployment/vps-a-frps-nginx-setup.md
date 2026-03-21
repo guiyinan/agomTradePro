@@ -2,7 +2,7 @@
 
 ## 1. 目标
 
-A 机只做公网入口，不运行 AgomSAAF 主应用。
+A 机只做公网入口，不运行 AgomTradePro 主应用。
 
 职责：
 
@@ -122,14 +122,14 @@ sudo systemctl status frps
 
 ## 7. Nginx 站点配置样例
 
-假设域名是 `agomsaaf.example.com`。
+假设域名是 `agomtradepro.example.com`。
 
-文件：`/etc/nginx/sites-available/agomsaaf.conf`
+文件：`/etc/nginx/sites-available/agomtradepro.conf`
 
 ```nginx
 server {
     listen 80;
-    server_name agomsaaf.example.com;
+    server_name agomtradepro.example.com;
 
     location /.well-known/acme-challenge/ {
         root /var/www/html;
@@ -142,10 +142,10 @@ server {
 
 server {
     listen 443 ssl http2;
-    server_name agomsaaf.example.com;
+    server_name agomtradepro.example.com;
 
-    ssl_certificate /etc/letsencrypt/live/agomsaaf.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/agomsaaf.example.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/agomtradepro.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/agomtradepro.example.com/privkey.pem;
 
     client_max_body_size 20m;
     proxy_read_timeout 300s;
@@ -168,7 +168,7 @@ server {
 启用：
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/agomsaaf.conf /etc/nginx/sites-enabled/agomsaaf.conf
+sudo ln -s /etc/nginx/sites-available/agomtradepro.conf /etc/nginx/sites-enabled/agomtradepro.conf
 sudo nginx -t
 sudo systemctl reload nginx
 ```
@@ -176,7 +176,7 @@ sudo systemctl reload nginx
 ## 8. 证书签发
 
 ```bash
-sudo certbot --nginx -d agomsaaf.example.com
+sudo certbot --nginx -d agomtradepro.example.com
 ```
 
 如果首次还没启用 HTTPS server 段，也可以先只开 80，再签发后补 443 配置。
@@ -212,15 +212,15 @@ ss -lntp | grep -E ':(80|443|7000|8080)'
 外部检查：
 
 ```bash
-curl -I http://agomsaaf.example.com
-curl -I https://agomsaaf.example.com
+curl -I http://agomtradepro.example.com
+curl -I https://agomtradepro.example.com
 ```
 
 等 B 机 `frpc` 连上后，再检查：
 
 ```bash
-curl -H "Host: agomsaaf.example.com" http://127.0.0.1:8080/api/health/
-curl https://agomsaaf.example.com/api/health/
+curl -H "Host: agomtradepro.example.com" http://127.0.0.1:8080/api/health/
+curl https://agomtradepro.example.com/api/health/
 ```
 
 ## 11. 常见问题
@@ -256,4 +256,4 @@ A 上最终保留：
 - `frps`
 - HTTPS 域名
 
-不要在 A 上再跑一套 AgomSAAF，避免职责混乱。
+不要在 A 上再跑一套 AgomTradePro，避免职责混乱。

@@ -646,7 +646,7 @@ class GetDashboardDataUseCase:
             ]
 
         # 2. 构建 AI 提示词
-        prompt = f"""作为 AgomSAAF 投资助手，基于以下当前投资组合状态，给出 3-5 条简洁的投资建议（每条不超过30字）：
+        prompt = f"""作为 AgomTradePro 投资助手，基于以下当前投资组合状态，给出 3-5 条简洁的投资建议（每条不超过30字）：
 
 【宏观环境】
 - 当前 Regime: {current_regime}
@@ -691,7 +691,7 @@ class GetDashboardDataUseCase:
                     "messages": [
                         {
                             "role": "system",
-                            "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。",
+                            "content": "你是 AgomTradePro 投资助手，给出简洁具体的投资建议。",
                         },
                         {"role": "user", "content": prompt},
                     ],
@@ -704,7 +704,7 @@ class GetDashboardDataUseCase:
                     "messages": [
                         {
                             "role": "system",
-                            "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。",
+                            "content": "你是 AgomTradePro 投资助手，给出简洁具体的投资建议。",
                         },
                         {"role": "user", "content": prompt},
                     ],
@@ -717,7 +717,7 @@ class GetDashboardDataUseCase:
                     "messages": [
                         {
                             "role": "system",
-                            "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。",
+                            "content": "你是 AgomTradePro 投资助手，给出简洁具体的投资建议。",
                         },
                         {"role": "user", "content": prompt},
                     ],

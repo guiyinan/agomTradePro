@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# AgomSAAF Post-Deploy Gate Script
+# AgomTradePro Post-Deploy Gate Script
 # Default mode is strict: health + business read/write/readback + celery + alert chain.
 
 param(
@@ -275,7 +275,7 @@ function Test-AlertChain {
 # Main execution
 Write-Host ""
 Write-Host "=======================================" -ForegroundColor Cyan
-Write-Host " AgomSAAF Post-Deploy Gate" -ForegroundColor Cyan
+Write-Host " AgomTradePro Post-Deploy Gate" -ForegroundColor Cyan
 Write-Host "=======================================" -ForegroundColor Cyan
 Write-Host ""
 

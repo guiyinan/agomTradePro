@@ -1,13 +1,13 @@
 """
-Unit tests for AgomSAAF SDK Regime Module
+Unit tests for AgomTradePro SDK Regime Module
 """
 
 import pytest
 from datetime import date
 from unittest.mock import Mock, patch
 
-from agomsaaf import AgomSAAFClient
-from agomsaaf.types import RegimeState, RegimeType
+from agomtradepro import AgomTradeProClient
+from agomtradepro.types import RegimeState, RegimeType
 
 
 class TestRegimeModule:
@@ -15,7 +15,7 @@ class TestRegimeModule:
 
     @pytest.fixture
     def client(self):
-        return AgomSAAFClient(
+        return AgomTradeProClient(
             base_url="http://test.com",
             api_token="test_token",
         )
@@ -97,7 +97,7 @@ class TestRegimeModule:
 
     def test_parse_regime_state_with_string_date(self):
         """测试解析包含字符串日期的响应"""
-        from agomsaaf.modules.regime import RegimeModule
+        from agomtradepro.modules.regime import RegimeModule
 
         data = {
             "dominant_regime": "Recovery",
@@ -108,7 +108,7 @@ class TestRegimeModule:
             "inflation_indicator": "CPI",
         }
 
-        client = AgomSAAFClient(
+        client = AgomTradeProClient(
             base_url="http://test.com",
             api_token="test_token",
         )

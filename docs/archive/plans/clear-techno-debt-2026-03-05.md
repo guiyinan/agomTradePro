@@ -2,7 +2,7 @@
 
 ## Context
 
-AgomSAAF V3.4 功能已完成，但在代码质量扫描中发现以下技术债务：
+AgomTradePro V3.4 功能已完成，但在代码质量扫描中发现以下技术债务：
 - 48 个文件、141 处 `datetime.now()` 违反 `USE_TZ=True`（会触发 RuntimeWarning）
 - 6 个 Celery task 文件缺少 `time_limit`/`soft_time_limit`（任务可能永久挂起）
 - Signal 模型 3 个废弃字段仍在使用（invalidation_logic, invalidation_threshold, invalidation_rules）

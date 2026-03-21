@@ -1,7 +1,7 @@
 # Qlib 训练运行时搭建与接入指南
 
 > 最后更新: 2026-03-13
-> 适用目标: 让 AgomSAAF 真正训练出 `model.pkl`，并接入现有 Admin / Celery / Alpha 推理链路
+> 适用目标: 让 AgomTradePro 真正训练出 `model.pkl`，并接入现有 Admin / Celery / Alpha 推理链路
 
 ---
 
@@ -161,7 +161,7 @@ sh scripts/start-qlib-train-runtime.sh
 2. 创建：
    - `runtime/qlib_data`
    - `runtime/qlib_models`
-3. 构建并启动 `agomsaaf_qlib_train_worker`
+3. 构建并启动 `agomtradepro_qlib_train_worker`
 
 停止命令：
 
@@ -215,8 +215,8 @@ sh scripts/stop-qlib-train-runtime.sh
 sudo apt update
 sudo apt install -y python3.10 python3.10-venv build-essential git
 
-python3.10 -m venv ~/venvs/agomsaaf-qlib
-source ~/venvs/agomsaaf-qlib/bin/activate
+python3.10 -m venv ~/venvs/agomtradepro-qlib
+source ~/venvs/agomtradepro-qlib/bin/activate
 
 pip install -U pip setuptools wheel
 pip install pyqlib lightgbm pandas numpy scipy
@@ -228,7 +228,7 @@ pip install celery redis django
 ### 5.4 启动训练 worker
 
 ```bash
-cd /path/to/agomSAAF
+cd /path/to/agomTradePro
 export DJANGO_SETTINGS_MODULE=core.settings.production
 export QLIB_PROVIDER_URI=$HOME/.qlib/qlib_data/cn_data
 export QLIB_MODEL_PATH=/path/to/shared/models/qlib
@@ -428,4 +428,4 @@ python manage.py bootstrap_alpha_cold_start --universes csi300
 
 **不要在当前 Windows Python 3.13 里硬跑 Qlib 训练。**
 
-正确做法是给 AgomSAAF 单独配一个 Python 3.10 的 Qlib 训练运行时，再把它接到现有 Admin + Celery + 模型目录上。
+正确做法是给 AgomTradePro 单独配一个 Python 3.10 的 Qlib 训练运行时，再把它接到现有 Admin + Celery + 模型目录上。

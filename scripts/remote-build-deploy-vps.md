@@ -24,7 +24,7 @@ Typical usage:
 pwsh ./scripts/remote-build-deploy-vps.ps1 `
   -Host 141.11.211.21 `
   -User root `
-  -PasswordFile "$HOME\.agomsaaf\vps.pass" `
+  -PasswordFile "$HOME\.agomtradepro\vps.pass" `
   -Action upgrade `
   -HttpPort 8000
 ```
@@ -44,7 +44,7 @@ First-time deploy with local SQLite and full Docker cleanup:
 pwsh ./scripts/remote-build-deploy-vps.ps1 `
   -Host 141.11.211.21 `
   -User root `
-  -PasswordFile "$HOME\.agomsaaf\vps.pass" `
+  -PasswordFile "$HOME\.agomtradepro\vps.pass" `
   -Action fresh `
   -IncludeSqlite `
   -WipeDocker `
@@ -57,7 +57,7 @@ Build and download only, do not deploy:
 pwsh ./scripts/remote-build-deploy-vps.ps1 `
   -Host 141.11.211.21 `
   -User root `
-  -PasswordFile "$HOME\.agomsaaf\vps.pass" `
+  -PasswordFile "$HOME\.agomtradepro\vps.pass" `
   -SkipDeployAfterBuild
 ```
 

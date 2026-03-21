@@ -8,11 +8,11 @@ services:
   # PostgreSQL 数据库
   postgres:
     image: postgres:15-alpine
-    container_name: agomsaaf_postgres_dev
+    container_name: agomtradepro_postgres_dev
     restart: unless-stopped
     environment:
-      POSTGRES_DB: agomsaaf
-      POSTGRES_USER: agomsaaf
+      POSTGRES_DB: agomtradepro
+      POSTGRES_USER: agomtradepro
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       # 优化 PostgreSQL 性能
       POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
@@ -22,7 +22,7 @@ services:
     ports:
       - "5433:5432"  # 使用 5433 端口避免与 wanderwise_postgres 冲突
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U agomsaaf -d agomsaaf"]
+      test: ["CMD-SHELL", "pg_isready -U agomtradepro -d agomtradepro"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -32,7 +32,7 @@ services:
   # Redis 服务（用于 Celery）
   redis:
     image: redis:7-alpine
-    container_name: agomsaaf_redis_dev
+    container_name: agomtradepro_redis_dev
     restart: unless-stopped
     command: >
       redis-server
@@ -59,4 +59,4 @@ volumes:
 
 networks:
   default:
-    name: agomsaaf_dev_network
+    name: agomtradepro_dev_network

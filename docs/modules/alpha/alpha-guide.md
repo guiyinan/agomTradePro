@@ -4,7 +4,7 @@
 
 ## 概述
 
-Alpha 模块是 AgomSAAF 的 AI 选股信号抽象层，与 Qlib 深度集成，支持 4 层降级机制。
+Alpha 模块是 AgomTradePro 的 AI 选股信号抽象层，与 Qlib 深度集成，支持 4 层降级机制。
 
 **相关文档**:
 - [Qlib 模型训练指南](./training-guide.md) - 详细的模型训练、评估和部署指南

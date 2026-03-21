@@ -62,7 +62,7 @@ def send_database_backup_email_task(self):
         download_url = build_backup_download_url(token)
         package_meta = describe_backup_package()
 
-        subject = "【AgomSAAF】数据库全量备份下载链接"
+        subject = "【AgomTradePro】数据库全量备份下载链接"
         message = f"""
 管理员您好：
 
@@ -85,7 +85,7 @@ def send_database_backup_email_task(self):
         email = EmailMessage(
             subject=subject,
             body=message,
-            from_email=config.backup_mail_from_email or getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomsaaf.com'),
+            from_email=config.backup_mail_from_email or getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomtradepro.com'),
             to=[config.backup_email],
             connection=get_backup_email_connection(config),
         )
@@ -285,7 +285,7 @@ def _send_stop_loss_notifications(results: List, user_id: int = None):
                 send_mail(
                     subject=subject,
                     message=message,
-                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomsaaf.com'),
+                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomtradepro.com'),
                     recipient_list=[user_email],
                     fail_silently=True,
                 )
@@ -326,7 +326,7 @@ def _send_take_profit_notifications(results: List, user_id: int = None):
                 send_mail(
                     subject=subject,
                     message=message,
-                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomsaaf.com'),
+                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomtradepro.com'),
                     recipient_list=[user_email],
                     fail_silently=True,
                 )
@@ -495,7 +495,7 @@ def _send_volatility_adjustment_notification(
             send_mail(
                 subject=subject,
                 message=message,
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomsaaf.com'),
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomtradepro.com'),
                 recipient_list=[user_email],
                 fail_silently=True,
             )
@@ -546,7 +546,7 @@ def _send_volatility_warning_notification(
             send_mail(
                 subject=subject,
                 message=message,
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomsaaf.com'),
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomtradepro.com'),
                 recipient_list=[user_email],
                 fail_silently=True,
             )

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Quality Report Generator for AgomSAAF CI/CD
+Quality Report Generator for AgomTradePro CI/CD
 
 Generates quality metrics reports from test runs and coverage data.
 Usage:

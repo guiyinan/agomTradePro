@@ -1,4 +1,4 @@
-# AgomSAAF 启动脚本使用指南
+# AgomTradePro 启动脚本使用指南
 
 ## 快速开始
 
@@ -205,10 +205,10 @@ scripts\docker-dev.bat
 docker ps | findstr postgres
 
 # 查看容器日志
-docker logs agomsaaf_postgres_dev
+docker logs agomtradepro_postgres_dev
 
 # 重启容器
-docker restart agomsaaf_postgres_dev
+docker restart agomtradepro_postgres_dev
 ```
 
 ### Q: 如何切换回 SQLite？
@@ -233,7 +233,7 @@ scripts\docker-dev.bat 8001
 ## 目录结构
 
 ```
-AgomSAAF/
+AgomTradePro/
 ├── start.bat                 # 主启动菜单（推荐）
 ├── scripts/
 │   ├── dev.bat              # 快速开发启动

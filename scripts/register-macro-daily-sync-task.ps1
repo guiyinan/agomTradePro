@@ -1,7 +1,7 @@
 param(
-    [string]$TaskName = "AgomSAAF-Daily-Macro-Sync",
+    [string]$TaskName = "AgomTradePro-Daily-Macro-Sync",
     [string]$Time = "08:05",
-    [string]$PythonExe = "agomsaaf\\Scripts\\python.exe",
+    [string]$PythonExe = "agomtradepro\\Scripts\\python.exe",
     [string]$WorkDir = (Get-Location).Path
 )
 

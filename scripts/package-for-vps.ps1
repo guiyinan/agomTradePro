@@ -1,7 +1,7 @@
 param(
     [string]$Tag,
     [string]$OutputDir = "dist",
-    [string]$WebImageName = "agomsaaf-web",
+    [string]$WebImageName = "agomtradepro-web",
     [string]$RedisImage = "redis:7-alpine",
     [string]$CaddyImage = "caddy:2-alpine",
     [string]$RsshubImage = "diygod/rsshub:latest",
@@ -31,7 +31,7 @@ Usage:
 Options:
   -Tag <string>               Image/bundle tag. Default: current timestamp (yyyyMMddHHmmss)
   -OutputDir <string>         Bundle output directory. Default: dist
-  -WebImageName <string>      Web image repository name. Default: agomsaaf-web
+  -WebImageName <string>      Web image repository name. Default: agomtradepro-web
   -RedisImage <string>        Redis image to bundle. Default: redis:7-alpine
   -CaddyImage <string>        Caddy image to bundle. Default: caddy:2-alpine
   -RsshubImage <string>       RSSHub image to bundle. Default: diygod/rsshub:latest
@@ -59,7 +59,7 @@ Examples:
   ./scripts/package-for-vps.ps1 -RefreshWheelCache
   ./scripts/package-for-vps.ps1 -AllowOnlinePipFallback
   ./scripts/package-for-vps.ps1 -IncludeSqliteData
-  ./scripts/package-for-vps.ps1 -RedisContainer agomsaaf_redis
+  ./scripts/package-for-vps.ps1 -RedisContainer agomtradepro_redis
   ./scripts/package-for-vps.ps1 -SkipData -SkipRedisData
   ./scripts/package-for-vps.ps1 -Tag 20260214 -SkipWebBuild -IncludeSqliteData
 "@ | Write-Host
@@ -154,7 +154,7 @@ if ($interactiveQuickMode) {
             if (-not $includeRedisDump) {
                 $SkipRedisData = $true
             } elseif ([string]::IsNullOrWhiteSpace($RedisContainer)) {
-                $RedisContainer = Read-Default -Prompt "Redis container name" -Default "agomsaaf_redis"
+                $RedisContainer = Read-Default -Prompt "Redis container name" -Default "agomtradepro_redis"
             }
         }
     }
@@ -256,7 +256,7 @@ function Sync-StaticVendor {
     }
 }
 
-$bundleName = "agomsaaf-vps-bundle-$Tag"
+$bundleName = "agomtradepro-vps-bundle-$Tag"
 $bundleRoot = Join-Path $ProjectRoot (Join-Path $OutputDir $bundleName)
 $imagesDir = Join-Path $bundleRoot "images"
 $backupsDir = Join-Path $bundleRoot "backups"
@@ -267,16 +267,16 @@ $scriptsDir = Join-Path $bundleRoot "scripts"
 Write-Info "Preparing bundle workspace: $bundleRoot"
 New-Item -ItemType Directory -Force $imagesDir, $backupsDir, $deployDir, $dockerDir, $scriptsDir | Out-Null
 
-# Prefer conda env "agomsaaf" for script-level python operations.
+# Prefer conda env "agomtradepro" for script-level python operations.
 $pythonCmdParts = @("python")
 $venvPath = Join-Path $ProjectRoot "venv"
 $condaEnv = $env:CONDA_DEFAULT_ENV
 
 if (Get-Command conda -ErrorAction SilentlyContinue) {
-    $condaAgom = (& conda env list 2>$null | Select-String -Pattern '^\s*agomsaaf\s')
+    $condaAgom = (& conda env list 2>$null | Select-String -Pattern '^\s*agomtradepro\s')
     if ($condaAgom) {
-        $pythonCmdParts = @("conda", "run", "-n", "agomsaaf", "python")
-        Write-Info "Using conda environment: agomsaaf"
+        $pythonCmdParts = @("conda", "run", "-n", "agomtradepro", "python")
+        Write-Info "Using conda environment: agomtradepro"
     } elseif (-not [string]::IsNullOrWhiteSpace($condaEnv)) {
         Write-Info "Using active conda environment: $condaEnv"
     }
@@ -297,7 +297,7 @@ if ($pythonCmdParts.Count -gt 1) {
 }
 & $pyExe @pyArgs "--version" | Out-Null
 if ($LASTEXITCODE -ne 0) {
-    Throw-Err "python runtime check failed (expected usable Python / conda agomsaaf environment)"
+    Throw-Err "python runtime check failed (expected usable Python / conda agomtradepro environment)"
 }
 
 Sync-StaticVendor -ProjectRootPath $ProjectRoot
@@ -324,7 +324,7 @@ if ($UseWslContext) {
 
         if ($wslDistros.Count -gt 0) {
             $wslDistro = $wslDistros[0]
-            $wslBuildDir = "/tmp/agomsaaf-build-$Tag"
+            $wslBuildDir = "/tmp/agomtradepro-build-$Tag"
             $wslBuildDirEscaped = $wslBuildDir.Replace("'", "'\''")
             $uncBuildContext = "\\wsl$\$wslDistro" + ($wslBuildDir -replace "/", "\")
 
@@ -360,7 +360,7 @@ if ($UseWslContext) {
                 "venv",
                 "env",
                 "ENV",
-                "agomsaaf",
+                "agomtradepro",
                 "staticfiles",
                 "media"
             )
@@ -384,7 +384,7 @@ if ($UseWslContext) {
     if ($NoStageContext) {
         Write-Info "Using local build context"
     } else {
-        $stageBuildDir = Join-Path $env:TEMP "agomsaaf-build-$Tag"
+        $stageBuildDir = Join-Path $env:TEMP "agomtradepro-build-$Tag"
         Write-Info "Preparing local staged build context: $stageBuildDir"
         New-Item -ItemType Directory -Force $stageBuildDir | Out-Null
 
@@ -414,7 +414,7 @@ if ($UseWslContext) {
             "venv",
             "env",
             "ENV",
-            "agomsaaf",
+            "agomtradepro",
             "staticfiles",
             "media"
         )

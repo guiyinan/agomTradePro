@@ -1,6 +1,6 @@
-# AgomSAAF MCP Server Guide
+# AgomTradePro MCP Server Guide
 
-The MCP (Model Context Protocol) Server enables AI agents like Claude Code to interact with AgomSAAF through native tools.
+The MCP (Model Context Protocol) Server enables AI agents like Claude Code to interact with AgomTradePro through native tools.
 
 ## Setup
 
@@ -19,17 +19,17 @@ Recommended runtime versions:
 Verify:
 
 ```bash
-python -m pip show agomsaaf-sdk mcp
+python -m pip show agomtradepro-sdk mcp
 ```
 
 ### Runtime Environment Variables
 
-MCP server uses SDK credentials to call AgomSAAF backend:
+MCP server uses SDK credentials to call AgomTradePro backend:
 
-- `AGOMSAAF_BASE_URL` (required)
-- `AGOMSAAF_API_TOKEN` (recommended)
-- Or `AGOMSAAF_USERNAME` + `AGOMSAAF_PASSWORD`
-- `AGOMSAAF_DEFAULT_PORTFOLIO_ID` (optional, used by account resources)
+- `AGOMTRADEPRO_BASE_URL` (required)
+- `AGOMTRADEPRO_API_TOKEN` (recommended)
+- Or `AGOMTRADEPRO_USERNAME` + `AGOMTRADEPRO_PASSWORD`
+- `AGOMTRADEPRO_DEFAULT_PORTFOLIO_ID` (optional, used by account resources)
 
 Auth format on backend is DRF Token (`Authorization: Token <token>`).
 
@@ -45,8 +45,8 @@ python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','core.setti
 #### Windows PowerShell
 
 ```powershell
-$env:AGOMSAAF_BASE_URL="http://127.0.0.1:8000"
-$env:AGOMSAAF_API_TOKEN="your_token_here"
+$env:AGOMTRADEPRO_BASE_URL="http://127.0.0.1:8000"
+$env:AGOMTRADEPRO_API_TOKEN="your_token_here"
 $env:NO_PROXY="127.0.0.1,localhost"
 $env:no_proxy="127.0.0.1,localhost"
 ```
@@ -54,8 +54,8 @@ $env:no_proxy="127.0.0.1,localhost"
 #### Linux/macOS (bash)
 
 ```bash
-export AGOMSAAF_BASE_URL="http://127.0.0.1:8000"
-export AGOMSAAF_API_TOKEN="your_token_here"
+export AGOMTRADEPRO_BASE_URL="http://127.0.0.1:8000"
+export AGOMTRADEPRO_API_TOKEN="your_token_here"
 export NO_PROXY="127.0.0.1,localhost"
 export no_proxy="127.0.0.1,localhost"
 ```
@@ -82,15 +82,15 @@ Windows path example:
 ```json
 {
   "mcpServers": {
-    "agomsaaf": {
+    "agomtradepro": {
       "command": "python",
-      "args": ["-m", "agomsaaf_mcp.server"],
-      "cwd": "D:/path/to/agomSAAF/sdk",
+      "args": ["-m", "agomtradepro_mcp.server"],
+      "cwd": "D:/path/to/agomTradePro/sdk",
       "env": {
-        "AGOMSAAF_BASE_URL": "http://localhost:8000",
-        "AGOMSAAF_API_TOKEN": "your_token_here",
-        "AGOMSAAF_MCP_ENFORCE_RBAC": "true",
-        "AGOMSAAF_MCP_ROLE": "投资经理"
+        "AGOMTRADEPRO_BASE_URL": "http://localhost:8000",
+        "AGOMTRADEPRO_API_TOKEN": "your_token_here",
+        "AGOMTRADEPRO_MCP_ENFORCE_RBAC": "true",
+        "AGOMTRADEPRO_MCP_ROLE": "投资经理"
       }
     }
   }
@@ -102,15 +102,15 @@ Linux/macOS path example:
 ```json
 {
   "mcpServers": {
-    "agomsaaf": {
+    "agomtradepro": {
       "command": "python",
-      "args": ["-m", "agomsaaf_mcp.server"],
-      "cwd": "/path/to/agomSAAF/sdk",
+      "args": ["-m", "agomtradepro_mcp.server"],
+      "cwd": "/path/to/agomTradePro/sdk",
       "env": {
-        "AGOMSAAF_BASE_URL": "http://localhost:8000",
-        "AGOMSAAF_API_TOKEN": "your_token_here",
-        "AGOMSAAF_MCP_ENFORCE_RBAC": "true",
-        "AGOMSAAF_MCP_ROLE": "投资经理"
+        "AGOMTRADEPRO_BASE_URL": "http://localhost:8000",
+        "AGOMTRADEPRO_API_TOKEN": "your_token_here",
+        "AGOMTRADEPRO_MCP_ENFORCE_RBAC": "true",
+        "AGOMTRADEPRO_MCP_ROLE": "投资经理"
       }
     }
   }
@@ -121,11 +121,11 @@ Linux/macOS path example:
 
 Enable RBAC:
 
-- `AGOMSAAF_MCP_ENFORCE_RBAC=true`
-- 推荐：不设置 `AGOMSAAF_MCP_ROLE`，MCP 会自动从 `account/api/profile/` 的 `rbac_role` 读取当前用户角色
-- 可选覆盖：`AGOMSAAF_MCP_ROLE=<role>`（强制覆盖后端角色）
-- 角色来源开关：`AGOMSAAF_MCP_ROLE_SOURCE=backend`（默认）
-- 后备角色：`AGOMSAAF_MCP_DEFAULT_ROLE=read_only`
+- `AGOMTRADEPRO_MCP_ENFORCE_RBAC=true`
+- 推荐：不设置 `AGOMTRADEPRO_MCP_ROLE`，MCP 会自动从 `account/api/profile/` 的 `rbac_role` 读取当前用户角色
+- 可选覆盖：`AGOMTRADEPRO_MCP_ROLE=<role>`（强制覆盖后端角色）
+- 角色来源开关：`AGOMTRADEPRO_MCP_ROLE_SOURCE=backend`（默认）
+- 后备角色：`AGOMTRADEPRO_MCP_DEFAULT_ROLE=read_only`
 
 Supported roles (Chinese/English aliases):
 
@@ -139,12 +139,12 @@ Supported roles (Chinese/English aliases):
 
 Optional hard overrides:
 
-- `AGOMSAAF_MCP_ALLOWED_TOOLS=tool_a,tool_b`
-- `AGOMSAAF_MCP_DENIED_TOOLS=tool_x`
-- `AGOMSAAF_MCP_ALLOWED_RESOURCES=agomsaaf://regime/current`
-- `AGOMSAAF_MCP_DENIED_RESOURCES=agomsaaf://account/summary`
-- `AGOMSAAF_MCP_ALLOWED_PROMPTS=analyze_macro_environment`
-- `AGOMSAAF_MCP_DENIED_PROMPTS=check_signal_eligibility`
+- `AGOMTRADEPRO_MCP_ALLOWED_TOOLS=tool_a,tool_b`
+- `AGOMTRADEPRO_MCP_DENIED_TOOLS=tool_x`
+- `AGOMTRADEPRO_MCP_ALLOWED_RESOURCES=agomtradepro://regime/current`
+- `AGOMTRADEPRO_MCP_DENIED_RESOURCES=agomtradepro://account/summary`
+- `AGOMTRADEPRO_MCP_ALLOWED_PROMPTS=analyze_macro_environment`
+- `AGOMTRADEPRO_MCP_DENIED_PROMPTS=check_signal_eligibility`
 
 ### 3. Test the Connection
 
@@ -158,7 +158,7 @@ Claude should call the `get_current_regime` tool and respond with the current re
 You can validate tool registration locally:
 
 ```bash
-python -c "import asyncio; from agomsaaf_mcp.server import server; print(len(asyncio.run(server.list_tools())))"
+python -c "import asyncio; from agomtradepro_mcp.server import server; print(len(asyncio.run(server.list_tools())))"
 ```
 
 ## Available Tools
@@ -411,11 +411,11 @@ Claude: [calls run_backtest]
 MCP Resources can be automatically read by AI:
 
 ```
-agomsaaf://regime/current    # Current regime state
-agomsaaf://policy/status     # Current policy status
-agomsaaf://account/summary   # Default portfolio summary
-agomsaaf://account/positions # Default portfolio position snapshot
-agomsaaf://account/recent-transactions # Default portfolio recent trades
+agomtradepro://regime/current    # Current regime state
+agomtradepro://policy/status     # Current policy status
+agomtradepro://account/summary   # Default portfolio summary
+agomtradepro://account/positions # Default portfolio position snapshot
+agomtradepro://account/recent-transactions # Default portfolio recent trades
 ```
 
 ## Prompts
@@ -434,7 +434,7 @@ check_signal_eligibility     # Check if signal is eligible
 ```bash
 # Test manually
 cd sdk
-agomsaaf-mcp
+agomtradepro-mcp
 ```
 
 If this command fails with MCP API errors, verify `mcp` major version is `1.x`:
@@ -445,7 +445,7 @@ python -m pip show mcp
 
 ### Connection Errors
 
-1. Check AgomSAAF server is running: `http://localhost:8000`
+1. Check AgomTradePro server is running: `http://localhost:8000`
 2. Verify API token is correct
 3. Check firewall settings
 4. If proxy is enabled globally, set `NO_PROXY=127.0.0.1,localhost`
@@ -454,6 +454,6 @@ python -m pip show mcp
 
 1. Restart Claude Code
 2. Verify MCP server config is correct
-3. Check SDK is installed: `pip show agomsaaf-sdk`
+3. Check SDK is installed: `pip show agomtradepro-sdk`
 4. Check MCP SDK is installed: `pip show mcp`
-5. Confirm tools are registered: `python -c "import asyncio; from agomsaaf_mcp.server import server; print(len(asyncio.run(server.list_tools())))"`
+5. Confirm tools are registered: `python -c "import asyncio; from agomtradepro_mcp.server import server; print(len(asyncio.run(server.list_tools())))"`

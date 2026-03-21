@@ -20,7 +20,7 @@ from prometheus_client import Counter, Histogram
 logger = logging.getLogger(__name__)
 
 # Internal marker for serialized DRF responses in cache.
-_CACHED_RESPONSE_MARKER = "_agomsaaf_cached_response_v1"
+_CACHED_RESPONSE_MARKER = "_agomtradepro_cached_response_v1"
 
 # ============== Prometheus Metrics ==============
 

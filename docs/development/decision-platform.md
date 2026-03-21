@@ -401,7 +401,7 @@ class EvaluateGateUseCase:
 
 ## 九、参考文档
 
-- [AgomSAAF V3.4 总体架构](../business/AgomSAAF_V3.4.md)
+- [AgomTradePro V3.4 总体架构](../business/AgomTradePro_V3.4.md)
 - [四层架构规范](../../CLAUDE.md)
 - [API 文档](/api/docs/)
 - [测试指南](../../tests/README.md)

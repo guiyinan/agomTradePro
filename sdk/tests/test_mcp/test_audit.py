@@ -1,7 +1,7 @@
 import json
 from unittest.mock import Mock
 
-from agomsaaf_mcp.audit import AuditContext, AuditLogger
+from agomtradepro_mcp.audit import AuditContext, AuditLogger
 
 
 def test_mask_sensitive_params_recursive() -> None:

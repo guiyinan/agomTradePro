@@ -1691,11 +1691,11 @@ index e62c19b..4a84c30 100644
                  payload = {
                      "model": provider.default_model,
                      "messages": [
--                        {"role": "system", "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。"},
+-                        {"role": "system", "content": "你是 AgomTradePro 投资助手，给出简洁具体的投资建议。"},
 -                        {"role": "user", "content": prompt}
 +                        {
 +                            "role": "system",
-+                            "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。",
++                            "content": "你是 AgomTradePro 投资助手，给出简洁具体的投资建议。",
 +                        },
 +                        {"role": "user", "content": prompt},
                      ],
@@ -1708,11 +1708,11 @@ index e62c19b..4a84c30 100644
                  payload = {
                      "model": provider.default_model,
                      "messages": [
--                        {"role": "system", "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。"},
+-                        {"role": "system", "content": "你是 AgomTradePro 投资助手，给出简洁具体的投资建议。"},
 -                        {"role": "user", "content": prompt}
 +                        {
 +                            "role": "system",
-+                            "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。",
++                            "content": "你是 AgomTradePro 投资助手，给出简洁具体的投资建议。",
 +                        },
 +                        {"role": "user", "content": prompt},
                      ],
@@ -1724,11 +1724,11 @@ index e62c19b..4a84c30 100644
                  payload = {
                      "model": provider.default_model,
                      "messages": [
--                        {"role": "system", "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。"},
+-                        {"role": "system", "content": "你是 AgomTradePro 投资助手，给出简洁具体的投资建议。"},
 -                        {"role": "user", "content": prompt}
 +                        {
 +                            "role": "system",
-+                            "content": "你是 AgomSAAF 投资助手，给出简洁具体的投资建议。",
++                            "content": "你是 AgomTradePro 投资助手，给出简洁具体的投资建议。",
 +                        },
 +                        {"role": "user", "content": prompt},
                      ],

@@ -1,8 +1,8 @@
-# AgomSAAF Docker 部署文档
+# AgomTradePro Docker 部署文档
 
 ## 概述
 
-本文档介绍如何在 Windows 环境下使用 Docker 部署 AgomSAAF 项目的开发环境。
+本文档介绍如何在 Windows 环境下使用 Docker 部署 AgomTradePro 项目的开发环境。
 
 **架构说明**：
 - Django 应用运行在本地（便于开发和调试）
@@ -24,7 +24,7 @@
 
 2. **Python 虚拟环境（Windows PowerShell）**
    ```powershell
-   agomsaaf/Scripts/Activate.ps1
+   agomtradepro/Scripts/Activate.ps1
    ```
 
 ### 一键部署
@@ -50,7 +50,7 @@ cd .
 
 ```powershell
 # 1. 激活虚拟环境
-agomsaaf/Scripts/Activate.ps1
+agomtradepro/Scripts/Activate.ps1
 
 # 2. 运行数据库迁移
 python manage.py migrate
@@ -66,7 +66,7 @@ python manage.py runserver
 
 ```bash
 # Windows Git Bash / WSL / Linux / macOS
-source agomsaaf/Scripts/activate 2>/dev/null || source agomsaaf/bin/activate
+source agomtradepro/Scripts/activate 2>/dev/null || source agomtradepro/bin/activate
 python manage.py migrate
 python manage.py createsuperuser
 python manage.py runserver
@@ -88,8 +88,8 @@ python manage.py runserver
 
 ```
 主机: localhost:5432
-数据库: agomsaaf
-用户: agomsaaf
+数据库: agomtradepro
+用户: agomtradepro
 密码: changeme（请在 .env 中修改）
 ```
 
@@ -113,8 +113,8 @@ python manage.py createsuperuser
 ### 查看卷位置
 
 ```powershell
-docker volume inspect agomsaaf_dev_postgres_dev_data
-docker volume inspect agomsaaf_dev_redis_dev_data
+docker volume inspect agomtradepro_dev_postgres_dev_data
+docker volume inspect agomtradepro_dev_redis_dev_data
 ```
 
 ### 备份到本地目录（可选）
@@ -134,17 +134,17 @@ services:
 
 ```powershell
 # 备份到 SQL 文件
-docker exec agomsaaf_postgres_dev pg_dump -U agomsaaf agomsaaf > backup.sql
+docker exec agomtradepro_postgres_dev pg_dump -U agomtradepro agomtradepro > backup.sql
 
 # 备份到带时间戳的文件
-docker exec agomsaaf_postgres_dev pg_dump -U agomsaaf agomsaaf > "backup-$(Get-Date -Format 'yyyyMMdd-HHmmss').sql"
+docker exec agomtradepro_postgres_dev pg_dump -U agomtradepro agomtradepro > "backup-$(Get-Date -Format 'yyyyMMdd-HHmmss').sql"
 ```
 
 ### PostgreSQL 恢复
 
 ```powershell
 # 从 SQL 文件恢复
-Get-Content backup.sql | docker exec -i agomsaaf_postgres_dev psql -U agomsaaf -d agomsaaf
+Get-Content backup.sql | docker exec -i agomtradepro_postgres_dev psql -U agomtradepro -d agomtradepro
 ```
 
 ### SQLite → PostgreSQL 迁移
@@ -204,13 +204,13 @@ docker compose -f docker-compose-dev.yml logs -f redis
 
 ```powershell
 # 连接到 PostgreSQL
-docker exec -it agomsaaf_postgres_dev psql -U agomsaaf -d agomsaaf
+docker exec -it agomtradepro_postgres_dev psql -U agomtradepro -d agomtradepro
 
 # 查看数据库列表
-docker exec agomsaaf_postgres_dev psql -U agomsaaf -d agomsaaf -c "\l"
+docker exec agomtradepro_postgres_dev psql -U agomtradepro -d agomtradepro -c "\l"
 
 # 查看表列表
-docker exec agomsaaf_postgres_dev psql -U agomsaaf -d agomsaaf -c "\dt"
+docker exec agomtradepro_postgres_dev psql -U agomtradepro -d agomtradepro -c "\dt"
 
 # 重置数据库（危险操作！）
 docker compose -f docker-compose-dev.yml down -v
@@ -222,13 +222,13 @@ python manage.py migrate
 
 ```powershell
 # 连接到 Redis
-docker exec -it agomsaaf_redis_dev redis-cli
+docker exec -it agomtradepro_redis_dev redis-cli
 
 # 清空所有缓存
-docker exec agomsaaf_redis_dev redis-cli FLUSHALL
+docker exec agomtradepro_redis_dev redis-cli FLUSHALL
 
 # 查看信息
-docker exec agomsaaf_redis_dev redis-cli INFO
+docker exec agomtradepro_redis_dev redis-cli INFO
 ```
 
 ### Celery 开发（Windows 兼容）
@@ -257,7 +257,7 @@ python manage.py celery_beat
 ```env
 # 数据库配置
 POSTGRES_PASSWORD=changeme                    # PostgreSQL 密码（请修改）
-DATABASE_URL=postgresql://agomsaaf:changeme@localhost:5432/agomsaaf
+DATABASE_URL=postgresql://agomtradepro:changeme@localhost:5432/agomtradepro
 
 # Redis 配置
 REDIS_URL=redis://localhost:6379/0
@@ -314,12 +314,12 @@ docker-compose -f docker-compose-dev.yml up -d
 
 2. 测试连接：
    ```powershell
-   docker exec agomsaaf_postgres_dev pg_isready -U agomsaaf
+   docker exec agomtradepro_postgres_dev pg_isready -U agomtradepro
    ```
 
 3. 检查 .env 配置：
    ```env
-   DATABASE_URL=postgresql://agomsaaf:changeme@localhost:5432/agomsaaf
+   DATABASE_URL=postgresql://agomtradepro:changeme@localhost:5432/agomtradepro
    ```
 
 ### 代理设置
@@ -377,7 +377,7 @@ docker-compose -f docker-compose.yml up -d
 ### 目录结构
 
 ```
-AgomSAAF/
+AgomTradePro/
 ├── docker-compose.yml           # 完整版配置
 ├── docker-compose-dev.yml       # 开发版配置（仅数据库）
 ├── .env                         # 环境变量
@@ -402,8 +402,8 @@ docker volume prune
 docker stats
 
 # 进入容器 shell
-docker exec -it agomsaaf_postgres_dev sh
-docker exec -it agomsaaf_redis_dev sh
+docker exec -it agomtradepro_postgres_dev sh
+docker exec -it agomtradepro_redis_dev sh
 ```
 
 ### 联系与支持

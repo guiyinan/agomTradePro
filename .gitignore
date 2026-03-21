@@ -1,8 +1,8 @@
 # Environment
 venv/
-agomsaaf/
-!sdk/agomsaaf/
-!sdk/agomsaaf/**
+agomtradepro/
+!sdk/agomtradepro/
+!sdk/agomtradepro/**
 .env
 *.sqlite3
 db.sqlite3

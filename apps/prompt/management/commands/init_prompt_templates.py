@@ -60,7 +60,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         """执行初始化"""
         self.stdout.write(self.style.SUCCESS('\n========================================'))
-        self.stdout.write(self.style.SUCCESS('  AgomSAAF Prompt模板初始化工具'))
+        self.stdout.write(self.style.SUCCESS('  AgomTradePro Prompt模板初始化工具'))
         self.stdout.write(self.style.SUCCESS('========================================\n'))
 
         force = options.get('force', False)

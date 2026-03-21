@@ -8,7 +8,7 @@
 
 ## 概述
 
-估值定价引擎（Valuation Pricing Engine）是 AgomSAAF 系统的核心组件，用于：
+估值定价引擎（Valuation Pricing Engine）是 AgomTradePro 系统的核心组件，用于：
 
 1. **估值计算** - 基于多种方法计算证券的公允价值
 2. **价格区间生成** - 自动生成入场价、目标价、止损价区间

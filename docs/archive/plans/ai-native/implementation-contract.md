@@ -1,4 +1,4 @@
-# AgomSAAF AI-Native Implementation Contract
+# AgomTradePro AI-Native Implementation Contract
 
 ## Purpose
 
@@ -122,13 +122,13 @@ The implementer must not make independent design decisions in the following area
 
 ### MCP Resources That Must Not Change
 
-- `agomsaaf://context/research/current`
-- `agomsaaf://context/monitoring/current`
-- `agomsaaf://context/decision/current`
-- `agomsaaf://context/execution/current`
-- `agomsaaf://context/ops/current`
-- `agomsaaf://task/{task_id}/timeline`
-- `agomsaaf://proposal/{proposal_id}/summary`
+- `agomtradepro://context/research/current`
+- `agomtradepro://context/monitoring/current`
+- `agomtradepro://context/decision/current`
+- `agomtradepro://context/execution/current`
+- `agomtradepro://context/ops/current`
+- `agomtradepro://task/{task_id}/timeline`
+- `agomtradepro://proposal/{proposal_id}/summary`
 
 ## Forbidden Implementation Patterns
 

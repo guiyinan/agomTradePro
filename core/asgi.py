@@ -1,5 +1,5 @@
 """
-ASGI config for AgomSAAF project.
+ASGI config for AgomTradePro project.
 """
 
 import os

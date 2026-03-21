@@ -23,5 +23,5 @@ New-Item -ItemType Directory -Force $RuntimeModels | Out-Null
 docker compose -f $ComposeFile --env-file $EnvFile up -d --build
 
 Write-Host "[INFO] qlib train runtime started"
-Write-Host "[INFO] worker: agomsaaf_qlib_train_worker"
+Write-Host "[INFO] worker: agomtradepro_qlib_train_worker"
 Write-Host "[INFO] logs: docker compose -f $ComposeFile --env-file $EnvFile logs -f"

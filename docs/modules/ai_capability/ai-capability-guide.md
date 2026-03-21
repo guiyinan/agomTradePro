@@ -78,7 +78,7 @@ AI Capability Catalog 是系统级 AI 能力目录与统一路由服务，为 te
 
 如果你要接入首页聊天、`AgomChatWidget` 或其他页面内嵌 AI 助手，优先查看共享网页聊天接口文档：
 
-- [Shared Web Chat API 文档](/D:/githv/agomSAAF/docs/api/web-chat-api.md)
+- [Shared Web Chat API 文档](/D:/githv/agomTradePro/docs/api/web-chat-api.md)
 
 该文档覆盖：
 
@@ -696,5 +696,5 @@ API 采集器会自动识别高危模式。如需手动标记，可在 Admin 后
 
 ---
 
-**维护者**: AgomSAAF Team  
+**维护者**: AgomTradePro Team  
 **最后更新**: 2026-03-19

@@ -13,7 +13,7 @@
     "/rotation/api/",
     "/hedge/api/",
     "/opt/frp/",
-    "/opt/agomsaaf",
+    "/opt/agomtradepro",
     "/rotation/api/",
     "/rotation/api/",
     "/factor/api/",
@@ -267,8 +267,8 @@
     {
       "type": "missing_route",
       "source": "docs\\deployment\\VPS_BUNDLE_DEPLOYMENT.md",
-      "route": "/opt/agomsaaf",
-      "details": "Route /opt/agomsaaf referenced in docs but not found in Django (baseline)",
+      "route": "/opt/agomtradepro",
+      "details": "Route /opt/agomtradepro referenced in docs but not found in Django (baseline)",
       "line": 130
     },
     {

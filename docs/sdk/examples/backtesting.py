@@ -1,15 +1,15 @@
 """
-AgomSAAF SDK - Backtesting Examples
+AgomTradePro SDK - Backtesting Examples
 
-This file demonstrates backtesting and advanced usage of the AgomSAAF SDK.
+This file demonstrates backtesting and advanced usage of the AgomTradePro SDK.
 """
 
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 from datetime import date, timedelta
 import time
 
 # Initialize client
-client = AgomSAAFClient(
+client = AgomTradeProClient(
     base_url="http://localhost:8000",
     api_token="your_token_here"
 )

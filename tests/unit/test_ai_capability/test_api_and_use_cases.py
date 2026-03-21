@@ -266,7 +266,7 @@ def test_chat_fallback_uses_admin_configured_system_prompt(regular_user):
     use_case = RouteMessageUseCase()
     settings_obj = TerminalRuntimeSettingsORM.get_solo()
     settings_obj.fallback_chat_system_prompt = (
-        "你是 AgomSAAF 平台助手。请优先回答系统状态、Regime、政策、RSS 新闻与热点相关问题。"
+        "你是 AgomTradePro 平台助手。请优先回答系统状态、Regime、政策、RSS 新闻与热点相关问题。"
     )
     settings_obj.save(update_fields=["fallback_chat_system_prompt"])
 

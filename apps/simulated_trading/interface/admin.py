@@ -554,7 +554,7 @@ class DailyInspectionNotificationConfigAdmin(admin.ModelAdmin):
 class SimulatedTradingAdminSite(admin.AdminSite):
     """模拟盘交易专用 Admin 站点"""
 
-    site_header = 'AgomSAAF 模拟盘交易管理'
+    site_header = 'AgomTradePro 模拟盘交易管理'
     site_title = '模拟盘管理'
     index_title = '欢迎使用模拟盘交易管理系统'
 

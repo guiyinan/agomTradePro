@@ -107,8 +107,17 @@ class ShareVisibilityMixin:
             }
         result["summary"] = summary
 
-        if share_link.show_amounts:
-            result["performance"] = snapshot.get("performance", {})
+        performance = dict(snapshot.get("performance", {}) or {})
+        if not share_link.show_amounts:
+            performance = {
+                k: v
+                for k, v in performance.items()
+                if not any(
+                    money_word in k.lower()
+                    for money_word in ["amount", "value", "cash", "capital", "profit", "loss"]
+                )
+            }
+        result["performance"] = performance
 
         if share_link.show_positions:
             positions = dict(snapshot.get("positions", {}) or {})
@@ -191,6 +200,7 @@ class ShareVisibilityMixin:
             "is_private": share_link.requires_password(),
             "requires_password": requires_password,
             "password_error": password_error,
+            "show_amounts": share_link.show_amounts,
             "owner_name": (
                 share_link.owner.get_full_name().strip()
                 or getattr(share_link.owner, "username", "")
@@ -849,7 +859,9 @@ def share_manage_page(request, share_link_id: int | None = None):
         subtitle = (request.POST.get("subtitle") or "").strip() or None
         share_level = request.POST.get("share_level") or "snapshot"
         theme = request.POST.get("theme") or "bloomberg"
-        password = request.POST.get("password") or None
+        password_enabled = bool(request.POST.get("password_enabled"))
+        raw_password = request.POST.get("password")
+        password = (raw_password or "").strip()
         expires_at_raw = request.POST.get("expires_at") or None
         max_access_count_raw = request.POST.get("max_access_count") or None
 
@@ -864,6 +876,7 @@ def share_manage_page(request, share_link_id: int | None = None):
         try:
             use_case = ShareLinkUseCases()
             if share_link_id:
+                password_value = password if password_enabled else ""
                 entity = use_case.update_share_link(
                     share_link_id=int(share_link_id),
                     owner_id=request.user.id,
@@ -871,7 +884,7 @@ def share_manage_page(request, share_link_id: int | None = None):
                     subtitle=subtitle,
                     theme=theme,
                     share_level=share_level,
-                    password=password if password is not None else None,
+                    password=password_value,
                     expires_at=expires_at,
                     max_access_count=max_access_count,
                     show_amounts=bool(request.POST.get("show_amounts")),
@@ -886,6 +899,7 @@ def share_manage_page(request, share_link_id: int | None = None):
                 _build_share_snapshot_from_account(ShareLinkModel.objects.get(id=entity.id))
                 messages.success(request, "分享链接已更新")
             else:
+                password_value = password if password_enabled and password else None
                 entity = use_case.create_share_link(
                     owner_id=request.user.id,
                     account_id=int(account_id),
@@ -893,7 +907,7 @@ def share_manage_page(request, share_link_id: int | None = None):
                     subtitle=subtitle,
                     theme=theme,
                     share_level=share_level,
-                    password=password,
+                    password=password_value,
                     expires_at=expires_at,
                     max_access_count=max_access_count,
                     show_amounts=bool(request.POST.get("show_amounts")),

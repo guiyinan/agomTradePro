@@ -174,7 +174,7 @@ if (-not ($UseWslContext -or $PreferWslBuild -or $WslOnly)) {
 
 $strategies = @($strategies | Select-Object -Unique)
 
-$bundlePath = Join-Path $ProjectRoot (Join-Path $OutputDir "agomsaaf-vps-bundle-$Tag.tar.gz")
+$bundlePath = Join-Path $ProjectRoot (Join-Path $OutputDir "agomtradepro-vps-bundle-$Tag.tar.gz")
 $success = $false
 $attemptsRun = @()
 
@@ -219,7 +219,7 @@ if ($WithLocalSqlite) {
         Throw-Err "SQLite injection failed"
     }
 
-    $finalBundle = Join-Path $ProjectRoot (Join-Path $OutputDir "agomsaaf-vps-bundle-$Tag-live.tar.gz")
+    $finalBundle = Join-Path $ProjectRoot (Join-Path $OutputDir "agomtradepro-vps-bundle-$Tag-live.tar.gz")
     if (-not (Test-Path $finalBundle)) {
         Throw-Err "Expected injected bundle not found: $finalBundle"
     }

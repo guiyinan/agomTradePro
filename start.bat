@@ -1,5 +1,5 @@
 @echo off
-REM AgomSAAF Development Launcher Menu
+REM AgomTradePro Development Launcher Menu
 REM Version: 3.5
 REM Updated: 2026-02-01
 
@@ -9,7 +9,7 @@ setlocal enabledelayedexpansion
 cls
 echo.
 echo ========================================
-echo   AgomSAAF Development Launcher
+echo   AgomTradePro Development Launcher
 echo ========================================
 echo.
 echo   Select startup mode:
@@ -65,15 +65,15 @@ call scripts\docker-dev.bat --no-celery --no-beat
 goto menu
 
 :venv
-if not exist "agomsaaf\Scripts\activate.bat" (
+if not exist "agomtradepro\Scripts\activate.bat" (
     echo.
     echo [ERROR] Virtual environment not found!
-    echo Please run: python -m venv agomsaaf
+    echo Please run: python -m venv agomtradepro
     echo.
     pause
     goto menu
 )
-call agomsaaf\Scripts\activate.bat
+call agomtradepro\Scripts\activate.bat
 echo.
 echo ========================================
 echo   Virtual Environment Activated

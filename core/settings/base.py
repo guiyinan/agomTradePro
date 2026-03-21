@@ -1,5 +1,5 @@
 """
-Django base settings for AgomSAAF project.
+Django base settings for AgomTradePro project.
 """
 
 import os
@@ -35,13 +35,13 @@ AUTOMATION_DEBUG_API_MAX_LIMIT = env.int("AUTOMATION_DEBUG_API_MAX_LIMIT", defau
 
 # Field-level encryption for sensitive data (API keys, etc.)
 # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-# Set via environment variable: AGOMSAAF_ENCRYPTION_KEY
-AGOMSAAF_ENCRYPTION_KEY = env("AGOMSAAF_ENCRYPTION_KEY", default="")
-if not AGOMSAAF_ENCRYPTION_KEY:
+# Set via environment variable: AGOMTRADEPRO_ENCRYPTION_KEY
+AGOMTRADEPRO_ENCRYPTION_KEY = env("AGOMTRADEPRO_ENCRYPTION_KEY", default="")
+if not AGOMTRADEPRO_ENCRYPTION_KEY:
     import warnings
 
     warnings.warn(
-        "AGOMSAAF_ENCRYPTION_KEY not configured. New AI provider API key writes will be rejected. "
+        "AGOMTRADEPRO_ENCRYPTION_KEY not configured. New AI provider API key writes will be rejected. "
         'Generate a key with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
     )
 
@@ -252,7 +252,7 @@ if env("REDIS_URL", default=None):
             "BACKEND": "django.core.cache.backends.redis.RedisCache",
             "LOCATION": env("REDIS_URL", default="redis://127.0.0.1:6379/1"),
             "TIMEOUT": 900,  # 默认15分钟
-            "KEY_PREFIX": "agomsaaf",
+            "KEY_PREFIX": "agomtradepro",
         }
     }
 else:
@@ -260,7 +260,7 @@ else:
     CACHES = {
         "default": {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-            "LOCATION": "agomsaaf-cache",
+            "LOCATION": "agomtradepro-cache",
             "TIMEOUT": 900,  # 默认15分钟
             "OPTIONS": {
                 "MAX_ENTRIES": 1000,
@@ -269,12 +269,12 @@ else:
     }
 
 # Admin Site Configuration
-ADMIN_TITLE = "AgomSAAF 管理后台"
-ADMIN_HEADER = "AgomSAAF"
-ADMIN_INDEX_TITLE = "欢迎使用 AgomSAAF 管理后台"
+ADMIN_TITLE = "AgomTradePro 管理后台"
+ADMIN_HEADER = "AgomTradePro"
+ADMIN_INDEX_TITLE = "欢迎使用 AgomTradePro 管理后台"
 
 # Email / Notification settings
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@agomsaaf.com")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@agomtradepro.com")
 DAILY_INSPECTION_EMAIL_ENABLED = env.bool("DAILY_INSPECTION_EMAIL_ENABLED", default=True)
 APP_BASE_URL = env("APP_BASE_URL", default="")
 
@@ -362,7 +362,7 @@ CSRF_TRUSTED_ORIGINS = env.list(
 
 # Spectacular settings
 SPECTACULAR_SETTINGS = {
-    "TITLE": "AgomSAAF API",
+    "TITLE": "AgomTradePro API",
     "DESCRIPTION": "Agom Strategic Asset Allocation Framework API",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,

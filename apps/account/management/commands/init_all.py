@@ -1,5 +1,5 @@
 """
-AgomSAAF System - Complete Initialization Command
+AgomTradePro System - Complete Initialization Command
 
 This command initializes all system data in the correct order.
 It is a wrapper that calls all individual init commands.
@@ -16,7 +16,7 @@ from django.db import connection
 
 
 class Command(BaseCommand):
-    help = 'Initialize all AgomSAAF system data (one-click setup)'
+    help = 'Initialize all AgomTradePro system data (one-click setup)'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -87,7 +87,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         """Execute the initialization"""
         self.stdout.write(self.style.SUCCESS('=' * 70))
-        self.stdout.write(self.style.SUCCESS('AgomSAAF System - Complete Initialization'))
+        self.stdout.write(self.style.SUCCESS('AgomTradePro System - Complete Initialization'))
         self.stdout.write(self.style.SUCCESS('=' * 70))
         self.stdout.write('')
 

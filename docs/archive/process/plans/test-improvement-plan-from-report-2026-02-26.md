@@ -1,7 +1,7 @@
-# AgomSAAF 基于测试报告的改进方案（2026-02-26）
+# AgomTradePro 基于测试报告的改进方案（2026-02-26）
 
 > 输入依据：`docs/testing/TEST_REPORT_2026-02-26.md`  
-> 适用版本：AgomSAAF V3.4  
+> 适用版本：AgomTradePro V3.4  
 > 范围声明：**本方案明确排除 `.env` 相关问题（SEC-001）**
 
 ---

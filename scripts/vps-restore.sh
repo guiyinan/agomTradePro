@@ -14,8 +14,8 @@ else
   require_cmd() { command -v "$1" >/dev/null 2>&1 || die "Missing command: $1"; }
 fi
 
-TARGET_DIR="/opt/agomsaaf/current"
-BACKUP_DIR="/opt/agomsaaf/backups"
+TARGET_DIR="/opt/agomtradepro/current"
+BACKUP_DIR="/opt/agomtradepro/backups"
 SQLITE_FILE=""
 REDIS_FILE=""
 RESTORE_SQLITE=1
@@ -51,7 +51,7 @@ else
   die "docker compose is required"
 fi
 
-export COMPOSE_PROJECT_NAME=agomsaaf
+export COMPOSE_PROJECT_NAME=agomtradepro
 
 cd "$TARGET_DIR" || die "Target dir not found: $TARGET_DIR"
 

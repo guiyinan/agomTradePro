@@ -57,8 +57,8 @@ ALLOWED_HOSTS=your-domain.com,your-ip
 
 # Database (if using PostgreSQL)
 DB_ENGINE=django.db.backends.postgresql
-DB_NAME=agomsaaf
-DB_USER=agomsaaf
+DB_NAME=agomtradepro
+DB_USER=agomtradepro
 DB_PASSWORD=<your-password>
 DB_HOST=localhost
 DB_PORT=5432
@@ -79,7 +79,7 @@ ENABLE_RSSHUB=false
 ### Directory Structure
 
 ```
-/opt/agomsaaf/
+/opt/agomtradepro/
 ├── releases/           # Versioned releases
 │   ├── canary-20260304-103000-v3.4.0/
 │   ├── rollback-20260304-120000-v3.3.9/
@@ -222,7 +222,7 @@ The script will:
 **Example: Nginx Upstream Configuration**
 
 ```nginx
-upstream agomsaaf_backend {
+upstream agomtradepro_backend {
     # Current production (90% traffic)
     server 10.0.1.10:8000 weight=90 max_fails=3 fail_timeout=30s;
 
@@ -234,7 +234,7 @@ upstream agomsaaf_backend {
 **Example: HAProxy Configuration**
 
 ```haproxy
-backend agomsaaf_backend
+backend agomtradepro_backend
     balance roundrobin
     server production 10.0.1.10:8000 check weight 90
     server canary 10.0.1.11:8000 check weight 10
@@ -249,7 +249,7 @@ backend agomsaaf_backend
 curl http://localhost:8000/api/health/
 
 # Error rate (check logs)
-tail -f /var/log/agomsaaf/application.log | grep ERROR
+tail -f /var/log/agomtradepro/application.log | grep ERROR
 
 # Response time
 curl -w "@curl-format.txt" http://localhost:8000/api/health/
@@ -334,7 +334,7 @@ curl http://localhost:8000/api/ready/
 python manage.py check --deploy
 
 # Check recent errors
-tail -100 /var/log/agomsaaf/application.log | grep ERROR
+tail -100 /var/log/agomtradepro/application.log | grep ERROR
 ```
 
 ---
@@ -408,7 +408,7 @@ chmod +x scripts/deploy_canary.sh
 git ls-remote --tags origin | grep v3.4.0
 
 # Check disk space
-df -h /opt/agomsaaf
+df -h /opt/agomtradepro
 ```
 
 ### Health Check Fails
@@ -453,15 +453,15 @@ python manage.py migrate app_name 0001_previous
 lsof data/db.sqlite3
 
 # Stop all services
-systemctl stop agomsaaf-web
-systemctl stop agomsaaf-celery
+systemctl stop agomtradepro-web
+systemctl stop agomtradepro-celery
 
 # Run migration
 python manage.py migrate
 
 # Restart services
-systemctl start agomsaaf-web
-systemctl start agomsaaf-celery
+systemctl start agomtradepro-web
+systemctl start agomtradepro-celery
 ```
 
 ### Celery Tasks Not Processing
@@ -474,7 +474,7 @@ systemctl start agomsaaf-celery
 celery -A core inspect active
 
 # Restart Celery
-systemctl restart agomsaaf-celery
+systemctl restart agomtradepro-celery
 
 # Check Redis connection
 redis-cli ping
@@ -565,7 +565,7 @@ status=canary
 
 For deployment issues:
 
-- **Ops Team**: ops@agomsaaf.com
+- **Ops Team**: ops@agomtradepro.com
 - **On-Call**: +86 xxx xxxx xxxx
 - **Emergency Channel**: #ops-emergency
 

@@ -1,4 +1,4 @@
-# AgomSAAF 开发禁令
+# AgomTradePro 开发禁令
 
 > **版本**: V1.0
 > **基线日期**: 2026-03-18
@@ -129,8 +129,8 @@ grep -r "THRESHOLD\|THRESHOLDS\|RULES" apps/*/domain/
 |------|----------|------|
 | **市场数据** | `market_data` 统一接口 | `apps/market_data/` |
 | **AI 服务** | `ai_provider` 统一管理 | `apps/ai_provider/` |
-| **Python SDK** | `sdk/agomsaaf` | `sdk/agomsaaf/` |
-| **MCP Server** | `sdk/agomsaaf_mcp` | `sdk/agomsaaf_mcp/` |
+| **Python SDK** | `sdk/agomtradepro` | `sdk/agomtradepro/` |
+| **MCP Server** | `sdk/agomtradepro_mcp` | `sdk/agomtradepro_mcp/` |
 
 **禁止的做法**：
 - ❌ 直接调用第三方 API（如 `requests.get("https://api.xxx.com")`)
@@ -272,6 +272,6 @@ jobs:
 
 ---
 
-**维护者**: AgomSAAF Team
+**维护者**: AgomTradePro Team
 **最后更新**: 2026-03-18
 **执行状态**: 即日起生效

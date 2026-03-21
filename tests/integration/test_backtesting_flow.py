@@ -22,14 +22,14 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 # Set environment variables
-os.environ["AGOMSAAF_BASE_URL"] = "http://localhost:8000"
-os.environ.setdefault("AGOMSAAF_API_TOKEN", "test-token")
+os.environ["AGOMTRADEPRO_BASE_URL"] = "http://localhost:8000"
+os.environ.setdefault("AGOMTRADEPRO_API_TOKEN", "test-token")
 
-from sdk.agomsaaf import AgomSAAFClient
+from sdk.agomtradepro import AgomTradeProClient
 
 pytestmark = pytest.mark.skipif(
-    not os.environ.get("AGOMSAAF_LIVE_SERVER"),
-    reason="Requires running server (set AGOMSAAF_LIVE_SERVER=1)"
+    not os.environ.get("AGOMTRADEPRO_LIVE_SERVER"),
+    reason="Requires running server (set AGOMTRADEPRO_LIVE_SERVER=1)"
 )
 
 
@@ -76,8 +76,8 @@ def test_backtesting_flow() -> None:
         # ====================================================================
         print_step(1, "Initialize SDK Client")
 
-        from sdk.agomsaaf import AgomSAAFClient
-        client = AgomSAAFClient()
+        from sdk.agomtradepro import AgomTradeProClient
+        client = AgomTradeProClient()
         print_result(True, f"Client initialized (Base URL: {client._config.base_url})")
 
         # ====================================================================

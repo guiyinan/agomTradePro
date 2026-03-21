@@ -1,8 +1,8 @@
 """
-AgomSAAF SDK Connection Test Script
+AgomTradePro SDK Connection Test Script
 
 Tests the SDK's basic connection and functionality.
-This script verifies that the SDK can connect to the AgomSAAF API
+This script verifies that the SDK can connect to the AgomTradePro API
 and perform basic operations.
 
 Usage:
@@ -24,8 +24,8 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 # Set environment variables for testing
-os.environ["AGOMSAAF_BASE_URL"] = "http://localhost:8000"
-os.environ.setdefault("AGOMSAAF_API_TOKEN", "test-token")
+os.environ["AGOMTRADEPRO_BASE_URL"] = "http://localhost:8000"
+os.environ.setdefault("AGOMTRADEPRO_API_TOKEN", "test-token")
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -89,7 +89,7 @@ def test_import_sdk() -> None:
     """Test 1: Import SDK"""
     print_test("Test 1: Import SDK")
     try:
-        from sdk.agomsaaf import AgomSAAFClient
+        from sdk.agomtradepro import AgomTradeProClient
         print_success("SDK imported successfully")
     except ImportError as e:
         assert False, (
@@ -102,9 +102,9 @@ def test_create_client() -> None:
     """Test 2: Create Client"""
     print_test("Test 2: Create Client")
     try:
-        from sdk.agomsaaf import AgomSAAFClient
+        from sdk.agomtradepro import AgomTradeProClient
 
-        client = AgomSAAFClient()
+        client = AgomTradeProClient()
         print_success("Client created successfully")
         print_info(f"Base URL: {client._config.base_url}")
     except Exception as e:
@@ -115,9 +115,9 @@ def test_get_current_regime() -> None:
     """Test 3: Get Current Regime"""
     print_test("Test 3: Get Current Regime")
     try:
-        from sdk.agomsaaf import AgomSAAFClient
+        from sdk.agomtradepro import AgomTradeProClient
 
-        client = AgomSAAFClient()
+        client = AgomTradeProClient()
         regime = client.regime.get_current()
 
         print_success(f"Current regime: {regime.dominant_regime}")
@@ -132,9 +132,9 @@ def test_get_policy_status() -> None:
     """Test 4: Get Policy Status"""
     print_test("Test 4: Get Policy Status")
     try:
-        from sdk.agomsaaf import AgomSAAFClient
+        from sdk.agomtradepro import AgomTradeProClient
 
-        client = AgomSAAFClient()
+        client = AgomTradeProClient()
         status = client.policy.get_status()
 
         print_success(f"Current gear: {status.current_gear}")
@@ -149,9 +149,9 @@ def test_list_macro_indicators() -> None:
     """Test 5: List Macro Indicators"""
     print_test("Test 5: List Macro Indicators")
     try:
-        from sdk.agomsaaf import AgomSAAFClient
+        from sdk.agomtradepro import AgomTradeProClient
 
-        client = AgomSAAFClient()
+        client = AgomTradeProClient()
         indicators = client.macro.list_indicators()
 
         print_success(f"Found {len(indicators)} macro indicators")
@@ -165,9 +165,9 @@ def test_list_signals() -> None:
     """Test 6: List Investment Signals"""
     print_test("Test 6: List Investment Signals")
     try:
-        from sdk.agomsaaf import AgomSAAFClient
+        from sdk.agomtradepro import AgomTradeProClient
 
-        client = AgomSAAFClient()
+        client = AgomTradeProClient()
         signals = client.signal.list()
 
         print_success(f"Found {len(signals)} investment signals")
@@ -181,9 +181,9 @@ def test_check_signal_eligibility() -> None:
     """Test 7: Check Signal Eligibility"""
     print_test("Test 7: Check Signal Eligibility")
     try:
-        from sdk.agomsaaf import AgomSAAFClient
+        from sdk.agomtradepro import AgomTradeProClient
 
-        client = AgomSAAFClient()
+        client = AgomTradeProClient()
         eligibility = client.signal.check_eligibility(
             asset_code="000001.SH",
             logic_desc="Test signal for eligibility check"
@@ -203,9 +203,9 @@ def test_regime_history() -> None:
     """Test 8: Get Regime History"""
     print_test("Test 8: Get Regime History")
     try:
-        from sdk.agomsaaf import AgomSAAFClient
+        from sdk.agomtradepro import AgomTradeProClient
 
-        client = AgomSAAFClient()
+        client = AgomTradeProClient()
         history = client.regime.history(limit=5)
 
         print_success(f"Found {len(history)} regime history records")
@@ -219,9 +219,9 @@ def test_list_backtests() -> None:
     """Test 9: List Backtests"""
     print_test("Test 9: List Backtests")
     try:
-        from sdk.agomsaaf import AgomSAAFClient
+        from sdk.agomtradepro import AgomTradeProClient
 
-        client = AgomSAAFClient()
+        client = AgomTradeProClient()
         backtests = client.backtest.list()
 
         print_success(f"Found {len(backtests)} backtests")
@@ -233,9 +233,9 @@ def test_get_portfolios() -> None:
     """Test 10: Get Portfolios"""
     print_test("Test 10: Get Portfolios")
     try:
-        from sdk.agomsaaf import AgomSAAFClient
+        from sdk.agomtradepro import AgomTradeProClient
 
-        client = AgomSAAFClient()
+        client = AgomTradeProClient()
         portfolios = client.account.get_portfolios()
 
         print_success(f"Found {len(portfolios)} portfolios")
@@ -245,7 +245,7 @@ def test_get_portfolios() -> None:
 
 def main() -> int:
     """Run all tests"""
-    print_section("AgomSAAF SDK Connection Test")
+    print_section("AgomTradePro SDK Connection Test")
 
     # Check if server is running
     print_test("Server Check")

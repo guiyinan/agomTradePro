@@ -149,7 +149,7 @@ class EmailStopLossNotificationService(StopLossNotificationPort):
             send_mail(
                 subject=subject,
                 message=message,
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomsaaf.com'),
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomtradepro.com'),
                 recipient_list=[data.user_email],
                 fail_silently=False,
             )
@@ -194,7 +194,7 @@ class EmailStopLossNotificationService(StopLossNotificationPort):
             send_mail(
                 subject=subject,
                 message=message,
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomsaaf.com'),
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@agomtradepro.com'),
                 recipient_list=[data.user_email],
                 fail_silently=False,
             )
@@ -226,7 +226,7 @@ class EmailStopLossNotificationService(StopLossNotificationPort):
 请注意及时查看您的账户状态。
 
 ---
-AgomSAAF 智能投顾系统
+AgomTradePro 智能投顾系统
 此邮件由系统自动发送，请勿回复。
 """.strip()
 
@@ -247,7 +247,7 @@ AgomSAAF 智能投顾系统
 恭喜您获得收益！
 
 ---
-AgomSAAF 智能投顾系统
+AgomTradePro 智能投顾系统
 此邮件由系统自动发送，请勿回复。
 """.strip()
 

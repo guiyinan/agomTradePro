@@ -30,7 +30,7 @@ from django.core.cache import cache
 from django.core.mail import send_mail as django_send_mail
 from django.utils import timezone
 
-from core.exceptions import AgomSAAFException, ExternalServiceError
+from core.exceptions import AgomTradeProException, ExternalServiceError
 from shared.infrastructure.resilience import retry_on_error, MaxRetriesExceeded
 
 
@@ -123,7 +123,7 @@ class NotificationConfig:
 # Exceptions
 # ============================================================================
 
-class NotificationError(AgomSAAFException):
+class NotificationError(AgomTradeProException):
     """通知基础异常"""
     default_message = "通知发送失败"
     default_code = "NOTIFICATION_ERROR"
@@ -217,7 +217,7 @@ class EmailNotificationChannel(NotificationChannelInterface):
             use_html: 是否使用 HTML 格式
             reply_to: 回复邮箱列表
         """
-        self.from_email = from_email or getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@agomsaaf.com")
+        self.from_email = from_email or getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@agomtradepro.com")
         self.use_html = use_html
         self.reply_to = reply_to or []
 
@@ -522,7 +522,7 @@ class EmailNotificationChannel(NotificationChannelInterface):
             </div>
             <div class="footer">
                 <p>发送时间: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-                <p>AgomSAAF - 自动发送，请勿回复</p>
+                <p>AgomTradePro - 自动发送，请勿回复</p>
             </div>
         </body>
         </html>

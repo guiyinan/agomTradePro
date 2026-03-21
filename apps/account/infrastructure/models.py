@@ -23,7 +23,7 @@ from cryptography.fernet import Fernet, InvalidToken
 
 def _build_app_fernet() -> Fernet:
     secret = (
-        getattr(settings, "AGOMSAAF_ENCRYPTION_KEY", "") or
+        getattr(settings, "AGOMTRADEPRO_ENCRYPTION_KEY", "") or
         getattr(settings, "SECRET_KEY", "")
     )
     digest = hashlib.sha256(secret.encode("utf-8")).digest()
@@ -1595,11 +1595,11 @@ class SystemSettingsModel(models.Model):
     def _get_default_agreement():
         """默认用户协议内容"""
         return """
-<h2>AgomSAAF 用户服务协议</h2>
-<p>欢迎使用 AgomSAAF（宏观环境准入系统）！在使用本系统前，请仔细阅读以下条款：</p>
+<h2>AgomTradePro 用户服务协议</h2>
+<p>欢迎使用 AgomTradePro（宏观环境准入系统）！在使用本系统前，请仔细阅读以下条款：</p>
 
 <h3>一、服务说明</h3>
-<p>AgomSAAF 是一个辅助投资决策工具，通过宏观环境分析和策略回测帮助用户制定投资计划。本系统提供的所有信息仅供参考，不构成任何投资建议。</p>
+<p>AgomTradePro 是一个辅助投资决策工具，通过宏观环境分析和策略回测帮助用户制定投资计划。本系统提供的所有信息仅供参考，不构成任何投资建议。</p>
 
 <h3>二、用户责任</h3>
 <ul>
@@ -1698,7 +1698,7 @@ class SystemSettingsModel(models.Model):
         """默认风险提示内容"""
         return """
 <h2>投资风险提示书</h2>
-<p>在使用 AgomSAAF 进行投资决策前，请充分了解以下风险：</p>
+<p>在使用 AgomTradePro 进行投资决策前，请充分了解以下风险：</p>
 
 <h3>一、市场风险</h3>
 <ul>

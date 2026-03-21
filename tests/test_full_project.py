@@ -1,5 +1,5 @@
 """
-AgomSAAF 项目无头浏览器全面测试脚本
+AgomTradePro 项目无头浏览器全面测试脚本
 测试所有主要功能并生成改进建议文档
 """
 import asyncio
@@ -34,7 +34,7 @@ class Improvement:
     suggestion: str = ""
 
 
-class AgomSAAFBrowserTest:
+class AgomTradeProBrowserTest:
     """无头浏览器测试类"""
 
     def __init__(self, base_url: str = "http://localhost:8000"):
@@ -284,7 +284,7 @@ class AgomSAAFBrowserTest:
         warnings = len([r for r in self.results if r.status == "warning"])
 
         # 生成 Markdown 报告
-        report = f"""# AgomSAAF 项目测试报告
+        report = f"""# AgomTradePro 项目测试报告
 
 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
@@ -406,7 +406,7 @@ class AgomSAAFBrowserTest:
 
     async def run_full_test(self):
         """运行完整测试"""
-        print("开始 AgomSAAF 项目全面测试...")
+        print("开始 AgomTradePro 项目全面测试...")
 
         # 创建截图目录
         import os
@@ -448,7 +448,7 @@ class AgomSAAFBrowserTest:
 
 async def main():
     """主函数"""
-    tester = AgomSAAFBrowserTest(base_url="http://localhost:8000")
+    tester = AgomTradeProBrowserTest(base_url="http://localhost:8000")
     await tester.run_full_test()
 
 

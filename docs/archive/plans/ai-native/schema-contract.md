@@ -1,4 +1,4 @@
-# AgomSAAF AI-Native Schema And Interface Contract
+# AgomTradePro AI-Native Schema And Interface Contract
 
 ## Purpose
 
@@ -346,15 +346,15 @@ Each context resource must render a stable human-readable summary generated from
 
 Resources:
 
-- `agomsaaf://context/research/current`
-- `agomsaaf://context/monitoring/current`
-- `agomsaaf://context/decision/current`
-- `agomsaaf://context/execution/current`
-- `agomsaaf://context/ops/current`
+- `agomtradepro://context/research/current`
+- `agomtradepro://context/monitoring/current`
+- `agomtradepro://context/decision/current`
+- `agomtradepro://context/execution/current`
+- `agomtradepro://context/ops/current`
 
 ## 5.2 Task Timeline Resource
 
-`agomsaaf://task/{task_id}/timeline`
+`agomtradepro://task/{task_id}/timeline`
 
 Must include:
 
@@ -365,7 +365,7 @@ Must include:
 
 ## 5.3 Proposal Summary Resource
 
-`agomsaaf://proposal/{proposal_id}/summary`
+`agomtradepro://proposal/{proposal_id}/summary`
 
 Must include:
 

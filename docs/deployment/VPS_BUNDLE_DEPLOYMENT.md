@@ -1,4 +1,4 @@
-# AgomSAAF VPS Bundle Deployment Guide
+# AgomTradePro VPS Bundle Deployment Guide
 
 ## 1. Scope
 
@@ -54,7 +54,7 @@ Optional example (explicit container names):
 pwsh ./scripts/package-for-vps.ps1 `
   -Tag 20260208 `
   -IncludeSqliteData `
-  -RedisContainer agomsaaf_redis
+  -RedisContainer agomtradepro_redis
 ```
 
 Wheel cache options:
@@ -79,12 +79,12 @@ What this script does:
 
 Output example:
 
-- `dist/agomsaaf-vps-bundle-20260208153000.tar.gz`
+- `dist/agomtradepro-vps-bundle-20260208153000.tar.gz`
 
 Bundle verification:
 
 ```powershell
-pwsh ./scripts/verify-vps-bundle.ps1 -Bundle ./dist/agomsaaf-vps-bundle-20260208153000.tar.gz -NoDockerLoad
+pwsh ./scripts/verify-vps-bundle.ps1 -Bundle ./dist/agomtradepro-vps-bundle-20260208153000.tar.gz -NoDockerLoad
 ```
 
 ---
@@ -96,7 +96,7 @@ Platform: cross-platform shell from local machine
 Use SCP (example):
 
 ```bash
-scp dist/agomsaaf-vps-bundle-20260208153000.tar.gz user@your-vps:/tmp/
+scp dist/agomtradepro-vps-bundle-20260208153000.tar.gz user@your-vps:/tmp/
 ```
 
 ---
@@ -114,7 +114,7 @@ ssh user@your-vps
 Run deployment script directly from repo or extracted bundle scripts:
 
 ```bash
-bash ./scripts/deploy-on-vps.sh --bundle /tmp/agomsaaf-vps-bundle-20260208153000.tar.gz
+bash ./scripts/deploy-on-vps.sh --bundle /tmp/agomtradepro-vps-bundle-20260208153000.tar.gz
 ```
 
 The script supports interactive actions:
@@ -127,7 +127,7 @@ The script supports interactive actions:
 
 Default deployment root:
 
-- `/opt/agomsaaf`
+- `/opt/agomtradepro`
 
 ---
 
@@ -136,7 +136,7 @@ Default deployment root:
 If your VPS has PowerShell 7:
 
 ```powershell
-pwsh ./scripts/deploy-on-vps.ps1 -Bundle /tmp/agomsaaf-vps-bundle-20260208153000.tar.gz
+pwsh ./scripts/deploy-on-vps.ps1 -Bundle /tmp/agomtradepro-vps-bundle-20260208153000.tar.gz
 ```
 
 ---
@@ -231,13 +231,13 @@ Platform: Linux VPS shell
 Check service status:
 
 ```bash
-docker compose -f /opt/agomsaaf/current/docker/docker-compose.vps.yml --env-file /opt/agomsaaf/current/deploy/.env ps
+docker compose -f /opt/agomtradepro/current/docker/docker-compose.vps.yml --env-file /opt/agomtradepro/current/deploy/.env ps
 ```
 
 Health check:
 
 ```bash
-HTTP_PORT=$(grep '^CADDY_HTTP_PORT=' /opt/agomsaaf/current/deploy/.env | cut -d '=' -f2- | tail -n 1)
+HTTP_PORT=$(grep '^CADDY_HTTP_PORT=' /opt/agomtradepro/current/deploy/.env | cut -d '=' -f2- | tail -n 1)
 curl -f "http://127.0.0.1:${HTTP_PORT:-8000}/api/health/"
 ```
 
@@ -253,11 +253,11 @@ curl -f https://your-domain/api/health/
 
 Each deployment bundle is unpacked into:
 
-- `/opt/agomsaaf/releases/<bundle-name>`
+- `/opt/agomtradepro/releases/<bundle-name>`
 
 Current release:
 
-- `/opt/agomsaaf/current`
+- `/opt/agomtradepro/current`
 
 Rollback approach:
 
@@ -274,9 +274,9 @@ Rollback approach:
 Run on VPS:
 
 ```bash
-bash /opt/agomsaaf/current/scripts/vps-backup.sh \
-  --target-dir /opt/agomsaaf/current \
-  --backup-dir /opt/agomsaaf/backups \
+bash /opt/agomtradepro/current/scripts/vps-backup.sh \
+  --target-dir /opt/agomtradepro/current \
+  --backup-dir /opt/agomtradepro/backups \
   --keep-days 14
 ```
 
@@ -292,19 +292,19 @@ What it backs up:
 Restore latest backup:
 
 ```bash
-bash /opt/agomsaaf/current/scripts/vps-restore.sh \
-  --target-dir /opt/agomsaaf/current \
-  --backup-dir /opt/agomsaaf/backups
+bash /opt/agomtradepro/current/scripts/vps-restore.sh \
+  --target-dir /opt/agomtradepro/current \
+  --backup-dir /opt/agomtradepro/backups
 ```
 
 Restore specific files:
 
 ```bash
-bash /opt/agomsaaf/current/scripts/vps-restore.sh \
-  --target-dir /opt/agomsaaf/current \
-  --backup-dir /opt/agomsaaf/backups \
-  --sqlite-file /opt/agomsaaf/backups/sqlite/db-20260208-130000.sqlite3.gz \
-  --redis-file /opt/agomsaaf/backups/redis/dump-20260208-130000.rdb.gz
+bash /opt/agomtradepro/current/scripts/vps-restore.sh \
+  --target-dir /opt/agomtradepro/current \
+  --backup-dir /opt/agomtradepro/backups \
+  --sqlite-file /opt/agomtradepro/backups/sqlite/db-20260208-130000.sqlite3.gz \
+  --redis-file /opt/agomtradepro/backups/redis/dump-20260208-130000.rdb.gz
 ```
 
 ### 11.3 PowerShell on Linux (optional)
@@ -312,13 +312,13 @@ bash /opt/agomsaaf/current/scripts/vps-restore.sh \
 Backup:
 
 ```powershell
-pwsh /opt/agomsaaf/current/scripts/vps-backup.ps1 -TargetDir /opt/agomsaaf/current -BackupDir /opt/agomsaaf/backups -KeepDays 14
+pwsh /opt/agomtradepro/current/scripts/vps-backup.ps1 -TargetDir /opt/agomtradepro/current -BackupDir /opt/agomtradepro/backups -KeepDays 14
 ```
 
 Restore:
 
 ```powershell
-pwsh /opt/agomsaaf/current/scripts/vps-restore.ps1 -TargetDir /opt/agomsaaf/current -BackupDir /opt/agomsaaf/backups
+pwsh /opt/agomtradepro/current/scripts/vps-restore.ps1 -TargetDir /opt/agomtradepro/current -BackupDir /opt/agomtradepro/backups
 ```
 
 ---
@@ -334,7 +334,7 @@ pwsh /opt/agomsaaf/current/scripts/vps-restore.ps1 -TargetDir /opt/agomsaaf/curr
 
 1. Check logs:
    ```bash
-   docker compose -f /opt/agomsaaf/current/docker/docker-compose.vps.yml --env-file /opt/agomsaaf/current/deploy/.env logs -f
+   docker compose -f /opt/agomtradepro/current/docker/docker-compose.vps.yml --env-file /opt/agomtradepro/current/deploy/.env logs -f
    ```
 2. Confirm `SECRET_KEY` is not default placeholder.
 
@@ -342,11 +342,11 @@ pwsh /opt/agomsaaf/current/scripts/vps-restore.ps1 -TargetDir /opt/agomsaaf/curr
 
 This is almost always `ALLOWED_HOSTS` mismatch.
 
-1. Edit: `/opt/agomsaaf/current/deploy/.env`
+1. Edit: `/opt/agomtradepro/current/deploy/.env`
 2. Set `ALLOWED_HOSTS` to include your access IP and/or domain (comma-separated).
 3. Restart web:
    ```bash
-   docker compose -f /opt/agomsaaf/current/docker/docker-compose.vps.yml --env-file /opt/agomsaaf/current/deploy/.env restart web
+   docker compose -f /opt/agomtradepro/current/docker/docker-compose.vps.yml --env-file /opt/agomtradepro/current/deploy/.env restart web
    ```
 
 ### SQLite restore fails

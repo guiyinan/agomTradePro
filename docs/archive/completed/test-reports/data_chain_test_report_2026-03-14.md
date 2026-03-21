@@ -1,4 +1,4 @@
-# AgomSAAF Data Chain Test Report
+# AgomTradePro Data Chain Test Report
 
 **Test Date**: 2026-03-14
 **Test Environment**: 127.0.0.1:8000 (Local via MCP SDK)
@@ -73,14 +73,14 @@ The MCP configuration at `.mcp.json` is correctly configured:
 ```json
 {
   "mcpServers": {
-    "agomsaaf": {
+    "agomtradepro": {
       "command": "python",
-      "args": ["-m", "agomsaaf_mcp.server"],
-      "cwd": "D:/githv/agomSAAF/sdk",
+      "args": ["-m", "agomtradepro_mcp.server"],
+      "cwd": "D:/githv/agomTradePro/sdk",
       "env": {
-        "AGOMSAAF_BASE_URL": "http://127.0.0.1:8000",
-        "AGOMSAAF_API_TOKEN": "56d30eb16b230581312397997d27b3b613941811",
-        "AGOMSAAF_MCP_ENFORCE_RBAC": "true"
+        "AGOMTRADEPRO_BASE_URL": "http://127.0.0.1:8000",
+        "AGOMTRADEPRO_API_TOKEN": "56d30eb16b230581312397997d27b3b613941811",
+        "AGOMTRADEPRO_MCP_ENFORCE_RBAC": "true"
       }
     }
   }

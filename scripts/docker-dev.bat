@@ -1,5 +1,5 @@
 @echo off
-REM AgomSAAF Docker Development Launcher
+REM AgomTradePro Docker Development Launcher
 REM Version: 3.5
 REM Updated: 2026-02-01
 REM
@@ -9,7 +9,7 @@ REM   docker-dev.bat [--sqlite] [--no-celery] [--no-beat] [port]
 setlocal enabledelayedexpansion
 
 REM Configuration
-set PYTHON_EXEC=agomsaaf\Scripts\python.exe
+set PYTHON_EXEC=agomtradepro\Scripts\python.exe
 set DJANGO_PORT=8000
 set START_CELERY=1
 set START_BEAT=1
@@ -41,7 +41,7 @@ goto end_parse
 REM Header
 echo.
 echo ====================================
-echo   AgomSAAF Docker Dev Launcher
+echo   AgomTradePro Docker Dev Launcher
 echo ====================================
 echo.
 
@@ -49,7 +49,7 @@ REM ========== 1. Check Virtual Environment ==========
 echo [1/5] Checking virtual environment...
 if not exist "%PYTHON_EXEC%" (
     echo [ERROR] Virtual environment not found!
-    echo Please run: python -m venv agomsaaf
+    echo Please run: python -m venv agomtradepro
     pause
     exit /b 1
 )
@@ -103,7 +103,7 @@ REM Wait for Redis
 echo [INFO] Waiting for Redis to be ready...
 :wait_redis
 timeout /t 1 >nul
-docker exec agomsaaf_redis_dev redis-cli ping >nul 2>&1
+docker exec agomtradepro_redis_dev redis-cli ping >nul 2>&1
 if errorlevel 1 goto :wait_redis
 echo [OK] Redis ready
 echo.
@@ -187,7 +187,7 @@ goto :eof
 
 :wait_postgres_ready
 timeout /t 2 >nul
-docker exec agomsaaf_postgres_dev pg_isready -U agomsaaf -d agomsaaf >nul 2>&1
+docker exec agomtradepro_postgres_dev pg_isready -U agomtradepro -d agomtradepro >nul 2>&1
 if errorlevel 1 goto :wait_postgres_ready
 exit /b 0
 

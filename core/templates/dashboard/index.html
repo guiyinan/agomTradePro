@@ -2,7 +2,7 @@
 {% load static %}
 {% load dashboard_tags %}
 
-{% block title %}AgomSAAF - 投资指挥中心{% endblock %}
+{% block title %}AgomTradePro - 投资指挥中心{% endblock %}
 
 {% block extra_css %}
 <!-- ECharts -->
@@ -151,7 +151,7 @@
         <header class="home-header">
             <div class="header-welcome">
                 <h1 class="home-title">欢迎回来，{{ display_name|default:user.username }}</h1>
-                <p class="home-subtitle">AgomSAAF 战略资产配置框架 - 投资指挥中心</p>
+                <p class="home-subtitle">AgomTradePro 战略资产配置框架 - 投资指挥中心</p>
             </div>
             <div class="header-actions">
                 <div class="header-stat">
@@ -166,6 +166,42 @@
                 </div>
             </div>
         </header>
+
+        <section class="account-overview-section">
+            <div class="section-header">
+                <h2 class="section-title">我的账户</h2>
+                <a href="{% url 'simulated_trading:my-accounts' %}" class="section-link">全部账户 →</a>
+            </div>
+            {% if investment_accounts %}
+            <div class="account-tag-grid">
+                {% for account in investment_accounts %}
+                <a href="{% url 'simulated_trading:my-account-detail' account.id %}"
+                   class="account-tag-card account-tag-card-{{ account.type_code }}">
+                    <div class="account-tag-topline">
+                        <span class="account-type-badge">{{ account.type_label }}</span>
+                        <span class="account-status {% if account.is_active %}is-active{% else %}is-inactive{% endif %}">
+                            {% if account.is_active %}活跃{% else %}停用{% endif %}
+                        </span>
+                    </div>
+                    <div class="account-tag-name">{{ account.name }}</div>
+                    <div class="account-tag-assets">¥{{ account.total_value|floatformat:2 }}</div>
+                    <div class="account-tag-meta">
+                        <span>现金 ¥{{ account.cash|floatformat:0 }}</span>
+                        <span>持仓 ¥{{ account.market_value|floatformat:0 }}</span>
+                    </div>
+                    <div class="account-tag-return {% if account.total_return >= 0 %}positive{% else %}negative{% endif %}">
+                        收益率 {{ account.total_return|floatformat:2 }}%
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">📂</div>
+                <p>暂无投资账户</p>
+            </div>
+            {% endif %}
+        </section>
 
         <!-- 主流程面板：上移到首屏顶部 -->
         {% include "dashboard/main_workflow_panel.html" %}
@@ -747,7 +783,7 @@
         <div class="chat-messages" id="chatMessages">
             <div class="message message-system">
                 <div class="message-content">
-                    <p>你好！我是 AgomSAAF AI 助手。</p>
+                    <p>你好！我是 AgomTradePro AI 助手。</p>
                     <p>我可以帮你：</p>
                     <ul>
                         <li>分析当前宏观环境</li>
@@ -1532,6 +1568,102 @@ chatSendBtn.onclick = async function() {
 
 .streaming-text {
     color: var(--text-muted);
+}
+
+.account-overview-section {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.account-tag-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.account-tag-card {
+    display: block;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 16px;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.account-tag-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent-color);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.account-tag-card-real {
+    border-left: 4px solid #2563eb;
+}
+
+.account-tag-card-simulated {
+    border-left: 4px solid #14b8a6;
+}
+
+.account-tag-topline,
+.account-tag-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+}
+
+.account-tag-topline {
+    margin-bottom: 10px;
+}
+
+.account-type-badge,
+.account-status {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+}
+
+.account-type-badge {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+.account-status.is-active {
+    background: rgba(34, 197, 94, 0.12);
+    color: #15803d;
+}
+
+.account-status.is-inactive {
+    background: rgba(148, 163, 184, 0.18);
+    color: #475569;
+}
+
+.account-tag-name {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.account-tag-assets {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.account-tag-meta {
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+.account-tag-return {
+    font-size: 13px;
+    font-weight: 600;
 }
 
 /* 响应式调整 */

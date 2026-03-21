@@ -36,7 +36,7 @@ def factor_api_home_redirect(request):
     """Redirect root /api/factor/ to docs/info"""
     from django.http import JsonResponse
     return JsonResponse({
-        'message': 'AgomSAAF Factor Module API',
+        'message': 'AgomTradePro Factor Module API',
         'endpoints': {
             'definitions': '/api/factor/definitions/',
             'configs': '/api/factor/configs/',

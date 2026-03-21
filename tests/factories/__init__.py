@@ -1,1 +1,1 @@
-"""Test factories for AgomSAAF domain entities and ORM models."""
+"""Test factories for AgomTradePro domain entities and ORM models."""

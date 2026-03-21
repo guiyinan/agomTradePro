@@ -3,14 +3,14 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "agomsaaf-sdk"
+name = "agomtradepro-sdk"
 version = "1.0.0"
-description = "Python SDK and MCP Server for AgomSAAF - Macro Environment Admission System"
+description = "Python SDK and MCP Server for AgomTradePro - Macro Environment Admission System"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [
-    { name = "AgomSAAF Team" }
+    { name = "AgomTradePro Team" }
 ]
 keywords = ["finance", "investment", "macro", "regime", "mcp"]
 classifiers = [
@@ -46,15 +46,15 @@ pandas = [
 ]
 
 [project.scripts]
-agomsaaf-mcp = "agomsaaf_mcp.server:main"
+agomtradepro-mcp = "agomtradepro_mcp.server:main"
 
 [project.urls]
-Homepage = "https://github.com/agomsaaf/agomsaaf"
-Documentation = "https://docs.agomsaaf.com"
-Repository = "https://github.com/agomsaaf/agomsaaf"
+Homepage = "https://github.com/agomtradepro/agomtradepro"
+Documentation = "https://docs.agomtradepro.com"
+Repository = "https://github.com/agomtradepro/agomtradepro"
 
 [tool.hatch.build.targets.wheel]
-packages = ["agomsaaf", "agomsaaf_mcp"]
+packages = ["agomtradepro", "agomtradepro_mcp"]
 
 [tool.black]
 line-length = 100

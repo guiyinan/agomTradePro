@@ -11,7 +11,7 @@
 #   5. Verifies service health
 #
 # Environment Variables:
-#   DEPLOY_TARGET_DIR - Target deployment directory (default: /opt/agomsaaf)
+#   DEPLOY_TARGET_DIR - Target deployment directory (default: /opt/agomtradepro)
 #   VENV_PATH         - Virtual environment path (default: .venv)
 #   HEALTH_CHECK_URL  - Health check endpoint (default: http://localhost:8000/api/health/)
 #   READY_CHECK_URL   - Readiness check endpoint (default: http://localhost:8000/api/ready/)
@@ -49,7 +49,7 @@ die() {
 
 # Configuration
 PREVIOUS_VERSION="${1:-}"
-DEPLOY_TARGET_DIR="${DEPLOY_TARGET_DIR:-/opt/agomsaaf}"
+DEPLOY_TARGET_DIR="${DEPLOY_TARGET_DIR:-/opt/agomtradepro}"
 VENV_PATH="${VENV_PATH:-.venv}"
 HEALTH_CHECK_URL="${HEALTH_CHECK_URL:-http://localhost:8000/api/health/}"
 READY_CHECK_URL="${READY_CHECK_URL:-http://localhost:8000/api/ready/}"

@@ -22,9 +22,9 @@
 
 ```bash
 # 激活虚拟环境
-conda activate agomsaaf
+conda activate agomtradepro
 # 或
-source agomsaaf/bin/activate
+source agomtradepro/bin/activate
 
 # 安装 Qlib
 pip install pyqlib

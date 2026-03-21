@@ -23,8 +23,8 @@
 | 环境 | 用途 | 地址 |
 |------|------|------|
 | 开发环境 | 本地开发测试 | `http://localhost:8000` |
-| 测试环境 | CI/CD 自动化测试 | `http://test.agomsaaf.local` |
-| 预发环境 | 上线前最终验证 | `http://staging.agomsaaf.local` |
+| 测试环境 | CI/CD 自动化测试 | `http://test.agomtradepro.local` |
+| 预发环境 | 上线前最终验证 | `http://staging.agomtradepro.local` |
 
 ### 1.3 验收角色
 

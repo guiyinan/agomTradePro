@@ -1,6 +1,6 @@
 # WP-3: Homepage and Workspace Frontend - Completion Report
 
-**Project**: AgomSAAF V3.4 - 首页主流程闭环改造
+**Project**: AgomTradePro V3.4 - 首页主流程闭环改造
 **Work Package**: WP-3 (Frontend Transformation)
 **Status**: ✅ COMPLETED
 **Date**: 2026-03-01

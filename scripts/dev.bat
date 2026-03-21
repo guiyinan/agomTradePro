@@ -1,5 +1,5 @@
 @echo off
-REM AgomSAAF Quick Development Launcher
+REM AgomTradePro Quick Development Launcher
 REM Version: 3.5
 REM Updated: 2026-02-01
 REM
@@ -11,19 +11,19 @@ setlocal enabledelayedexpansion
 
 REM Configuration
 set PYTHON_EXEC=
-if /I "%CONDA_DEFAULT_ENV%"=="agomsaaf" (
+if /I "%CONDA_DEFAULT_ENV%"=="agomtradepro" (
     for /f "delims=" %%i in ('where python 2^>nul') do (
         if not defined PYTHON_EXEC set PYTHON_EXEC=%%i
     )
 )
-if not defined PYTHON_EXEC set PYTHON_EXEC=agomsaaf\Scripts\python.exe
+if not defined PYTHON_EXEC set PYTHON_EXEC=agomtradepro\Scripts\python.exe
 set DJANGO_PORT=%1
 if "%DJANGO_PORT%"=="" set DJANGO_PORT=8000
 
 REM Header
 echo.
 echo ====================================
-echo   AgomSAAF Quick Dev Launcher
+echo   AgomTradePro Quick Dev Launcher
 echo ====================================
 echo.
 
@@ -31,7 +31,7 @@ REM ========== 1. Check Virtual Environment ==========
 echo [1/3] Checking Python runtime...
 if not exist "%PYTHON_EXEC%" (
     echo [ERROR] Python runtime not found: %PYTHON_EXEC%
-    echo Please activate conda env "agomsaaf" OR run: python -m venv agomsaaf
+    echo Please activate conda env "agomtradepro" OR run: python -m venv agomtradepro
     pause
     exit /b 1
 )

@@ -1,4 +1,4 @@
-# AgomSAAF 标准工作流：测试 -> 打包 -> 发布
+# AgomTradePro 标准工作流：测试 -> 打包 -> 发布
 
 Last updated: 2026-02-17
 
@@ -78,7 +78,7 @@ pwsh ./scripts/package-for-vps.ps1 -Tag <yyyyMMddHHmmss> -SkipData -SkipRedisDat
 平台：Windows PowerShell
 
 ```powershell
-pwsh ./scripts/verify-vps-bundle.ps1 -Bundle ./dist/agomsaaf-vps-bundle-<tag>.tar.gz -NoDockerLoad
+pwsh ./scripts/verify-vps-bundle.ps1 -Bundle ./dist/agomtradepro-vps-bundle-<tag>.tar.gz -NoDockerLoad
 ```
 
 通过标准：
@@ -93,9 +93,9 @@ pwsh ./scripts/verify-vps-bundle.ps1 -Bundle ./dist/agomsaaf-vps-bundle-<tag>.ta
 平台：Linux VPS Shell
 
 ```bash
-bash /opt/agomsaaf/current/scripts/vps-backup.sh \
-  --target-dir /opt/agomsaaf/current \
-  --backup-dir /opt/agomsaaf/backups \
+bash /opt/agomtradepro/current/scripts/vps-backup.sh \
+  --target-dir /opt/agomtradepro/current \
+  --backup-dir /opt/agomtradepro/backups \
   --keep-days 14
 ```
 
@@ -110,7 +110,7 @@ python ./scripts/deploy-bundle-to-vps.py `
   --host 141.11.211.21 `
   --user root `
   --action upgrade `
-  --password-file "$HOME\\.agomsaaf\\vps.pass"
+  --password-file "$HOME\\.agomtradepro\\vps.pass"
 ```
 
 方式 2（手工 SSH 到 VPS）
@@ -118,9 +118,9 @@ python ./scripts/deploy-bundle-to-vps.py `
 平台：Linux VPS Shell
 
 ```bash
-bash /opt/agomsaaf/current/scripts/deploy-on-vps.sh \
-  --bundle /tmp/agomsaaf-vps-bundle-<tag>.tar.gz \
-  --target-dir /opt/agomsaaf \
+bash /opt/agomtradepro/current/scripts/deploy-on-vps.sh \
+  --bundle /tmp/agomtradepro-vps-bundle-<tag>.tar.gz \
+  --target-dir /opt/agomtradepro \
   --action upgrade
 ```
 
@@ -135,13 +135,13 @@ curl -fsS http://141.11.211.21:8000/api/health/
 
 2. 服务检查
 ```bash
-cd /opt/agomsaaf/current
+cd /opt/agomtradepro/current
 docker compose -f docker/docker-compose.vps.yml --env-file deploy/.env ps
 ```
 
 3. 日志检查（确认无新增 5xx）
 ```bash
-cd /opt/agomsaaf/current
+cd /opt/agomtradepro/current
 docker compose -f docker/docker-compose.vps.yml --env-file deploy/.env logs --tail=200 web
 ```
 
@@ -158,12 +158,12 @@ docker compose -f docker/docker-compose.vps.yml --env-file deploy/.env logs --ta
 平台：Linux VPS Shell
 
 ```bash
-ln -sfn /opt/agomsaaf/releases/<previous_release> /opt/agomsaaf/current
+ln -sfn /opt/agomtradepro/releases/<previous_release> /opt/agomtradepro/current
 ```
 
 2. 重启服务
 ```bash
-cd /opt/agomsaaf/current
+cd /opt/agomtradepro/current
 docker compose -f docker/docker-compose.vps.yml --env-file deploy/.env up -d
 ```
 
@@ -205,4 +205,4 @@ Notes:
 - 本地自动巡检入口：`start.bat` 选 `6`
 - URL/API 报告目录：`reports/url_scan/`
 - 默认生产入口：`http://141.11.211.21:8000`
-- 生产部署根目录：`/opt/agomsaaf/current`
+- 生产部署根目录：`/opt/agomtradepro/current`

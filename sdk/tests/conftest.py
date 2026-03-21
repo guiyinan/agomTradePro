@@ -1,5 +1,5 @@
 """
-Pytest configuration for AgomSAAF SDK tests
+Pytest configuration for AgomTradePro SDK tests
 """
 
 import os
@@ -11,8 +11,8 @@ import pytest
 @pytest.fixture
 def mock_config():
     """Mock configuration for testing"""
-    os.environ["AGOMSAAF_BASE_URL"] = "http://localhost:8000"
-    os.environ["AGOMSAAF_API_TOKEN"] = "test_token"
+    os.environ["AGOMTRADEPRO_BASE_URL"] = "http://localhost:8000"
+    os.environ["AGOMTRADEPRO_API_TOKEN"] = "test_token"
     return {
         "base_url": "http://localhost:8000",
         "api_token": "test_token",
@@ -21,10 +21,10 @@ def mock_config():
 
 @pytest.fixture
 def mock_client():
-    """Mock AgomSAAFClient for testing"""
-    from agomsaaf import AgomSAAFClient
+    """Mock AgomTradeProClient for testing"""
+    from agomtradepro import AgomTradeProClient
 
-    client = AgomSAAFClient(
+    client = AgomTradeProClient(
         base_url="http://localhost:8000",
         api_token="test_token",
     )

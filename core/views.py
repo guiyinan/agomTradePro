@@ -1,5 +1,5 @@
 """
-Core Views for AgomSAAF
+Core Views for AgomTradePro
 
 项目级视图函数
 """

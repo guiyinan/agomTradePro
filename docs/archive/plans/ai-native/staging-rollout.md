@@ -9,9 +9,9 @@
 |----------|----------|---------|-------------|
 | `DJANGO_SETTINGS_MODULE` | Yes | `core.settings.development` | Use `core.settings.production` for staging |
 | `DATABASE_URL` | Yes | SQLite | PostgreSQL connection string for staging |
-| `AGOMSAAF_BASE_URL` | Yes | `http://127.0.0.1:8000` | Base URL of the staging server |
-| `AGOMSAAF_API_TOKEN` | Yes | — | Staff-level API token |
-| `AGOMSAAF_MCP_ENFORCE_RBAC` | No | `true` | Enable RBAC enforcement on MCP tools |
+| `AGOMTRADEPRO_BASE_URL` | Yes | `http://127.0.0.1:8000` | Base URL of the staging server |
+| `AGOMTRADEPRO_API_TOKEN` | Yes | — | Staff-level API token |
+| `AGOMTRADEPRO_MCP_ENFORCE_RBAC` | No | `true` | Enable RBAC enforcement on MCP tools |
 | `CELERY_BROKER_URL` | No | `redis://localhost:6379/0` | Redis broker for async tasks |
 | `SECRET_KEY` | Yes | — | Django secret key (must not be default) |
 

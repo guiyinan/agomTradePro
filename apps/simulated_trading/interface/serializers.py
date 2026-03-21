@@ -100,6 +100,40 @@ class AccountListResponseSerializer(serializers.Serializer):
     accounts = AccountResponseSerializer(many=True)
 
 
+class AccountDeleteResponseSerializer(serializers.Serializer):
+    """删除单个账户响应序列化器"""
+
+    success = serializers.BooleanField()
+    account_id = serializers.IntegerField()
+    account_name = serializers.CharField()
+    deleted_positions = serializers.IntegerField()
+    deleted_trades = serializers.IntegerField()
+    deleted_reports = serializers.IntegerField()
+    message = serializers.CharField()
+
+
+class AccountBatchDeleteRequestSerializer(serializers.Serializer):
+    """批量删除账户请求序列化器"""
+
+    account_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        allow_empty=False,
+        help_text="待删除账户 ID 列表",
+    )
+
+
+class AccountBatchDeleteResponseSerializer(serializers.Serializer):
+    """批量删除账户响应序列化器"""
+
+    success = serializers.BooleanField()
+    requested_count = serializers.IntegerField()
+    deleted_count = serializers.IntegerField()
+    deleted_account_ids = serializers.ListField(child=serializers.IntegerField())
+    deleted_account_names = serializers.ListField(child=serializers.CharField())
+    failed = serializers.ListField(child=serializers.DictField(), required=False)
+    message = serializers.CharField()
+
+
 # ============================================================================
 # 持仓相关序列化器
 # ============================================================================

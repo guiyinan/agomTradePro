@@ -257,7 +257,7 @@ def customize_event_admin_site(admin_site):
         admin_site: Django Admin 站点实例
     """
     # 添加自定义仪表板
-    admin_site.site_header = "AgomSAAF 事件管理"
+    admin_site.site_header = "AgomTradePro 事件管理"
     admin_site.site_title = "事件管理"
-    admin_site.index_title = "欢迎使用 AgomSAAF 事件管理系统"
+    admin_site.index_title = "欢迎使用 AgomTradePro 事件管理系统"
 

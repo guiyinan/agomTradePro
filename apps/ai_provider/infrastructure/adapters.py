@@ -52,19 +52,19 @@ class OpenAICompatibleAdapter:
         fallback_enabled: Optional[bool] = None,
     ):
         if not OPENAI_AVAILABLE:
-            raise ImportError("需要安装 openai 库。请运行: agomsaaf/Scripts/pip install openai")
+            raise ImportError("需要安装 openai 库。请运行: agomtradepro/Scripts/pip install openai")
 
         self.client = OpenAI(base_url=base_url, api_key=api_key)
         self.default_model = default_model
         self.base_url = base_url
         self.provider_name = _infer_provider_name(base_url)
 
-        resolved_mode = (api_mode or os.getenv("AGOMSAAF_OPENAI_API_MODE", "dual")).strip().lower()
+        resolved_mode = (api_mode or os.getenv("AGOMTRADEPRO_OPENAI_API_MODE", "dual")).strip().lower()
         if resolved_mode not in self.VALID_API_MODES:
             resolved_mode = "dual"
         self.api_mode = resolved_mode
 
-        env_fallback = os.getenv("AGOMSAAF_OPENAI_FALLBACK_ENABLED")
+        env_fallback = os.getenv("AGOMTRADEPRO_OPENAI_FALLBACK_ENABLED")
         if fallback_enabled is None:
             if env_fallback is None:
                 self.fallback_enabled = True

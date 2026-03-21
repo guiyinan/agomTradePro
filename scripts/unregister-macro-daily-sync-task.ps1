@@ -1,5 +1,5 @@
 param(
-    [string]$TaskName = "AgomSAAF-Daily-Macro-Sync"
+    [string]$TaskName = "AgomTradePro-Daily-Macro-Sync"
 )
 
 $ErrorActionPreference = "Stop"

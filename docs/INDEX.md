@@ -1,6 +1,6 @@
-# AgomSAAF 文档索引
+# AgomTradePro 文档索引
 
-> **AgomSAAF V3.5** - 宏观环境准入系统
+> **AgomTradePro V3.5** - 宏观环境准入系统
 > **最后更新**: 2026-03-18
 > **项目状态**: 生产就绪
 
@@ -17,7 +17,7 @@
 | 新加入者 | [governance/SYSTEM_BASELINE.md](governance/SYSTEM_BASELINE.md) | 系统基线、模块清单、核心链路 |
 | AI Agent/集成开发 | [../sdk/README.md](../sdk/README.md) | SDK 与 MCP 服务接入、认证、工具清单 |
 | 外包团队 | [development/outsourcing-work-guidelines.md](development/outsourcing-work-guidelines.md) | **外包工作指南、代码规范、自查清单** |
-| 产品/业务 | [business/AgomSAAF_V3.4.md](business/AgomSAAF_V3.4.md) | 业务逻辑、金融规则、数据源 |
+| 产品/业务 | [business/AgomTradePro_V3.4.md](business/AgomTradePro_V3.4.md) | 业务逻辑、金融规则、数据源 |
 | 最终用户 | [user/topdown-bottomup-execution-playbook.md](user/topdown-bottomup-execution-playbook.md) | 环境-标的-执行-审计一体化操作手册 |
 | 运维人员 | [deployment/VPS_BUNDLE_DEPLOYMENT.md](deployment/VPS_BUNDLE_DEPLOYMENT.md) | VPS Bundle 部署指南 |
 | FRP 三机部署 | [architecture/frp-vps-local-runtime-architecture.md](architecture/frp-vps-local-runtime-architecture.md) | VPS 入口 + 本地运行 + C 端 AI Agent/MCP 架构与落地配置 |
@@ -54,7 +54,7 @@
 
 | 文档 | 说明 | 状态 |
 |------|------|------|
-| [AgomSAAF_V3.4.md](business/AgomSAAF_V3.4.md) | 核心业务需求文档（2650行） | 最新 |
+| [AgomTradePro_V3.4.md](business/AgomTradePro_V3.4.md) | 核心业务需求文档（2650行） | 最新 |
 | [valuation-pricing-engine.md](business/valuation-pricing-engine.md) | **估值定价引擎业务文档** | ✅ 2026-03-02 新增 |
 | [valuation-repair-config.md](business/valuation-repair-config.md) | **估值修复策略参数配置（在线调参/版本管理/回滚）** | ✅ 2026-03-11 新增 |
 | [config-center-matrix.md](business/config-center-matrix.md) | **配置中心能力矩阵（前端/API/SDK/MCP/权限）** | ✅ 2026-03-11 新增 |
@@ -226,7 +226,7 @@
 
 ## 项目状态
 
-**系统版本**: AgomSAAF V3.6
+**系统版本**: AgomTradePro V3.6
 
 **业务模块**: 33个
 
@@ -236,7 +236,7 @@
 
 ### SDK/MCP 口径（2026-02-26）
 
-- 对外接入层：`sdk/agomsaaf`（Python SDK）+ `sdk/agomsaaf_mcp`（MCP Server）
+- 对外接入层：`sdk/agomtradepro`（Python SDK）+ `sdk/agomtradepro_mcp`（MCP Server）
 - 本地 MCP 回归：`98 passed`（tool registration + tool execution + RBAC）
 - 说明：测试数字为当日快照，最终以最新 CI/本地执行结果为准
 
@@ -319,7 +319,7 @@
 2. [development/quick-reference.md](development/quick-reference.md) - 快速了解常用命令和 API
 3. [governance/SYSTEM_BASELINE.md](governance/SYSTEM_BASELINE.md) - **系统基线（单一叙事来源）**
 4. [SYSTEM_SPECIFICATION.md](SYSTEM_SPECIFICATION.md) - 理解系统架构
-5. [business/AgomSAAF_V3.4.md](business/AgomSAAF_V3.4.md) - 学习业务逻辑
+5. [business/AgomTradePro_V3.4.md](business/AgomTradePro_V3.4.md) - 学习业务逻辑
 6. [development/coding_standards.md](development/coding_standards.md) - 遵循代码规范
 
 ### 理解 AI 选股
@@ -467,5 +467,5 @@
 
 ---
 
-**文档维护**: AgomSAAF Team
+**文档维护**: AgomTradePro Team
 **最后更新**: 2026-03-17

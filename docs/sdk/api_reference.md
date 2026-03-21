@@ -1,13 +1,13 @@
-# AgomSAAF SDK API Reference
+# AgomTradePro SDK API Reference
 
-Complete API reference for the AgomSAAF Python SDK.
+Complete API reference for the AgomTradePro Python SDK.
 
-## AgomSAAFClient
+## AgomTradeProClient
 
 ### Constructor
 
 ```python
-AgomSAAFClient(
+AgomTradeProClient(
     base_url: str = "http://localhost:8000",
     api_token: str | None = None,
     username: str | None = None,
@@ -319,7 +319,7 @@ client.market_data.cross_validate(codes) -> dict
 
 | Exception | Description | HTTP Status |
 |-----------|-------------|-------------|
-| `AgomSAAFAPIError` | Base API error | - |
+| `AgomTradeProAPIError` | Base API error | - |
 | `AuthenticationError` | Invalid credentials | 401, 403 |
 | `ValidationError` | Invalid request data | 400 |
 | `NotFoundError` | Resource not found | 404 |

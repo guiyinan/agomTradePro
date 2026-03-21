@@ -1,6 +1,6 @@
-# AgomSAAF + Qlib 松耦合深度集成 - 实施进度总结
+# AgomTradePro + Qlib 松耦合深度集成 - 实施进度总结
 
-> **项目名称**: AgomSAAF + Qlib 深度集成
+> **项目名称**: AgomTradePro + Qlib 深度集成
 > **实施方案**: v1.1（基于 ADR/TDD/Tickets 架构）
 > **开始日期**: 2026-02-05
 > **当前状态**: Phase 5 完成，全部实施阶段完成 ✅
@@ -307,11 +307,11 @@ shared/infrastructure/
 ├── model_evaluation.py            # IC/ICIR 计算 (Phase 4)
 └── metrics.py                     # 监控指标系统 (Phase 4)
 
-sdk/agomsaaf/
+sdk/agomtradepro/
 ├── modules/alpha.py               # Alpha SDK 模块
 └── ...
 
-sdk/agomsaaf_mcp/tools/
+sdk/agomtradepro_mcp/tools/
 └── alpha_tools.py                  # MCP 工具
 
 tests/unit/
@@ -330,7 +330,7 @@ tests/integration/
 └── test_qlib_integration.py       # Qlib 集成测试
 
 docs/plans/
-├── agomsaaf-qlib-integration-plan-v1.1.md
+├── agomtradepro-qlib-integration-plan-v1.1.md
 ├── ../archive/plans/phase1-alpha-implementation-summary.md
 ├── ../archive/plans/phase2-qlib-inference-summary.md
 ├── ../archive/plans/phase3-training-summary.md
@@ -417,9 +417,9 @@ curl http://localhost:8000/api/alpha/providers/status/
 ### 5. Python SDK
 
 ```python
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 
-client = AgomSAAFClient()
+client = AgomTradeProClient()
 
 # 获取评分
 result = client.alpha.get_stock_scores("csi300", top_n=20)
@@ -433,7 +433,7 @@ for stock in result['stocks']:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        AgomSAAF 主系统                         │
+│                        AgomTradePro 主系统                         │
 │                      （稳定/治理/风控）                          │
 ├─────────────────────────────────────────────────────────────────┤
 │  Regime / Rotation / Hedge / Signal / Backtest / SimTrade       │
@@ -569,7 +569,7 @@ for stock in result['stocks']:
 
 ## 📝 相关文档
 
-- [实施方案 v1.1](agomsaaf-qlib-integration-plan-v1.1.md)
+- [实施方案 v1.1](agomtradepro-qlib-integration-plan-v1.1.md)
 - [Phase 1 总结](../archive/plans/phase1-alpha-implementation-summary.md)
 - [Phase 2 总结](../archive/plans/phase2-qlib-inference-summary.md)
 - [Phase 3 总结](../archive/plans/phase3-training-summary.md)
@@ -582,7 +582,7 @@ for stock in result['stocks']:
 ## 👥 贡献者
 
 - 实现：Claude (Anthropic)
-- 架构设计：AgomSAAF Team
+- 架构设计：AgomTradePro Team
 - 测试：待添加
 
 ---

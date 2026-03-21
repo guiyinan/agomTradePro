@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Audit module provides comprehensive attribution analysis and performance validation for the AgomSAAF system. It enables users to:
+The Audit module provides comprehensive attribution analysis and performance validation for the AgomTradePro system. It enables users to:
 
 1. **Analyze Investment Performance Attribution** - Decompose portfolio returns into timing, selection, and interaction effects
 2. **Validate Macro Indicator Performance** - Evaluate how well macro indicators predict regime changes

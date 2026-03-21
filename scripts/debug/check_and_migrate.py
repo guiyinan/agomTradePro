@@ -4,7 +4,7 @@ import sqlite3
 import os
 
 print("=== 检查 SQLite 数据库 ===")
-db_path = 'D:/githv/agomSAAF/db.sqlite3'
+db_path = 'D:/githv/agomTradePro/db.sqlite3'
 conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
 

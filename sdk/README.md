@@ -1,10 +1,10 @@
-# AgomSAAF SDK & MCP Server
+# AgomTradePro SDK & MCP Server
 
-Python SDK and MCP (Model Context Protocol) Server for AgomSAAF - Macro Environment Admission System.
+Python SDK and MCP (Model Context Protocol) Server for AgomTradePro - Macro Environment Admission System.
 
 ## Overview
 
-AgomSAAF SDK provides two ways to interact with the AgomSAAF system:
+AgomTradePro SDK provides two ways to interact with the AgomTradePro system:
 
 1. **Python SDK** - Full-featured Python client for complete system access
 2. **MCP Server** - AI-native tools for Claude Code and other AI agents
@@ -12,8 +12,8 @@ AgomSAAF SDK provides two ways to interact with the AgomSAAF system:
 ## Installation
 
 ```bash
-# From the AgomSAAF project
-cd D:/githv/agomSAAF/sdk
+# From the AgomTradePro project
+cd D:/githv/agomTradePro/sdk
 
 # Install in development mode
 pip install -e .
@@ -33,12 +33,12 @@ pip install -e ".[pandas]"
 Verify installed versions:
 
 ```bash
-python -m pip show agomsaaf-sdk mcp
+python -m pip show agomtradepro-sdk mcp
 ```
 
 ## Authentication
 
-AgomSAAF backend uses DRF Token authentication.
+AgomTradePro backend uses DRF Token authentication.
 
 - Header format: `Authorization: Token <your_token>`
 - SDK `api_token` can be either raw token or prefixed form (`Token ...` / `Bearer ...`).
@@ -46,7 +46,7 @@ AgomSAAF backend uses DRF Token authentication.
 Generate a token for an existing user (example: `admin`):
 
 ```bash
-cd D:/githv/agomSAAF
+cd D:/githv/agomTradePro
 python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','core.settings.development'); import django; django.setup(); from django.contrib.auth.models import User; from apps.account.infrastructure.models import UserAccessTokenModel; u=User.objects.get(username='admin'); t,key=UserAccessTokenModel.create_token(user=u, name='sdk-readme'); print(key)"
 ```
 
@@ -55,10 +55,10 @@ python -c "import os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','core.setti
 ### Python SDK
 
 ```python
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 
 # Initialize client
-client = AgomSAAFClient(
+client = AgomTradeProClient(
     base_url="http://localhost:8000",
     api_token="your_token_here"
 )
@@ -91,14 +91,14 @@ Configure in `~/.config/claude-code/mcp_servers.json`:
 ```json
 {
   "mcpServers": {
-    "agomsaaf_local": {
+    "agomtradepro_local": {
       "command": "python",
-      "args": ["-m", "agomsaaf_mcp.server"],
-      "cwd": "D:/githv/agomSAAF/sdk",
+      "args": ["-m", "agomtradepro_mcp.server"],
+      "cwd": "D:/githv/agomTradePro/sdk",
       "env": {
-        "AGOMSAAF_BASE_URL": "http://127.0.0.1:8000",
-        "AGOMSAAF_API_BASE_URL": "http://127.0.0.1:8000",
-        "AGOMSAAF_API_TOKEN": "your_token_here"
+        "AGOMTRADEPRO_BASE_URL": "http://127.0.0.1:8000",
+        "AGOMTRADEPRO_API_BASE_URL": "http://127.0.0.1:8000",
+        "AGOMTRADEPRO_API_TOKEN": "your_token_here"
       }
     }
   }
@@ -108,13 +108,13 @@ Configure in `~/.config/claude-code/mcp_servers.json`:
 You can also start MCP manually (for smoke testing):
 
 ```bash
-agomsaaf-mcp
+agomtradepro-mcp
 ```
 
 Recommended:
 
-- repo `.mcp.json`: keep only `agomsaaf_local`
-- client global config: split `agomsaaf_local` and `agomsaaf_prod`
+- repo `.mcp.json`: keep only `agomtradepro_local`
+- client global config: split `agomtradepro_local` and `agomtradepro_prod`
 - do not switch environments by editing one shared server entry
 
 If your environment has a global proxy, set local bypass for loopback:
@@ -138,14 +138,14 @@ Three methods (priority order):
 
 1. **Constructor parameters**
 2. **Environment variables**:
-   - `AGOMSAAF_BASE_URL`
-   - `AGOMSAAF_API_BASE_URL` (legacy alias, still supported)
-   - `AGOMSAAF_API_TOKEN`
-   - `AGOMSAAF_USERNAME`
-   - `AGOMSAAF_PASSWORD`
+   - `AGOMTRADEPRO_BASE_URL`
+   - `AGOMTRADEPRO_API_BASE_URL` (legacy alias, still supported)
+   - `AGOMTRADEPRO_API_TOKEN`
+   - `AGOMTRADEPRO_USERNAME`
+   - `AGOMTRADEPRO_PASSWORD`
 3. **Config files**:
-   - `.agomsaaf.json` (current directory)
-   - `~/.agomsaaf/config.json` (user directory)
+   - `.agomtradepro.json` (current directory)
+   - `~/.agomtradepro/config.json` (user directory)
 
 ## SDK Modules
 
@@ -204,9 +204,9 @@ Canonical API routing for SDK/MCP is documented in:
 ## Rotation Account Config Examples
 
 ```python
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 
-client = AgomSAAFClient(
+client = AgomTradeProClient(
     base_url="http://localhost:8000",
     api_token="your_token_here",
 )
@@ -242,12 +242,12 @@ client.rotation.apply_template_to_account_config(updated["id"], "moderate")
 
 ### API Route Migration
 
-Starting from V3.5, AgomSAAF uses unified API route format: `/api/{module}/{resource}/`
+Starting from V3.5, AgomTradePro uses unified API route format: `/api/{module}/{resource}/`
 
 **SDK users**: No code changes required! Simply upgrade to the latest SDK version:
 
 ```bash
-pip install --upgrade agomsaaf-sdk
+pip install --upgrade agomtradepro-sdk
 ```
 
 The SDK automatically uses the new routes while maintaining backward compatibility.
@@ -291,7 +291,7 @@ For detailed migration information, see:
 ## Notes
 
 - `client.backtest.list()` is the preferred SDK list method. `client.backtest.list_backtests()` remains supported as a compatibility alias.
-- `tests/integration/test_realtime_monitoring_flow.py` is a live-market integration test. It is skipped by default unless `AGOMSAAF_RUN_LIVE_REALTIME_TESTS=1` is set.
+- `tests/integration/test_realtime_monitoring_flow.py` is a live-market integration test. It is skipped by default unless `AGOMTRADEPRO_RUN_LIVE_REALTIME_TESTS=1` is set.
 
 ## Development
 
@@ -300,14 +300,14 @@ For detailed migration information, see:
 pytest tests/ -v
 
 # Format code
-black agomsaaf/ agomsaaf_mcp/
-isort agomsaaf/ agomsaaf_mcp/
+black agomtradepro/ agomtradepro_mcp/
+isort agomtradepro/ agomtradepro_mcp/
 
 # Type check
-mypy agomsaaf/
+mypy agomtradepro/
 
 # Run MCP server
-agomsaaf-mcp
+agomtradepro-mcp
 ```
 
 ## Project Status

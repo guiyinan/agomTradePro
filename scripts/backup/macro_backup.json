@@ -13,10 +13,10 @@ ModuleNotFoundError: No module named 'psycopg2'
 During handling of the above exception, another exception occurred:
 
 Traceback (most recent call last):
-  File "D:\githv\agomSAAF\manage.py", line 22, in <module>
+  File "D:\githv\agomTradePro\manage.py", line 22, in <module>
     main()
     ~~~~^^
-  File "D:\githv\agomSAAF\manage.py", line 18, in main
+  File "D:\githv\agomTradePro\manage.py", line 18, in main
     execute_from_command_line(sys.argv)
     ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
   File "C:\Users\muku\AppData\Roaming\Python\Python313\site-packages\django\core\management\__init__.py", line 442, in execute_from_command_line

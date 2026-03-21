@@ -1,11 +1,11 @@
 # Exception Handling Guide
 
 > **Last Updated**: 2026-03-04
-> **Purpose**: Standardize exception handling across AgomSAAF for better observability and debugging
+> **Purpose**: Standardize exception handling across AgomTradePro for better observability and debugging
 
 ## Overview
 
-This guide defines the standard patterns for exception handling in the AgomSAAF codebase. Proper exception handling ensures:
+This guide defines the standard patterns for exception handling in the AgomTradePro codebase. Proper exception handling ensures:
 
 1. **Observability**: All exceptions are logged with sufficient context
 2. **Categorization**: Exceptions can be classified by type for monitoring
@@ -14,10 +14,10 @@ This guide defines the standard patterns for exception handling in the AgomSAAF 
 
 ## Exception Hierarchy
 
-All custom exceptions inherit from `AgomSAAFException` in `core/exceptions.py`:
+All custom exceptions inherit from `AgomTradeProException` in `core/exceptions.py`:
 
 ```
-AgomSAAFException
+AgomTradeProException
 ├── ValidationError
 │   ├── InvalidInputError
 │   └── MissingRequiredFieldError

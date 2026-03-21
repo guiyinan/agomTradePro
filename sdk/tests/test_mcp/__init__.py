@@ -1,3 +1,3 @@
 """
-Unit tests for AgomSAAF MCP Server
+Unit tests for AgomTradePro MCP Server
 """

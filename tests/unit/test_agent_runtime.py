@@ -632,10 +632,10 @@ class TestMCPToolNaming:
     def test_agent_runtime_tool_names_are_distinct(self):
         import sys
 
-        if "D:/githv/agomSAAF/sdk" not in sys.path:
-            sys.path.insert(0, "D:/githv/agomSAAF/sdk")
+        if "D:/githv/agomTradePro/sdk" not in sys.path:
+            sys.path.insert(0, "D:/githv/agomTradePro/sdk")
 
-        import agomsaaf_mcp.server as server_module
+        import agomtradepro_mcp.server as server_module
 
         tools = server_module.server._tool_manager._tools
 

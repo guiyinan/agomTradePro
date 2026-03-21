@@ -4,7 +4,7 @@
 
 ### 1.1 背景
 
-AgomSAAF系统需要集成AI能力用于数据分析和决策支持。当前主流AI服务提供商（OpenAI、DeepSeek、通义千问等）大多采用OpenAI API兼容范式，可以通过统一的接口规范进行访问。
+AgomTradePro系统需要集成AI能力用于数据分析和决策支持。当前主流AI服务提供商（OpenAI、DeepSeek、通义千问等）大多采用OpenAI API兼容范式，可以通过统一的接口规范进行访问。
 
 ### 1.2 目标
 
@@ -401,14 +401,14 @@ usage_repo.log_usage(
 ### 6.1 依赖安装
 
 ```bash
-agomsaaf/Scripts/pip install openai
+agomtradepro/Scripts/pip install openai
 ```
 
 ### 6.2 数据库迁移
 
 ```bash
-agomsaaf/Scripts/python manage.py makemigrations ai_provider
-agomsaaf/Scripts/python manage.py migrate ai_provider
+agomtradepro/Scripts/python manage.py makemigrations ai_provider
+agomtradepro/Scripts/python manage.py migrate ai_provider
 ```
 
 ### 6.3 验证

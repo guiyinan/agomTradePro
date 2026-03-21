@@ -1,4 +1,4 @@
-# AgomSAAF UI/UX 改进 PRD（2026-02-18）
+# AgomTradePro UI/UX 改进 PRD（2026-02-18）
 
 ## 1. 背景
 
@@ -214,4 +214,4 @@
 
 ---
 
-**AgomSAAF UI/UX 改进项目圆满成功！** 🎉
+**AgomTradePro UI/UX 改进项目圆满成功！** 🎉

@@ -1,12 +1,12 @@
-# AgomSAAF 接口层实现计划（MCP + SDK 组合方案）
+# AgomTradePro 接口层实现计划（MCP + SDK 组合方案）
 
-> 创建 MCP Server 和 Python SDK，让 Claude Code 等 AI agent 能够通过多种方式操作 AgomSAAF 系统
+> 创建 MCP Server 和 Python SDK，让 Claude Code 等 AI agent 能够通过多种方式操作 AgomTradePro 系统
 
 ## 项目概述
 
-- **目标**: 创建 `agomsaaf-sdk` 项目，包含 Python SDK 和 MCP Server
-- **位置**: `sdk/`（AgomSAAF 项目内部）
-- **原则**: 不修改 AgomSAAF 系统代码，只通过 HTTP API 调用
+- **目标**: 创建 `agomtradepro-sdk` 项目，包含 Python SDK 和 MCP Server
+- **位置**: `sdk/`（AgomTradePro 项目内部）
+- **原则**: 不修改 AgomTradePro 系统代码，只通过 HTTP API 调用
 - **功能**: 支持完整操作（查询 + 写入）
 - **架构**: MCP Server（快速操作）+ Python SDK（完整功能）
 
@@ -26,7 +26,7 @@
 
 ```
 sdk/
-├── agomsaaf/                      # Python SDK 主包
+├── agomtradepro/                      # Python SDK 主包
 │   ├── __init__.py
 │   ├── client.py                  # 核心客户端类
 │   ├── config.py                  # 配置管理
@@ -42,7 +42,7 @@ sdk/
 │       ├── backtest.py            # 回测引擎
 │       └── account.py             # 账户管理
 │
-├── agomsaaf_mcp/                  # MCP Server
+├── agomtradepro_mcp/                  # MCP Server
 │   ├── __init__.py
 │   ├── server.py                  # MCP 服务器主文件
 │   └── tools/                     # MCP 工具定义
@@ -161,42 +161,42 @@ sdk/
 ### 文件清单（60+ 文件）
 
 #### SDK 核心文件 (20)
-- `agomsaaf/__init__.py`
-- `agomsaaf/client.py`
-- `agomsaaf/config.py`
-- `agomsaaf/exceptions.py`
-- `agomsaaf/types.py`
-- `agomsaaf/modules/__init__.py`
-- `agomsaaf/modules/base.py`
-- `agomsaaf/modules/regime.py`
-- `agomsaaf/modules/signal.py`
-- `agomsaaf/modules/macro.py`
-- `agomsaaf/modules/policy.py`
-- `agomsaaf/modules/backtest.py`
-- `agomsaaf/modules/account.py`
-- `agomsaaf/modules/simulated_trading.py`
-- `agomsaaf/modules/equity.py`
-- `agomsaaf/modules/fund.py`
-- `agomsaaf/modules/sector.py`
-- `agomsaaf/modules/strategy.py`
-- `agomsaaf/modules/realtime.py`
+- `agomtradepro/__init__.py`
+- `agomtradepro/client.py`
+- `agomtradepro/config.py`
+- `agomtradepro/exceptions.py`
+- `agomtradepro/types.py`
+- `agomtradepro/modules/__init__.py`
+- `agomtradepro/modules/base.py`
+- `agomtradepro/modules/regime.py`
+- `agomtradepro/modules/signal.py`
+- `agomtradepro/modules/macro.py`
+- `agomtradepro/modules/policy.py`
+- `agomtradepro/modules/backtest.py`
+- `agomtradepro/modules/account.py`
+- `agomtradepro/modules/simulated_trading.py`
+- `agomtradepro/modules/equity.py`
+- `agomtradepro/modules/fund.py`
+- `agomtradepro/modules/sector.py`
+- `agomtradepro/modules/strategy.py`
+- `agomtradepro/modules/realtime.py`
 
 #### MCP Server 文件 (15)
-- `agomsaaf_mcp/__init__.py`
-- `agomsaaf_mcp/server.py`
-- `agomsaaf_mcp/tools/__init__.py`
-- `agomsaaf_mcp/tools/regime_tools.py`
-- `agomsaaf_mcp/tools/signal_tools.py`
-- `agomsaaf_mcp/tools/macro_tools.py`
-- `agomsaaf_mcp/tools/policy_tools.py`
-- `agomsaaf_mcp/tools/backtest_tools.py`
-- `agomsaaf_mcp/tools/account_tools.py`
-- `agomsaaf_mcp/tools/simulated_trading_tools.py`
-- `agomsaaf_mcp/tools/equity_tools.py`
-- `agomsaaf_mcp/tools/fund_tools.py`
-- `agomsaaf_mcp/tools/sector_tools.py`
-- `agomsaaf_mcp/tools/strategy_tools.py`
-- `agomsaaf_mcp/tools/realtime_tools.py`
+- `agomtradepro_mcp/__init__.py`
+- `agomtradepro_mcp/server.py`
+- `agomtradepro_mcp/tools/__init__.py`
+- `agomtradepro_mcp/tools/regime_tools.py`
+- `agomtradepro_mcp/tools/signal_tools.py`
+- `agomtradepro_mcp/tools/macro_tools.py`
+- `agomtradepro_mcp/tools/policy_tools.py`
+- `agomtradepro_mcp/tools/backtest_tools.py`
+- `agomtradepro_mcp/tools/account_tools.py`
+- `agomtradepro_mcp/tools/simulated_trading_tools.py`
+- `agomtradepro_mcp/tools/equity_tools.py`
+- `agomtradepro_mcp/tools/fund_tools.py`
+- `agomtradepro_mcp/tools/sector_tools.py`
+- `agomtradepro_mcp/tools/strategy_tools.py`
+- `agomtradepro_mcp/tools/realtime_tools.py`
 
 #### 测试文件 (7)
 - `tests/conftest.py`
@@ -247,11 +247,11 @@ Claude: [调用 get_recommended_assets 工具]
 ### 方式 2: Python SDK（完整功能）
 
 ```python
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 from datetime import date
 
 # 初始化客户端
-client = AgomSAAFClient(
+client = AgomTradeProClient(
     base_url="http://localhost:8000",
     api_token="your_token_here"
 )
@@ -298,13 +298,13 @@ print(f"年化收益: {result.annual_return:.2%}")
 // ~/.config/claude-code/mcp_servers.json
 {
   "mcpServers": {
-    "agomsaaf": {
+    "agomtradepro": {
       "command": "python",
-      "args": ["-m", "agomsaaf_mcp.server"],
-      "cwd": "D:/githv/agomSAAF/sdk",
+      "args": ["-m", "agomtradepro_mcp.server"],
+      "cwd": "D:/githv/agomTradePro/sdk",
       "env": {
-        "AGOMSAAF_BASE_URL": "http://localhost:8000",
-        "AGOMSAAF_API_TOKEN": "your_token_here"
+        "AGOMTRADEPRO_BASE_URL": "http://localhost:8000",
+        "AGOMTRADEPRO_API_TOKEN": "your_token_here"
       }
     }
   }
@@ -449,7 +449,7 @@ pip install -e .
 
 ```bash
 cd sdk
-python -m agomsaaf_mcp.server
+python -m agomtradepro_mcp.server
 ```
 
 ### 运行测试
@@ -463,8 +463,8 @@ pytest tests/ -v
 
 ## 注意事项
 
-1. **不修改 AgomSAAF 代码**：SDK 是独立项目，只通过 HTTP API 调用
-2. **版本同步**：AgomSAAF API 变更时，需要同步更新 SDK
+1. **不修改 AgomTradePro 代码**：SDK 是独立项目，只通过 HTTP API 调用
+2. **版本同步**：AgomTradePro API 变更时，需要同步更新 SDK
 3. **错误处理**：所有 API 调用都应有明确的异常处理
 4. **类型安全**：使用 Python 类型注解，方便 AI agent 理解
 5. **文档友好**：docstring 必须清晰，便于 AI 理解每个方法的用途
@@ -473,7 +473,7 @@ pytest tests/ -v
 
 ## 后续扩展
 
-1. CLI 工具：`agomsaaf regime get-current`
+1. CLI 工具：`agomtradepro regime get-current`
 2. 更多模块：simulated_trading, equity, fund, sector, strategy, realtime
 3. OpenAPI 代码生成工具
 4. 版本同步验证工具

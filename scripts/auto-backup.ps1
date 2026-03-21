@@ -1,9 +1,9 @@
-# AgomSAAF Auto Backup Script
+# AgomTradePro Auto Backup Script
 # Run this script manually or schedule it with Windows Task Scheduler
 
 param(
     [int]$KeepDays = 7,  # Keep backups for 7 days by default
-    [string]$BackupDir = "D:\githv\agomSAAF\backups"
+    [string]$BackupDir = "D:\githv\agomTradePro\backups"
 )
 
 # Color output
@@ -12,7 +12,7 @@ function Write-Info { Write-Host $args -ForegroundColor Cyan }
 function Write-Warning { Write-Host $args -ForegroundColor Yellow }
 function Write-Error { Write-Host $args -ForegroundColor Red }
 
-$ProjectRoot = "D:\githv\agomSAAF"
+$ProjectRoot = "D:\githv\agomTradePro"
 $ComposeFile = "$ProjectRoot\docker-compose-dev.yml"
 
 # Create backup directory if not exists
@@ -25,7 +25,7 @@ $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $backupFile = "$BackupDir\backup-postgres-$timestamp.sql"
 
 Write-Info "=========================================="
-Write-Info " AgomSAAF Auto Backup"
+Write-Info " AgomTradePro Auto Backup"
 Write-Info "==========================================`n"
 
 # Check if Docker is running
@@ -36,8 +36,8 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # Check if PostgreSQL container is running
-$pgRunning = docker ps --filter "name=agomsaaf_postgres_dev" --format "{{.Names}}" 2>&1
-if ($pgRunning -ne "agomsaaf_postgres_dev") {
+$pgRunning = docker ps --filter "name=agomtradepro_postgres_dev" --format "{{.Names}}" 2>&1
+if ($pgRunning -ne "agomtradepro_postgres_dev") {
     Write-Error "PostgreSQL container is not running!"
     exit 1
 }
@@ -45,7 +45,7 @@ if ($pgRunning -ne "agomsaaf_postgres_dev") {
 Write-Info "Creating backup: $backupFile"
 
 # Create backup
-docker exec agomsaaf_postgres_dev pg_dump -U agomsaaf -d agomsaaf > $backupFile
+docker exec agomtradepro_postgres_dev pg_dump -U agomtradepro -d agomtradepro > $backupFile
 
 if (-not (Test-Path $backupFile)) {
     Write-Error "Backup failed!"

@@ -45,7 +45,7 @@ $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $ProjectRoot
 
-$ProjectPython = Join-Path $ProjectRoot "agomsaaf\Scripts\python.exe"
+$ProjectPython = Join-Path $ProjectRoot "agomtradepro\Scripts\python.exe"
 $PythonExe = $null
 
 if (Test-Path $ProjectPython) {

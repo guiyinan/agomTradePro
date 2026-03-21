@@ -1,4 +1,4 @@
-# AgomSAAF 模块分级表
+# AgomTradePro 模块分级表
 
 > **版本**: V1.0
 > **基线日期**: 2026-03-18
@@ -270,6 +270,6 @@ account, audit, filter, prompt
 
 ---
 
-**维护者**: AgomSAAF Team
+**维护者**: AgomTradePro Team
 **最后更新**: 2026-03-18
 **参考文档**: `docs/architecture/MODULE_DEPENDENCIES.md`

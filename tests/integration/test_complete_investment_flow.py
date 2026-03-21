@@ -24,14 +24,14 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 # Set environment variables
-os.environ["AGOMSAAF_BASE_URL"] = "http://localhost:8000"
-os.environ.setdefault("AGOMSAAF_API_TOKEN", "test-token")
+os.environ["AGOMTRADEPRO_BASE_URL"] = "http://localhost:8000"
+os.environ.setdefault("AGOMTRADEPRO_API_TOKEN", "test-token")
 
-from sdk.agomsaaf import AgomSAAFClient
+from sdk.agomtradepro import AgomTradeProClient
 
 pytestmark = pytest.mark.skipif(
-    not os.environ.get("AGOMSAAF_LIVE_SERVER"),
-    reason="Requires running server (set AGOMSAAF_LIVE_SERVER=1)"
+    not os.environ.get("AGOMTRADEPRO_LIVE_SERVER"),
+    reason="Requires running server (set AGOMTRADEPRO_LIVE_SERVER=1)"
 )
 
 
@@ -54,7 +54,7 @@ def test_complete_investment_flow() -> None:
     Test complete investment flow through SDK.
 
     This test verifies:
-    1. Connection to the AgomSAAF API
+    1. Connection to the AgomTradePro API
     2. Retrieval of macro regime data
     3. Retrieval of policy status
     4. Signal eligibility checking
@@ -66,7 +66,7 @@ def test_complete_investment_flow() -> None:
     print("INTEGRATION TEST: Complete Investment Flow")
     print("="*60)
 
-    client: Optional[AgomSAAFClient] = None
+    client: Optional[AgomTradeProClient] = None
     signal_id: Optional[int] = None
 
     try:
@@ -75,7 +75,7 @@ def test_complete_investment_flow() -> None:
         # ====================================================================
         print_step(1, "Initialize SDK Client")
 
-        client = AgomSAAFClient()
+        client = AgomTradeProClient()
         print_result(True, f"Client initialized (Base URL: {client._config.base_url})")
 
         # ====================================================================

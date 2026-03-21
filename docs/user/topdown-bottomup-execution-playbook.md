@@ -8,7 +8,7 @@
 
 ## 1. 目标与边界
 
-本手册用于指导用户在 AgomSAAF 中形成闭环流程：
+本手册用于指导用户在 AgomTradePro 中形成闭环流程：
 
 1. 自上而下分析环境（Macro/Regime/Policy）
 2. 自下而上分析标的（Asset Analysis + Equity/Fund）

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}账户分享管理 - AgomSAAF{% endblock %}
+{% block title %}账户分享管理 - AgomTradePro{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/share.css' %}">
@@ -29,6 +29,12 @@
 .checkbox-list { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .checkbox-list label { display: flex; gap: 8px; align-items: flex-start; font-weight: 400; margin: 0; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; line-height: 1.4; }
 .checkbox-list input { width: auto; margin-top: 2px; flex: 0 0 auto; }
+.password-panel { display: grid; gap: 12px; }
+.password-toggle { display: flex; gap: 8px; align-items: flex-start; font-weight: 400; margin: 0; padding: 12px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; line-height: 1.4; }
+.password-toggle input { width: auto; margin-top: 2px; flex: 0 0 auto; }
+.password-hint { margin: 0; color: #64748b; font-size: 13px; }
+.password-field.is-disabled { opacity: .55; }
+.password-status { color: #475569; font-size: 13px; margin-top: 6px; }
 .share-links-list { display: grid; gap: 16px; }
 .share-link-card { border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; background: #f8fafc; }
 .share-link-card.is-editing { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14); background: #eff6ff; }
@@ -141,9 +147,39 @@
                 </div>
                 <div class="form-section">
                     <div class="form-section-title">访问控制</div>
-                    <div>
-                        <label for="password">访问密码（可选）</label>
-                        <input id="password" name="password" type="password" placeholder="{% if edit_share_link and edit_share_link.password_hash %}留空则保留当前密码{% else %}不填则公开访问{% endif %}">
+                    <div class="password-panel">
+                        <label class="password-toggle">
+                            <input
+                                id="password_enabled"
+                                name="password_enabled"
+                                type="checkbox"
+                                {% if edit_share_link and edit_share_link.password_hash %}checked{% endif %}
+                            >
+                            <span>
+                                启用密码保护
+                                <span class="password-hint">关闭后本次保存会直接清除现有密码，公开链接无需再输入密码。</span>
+                            </span>
+                        </label>
+                        <div class="password-field {% if edit_share_link and not edit_share_link.password_hash %}is-disabled{% endif %}" id="password-field-wrapper">
+                            <label for="password">访问密码</label>
+                            <input
+                                id="password"
+                                name="password"
+                                type="password"
+                                {% if edit_share_link and not edit_share_link.password_hash %}disabled{% endif %}
+                                placeholder="{% if edit_share_link and edit_share_link.password_hash %}留空则保留当前密码，填写则更新为新密码{% else %}勾选上方后填写密码{% endif %}"
+                            >
+                            {% if edit_share_link %}
+                            <div class="password-status">
+                                当前状态：
+                                {% if edit_share_link.password_hash %}
+                                已设置密码保护
+                                {% else %}
+                                未设置密码保护
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
                     <div>
                         <label for="expires_at">过期时间（可选）</label>
@@ -162,7 +198,7 @@
                         <label><input type="checkbox" name="show_decision_summary" {% if edit_share_link.show_decision_summary or not edit_share_link %}checked{% endif %}> 展示决策摘要</label>
                         <label><input type="checkbox" name="show_decision_evidence" {% if edit_share_link.show_decision_evidence %}checked{% endif %}> 展示决策依据</label>
                         <label><input type="checkbox" name="show_invalidation_logic" {% if edit_share_link.show_invalidation_logic %}checked{% endif %}> 展示证伪逻辑</label>
-                        <label><input type="checkbox" name="show_amounts" {% if edit_share_link.show_amounts %}checked{% endif %}> 展示金额</label>
+                        <label><input type="checkbox" name="show_amounts" {% if edit_share_link.show_amounts or not edit_share_link %}checked{% endif %}> 展示金额</label>
                     </div>
                 </div>
                 <div>
@@ -193,6 +229,7 @@
                                 <div class="share-link-meta-item"><span class="share-link-meta-label">创建时间</span><span class="share-link-meta-value">{{ link.created_at|date:"Y-m-d H:i" }}</span></div>
                                 <div class="share-link-meta-item"><span class="share-link-meta-label">访问次数</span><span class="share-link-meta-value">{{ link.access_count }}</span></div>
                                 <div class="share-link-meta-item"><span class="share-link-meta-label">最近同步</span><span class="share-link-meta-value">{{ link.last_snapshot_at|date:"Y-m-d H:i"|default:"未生成" }}</span></div>
+                                <div class="share-link-meta-item"><span class="share-link-meta-label">密码保护</span><span class="share-link-meta-value">{% if link.password_hash %}已启用{% else %}未启用{% endif %}</span></div>
                             </div>
                         </div>
                         <span class="badge-inline {% if link.status == 'active' %}active{% else %}revoked{% endif %}">
@@ -238,4 +275,26 @@ window.addEventListener("load", function () {
 });
 </script>
 {% endif %}
+<script>
+window.addEventListener("DOMContentLoaded", function () {
+  var toggle = document.getElementById("password_enabled");
+  var field = document.getElementById("password");
+  var wrapper = document.getElementById("password-field-wrapper");
+  if (!toggle || !field || !wrapper) {
+    return;
+  }
+
+  function syncPasswordField() {
+    var enabled = !!toggle.checked;
+    field.disabled = !enabled;
+    wrapper.classList.toggle("is-disabled", !enabled);
+    if (!enabled) {
+      field.value = "";
+    }
+  }
+
+  toggle.addEventListener("change", syncPasswordField);
+  syncPasswordField();
+});
+</script>
 {% endblock %}

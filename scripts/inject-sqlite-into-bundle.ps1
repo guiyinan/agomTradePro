@@ -13,7 +13,7 @@ function Show-Help {
 Inject local SQLite DB into an existing VPS bundle without rebuilding Docker images.
 
 Usage:
-  pwsh ./scripts/inject-sqlite-into-bundle.ps1 -SourceBundle ./dist/agomsaaf-vps-bundle-<tag>.tar.gz
+  pwsh ./scripts/inject-sqlite-into-bundle.ps1 -SourceBundle ./dist/agomtradepro-vps-bundle-<tag>.tar.gz
 
 Options:
   -SourceBundle <path>     Existing bundle tar.gz to modify
@@ -39,17 +39,17 @@ if ([string]::IsNullOrWhiteSpace($OutputTag)) {
 }
 
 $src = (Resolve-Path $SourceBundle).Path
-$tmpRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agomsaaf-bundle-inject-" + [System.Guid]::NewGuid().ToString("N"))
+$tmpRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agomtradepro-bundle-inject-" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $tmpRoot | Out-Null
 
 Write-Host "[INFO] Extracting: $src" -ForegroundColor Cyan
 tar -xzf $src -C $tmpRoot
 if ($LASTEXITCODE -ne 0) { throw "bundle extraction failed" }
 
-$bundleRoot = Get-ChildItem -Path $tmpRoot -Directory | Where-Object { $_.Name -like 'agomsaaf-vps-bundle-*' } | Select-Object -First 1
+$bundleRoot = Get-ChildItem -Path $tmpRoot -Directory | Where-Object { $_.Name -like 'agomtradepro-vps-bundle-*' } | Select-Object -First 1
 if (-not $bundleRoot) { throw "unable to locate extracted bundle root directory" }
 
-$newName = "agomsaaf-vps-bundle-$OutputTag"
+$newName = "agomtradepro-vps-bundle-$OutputTag"
 $newRoot = Join-Path $tmpRoot $newName
 Rename-Item -Path $bundleRoot.FullName -NewName $newName
 $bundleRoot = Get-Item $newRoot

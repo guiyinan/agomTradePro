@@ -21,7 +21,7 @@ class FieldEncryptionService:
     Service for encrypting and decrypting sensitive fields.
 
     Uses Fernet (AES-128-CBC + HMAC) for symmetric encryption.
-    Keys are derived from the AGOMSAAF_ENCRYPTION_KEY environment variable.
+    Keys are derived from the AGOMTRADEPRO_ENCRYPTION_KEY environment variable.
     """
 
     # Prefix to identify encrypted values
@@ -33,14 +33,14 @@ class FieldEncryptionService:
 
         Args:
             encryption_key: Optional explicit key. If not provided,
-                          uses AGOMSAAF_ENCRYPTION_KEY from settings.
+                          uses AGOMTRADEPRO_ENCRYPTION_KEY from settings.
 
         Raises:
             ValueError: If encryption key is not configured.
         """
         key = encryption_key or self._get_encryption_key()
         if not key:
-            raise ValueError("AGOMSAAF_ENCRYPTION_KEY not configured")
+            raise ValueError("AGOMTRADEPRO_ENCRYPTION_KEY not configured")
 
         # Ensure key is 32 bytes (URL-safe base64 encoded)
         # Fernet requires a 32-byte base64-encoded key
@@ -56,11 +56,11 @@ class FieldEncryptionService:
             The encryption key or None if not configured.
         """
         # Check for explicit setting first
-        if hasattr(settings, 'AGOMSAAF_ENCRYPTION_KEY'):
-            return settings.AGOMSAAF_ENCRYPTION_KEY
+        if hasattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY'):
+            return settings.AGOMTRADEPRO_ENCRYPTION_KEY
 
         # Check environment variable
-        key = os.environ.get('AGOMSAAF_ENCRYPTION_KEY')
+        key = os.environ.get('AGOMTRADEPRO_ENCRYPTION_KEY')
         if key:
             return key
 
@@ -173,7 +173,7 @@ class FieldEncryptionService:
         Generate a new Fernet-compatible encryption key.
 
         Returns:
-            A 44-byte base64-encoded key suitable for AGOMSAAF_ENCRYPTION_KEY
+            A 44-byte base64-encoded key suitable for AGOMTRADEPRO_ENCRYPTION_KEY
         """
         return Fernet.generate_key().decode('ascii')
 

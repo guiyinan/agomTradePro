@@ -1,4 +1,4 @@
-# AgomSAAF Development Environment Stop Script
+# AgomTradePro Development Environment Stop Script
 # Version: 3.5
 # Updated: 2026-02-01
 
@@ -15,7 +15,7 @@ $ErrorActionPreference = 'Continue'
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host " Stopping AgomSAAF Services" -ForegroundColor Cyan
+Write-Host " Stopping AgomTradePro Services" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 

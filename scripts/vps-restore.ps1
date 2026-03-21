@@ -1,6 +1,6 @@
 param(
-    [string]$TargetDir = "/opt/agomsaaf/current",
-    [string]$BackupDir = "/opt/agomsaaf/backups",
+    [string]$TargetDir = "/opt/agomtradepro/current",
+    [string]$BackupDir = "/opt/agomtradepro/backups",
     [string]$SqliteFile,
     [string]$RedisFile,
     [switch]$NoSqlite,
@@ -31,7 +31,7 @@ function Get-ComposeCmd {
 }
 
 $ComposeCmd = Get-ComposeCmd
-$env:COMPOSE_PROJECT_NAME = 'agomsaaf'
+$env:COMPOSE_PROJECT_NAME = 'agomtradepro'
 
 function Invoke-Compose {
     param([string[]]$Args)

@@ -270,7 +270,7 @@ def call_ai_service(prompt: str) -> dict:
 ### 2026-02-20
 
 - ✅ 创建 `core/exceptions.py`，包含以下异常类：
-  - `AgomSAAFException` - 基础异常类
+  - `AgomTradeProException` - 基础异常类
   - `ValidationError`, `InvalidInputError`, `MissingRequiredFieldError` - 验证错误
   - `AuthenticationError`, `AuthorizationError` - 认证授权错误
   - `ResourceNotFoundError`, `DuplicateResourceError` - 资源错误

@@ -1,5 +1,5 @@
 """
-URL configuration for AgomSAAF project.
+URL configuration for AgomTradePro project.
 """
 
 from django.contrib import admin

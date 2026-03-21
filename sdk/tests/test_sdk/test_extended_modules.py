@@ -1,11 +1,11 @@
-"""Extended module access tests for AgomSAAF SDK client."""
+"""Extended module access tests for AgomTradePro SDK client."""
 
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 
 
-class TestAgomSAAFClientExtendedModules:
+class TestAgomTradeProClientExtendedModules:
     def test_extended_module_properties(self):
-        client = AgomSAAFClient(base_url="http://test.com", api_token="test_token")
+        client = AgomTradeProClient(base_url="http://test.com", api_token="test_token")
 
         assert client.ai_provider is not None
         assert client.prompt is not None
@@ -23,7 +23,7 @@ class TestAgomSAAFClientExtendedModules:
         assert client.filter is not None
 
     def test_extended_module_singleton_behavior(self):
-        client = AgomSAAFClient(base_url="http://test.com", api_token="test_token")
+        client = AgomTradeProClient(base_url="http://test.com", api_token="test_token")
 
         assert client.prompt is client.prompt
         assert client.audit is client.audit

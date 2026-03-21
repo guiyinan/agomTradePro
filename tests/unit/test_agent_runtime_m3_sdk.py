@@ -10,7 +10,7 @@ Tests:
 import pytest
 from unittest.mock import MagicMock, patch
 
-from sdk.agomsaaf.modules.agent_proposal import AgentProposalModule
+from sdk.agomtradepro.modules.agent_proposal import AgentProposalModule
 
 
 class TestAgentProposalModule:

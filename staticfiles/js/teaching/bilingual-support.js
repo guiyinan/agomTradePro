@@ -19,8 +19,8 @@ const supportedLanguages = {
 const translations = {
     // 模态窗标题
     'modal.title': {
-        zh: '📚 AgomSAAF 宏观经济教学指南',
-        en: '📚 AgomSAAF Macro Economics Teaching Guide'
+        zh: '📚 AgomTradePro 宏观经济教学指南',
+        en: '📚 AgomTradePro Macro Economics Teaching Guide'
     },
 
     // 导航

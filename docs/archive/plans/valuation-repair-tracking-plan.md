@@ -257,8 +257,8 @@
 - `apps/equity/application/use_cases_valuation_repair.py`
 - `apps/equity/interface/serializers.py`
 - `apps/equity/interface/views.py`
-- `sdk/agomsaaf/modules/equity.py`
-- `sdk/agomsaaf_mcp/tools/equity_tools.py`
+- `sdk/agomtradepro/modules/equity.py`
+- `sdk/agomtradepro_mcp/tools/equity_tools.py`
 - `docs/plans/valuation-repair-tracking-plan.md`
 
 ## Test Cases And Scenarios

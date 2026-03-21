@@ -1,5 +1,5 @@
 """
-Django development settings for AgomSAAF project.
+Django development settings for AgomTradePro project.
 """
 
 from .base import *

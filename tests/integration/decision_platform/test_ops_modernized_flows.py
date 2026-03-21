@@ -15,7 +15,7 @@ class TestOpsModernizedFlows:
     @pytest.fixture(autouse=True)
     def _setup_client(self, monkeypatch):
         # Patch Django setting so FieldEncryptionService can initialize
-        monkeypatch.setattr(settings, "AGOMSAAF_ENCRYPTION_KEY", "test-encryption-key-for-ci")
+        monkeypatch.setattr(settings, "AGOMTRADEPRO_ENCRYPTION_KEY", "test-encryption-key-for-ci")
         user = User.objects.create_user(
             username="ops_user",
             email="ops@example.com",

@@ -1,4 +1,4 @@
-# Smoke Test Report - AgomSAAF
+# Smoke Test Report - AgomTradePro
 
 > 生成日期：2026-03-04
 > 目的：M0 基线证据包

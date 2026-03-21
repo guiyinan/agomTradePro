@@ -7,7 +7,7 @@ import pytest
 
 def test_extended_mcp_tools_registered():
     try:
-        from agomsaaf_mcp.server import server
+        from agomtradepro_mcp.server import server
     except ModuleNotFoundError as exc:
         if "mcp" in str(exc):
             pytest.skip("mcp package not installed in current test environment")
@@ -17,6 +17,8 @@ def test_extended_mcp_tools_registered():
     names = {t.name for t in tools}
 
     expected = {
+        "delete_simulated_account",
+        "batch_delete_simulated_accounts",
         "list_ai_providers",
         "list_prompt_templates",
         "get_audit_summary",

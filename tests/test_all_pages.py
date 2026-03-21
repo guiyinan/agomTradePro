@@ -1,5 +1,5 @@
 """
-AgomSAAF 系统页面遍历测试
+AgomTradePro 系统页面遍历测试
 
 使用无头浏览器遍历所有页面，检测错误并收集信息。
 """
@@ -250,7 +250,7 @@ class PageTester:
     async def run_all_tests(self):
         """运行所有测试"""
         print(f"\n{'='*80}")
-        print(f"开始测试 AgomSAAF 系统页面")
+        print(f"开始测试 AgomTradePro 系统页面")
         print(f"基础 URL: {self.base_url}")
         print(f"测试时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"{'='*80}\n")

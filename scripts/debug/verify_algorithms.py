@@ -1,5 +1,5 @@
 """
-AgomSAAF 核心算法验证脚本
+AgomTradePro 核心算法验证脚本
 
 独立验证系统核心算法的正确性，不依赖 Django。
 """
@@ -308,7 +308,7 @@ def test_backtest_pit_algorithm():
 def main():
     """主函数"""
     print("\n" + "=" * 60)
-    print("AgomSAAF 核心算法验证")
+    print("AgomTradePro 核心算法验证")
     print("=" * 60)
 
     tests = [

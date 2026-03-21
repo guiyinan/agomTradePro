@@ -1,5 +1,5 @@
 """
-Health Check Functions for AgomSAAF
+Health Check Functions for AgomTradePro
 
 Provides health check functions for Kubernetes liveness and readiness probes.
 """

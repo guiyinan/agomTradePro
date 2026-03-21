@@ -1,5 +1,5 @@
 """
-Configuration Models for AgomSAAF
+Configuration Models for AgomTradePro
 
 存储可在后台配置的参数，替代硬编码。
 """

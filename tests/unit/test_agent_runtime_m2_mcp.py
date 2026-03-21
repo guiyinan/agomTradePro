@@ -15,7 +15,7 @@ class TestAgentTaskToolRegistration:
     @pytest.fixture
     def tool_names(self):
         """Get all registered tool names from MCP server."""
-        from agomsaaf_mcp.server import server
+        from agomtradepro_mcp.server import server
         loop = asyncio.new_event_loop()
         try:
             tools = loop.run_until_complete(server.list_tools())
@@ -51,7 +51,7 @@ class TestContextResourceRegistration:
     @pytest.fixture
     def resource_uris(self):
         """Get all registered resource URIs."""
-        from agomsaaf_mcp.server import server
+        from agomtradepro_mcp.server import server
         loop = asyncio.new_event_loop()
         try:
             resources = loop.run_until_complete(server.list_resources())
@@ -60,19 +60,19 @@ class TestContextResourceRegistration:
         return [str(r.uri) for r in resources]
 
     def test_research_context_resource(self, resource_uris):
-        assert "agomsaaf://context/research/current" in resource_uris
+        assert "agomtradepro://context/research/current" in resource_uris
 
     def test_monitoring_context_resource(self, resource_uris):
-        assert "agomsaaf://context/monitoring/current" in resource_uris
+        assert "agomtradepro://context/monitoring/current" in resource_uris
 
     def test_decision_context_resource(self, resource_uris):
-        assert "agomsaaf://context/decision/current" in resource_uris
+        assert "agomtradepro://context/decision/current" in resource_uris
 
     def test_execution_context_resource(self, resource_uris):
-        assert "agomsaaf://context/execution/current" in resource_uris
+        assert "agomtradepro://context/execution/current" in resource_uris
 
     def test_ops_context_resource(self, resource_uris):
-        assert "agomsaaf://context/ops/current" in resource_uris
+        assert "agomtradepro://context/ops/current" in resource_uris
 
 
 class TestWorkflowPromptRegistration:
@@ -81,7 +81,7 @@ class TestWorkflowPromptRegistration:
     @pytest.fixture
     def prompt_names(self):
         """Get all registered prompt names."""
-        from agomsaaf_mcp.server import server
+        from agomtradepro_mcp.server import server
         loop = asyncio.new_event_loop()
         try:
             prompts = loop.run_until_complete(server.list_prompts())
@@ -108,7 +108,7 @@ class TestWorkflowPromptRegistration:
 class TestAgentTaskToolExecution:
     """Test agent task tool execution with mocked SDK."""
 
-    @patch("agomsaaf_mcp.tools.agent_task_tools.AgomSAAFClient")
+    @patch("agomtradepro_mcp.tools.agent_task_tools.AgomTradeProClient")
     def test_start_research_task_creates_task(self, mock_client_cls):
         """start_research_task calls create_task and fetches context."""
         mock_client = MagicMock()
@@ -124,7 +124,7 @@ class TestAgentTaskToolExecution:
         }
         mock_client_cls.return_value = mock_client
 
-        from agomsaaf_mcp.tools.agent_task_tools import register_agent_task_tools
+        from agomtradepro_mcp.tools.agent_task_tools import register_agent_task_tools
         from mcp.server.fastmcp import FastMCP
 
         test_server = FastMCP("test")
@@ -143,7 +143,7 @@ class TestAgentTaskToolExecution:
         assert "context_snapshot" in result
         assert result["context_snapshot"]["domain"] == "research"
 
-    @patch("agomsaaf_mcp.tools.agent_task_tools.AgomSAAFClient")
+    @patch("agomtradepro_mcp.tools.agent_task_tools.AgomTradeProClient")
     def test_start_task_context_unavailable_degrades(self, mock_client_cls):
         """Task is still created even when context fetch fails."""
         mock_client = MagicMock()
@@ -154,7 +154,7 @@ class TestAgentTaskToolExecution:
         mock_client.agent_context.get_context_snapshot.side_effect = Exception("timeout")
         mock_client_cls.return_value = mock_client
 
-        from agomsaaf_mcp.tools.agent_task_tools import register_agent_task_tools
+        from agomtradepro_mcp.tools.agent_task_tools import register_agent_task_tools
         from mcp.server.fastmcp import FastMCP
 
         test_server = FastMCP("test")
@@ -167,7 +167,7 @@ class TestAgentTaskToolExecution:
         # Task was still created
         mock_client.agent_runtime.create_task.assert_called_once()
 
-    @patch("agomsaaf_mcp.tools.agent_task_tools.AgomSAAFClient")
+    @patch("agomtradepro_mcp.tools.agent_task_tools.AgomTradeProClient")
     def test_resume_agent_task(self, mock_client_cls):
         """resume_agent_task calls resume on SDK."""
         mock_client = MagicMock()
@@ -177,7 +177,7 @@ class TestAgentTaskToolExecution:
         }
         mock_client_cls.return_value = mock_client
 
-        from agomsaaf_mcp.tools.agent_task_tools import register_agent_task_tools
+        from agomtradepro_mcp.tools.agent_task_tools import register_agent_task_tools
         from mcp.server.fastmcp import FastMCP
 
         test_server = FastMCP("test")
@@ -192,7 +192,7 @@ class TestAgentTaskToolExecution:
             reason="Fixed data issue",
         )
 
-    @patch("agomsaaf_mcp.tools.agent_task_tools.AgomSAAFClient")
+    @patch("agomtradepro_mcp.tools.agent_task_tools.AgomTradeProClient")
     def test_cancel_agent_task(self, mock_client_cls):
         """cancel_agent_task calls cancel on SDK."""
         mock_client = MagicMock()
@@ -202,7 +202,7 @@ class TestAgentTaskToolExecution:
         }
         mock_client_cls.return_value = mock_client
 
-        from agomsaaf_mcp.tools.agent_task_tools import register_agent_task_tools
+        from agomtradepro_mcp.tools.agent_task_tools import register_agent_task_tools
         from mcp.server.fastmcp import FastMCP
 
         test_server = FastMCP("test")

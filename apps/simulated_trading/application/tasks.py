@@ -639,7 +639,7 @@ def _send_daily_inspection_email(result: Dict[str, Any]) -> None:
     summary = result.get("summary", {})
     checks = result.get("checks", [])
     subject = (
-        f"[AgomSAAF] 日更巡检 {status_value.upper()} "
+        f"[AgomTradePro] 日更巡检 {status_value.upper()} "
         f"account={result.get('account_id')} date={result.get('inspection_date')}"
     )
     lines = [
@@ -670,7 +670,7 @@ def _send_daily_inspection_email(result: Dict[str, Any]) -> None:
     send_mail(
         subject=subject,
         message="\n".join(lines),
-        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@agomsaaf.com"),
+        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@agomtradepro.com"),
         recipient_list=recipients,
         fail_silently=True,
     )
@@ -712,7 +712,7 @@ def _send_rebalance_proposal_notification(result: Dict[str, Any]) -> None:
     # 发送邮件通知
     if recipients:
         subject = (
-            f"[AgomSAAF] 再平衡建议待审核 "
+            f"[AgomTradePro] 再平衡建议待审核 "
             f"account={context['account_name']} proposal_id={proposal_id}"
         )
         lines = [
@@ -753,7 +753,7 @@ def _send_rebalance_proposal_notification(result: Dict[str, Any]) -> None:
         send_mail(
             subject=subject,
             message="\n".join(lines),
-            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@agomsaaf.com"),
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@agomtradepro.com"),
             recipient_list=recipients,
             fail_silently=True,
         )

@@ -177,7 +177,7 @@ DEFAULT_TEMPLATES = [
         'version': '1.0',
         'template_content': '''用户问题: {{ question }}
 
-请基于 AgomSAAF 系统的知识回答问题。如果需要查询具体数据，请告知用户需要提供哪些信息。
+请基于 AgomTradePro 系统的知识回答问题。如果需要查询具体数据，请告知用户需要提供哪些信息。
 
 相关上下文:
 {% if context %}
@@ -185,7 +185,7 @@ DEFAULT_TEMPLATES = [
 - {{ key }}: {{ value }}
 {% endfor %}
 {% endif %}''',
-        'system_prompt': '你是 AgomSAAF 系统的智能助手，帮助用户理解宏观环境、投资信号和策略回测。',
+        'system_prompt': '你是 AgomTradePro 系统的智能助手，帮助用户理解宏观环境、投资信号和策略回测。',
         'placeholders': [
             {'name': 'question', 'type': 'string', 'description': '用户问题'},
             {'name': 'context', 'type': 'dict', 'description': '上下文数据', 'required': False}

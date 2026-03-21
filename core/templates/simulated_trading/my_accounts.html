@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}我的投资组合 - AgomSAAF{% endblock %}
+{% block title %}我的投资组合 - AgomTradePro{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/simulated-trading.css' %}">
@@ -36,13 +36,42 @@
 
     <!-- 账户列表 -->
     <section class="account-section">
-        <h2 class="section-title">我的投资组合</h2>
+        <div class="section-header-row">
+            <h2 class="section-title">我的投资组合</h2>
+            {% if accounts %}
+            <div class="account-bulk-actions">
+                <label class="bulk-select-all">
+                    <input type="checkbox" id="selectAllAccounts" onchange="toggleSelectAllAccounts(this.checked)">
+                    <span>全选</span>
+                </label>
+                <span class="bulk-selected-count" id="selectedAccountCount">已选择 0 个</span>
+                <button type="button" class="btn btn-secondary" id="clearSelectionBtn" onclick="clearAccountSelection()" disabled>
+                    清空选择
+                </button>
+                <button type="button" class="btn btn-danger" id="bulkDeleteBtn" onclick="deleteSelectedAccounts()" disabled>
+                    批量删除
+                </button>
+            </div>
+            {% endif %}
+        </div>
         {% if accounts %}
         <div class="accounts-grid">
             {% for account in accounts %}
-            <div class="account-card {% if account.account_type == 'real' %}account-real{% else %}account-simulated{% endif %}">
+            <div class="account-card {% if account.account_type == 'real' %}account-real{% else %}account-simulated{% endif %}" data-account-id="{{ account.id }}">
                 <div class="account-card-header">
-                    <h3>{{ account.account_name }}</h3>
+                    <div class="account-card-heading">
+                        <label class="account-select-checkbox" title="选择账户">
+                            <input
+                                type="checkbox"
+                                class="account-select-input"
+                                value="{{ account.id }}"
+                                data-account-name="{{ account.account_name }}"
+                                onchange="updateAccountSelectionState()"
+                            >
+                            <span></span>
+                        </label>
+                        <h3>{{ account.account_name }}</h3>
+                    </div>
                     <span class="badge {% if account.account_type == 'real' %}badge-real{% else %}badge-simulated{% endif %}">
                         {% if account.account_type == 'real' %}实仓{% else %}模拟仓{% endif %}
                     </span>
@@ -106,6 +135,13 @@
                     <a href="{% url 'simulated_trading:my-trades' account.id %}" class="btn btn-secondary">
                         交易记录
                     </a>
+                    <button
+                        type="button"
+                        class="btn btn-danger btn-delete-account"
+                        onclick="deleteAccount({{ account.id }}, '{{ account.account_name|escapejs }}')"
+                    >
+                        删除账户
+                    </button>
                     {% if account.active_strategy %}
                         <button class="btn btn-danger" onclick="unbindStrategy({{ account.id }})">
                             解绑策略
@@ -251,6 +287,38 @@
     margin-bottom: 16px;
 }
 
+.section-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.section-header-row .section-title {
+    margin-bottom: 0;
+}
+
+.account-bulk-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.bulk-select-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #54595D;
+}
+
+.bulk-selected-count {
+    font-size: 13px;
+    color: #202122;
+}
+
 .accounts-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -285,6 +353,24 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+.account-card-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.account-select-checkbox {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.account-select-input {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
 }
 
 .account-card-header h3 {
@@ -420,6 +506,10 @@
 
 .btn-danger:hover {
     background: #b22;
+}
+
+.btn-delete-account {
+    margin-right: auto;
 }
 
 .btn-strategy {
@@ -705,6 +795,11 @@
         padding: 16px;
     }
 
+    .section-header-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
     .accounts-grid {
         grid-template-columns: 1fr;
     }
@@ -725,6 +820,137 @@
 let currentAccountId = null;
 let availableStrategies = [];
 let selectedStrategyId = null;
+
+function getCsrfToken() {
+    const cookie = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='));
+    return cookie ? decodeURIComponent(cookie.split('=')[1]) : '';
+}
+
+async function confirmAction(message, options = {}) {
+    if (window.uiConfirm) {
+        return window.uiConfirm(message, options);
+    }
+    return Promise.resolve(window.confirm(message));
+}
+
+function getSelectedAccountInputs() {
+    return Array.from(document.querySelectorAll('.account-select-input:checked'));
+}
+
+function updateAccountSelectionState() {
+    const selectedInputs = getSelectedAccountInputs();
+    const totalInputs = document.querySelectorAll('.account-select-input').length;
+    const countEl = document.getElementById('selectedAccountCount');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+    const selectAll = document.getElementById('selectAllAccounts');
+
+    if (countEl) {
+        countEl.textContent = `已选择 ${selectedInputs.length} 个`;
+    }
+    if (bulkDeleteBtn) {
+        bulkDeleteBtn.disabled = selectedInputs.length === 0;
+    }
+    if (clearSelectionBtn) {
+        clearSelectionBtn.disabled = selectedInputs.length === 0;
+    }
+    if (selectAll) {
+        selectAll.checked = totalInputs > 0 && selectedInputs.length === totalInputs;
+        selectAll.indeterminate = selectedInputs.length > 0 && selectedInputs.length < totalInputs;
+    }
+}
+
+function toggleSelectAllAccounts(checked) {
+    document.querySelectorAll('.account-select-input').forEach(input => {
+        input.checked = checked;
+    });
+    updateAccountSelectionState();
+}
+
+function clearAccountSelection() {
+    toggleSelectAllAccounts(false);
+}
+
+async function deleteAccount(accountId, accountName) {
+    const confirmed = await confirmAction(
+        `确认删除账户“${accountName}”？\n\n该账户的持仓、交易记录和巡检记录会一起删除，此操作不可恢复。`,
+        { title: '删除账户', icon: 'warning' }
+    );
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/simulated-trading/accounts/${accountId}/`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+            },
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+            throw new Error(data.error || '删除失败');
+        }
+
+        showToast(data.message || '账户已删除');
+        document.querySelector(`.account-card[data-account-id="${accountId}"]`)?.remove();
+        updateAccountSelectionState();
+        setTimeout(() => location.reload(), 800);
+    } catch (e) {
+        showToast(`删除失败: ${e.message}`, 'error');
+    }
+}
+
+async function deleteSelectedAccounts() {
+    const selectedInputs = getSelectedAccountInputs();
+    if (selectedInputs.length === 0) {
+        return;
+    }
+
+    const accountIds = selectedInputs.map(input => parseInt(input.value, 10));
+    const accountNames = selectedInputs.map(input => input.dataset.accountName);
+    const confirmed = await confirmAction(
+        `确认批量删除这 ${accountIds.length} 个账户？\n\n${accountNames.join('、')}\n\n该操作不可恢复。`,
+        { title: '批量删除账户', icon: 'warning' }
+    );
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/simulated-trading/accounts/batch-delete/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+            },
+            body: JSON.stringify({ account_ids: accountIds }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+            throw new Error(data.error || '批量删除失败');
+        }
+
+        (data.deleted_account_ids || []).forEach(accountId => {
+            document.querySelector(`.account-card[data-account-id="${accountId}"]`)?.remove();
+        });
+
+        if (Array.isArray(data.failed) && data.failed.length > 0) {
+            const failedSummary = data.failed.map(item => `${item.account_id}:${item.error}`).join('；');
+            showToast(`已删除 ${data.deleted_count} 个，失败 ${data.failed.length} 个: ${failedSummary}`, 'error');
+        } else {
+            showToast(data.message || `已删除 ${data.deleted_count} 个账户`);
+        }
+
+        updateAccountSelectionState();
+        setTimeout(() => location.reload(), 900);
+    } catch (e) {
+        showToast(`批量删除失败: ${e.message}`, 'error');
+    }
+}
 
 function showCreateModal() {
     document.getElementById('createModal').style.display = 'block';
@@ -1104,6 +1330,7 @@ function updateUIWithPrices(prices) {
 
 // 页面加载完成后启动价格轮询
 document.addEventListener('DOMContentLoaded', function() {
+    updateAccountSelectionState();
     // 延迟3秒后启动轮询，避免页面加载时过于频繁的请求
     setTimeout(startPricePolling, 3000);
 });

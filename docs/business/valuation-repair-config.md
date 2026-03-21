@@ -204,9 +204,9 @@ POST /api/equity/config/valuation-repair/clear-cache/
 ## SDK 使用
 
 ```python
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 
-client = AgomSAAFClient()
+client = AgomTradeProClient()
 
 # 获取当前配置
 config = client.equity.get_valuation_repair_config()

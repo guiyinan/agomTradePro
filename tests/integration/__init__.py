@@ -1,1 +1,1 @@
-"""Integration tests for AgomSAAF SDK and MCP."""
+"""Integration tests for AgomTradePro SDK and MCP."""

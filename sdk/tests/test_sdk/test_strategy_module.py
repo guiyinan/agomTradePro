@@ -1,10 +1,10 @@
-"""Unit tests for AgomSAAF SDK Strategy Module."""
+"""Unit tests for AgomTradePro SDK Strategy Module."""
 
 from unittest.mock import patch
 
 import pytest
 
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 
 
 class TestStrategyModule:
@@ -12,7 +12,7 @@ class TestStrategyModule:
 
     @pytest.fixture
     def client(self):
-        return AgomSAAFClient(
+        return AgomTradeProClient(
             base_url="http://test.com",
             api_token="test_token",
         )

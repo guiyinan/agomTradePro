@@ -1,6 +1,6 @@
 # UAT 验收报告模板
 
-**项目**: AgomSAAF UI/UX 改进
+**项目**: AgomTradePro UI/UX 改进
 **版本**: v3.4
 **测试日期**: {DATE}
 **测试人员**: QA Engineer

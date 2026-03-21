@@ -4,7 +4,7 @@ Predefined Prompt Templates and Chain Configurations.
 This module contains predefined templates and chain configurations
 that can be loaded into the database for common use cases.
 
-Author: AgomSAAF System
+Author: AgomTradePro System
 Version: 1.0
 """
 
@@ -259,7 +259,7 @@ def get_predefined_templates() -> list[PromptTemplate]:
                     required=False
                 ),
             ],
-            system_prompt="你是AgomSAAF系统的智能助手，精通宏观经济学、Regime理论和量化投资。请以专业、友好的方式回答用户问题。",
+            system_prompt="你是AgomTradePro系统的智能助手，精通宏观经济学、Regime理论和量化投资。请以专业、友好的方式回答用户问题。",
             temperature=0.8,
             max_tokens=1000,
             description="聊天助手模板",

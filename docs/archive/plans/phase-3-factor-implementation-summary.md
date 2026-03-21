@@ -8,7 +8,7 @@
 
 ## Overview
 
-Phase 3 implements the **Factor Stock Selection** module for AgomSAAF. This module provides multi-factor stock screening and portfolio generation capabilities.
+Phase 3 implements the **Factor Stock Selection** module for AgomTradePro. This module provides multi-factor stock screening and portfolio generation capabilities.
 
 ## Key Deliverables
 
@@ -50,7 +50,7 @@ class FactorIntegrationService:
 
 ### 3. SDK Module
 
-**Factor Module** (`sdk/agomsaaf/modules/factor.py`)
+**Factor Module** (`sdk/agomtradepro/modules/factor.py`)
 ```python
 class FactorModule:
     - get_all_factors() -> List[FactorDefinition]
@@ -63,7 +63,7 @@ class FactorModule:
 
 ### 4. MCP Tools
 
-**10 Natural Language Tools** (`sdk/agomsaaf_mcp/tools/factor_tools.py`)
+**10 Natural Language Tools** (`sdk/agomtradepro_mcp/tools/factor_tools.py`)
 
 | Tool | Description | Example Usage |
 |------|-------------|---------------|
@@ -80,7 +80,7 @@ class FactorModule:
 
 ### 5. MCP Server Registration
 
-Updated `sdk/agomsaaf_mcp/server.py`:
+Updated `sdk/agomtradepro_mcp/server.py`:
 ```python
 # New modules: Factor + Rotation + Hedge
 register_factor_tools(server)  # ✅ Added
@@ -92,8 +92,8 @@ register_hedge_tools(server)
 
 Fixed circular import issues in SDK:
 - All module files now use `TYPE_CHECKING` for type hints
-- String literal type hints (`"AgomSAAFClient"`) for runtime compatibility
-- Relative imports throughout (`from ..client` instead of `from agomsaaf.client`)
+- String literal type hints (`"AgomTradeProClient"`) for runtime compatibility
+- Relative imports throughout (`from ..client` instead of `from agomtradepro.client`)
 
 ---
 
@@ -133,7 +133,7 @@ Repository (ORM)
 
 ```bash
 # Test SDK imports
-python -c "from sdk.agomsaaf.modules import FactorModule; print('✓ FactorModule OK')"
+python -c "from sdk.agomtradepro.modules import FactorModule; print('✓ FactorModule OK')"
 
 # Test Django project
 python manage.py check  # ✓ No issues
@@ -186,17 +186,17 @@ python manage.py init_factors  # ✓ Initializes 27 factors + 6 configs
 - `apps/factor/infrastructure/repositories.py`
 - `apps/factor/infrastructure/adapters/__init__.py`
 - `apps/factor/infrastructure/services.py`
-- `sdk/agomsaaf/modules/factor.py`
-- `sdk/agomsaaf_mcp/tools/factor_tools.py`
+- `sdk/agomtradepro/modules/factor.py`
+- `sdk/agomtradepro_mcp/tools/factor_tools.py`
 
 ### Modified
 - `apps/factor/interface/views.py`
 - `apps/factor/interface/urls.py`
 - `apps/factor/domain/__init__.py`
-- `sdk/agomsaaf/client.py`
-- `sdk/agomsaaf_mcp/server.py`
-- `sdk/agomsaaf/modules/__init__.py`
-- `sdk/agomsaaf/config.py`
+- `sdk/agomtradepro/client.py`
+- `sdk/agomtradepro_mcp/server.py`
+- `sdk/agomtradepro/modules/__init__.py`
+- `sdk/agomtradepro/config.py`
 
 ---
 

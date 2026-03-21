@@ -1,11 +1,11 @@
-# AgomSAAF 三机架构方案：VPS FRP 转发 + 本地 Docker 运行 + C 端 AI Agent/MCP
+# AgomTradePro 三机架构方案：VPS FRP 转发 + 本地 Docker 运行 + C 端 AI Agent/MCP
 
 ## 1. 目标
 
 你要的运行模式可以落成下面这套结构：
 
 1. A 机（Linux VPS）放在公网，负责暴露统一入口。
-2. B 机（Windows + WSL2 + Docker）实际运行 AgomSAAF 系统。
+2. B 机（Windows + WSL2 + Docker）实际运行 AgomTradePro 系统。
 3. C 机（Windows）运行 AI Agent，通过 MCP/SDK/HTTP 调 A 暴露出来的地址，间接操作 B 上的系统。
 
 这套方案的核心价值是：
@@ -27,7 +27,7 @@
                                                         +---------+---------+
                                                         | B: Windows + WSL2 |
                                                         | Docker + frpc     |
-                                                        | AgomSAAF          |
+                                                        | AgomTradePro          |
                                                         +-------------------+
 ```
 
@@ -37,13 +37,13 @@
 2. A 上 `nginx` 负责 TLS/反向代理
 3. `nginx` 转到 A 本机 `frps` 暴露的 HTTP 端口
 4. `frps` 通过隧道把流量转给 B 上 `frpc`
-5. B 上 `frpc` 再转给 Docker 中的 AgomSAAF Web 服务
+5. B 上 `frpc` 再转给 Docker 中的 AgomTradePro Web 服务
 
 ## 3. 推荐职责分工
 
 ### A 机：公网入口层
 
-只做入口和转发，不跑 AgomSAAF 主应用。
+只做入口和转发，不跑 AgomTradePro 主应用。
 
 建议职责：
 
@@ -61,7 +61,7 @@
 - Docker Desktop
 - WSL2（Ubuntu）
 - Docker Compose
-- AgomSAAF Web / Worker / DB 等容器
+- AgomTradePro Web / Worker / DB 等容器
 - `frpc`：把本地 Web 服务注册到 A
 
 ### C 机：操作者/Agent 层
@@ -72,7 +72,7 @@
 
 - Claude Code / 其他 AI Agent
 - Python 3.11+
-- AgomSAAF SDK / MCP Server
+- AgomTradePro SDK / MCP Server
 - 浏览器、Postman、curl 等调试工具
 
 ## 4. 每台机器需要安装什么
@@ -128,13 +128,13 @@ WSL2 侧必装：
 
 仓库与运行环境：
 
-- AgomSAAF 仓库代码
+- AgomTradePro 仓库代码
 - `.env` 或部署环境变量
 - Docker Compose 所需镜像
 
 建议本地服务绑定方式：
 
-- AgomSAAF Web 只监听 `127.0.0.1` 或 Docker 内网
+- AgomTradePro Web 只监听 `127.0.0.1` 或 Docker 内网
 - 不要把业务端口直接映射到公网网卡
 - `frpc` 只转发本地反向代理或容器暴露出的内部端口
 
@@ -170,7 +170,7 @@ A (公网)
 - 7000  -> frps bind_port
 
 B (本地)
-- 18000 -> 本地 nginx 或 docker 映射出的 AgomSAAF Web
+- 18000 -> 本地 nginx 或 docker 映射出的 AgomTradePro Web
 - frpc  -> 主动连 A:7000
 
 Docker
@@ -180,7 +180,7 @@ Docker
 推荐映射关系：
 
 ```text
-C -> https://agomsaaf.example.com
+C -> https://agomtradepro.example.com
   -> A/nginx :443
   -> A/frps local vhost_http_port
   -> B/frpc
@@ -203,14 +203,14 @@ C -> https://agomsaaf.example.com
 
 建议映射一个服务：
 
-- 名称：`agomsaaf-web`
+- 名称：`agomtradepro-web`
 - 类型：`http`
 - 本地地址：`127.0.0.1`
 - 本地端口：`18000` 或你实际映射端口
 
 实践上，B 最稳的做法是：
 
-1. Docker 中 AgomSAAF 暴露到 `127.0.0.1:18000`
+1. Docker 中 AgomTradePro 暴露到 `127.0.0.1:18000`
 2. `frpc` 把 `127.0.0.1:18000` 发布到 A
 3. A 上 `nginx` 对外提供域名和 HTTPS
 
@@ -229,13 +229,13 @@ C -> https://agomsaaf.example.com
 ```json
 {
   "mcpServers": {
-    "agomsaaf": {
+    "agomtradepro": {
       "command": "python",
-      "args": ["-m", "agomsaaf_mcp.server"],
-      "cwd": "D:/githv/agomSAAF/sdk",
+      "args": ["-m", "agomtradepro_mcp.server"],
+      "cwd": "D:/githv/agomTradePro/sdk",
       "env": {
-        "AGOMSAAF_BASE_URL": "https://agomsaaf.example.com",
-        "AGOMSAAF_API_TOKEN": "your_token_here"
+        "AGOMTRADEPRO_BASE_URL": "https://agomtradepro.example.com",
+        "AGOMTRADEPRO_API_TOKEN": "your_token_here"
       }
     }
   }
@@ -244,7 +244,7 @@ C -> https://agomsaaf.example.com
 
 说明：
 
-- `AGOMSAAF_BASE_URL` 应该填 A 暴露出去的公网地址
+- `AGOMTRADEPRO_BASE_URL` 应该填 A 暴露出去的公网地址
 - 不是 B 的局域网地址
 - 也不是 Docker 容器地址
 
@@ -253,10 +253,10 @@ C -> https://agomsaaf.example.com
 适合脚本、自动化任务、定时任务。
 
 ```python
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 
-client = AgomSAAFClient(
-    base_url="https://agomsaaf.example.com",
+client = AgomTradeProClient(
+    base_url="https://agomtradepro.example.com",
     api_token="your_token_here",
 )
 ```
@@ -267,7 +267,7 @@ client = AgomSAAFClient(
 
 推荐：
 
-- `agomsaaf.example.com` 指向 A
+- `agomtradepro.example.com` 指向 A
 
 这样有几个好处：
 
@@ -303,7 +303,7 @@ client = AgomSAAFClient(
 1. A 启动 `frps`
 2. A 启动 `nginx`
 3. B 启动 Docker Desktop / WSL2
-4. B 启动 AgomSAAF 容器
+4. B 启动 AgomTradePro 容器
 5. B 启动 `frpc`
 6. C 用浏览器或 SDK 验证 `https://<A地址>/api/health/`
 7. C 再启动 MCP / Agent
@@ -326,7 +326,7 @@ client = AgomSAAFClient(
 推荐最终定稿为：
 
 1. A 只做 `nginx + frps` 公网入口
-2. B 只做 `Docker + AgomSAAF + frpc` 业务运行
+2. B 只做 `Docker + AgomTradePro + frpc` 业务运行
 3. C 只做 `AI Agent + MCP/SDK` 调用端
 4. C 始终访问 A 的域名，不直接碰 B
 5. 优先使用 HTTPS 域名，不建议长期裸 IP

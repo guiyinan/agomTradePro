@@ -18,7 +18,7 @@
 │  │              Docker Desktop (WSL2)                       │  │
 │  │  ┌─────────────────────┐  ┌─────────────────────┐       │  │
 │  │  │  PostgreSQL         │  │  Redis              │       │  │
-│  │  │  - agomsaaf_postgres_dev  │  - agomsaaf_redis_dev  │       │  │
+│  │  │  - agomtradepro_postgres_dev  │  - agomtradepro_redis_dev  │       │  │
 │  │  │  - Port: 5432      │  │  - Port: 6379       │       │  │
 │  │  │  - Volume: data    │  │  - Volume: data     │       │  │
 │  │  └─────────────────────┘  └─────────────────────┘       │  │
@@ -60,7 +60,7 @@ ALLOWED_HOSTS=localhost,127.0.0.1
 
 # Database - PostgreSQL
 # 格式: postgresql://用户名:密码@主机:端口/数据库名
-DATABASE_URL=postgresql://agomsaaf:your-password-here@localhost:5432/agomsaaf
+DATABASE_URL=postgresql://agomtradepro:your-password-here@localhost:5432/agomtradepro
 
 # Redis
 REDIS_URL=redis://localhost:6379/0
@@ -80,7 +80,7 @@ DASHSCOPE_API_KEY=
 
 ```env
 # Database
-DATABASE_URL=postgresql://agomsaaf:changeme@localhost:5432/agomsaaf
+DATABASE_URL=postgresql://agomtradepro:changeme@localhost:5432/agomtradepro
 
 # Redis
 REDIS_URL=redis://localhost:6379/0
@@ -92,31 +92,31 @@ REDIS_URL=redis://localhost:6379/0
 
 | 项目 | 值 |
 |------|-----|
-| 容器名 | agomsaaf_postgres_dev |
+| 容器名 | agomtradepro_postgres_dev |
 | 镜像 | postgres:15-alpine |
 | 状态 | Up 3 days (healthy) |
 | 端口 | 5432 → 0.0.0.0:5432 |
-| Volume | agomsaaf_postgres_dev_data |
+| Volume | agomtradepro_postgres_dev_data |
 | 持久化 | ✅ |
 
 连接参数:
 | 参数 | 值 |
 |------|-----|
-| 用户名 | agomsaaf |
+| 用户名 | agomtradepro |
 | 密码 | changeme |
 | 主机 | localhost |
 | 端口 | 5432 |
-| 数据库 | agomsaaf |
+| 数据库 | agomtradepro |
 
 ### Redis
 
 | 项目 | 值 |
 |------|-----|
-| 容器名 | agomsaaf_redis_dev |
+| 容器名 | agomtradepro_redis_dev |
 | 镜像 | redis:7-alpine |
 | 状态 | Up 3 days (healthy) |
 | 端口 | 6379 → 0.0.0.0:6379 |
-| Volume | agomsaaf_redis_dev_data |
+| Volume | agomtradepro_redis_dev_data |
 | 持久化 | ✅ |
 
 连接参数:
@@ -161,18 +161,18 @@ notepad .env
 
 ```powershell
 # 检查容器状态
-docker ps -a --filter "name=agomsaaf"
+docker ps -a --filter "name=agomtradepro"
 
 # 如果未运行，启动容器
-docker start agomsaaf_postgres_dev
-docker start agomsaaf_redis_dev
+docker start agomtradepro_postgres_dev
+docker start agomtradepro_redis_dev
 ```
 
 ### 3. 运行迁移
 
 ```powershell
 # 激活虚拟环境
-agomsaaf/Scripts/Activate.ps1
+agomtradepro/Scripts/Activate.ps1
 
 # 创建数据库表
 python manage.py migrate
@@ -218,27 +218,27 @@ python manage.py loaddata sqlite_backup.json
 #### 进入容器
 
 ```bash
-docker exec -it agomsaaf_postgres_dev sh
+docker exec -it agomtradepro_postgres_dev sh
 ```
 
 #### 连接数据库
 
 ```bash
 # 通过容器
-docker exec -it agomsaaf_postgres_dev psql -U agomsaaf -d agomsaaf
+docker exec -it agomtradepro_postgres_dev psql -U agomtradepro -d agomtradepro
 
 # 使用 psql 客户端
-psql -h localhost -p 5432 -U agomsaaf -d agomsaaf
+psql -h localhost -p 5432 -U agomtradepro -d agomtradepro
 ```
 
 #### 备份与恢复
 
 ```powershell
 # 备份整个数据库
-docker exec agomsaaf_postgres_dev pg_dump -U agomsaaf agomsaaf > backup.sql
+docker exec agomtradepro_postgres_dev pg_dump -U agomtradepro agomtradepro > backup.sql
 
 # 恢复数据库
-docker exec -i agomsaaf_postgres_dev psql -U agomsaaf agomsaaf < backup.sql
+docker exec -i agomtradepro_postgres_dev psql -U agomtradepro agomtradepro < backup.sql
 ```
 
 ### Redis
@@ -247,7 +247,7 @@ docker exec -i agomsaaf_postgres_dev psql -U agomsaaf agomsaaf < backup.sql
 
 ```powershell
 # 通过容器
-docker exec -it agomsaaf_redis_dev redis-cli
+docker exec -it agomtradepro_redis_dev redis-cli
 
 # 使用 redis-cli
 redis-cli -h localhost -p 6379
@@ -272,20 +272,20 @@ redis-cli flushdb
 
 ```powershell
 # PostgreSQL Volume
-docker run --rm --mount source=agomsaaf_postgres_dev_data,target=/data,type=volume alpine ls -la /data
+docker run --rm --mount source=agomtradepro_postgres_dev_data,target=/data,type=volume alpine ls -la /data
 
 # Redis Volume
-docker run --rm --mount source=agomsaaf_redis_dev_data,target=/data,type=volume alpine ls -la /data
+docker run --rm --mount source=agomtradepro_redis_dev_data,target=/data,type=volume alpine ls -la /data
 ```
 
 #### 备份卷数据
 
 ```powershell
 # PostgreSQL 卷备份
-docker run --rm --mount source=agomsaaf_postgres_dev_data,target=/data,type=volume alpine sh -c "cd /data && tar czf - ." > postgres_backup.tar.gz
+docker run --rm --mount source=agomtradepro_postgres_dev_data,target=/data,type=volume alpine sh -c "cd /data && tar czf - ." > postgres_backup.tar.gz
 
 # Redis 卷备份
-docker run --rm --mount source=agomsaaf_redis_dev_data,target=/data,type=volume alpine sh -c "cd /data && tar czf - ." > redis_backup.tar.gz
+docker run --rm --mount source=agomtradepro_redis_dev_data,target=/data,type=volume alpine sh -c "cd /data && tar czf - ." > redis_backup.tar.gz
 ```
 
 ## 数据持久化说明
@@ -299,26 +299,26 @@ Windows 文件系统
   └── C:\Users\<用户>\AppData\Local\Docker\wsl\data\ext4.vhdx
        └── WSL2 虚拟机
             └── /var/lib/docker/volumes/
-                 ├── agomsaaf_postgres_dev_data/_data
-                 └── agomsaaf_redis_dev_data/_data
+                 ├── agomtradepro_postgres_dev_data/_data
+                 └── agomtradepro_redis_dev_data/_data
 ```
 
 ### 访问数据的三种方式
 
 1. **通过 Docker 容器** (推荐)
    ```powershell
-   docker exec -it agomsaaf_postgres_dev sh
+   docker exec -it agomtradepro_postgres_dev sh
    ```
 
 2. **通过 WSL2**
    ```powershell
    wsl
-   ls /var/lib/docker/volumes/agomsaaf_postgres_dev_data/_data
+   ls /var/lib/docker/volumes/agomtradepro_postgres_dev_data/_data
    ```
 
 3. **备份到 Windows 文件系统**
    ```powershell
-   docker exec agomsaaf_postgres_dev pg_dump -U agomsaaf agomsaaf > backup.sql
+   docker exec agomtradepro_postgres_dev pg_dump -U agomtradepro agomtradepro > backup.sql
    ```
 
 ## 安全配置建议
@@ -342,7 +342,7 @@ DEBUG=False
 ALLOWED_HOSTS=yourdomain.com
 
 # 使用强密码
-DATABASE_URL=postgresql://agomsaaf:<强密码>@<数据库主机>:5432/agomsaaf
+DATABASE_URL=postgresql://agomtradepro:<强密码>@<数据库主机>:5432/agomtradepro
 
 # Redis 配置密码
 REDIS_URL=redis://:<密码>@<Redis主机>:6379/0
@@ -367,10 +367,10 @@ python -c "from django.core.management.utils import get_random_secret_key; print
 docker ps | findstr postgres
 
 # 检查端口映射
-docker port agomsaaf_postgres_dev
+docker port agomtradepro_postgres_dev
 
 # 查看容器日志
-docker logs agomsaaf_postgres_dev
+docker logs agomtradepro_postgres_dev
 ```
 
 ### Redis 连接失败
@@ -383,7 +383,7 @@ docker ps | findstr redis
 redis-cli ping
 
 # 查看容器日志
-docker logs agomsaaf_redis_dev
+docker logs agomtradepro_redis_dev
 ```
 
 ### 密码认证失败
@@ -392,7 +392,7 @@ docker logs agomsaaf_redis_dev
 
 ```powershell
 # 查看容器环境变量
-docker inspect agomsaaf_postgres_dev | findstr POSTGRES
+docker inspect agomtradepro_postgres_dev | findstr POSTGRES
 ```
 
 ### 数据丢失
@@ -401,10 +401,10 @@ Volume 数据不会随容器删除而丢失，但如果 Volume 被删除则无�
 
 ```powershell
 # 查看 Volume
-docker volume ls | findstr agomsaaf
+docker volume ls | findstr agomtradepro
 
 # ⚠️ 危险操作 - 会永久删除数据
-# docker volume rm agomsaaf_postgres_dev_data
+# docker volume rm agomtradepro_postgres_dev_data
 ```
 
 ## 生产环境部署

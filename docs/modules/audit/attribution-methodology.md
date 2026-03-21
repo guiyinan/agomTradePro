@@ -63,7 +63,7 @@ Excess Return = Portfolio Return - Benchmark Return
 
 The three components should sum to the excess return (within rounding error).
 
-## Implementation in AgomSAAF
+## Implementation in AgomTradePro
 
 ### Domain Layer
 
@@ -251,4 +251,4 @@ The Brinson attribution model provides a rigorous framework for understanding th
 3. Communicate performance more effectively
 4. Make better manager selection decisions
 
-The implementation in AgomSAAF maintains the mathematical rigor of the original Brinson model while adapting it to the unique requirements of macro regime-based investing.
+The implementation in AgomTradePro maintains the mathematical rigor of the original Brinson model while adapting it to the unique requirements of macro regime-based investing.

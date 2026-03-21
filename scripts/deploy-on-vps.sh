@@ -17,11 +17,11 @@ else
   require_cmd() { command -v "$1" >/dev/null 2>&1 || die "Missing command: $1"; }
 fi
 
-PROJECT_NAME="${COMPOSE_PROJECT_NAME:-agomsaaf}"
+PROJECT_NAME="${COMPOSE_PROJECT_NAME:-agomtradepro}"
 export COMPOSE_PROJECT_NAME="$PROJECT_NAME"
 
 BUNDLE=""
-TARGET_DIR="/opt/agomsaaf"
+TARGET_DIR="/opt/agomtradepro"
 ACTION="menu"
 
 while [ "$#" -gt 0 ]; do
@@ -65,7 +65,7 @@ compose_vps() {
 }
 
 detect_conflicting_project() {
-  for candidate in docker agomsaaf; do
+  for candidate in docker agomtradepro; do
     [ "$candidate" = "$PROJECT_NAME" ] && continue
     if docker ps -a --format '{{.Names}}' | grep -Eq "^${candidate}-(web|redis|caddy)-1$"; then
       die "Detected compose project '${candidate}' alongside '${PROJECT_NAME}'. Clean old stack first to avoid mixed deployments."
@@ -141,7 +141,7 @@ if [ "$ACTION" = "logs" ]; then
 fi
 
 if [ -z "$BUNDLE" ]; then
-  BUNDLE=$(ask "Bundle tar.gz path" "./agomsaaf-vps-bundle.tar.gz")
+  BUNDLE=$(ask "Bundle tar.gz path" "./agomtradepro-vps-bundle.tar.gz")
 fi
 
 [ -f "$BUNDLE" ] || die "Bundle not found: $BUNDLE"
@@ -154,7 +154,7 @@ mkdir -p "$release_dir"
 
 tar -xzf "$BUNDLE" -C "$TARGET_DIR/releases"
 if [ ! -d "$release_dir" ]; then
-  extracted=$(find "$TARGET_DIR/releases" -maxdepth 1 -type d -name 'agomsaaf-vps-bundle-*' | tail -n 1)
+  extracted=$(find "$TARGET_DIR/releases" -maxdepth 1 -type d -name 'agomtradepro-vps-bundle-*' | tail -n 1)
   [ -n "$extracted" ] || die "Could not locate extracted bundle"
   release_dir="$extracted"
 fi
@@ -340,7 +340,7 @@ if port_in_use "$caddy_https_port"; then
 fi
 
 web_image=$(grep '^WEB_IMAGE=' deploy/.env | cut -d '=' -f2-)
-if [ -z "$web_image" ] || [ "$web_image" = "agomsaaf-web:latest" ]; then
+if [ -z "$web_image" ] || [ "$web_image" = "agomtradepro-web:latest" ]; then
   manifest_web=""
   if [ -f deploy/manifest.json ]; then
     if command -v python3 >/dev/null 2>&1; then
@@ -354,7 +354,7 @@ if [ -z "$web_image" ] || [ "$web_image" = "agomsaaf-web:latest" ]; then
   if [ -n "$manifest_web" ]; then
     sed -i "s|^WEB_IMAGE=.*|WEB_IMAGE=$manifest_web|" deploy/.env
   else
-    detected=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^agomsaaf-web:' | head -n 1 || true)
+    detected=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^agomtradepro-web:' | head -n 1 || true)
     [ -n "$detected" ] && sed -i "s|^WEB_IMAGE=.*|WEB_IMAGE=$detected|" deploy/.env
   fi
 fi
@@ -417,7 +417,7 @@ if [ "$ACTION" = "fresh" ] || [ "$ACTION" = "upgrade" ] || [ "$ACTION" = "restor
   done
 
   log_info "Running cold-start bootstrap"
-  compose_vps exec -T web python manage.py bootstrap_cold_start --with-alpha --alpha-universes "${AGOMSAAF_BOOTSTRAP_ALPHA_UNIVERSES:-csi300}" --alpha-top-n "${AGOMSAAF_BOOTSTRAP_ALPHA_TOP_N:-30}"
+  compose_vps exec -T web python manage.py bootstrap_cold_start --with-alpha --alpha-universes "${AGOMTRADEPRO_BOOTSTRAP_ALPHA_UNIVERSES:-csi300}" --alpha-top-n "${AGOMTRADEPRO_BOOTSTRAP_ALPHA_TOP_N:-30}"
 
   log_info "Ensuring macro periodic tasks"
   if ! compose_vps exec -T web python manage.py setup_macro_daily_sync --hour 8 --minute 5; then

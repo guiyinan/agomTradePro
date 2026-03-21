@@ -30,7 +30,7 @@ class FactorApiHomeView(APIView):
     def get(self, request):
         return Response(
             {
-                "message": "AgomSAAF Factor Module API",
+                "message": "AgomTradePro Factor Module API",
                 "endpoints": {
                     "definitions": "/api/factor/definitions/",
                     "configs": "/api/factor/configs/",

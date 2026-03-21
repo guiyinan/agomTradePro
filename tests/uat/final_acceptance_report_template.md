@@ -1,6 +1,6 @@
 # UAT 最终验收报告
 
-**项目名称**: AgomSAAF UI/UX 改进
+**项目名称**: AgomTradePro UI/UX 改进
 **报告日期**: {DATE}
 **报告类型**: M4 最终验收
 **测试负责人**: QA Engineer

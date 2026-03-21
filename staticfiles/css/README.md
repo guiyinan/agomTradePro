@@ -1,8 +1,8 @@
-# AgomSAAF Design Tokens - 使用指南
+# AgomTradePro Design Tokens - 使用指南
 
 ## 概述
 
-本目录包含 AgomSAAF 项目的设计 Token 系统和组件样式库。
+本目录包含 AgomTradePro 项目的设计 Token 系统和组件样式库。
 
 **设计理念**：简洁、淡雅、专业 - 参考 Wikipedia 风格
 **目标**：最大化数据可读性，最小化视觉干扰
@@ -272,6 +272,6 @@ static/css/
 
 ## 维护
 
-本样式库由 AgomSAAF 前端团队维护。
+本样式库由 AgomTradePro 前端团队维护。
 
 如有问题或建议，请联系：team-lead

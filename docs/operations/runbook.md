@@ -1,4 +1,4 @@
-# AgomSAAF Operations Runbook
+# AgomTradePro Operations Runbook
 
 ## 1. First Deployment Checklist
 
@@ -151,8 +151,8 @@ for t in tasks:
 cp /app/data/db.sqlite3 /app/data/db.sqlite3.bak.$(date +%Y%m%d)
 
 # PostgreSQL backup
-pg_dump -h localhost -U agomsaaf agomsaaf > backup_$(date +%Y%m%d).sql
-pg_dump -h localhost -U agomsaaf -Fc agomsaaf > backup_$(date +%Y%m%d).dump
+pg_dump -h localhost -U agomtradepro agomtradepro > backup_$(date +%Y%m%d).sql
+pg_dump -h localhost -U agomtradepro -Fc agomtradepro > backup_$(date +%Y%m%d).dump
 ```
 
 ### Recovery
@@ -163,7 +163,7 @@ cp /app/data/db.sqlite3.bak.YYYYMMDD /app/data/db.sqlite3
 
 # PostgreSQL restore
 # See scripts/vps-restore.sh for full procedure
-pg_restore -h localhost -U agomsaaf -d agomsaaf -c backup_YYYYMMDD.dump
+pg_restore -h localhost -U agomtradepro -d agomtradepro -c backup_YYYYMMDD.dump
 
 # Post-restore verification
 python manage.py healthcheck
@@ -178,11 +178,11 @@ python manage.py warmup_cache
 
 ```bash
 # 1. Identify the target version
-docker images | grep agomsaaf
+docker images | grep agomtradepro
 
 # 2. Update docker-compose to use previous image
 # Edit docker/docker-compose.vps.yml or set WEB_IMAGE env var
-export WEB_IMAGE=agomsaaf:previous-tag
+export WEB_IMAGE=agomtradepro:previous-tag
 
 # 3. Rollback
 docker compose -f docker/docker-compose.vps.yml up -d

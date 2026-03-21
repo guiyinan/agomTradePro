@@ -54,8 +54,8 @@
   - `api_mode`
   - `fallback_enabled`
 - Env overrides:
-  - `AGOMSAAF_OPENAI_API_MODE`
-  - `AGOMSAAF_OPENAI_FALLBACK_ENABLED`
+  - `AGOMTRADEPRO_OPENAI_API_MODE`
+  - `AGOMTRADEPRO_OPENAI_FALLBACK_ENABLED`
 
 ## Remaining Work
 

@@ -1,8 +1,8 @@
-  # AgomSAAF AI-Native 升级蓝图：从 L3+ 迈向 L4，再到 L5
+  # AgomTradePro AI-Native 升级蓝图：从 L3+ 迈向 L4，再到 L5
 
   ## Summary
 
-  目标是把 AgomSAAF 从“AI 可接入的系统”升级为“以 Agent 为一等公民的系统”。
+  目标是把 AgomTradePro 从“AI 可接入的系统”升级为“以 Agent 为一等公民的系统”。
 
   - L1 传统系统：只有网页和 API
   - L2 AI-enabled：加了 SDK / 函数调用
@@ -282,11 +282,11 @@
 
   建议新增：
 
-  - agomsaaf://context/research/current
-  - agomsaaf://context/monitoring/current
-  - agomsaaf://context/decision/current
-  - agomsaaf://context/execution/current
-  - agomsaaf://context/ops/current
+  - agomtradepro://context/research/current
+  - agomtradepro://context/monitoring/current
+  - agomtradepro://context/decision/current
+  - agomtradepro://context/execution/current
+  - agomtradepro://context/ops/current
 
   每个 resource 输出固定字段：
 
@@ -580,9 +580,9 @@
 
   ### Resources
 
-  - agomsaaf://context/{domain}/current
-  - agomsaaf://task/{task_id}/timeline
-  - agomsaaf://proposal/{proposal_id}/summary
+  - agomtradepro://context/{domain}/current
+  - agomtradepro://task/{task_id}/timeline
+  - agomtradepro://proposal/{proposal_id}/summary
 
   ### Prompts
 

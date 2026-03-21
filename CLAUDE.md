@@ -1,16 +1,16 @@
-# CLAUDE.md - AgomSAAF 项目开发规则
+# CLAUDE.md - AgomTradePro 项目开发规则
 
 > 本文件是 Claude Code 的项目上下文配置，每次会话自动加载。
 
 ## 项目概述
 
 > **最后更新**: 2026-03-18
-> **系统版本**: AgomSAAF V3.5
+> **系统版本**: AgomTradePro V3.5
 > **项目状态**: 生产就绪
 > **业务模块**: 32个
 > **测试覆盖**: 1,500+ 个测试用例
 
-AgomSAAF (Agom Strategic Asset Allocation Framework) 是一个宏观环境准入系统，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
+AgomTradePro (Agom Strategic Asset Allocation Framework) 是一个宏观环境准入系统，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
 
 **最新完成**:
 - V3.5 新增 Terminal CLI 模块（终端风格 AI 交互界面）
@@ -60,7 +60,7 @@ AgomSAAF (Agom Strategic Asset Allocation Framework) 是一个宏观环境准入
 ## 目录结构
 
 ```
-AgomSAAF/
+AgomTradePro/
 ├── core/                     # Django 配置
 │   ├── settings/
 │   │   ├── base.py
@@ -467,7 +467,7 @@ ak.macro_china_money_supply()
 1. **不要创建 docker 相关文件**，Phase 1-3 全程本地开发
 2. **先写 Domain 层**，再写其他层
 3. **先写测试**，再写实现（TDD 友好）
-4. 遇到不确定的金融逻辑，参考 `docs/business/AgomSAAF_V3.4.md`
+4. 遇到不确定的金融逻辑，参考 `docs/business/AgomTradePro_V3.4.md`
 5. 拒绝硬编码，对于资产类型、数据指标代码等，应该写在数据库里，然后有初始化脚本。
 6. 每步工作后，更新 docs 下的对应文档
 7. **文档索引**: 查看 `docs/INDEX.md` 获取完整文档导航
@@ -496,7 +496,7 @@ ak.macro_china_money_supply()
 13. **事件类型处理**: 未知事件类型必须使用 `UNKNOWN` 类型，不得映射到业务事件类型
 
 **环境配置**:
-- python 虚拟环境为 `agomsaaf`
+- python 虚拟环境为 `agomtradepro`
 - PowerShell 脚本必须使用英文
 
 **新增模块说明**:

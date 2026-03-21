@@ -182,7 +182,7 @@ def _make_source_bundle(
         "venv",
         "env",
         "ENV",
-        "agomsaaf",
+        "agomtradepro",
     }
     skip_suffixes = {".pyc", ".pyo", ".tmp", ".temp", ".tar.gz"}
     wheelhouse_root = project_root / ".cache" / "pip-wheels" / "linux-py311"
@@ -263,7 +263,7 @@ if (Test-Path ".\data\db.sqlite3") {
 """
     return rf"""$ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot\..
-$env:COMPOSE_PROJECT_NAME = 'agomsaaflocal'
+$env:COMPOSE_PROJECT_NAME = 'agomtradeprolocal'
 
 if (-not (Test-Path '.env')) {{
     Copy-Item '.env.example' '.env'
@@ -274,11 +274,11 @@ if ($envText -match 'SECRET_KEY=change-this-to-a-strong-secret') {{
     $secret = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([guid]::NewGuid().ToString() + [guid]::NewGuid().ToString()))
     $envText = $envText -replace 'SECRET_KEY=change-this-to-a-strong-secret', ('SECRET_KEY=' + $secret)
 }}
-if ($envText -match 'AGOMSAAF_ENCRYPTION_KEY=$') {{
+if ($envText -match 'AGOMTRADEPRO_ENCRYPTION_KEY=$') {{
     $bytes = New-Object byte[] 32
     [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
     $key = [Convert]::ToBase64String($bytes).TrimEnd('=').Replace('+','-').Replace('/','_')
-    $envText = $envText -replace 'AGOMSAAF_ENCRYPTION_KEY=$', ('AGOMSAAF_ENCRYPTION_KEY=' + $key)
+    $envText = $envText -replace 'AGOMTRADEPRO_ENCRYPTION_KEY=$', ('AGOMTRADEPRO_ENCRYPTION_KEY=' + $key)
 }}
 Set-Content '.env' $envText -Encoding UTF8
 
@@ -308,7 +308,7 @@ fi
     return f"""#!/usr/bin/env sh
 set -eu
 cd "$(dirname "$0")/.."
-export COMPOSE_PROJECT_NAME=agomsaaflocal
+export COMPOSE_PROJECT_NAME=agomtradeprolocal
 
 if [ ! -f .env ]; then
   cp .env.example .env
@@ -323,13 +323,13 @@ PY
   sed -i "s|^SECRET_KEY=.*|SECRET_KEY=$secret|" .env
 fi
 
-if grep -q '^AGOMSAAF_ENCRYPTION_KEY=$' .env; then
+if grep -q '^AGOMTRADEPRO_ENCRYPTION_KEY=$' .env; then
   key="$(python3 - <<'PY'
 from cryptography.fernet import Fernet
 print(Fernet.generate_key().decode())
 PY
 )"
-  sed -i "s|^AGOMSAAF_ENCRYPTION_KEY=$|AGOMSAAF_ENCRYPTION_KEY=$key|" .env
+  sed -i "s|^AGOMTRADEPRO_ENCRYPTION_KEY=$|AGOMTRADEPRO_ENCRYPTION_KEY=$key|" .env
 fi
 
 docker load -i "./images/{image_filename}"
@@ -342,7 +342,7 @@ echo "Started: http://127.0.0.1:8000/"
 def _local_stop_ps1() -> str:
     return """$ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot\\..
-$env:COMPOSE_PROJECT_NAME = 'agomsaaflocal'
+$env:COMPOSE_PROJECT_NAME = 'agomtradeprolocal'
 docker compose down
 """
 
@@ -350,7 +350,7 @@ docker compose down
 def _redact_sensitive_text(text: str) -> str:
     text = re.sub(r"(Authorization:\s*Token\s+)[A-Za-z0-9]+", r"\1<REDACTED_TOKEN>", text)
     text = re.sub(
-        r"(AGOMSAAF_API_TOKEN[\"']?\s*[:=]\s*[\"'])[A-Za-z0-9]+([\"'])",
+        r"(AGOMTRADEPRO_API_TOKEN[\"']?\s*[:=]\s*[\"'])[A-Za-z0-9]+([\"'])",
         r"\1<REDACTED_TOKEN>\2",
         text,
     )
@@ -382,10 +382,10 @@ def _add_runtime_docs(zf: zipfile.ZipFile, bundle_root_name: str, project_root: 
             rel_name = path.relative_to(project_root).as_posix()
             zf.writestr(f"{bundle_root_name}/{rel_name}", path.read_text(encoding="utf-8"))
 
-    skill_src = project_root / ".agents" / "skills" / "mcp-remote-agomsaaf" / "SKILL.md"
+    skill_src = project_root / ".agents" / "skills" / "mcp-remote-agomtradepro" / "SKILL.md"
     if skill_src.exists():
         skill_text = _redact_sensitive_text(skill_src.read_text(encoding="utf-8"))
-        zf.writestr(f"{bundle_root_name}/skills/mcp-remote-agomsaaf/SKILL.redacted.md", skill_text)
+        zf.writestr(f"{bundle_root_name}/skills/mcp-remote-agomtradepro/SKILL.redacted.md", skill_text)
 
 
 def _create_local_runtime_bundle(
@@ -397,7 +397,7 @@ def _create_local_runtime_bundle(
     include_sqlite: bool,
     sqlite_file: Path | None,
 ) -> Path:
-    bundle_root_name = f"agomsaaf-local-runtime-{tag}"
+    bundle_root_name = f"agomtradepro-local-runtime-{tag}"
     bundle_zip_path = dist_dir / f"{bundle_root_name}.zip"
     compose_src = project_root / "docker" / "docker-compose.vps.yml"
     env_src = project_root / "deploy" / ".env.vps.example"
@@ -431,7 +431,7 @@ def _create_local_runtime_bundle(
             f"{bundle_root_name}/README.txt",
             "\n".join(
                 [
-                    "AgomSAAF local runtime bundle",
+                    "AgomTradePro local runtime bundle",
                     "",
                     "What is included:",
                     "- web image tar",
@@ -471,7 +471,7 @@ def _create_local_runtime_bundle(
 def _build_remote_build_script() -> str:
     return r"""set -eu
 
-TARGET_DIR="${TARGET_DIR:-/opt/agomsaaf}"
+TARGET_DIR="${TARGET_DIR:-/opt/agomtradepro}"
 REMOTE_TARBALL="${REMOTE_TARBALL:?missing REMOTE_TARBALL}"
 RELEASE_TAG="${RELEASE_TAG:?missing RELEASE_TAG}"
 KEEP_REMOTE_TEMP="${KEEP_REMOTE_TEMP:-0}"
@@ -515,12 +515,12 @@ if [ "$AVAILABLE_CPUS" -le 1 ]; then
   sed -i 's/cpus: 1.5/cpus: 1.0/g' docker/docker-compose.vps.yml
 fi
 
-if ! docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg BUILDKIT_INLINE_CACHE=1 -f docker/Dockerfile.prod -t "agomsaaf-web:$RELEASE_TAG" .; then
-  DOCKER_BUILDKIT=0 docker build --build-arg PIP_OFFLINE_ONLY=0 -f docker/Dockerfile.prod -t "agomsaaf-web:$RELEASE_TAG" .
+if ! docker build --build-arg PIP_OFFLINE_ONLY=0 --build-arg BUILDKIT_INLINE_CACHE=1 -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .; then
+  DOCKER_BUILDKIT=0 docker build --build-arg PIP_OFFLINE_ONLY=0 -f docker/Dockerfile.prod -t "agomtradepro-web:$RELEASE_TAG" .
 fi
 
 if [ "$EXPORT_IMAGE_TAR" = "1" ]; then
-  IMAGE_BYTES="$(docker image inspect "agomsaaf-web:$RELEASE_TAG" --format '{{.Size}}' 2>/dev/null || echo 0)"
+  IMAGE_BYTES="$(docker image inspect "agomtradepro-web:$RELEASE_TAG" --format '{{.Size}}' 2>/dev/null || echo 0)"
   AVAIL_BYTES="$(df -Pk "$(dirname "$REMOTE_IMAGE_TAR")" | awk 'NR==2 {print $4 * 1024}')"
   HEADROOM_BYTES=$((2 * 1024 * 1024 * 1024))
   REQUIRED_BYTES=$((IMAGE_BYTES + HEADROOM_BYTES))
@@ -530,7 +530,7 @@ if [ "$EXPORT_IMAGE_TAR" = "1" ]; then
   fi
   mkdir -p "$(dirname "$REMOTE_IMAGE_TAR")"
   rm -f "$REMOTE_IMAGE_TAR"
-  docker save -o "$REMOTE_IMAGE_TAR" "agomsaaf-web:$RELEASE_TAG"
+  docker save -o "$REMOTE_IMAGE_TAR" "agomtradepro-web:$RELEASE_TAG"
 fi
 
 python3 - <<'PY'
@@ -541,12 +541,12 @@ report = {
     "release_tag": os.environ["RELEASE_TAG"],
     "release_dir": str(Path(".").resolve()),
     "target_dir": Path(".").resolve().parents[1].as_posix(),
-    "image_tag": f"agomsaaf-web:{os.environ['RELEASE_TAG']}",
+    "image_tag": f"agomtradepro-web:{os.environ['RELEASE_TAG']}",
     "remote_image_tar": os.environ.get("REMOTE_IMAGE_TAR", ""),
     "deployed": False,
     "deploy_after_build": os.environ.get("DEPLOY_AFTER_BUILD", "1") == "1",
 }
-Path("/tmp/agomsaaf-build-report.json").write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
+Path("/tmp/agomtradepro-build-report.json").write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
 PY
 
 if [ "$DEPLOY_AFTER_BUILD" != "1" ] && [ "$KEEP_REMOTE_TEMP" != "1" ]; then
@@ -557,7 +557,7 @@ if [ "$KEEP_REMOTE_TEMP" != "1" ]; then
   rm -rf "$WORK_ROOT" "$REMOTE_TARBALL"
 fi
 
-echo "BUILD_REPORT_PATH=/tmp/agomsaaf-build-report.json"
+echo "BUILD_REPORT_PATH=/tmp/agomtradepro-build-report.json"
 echo "REMOTE_IMAGE_TAR=$REMOTE_IMAGE_TAR"
 """
 
@@ -580,8 +580,8 @@ def _cleanup_remote_build_artifacts(
 
     cleanup_lines.extend(
         [
-            "rm -f /tmp/agomsaaf-build-report.json /tmp/agomsaaf-deploy-report.json /tmp/agomsaaf-health.json /tmp/agomsaaf-compose-ps.txt 2>/dev/null || true",
-            f"docker image rm -f {shlex.quote(f'agomsaaf-web:{tag}')} 2>/dev/null || true",
+            "rm -f /tmp/agomtradepro-build-report.json /tmp/agomtradepro-deploy-report.json /tmp/agomtradepro-health.json /tmp/agomtradepro-compose-ps.txt 2>/dev/null || true",
+            f"docker image rm -f {shlex.quote(f'agomtradepro-web:{tag}')} 2>/dev/null || true",
             "dangling=$(docker images -f dangling=true -q 2>/dev/null || true)",
             'if [ -n "$dangling" ]; then docker rmi -f $dangling 2>/dev/null || true; fi',
             f"rmdir {shlex.quote(remote_dir)} 2>/dev/null || true",
@@ -597,7 +597,7 @@ def _build_remote_deploy_script() -> str:
 
 HOST="${HOST:-}"
 PORT="${PORT:-8000}"
-TARGET_DIR="${TARGET_DIR:-/opt/agomsaaf}"
+TARGET_DIR="${TARGET_DIR:-/opt/agomtradepro}"
 RELEASE_TAG="${RELEASE_TAG:?missing RELEASE_TAG}"
 ACTION="${ACTION:-fresh}"
 DOMAIN="${DOMAIN:-}"
@@ -624,9 +624,9 @@ cd "$RELEASE_DIR"
 
 if [ "$WIPE_DOCKER" = "1" ]; then
   SAVED_IMAGE=""
-  if docker image inspect "agomsaaf-web:$RELEASE_TAG" >/dev/null 2>&1; then
-    SAVED_IMAGE="/tmp/agomsaaf-web-saved-$RELEASE_TAG.tar"
-    docker save -o "$SAVED_IMAGE" "agomsaaf-web:$RELEASE_TAG"
+  if docker image inspect "agomtradepro-web:$RELEASE_TAG" >/dev/null 2>&1; then
+    SAVED_IMAGE="/tmp/agomtradepro-web-saved-$RELEASE_TAG.tar"
+    docker save -o "$SAVED_IMAGE" "agomtradepro-web:$RELEASE_TAG"
   fi
   docker ps -aq | xargs -r docker rm -f || true
   if [ "$WIPE_VOLUMES" = "1" ]; then
@@ -661,22 +661,22 @@ fi
 if [ -n "$PRESET_ENCRYPTION_KEY" ]; then
   AGOM_KEY="$PRESET_ENCRYPTION_KEY"
 else
-  AGOM_KEY="$(grep '^AGOMSAAF_ENCRYPTION_KEY=' deploy/.env | cut -d '=' -f2- || true)"
+  AGOM_KEY="$(grep '^AGOMTRADEPRO_ENCRYPTION_KEY=' deploy/.env | cut -d '=' -f2- || true)"
   if [ -z "$AGOM_KEY" ]; then
     AGOM_KEY="$(python3 - <<'PY'
 from cryptography.fernet import Fernet
 print(Fernet.generate_key().decode())
 PY
 )"
-    echo "[INFO] Auto-generated AGOMSAAF_ENCRYPTION_KEY=$AGOM_KEY"
+    echo "[INFO] Auto-generated AGOMTRADEPRO_ENCRYPTION_KEY=$AGOM_KEY"
     echo "[WARN] Save this key! You will need it to decrypt existing API keys."
   fi
 fi
 
-if grep -q '^AGOMSAAF_ENCRYPTION_KEY=' deploy/.env; then
-  sed -i "s|^AGOMSAAF_ENCRYPTION_KEY=.*|AGOMSAAF_ENCRYPTION_KEY=$AGOM_KEY|" deploy/.env
+if grep -q '^AGOMTRADEPRO_ENCRYPTION_KEY=' deploy/.env; then
+  sed -i "s|^AGOMTRADEPRO_ENCRYPTION_KEY=.*|AGOMTRADEPRO_ENCRYPTION_KEY=$AGOM_KEY|" deploy/.env
 else
-  printf '\nAGOMSAAF_ENCRYPTION_KEY=%s\n' "$AGOM_KEY" >> deploy/.env
+  printf '\nAGOMTRADEPRO_ENCRYPTION_KEY=%s\n' "$AGOM_KEY" >> deploy/.env
 fi
 
 if [ -n "$DOMAIN" ]; then
@@ -731,9 +731,9 @@ else
 fi
 
 if grep -q '^WEB_IMAGE=' deploy/.env; then
-  sed -i "s|^WEB_IMAGE=.*|WEB_IMAGE=agomsaaf-web:$RELEASE_TAG|" deploy/.env
+  sed -i "s|^WEB_IMAGE=.*|WEB_IMAGE=agomtradepro-web:$RELEASE_TAG|" deploy/.env
 else
-  printf '\nWEB_IMAGE=agomsaaf-web:%s\n' "$RELEASE_TAG" >> deploy/.env
+  printf '\nWEB_IMAGE=agomtradepro-web:%s\n' "$RELEASE_TAG" >> deploy/.env
 fi
 
 if grep -q '^ENABLE_RSSHUB=' deploy/.env; then
@@ -781,7 +781,7 @@ fi
 sed "s|__SITE_ADDRESS__|$SITE_ADDR|g" docker/Caddyfile.template > docker/Caddyfile
 
 compose() {
-  $COMPOSE -p agomsaaf -f docker/docker-compose.vps.yml --env-file deploy/.env "$@"
+  $COMPOSE -p agomtradepro -f docker/docker-compose.vps.yml --env-file deploy/.env "$@"
 }
 
 grep '^SECRET_KEY=' deploy/.env >/dev/null 2>&1 || {
@@ -812,7 +812,7 @@ until compose exec -T web python manage.py migrate --noinput; do
   sleep 5
 done
 
-if ! compose exec -T web python manage.py bootstrap_cold_start --with-alpha --alpha-universes "${AGOMSAAF_BOOTSTRAP_ALPHA_UNIVERSES:-csi300}" --alpha-top-n "${AGOMSAAF_BOOTSTRAP_ALPHA_TOP_N:-30}"; then
+if ! compose exec -T web python manage.py bootstrap_cold_start --with-alpha --alpha-universes "${AGOMTRADEPRO_BOOTSTRAP_ALPHA_UNIVERSES:-csi300}" --alpha-top-n "${AGOMTRADEPRO_BOOTSTRAP_ALPHA_TOP_N:-30}"; then
   echo "[ERROR] cold-start bootstrap failed" >&2
   exit 1
 fi
@@ -835,18 +835,18 @@ rm -rf "$TARGET_DIR/current"
 ln -s "$RELEASE_DIR" "$TARGET_DIR/current"
 
 TRIES=0
-until curl -fsS --max-time 5 "http://127.0.0.1:$PORT/api/health/" >/tmp/agomsaaf-health.json 2>/dev/null; do
+until curl -fsS --max-time 5 "http://127.0.0.1:$PORT/api/health/" >/tmp/agomtradepro-health.json 2>/dev/null; do
   TRIES=$((TRIES + 1))
   if [ "$TRIES" -ge 20 ]; then
     echo "[ERROR] health check failed after retries" >&2
     compose ps >&2 || true
-    docker logs --tail 200 agomsaaf-web-1 >&2 || true
+    docker logs --tail 200 agomtradepro-web-1 >&2 || true
     exit 1
   fi
   sleep 5
 done
 
-compose ps > /tmp/agomsaaf-compose-ps.txt || true
+compose ps > /tmp/agomtradepro-compose-ps.txt || true
 
 python3 - <<'PY'
 import json
@@ -855,14 +855,14 @@ report = {
     "release_tag": Path(".").name.replace("source-", ""),
     "release_dir": str(Path(".").resolve()),
     "target_dir": Path(".").resolve().parents[1].as_posix(),
-    "health_json": Path("/tmp/agomsaaf-health.json").read_text(encoding="utf-8"),
-    "compose_ps": Path("/tmp/agomsaaf-compose-ps.txt").read_text(encoding="utf-8"),
+    "health_json": Path("/tmp/agomtradepro-health.json").read_text(encoding="utf-8"),
+    "compose_ps": Path("/tmp/agomtradepro-compose-ps.txt").read_text(encoding="utf-8"),
     "deployed": True,
 }
-Path("/tmp/agomsaaf-deploy-report.json").write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
+Path("/tmp/agomtradepro-deploy-report.json").write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
 PY
 
-echo "REPORT_PATH=/tmp/agomsaaf-deploy-report.json"
+echo "REPORT_PATH=/tmp/agomtradepro-deploy-report.json"
 """
 
 
@@ -875,9 +875,9 @@ def main() -> int:
         "--password-file", default=os.environ.get("AGOM_VPS_PASS_FILE", "").strip() or None
     )
     ap.add_argument(
-        "--remote-dir", default=os.environ.get("AGOM_VPS_REMOTE_DIR", "/tmp/agomsaaf-source-upload")
+        "--remote-dir", default=os.environ.get("AGOM_VPS_REMOTE_DIR", "/tmp/agomtradepro-source-upload")
     )
-    ap.add_argument("--target-dir", default=os.environ.get("AGOM_VPS_TARGET_DIR", "/opt/agomsaaf"))
+    ap.add_argument("--target-dir", default=os.environ.get("AGOM_VPS_TARGET_DIR", "/opt/agomtradepro"))
     ap.add_argument(
         "--http-port", type=int, default=int(os.environ.get("AGOM_VPS_HTTP_PORT", "8000"))
     )
@@ -904,7 +904,7 @@ def main() -> int:
     ap.add_argument("--enable-rsshub", action="store_true", default=True)
     ap.add_argument("--disable-rsshub", action="store_true", default=False)
     ap.add_argument("--enable-celery", action="store_true", default=False)
-    ap.add_argument("--encryption-key", default="", help="AGOMSAAF_ENCRYPTION_KEY to set on VPS (blank = keep existing)")
+    ap.add_argument("--encryption-key", default="", help="AGOMTRADEPRO_ENCRYPTION_KEY to set on VPS (blank = keep existing)")
     args = ap.parse_args()
 
     project_root = Path(__file__).resolve().parents[1]
@@ -962,7 +962,7 @@ def main() -> int:
             domain = _prompt("Domain (blank for HTTP-only)", args.domain)
             allowed_hosts = _prompt("ALLOWED_HOSTS (blank for auto)", args.allowed_hosts)
             # Encryption key for AI provider API keys
-            _info("AGOMSAAF_ENCRYPTION_KEY is used to encrypt AI provider API keys.")
+            _info("AGOMTRADEPRO_ENCRYPTION_KEY is used to encrypt AI provider API keys.")
             _info("If the VPS already has a key, press Enter to keep it.")
             gen_key = _prompt_bool("Generate a new encryption key?", False)
             if gen_key:
@@ -995,11 +995,11 @@ def main() -> int:
     enable_celery = args.enable_celery
 
     tag = time.strftime("%Y%m%d%H%M%S")
-    bundle_name = f"agomsaaf-source-deploy-{tag}.tar.gz"
+    bundle_name = f"agomtradepro-source-deploy-{tag}.tar.gz"
     local_bundle = project_root / "dist" / bundle_name
     local_bundle.parent.mkdir(parents=True, exist_ok=True)
-    local_image_path = (project_root / args.built_image_dir / f"agomsaaf-web-{tag}.tar").resolve()
-    remote_image_tar = posixpath.join(args.remote_dir.rstrip("/"), f"agomsaaf-web-{tag}.tar")
+    local_image_path = (project_root / args.built_image_dir / f"agomtradepro-web-{tag}.tar").resolve()
+    remote_image_tar = posixpath.join(args.remote_dir.rstrip("/"), f"agomtradepro-web-{tag}.tar")
     sqlite_file = _latest_sqlite(project_root) if include_sqlite else None
 
     _info(f"Creating source bundle: {local_bundle}")
@@ -1077,7 +1077,7 @@ def main() -> int:
                 project_root=project_root,
                 dist_dir=local_image_path.parent,
                 tag=tag,
-                image_tag=f"agomsaaf-web:{tag}",
+                image_tag=f"agomtradepro-web:{tag}",
                 local_image_path=local_image_path,
                 include_sqlite=include_sqlite,
                 sqlite_file=sqlite_file,

@@ -219,7 +219,7 @@ def _send_signal_summary_notification(summary: dict, new_details: list, invalida
     service = get_notification_service()
 
     # 构建邮件内容
-    subject = f"[AgomSAAF] 每日信号摘要 - {summary['date']}"
+    subject = f"[AgomTradePro] 每日信号摘要 - {summary['date']}"
 
     lines = [
         f"# 每日信号状态摘要",
@@ -332,7 +332,7 @@ def _send_signal_summary_notification(summary: dict, new_details: list, invalida
     html_body += f"""
         <div class="footer">
             <p>发送时间: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-            <p>AgomSAAF - 自动发送，请勿回复</p>
+            <p>AgomTradePro - 自动发送，请勿回复</p>
         </div>
     </body>
     </html>

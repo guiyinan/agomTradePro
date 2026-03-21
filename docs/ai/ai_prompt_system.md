@@ -15,7 +15,7 @@
 
 ## 1. 系统概述
 
-AI Prompt管理系统是AgomSAAF的核心组件，提供统一的Prompt模板管理、数据自动获取和链式调用能力。
+AI Prompt管理系统是AgomTradePro的核心组件，提供统一的Prompt模板管理、数据自动获取和链式调用能力。
 
 ### 1.1 核心功能
 

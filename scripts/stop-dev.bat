@@ -1,5 +1,5 @@
 @echo off
-REM AgomSAAF Development Environment Stop Script
+REM AgomTradePro Development Environment Stop Script
 REM Version: 3.5
 REM Updated: 2026-02-01
 
@@ -7,7 +7,7 @@ setlocal enabledelayedexpansion
 
 echo.
 echo ====================================
-echo   Stopping AgomSAAF Services
+echo   Stopping AgomTradePro Services
 echo ====================================
 echo.
 

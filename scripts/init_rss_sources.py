@@ -1,7 +1,7 @@
 """
 初始化RSS源配置
 
-运行: agomsaaf/Scripts/python.exe scripts/init_rss_sources.py
+运行: agomtradepro/Scripts/python.exe scripts/init_rss_sources.py
 """
 
 import os

@@ -320,13 +320,13 @@ class SDKParser:
             return endpoints
 
         # Parse SDK module files
-        modules_file = self.sdk_dir / "agomsaaf" / "modules" / "__init__.py"
+        modules_file = self.sdk_dir / "agomtradepro" / "modules" / "__init__.py"
         if not modules_file.exists():
-            modules_file = self.sdk_dir / "agomsaaf" / "client.py"
+            modules_file = self.sdk_dir / "agomtradepro" / "client.py"
 
         if modules_file.exists():
             # Find all module files
-            for module_file in (self.sdk_dir / "agomsaaf" / "modules").glob("*.py"):
+            for module_file in (self.sdk_dir / "agomtradepro" / "modules").glob("*.py"):
                 if module_file.name == "__init__.py":
                     continue
 
@@ -357,7 +357,7 @@ class SDKParser:
                     print(f"Warning: Could not parse {module_file}: {e}", file=sys.stderr)
 
         # Parse MCP tools
-        mcp_tools_dir = self.sdk_dir / "agomsaaf_mcp" / "tools"
+        mcp_tools_dir = self.sdk_dir / "agomtradepro_mcp" / "tools"
         if mcp_tools_dir.exists():
             for tool_file in mcp_tools_dir.glob("*.py"):
                 if tool_file.name == "__init__.py":

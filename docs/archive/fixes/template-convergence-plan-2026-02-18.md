@@ -76,7 +76,7 @@
 
 **命令**:
 ```bash
-rm -rf /d/githv/agomSAAF/templates/
+rm -rf /d/githv/agomTradePro/templates/
 ```
 
 ### 3.2 Phase 2: 清理 core/templates/ 目录

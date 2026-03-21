@@ -2,7 +2,7 @@
 
 ## 概述
 
-本文档描述了AgomSAAF项目中的RSS抓取功能，该功能从多个RSS源自动抓取政策信息，并通过关键词匹配自动识别政策档位（P0-P3），生成PolicyEvent记录。
+本文档描述了AgomTradePro项目中的RSS抓取功能，该功能从多个RSS源自动抓取政策信息，并通过关键词匹配自动识别政策档位（P0-P3），生成PolicyEvent记录。
 
 ## 功能特性
 
@@ -129,7 +129,7 @@ CREATE TABLE rss_fetch_log (
 #### 初始化RSS源
 
 ```bash
-agomsaaf/Scripts/python.exe scripts/init_rss_sources.py
+agomtradepro/Scripts/python.exe scripts/init_rss_sources.py
 ```
 
 默认RSS源：
@@ -141,7 +141,7 @@ agomsaaf/Scripts/python.exe scripts/init_rss_sources.py
 #### 初始化关键词规则
 
 ```bash
-agomsaaf/Scripts/python.exe scripts/init_policy_keywords.py
+agomtradepro/Scripts/python.exe scripts/init_policy_keywords.py
 ```
 
 默认关键词：

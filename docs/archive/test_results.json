@@ -14,7 +14,7 @@
       "response_time": 0.787186,
       "error_message": "",
       "details": {
-        "title": "欢迎使用 AgomSAAF 管理后台 | AgomSAAF 管理后台",
+        "title": "欢迎使用 AgomTradePro 管理后台 | AgomTradePro 管理后台",
         "content_length": 1386,
         "element_checks": {},
         "error_count": 0
@@ -118,7 +118,7 @@
       "response_time": 0.782498,
       "error_message": "",
       "details": {
-        "title": "Policy Events 管理 | AgomSAAF 管理后台",
+        "title": "Policy Events 管理 | AgomTradePro 管理后台",
         "content_length": 259,
         "element_checks": {},
         "error_count": 0
@@ -131,7 +131,7 @@
       "response_time": 1.489698,
       "error_message": "",
       "details": {
-        "title": "选择 policy log 来修改 | AgomSAAF 管理后台",
+        "title": "选择 policy log 来修改 | AgomTradePro 管理后台",
         "content_length": 1415,
         "element_checks": {},
         "error_count": 0
@@ -144,7 +144,7 @@
       "response_time": 1.550974,
       "error_message": "",
       "details": {
-        "title": "选择 RSS源配置 来修改 | AgomSAAF 管理后台",
+        "title": "选择 RSS源配置 来修改 | AgomTradePro 管理后台",
         "content_length": 1299,
         "element_checks": {},
         "error_count": 0
@@ -157,7 +157,7 @@
       "response_time": 1.707064,
       "error_message": "",
       "details": {
-        "title": "AgomSAAF - 投资指挥中心",
+        "title": "AgomTradePro - 投资指挥中心",
         "content_length": 695,
         "element_checks": {},
         "error_count": 0
@@ -183,7 +183,7 @@
       "response_time": 0.832889,
       "error_message": "",
       "details": {
-        "title": "政策跟踪 - AgomSAAF",
+        "title": "政策跟踪 - AgomTradePro",
         "content_length": 286,
         "element_checks": {},
         "error_count": 0
@@ -196,7 +196,7 @@
       "response_time": 0.954178,
       "error_message": "",
       "details": {
-        "title": "Policy Events - AgomSAAF",
+        "title": "Policy Events - AgomTradePro",
         "content_length": 253,
         "element_checks": {},
         "error_count": 0
@@ -235,7 +235,7 @@
       "response_time": 0.719515,
       "error_message": "",
       "details": {
-        "title": "RSS源管理 - AgomSAAF",
+        "title": "RSS源管理 - AgomTradePro",
         "content_length": 231,
         "element_checks": {},
         "error_count": 0
@@ -248,7 +248,7 @@
       "response_time": 0.824603,
       "error_message": "",
       "details": {
-        "title": "RSS阅读器 - AgomSAAF",
+        "title": "RSS阅读器 - AgomTradePro",
         "content_length": 268,
         "element_checks": {},
         "error_count": 0
@@ -269,7 +269,7 @@
       "response_time": 3.501711,
       "error_message": "",
       "details": {
-        "title": "AgomSAAF API",
+        "title": "AgomTradePro API",
         "content_length": 10556,
         "element_checks": {},
         "error_count": 0
@@ -412,7 +412,7 @@
       "response_time": 1.107274,
       "error_message": "",
       "details": {
-        "title": "资产筛选 - AgomSAAF",
+        "title": "资产筛选 - AgomTradePro",
         "content_length": 405,
         "element_checks": {},
         "error_count": 0
@@ -425,7 +425,7 @@
       "response_time": 1.118842,
       "error_message": "",
       "details": {
-        "title": "模拟盘交易 - AgomSAAF",
+        "title": "模拟盘交易 - AgomTradePro",
         "content_length": 231,
         "element_checks": {},
         "error_count": 0

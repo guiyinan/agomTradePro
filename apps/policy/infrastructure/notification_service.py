@@ -125,7 +125,7 @@ class EmailNotificationService(LoggingNotificationService):
             send_mail(
                 subject=subject,
                 message=message.content,
-                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@agomsaaf.com"),
+                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@agomtradepro.com"),
                 recipient_list=recipients,
                 fail_silently=False,
             )

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 
-MODULES_DIR = Path(__file__).resolve().parents[2] / "agomsaaf" / "modules"
+MODULES_DIR = Path(__file__).resolve().parents[2] / "agomtradepro" / "modules"
 
 
 def test_sdk_modules_do_not_use_removed_resource_routes():

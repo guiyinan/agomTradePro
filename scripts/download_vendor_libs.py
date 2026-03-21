@@ -130,7 +130,7 @@ def process_bootstrap_icons_css():
 
 def main():
     print('=' * 60)
-    print('AgomSAAF - Vendor Libraries Download')
+    print('AgomTradePro - Vendor Libraries Download')
     print('=' * 60)
     print()
 

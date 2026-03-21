@@ -1,10 +1,10 @@
 from unittest.mock import patch
 
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 
 
 def test_config_center_snapshot_endpoint_contract():
-    client = AgomSAAFClient(base_url="http://test.com", api_token="token")
+    client = AgomTradeProClient(base_url="http://test.com", api_token="token")
     with patch.object(client, "_request", return_value={"data": {"sections": []}}) as mock_request:
         client.config_center.get_snapshot()
         args, kwargs = mock_request.call_args
@@ -14,7 +14,7 @@ def test_config_center_snapshot_endpoint_contract():
 
 
 def test_config_capabilities_endpoint_contract():
-    client = AgomSAAFClient(base_url="http://test.com", api_token="token")
+    client = AgomTradeProClient(base_url="http://test.com", api_token="token")
     with patch.object(client, "_request", return_value={"data": []}) as mock_request:
         client.config_center.list_capabilities()
         args, kwargs = mock_request.call_args

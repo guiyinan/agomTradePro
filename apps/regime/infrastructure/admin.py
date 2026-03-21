@@ -137,7 +137,7 @@ class RegimeIndicatorThresholdAdmin(admin.ModelAdmin):
 # 自定义 Admin 站点配置
 class RegimeAdminSite(admin.AdminSite):
     """可选：独立的 Regime 管理站点"""
-    site_header = 'AgomSAAF Regime 管理'
+    site_header = 'AgomTradePro Regime 管理'
     site_title = 'Regime 配置'
     index_title = '欢迎使用 Regime 配置系统'
 

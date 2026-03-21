@@ -105,7 +105,7 @@ celery -A core worker -l info
 ### 3.1 演练环境
 
 - 数据库类型: PostgreSQL
-- 原始数据库: `agomsaaf_prod`
+- 原始数据库: `agomtradepro_prod`
 - 备份文件: `backups/database/db_backup_*.sql.gz`
 
 ### 3.2 恢复步骤
@@ -114,44 +114,44 @@ celery -A core worker -l info
 
 ```bash
 # 停止所有应用实例
-systemctl stop agomsaaf-web
-systemctl stop agomsaaf-worker
+systemctl stop agomtradepro-web
+systemctl stop agomtradepro-worker
 ```
 
 #### Step 2: 创建临时数据库（安全措施）
 
 ```bash
-psql -U postgres -c "CREATE DATABASE agomsaaf_restore_test;"
+psql -U postgres -c "CREATE DATABASE agomtradepro_restore_test;"
 ```
 
 #### Step 3: 恢复到临时数据库
 
 ```bash
 # 解压并恢复
-gunzip -c backups/database/db_backup_*.sql.gz | psql -U postgres agomsaaf_restore_test
+gunzip -c backups/database/db_backup_*.sql.gz | psql -U postgres agomtradepro_restore_test
 ```
 
 #### Step 4: 验证恢复结果
 
 ```bash
-psql -U postgres agomsaaf_restore_test -c "SELECT count(*) FROM macro_indicatormodel;"
+psql -U postgres agomtradepro_restore_test -c "SELECT count(*) FROM macro_indicatormodel;"
 ```
 
 #### Step 5: 切换数据库（确认无误后）
 
 ```bash
 # 重命名原数据库
-psql -U postgres -c "ALTER DATABASE agomsaaf_prod RENAME TO agomsaaf_prod_old;"
+psql -U postgres -c "ALTER DATABASE agomtradepro_prod RENAME TO agomtradepro_prod_old;"
 
 # 重命名恢复的数据库
-psql -U postgres -c "ALTER DATABASE agomsaaf_restore_test RENAME TO agomsaaf_prod;"
+psql -U postgres -c "ALTER DATABASE agomtradepro_restore_test RENAME TO agomtradepro_prod;"
 ```
 
 #### Step 6: 重启应用服务
 
 ```bash
-systemctl start agomsaaf-web
-systemctl start agomsaaf-worker
+systemctl start agomtradepro-web
+systemctl start agomtradepro-worker
 ```
 
 ---

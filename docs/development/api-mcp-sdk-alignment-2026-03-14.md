@@ -2,7 +2,7 @@
 
 ## 目的
 
-本文档定义 AgomSAAF 当前对外接入的唯一事实来源，解决以下问题：
+本文档定义 AgomTradePro 当前对外接入的唯一事实来源，解决以下问题：
 
 - 后端实际 API 路由与 SDK 调用不一致
 - MCP 工具仍引用历史路径
@@ -102,21 +102,21 @@ Rotation、Sector 等依赖当前 regime 的模块，统一使用：
 
 仓库内 `.mcp.json` 只保留本地开发实例：
 
-- `agomsaaf_local -> http://127.0.0.1:8000`
+- `agomtradepro_local -> http://127.0.0.1:8000`
 
 客户端全局配置建议保留两套：
 
-- `agomsaaf_local -> http://127.0.0.1:8000`
-- `agomsaaf_prod -> http://141.11.211.21:8000`
+- `agomtradepro_local -> http://127.0.0.1:8000`
+- `agomtradepro_prod -> http://141.11.211.21:8000`
 
 必须同时配置：
 
-- `AGOMSAAF_BASE_URL`
-- `AGOMSAAF_API_TOKEN`
+- `AGOMTRADEPRO_BASE_URL`
+- `AGOMTRADEPRO_API_TOKEN`
 
 兼容历史调用时，也可额外提供：
 
-- `AGOMSAAF_API_BASE_URL`
+- `AGOMTRADEPRO_API_BASE_URL`
 
 ## 本地运行约束
 
@@ -197,7 +197,7 @@ Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*runserver*
 回归端口：
 
 - 本地 Django: `http://127.0.0.1:8000`
-- MCP base URL: `AGOMSAAF_BASE_URL=http://127.0.0.1:8000`
+- MCP base URL: `AGOMTRADEPRO_BASE_URL=http://127.0.0.1:8000`
 
 本轮补齐的问题：
 
@@ -247,7 +247,7 @@ Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*runserver*
 本轮继续对剩余长尾写工具做真实回环地址复验，端口仍统一为：
 
 - Django: `http://127.0.0.1:8000`
-- MCP/SDK base URL: `AGOMSAAF_BASE_URL=http://127.0.0.1:8000`
+- MCP/SDK base URL: `AGOMTRADEPRO_BASE_URL=http://127.0.0.1:8000`
 
 已从“系统故障”修复为可用或结构化结果的项：
 

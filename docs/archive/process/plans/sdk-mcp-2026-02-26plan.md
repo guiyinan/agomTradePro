@@ -1,4 +1,4 @@
-  # AgomSAAF 全业务 SDK/MCP 覆盖 + 最新 OpenAI API 兼容三期开发计划（6-10 周）
+  # AgomTradePro 全业务 SDK/MCP 覆盖 + 最新 OpenAI API 兼容三期开发计划（6-10 周）
 
   ## Summary
 
@@ -73,8 +73,8 @@
       - account, signal, strategy, simulated_trading, regime, macro, policy, realtime,
         backtest
   - 增加 feature flag：
-      - AGOMSAAF_OPENAI_API_MODE=dual|responses_only|chat_only
-      - AGOMSAAF_OPENAI_FALLBACK_ENABLED=true|false
+      - AGOMTRADEPRO_OPENAI_API_MODE=dual|responses_only|chat_only
+      - AGOMTRADEPRO_OPENAI_FALLBACK_ENABLED=true|false
   - 输出一期文档：
       - 《OpenAI 双栈迁移指南》
       - 《一期模块能力清单》

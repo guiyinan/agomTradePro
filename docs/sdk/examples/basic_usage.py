@@ -1,14 +1,14 @@
 """
-AgomSAAF SDK - Basic Usage Examples
+AgomTradePro SDK - Basic Usage Examples
 
-This file demonstrates basic usage of the AgomSAAF SDK.
+This file demonstrates basic usage of the AgomTradePro SDK.
 """
 
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 from datetime import date
 
 # Initialize client
-client = AgomSAAFClient(
+client = AgomTradeProClient(
     base_url="http://localhost:8000",
     api_token="your_token_here"
 )

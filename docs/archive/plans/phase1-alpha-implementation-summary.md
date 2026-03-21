@@ -2,7 +2,7 @@
 
 > **完成日期**: 2026-02-05
 > **状态**: ✅ 完成
-> **实施内容**: AgomSAAF + Qlib 松耦合集成方案 - Phase 1
+> **实施内容**: AgomTradePro + Qlib 松耦合集成方案 - Phase 1
 
 ## 一、实施概览
 
@@ -117,9 +117,9 @@ API 端点：
 新增 `AlphaModule` 到 SDK：
 
 ```python
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 
-client = AgomSAAFClient()
+client = AgomTradeProClient()
 
 # 获取股票评分
 result = client.alpha.get_stock_scores("csi300", "2026-02-05", 20)
@@ -197,9 +197,9 @@ get_alpha_provider_status()
 
 ### 4. SDK 测试
 ```python
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 
-client = AgomSAAFClient()
+client = AgomTradeProClient()
 top_stocks = client.alpha.get_top_stocks("csi300", top_n=5)
 ```
 
@@ -249,8 +249,8 @@ apps/alpha/
 ├── __init__.py
 └── apps.py
 
-sdk/agomsaaf/modules/alpha.py
-sdk/agomsaaf_mcp/tools/alpha_tools.py
+sdk/agomtradepro/modules/alpha.py
+sdk/agomtradepro_mcp/tools/alpha_tools.py
 tests/unit/test_alpha_providers.py
 tests/integration/test_alpha_integration.py
 ```
@@ -259,8 +259,8 @@ tests/integration/test_alpha_integration.py
 ```
 core/settings/base.py          # 添加 alpha app
 core/urls.py                   # 添加 alpha 路由
-sdk/agomsaaf/client.py         # 添加 alpha 模块
-sdk/agomsaaf_mcp/server.py     # 注册 alpha tools
+sdk/agomtradepro/client.py         # 添加 alpha 模块
+sdk/agomtradepro_mcp/server.py     # 注册 alpha tools
 ```
 
 ## 十二、验收标准

@@ -1,5 +1,5 @@
 """
-Configuration Loader for AgomSAAF
+Configuration Loader for AgomTradePro
 
 提供带缓存的配置访问接口，替代硬编码。
 """

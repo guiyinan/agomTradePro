@@ -1,4 +1,4 @@
-# AgomSAAF RC E2E/UAT + AI-MCP 执行手册（外包测试版）
+# AgomTradePro RC E2E/UAT + AI-MCP 执行手册（外包测试版）
 
 - 文档版本: v1.0
 - 编制日期: 2026-03-05
@@ -67,9 +67,9 @@
 1. 服务可访问：Web、API、DB、Redis、Celery。
 2. SDK 已安装：`pip install -e sdk/`。
 3. 必要环境变量已配置：
-   - `AGOMSAAF_BASE_URL`
-   - `AGOMSAAF_API_TOKEN`
-   - `AGOMSAAF_MCP_ENFORCE_RBAC=true`
+   - `AGOMTRADEPRO_BASE_URL`
+   - `AGOMTRADEPRO_API_TOKEN`
+   - `AGOMTRADEPRO_MCP_ENFORCE_RBAC=true`
 4. 测试账号具备四类角色：`admin`、`owner`、`analyst`、`read_only`。
 5. 审计日志查询页面/API可访问（用于追溯验证）。
 
@@ -193,7 +193,7 @@ pytest sdk/tests/test_mcp -q
 
 #### D-03 Resource/Prompt（2条）
 1. list_prompts + get_prompt。
-2. read_resource(`agomsaaf://regime/current`)。
+2. read_resource(`agomtradepro://regime/current`)。
 期望：返回非空且语义正确。
 
 #### D-04 异常路径（2条）

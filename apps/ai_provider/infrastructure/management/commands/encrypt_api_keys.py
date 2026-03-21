@@ -2,7 +2,7 @@
 Django management command to encrypt existing API keys.
 
 Encrypts all plaintext API keys in the AIProviderConfig model.
-Run after setting up AGOMSAAF_ENCRYPTION_KEY in your environment.
+Run after setting up AGOMTRADEPRO_ENCRYPTION_KEY in your environment.
 
 Usage:
     python manage.py encrypt_api_keys
@@ -49,7 +49,7 @@ class Command(BaseCommand):
             if crypto_service is None:
                 raise CommandError(
                     "Encryption service not available. "
-                    "Please set AGOMSAAF_ENCRYPTION_KEY environment variable."
+                    "Please set AGOMTRADEPRO_ENCRYPTION_KEY environment variable."
                 )
         except Exception as e:
             raise CommandError(f"Failed to initialize encryption service: {e}")

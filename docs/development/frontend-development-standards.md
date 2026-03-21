@@ -1,4 +1,4 @@
-# AgomSAAF 前端开发规范
+# AgomTradePro 前端开发规范
 
 > **版本**: 1.0
 > **更新日期**: 2026-03-10
@@ -33,7 +33,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}页面标题 - AgomSAAF{% endblock %}
+{% block title %}页面标题 - AgomTradePro{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/module.css' %}">
@@ -662,7 +662,7 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}功能名称 - AgomSAAF{% endblock %}
+{% block title %}功能名称 - AgomTradePro{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/module.css' %}">
@@ -798,4 +798,4 @@ document.addEventListener('DOMContentLoaded', loadData);
 ---
 
 **文档版本**: 1.0
-**维护**: AgomSAAF Team
+**维护**: AgomTradePro Team

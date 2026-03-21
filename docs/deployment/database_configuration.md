@@ -1,4 +1,4 @@
-# AgomSAAF 数据库配置文档
+# AgomTradePro 数据库配置文档
 
 > 更新时间: 2026-01-31
 > 数据库: PostgreSQL 15 on Docker
@@ -19,8 +19,8 @@
 ```
 Host: localhost
 Port: 5433
-Database: agomsaaf
-User: agomsaaf
+Database: agomtradepro
+User: agomtradepro
 Password: changeme (请修改)
 ```
 
@@ -28,17 +28,17 @@ Password: changeme (请修改)
 
 ```
 # Django/DATABASE_URL
-DATABASE_URL=postgres://agomsaaf:changeme@localhost:5433/agomsaaf
+DATABASE_URL=postgres://agomtradepro:changeme@localhost:5433/agomtradepro
 
 # psql 命令行
-docker exec -it agomsaaf_postgres_dev psql -U agomsaaf -d agomsaaf
+docker exec -it agomtradepro_postgres_dev psql -U agomtradepro -d agomtradepro
 
 # Python/Django
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'agomsaaf',
-        'USER': 'agomsaaf',
+        'NAME': 'agomtradepro',
+        'USER': 'agomtradepro',
         'PASSWORD': 'changeme',
         'HOST': 'localhost',
         'PORT': 5433,
@@ -52,7 +52,7 @@ DATABASES = {
 
 | 文件 | 状态 | 说明 |
 |------|------|------|
-| `.env` | ✅ 已更新 | DATABASE_URL=postgresql://...@localhost:5433/agomsaaf |
+| `.env` | ✅ 已更新 | DATABASE_URL=postgresql://...@localhost:5433/agomtradepro |
 | `docker-compose-dev.yml` | ✅ 已更新 | 端口映射 5433:5432 |
 | `docker-compose.yml` | ✅ 已更新 | 端口映射 5433:5432 |
 | `core/settings/development.py` | ✅ 默认配置 | 使用 env.db() 读取 DATABASE_URL |
@@ -77,17 +77,17 @@ docker ps
 ```bash
 cd .
 docker compose -f docker-compose-dev.yml up -d
-docker ps | grep agomsaaf
+docker ps | grep agomtradepro
 ```
 
 ### 2. 验证连接
 
 ```bash
 # 检查 PostgreSQL 健康状态
-docker exec agomsaaf_postgres_dev pg_isready -U agomsaaf
+docker exec agomtradepro_postgres_dev pg_isready -U agomtradepro
 
 # 连接数据库
-docker exec -it agomsaaf_postgres_dev psql -U agomsaaf -d agomsaaf
+docker exec -it agomtradepro_postgres_dev psql -U agomtradepro -d agomtradepro
 ```
 
 ### 3. 运行 Django 迁移（如需要）
@@ -95,14 +95,14 @@ docker exec -it agomsaaf_postgres_dev psql -U agomsaaf -d agomsaaf
 #### Windows PowerShell
 
 ```powershell
-$env:DATABASE_URL="postgres://agomsaaf:changeme@localhost:5433/agomsaaf"
+$env:DATABASE_URL="postgres://agomtradepro:changeme@localhost:5433/agomtradepro"
 python manage.py migrate
 ```
 
 #### Linux/macOS (bash)
 
 ```bash
-export DATABASE_URL="postgres://agomsaaf:changeme@localhost:5433/agomsaaf"
+export DATABASE_URL="postgres://agomtradepro:changeme@localhost:5433/agomtradepro"
 python manage.py migrate
 ```
 
@@ -120,7 +120,7 @@ ports:
   - "5434:5432"  # 改用 5434
 
 # .env
-DATABASE_URL=postgresql://agomsaaf:changeme@localhost:5434/agomsaaf
+DATABASE_URL=postgresql://agomtradepro:changeme@localhost:5434/agomtradepro
 ```
 
 ### 方案 B：停止占用端口的服务
@@ -147,7 +147,7 @@ docker stop <container_name>
 
 ```bash
 # PostgreSQL 容器内
-docker exec -it agomsaaf_postgres_dev psql -U agomsaaf -d agomsaaf
+docker exec -it agomtradepro_postgres_dev psql -U agomtradepro -d agomtradepro
 
 # 查看所有表
 \dt
@@ -164,10 +164,10 @@ SELECT code, value, original_unit FROM macro_indicator LIMIT 10;
 
 ```bash
 # 查看日志
-docker logs agomsaaf_postgres_dev --tail 50
+docker logs agomtradepro_postgres_dev --tail 50
 
 # 重启容器
-docker restart agomsaaf_postgres_dev
+docker restart agomtradepro_postgres_dev
 
 # 停止容器
 docker compose -f docker-compose-dev.yml down
@@ -180,10 +180,10 @@ docker compose -f docker-compose-dev.yml up -d
 
 ```bash
 # 导出数据
-docker exec agomsaaf_postgres_dev pg_dump -U agomsaaf agomsaaf > backup_$(date +%Y%m%d).sql
+docker exec agomtradepro_postgres_dev pg_dump -U agomtradepro agomtradepro > backup_$(date +%Y%m%d).sql
 
 # 导入数据
-docker exec -i agomsaaf_postgres_dev psql -U agomsaaf agomsaaf < backup_file.sql
+docker exec -i agomtradepro_postgres_dev psql -U agomtradepro agomtradepro < backup_file.sql
 ```
 
 ---

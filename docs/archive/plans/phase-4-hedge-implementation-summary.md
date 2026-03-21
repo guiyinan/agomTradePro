@@ -8,7 +8,7 @@
 
 ## Overview
 
-Phase 4 implements the **Hedge Portfolio** module for AgomSAAF. This module provides correlation monitoring, hedge ratio calculation, and effectiveness validation for hedging strategies.
+Phase 4 implements the **Hedge Portfolio** module for AgomTradePro. This module provides correlation monitoring, hedge ratio calculation, and effectiveness validation for hedging strategies.
 
 ## Key Deliverables
 
@@ -58,7 +58,7 @@ class HedgeIntegrationService:
 
 ### 3. SDK Module
 
-**Hedge Module** (`sdk/agomsaaf/modules/hedge.py`)
+**Hedge Module** (`sdk/agomtradepro/modules/hedge.py`)
 ```python
 class HedgeModule:
     # Correlation Analysis
@@ -88,7 +88,7 @@ class HedgeModule:
 
 ### 4. MCP Tools
 
-**10 Natural Language Tools** (`sdk/agomsaaf_mcp/tools/hedge_tools.py`)
+**10 Natural Language Tools** (`sdk/agomtradepro_mcp/tools/hedge_tools.py`)
 
 | Tool | Description | Example Usage |
 |------|-------------|---------------|
@@ -178,7 +178,7 @@ Repository (ORM)
 
 ```bash
 # Test SDK imports
-python -c "from sdk.agomsaaf.modules import HedgeModule; print('✓ HedgeModule OK')"
+python -c "from sdk.agomtradepro.modules import HedgeModule; print('✓ HedgeModule OK')"
 
 # Test Django project
 python manage.py check  # ✓ No issues
@@ -225,7 +225,7 @@ python manage.py init_hedge  # ✓ Initializes 10 hedge pairs
 ### Modified
 - `apps/hedge/interface/views.py`
 - `apps/hedge/interface/urls.py`
-- `sdk/agomsaaf/modules/hedge.py`
+- `sdk/agomtradepro/modules/hedge.py`
 
 ---
 

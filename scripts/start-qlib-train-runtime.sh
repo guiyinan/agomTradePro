@@ -23,5 +23,5 @@ mkdir -p "$PROJECT_ROOT/runtime/qlib_data" "$PROJECT_ROOT/runtime/qlib_models"
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --build
 
 echo "[INFO] qlib train runtime started"
-echo "[INFO] worker: agomsaaf_qlib_train_worker"
+echo "[INFO] worker: agomtradepro_qlib_train_worker"
 echo "[INFO] logs: docker compose -f $COMPOSE_FILE --env-file $ENV_FILE logs -f"

@@ -1,9 +1,9 @@
-# AgomSAAF AI-Native Test Matrix
+# AgomTradePro AI-Native Test Matrix
 
 > **Version**: 1.1
 > **Status**: FROZEN
 > **Last Updated**: 2026-03-16
-> **Owner**: AgomSAAF Project Team
+> **Owner**: AgomTradePro Project Team
 
 ## 1. Purpose
 

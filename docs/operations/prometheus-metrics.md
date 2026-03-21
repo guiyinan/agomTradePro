@@ -5,7 +5,7 @@
 
 ## 概述
 
-AgomSAAF 通过 `prometheus-client` 和 `django-prometheus` 实现了完整的 Prometheus 指标暴露能力，支持：
+AgomTradePro 通过 `prometheus-client` 和 `django-prometheus` 实现了完整的 Prometheus 指标暴露能力，支持：
 
 - **API 请求指标**：请求量、延迟、错误率
 - **Celery 任务指标**：任务执行、重试、队列堆积
@@ -46,7 +46,7 @@ api_request_latency_seconds_sum{method="GET",endpoint="/api/regime/",view_name="
 
 ```yaml
 scrape_configs:
-  - job_name: 'agomsaaf'
+  - job_name: 'agomtradepro'
     scrape_interval: 15s
     static_configs:
       - targets: ['localhost:8000']

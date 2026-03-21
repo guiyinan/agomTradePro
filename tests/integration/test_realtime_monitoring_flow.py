@@ -8,10 +8,10 @@ This test simulates a real-time data monitoring workflow:
 4. Verify real-time data freshness
 
 Usage:
-    set AGOMSAAF_RUN_LIVE_REALTIME_TESTS=1
+    set AGOMTRADEPRO_RUN_LIVE_REALTIME_TESTS=1
     pytest tests/integration/test_realtime_monitoring_flow.py -v
     or
-    set AGOMSAAF_RUN_LIVE_REALTIME_TESTS=1
+    set AGOMTRADEPRO_RUN_LIVE_REALTIME_TESTS=1
     python tests/integration/test_realtime_monitoring_flow.py
 """
 
@@ -24,10 +24,10 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 # Set environment variables
-os.environ["AGOMSAAF_BASE_URL"] = "http://localhost:8000"
-os.environ.setdefault("AGOMSAAF_API_TOKEN", "test-token")
+os.environ["AGOMTRADEPRO_BASE_URL"] = "http://localhost:8000"
+os.environ.setdefault("AGOMTRADEPRO_API_TOKEN", "test-token")
 
-from sdk.agomsaaf import AgomSAAFClient
+from sdk.agomtradepro import AgomTradeProClient
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -35,11 +35,11 @@ def require_live_realtime_environment() -> None:
     """
     默认跳过依赖本地服务和真实行情的实时集成测试。
 
-    显式设置 `AGOMSAAF_RUN_LIVE_REALTIME_TESTS=1` 时才运行。
+    显式设置 `AGOMTRADEPRO_RUN_LIVE_REALTIME_TESTS=1` 时才运行。
     """
-    if os.getenv("AGOMSAAF_RUN_LIVE_REALTIME_TESTS") != "1":
+    if os.getenv("AGOMTRADEPRO_RUN_LIVE_REALTIME_TESTS") != "1":
         pytest.skip(
-            "real-time integration test skipped by default; set AGOMSAAF_RUN_LIVE_REALTIME_TESTS=1 to enable"
+            "real-time integration test skipped by default; set AGOMTRADEPRO_RUN_LIVE_REALTIME_TESTS=1 to enable"
         )
 
     try:
@@ -88,8 +88,8 @@ def test_realtime_monitoring_flow() -> None:
         # ====================================================================
         print_step(1, "Initialize SDK Client")
 
-        from sdk.agomsaaf import AgomSAAFClient
-        client = AgomSAAFClient()
+        from sdk.agomtradepro import AgomTradeProClient
+        client = AgomTradeProClient()
         print_result(True, f"Client initialized (Base URL: {client._config.base_url})")
 
         # ====================================================================

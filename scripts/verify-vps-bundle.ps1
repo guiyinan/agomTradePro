@@ -29,7 +29,7 @@ if (Test-Path "$PSScriptRoot/shared/common.ps1") {
 Require-Command tar
 
 if ([string]::IsNullOrWhiteSpace($Bundle)) {
-    $Bundle = Read-Default -Prompt "Bundle tar.gz path" -Default "./dist/agomsaaf-vps-bundle.tar.gz"
+    $Bundle = Read-Default -Prompt "Bundle tar.gz path" -Default "./dist/agomtradepro-vps-bundle.tar.gz"
 }
 
 if (-not (Test-Path $Bundle)) {
@@ -43,7 +43,7 @@ if ($LASTEXITCODE -ne 0) {
     Throw-Err "tar.gz integrity check failed"
 }
 
-$tmpRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agomsaaf-bundle-verify-" + [System.Guid]::NewGuid().ToString("N"))
+$tmpRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agomtradepro-bundle-verify-" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $tmpRoot | Out-Null
 
 Write-Info "Extracting bundle to temp dir: $tmpRoot"
@@ -52,7 +52,7 @@ if ($LASTEXITCODE -ne 0) {
     Throw-Err "bundle extraction failed"
 }
 
-$bundleRoot = Get-ChildItem -Path $tmpRoot -Directory | Where-Object { $_.Name -like 'agomsaaf-vps-bundle-*' } | Select-Object -First 1
+$bundleRoot = Get-ChildItem -Path $tmpRoot -Directory | Where-Object { $_.Name -like 'agomtradepro-vps-bundle-*' } | Select-Object -First 1
 if (-not $bundleRoot) {
     Throw-Err "unable to locate extracted bundle root directory"
 }

@@ -26,7 +26,7 @@
 
 ```
 ======================================================================
-  AgomSAAF Extension Integration Tests
+  AgomTradePro Extension Integration Tests
 ======================================================================
   INFO: Testing: Factor + Rotation + Hedge + Unified Signal System
 
@@ -199,7 +199,7 @@ When `mcp` package is installed, 40+ natural language tools are available:
 
 ```bash
 # 1. SDK Import Test
-python -c "from sdk.agomsaaf.modules import FactorModule, RotationModule, HedgeModule; print('SDK OK')"
+python -c "from sdk.agomtradepro.modules import FactorModule, RotationModule, HedgeModule; print('SDK OK')"
 
 # 2. Django System Check
 python manage.py check
@@ -234,7 +234,7 @@ python manage.py init_hedge
 
 ✅ **All core functionality validated and working**
 
-The AgomSAAF system extension with Factor, Rotation, and Hedge modules is:
+The AgomTradePro system extension with Factor, Rotation, and Hedge modules is:
 - **Architecturally sound** - Four-layer architecture maintained
 - **Data complete** - 27 factors, 18 ETFs, 10 hedge pairs initialized
 - **API functional** - All endpoints responding correctly

@@ -1,5 +1,5 @@
 /**
- * Teaching Modal - AgomSAAF 教学模块模态窗管理
+ * Teaching Modal - AgomTradePro 教学模块模态窗管理
  * 功能：模态窗打开/关闭、章节导航、手风琴折叠
  */
 
@@ -380,7 +380,7 @@ function printCurrentSection() {
             <!DOCTYPE html>
             <html>
             <head>
-                <title>AgomSAAF 教学指南</title>
+                <title>AgomTradePro 教学指南</title>
                 <style>
                     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 20px; }
                     h2 { color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; }

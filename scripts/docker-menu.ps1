@@ -1,7 +1,7 @@
-# AgomSAAF Docker Management Menu
+# AgomTradePro Docker Management Menu
 # Interactive menu for common Docker operations
 
-$ProjectRoot = "D:\githv\agomSAAF"
+$ProjectRoot = "D:\githv\agomTradePro"
 $ComposeFile = "$ProjectRoot\docker-compose-dev.yml"
 
 # Color functions
@@ -35,7 +35,7 @@ function Start-Services {
 
     $attempt = 0
     while ($attempt -lt 30) {
-        $null = docker exec agomsaaf_postgres_dev pg_isready -U agomsaaf -d agomsaaf 2>&1
+        $null = docker exec agomtradepro_postgres_dev pg_isready -U agomtradepro -d agomtradepro 2>&1
         if ($LASTEXITCODE -eq 0) {
             Write-Success "`nPostgreSQL is ready!"
             break
@@ -87,7 +87,7 @@ function Show-Logs {
 function Run-Migrations {
     Write-Header "`n=== Running Database Migrations ===`n"
 
-    $pythonCmd = "$ProjectRoot\agomsaaf\Scripts\python.exe"
+    $pythonCmd = "$ProjectRoot\agomtradepro\Scripts\python.exe"
     if (-not (Test-Path $pythonCmd)) {
         $pythonCmd = "python"
     }
@@ -100,7 +100,7 @@ function Run-Migrations {
 function Create-Superuser {
     Write-Header "`n=== Create Django Superuser ===`n"
 
-    $pythonCmd = "$ProjectRoot\agomsaaf\Scripts\python.exe"
+    $pythonCmd = "$ProjectRoot\agomtradepro\Scripts\python.exe"
     if (-not (Test-Path $pythonCmd)) {
         $pythonCmd = "python"
     }
@@ -114,7 +114,7 @@ function Connect-PostgreSQL {
     Write-Info "Type '\q' to exit"
     Write-Host ""
 
-    docker exec -it agomsaaf_postgres_dev psql -U agomsaaf -d agomsaaf
+    docker exec -it agomtradepro_postgres_dev psql -U agomtradepro -d agomtradepro
 }
 
 # Connect to Redis
@@ -123,7 +123,7 @@ function Connect-Redis {
     Write-Info "Type 'exit' to quit"
     Write-Host ""
 
-    docker exec -it agomsaaf_redis_dev redis-cli
+    docker exec -it agomtradepro_redis_dev redis-cli
 }
 
 # Backup database
@@ -146,7 +146,7 @@ function Backup-Database {
             $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
             $backupFile = "$ProjectRoot\backup-postgres-$timestamp.sql"
             Write-Info "Creating full backup..."
-            docker exec agomsaaf_postgres_dev pg_dump -U agomsaaf -d agomsaaf > $backupFile
+            docker exec agomtradepro_postgres_dev pg_dump -U agomtradepro -d agomtradepro > $backupFile
 
             if (Test-Path $backupFile) {
                 $size = [math]::Round((Get-Item $backupFile).Length / 1KB, 2)
@@ -161,7 +161,7 @@ function Backup-Database {
             $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
             $backupFile = "$ProjectRoot\backup-schema-$timestamp.sql"
             Write-Info "Creating schema backup..."
-            docker exec agomsaaf_postgres_dev pg_dump -U agomsaaf -d agomsaaf --schema-only > $backupFile
+            docker exec agomtradepro_postgres_dev pg_dump -U agomtradepro -d agomtradepro --schema-only > $backupFile
 
             if (Test-Path $backupFile) {
                 $size = [math]::Round((Get-Item $backupFile).Length / 1KB, 2)
@@ -176,7 +176,7 @@ function Backup-Database {
             $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
             $backupFile = "$ProjectRoot\backup-data-$timestamp.sql"
             Write-Info "Creating data backup..."
-            docker exec agomsaaf_postgres_dev pg_dump -U agomsaaf -d agomsaaf --data-only > $backupFile
+            docker exec agomtradepro_postgres_dev pg_dump -U agomtradepro -d agomtradepro --data-only > $backupFile
 
             if (Test-Path $backupFile) {
                 $size = [math]::Round((Get-Item $backupFile).Length / 1KB, 2)
@@ -189,14 +189,14 @@ function Backup-Database {
         }
         "4" {
             Write-Info "Available tables:"
-            docker exec agomsaaf_postgres_dev psql -U agomsaaf -d agomsaaf -c "\dt" | Write-Host
+            docker exec agomtradepro_postgres_dev psql -U agomtradepro -d agomtradepro -c "\dt" | Write-Host
 
             $tables = Read-Host "`nEnter table names (comma separated)"
             $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
             $backupFile = "$ProjectRoot\backup-tables-$timestamp.sql"
 
             Write-Info "Creating table backup..."
-            docker exec agomsaaf_postgres_dev pg_dump -U agomsaaf -d agomsaaf -t $tables > $backupFile
+            docker exec agomtradepro_postgres_dev pg_dump -U agomtradepro -d agomtradepro -t $tables > $backupFile
 
             if (Test-Path $backupFile) {
                 $size = [math]::Round((Get-Item $backupFile).Length / 1KB, 2)
@@ -346,7 +346,7 @@ function Restore-Database {
     }
 
     Write-Info "Restoring from: $selectedFile"
-    Get-Content $selectedFile | docker exec -i agomsaaf_postgres_dev psql -U agomsaaf -d agomsaaf
+    Get-Content $selectedFile | docker exec -i agomtradepro_postgres_dev psql -U agomtradepro -d agomtradepro
 
     Write-Success "`nRestore completed!"
 }
@@ -374,7 +374,7 @@ function Reset-Database {
     Start-Sleep -Seconds 5
 
     Write-Info "Running migrations..."
-    $pythonCmd = "$ProjectRoot\agomsaaf\Scripts\python.exe"
+    $pythonCmd = "$ProjectRoot\agomtradepro\Scripts\python.exe"
     if (-not (Test-Path $pythonCmd)) {
         $pythonCmd = "python"
     }
@@ -471,7 +471,7 @@ function Setup-ScheduledBackup {
         $keepDays = 7
     }
 
-    $taskName = "AgomSAAF-AutoBackup"
+    $taskName = "AgomTradePro-AutoBackup"
     $scriptPath = "$ProjectRoot\scripts\auto-backup.ps1"
     $action = New-ScheduledTaskAction -Execute "PowerShell.exe" -Argument "-ExecutionPolicy Bypass -File `"$scriptPath`" -KeepDays $keepDays"
 
@@ -492,14 +492,14 @@ function Setup-ScheduledBackup {
             }
         }
 
-        Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $triggerObj -Description "AgomSAAF PostgreSQL automatic backup" -User $env:USERNAME
+        Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $triggerObj -Description "AgomTradePro PostgreSQL automatic backup" -User $env:USERNAME
 
         Write-Success "`nScheduled task created successfully!"
         Write-Info "Task name: $taskName"
         Write-Info "You can modify it in Task Scheduler (taskschd.msc)"
         Write-Info "`nTo manage scheduled tasks:"
         Write-Info "  - Open Task Scheduler: taskschd.msc"
-        Write-Info "  - Find: AgomSAAF-AutoBackup"
+        Write-Info "  - Find: AgomTradePro-AutoBackup"
         Write-Info "  - Run/Pause/Disable as needed"
     }
     catch {
@@ -545,12 +545,12 @@ function Shell-Access {
         "1" {
             Write-Info "Opening shell in PostgreSQL container..."
             Write-Info "Type 'exit' to quit"
-            docker exec -it agomsaaf_postgres_dev sh
+            docker exec -it agomtradepro_postgres_dev sh
         }
         "2" {
             Write-Info "Opening shell in Redis container..."
             Write-Info "Type 'exit' to quit"
-            docker exec -it agomsaaf_redis_dev sh
+            docker exec -it agomtradepro_redis_dev sh
         }
         "0" { return }
         default { Write-Error "Invalid choice" }
@@ -561,7 +561,7 @@ function Shell-Access {
 function Show-Menu {
     Clear-Host
     Write-Header "========================================"
-    Write-Header "  AgomSAAF Docker Management Menu"
+    Write-Header "  AgomTradePro Docker Management Menu"
     Write-Header "========================================`n"
 
     # Show service status

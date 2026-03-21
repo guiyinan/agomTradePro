@@ -33,7 +33,7 @@ router.register(r"", RotationActionViewSet, basename="rotation-action")
 def api_home(request):
     return JsonResponse(
         {
-            "message": "AgomSAAF Rotation Module API",
+            "message": "AgomTradePro Rotation Module API",
             "endpoints": {
                 "assets": "/api/rotation/assets/",
                 "configs": "/api/rotation/configs/",

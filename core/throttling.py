@@ -1,5 +1,5 @@
 """
-AgomSAAF Custom Throttling Classes
+AgomTradePro Custom Throttling Classes
 
 Provides specialized rate limiting for expensive operations like backtests
 and write operations, separating them from regular read operations.

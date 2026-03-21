@@ -8,7 +8,7 @@
             "id": "overview",
             "title": "功能概述",
             "type": "content",
-            "content": "<p>Regime 判定系统是 AgomSAAF 的核心功能，通过分析<strong>PMI（采购经理指数）</strong>和<strong>CPI（消费者物价指数）</strong>，将宏观经济环境划分为四个象限，帮助投资者在正确的环境中下注。</p>"
+            "content": "<p>Regime 判定系统是 AgomTradePro 的核心功能，通过分析<strong>PMI（采购经理指数）</strong>和<strong>CPI（消费者物价指数）</strong>，将宏观经济环境划分为四个象限，帮助投资者在正确的环境中下注。</p>"
         },
         {
             "id": "algorithm",

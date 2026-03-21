@@ -34,7 +34,7 @@ def _warn(msg: str) -> None:
 
 
 def _latest_bundle(dist_dir: Path) -> Path | None:
-    bundles = sorted(dist_dir.glob("agomsaaf-vps-bundle-*.tar.gz"), key=lambda p: p.stat().st_mtime, reverse=True)
+    bundles = sorted(dist_dir.glob("agomtradepro-vps-bundle-*.tar.gz"), key=lambda p: p.stat().st_mtime, reverse=True)
     return bundles[0] if bundles else None
 
 
@@ -115,15 +115,15 @@ def _run(ssh, cmd: str, timeout: int) -> tuple[int, str, str]:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Upload and deploy an AgomSAAF VPS bundle.")
+    ap = argparse.ArgumentParser(description="Upload and deploy an AgomTradePro VPS bundle.")
     ap.add_argument("--host", default=os.environ.get("AGOM_VPS_HOST", "").strip() or None)
     ap.add_argument("--port", type=int, default=int(os.environ.get("AGOM_VPS_PORT", "22")))
     ap.add_argument("--user", default=os.environ.get("AGOM_VPS_USER", "").strip() or None)
     ap.add_argument("--bundle", default=os.environ.get("AGOM_VPS_BUNDLE", "").strip() or None)
     ap.add_argument("--password-file", default=os.environ.get("AGOM_VPS_PASS_FILE", "").strip() or None)
-    ap.add_argument("--remote-dir", default=os.environ.get("AGOM_VPS_REMOTE_DIR", "/tmp/agomsaaf-upload"))
+    ap.add_argument("--remote-dir", default=os.environ.get("AGOM_VPS_REMOTE_DIR", "/tmp/agomtradepro-upload"))
     ap.add_argument("--action", choices=["fresh", "upgrade", "restore-only"], default=os.environ.get("AGOM_VPS_ACTION", "fresh"))
-    ap.add_argument("--target-dir", default=os.environ.get("AGOM_VPS_TARGET_DIR", "/opt/agomsaaf"))
+    ap.add_argument("--target-dir", default=os.environ.get("AGOM_VPS_TARGET_DIR", "/opt/agomtradepro"))
     ap.add_argument("--timeout", type=int, default=int(os.environ.get("AGOM_VPS_TIMEOUT", "60")))
     args = ap.parse_args()
 
@@ -208,7 +208,7 @@ def main() -> int:
 
         _info("Bootstrapping deploy script from bundle (non-interactive)")
         ts = int(time.time())
-        bootstrap_dir = f"/tmp/agomsaaf-bootstrap-{ts}"
+        bootstrap_dir = f"/tmp/agomtradepro-bootstrap-{ts}"
 
         # Use non-interactive defaults inside deploy-on-vps.sh:
         # - DOMAIN stays empty => HTTP only (Caddy internal :80, host port comes from deploy/.env)
@@ -218,7 +218,7 @@ def main() -> int:
             "set -eu; "
             f"rm -rf {bootstrap_dir}; mkdir -p {bootstrap_dir}; "
             f"tar -xzf {remote_bundle} -C {bootstrap_dir}; "
-            f"rel=$(ls -d {bootstrap_dir}/agomsaaf-vps-bundle-* | head -n 1); "
+            f"rel=$(ls -d {bootstrap_dir}/agomtradepro-vps-bundle-* | head -n 1); "
             "cd \"$rel\"; "
             # Windows-produced bundles may contain CRLF scripts which break /bin/sh parsing on Linux.
             "if command -v sed >/dev/null 2>&1; then "

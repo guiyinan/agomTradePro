@@ -1,9 +1,9 @@
-# AgomSAAF AI-Native Vendor Baseline Contract
+# AgomTradePro AI-Native Vendor Baseline Contract
 
 > **Version**: 1.1
 > **Status**: FROZEN
 > **Last Updated**: 2026-03-16
-> **Owner**: AgomSAAF Project Team
+> **Owner**: AgomTradePro Project Team
 
 ## 1. Purpose
 
@@ -58,9 +58,9 @@ The vendor must NOT implement:
 | `apps/policy/` | Existing | Policy data and logic (source of truth) |
 | `apps/signal/` | Existing | Signal data and logic (source of truth) |
 | `apps/account/` | Existing | Portfolio data and logic (source of truth) |
-| `sdk/agomsaaf/modules/agent_runtime.py` | SDK Team | Task/proposal SDK methods |
-| `sdk/agomsaaf/modules/agent_context.py` | SDK Team | Context SDK methods |
-| `sdk/agomsaaf_mcp/tools/agent_task_tools.py` | MCP Team | Task-oriented MCP tools |
+| `sdk/agomtradepro/modules/agent_runtime.py` | SDK Team | Task/proposal SDK methods |
+| `sdk/agomtradepro/modules/agent_context.py` | SDK Team | Context SDK methods |
+| `sdk/agomtradepro_mcp/tools/agent_task_tools.py` | MCP Team | Task-oriented MCP tools |
 
 ### 3.1 Dependency Direction
 
@@ -172,17 +172,17 @@ All routes use canonical `/api/` prefix:
 ### 4.6 MCP Resources (DO NOT CHANGE)
 
 **Context Resources:**
-- `agomsaaf://context/research/current`
-- `agomsaaf://context/monitoring/current`
-- `agomsaaf://context/decision/current`
-- `agomsaaf://context/execution/current`
-- `agomsaaf://context/ops/current`
+- `agomtradepro://context/research/current`
+- `agomtradepro://context/monitoring/current`
+- `agomtradepro://context/decision/current`
+- `agomtradepro://context/execution/current`
+- `agomtradepro://context/ops/current`
 
 **Task Resources:**
-- `agomsaaf://task/{task_id}/timeline`
+- `agomtradepro://task/{task_id}/timeline`
 
 **Proposal Resources:**
-- `agomsaaf://proposal/{proposal_id}/summary`
+- `agomtradepro://proposal/{proposal_id}/summary`
 
 ---
 

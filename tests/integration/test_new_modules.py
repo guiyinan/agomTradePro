@@ -1,5 +1,5 @@
 """
-Comprehensive Integration Test for AgomSAAF Extensions
+Comprehensive Integration Test for AgomTradePro Extensions
 
 Tests the new modules: Factor, Rotation, Hedge, and Unified Signal System
 This is a full-stack test from SDK → Backend API → Database
@@ -237,7 +237,7 @@ def test_sdk_modules() -> dict:
     print_test("SDK Module Imports")
 
     try:
-        from sdk.agomsaaf.modules import FactorModule, RotationModule, HedgeModule
+        from sdk.agomtradepro.modules import FactorModule, RotationModule, HedgeModule
         print_success("All new SDK modules imported")
 
         return {'status': 'pass'}
@@ -251,7 +251,7 @@ def test_mcp_tools() -> dict:
     print_test("MCP Tools (Optional)")
 
     try:
-        from sdk.agomsaaf_mcp.tools import (
+        from sdk.agomtradepro_mcp.tools import (
             factor_tools,
             rotation_tools,
             hedge_tools,
@@ -285,7 +285,7 @@ def test_mcp_tools() -> dict:
 
 def main():
     """Run all integration tests"""
-    print_section("AgomSAAF Extension Integration Tests")
+    print_section("AgomTradePro Extension Integration Tests")
     print_info("Testing: Factor + Rotation + Hedge + Unified Signal System")
 
     results = {}

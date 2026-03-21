@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# AgomSAAF VPS one-click deploy wrapper.
+# AgomTradePro VPS one-click deploy wrapper.
 # Usage: ./scripts/deploy-one-click.sh [bundle-file.tar.gz]
 #
 # This script intentionally delegates to `scripts/deploy-on-vps.sh` to avoid drift.
@@ -17,15 +17,15 @@ log_error() { printf "${RED}[ERROR]${NC} %s\n" "$*" >&2; }
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
-BUNDLE="${1:-$(ls -t agomsaaf-vps-bundle-*.tar.gz 2>/dev/null | head -n 1 || true)}"
+BUNDLE="${1:-$(ls -t agomtradepro-vps-bundle-*.tar.gz 2>/dev/null | head -n 1 || true)}"
 if [ -z "$BUNDLE" ] || [ ! -f "$BUNDLE" ]; then
-  log_error "Bundle tar.gz not found. Pass it as the first argument, or put agomsaaf-vps-bundle-*.tar.gz in current dir."
+  log_error "Bundle tar.gz not found. Pass it as the first argument, or put agomtradepro-vps-bundle-*.tar.gz in current dir."
   exit 1
 fi
 
 log_info "Deploying bundle: $BUNDLE"
 
-TARGET_DIR="/opt/agomsaaf"
+TARGET_DIR="/opt/agomtradepro"
 sh "$SCRIPT_DIR/deploy-on-vps.sh" --bundle "$BUNDLE" --target-dir "$TARGET_DIR" --action fresh
 
 ENV_FILE="$TARGET_DIR/current/deploy/.env"

@@ -1,14 +1,14 @@
 """
-AgomSAAF SDK - Equity and Fund Analysis Example
+AgomTradePro SDK - Equity and Fund Analysis Example
 
-This file demonstrates stock and fund analysis using the AgomSAAF SDK.
+This file demonstrates stock and fund analysis using the AgomTradePro SDK.
 """
 
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 from datetime import date
 
 # Initialize client
-client = AgomSAAFClient(
+client = AgomTradeProClient(
     base_url="http://localhost:8000",
     api_token="your_token_here"
 )

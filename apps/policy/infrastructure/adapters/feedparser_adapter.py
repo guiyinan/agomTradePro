@@ -85,7 +85,7 @@ class FeedparserAdapter(BaseRSSAdapter):
                     response = requests.get(
                         source_config.url,
                         proxies=proxy_dict,
-                        headers={'User-Agent': 'AgomSAAF-RSS-Bot/1.0'},
+                        headers={'User-Agent': 'AgomTradePro-RSS-Bot/1.0'},
                         timeout=30
                     )
                     response.raise_for_status()
@@ -99,7 +99,7 @@ class FeedparserAdapter(BaseRSSAdapter):
                 feed = feedparser.parse(
                     source_config.url,
                     request_headers={
-                        'User-Agent': 'AgomSAAF-RSS-Bot/1.0'
+                        'User-Agent': 'AgomTradePro-RSS-Bot/1.0'
                     }
                 )
 

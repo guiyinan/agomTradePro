@@ -1,6 +1,6 @@
 import pytest
 
-from agomsaaf_mcp import rbac
+from agomtradepro_mcp import rbac
 
 
 @pytest.mark.parametrize(
@@ -31,8 +31,8 @@ from agomsaaf_mcp import rbac
 def test_role_tool_matrix_enforcement(
     monkeypatch: pytest.MonkeyPatch, role: str, tool_name: str, expected_allowed: bool
 ) -> None:
-    monkeypatch.setenv("AGOMSAAF_MCP_ENFORCE_RBAC", "true")
-    monkeypatch.setenv("AGOMSAAF_MCP_ROLE", role)
+    monkeypatch.setenv("AGOMTRADEPRO_MCP_ENFORCE_RBAC", "true")
+    monkeypatch.setenv("AGOMTRADEPRO_MCP_ROLE", role)
 
     if expected_allowed:
         rbac.enforce_tool_access(tool_name)
@@ -45,17 +45,17 @@ def test_role_tool_matrix_enforcement(
 @pytest.mark.parametrize(
     ("role", "resource_uri", "expected_allowed"),
     [
-        ("admin", "agomsaaf://account/summary", True),
-        ("owner", "agomsaaf://account/summary", True),
-        ("analyst", "agomsaaf://account/summary", False),
-        ("read_only", "agomsaaf://regime/current", True),
+        ("admin", "agomtradepro://account/summary", True),
+        ("owner", "agomtradepro://account/summary", True),
+        ("analyst", "agomtradepro://account/summary", False),
+        ("read_only", "agomtradepro://regime/current", True),
     ],
 )
 def test_role_resource_access(
     monkeypatch: pytest.MonkeyPatch, role: str, resource_uri: str, expected_allowed: bool
 ) -> None:
-    monkeypatch.setenv("AGOMSAAF_MCP_ENFORCE_RBAC", "true")
-    monkeypatch.setenv("AGOMSAAF_MCP_ROLE", role)
+    monkeypatch.setenv("AGOMTRADEPRO_MCP_ENFORCE_RBAC", "true")
+    monkeypatch.setenv("AGOMTRADEPRO_MCP_ROLE", role)
 
     if expected_allowed:
         rbac.enforce_resource_access(resource_uri)
@@ -76,8 +76,8 @@ def test_role_resource_access(
 def test_role_prompt_access(
     monkeypatch: pytest.MonkeyPatch, role: str, prompt_name: str, expected_allowed: bool
 ) -> None:
-    monkeypatch.setenv("AGOMSAAF_MCP_ENFORCE_RBAC", "true")
-    monkeypatch.setenv("AGOMSAAF_MCP_ROLE", role)
+    monkeypatch.setenv("AGOMTRADEPRO_MCP_ENFORCE_RBAC", "true")
+    monkeypatch.setenv("AGOMTRADEPRO_MCP_ROLE", role)
 
     if expected_allowed:
         rbac.enforce_prompt_access(prompt_name)
@@ -88,9 +88,9 @@ def test_role_prompt_access(
 
 
 def test_rbac_allow_list_overrides_role(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("AGOMSAAF_MCP_ENFORCE_RBAC", "true")
-    monkeypatch.setenv("AGOMSAAF_MCP_ROLE", "admin")
-    monkeypatch.setenv("AGOMSAAF_MCP_ALLOWED_TOOLS", "get_positions_detailed")
+    monkeypatch.setenv("AGOMTRADEPRO_MCP_ENFORCE_RBAC", "true")
+    monkeypatch.setenv("AGOMTRADEPRO_MCP_ROLE", "admin")
+    monkeypatch.setenv("AGOMTRADEPRO_MCP_ALLOWED_TOOLS", "get_positions_detailed")
 
     rbac.enforce_tool_access("get_positions_detailed")
     with pytest.raises(PermissionError):
@@ -98,16 +98,16 @@ def test_rbac_allow_list_overrides_role(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 def test_role_resolves_from_backend_when_env_not_set(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("AGOMSAAF_MCP_ROLE", raising=False)
-    monkeypatch.setenv("AGOMSAAF_MCP_ROLE_SOURCE", "backend")
+    monkeypatch.delenv("AGOMTRADEPRO_MCP_ROLE", raising=False)
+    monkeypatch.setenv("AGOMTRADEPRO_MCP_ROLE_SOURCE", "backend")
     monkeypatch.setattr(rbac, "_get_role_from_backend", lambda: "trader")
 
     assert rbac._role() == "trader"
 
 
 def test_env_role_overrides_backend_role(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("AGOMSAAF_MCP_ROLE", "read_only")
-    monkeypatch.setenv("AGOMSAAF_MCP_ROLE_SOURCE", "backend")
+    monkeypatch.setenv("AGOMTRADEPRO_MCP_ROLE", "read_only")
+    monkeypatch.setenv("AGOMTRADEPRO_MCP_ROLE_SOURCE", "backend")
     monkeypatch.setattr(rbac, "_get_role_from_backend", lambda: "admin")
 
     assert rbac._role() == "read_only"

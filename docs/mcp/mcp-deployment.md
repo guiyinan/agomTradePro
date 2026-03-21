@@ -1,6 +1,6 @@
-# AgomSAAF MCP Server 部署指南
+# AgomTradePro MCP Server 部署指南
 
-本文档说明如何部署和配置 AgomSAAF MCP (Model Context Protocol) Server，以便与 Claude Desktop 或其他 MCP 客户端集成。
+本文档说明如何部署和配置 AgomTradePro MCP (Model Context Protocol) Server，以便与 Claude Desktop 或其他 MCP 客户端集成。
 
 ## 目录
 
@@ -16,8 +16,8 @@
 ## 环境要求
 
 - Python 3.11+
-- AgomSAAF API 服务运行中
-- API Token（从 AgomSAAF 管理后台获取）
+- AgomTradePro API 服务运行中
+- API Token（从 AgomTradePro 管理后台获取）
 
 ### 依赖安装
 
@@ -41,18 +41,18 @@ pip install mcp
 #### Linux/macOS (bash)
 
 ```bash
-export AGOMSAAF_API_BASE_URL="http://127.0.0.1:8000"
-export AGOMSAAF_API_TOKEN="your-api-token"
-export AGOMSAAF_MCP_ROLE="admin"  # 可选: viewer, analyst, admin
-export AGOMSAAF_DEFAULT_PORTFOLIO_ID="1"  # 可选
+export AGOMTRADEPRO_API_BASE_URL="http://127.0.0.1:8000"
+export AGOMTRADEPRO_API_TOKEN="your-api-token"
+export AGOMTRADEPRO_MCP_ROLE="admin"  # 可选: viewer, analyst, admin
+export AGOMTRADEPRO_DEFAULT_PORTFOLIO_ID="1"  # 可选
 ```
 
 #### Windows PowerShell
 
 ```powershell
-$env:AGOMSAAF_API_BASE_URL="http://127.0.0.1:8000"
-$env:AGOMSAAF_API_TOKEN="your-api-token"
-$env:AGOMSAAF_MCP_ROLE="admin"
+$env:AGOMTRADEPRO_API_BASE_URL="http://127.0.0.1:8000"
+$env:AGOMTRADEPRO_API_TOKEN="your-api-token"
+$env:AGOMTRADEPRO_MCP_ROLE="admin"
 ```
 
 ### 2. 启动 MCP Server
@@ -60,10 +60,10 @@ $env:AGOMSAAF_MCP_ROLE="admin"
 ```bash
 # 方式一：使用模块入口
 cd sdk
-python -m agomsaaf_mcp
+python -m agomtradepro_mcp
 
 # 方式二：直接运行
-python sdk/agomsaaf_mcp/__main__.py
+python sdk/agomtradepro_mcp/__main__.py
 ```
 
 ### 3. 测试工具列表
@@ -71,7 +71,7 @@ python sdk/agomsaaf_mcp/__main__.py
 使用 MCP Inspector 测试：
 
 ```bash
-npx @modelcontextprotocol/inspector python -m agomsaaf_mcp
+npx @modelcontextprotocol/inspector python -m agomtradepro_mcp
 ```
 
 然后在浏览器打开 `http://localhost:5173` 查看可用工具和资源。
@@ -95,15 +95,15 @@ npx @modelcontextprotocol/inspector python -m agomsaaf_mcp
 ```json
 {
   "mcpServers": {
-    "agomsaaf": {
+    "agomtradepro": {
       "command": "python",
-      "args": ["-m", "agomsaaf_mcp"],
-      "cwd": "/absolute/path/to/agomSAAF/sdk",
+      "args": ["-m", "agomtradepro_mcp"],
+      "cwd": "/absolute/path/to/agomTradePro/sdk",
       "env": {
-        "AGOMSAAF_API_BASE_URL": "http://127.0.0.1:8000",
-        "AGOMSAAF_API_TOKEN": "your-actual-token",
-        "AGOMSAAF_MCP_ROLE": "viewer",
-        "PYTHONPATH": "/absolute/path/to/agomSAAF/sdk"
+        "AGOMTRADEPRO_API_BASE_URL": "http://127.0.0.1:8000",
+        "AGOMTRADEPRO_API_TOKEN": "your-actual-token",
+        "AGOMTRADEPRO_MCP_ROLE": "viewer",
+        "PYTHONPATH": "/absolute/path/to/agomTradePro/sdk"
       }
     }
   }
@@ -116,7 +116,7 @@ npx @modelcontextprotocol/inspector python -m agomsaaf_mcp
 
 ### 5. 验证连接
 
-在 Claude Desktop 中，你应该能看到 AgomSAAF 的工具图标。尝试提问：
+在 Claude Desktop 中，你应该能看到 AgomTradePro 的工具图标。尝试提问：
 
 ```
 请获取当前宏观环境状态
@@ -133,14 +133,14 @@ npx @modelcontextprotocol/inspector python -m agomsaaf_mcp
 ```json
 {
   "servers": {
-    "agomsaaf": {
+    "agomtradepro": {
       "command": "python",
-      "args": ["-m", "agomsaaf_mcp"],
+      "args": ["-m", "agomtradepro_mcp"],
       "cwd": "${workspaceFolder}/sdk",
       "env": {
-        "AGOMSAAF_API_BASE_URL": "http://127.0.0.1:8000",
-        "AGOMSAAF_API_TOKEN": "${AGOMSAAF_API_TOKEN}",
-        "AGOMSAAF_MCP_ROLE": "analyst"
+        "AGOMTRADEPRO_API_BASE_URL": "http://127.0.0.1:8000",
+        "AGOMTRADEPRO_API_TOKEN": "${AGOMTRADEPRO_API_TOKEN}",
+        "AGOMTRADEPRO_MCP_ROLE": "analyst"
       }
     }
   }
@@ -153,9 +153,9 @@ npx @modelcontextprotocol/inspector python -m agomsaaf_mcp
 
 ```python
 # 直接使用 Python SDK
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 
-client = AgomSAAFClient(
+client = AgomTradeProClient(
     base_url="http://127.0.0.1:8000",
     api_token="your-token"
 )
@@ -169,7 +169,7 @@ print(f"当前宏观象限: {regime.dominant_regime}")
 
 ## RBAC 权限配置
 
-MCP Server 支持基于角色的访问控制 (RBAC)。通过 `AGOMSAAF_MCP_ROLE` 环境变量设置。
+MCP Server 支持基于角色的访问控制 (RBAC)。通过 `AGOMTRADEPRO_MCP_ROLE` 环境变量设置。
 
 ### 可用角色
 
@@ -191,7 +191,7 @@ MCP Server 支持基于角色的访问控制 (RBAC)。通过 `AGOMSAAF_MCP_ROLE`
 
 ### 自定义 RBAC 配置
 
-编辑 `sdk/agomsaaf_mcp/rbac.py` 来自定义权限规则：
+编辑 `sdk/agomtradepro_mcp/rbac.py` 来自定义权限规则：
 
 ```python
 # 示例：添加自定义角色
@@ -218,8 +218,8 @@ Connection refused: [Errno 111] Connection refused
 ```
 
 **解决方案**：
-1. 确认 AgomSAAF API 服务正在运行
-2. 检查 `AGOMSAAF_API_BASE_URL` 是否正确
+1. 确认 AgomTradePro API 服务正在运行
+2. 检查 `AGOMTRADEPRO_API_BASE_URL` 是否正确
 3. 验证端口是否被占用
 
 ```bash
@@ -258,7 +258,7 @@ python manage.py drf_create_token <username>
 
 **症状**：
 ```
-ModuleNotFoundError: No module named 'agomsaaf_mcp'
+ModuleNotFoundError: No module named 'agomtradepro_mcp'
 ```
 
 **解决方案**：
@@ -269,7 +269,7 @@ ModuleNotFoundError: No module named 'agomsaaf_mcp'
 ```json
 {
   "env": {
-    "PYTHONPATH": "/absolute/path/to/agomSAAF/sdk"
+    "PYTHONPATH": "/absolute/path/to/agomTradePro/sdk"
   }
 }
 ```
@@ -282,7 +282,7 @@ Permission denied for tool: run_backtest
 ```
 
 **解决方案**：
-1. 检查 `AGOMSAAF_MCP_ROLE` 设置
+1. 检查 `AGOMTRADEPRO_MCP_ROLE` 设置
 2. 确认角色有对应工具的权限
 3. 联系管理员升级权限
 
@@ -317,7 +317,7 @@ The system cannot find the path specified
 
 ```json
 {
-  "cwd": "C:/Users/YourName/projects/agomSAAF/sdk"
+  "cwd": "C:/Users/YourName/projects/agomTradePro/sdk"
 }
 ```
 
@@ -330,20 +330,20 @@ The system cannot find the path specified
 #### Linux/macOS (bash)
 
 ```bash
-export AGOMSAAF_MCP_LOG_LEVEL=DEBUG
-python -m agomsaaf_mcp
+export AGOMTRADEPRO_MCP_LOG_LEVEL=DEBUG
+python -m agomtradepro_mcp
 ```
 
 #### Windows PowerShell
 
 ```powershell
-$env:AGOMSAAF_MCP_LOG_LEVEL="DEBUG"
-python -m agomsaaf_mcp
+$env:AGOMTRADEPRO_MCP_LOG_LEVEL="DEBUG"
+python -m agomtradepro_mcp
 ```
 
 日志输出位置：
 - 标准错误流 (stderr)
-- 或设置 `AGOMSAAF_MCP_LOG_FILE` 指定日志文件
+- 或设置 `AGOMTRADEPRO_MCP_LOG_FILE` 指定日志文件
 
 ---
 
@@ -353,13 +353,13 @@ python -m agomsaaf_mcp
 
 | 变量名 | 必需 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `AGOMSAAF_API_BASE_URL` | 是 | `http://127.0.0.1:8000` | API 服务地址 |
-| `AGOMSAAF_API_TOKEN` | 是 | - | 认证 Token |
-| `AGOMSAAF_MCP_ROLE` | 否 | `viewer` | RBAC 角色 |
-| `AGOMSAAF_DEFAULT_PORTFOLIO_ID` | 否 | - | 默认组合 ID |
-| `AGOMSAAF_RHIZOME_PATH` | 否 | - | 知识库路径 |
-| `AGOMSAAF_MCP_LOG_LEVEL` | 否 | `INFO` | 日志级别 |
-| `AGOMSAAF_MCP_LOG_FILE` | 否 | - | 日志文件路径 |
+| `AGOMTRADEPRO_API_BASE_URL` | 是 | `http://127.0.0.1:8000` | API 服务地址 |
+| `AGOMTRADEPRO_API_TOKEN` | 是 | - | 认证 Token |
+| `AGOMTRADEPRO_MCP_ROLE` | 否 | `viewer` | RBAC 角色 |
+| `AGOMTRADEPRO_DEFAULT_PORTFOLIO_ID` | 否 | - | 默认组合 ID |
+| `AGOMTRADEPRO_RHIZOME_PATH` | 否 | - | 知识库路径 |
+| `AGOMTRADEPRO_MCP_LOG_LEVEL` | 否 | `INFO` | 日志级别 |
+| `AGOMTRADEPRO_MCP_LOG_FILE` | 否 | - | 日志文件路径 |
 
 ### 可用工具列表
 
@@ -368,12 +368,12 @@ python -m agomsaaf_mcp
 - `run_backtest` - 运行回测
 - `check_signal_eligibility` - 检查信号准入
 - `get_portfolio_summary` - 获取组合摘要
-- ... 更多工具请参考 `sdk/agomsaaf_mcp/tools/`
+- ... 更多工具请参考 `sdk/agomtradepro_mcp/tools/`
 
 ### 可用资源列表
 
-- `agomsaaf://regime/current` - 当前宏观状态
-- `agomsaaf://policy/status` - 政策状态
-- `agomsaaf://account/summary` - 账户摘要
-- `agomsaaf://account/positions` - 持仓快照
-- `agomsaaf://account/recent-transactions` - 最近交易
+- `agomtradepro://regime/current` - 当前宏观状态
+- `agomtradepro://policy/status` - 政策状态
+- `agomtradepro://account/summary` - 账户摘要
+- `agomtradepro://account/positions` - 持仓快照
+- `agomtradepro://account/recent-transactions` - 最近交易

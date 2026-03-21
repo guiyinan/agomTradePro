@@ -79,23 +79,32 @@ class CacheAlphaProvider(BaseAlphaProvider):
         """
         健康检查
 
-        检查数据库连接和缓存表是否存在。
+        检查缓存表是否存在且最新缓存是否仍在有效期内。
 
         Returns:
             Provider 状态
         """
         try:
             cache_model = _get_cache_model()
-
-            # 检查是否有缓存数据
-            has_recent_cache = cache_model.objects.filter(
-                created_at__gte=timezone.now() - timedelta(days=7)
-            ).exists()
-
-            if has_recent_cache:
-                return AlphaProviderStatus.AVAILABLE
-            else:
+            latest_cache = (
+                cache_model.objects
+                .order_by("-intended_trade_date", "-created_at")
+                .first()
+            )
+            if not latest_cache:
+                self._last_health_message = "暂无缓存数据"
                 return AlphaProviderStatus.DEGRADED
+
+            staleness_days = (timezone.localdate() - latest_cache.intended_trade_date).days
+            if staleness_days <= self.max_staleness_days:
+                self._last_health_message = None
+                return AlphaProviderStatus.AVAILABLE
+
+            self._last_health_message = (
+                f"最新缓存日期 {latest_cache.intended_trade_date.isoformat()}，"
+                f"已过期 {staleness_days} 天"
+            )
+            return AlphaProviderStatus.DEGRADED
 
         except Exception as e:
             logger.error(f"Cache health check failed: {e}")

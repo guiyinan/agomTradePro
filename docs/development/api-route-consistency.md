@@ -8,7 +8,7 @@
 
 ## 概述
 
-AgomSAAF 系统已统一 API 路由格式为 `/api/{module}/{endpoint}/`，同时保持向后兼容。
+AgomTradePro 系统已统一 API 路由格式为 `/api/{module}/{endpoint}/`，同时保持向后兼容。
 
 ---
 

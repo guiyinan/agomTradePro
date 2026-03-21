@@ -91,7 +91,7 @@ def safe_bool(value, default=False):
 
 **异常类层次**:
 ```
-AgomSAAFException (基类)
+AgomTradeProException (基类)
 ├── ValidationError
 │   ├── InvalidInputError
 │   └── MissingRequiredFieldError

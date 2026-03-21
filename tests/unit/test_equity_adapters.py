@@ -227,7 +227,7 @@ class TestTOODOCount:
         total_todos = 0
         low_priority_todos = 0
 
-        base_path = 'D:/githv/agomSAAF'
+        base_path = 'D:/githv/agomTradePro'
 
         for file_path in files_to_check:
             full_path = os.path.join(base_path, file_path)

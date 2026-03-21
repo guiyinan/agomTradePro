@@ -113,7 +113,7 @@ def setup_periodic_tasks():
 
 
 if __name__ == '__main__':
-    print("AgomSAAF Celery Beat 定时任务配置\n")
+    print("AgomTradePro Celery Beat 定时任务配置\n")
     print("=" * 50)
     setup_periodic_tasks()
     print("=" * 50)

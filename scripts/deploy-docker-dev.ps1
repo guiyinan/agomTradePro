@@ -1,4 +1,4 @@
-# AgomSAAF Docker Deployment Script for Development
+# AgomTradePro Docker Deployment Script for Development
 # Auto-detect proxy speed, configure Docker Compose, start PostgreSQL and Redis
 
 param(
@@ -28,7 +28,7 @@ $ProjectRoot = Split-Path -Parent $ScriptDir
 Set-Location $ProjectRoot
 
 Write-Info "`n=========================================="
-Write-Info " AgomSAAF Docker Deployment Script"
+Write-Info " AgomTradePro Docker Deployment Script"
 Write-Info "==========================================`n"
 
 # ============================================
@@ -79,7 +79,7 @@ if (-not $SkipEnvCheck) {
             $envContent = @"
 # Database configuration
 POSTGRES_PASSWORD=changeme
-DATABASE_URL=postgresql://agomsaaf:changeme@localhost:5432/agomsaaf
+DATABASE_URL=postgresql://agomtradepro:changeme@localhost:5432/agomtradepro
 
 # Redis configuration
 REDIS_URL=redis://localhost:6379/0
@@ -245,7 +245,7 @@ $attempt = 0
 
 while ($attempt -lt $maxAttempts) {
     try {
-        $null = docker exec agomsaaf_postgres_dev pg_isready -U agomsaaf -d agomsaaf 2>&1
+        $null = docker exec agomtradepro_postgres_dev pg_isready -U agomtradepro -d agomtradepro 2>&1
         if ($LASTEXITCODE -eq 0) {
             Write-Success "  PostgreSQL is ready"
             break
@@ -268,7 +268,7 @@ $attempt = 0
 
 while ($attempt -lt $maxAttempts) {
     try {
-        $null = docker exec agomsaaf_redis_dev redis-cli ping 2>&1
+        $null = docker exec agomtradepro_redis_dev redis-cli ping 2>&1
         if ($LASTEXITCODE -eq 0) {
             Write-Success "  Redis is ready"
             break
@@ -298,8 +298,8 @@ docker-compose -f $composeFile ps
 Write-Info "`nDatabase Connection Info:"
 Write-Info "  PostgreSQL:"
 Write-Info "    Host: localhost:5432"
-Write-Info "    Database: agomsaaf"
-Write-Info "    User: agomsaaf"
+Write-Info "    Database: agomtradepro"
+Write-Info "    User: agomtradepro"
 Write-Info "    Password: (see .env file)"
 Write-Info "`n  Redis:"
 Write-Info "    Host: localhost:6379"
@@ -318,4 +318,4 @@ Write-Info "`nCommon Commands:"
 Write-Info "  Stop services: docker-compose -f docker-compose-dev.yml down"
 Write-Info "  Restart services: docker-compose -f docker-compose-dev.yml restart"
 Write-Info "  View logs: docker-compose -f docker-compose-dev.yml logs -f postgres"
-Write-Info "  Backup database: docker exec agomsaaf_postgres_dev pg_dump -U agomsaaf agomsaaf > backup.sql"
+Write-Info "  Backup database: docker exec agomtradepro_postgres_dev pg_dump -U agomtradepro agomtradepro > backup.sql"

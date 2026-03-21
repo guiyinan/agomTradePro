@@ -1,5 +1,5 @@
 /**
- * AgomSAAF - HTMX 配置文件
+ * AgomTradePro - HTMX 配置文件
  * 提供 HTMX 的全局配置和自定义行为
  */
 

@@ -1,4 +1,4 @@
-# AgomSAAF UI/UX 设计 Token 规范 v1
+# AgomTradePro UI/UX 设计 Token 规范 v1
 
 > **版本**: v1.0
 > **创建日期**: 2026-02-18

@@ -39,8 +39,8 @@ class AIProviderRepository:
             try:
                 self._crypto = FieldEncryptionService()
             except ValueError:
-                logger.error("AGOMSAAF_ENCRYPTION_KEY not configured")
-                raise ValueError("AGOMSAAF_ENCRYPTION_KEY not configured")
+                logger.error("AGOMTRADEPRO_ENCRYPTION_KEY not configured")
+                raise ValueError("AGOMTRADEPRO_ENCRYPTION_KEY not configured")
         if self._crypto is None:
             raise ValueError("Encryption service not available")
         return self._crypto

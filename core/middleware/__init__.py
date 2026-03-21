@@ -1,5 +1,5 @@
 """
-Core middleware for AgomSAAF.
+Core middleware for AgomTradePro.
 """
 
 from core.middleware.deprecation import DeprecationHeaderMiddleware

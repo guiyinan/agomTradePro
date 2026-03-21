@@ -1,15 +1,15 @@
 {
   "mcpServers": {
-    "agomsaaf": {
+    "agomtradepro": {
       "command": "python",
-      "args": ["-m", "agomsaaf_mcp"],
-      "cwd": "/path/to/agomSAAF/sdk",
+      "args": ["-m", "agomtradepro_mcp"],
+      "cwd": "/path/to/agomTradePro/sdk",
       "env": {
-        "AGOMSAAF_BASE_URL": "http://127.0.0.1:8000",
-        "AGOMSAAF_API_TOKEN": "your-api-token-here",
-        "AGOMSAAF_MCP_ROLE": "viewer",
-        "AGOMSAAF_DEFAULT_PORTFOLIO_ID": "1",
-        "PYTHONPATH": "/path/to/agomSAAF/sdk"
+        "AGOMTRADEPRO_BASE_URL": "http://127.0.0.1:8000",
+        "AGOMTRADEPRO_API_TOKEN": "your-api-token-here",
+        "AGOMTRADEPRO_MCP_ROLE": "viewer",
+        "AGOMTRADEPRO_DEFAULT_PORTFOLIO_ID": "1",
+        "PYTHONPATH": "/path/to/agomTradePro/sdk"
       }
     }
   }

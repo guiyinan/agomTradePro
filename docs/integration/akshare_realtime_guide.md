@@ -51,14 +51,14 @@ AKShare 已包含在项目依赖中，无需额外安装。
 
 如需手动安装：
 ```bash
-agomsaaf/Scripts/pip install akshare
+agomtradepro/Scripts/pip install akshare
 ```
 
 ### 2. 启动服务
 
 ```bash
 # 激活虚拟环境
-agomsaaf\Scripts\activate
+agomtradepro\Scripts\activate
 
 # 启动 Django 服务
 python manage.py runserver

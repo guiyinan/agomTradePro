@@ -35,21 +35,21 @@ class TestFieldEncryptionService:
     def test_init_without_key_raises_error(self):
         """Test initialization without key raises ValueError."""
         # Clear environment variable
-        original = os.environ.get('AGOMSAAF_ENCRYPTION_KEY')
-        original_setting = getattr(settings, 'AGOMSAAF_ENCRYPTION_KEY', None)
-        os.environ.pop('AGOMSAAF_ENCRYPTION_KEY', None)
-        if hasattr(settings, 'AGOMSAAF_ENCRYPTION_KEY'):
-            delattr(settings, 'AGOMSAAF_ENCRYPTION_KEY')
+        original = os.environ.get('AGOMTRADEPRO_ENCRYPTION_KEY')
+        original_setting = getattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY', None)
+        os.environ.pop('AGOMTRADEPRO_ENCRYPTION_KEY', None)
+        if hasattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY'):
+            delattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY')
 
         try:
-            with pytest.raises(ValueError, match="AGOMSAAF_ENCRYPTION_KEY not configured"):
+            with pytest.raises(ValueError, match="AGOMTRADEPRO_ENCRYPTION_KEY not configured"):
                 FieldEncryptionService()
         finally:
             # Restore environment
             if original:
-                os.environ['AGOMSAAF_ENCRYPTION_KEY'] = original
+                os.environ['AGOMTRADEPRO_ENCRYPTION_KEY'] = original
             if original_setting is not None:
-                setattr(settings, 'AGOMSAAF_ENCRYPTION_KEY', original_setting)
+                setattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY', original_setting)
 
     def test_encrypt_decrypt_roundtrip(self):
         """Test encryption and decryption roundtrip."""
@@ -176,40 +176,40 @@ class TestGetEncryptionService:
     def test_returns_service_when_key_configured(self):
         """Test that service is returned when key is configured."""
         key = FieldEncryptionService.generate_key()
-        os.environ['AGOMSAAF_ENCRYPTION_KEY'] = key
+        os.environ['AGOMTRADEPRO_ENCRYPTION_KEY'] = key
 
         # Update Django settings
-        original_setting = getattr(settings, 'AGOMSAAF_ENCRYPTION_KEY', None)
-        setattr(settings, 'AGOMSAAF_ENCRYPTION_KEY', key)
+        original_setting = getattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY', None)
+        setattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY', key)
 
         try:
             service = get_encryption_service()
             assert service is not None
             assert isinstance(service, FieldEncryptionService)
         finally:
-            os.environ.pop('AGOMSAAF_ENCRYPTION_KEY', None)
+            os.environ.pop('AGOMTRADEPRO_ENCRYPTION_KEY', None)
             if original_setting is None:
-                delattr(settings, 'AGOMSAAF_ENCRYPTION_KEY')
+                delattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY')
             else:
-                setattr(settings, 'AGOMSAAF_ENCRYPTION_KEY', original_setting)
+                setattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY', original_setting)
 
     def test_returns_none_when_key_not_configured(self):
         """Test that None is returned when key is not configured."""
-        original_env = os.environ.get('AGOMSAAF_ENCRYPTION_KEY')
-        original_setting = getattr(settings, 'AGOMSAAF_ENCRYPTION_KEY', None)
+        original_env = os.environ.get('AGOMTRADEPRO_ENCRYPTION_KEY')
+        original_setting = getattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY', None)
 
-        os.environ.pop('AGOMSAAF_ENCRYPTION_KEY', None)
-        if hasattr(settings, 'AGOMSAAF_ENCRYPTION_KEY'):
-            delattr(settings, 'AGOMSAAF_ENCRYPTION_KEY')
+        os.environ.pop('AGOMTRADEPRO_ENCRYPTION_KEY', None)
+        if hasattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY'):
+            delattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY')
 
         try:
             service = get_encryption_service()
             assert service is None
         finally:
             if original_env:
-                os.environ['AGOMSAAF_ENCRYPTION_KEY'] = original_env
+                os.environ['AGOMTRADEPRO_ENCRYPTION_KEY'] = original_env
             if original_setting:
-                setattr(settings, 'AGOMSAAF_ENCRYPTION_KEY', original_setting)
+                setattr(settings, 'AGOMTRADEPRO_ENCRYPTION_KEY', original_setting)
 
 
 class TestFieldEncryptionServiceMask:

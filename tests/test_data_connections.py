@@ -1,5 +1,5 @@
 """
-AgomSAAF 综合数据连接测试脚本
+AgomTradePro 综合数据连接测试脚本
 
 从用户角度测试各个模块的数据连接和数据更新功能。
 """
@@ -442,7 +442,7 @@ class DataConnectionTester:
     def run_all_tests(self):
         """运行所有测试"""
         print("\n" + "="*60)
-        print("🚀 AgomSAAF 数据连接综合测试")
+        print("🚀 AgomTradePro 数据连接综合测试")
         print("="*60)
         print(f"测试时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 

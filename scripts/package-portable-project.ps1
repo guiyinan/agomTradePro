@@ -106,9 +106,9 @@ This package is intended for quickly moving the project to another Windows machi
 Suggested first steps:
 1. Extract this archive.
 2. Create a virtual environment:
-   `python -m venv agomsaaf`
+   `python -m venv agomtradepro`
 3. Activate it:
-   PowerShell: `agomsaaf/Scripts/Activate.ps1`
+   PowerShell: `agomtradepro/Scripts/Activate.ps1`
 4. Install dependencies:
    `pip install -r requirements.txt`
 5. Copy environment template if needed:
@@ -136,7 +136,7 @@ if (-not $OutputDir) {
 if (-not $script:HasExplicitParams) {
     Write-Host ""
     Write-Host "========================================" -ForegroundColor Cyan
-    Write-Host " AgomSAAF Portable Project Packager" -ForegroundColor Cyan
+    Write-Host " AgomTradePro Portable Project Packager" -ForegroundColor Cyan
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host ""
 
@@ -169,7 +169,7 @@ $extension = if ($resolvedFormat -eq '7z') { '7z' } else { 'zip' }
 $archiveName = "$projectName-$timestamp.$extension"
 $archivePath = Join-Path $OutputDir $archiveName
 
-$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agomsaaf-portable-" + [System.Guid]::NewGuid().ToString('N'))
+$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("agomtradepro-portable-" + [System.Guid]::NewGuid().ToString('N'))
 $stageRoot = Join-Path $tempRoot $projectName
 
 $excludeDirNames = @(
@@ -184,7 +184,7 @@ $excludeDirNames = @(
     '.venv',
     '.vscode',
     '__pycache__',
-    'agomsaaf',
+    'agomtradepro',
     'backups',
     'build',
     'dist',

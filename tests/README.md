@@ -1,4 +1,4 @@
-# AgomSAAF SDK & MCP Testing Guide
+# AgomTradePro SDK & MCP Testing Guide
 
 ## Quick Start
 
@@ -7,7 +7,7 @@
 1. **Virtual Environment** (already exists)
    ```powershell
    # Verify it exists
-   Test-Path agomsaaf\Scripts\python.exe
+   Test-Path agomtradepro\Scripts\python.exe
    ```
 
 2. **Dependencies Installed**
@@ -69,13 +69,13 @@ Note:
 # In another terminal:
 python tests/integration/test_complete_investment_flow.py
 python tests/integration/test_backtesting_flow.py
-set AGOMSAAF_RUN_LIVE_REALTIME_TESTS=1
+set AGOMTRADEPRO_RUN_LIVE_REALTIME_TESTS=1
 python tests/integration/test_realtime_monitoring_flow.py
 ```
 
 Note:
 - `test_realtime_monitoring_flow.py` depends on a live local server and real-time market data.
-- It is skipped by default unless `AGOMSAAF_RUN_LIVE_REALTIME_TESTS=1` is set.
+- It is skipped by default unless `AGOMTRADEPRO_RUN_LIVE_REALTIME_TESTS=1` is set.
 
 ---
 
@@ -174,9 +174,9 @@ Invoke-WebRequest -Uri "http://localhost:8000/api/" -UseBasicParsing
 ### Virtual Environment Issues
 ```powershell
 # Recreate virtual environment
-Remove-Item -Recurse -Force agomsaaf
-python -m venv agomsaaf
-agomsaaf\Scripts\Activate.ps1
+Remove-Item -Recurse -Force agomtradepro
+python -m venv agomtradepro
+agomtradepro\Scripts\Activate.ps1
 pip install -r requirements.txt
 cd sdk
 pip install -e .

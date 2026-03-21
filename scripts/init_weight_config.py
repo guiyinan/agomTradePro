@@ -2,7 +2,7 @@
 初始化权重配置数据
 
 运行：
-    agomsaaf/Scripts/python manage.py shell < scripts/init_weight_config.py
+    agomtradepro/Scripts/python manage.py shell < scripts/init_weight_config.py
 """
 
 from apps.asset_analysis.infrastructure.models import WeightConfigModel

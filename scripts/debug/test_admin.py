@@ -16,7 +16,7 @@ def test_admin():
 
     with sync_playwright() as p:
         print("=" * 60)
-        print("AgomSAAF Admin Panel Test")
+        print("AgomTradePro Admin Panel Test")
         print("=" * 60)
 
         browser = p.chromium.launch(headless=True)

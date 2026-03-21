@@ -1,5 +1,5 @@
 groups:
-  - name: agomsaaf_alerts
+  - name: agomtradepro_alerts
     rules:
       # 5xx 激增告警
       - alert: High5xxRate

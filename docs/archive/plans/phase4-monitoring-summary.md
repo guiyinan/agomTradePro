@@ -2,7 +2,7 @@
 
 > **完成日期**: 2026-02-05
 > **状态**: ✅ 完成
-> **实施内容**: AgomSAAF + Qlib 松耦合集成方案 - Phase 4
+> **实施内容**: AgomTradePro + Qlib 松耦合集成方案 - Phase 4
 
 ## 一、实施概览
 
@@ -257,7 +257,7 @@ alpha_provider_latency_ms_count{provider="qlib"} 300
 ```yaml
 # prometheus.yml
 scrape_configs:
-  - job_name: 'agomsaaf_alpha'
+  - job_name: 'agomtradepro_alpha'
     scrape_interval: 1m
     static_configs:
       - targets: ['localhost:8000']

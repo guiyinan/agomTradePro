@@ -11,7 +11,7 @@
 - Celery worker / beat 可正常运行
 - 生产环境准备接入 `AKShare` 主源与 `Tushare` 备源
 
-这份文档是操作指南，不替代实施计划。设计和约束以 [valuation-repair-tracking-plan.md](/D:/githv/agomSAAF/docs/plans/valuation-repair-tracking-plan.md) 为准。
+这份文档是操作指南，不替代实施计划。设计和约束以 [valuation-repair-tracking-plan.md](/D:/githv/agomTradePro/docs/plans/valuation-repair-tracking-plan.md) 为准。
 
 ## 联调目标
 
@@ -216,9 +216,9 @@ LIMIT 20;
 SDK 示例：
 
 ```python
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 
-client = AgomSAAFClient(base_url="http://127.0.0.1:8000/api")
+client = AgomTradeProClient(base_url="http://127.0.0.1:8000/api")
 
 print(client.equity.get_valuation_data_quality_latest())
 print(client.equity.get_valuation_data_freshness())

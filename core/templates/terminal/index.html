@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgomSAAF Terminal - AI CLI</title>
+    <title>AgomTradePro Terminal - AI CLI</title>
     <link rel="stylesheet" href="{% static 'css/terminal.css' %}">
     <style>
         /* 独立页面样式 - 移除导航栏 */
@@ -35,7 +35,7 @@
             </div>
             <div class="terminal-title">
                 <span class="terminal-icon">⬡</span>
-                AgomSAAF Terminal — AI Intelligent Platform CLI
+                AgomTradePro Terminal — AI Intelligent Platform CLI
             </div>
             <div class="terminal-info">
                 <span id="terminal-provider" class="terminal-badge">system</span>
@@ -60,7 +60,7 @@
                 </div>
                 <div class="terminal-system-info">
                     <p><span class="terminal-prompt">$</span> <span class="terminal-cmd">system --info</span></p>
-                    <p class="terminal-result">AgomSAAF Terminal v2.0.0</p>
+                    <p class="terminal-result">AgomTradePro Terminal v2.0.0</p>
                     <p class="terminal-result">Type <span class="terminal-cmd">help</span> for available commands</p>
                     <p class="terminal-result">Type <span class="terminal-cmd">chat &lt;message&gt;</span> to talk with AI</p>
                     <p class="terminal-result">Press <span class="terminal-key">Tab</span> for auto-completion</p>
@@ -73,7 +73,7 @@
 
             <!-- 输入区域 -->
             <div class="terminal-input-line">
-                <span class="terminal-prompt" id="terminal-prompt">{{ request.user.username|default:"guest" }}@agomSAAF:~$</span>
+                <span class="terminal-prompt" id="terminal-prompt">{{ request.user.username|default:"guest" }}@agomTradePro:~$</span>
                 <div class="terminal-input-wrap">
                     <textarea id="terminal-input"
                               class="terminal-input"

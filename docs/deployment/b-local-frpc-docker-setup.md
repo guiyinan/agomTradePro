@@ -1,8 +1,8 @@
-# B 机部署指南：Windows + WSL2 + Docker 上配置 FRPC + AgomSAAF
+# B 机部署指南：Windows + WSL2 + Docker 上配置 FRPC + AgomTradePro
 
 ## 1. 目标
 
-B 机是真正运行 AgomSAAF 的机器。
+B 机是真正运行 AgomTradePro 的机器。
 
 职责：
 
@@ -35,7 +35,7 @@ WSL2 侧建议安装：
 推荐路径：
 
 ```text
-/home/<user>/agomSAAF
+/home/<user>/agomTradePro
 ```
 
 原因：
@@ -46,7 +46,7 @@ WSL2 侧建议安装：
 
 ## 4. Docker 端口建议
 
-目标是把 AgomSAAF 映射到 B 本机回环地址，不直接暴露到局域网或公网。
+目标是把 AgomTradePro 映射到 B 本机回环地址，不直接暴露到局域网或公网。
 
 推荐：
 
@@ -87,14 +87,14 @@ services:
 你需要确认：
 
 - `ALLOWED_HOSTS` 包含 A 的域名
-- `CSRF_TRUSTED_ORIGINS` 包含 `https://agomsaaf.example.com`
+- `CSRF_TRUSTED_ORIGINS` 包含 `https://agomtradepro.example.com`
 - 正确处理 `X-Forwarded-Proto`
 
 典型目标：
 
 ```text
-ALLOWED_HOSTS=agomsaaf.example.com,127.0.0.1,localhost
-CSRF_TRUSTED_ORIGINS=https://agomsaaf.example.com
+ALLOWED_HOSTS=agomtradepro.example.com,127.0.0.1,localhost
+CSRF_TRUSTED_ORIGINS=https://agomtradepro.example.com
 ```
 
 ## 7. FRPC 配置样例
@@ -109,11 +109,11 @@ auth.method = "token"
 auth.token = "CHANGE_ME_STRONG_RANDOM_TOKEN"
 
 [[proxies]]
-name = "agomsaaf-web"
+name = "agomtradepro-web"
 type = "http"
 localIP = "127.0.0.1"
 localPort = 18000
-customDomains = ["agomsaaf.example.com"]
+customDomains = ["agomtradepro.example.com"]
 ```
 
 说明：
@@ -165,7 +165,7 @@ sudo systemctl status frpc
 1. 启动 Windows
 2. 启动 Docker Desktop
 3. 进入 WSL2
-4. 启动 AgomSAAF 容器
+4. 启动 AgomTradePro 容器
 5. 确认 `http://127.0.0.1:18000/api/health/` 正常
 6. 启动 `frpc`
 

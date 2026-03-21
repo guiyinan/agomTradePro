@@ -1,4 +1,4 @@
-# AgomSAAF Docker Compose 配置
+# AgomTradePro Docker Compose 配置
 # 默认使用本地 SQLite + Redis，便于单机开发/打包复用同一份数据。
 
 version: '3.8'
@@ -6,7 +6,7 @@ version: '3.8'
 services:
   redis:
     image: redis:7-alpine
-    container_name: agomsaaf_redis
+    container_name: agomtradepro_redis
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -23,7 +23,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: agomsaaf_web
+    container_name: agomtradepro_web
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -51,7 +51,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: agomsaaf_celery_worker
+    container_name: agomtradepro_celery_worker
     restart: unless-stopped
     command: celery -A core worker -l info --concurrency=2
     env_file:
@@ -72,7 +72,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: agomsaaf_celery_beat
+    container_name: agomtradepro_celery_beat
     restart: unless-stopped
     command: celery -A core beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     env_file:
@@ -91,7 +91,7 @@ services:
 
   nginx:
     image: nginx:alpine
-    container_name: agomsaaf_nginx
+    container_name: agomtradepro_nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -119,4 +119,4 @@ volumes:
 
 networks:
   default:
-    name: agomsaaf_network
+    name: agomtradepro_network

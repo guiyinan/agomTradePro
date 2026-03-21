@@ -1,7 +1,7 @@
 [project]
-name = "agomsaaf"
+name = "agomtradepro"
 version = "0.1.0"
-description = "Agom Strategic Asset Allocation Framework"
+description = "AgomTradePro investment decision platform"
 requires-python = ">=3.11"
 dependencies = [
     "django>=5.0,<6.0",
@@ -38,7 +38,7 @@ qlib = [
 
 # Qlib 深度学习扩展（可选）
 qlib-dl = [
-    "agomsaaf[qlib]",
+    "agomtradepro[qlib]",
     "torch>=2.0.0",
     "pytorch-lightning>=2.0.0",
 ]
@@ -64,7 +64,7 @@ dev = [
 
 # 完整开发环境（包含 Qlib）
 all = [
-    "agomsaaf[dev,qlib]",
+    "agomtradepro[dev,qlib]",
 ]
 
 [tool.black]

@@ -61,9 +61,9 @@ if str(SDK_ROOT) not in sys.path:
     sys.path.insert(0, str(SDK_ROOT))
 
 try:
-    from agomsaaf.client import AgomSAAFClient
+    from agomtradepro.client import AgomTradeProClient
 except ImportError:
-    print("Error: agomsaaf SDK not importable from ./sdk", file=sys.stderr)
+    print("Error: agomtradepro SDK not importable from ./sdk", file=sys.stderr)
     sys.exit(1)
 
 
@@ -177,7 +177,7 @@ def upload(
     timeout: int = 60,
 ) -> dict[str, Any]:
     """通过 SDK 上传评分到 VPS"""
-    client = AgomSAAFClient(
+    client = AgomTradeProClient(
         base_url=base_url,
         api_token=token,
         timeout=timeout,

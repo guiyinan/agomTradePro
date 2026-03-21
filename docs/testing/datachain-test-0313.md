@@ -1,4 +1,4 @@
-# AgomSAAF 数据链路专项测试复核与修复说明
+# AgomTradePro 数据链路专项测试复核与修复说明
 
 复核日期: 2026-03-13
 原测试日期: 2026-03-12 至 2026-03-13
@@ -29,10 +29,10 @@
 
 修复内容:
 
-- `sdk/agomsaaf/modules/regime.py`
+- `sdk/agomtradepro/modules/regime.py`
   - 旧: `/regime/api`
   - 新: `/api/regime`
-- `sdk/agomsaaf/modules/realtime.py`
+- `sdk/agomtradepro/modules/realtime.py`
   - 旧: `/realtime/api`
   - 新: `/api/realtime`
 
@@ -128,7 +128,7 @@ python manage.py bootstrap_cold_start --with-alpha
 
 行为:
 
-- `migrate` 后，如果 `AGOMSAAF_BOOTSTRAP_ON_START=1`，自动执行:
+- `migrate` 后，如果 `AGOMTRADEPRO_BOOTSTRAP_ON_START=1`，自动执行:
 
 ```bash
 python manage.py bootstrap_cold_start --with-alpha
@@ -156,10 +156,10 @@ python manage.py bootstrap_cold_start --with-alpha
 新增变量:
 
 ```env
-AGOMSAAF_BOOTSTRAP_ON_START=1
-AGOMSAAF_BOOTSTRAP_ALPHA_ON_START=1
-AGOMSAAF_BOOTSTRAP_ALPHA_UNIVERSES=csi300
-AGOMSAAF_BOOTSTRAP_ALPHA_TOP_N=30
+AGOMTRADEPRO_BOOTSTRAP_ON_START=1
+AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START=1
+AGOMTRADEPRO_BOOTSTRAP_ALPHA_UNIVERSES=csi300
+AGOMTRADEPRO_BOOTSTRAP_ALPHA_TOP_N=30
 ```
 
 ## 冷启动问题，已明确但未自动解决

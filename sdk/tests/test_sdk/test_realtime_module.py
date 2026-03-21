@@ -2,12 +2,12 @@ from unittest.mock import patch
 
 import pytest
 
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 
 
 @pytest.fixture
 def client():
-    return AgomSAAFClient(base_url="http://test.com", api_token="test_token")
+    return AgomTradeProClient(base_url="http://test.com", api_token="test_token")
 
 
 def test_get_price_normalizes_backend_payload(client):

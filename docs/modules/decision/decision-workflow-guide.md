@@ -2,13 +2,13 @@
 
 > **版本**: 1.0
 > **更新日期**: 2026-03-01
-> **适用版本**: AgomSAAF V3.4+
+> **适用版本**: AgomTradePro V3.4+
 
 ---
 
 ## 概述
 
-决策工作流是 AgomSAAF 系统的核心执行链路，将 Alpha 候选转化为可执行的投资决策，并支持落地到模拟盘或账户持仓记录。
+决策工作流是 AgomTradePro 系统的核心执行链路，将 Alpha 候选转化为可执行的投资决策，并支持落地到模拟盘或账户持仓记录。
 
 ### 核心功能
 
@@ -222,9 +222,9 @@ CANDIDATE -> ACTIONABLE -> EXECUTED (仅通过执行 API)
 ### Python SDK
 
 ```python
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 
-client = AgomSAAFClient()
+client = AgomTradeProClient()
 
 # 1. 预检查
 precheck_result = client.decision_workflow.precheck("cand_xxx")

@@ -1,5 +1,5 @@
 """
-Alert Service for AgomSAAF.
+Alert Service for AgomTradePro.
 
 支持多种告警渠道：邮件、Slack、钉钉、企业微信等。
 """
@@ -162,7 +162,7 @@ class EmailAlertChannel(AlertChannel):
 class SlackAlertChannel(AlertChannel):
     """Slack 告警渠道"""
 
-    def __init__(self, webhook_url: str, channel: Optional[str] = None, username: str = "AgomSAAF Bot"):
+    def __init__(self, webhook_url: str, channel: Optional[str] = None, username: str = "AgomTradePro Bot"):
         self.webhook_url = webhook_url
         self.channel = channel
         self.username = username
@@ -199,7 +199,7 @@ class SlackAlertChannel(AlertChannel):
                                 "short": True
                             }
                         ],
-                        "footer": "AgomSAAF Alert System",
+                        "footer": "AgomTradePro Alert System",
                         "ts": int(message.timestamp.timestamp())
                     }
                 ]

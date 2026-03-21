@@ -19,7 +19,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$PythonExe = "agomsaaf\Scripts\python.exe"
+$PythonExe = "agomtradepro\Scripts\python.exe"
 
 # ==============================================================================
 # Helper Functions
@@ -58,7 +58,7 @@ function Write-Info {
 function Test-VirtualEnvironment {
     if (-not (Test-Path $PythonExe)) {
         Write-Error "Virtual environment not found!"
-        Write-Info "Please run: python -m venv agomsaaf"
+        Write-Info "Please run: python -m venv agomtradepro"
         return $false
     }
     Write-Success "Virtual environment found"
@@ -202,7 +202,7 @@ function Test-Pytest {
         $pytestArgs += "--no-cov"
     }
     else {
-        $pytestArgs += "--cov=agomsaaf", "--cov-report=term-missing", "--cov-report=html"
+        $pytestArgs += "--cov=agomtradepro", "--cov-report=term-missing", "--cov-report=html"
     }
 
     $outputFile = Join-Path $OutputPath "pytest.log"
@@ -262,7 +262,7 @@ function Test-LogicGuardrails {
 
 $startTime = Get-Date
 
-Write-Header "AgomSAAF SDK & MCP Integration Tests"
+Write-Header "AgomTradePro SDK & MCP Integration Tests"
 
 # Check prerequisites
 Write-Section "Checking Prerequisites"

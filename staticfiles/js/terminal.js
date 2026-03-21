@@ -1,5 +1,5 @@
 /**
- * AgomSAAF Terminal - CLI Interface Controller
+ * AgomTradePro Terminal - CLI Interface Controller
  * 
  * A bash-style terminal interface for AI chat and system commands.
  * Supports command history, auto-completion, interactive parameters, and real-time AI responses.
@@ -21,8 +21,8 @@ class AgomTerminal {
         this.maxInputChars = 12000;
         this.largePasteThreshold = 1200;
         
-        // Save original prompt (username@agomSAAF:~$)
-        this.originalPrompt = document.getElementById('terminal-prompt')?.textContent || 'guest@agomSAAF:~$';
+        // Save original prompt (username@agomTradePro:~$)
+        this.originalPrompt = document.getElementById('terminal-prompt')?.textContent || 'guest@agomTradePro:~$';
         
         // Dynamic commands (loaded from backend)
         this.dynamicCommands = {};
@@ -87,7 +87,7 @@ class AgomTerminal {
         this.updateInputState();
         this.focusInput();
 
-        console.log('AgomSAAF Terminal initialized. Type "/help" for commands.');
+        console.log('AgomTradePro Terminal initialized. Type "/help" for commands.');
     }
 
     /**
@@ -1250,14 +1250,14 @@ class AgomTerminal {
     cmdVersion() {
         this.printOutput(`
 <div style="padding: 8px 0;">
-<strong style="color: var(--terminal-green);">AgomSAAF Terminal</strong>
+<strong style="color: var(--terminal-green);">AgomTradePro Terminal</strong>
 
   Version:        2.0.0
   Build:          2024.03
   Framework:      Django + Alpine.js
   UI Style:       CLI Terminal Emulator
   
-  © 2024 AgomSAAF Team
+  © 2024 AgomTradePro Team
 </div>`);
     }
 

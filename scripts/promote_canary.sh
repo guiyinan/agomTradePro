@@ -10,7 +10,7 @@
 #   4. Archives the previous release
 #
 # Environment Variables:
-#   DEPLOY_TARGET_DIR - Target deployment directory (default: /opt/agomsaaf)
+#   DEPLOY_TARGET_DIR - Target deployment directory (default: /opt/agomtradepro)
 
 set -euo pipefail
 
@@ -40,7 +40,7 @@ die() {
 
 # Configuration
 RELEASE_NAME="${1:-}"
-DEPLOY_TARGET_DIR="${DEPLOY_TARGET_DIR:-/opt/agomsaaf}"
+DEPLOY_TARGET_DIR="${DEPLOY_TARGET_DIR:-/opt/agomtradepro}"
 
 # Usage
 if [ -z "$RELEASE_NAME" ]; then

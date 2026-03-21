@@ -1,4 +1,4 @@
-  # AgomSAAF AI-Native 升级工作实施方案（外包执行版）
+  # AgomTradePro AI-Native 升级工作实施方案（外包执行版）
 
   ## Summary
 
@@ -22,7 +22,7 @@
 
   ## 1.1 本期目标
 
-  本期目标是把 AgomSAAF 从当前 L3+ 升级到稳定可验收的 L4，并为下一阶段 L5 留好接口和数据模型。
+  本期目标是把 AgomTradePro 从当前 L3+ 升级到稳定可验收的 L4，并为下一阶段 L5 留好接口和数据模型。
 
   本期必须完成：
 
@@ -143,10 +143,10 @@
   建议新增：
 
   - apps/agent_runtime/
-  - sdk/agomsaaf/modules/agent_runtime.py
-  - sdk/agomsaaf/modules/agent_context.py
-  - sdk/agomsaaf_mcp/tools/agent_task_tools.py
-  - sdk/agomsaaf_mcp/resources/ 如果不新增目录，则继续在 server.py 注册
+  - sdk/agomtradepro/modules/agent_runtime.py
+  - sdk/agomtradepro/modules/agent_context.py
+  - sdk/agomtradepro_mcp/tools/agent_task_tools.py
+  - sdk/agomtradepro_mcp/resources/ 如果不新增目录，则继续在 server.py 注册
 
   ### 状态机冻结
 
@@ -412,11 +412,11 @@
 
   #### 新增 MCP resources
 
-  - agomsaaf://context/research/current
-  - agomsaaf://context/monitoring/current
-  - agomsaaf://context/decision/current
-  - agomsaaf://context/execution/current
-  - agomsaaf://context/ops/current
+  - agomtradepro://context/research/current
+  - agomtradepro://context/monitoring/current
+  - agomtradepro://context/decision/current
+  - agomtradepro://context/execution/current
+  - agomtradepro://context/ops/current
 
   #### prompts 本阶段只新增 workflow guide
 

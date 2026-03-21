@@ -5,7 +5,7 @@
 
 ## 概述
 
-本文档介绍 AgomSAAF 的性能监控和调优方法，包括：
+本文档介绍 AgomTradePro 的性能监控和调优方法，包括：
 - 慢查询检测和分析
 - 数据库查询优化
 - API 缓存策略
@@ -169,7 +169,7 @@ for signal in InvestmentSignal.objects.iterator(chunk_size=100):
 ```ini
 # pgbouncer.ini
 [databases]
-agomsaaf = host=localhost port=5432 dbname=agomsaaf
+agomtradepro = host=localhost port=5432 dbname=agomtradepro
 
 [pgbouncer]
 pool_mode = transaction
@@ -183,7 +183,7 @@ default_pool_size = 25
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'agomsaaf',
+        'NAME': 'agomtradepro',
         'USER': 'postgres',
         'PASSWORD': '***',
         'HOST': 'localhost',
@@ -230,7 +230,7 @@ CACHES = {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
         'LOCATION': 'redis://127.0.0.1:6379/1',
         'TIMEOUT': 900,  # 默认 15 分钟
-        'KEY_PREFIX': 'agomsaaf',
+        'KEY_PREFIX': 'agomtradepro',
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
             'SOCKET_CONNECT_TIMEOUT': 5,

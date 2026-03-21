@@ -115,7 +115,7 @@ def check_prometheus(prometheus_file: Path) -> tuple[bool, list[str]]:
     if not scrape_configs:
         errors.append("ERROR: No scrape_configs defined")
 
-    required_jobs = ['agomsaaf', 'celery']
+    required_jobs = ['agomtradepro', 'celery']
     found_jobs = [job.get('job_name') for job in scrape_configs]
     missing_jobs = set(required_jobs) - set(found_jobs)
 
@@ -128,7 +128,7 @@ def check_prometheus(prometheus_file: Path) -> tuple[bool, list[str]]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Check AgomSAAF monitoring configuration")
+    parser = argparse.ArgumentParser(description="Check AgomTradePro monitoring configuration")
     parser.add_argument(
         '--verbose', '-v',
         action='store_true',

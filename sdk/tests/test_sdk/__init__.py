@@ -1,3 +1,3 @@
 """
-Unit tests for AgomSAAF SDK
+Unit tests for AgomTradePro SDK
 """

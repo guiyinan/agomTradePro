@@ -107,4 +107,4 @@ jobs:
           # 可以在这里添加 Slack/Discord webhook 通知
           # curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
           #   -H 'Content-Type: application/json' \
-          #   -d '{"text":"Nightly tests failed for AgomSAAF"}'
+          #   -d '{"text":"Nightly tests failed for AgomTradePro"}'

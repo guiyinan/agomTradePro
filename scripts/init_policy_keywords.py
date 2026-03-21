@@ -1,7 +1,7 @@
 """
 初始化政策档位关键词规则
 
-运行: agomsaaf/Scripts/python.exe scripts/init_policy_keywords.py
+运行: agomtradepro/Scripts/python.exe scripts/init_policy_keywords.py
 """
 
 import os

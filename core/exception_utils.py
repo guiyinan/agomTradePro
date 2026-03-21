@@ -10,7 +10,7 @@ from typing import Callable, TypeVar, Optional, Any, Type
 from contextlib import contextmanager
 
 from core.exceptions import (
-    AgomSAAFException,
+    AgomTradeProException,
     ExternalServiceError,
     DataFetchError,
     TimeoutError as AppTimeoutError,
@@ -219,7 +219,7 @@ def safe_execute(
 def validate_and_execute(
     validator: Callable,
     error_message: str,
-    exception_type: Type[AgomSAAFException] = None,
+    exception_type: Type[AgomTradeProException] = None,
 ):
     """
     验证并执行装饰器

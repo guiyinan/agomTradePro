@@ -1,5 +1,5 @@
 """
-AgomSAAF MCP Server Test Script
+AgomTradePro MCP Server Test Script
 
 Tests the MCP server functionality independently.
 This script verifies that the MCP server can be initialized,
@@ -11,7 +11,7 @@ Usage:
 Requirements:
     - Django server running on http://localhost:8000
     - SDK installed in development mode
-    - agomsaaf_mcp package available
+    - agomtradepro_mcp package available
 """
 
 import json
@@ -26,8 +26,8 @@ sys.path.insert(0, str(project_root))
 sys.path.insert(0, str(project_root / "sdk"))
 
 # Set environment variables for testing
-os.environ["AGOMSAAF_BASE_URL"] = "http://localhost:8000"
-os.environ.setdefault("AGOMSAAF_API_TOKEN", "test-token")
+os.environ["AGOMTRADEPRO_BASE_URL"] = "http://localhost:8000"
+os.environ.setdefault("AGOMTRADEPRO_API_TOKEN", "test-token")
 
 
 def print_section(title: str) -> None:
@@ -66,7 +66,7 @@ def test_import_mcp() -> None:
     """Test 1: Import MCP Server"""
     print_test("Test 1: Import MCP Server")
     try:
-        from agomsaaf_mcp import server
+        from agomtradepro_mcp import server
         print_success("MCP server module imported successfully")
     except ImportError as e:
         assert False, (
@@ -79,7 +79,7 @@ def test_server_instance() -> None:
     """Test 2: Create Server Instance"""
     print_test("Test 2: Create Server Instance")
     try:
-        from agomsaaf_mcp.server import server
+        from agomtradepro_mcp.server import server
 
         print_success(f"Server instance created: {server.name}")
     except Exception as e:
@@ -90,7 +90,7 @@ def test_list_tools() -> None:
     """Test 3: List Available Tools"""
     print_test("Test 3: List Available Tools")
     try:
-        from agomsaaf_mcp.server import server
+        from agomtradepro_mcp.server import server
         import asyncio
 
         tools = asyncio.run(server.list_tools())
@@ -112,7 +112,7 @@ def test_list_resources() -> None:
     """Test 4: List Available Resources"""
     print_test("Test 4: List Available Resources")
     try:
-        from agomsaaf_mcp.server import list_resources
+        from agomtradepro_mcp.server import list_resources
 
         import asyncio
 
@@ -129,12 +129,12 @@ def test_read_resource() -> None:
     """Test 5: Read Resource Content"""
     print_test("Test 5: Read Resource Content")
     try:
-        from agomsaaf_mcp.server import read_resource
+        from agomtradepro_mcp.server import read_resource
 
         import asyncio
 
         # Read current regime resource
-        content = asyncio.run(read_resource("agomsaaf://regime/current"))
+        content = asyncio.run(read_resource("agomtradepro://regime/current"))
 
         print_success("Resource content retrieved")
         print_info("Current regime resource:")
@@ -147,7 +147,7 @@ def test_list_prompts() -> None:
     """Test 6: List Available Prompts"""
     print_test("Test 6: List Available Prompts")
     try:
-        from agomsaaf_mcp.server import list_prompts
+        from agomtradepro_mcp.server import list_prompts
 
         import asyncio
 
@@ -167,7 +167,7 @@ def test_get_prompt() -> None:
     """Test 7: Get Prompt Content"""
     print_test("Test 7: Get Prompt Content")
     try:
-        from agomsaaf_mcp.server import get_prompt
+        from agomtradepro_mcp.server import get_prompt
 
         import asyncio
 
@@ -184,7 +184,7 @@ def test_tool_imports() -> None:
     """Test 8: Test Tool Module Imports"""
     print_test("Test 8: Test Tool Module Imports")
     try:
-        from agomsaaf_mcp.tools import (
+        from agomtradepro_mcp.tools import (
             account_tools,
             ai_provider_tools,
             alpha_trigger_tools,
@@ -245,9 +245,9 @@ def test_sdk_client_from_mcp() -> None:
     """Test 9: Test SDK Client from MCP Context"""
     print_test("Test 9: Test SDK Client from MCP Context")
     try:
-        from agomsaaf import AgomSAAFClient
+        from agomtradepro import AgomTradeProClient
 
-        client = AgomSAAFClient()
+        client = AgomTradeProClient()
 
         # Test that we can access the API through the client
         # This simulates what the MCP server does
@@ -263,7 +263,7 @@ def test_sdk_client_from_mcp() -> None:
 
 def main() -> int:
     """Run all tests"""
-    print_section("AgomSAAF MCP Server Test")
+    print_section("AgomTradePro MCP Server Test")
 
     # Check if server is running
     print_test("Server Check")
@@ -324,12 +324,12 @@ def main() -> int:
         print_info('''
 {
   "mcpServers": {
-    "agomsaaf": {
+    "agomtradepro": {
       "command": "python",
-      "args": ["-m", "agomsaaf_mcp.server"],
-      "cwd": "D:/githv/agomSAAF/sdk",
+      "args": ["-m", "agomtradepro_mcp.server"],
+      "cwd": "D:/githv/agomTradePro/sdk",
       "env": {
-        "AGOMSAAF_BASE_URL": "http://localhost:8000"
+        "AGOMTRADEPRO_BASE_URL": "http://localhost:8000"
       }
     }
   }

@@ -2,7 +2,7 @@
 
 > 文档版本: v1.0  
 > 创建日期: 2026-03-04  
-> 适用范围: AgomSAAF 平台工程治理专项（非业务功能新增）  
+> 适用范围: AgomTradePro 平台工程治理专项（非业务功能新增）  
 > 对接对象: 外包开发团队、测试团队、项目负责人
 
 ---
@@ -167,7 +167,7 @@
 1. 编写一致性检查脚本（建议：`scripts/check_doc_route_sdk_consistency.py`）。
 2. 数据源定义：
    1. 路由：Django URL resolver + 各模块 `urls.py`。
-   2. SDK：`sdk/agomsaaf/modules` + MCP 工具注册清单。
+   2. SDK：`sdk/agomtradepro/modules` + MCP 工具注册清单。
    3. 文档：`docs/` 下 API 路径文本提取（正则/规则化）。
 3. 产出机器可读报告（JSON）+ 人类可读报告（Markdown）。
 4. 接入 CI：新增 workflow，在 PR 阶段执行。

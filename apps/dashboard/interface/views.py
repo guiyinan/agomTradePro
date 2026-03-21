@@ -86,6 +86,31 @@ def _load_simulated_positions_fallback(user_id: int) -> list[dict]:
     ]
 
 
+def _get_dashboard_accounts(user):
+    """Load all user investment accounts for dashboard cards."""
+    from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
+
+    accounts = (
+        SimulatedAccountModel._default_manager
+        .filter(user=user)
+        .order_by("account_type", "-total_value", "-created_at")
+    )
+    return [
+        {
+            "id": account.id,
+            "name": account.account_name,
+            "type_code": account.account_type,
+            "type_label": "实仓" if account.account_type == "real" else "模拟仓",
+            "total_value": float(account.total_value or 0),
+            "cash": float(account.current_cash or 0),
+            "market_value": float(account.current_market_value or 0),
+            "total_return": float(account.total_return or 0),
+            "is_active": account.is_active,
+        }
+        for account in accounts
+    ]
+
+
 def _ensure_dashboard_positions(data, user_id: int):
     """Backfill positions for page/HTMX rendering when portfolio snapshot is stale."""
     if data.positions or data.invested_value <= 0:
@@ -297,6 +322,7 @@ def dashboard_view(request):
     pending_requests = _get_pending_requests()
     alpha_stock_scores = _get_alpha_stock_scores(top_n=10)
     initial_alpha_stock = alpha_stock_scores[0]["code"] if alpha_stock_scores else ""
+    investment_accounts = _get_dashboard_accounts(request.user)
     try:
         from apps.equity.application.config import get_valuation_repair_config_summary
         valuation_repair_config_summary = get_valuation_repair_config_summary(use_cache=False)
@@ -326,6 +352,7 @@ def dashboard_view(request):
         "initial_capital": data.initial_capital,
         "total_return": data.total_return,
         "total_return_pct": data.total_return_pct,
+        "investment_accounts": investment_accounts,
         "cash_balance": data.cash_balance,
         "invested_value": data.invested_value,
         "invested_ratio": data.invested_ratio,

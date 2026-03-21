@@ -407,7 +407,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}基金分析 - AgomSAAF{% endblock %}
+{% block title %}基金分析 - AgomTradePro{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/fund.css' %}">

@@ -1,5 +1,5 @@
 """
-AgomSAAF Custom Exceptions
+AgomTradePro Custom Exceptions
 
 Provides standardized exception classes for consistent error handling across the application.
 """
@@ -15,9 +15,9 @@ from rest_framework import status
 logger = logging.getLogger(__name__)
 
 
-class AgomSAAFException(Exception):
+class AgomTradeProException(Exception):
     """
-    Base exception for all AgomSAAF exceptions.
+    Base exception for all AgomTradePro exceptions.
 
     All custom exceptions should inherit from this class.
     """
@@ -52,7 +52,7 @@ class AgomSAAFException(Exception):
 
 # ========== Validation Errors ==========
 
-class ValidationError(AgomSAAFException):
+class ValidationError(AgomTradeProException):
     """Raised when input validation fails."""
 
     default_message = "输入验证失败"
@@ -76,7 +76,7 @@ class MissingRequiredFieldError(ValidationError):
 
 # ========== Authentication & Authorization Errors ==========
 
-class AuthenticationError(AgomSAAFException):
+class AuthenticationError(AgomTradeProException):
     """Raised when authentication fails."""
 
     default_message = "认证失败"
@@ -84,7 +84,7 @@ class AuthenticationError(AgomSAAFException):
     default_status_code = 401
 
 
-class AuthorizationError(AgomSAAFException):
+class AuthorizationError(AgomTradeProException):
     """Raised when user lacks permission."""
 
     default_message = "权限不足"
@@ -94,7 +94,7 @@ class AuthorizationError(AgomSAAFException):
 
 # ========== Resource Errors ==========
 
-class ResourceNotFoundError(AgomSAAFException):
+class ResourceNotFoundError(AgomTradeProException):
     """Raised when a requested resource is not found."""
 
     default_message = "资源不存在"
@@ -102,7 +102,7 @@ class ResourceNotFoundError(AgomSAAFException):
     default_status_code = 404
 
 
-class DuplicateResourceError(AgomSAAFException):
+class DuplicateResourceError(AgomTradeProException):
     """Raised when attempting to create a duplicate resource."""
 
     default_message = "资源已存在"
@@ -112,7 +112,7 @@ class DuplicateResourceError(AgomSAAFException):
 
 # ========== Business Logic Errors ==========
 
-class BusinessLogicError(AgomSAAFException):
+class BusinessLogicError(AgomTradeProException):
     """Raised when business rules are violated."""
 
     default_message = "业务逻辑错误"
@@ -143,7 +143,7 @@ class IneligibleAssetError(BusinessLogicError):
 
 # ========== External Service Errors ==========
 
-class ExternalServiceError(AgomSAAFException):
+class ExternalServiceError(AgomTradeProException):
     """Base exception for external service errors."""
 
     default_message = "外部服务错误"
@@ -181,7 +181,7 @@ class AKShareError(DataFetchError):
 
 # ========== Timeout Errors ==========
 
-class TimeoutError(AgomSAAFException):
+class TimeoutError(AgomTradeProException):
     """Raised when an operation times out."""
 
     default_message = "操作超时"
@@ -191,7 +191,7 @@ class TimeoutError(AgomSAAFException):
 
 # ========== Configuration Errors ==========
 
-class ConfigurationError(AgomSAAFException):
+class ConfigurationError(AgomTradeProException):
     """Raised when configuration is invalid."""
 
     default_message = "配置错误"
@@ -229,7 +229,7 @@ def custom_exception_handler(exc: Exception, context: dict) -> Optional[Response
     Custom exception handler for Django REST Framework.
 
     Provides unified error response format for all API exceptions:
-    - AgomSAAFException subclasses: use their structured format
+    - AgomTradeProException subclasses: use their structured format
     - DRF validation errors: wrap in standard format
     - Other exceptions: pass through to DRF default handler
 
@@ -250,10 +250,10 @@ def custom_exception_handler(exc: Exception, context: dict) -> Optional[Response
     # First, let DRF handle the exception to get the standard response
     response = exception_handler(exc, context)
 
-    # Handle AgomSAAFException subclasses
-    if isinstance(exc, AgomSAAFException):
+    # Handle AgomTradeProException subclasses
+    if isinstance(exc, AgomTradeProException):
         logger.warning(
-            f"AgomSAAFException raised: {exc.code} - {exc.message}",
+            f"AgomTradeProException raised: {exc.code} - {exc.message}",
             extra={
                 "code": exc.code,
                 "status_code": exc.status_code,

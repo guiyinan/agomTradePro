@@ -27,7 +27,7 @@ def convert_usd_to_cny(value: float, unit: str, exchange_rate: float) -> tuple:
     return (value, unit)
 
 # 连接 SQLite
-conn = sqlite3.connect('D:/githv/agomSAAF/db.sqlite3')
+conn = sqlite3.connect('D:/githv/agomTradePro/db.sqlite3')
 conn.row_factory = sqlite3.Row
 cursor = conn.cursor()
 
@@ -100,4 +100,4 @@ conn.close()
 print(f"Generated SQL file: migrate_usd_data.sql")
 print(f"Total records: {len(usd_rows)}")
 print(f"\nTo execute:")
-print(f"  docker exec -i agomsaaf_postgres_dev psql -U agomsaaf -d agomsaaf < migrate_usd_data.sql")
+print(f"  docker exec -i agomtradepro_postgres_dev psql -U agomtradepro -d agomtradepro < migrate_usd_data.sql")

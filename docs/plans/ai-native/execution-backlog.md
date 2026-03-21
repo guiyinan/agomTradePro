@@ -1,4 +1,4 @@
-# AgomSAAF AI-Native Execution Backlog
+# AgomTradePro AI-Native Execution Backlog
 
 ## Purpose
 
@@ -59,10 +59,10 @@ Backlog rules:
 | 035 | M2 | Backend | build | yes | Implement `ExecutionTaskFacade`. |
 | 036 | M2 | Backend | build | yes | Implement `OpsTaskFacade`. |
 | 037 | M2 | Backend | build | no | Implement context APIs for `research/monitoring/decision/execution/ops`. |
-| 038 | M2 | SDK | build | no | Add `sdk/agomsaaf/modules/agent_runtime.py`. |
-| 039 | M2 | SDK | build | no | Add `sdk/agomsaaf/modules/agent_context.py`. |
+| 038 | M2 | SDK | build | no | Add `sdk/agomtradepro/modules/agent_runtime.py`. |
+| 039 | M2 | SDK | build | no | Add `sdk/agomtradepro/modules/agent_context.py`. |
 | 040 | M2 | SDK | build | no | Register new SDK modules in `client.py`. |
-| 041 | M2 | MCP | build | no | Add `sdk/agomsaaf_mcp/tools/agent_task_tools.py`. |
+| 041 | M2 | MCP | build | no | Add `sdk/agomtradepro_mcp/tools/agent_task_tools.py`. |
 | 042 | M2 | MCP | build | no | Register task tools in MCP server. |
 | 043 | M2 | MCP | build | no | Add context resources in MCP server for five domains. |
 | 044 | M2 | MCP | build | yes | Add workflow-guide prompts for the five domains. |

@@ -1,4 +1,4 @@
-# AgomSAAF 系统说明书
+# AgomTradePro 系统说明书
 
 > **版本**: V3.5
 > **生成日期**: 2026-03-05
@@ -27,7 +27,7 @@
 
 ### 1.1 系统定位
 
-**AgomSAAF** (Agom Strategic Asset Allocation Framework) 是一个基于宏观环境准入机制的投资决策辅助系统。
+**AgomTradePro** (Agom Strategic Asset Allocation Framework) 是一个基于宏观环境准入机制的投资决策辅助系统。
 
 **核心理念**: 通过 **Regime（增长/通胀象限）** 和 **Policy（政策档位）** 双重过滤，确保投资者 **"不在错误的宏观环境中下注"**。
 
@@ -45,7 +45,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    AgomSAAF 核心功能矩阵                         │
+│                    AgomTradePro 核心功能矩阵                         │
 ├─────────────────────────────────────────────────────────────────┤
 │  宏观环境分析    │  Regime 判定  │  Policy 档位  │  信号管理     │
 │  ├─ 经济增长趋势 │  ├─ 四象限    │  ├─ P0-P3    │  ├─ 投资信号  │
@@ -169,7 +169,7 @@ class RegimeRepository(RegimeRepositoryProtocol):
 ### 2.4 目录结构
 
 ```
-AgomSAAF/
+AgomTradePro/
 ├── core/                          # Django 核心配置
 │   ├── settings/
 │   │   ├── base.py               # 基础配置
@@ -238,10 +238,10 @@ AgomSAAF/
 │       └── secrets.py            # 密钥管理
 │
 ├── sdk/                           # SDK & MCP
-│   ├── agomsaaf/                 # Python SDK
+│   ├── agomtradepro/                 # Python SDK
 │   │   ├── client.py
 │   │   └── modules/
-│   └── agomsaaf_mcp/             # MCP Server
+│   └── agomtradepro_mcp/             # MCP Server
 │       └── server.py
 │
 ├── streamlit_app/                 # Streamlit 仪表盘
@@ -929,7 +929,7 @@ class StrategyConfig:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     AgomSAAF 核心数据流                          │
+│                     AgomTradePro 核心数据流                          │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
@@ -1285,8 +1285,8 @@ services:
   postgres:
     image: postgres:15
     environment:
-      POSTGRES_DB: agomsaaf
-      POSTGRES_USER: agomsaaf
+      POSTGRES_DB: agomtradepro
+      POSTGRES_USER: agomtradepro
       POSTGRES_PASSWORD: changeme
     ports:
       - "5432:5432"
@@ -1343,7 +1343,7 @@ services:
 **.env 文件**：
 ```env
 # 数据库
-DATABASE_URL=postgresql://agomsaaf:password@localhost:5432/agomsaaf
+DATABASE_URL=postgresql://agomtradepro:password@localhost:5432/agomtradepro
 
 # Redis
 REDIS_URL=redis://localhost:6379/0
@@ -1401,13 +1401,13 @@ STREAMLIT_DASHBOARD_URL=http://127.0.0.1:8501
 
 ```bash
 # 1. 克隆代码
-git clone https://github.com/your-org/agomsaaf.git
-cd agomsaaf
+git clone https://github.com/your-org/agomtradepro.git
+cd agomtradepro
 
 # 2. 创建虚拟环境
-python -m venv agomsaaf
-agomsaaf\Scripts\activate  # Windows
-source agomsaaf/bin/activate  # Linux/Mac
+python -m venv agomtradepro
+agomtradepro\Scripts\activate  # Windows
+source agomtradepro/bin/activate  # Linux/Mac
 
 # 3. 安装依赖
 pip install -r requirements.txt
@@ -1582,12 +1582,12 @@ pytest tests/playwright/tests/smoke/ -v
 
 ### 9.1 SDK 集成
 
-**Python SDK** (`sdk/agomsaaf`)：
+**Python SDK** (`sdk/agomtradepro`)：
 ```python
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 
 # 初始化客户端
-client = AgomSAAFClient(
+client = AgomTradeProClient(
     base_url="http://localhost:8000",
     api_key="your-api-key"
 )
@@ -1604,7 +1604,7 @@ for score in scores:
 
 ### 9.2 MCP Server 集成
 
-**AI Agent 集成** (`sdk/agomsaaf_mcp`)：
+**AI Agent 集成** (`sdk/agomtradepro_mcp`)：
 ```python
 # MCP Server 为 AI Agent 提供工具调用
 # 支持 Claude、GPT 等 AI 模型
@@ -1655,7 +1655,7 @@ tools = [
 - [系统基线](governance/SYSTEM_BASELINE.md) - 单一叙事来源
 - [模块分级表](governance/MODULE_CLASSIFICATION.md) - 模块治理
 - [开发禁令](governance/DEVELOPMENT_BANLIST.md) - 开发约束
-- [业务需求文档](business/AgomSAAF_V3.4.md)
+- [业务需求文档](business/AgomTradePro_V3.4.md)
 - [开发快速参考](development/quick-reference.md)
 - [测试策略文档](testing/master-test-strategy-2026-02.md)
 
@@ -1676,6 +1676,6 @@ tools = [
 
 ---
 
-**文档维护**: AgomSAAF Team
+**文档维护**: AgomTradePro Team
 **最后更新**: 2026-03-18
 **文档版本**: V1.1

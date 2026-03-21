@@ -431,12 +431,12 @@ GET /api/prompt/chat/models?provider=openai-main
 
 主要实现位置：
 
-1. [api_views.py](/D:/githv/agomSAAF/apps/ai_capability/interface/api_views.py)
-2. [serializers.py](/D:/githv/agomSAAF/apps/ai_capability/interface/serializers.py)
-3. [facade.py](/D:/githv/agomSAAF/apps/ai_capability/application/facade.py)
-4. [shared-chat-renderer.js](/D:/githv/agomSAAF/core/static/js/shared/shared-chat-renderer.js)
-5. [chat-widget.js](/D:/githv/agomSAAF/core/static/js/components/chat-widget.js)
-6. [index.html](/D:/githv/agomSAAF/core/templates/dashboard/index.html)
+1. [api_views.py](/D:/githv/agomTradePro/apps/ai_capability/interface/api_views.py)
+2. [serializers.py](/D:/githv/agomTradePro/apps/ai_capability/interface/serializers.py)
+3. [facade.py](/D:/githv/agomTradePro/apps/ai_capability/application/facade.py)
+4. [shared-chat-renderer.js](/D:/githv/agomTradePro/core/static/js/shared/shared-chat-renderer.js)
+5. [chat-widget.js](/D:/githv/agomTradePro/core/static/js/components/chat-widget.js)
+6. [index.html](/D:/githv/agomTradePro/core/templates/dashboard/index.html)
 
 ---
 

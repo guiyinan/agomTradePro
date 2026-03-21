@@ -149,7 +149,7 @@ class TestSDKContracts:
     """Verify SDK modules have all required methods."""
 
     def test_agent_runtime_module_methods(self):
-        from sdk.agomsaaf.modules.agent_runtime import AgentRuntimeModule
+        from sdk.agomtradepro.modules.agent_runtime import AgentRuntimeModule
         client = MagicMock()
         mod = AgentRuntimeModule(client)
         assert hasattr(mod, "create_task")
@@ -162,7 +162,7 @@ class TestSDKContracts:
         assert hasattr(mod, "get_needs_attention")
 
     def test_agent_context_module_methods(self):
-        from sdk.agomsaaf.modules.agent_context import AgentContextModule
+        from sdk.agomtradepro.modules.agent_context import AgentContextModule
         client = MagicMock()
         mod = AgentContextModule(client)
         assert hasattr(mod, "get_context_snapshot")
@@ -173,7 +173,7 @@ class TestSDKContracts:
         assert hasattr(mod, "get_ops_context")
 
     def test_agent_proposal_module_methods(self):
-        from sdk.agomsaaf.modules.agent_proposal import AgentProposalModule
+        from sdk.agomtradepro.modules.agent_proposal import AgentProposalModule
         client = MagicMock()
         mod = AgentProposalModule(client)
         assert hasattr(mod, "create_proposal")
@@ -192,7 +192,7 @@ class TestMCPRegistration:
 
     @pytest.fixture(autouse=True)
     def _tool_names(self):
-        from agomsaaf_mcp.server import server
+        from agomtradepro_mcp.server import server
         loop = asyncio.new_event_loop()
         try:
             tools = loop.run_until_complete(server.list_tools())

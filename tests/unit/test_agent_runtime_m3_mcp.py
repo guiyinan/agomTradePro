@@ -11,7 +11,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 # Ensure MCP server has tools registered
-from agomsaaf_mcp.server import server
+from agomtradepro_mcp.server import server
 
 
 def _get_tool_names():
@@ -50,7 +50,7 @@ class TestProposalToolRegistration:
 class TestProposalToolExecution:
     """Test proposal tool execution with mocked SDK."""
 
-    @patch("agomsaaf_mcp.tools.agent_proposal_tools.AgomSAAFClient")
+    @patch("agomtradepro_mcp.tools.agent_proposal_tools.AgomTradeProClient")
     def test_create_proposal_calls_sdk(self, MockClient):
         mock_instance = MagicMock()
         MockClient.return_value = mock_instance
@@ -59,7 +59,7 @@ class TestProposalToolExecution:
             "proposal": {"id": 1, "status": "generated"},
         }
 
-        from agomsaaf_mcp.tools.agent_proposal_tools import register_agent_proposal_tools
+        from agomtradepro_mcp.tools.agent_proposal_tools import register_agent_proposal_tools
         from mcp.server.fastmcp import FastMCP
 
         test_server = FastMCP("test_m3")
@@ -82,7 +82,7 @@ class TestProposalToolExecution:
         )
         assert result["proposal"]["status"] == "generated"
 
-    @patch("agomsaaf_mcp.tools.agent_proposal_tools.AgomSAAFClient")
+    @patch("agomtradepro_mcp.tools.agent_proposal_tools.AgomTradeProClient")
     def test_approve_proposal_calls_sdk(self, MockClient):
         mock_instance = MagicMock()
         MockClient.return_value = mock_instance
@@ -97,7 +97,7 @@ class TestProposalToolExecution:
         )
         assert result["proposal"]["status"] == "approved"
 
-    @patch("agomsaaf_mcp.tools.agent_proposal_tools.AgomSAAFClient")
+    @patch("agomtradepro_mcp.tools.agent_proposal_tools.AgomTradeProClient")
     def test_reject_proposal_calls_sdk(self, MockClient):
         mock_instance = MagicMock()
         MockClient.return_value = mock_instance
@@ -112,7 +112,7 @@ class TestProposalToolExecution:
         )
         assert result["proposal"]["status"] == "rejected"
 
-    @patch("agomsaaf_mcp.tools.agent_proposal_tools.AgomSAAFClient")
+    @patch("agomtradepro_mcp.tools.agent_proposal_tools.AgomTradeProClient")
     def test_execute_proposal_calls_sdk(self, MockClient):
         mock_instance = MagicMock()
         MockClient.return_value = mock_instance

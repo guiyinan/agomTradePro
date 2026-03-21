@@ -6,7 +6,7 @@
 
 ## Overview
 
-AgomSAAF supports a dual-version Python strategy to ensure compatibility while maintaining forward-looking support.
+AgomTradePro supports a dual-version Python strategy to ensure compatibility while maintaining forward-looking support.
 
 ## Supported Versions
 

@@ -29,7 +29,7 @@ router.register(r"actions", HedgeActionViewSet, basename="hedge-action")
 def api_home(request):
     return JsonResponse(
         {
-            "message": "AgomSAAF Hedge Module API",
+            "message": "AgomTradePro Hedge Module API",
             "endpoints": {
                 "pairs": "/api/hedge/pairs/",
                 "correlations": "/api/hedge/correlations/",

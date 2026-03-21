@@ -1,4 +1,4 @@
-# AgomSAAF Data Migration Script
+# AgomTradePro Data Migration Script
 # Migrate data from SQLite to PostgreSQL
 
 param(
@@ -27,12 +27,12 @@ $ProjectRoot = Split-Path -Parent $ScriptDir
 Set-Location $ProjectRoot
 
 Write-Info "`n=========================================="
-Write-Info " AgomSAAF SQLite -> PostgreSQL Migration"
+Write-Info " AgomTradePro SQLite -> PostgreSQL Migration"
 Write-Info "==========================================`n"
 
 $composeFile = Join-Path $ProjectRoot "docker-compose-dev.yml"
-$pythonCmd = "agomsaaf/Scripts/python.exe"
-$pythonCmdAlt = "D:/githv/agomSAAF/agomsaaf/Scripts/python.exe"
+$pythonCmd = "agomtradepro/Scripts/python.exe"
+$pythonCmdAlt = "D:/githv/agomTradePro/agomtradepro/Scripts/python.exe"
 
 # Detect Python command
 if (Test-Path $pythonCmd) {
@@ -43,7 +43,7 @@ elseif (Test-Path $pythonCmdAlt) {
 }
 else {
     # Try to use python in virtual environment
-    $pythonCmd = "agomsaaf/Scripts/python.exe"
+    $pythonCmd = "agomtradepro/Scripts/python.exe"
 }
 
 # ============================================
@@ -125,9 +125,9 @@ try {
     }
 
     # Check if PostgreSQL container is running
-    $pgRunning = docker ps --filter "name=agomsaaf_postgres_dev" --format "{{.Names}}" 2>&1
+    $pgRunning = docker ps --filter "name=agomtradepro_postgres_dev" --format "{{.Names}}" 2>&1
 
-    if ($pgRunning -eq "agomsaaf_postgres_dev") {
+    if ($pgRunning -eq "agomtradepro_postgres_dev") {
         Write-Success "  PostgreSQL container is running"
     }
     else {
@@ -149,7 +149,7 @@ try {
         $attempt = 0
 
         while ($attempt -lt $maxAttempts) {
-            $null = docker exec agomsaaf_postgres_dev pg_isready -U agomsaaf -d agomsaaf 2>&1
+            $null = docker exec agomtradepro_postgres_dev pg_isready -U agomtradepro -d agomtradepro 2>&1
             if ($LASTEXITCODE -eq 0) {
                 Write-Success "  Services are ready"
                 break
@@ -189,7 +189,7 @@ if (Test-Path $envFile) {
     if ($envContent -match 'DATABASE_URL=sqlite:') {
         Write-Warning "  .env still uses SQLite, updating..."
 
-        $envContent = $envContent -replace 'DATABASE_URL=sqlite:.*', 'DATABASE_URL=postgresql://agomsaaf:changeme@localhost:5432/agomsaaf'
+        $envContent = $envContent -replace 'DATABASE_URL=sqlite:.*', 'DATABASE_URL=postgresql://agomtradepro:changeme@localhost:5432/agomtradepro'
         Set-Content -Path $envFile -Value $envContent
 
         Write-Success "  Updated to PostgreSQL connection"

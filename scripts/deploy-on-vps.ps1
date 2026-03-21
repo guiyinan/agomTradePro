@@ -1,6 +1,6 @@
 param(
     [string]$Bundle,
-    [string]$TargetDir = "/opt/agomsaaf",
+    [string]$TargetDir = "/opt/agomtradepro",
     [ValidateSet('menu','fresh','upgrade','restore-only','status','logs')]
     [string]$Action = 'menu'
 )
@@ -18,7 +18,7 @@ if (Test-Path "$PSScriptRoot/common.ps1") {
     throw "common.ps1 not found"
 }
 
-$ProjectName = if ([string]::IsNullOrWhiteSpace($env:COMPOSE_PROJECT_NAME)) { 'agomsaaf' } else { $env:COMPOSE_PROJECT_NAME }
+$ProjectName = if ([string]::IsNullOrWhiteSpace($env:COMPOSE_PROJECT_NAME)) { 'agomtradepro' } else { $env:COMPOSE_PROJECT_NAME }
 $env:COMPOSE_PROJECT_NAME = $ProjectName
 
 Require-Command docker
@@ -48,7 +48,7 @@ function Invoke-Compose {
 }
 
 function Assert-NoConflictingProject {
-    $candidates = @('docker', 'agomsaaf') | Where-Object { $_ -ne $ProjectName }
+    $candidates = @('docker', 'agomtradepro') | Where-Object { $_ -ne $ProjectName }
     $names = docker ps -a --format "{{.Names}}"
     foreach ($candidate in $candidates) {
         if ($names | Select-String -Pattern "^$candidate-(web|redis|caddy)-1$" -Quiet) {
@@ -109,7 +109,7 @@ if ($Action -eq 'logs') {
 }
 
 if ([string]::IsNullOrWhiteSpace($Bundle)) {
-    $Bundle = Read-Default -Prompt "Bundle tar.gz path" -Default "./agomsaaf-vps-bundle.tar.gz"
+    $Bundle = Read-Default -Prompt "Bundle tar.gz path" -Default "./agomtradepro-vps-bundle.tar.gz"
 }
 
 if (-not (Test-Path $Bundle)) {
@@ -126,7 +126,7 @@ New-Item -ItemType Directory -Force $releaseDir | Out-Null
 & tar -xzf $Bundle -C "$TargetDir/releases"
 
 if (-not (Test-Path $releaseDir)) {
-    $releaseDir = Get-ChildItem "$TargetDir/releases" -Directory | Where-Object { $_.Name -like 'agomsaaf-vps-bundle-*' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1 | ForEach-Object { $_.FullName }
+    $releaseDir = Get-ChildItem "$TargetDir/releases" -Directory | Where-Object { $_.Name -like 'agomtradepro-vps-bundle-*' } | Sort-Object LastWriteTime -Descending | Select-Object -First 1 | ForEach-Object { $_.FullName }
 }
 
 if (-not $releaseDir) {
@@ -189,7 +189,7 @@ if ([string]::IsNullOrWhiteSpace($domain)) {
     }
 }
 
-$foundWeb = docker images --format "{{.Repository}}:{{.Tag}}" | Where-Object { $_ -like 'agomsaaf-web:*' } | Select-Object -First 1
+$foundWeb = docker images --format "{{.Repository}}:{{.Tag}}" | Where-Object { $_ -like 'agomtradepro-web:*' } | Select-Object -First 1
 if ($foundWeb) {
     if ($envText -match "(?m)^WEB_IMAGE=.*$") {
         $envText = $envText -replace "(?m)^WEB_IMAGE=.*$", "WEB_IMAGE=$foundWeb"
@@ -270,8 +270,8 @@ Copy-Item -Recurse -Force $releaseDir $currentDir
 
 Set-Location $currentDir
 Write-Info "Running cold-start bootstrap"
-$alphaUniverses = if ($env:AGOMSAAF_BOOTSTRAP_ALPHA_UNIVERSES) { $env:AGOMSAAF_BOOTSTRAP_ALPHA_UNIVERSES } else { 'csi300' }
-$alphaTopN = if ($env:AGOMSAAF_BOOTSTRAP_ALPHA_TOP_N) { $env:AGOMSAAF_BOOTSTRAP_ALPHA_TOP_N } else { '30' }
+$alphaUniverses = if ($env:AGOMTRADEPRO_BOOTSTRAP_ALPHA_UNIVERSES) { $env:AGOMTRADEPRO_BOOTSTRAP_ALPHA_UNIVERSES } else { 'csi300' }
+$alphaTopN = if ($env:AGOMTRADEPRO_BOOTSTRAP_ALPHA_TOP_N) { $env:AGOMTRADEPRO_BOOTSTRAP_ALPHA_TOP_N } else { '30' }
 Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','exec','-T','web','python','manage.py','bootstrap_cold_start','--with-alpha','--alpha-universes',$alphaUniverses,'--alpha-top-n',$alphaTopN)
 Invoke-Compose -Args @('-f','docker/docker-compose.vps.yml','--env-file','deploy/.env','ps')
 Write-Info "Deployment done"

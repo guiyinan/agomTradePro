@@ -44,6 +44,9 @@ from .serializers import (
     CreateAccountRequestSerializer,
     AccountResponseSerializer,
     AccountListResponseSerializer,
+    AccountDeleteResponseSerializer,
+    AccountBatchDeleteRequestSerializer,
+    AccountBatchDeleteResponseSerializer,
     PositionResponseSerializer,
     PositionListResponseSerializer,
     TradeListRequestSerializer,
@@ -63,9 +66,31 @@ from .serializers import (
 )
 from apps.simulated_trading.infrastructure.models import (
     SimulatedAccountModel,
+    PositionModel,
+    SimulatedTradeModel,
     DailyInspectionReportModel,
     DailyInspectionNotificationConfigModel,
 )
+
+
+def _can_manage_account(user, account: SimulatedAccountModel) -> bool:
+    """Whether the current user can delete or mutate the account."""
+    if not getattr(user, "is_authenticated", False):
+        return False
+    return bool(user.is_superuser or account.user_id == user.id)
+
+
+def _delete_account_with_summary(account: SimulatedAccountModel) -> dict:
+    """Delete the account and provide small cascade stats for feedback."""
+    summary = {
+        "account_id": account.id,
+        "account_name": account.account_name,
+        "deleted_positions": PositionModel._default_manager.filter(account=account).count(),
+        "deleted_trades": SimulatedTradeModel._default_manager.filter(account=account).count(),
+        "deleted_reports": DailyInspectionReportModel._default_manager.filter(account=account).count(),
+    }
+    account.delete()
+    return summary
 
 
 # ============================================================================
@@ -581,6 +606,84 @@ class AccountDetailAPIView(APIView):
         return Response({
             'success': True,
             'account': response_data
+        })
+
+    @extend_schema(
+        summary="删除账户",
+        description="删除当前用户拥有的单个模拟/实仓账户，并级联删除关联持仓、交易与巡检记录。",
+        responses={200: AccountDeleteResponseSerializer},
+    )
+    def delete(self, request, account_id):
+        if not request.user or not request.user.is_authenticated:
+            return Response(
+                {'success': False, 'error': '请先登录后再执行删除操作'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        account = SimulatedAccountModel._default_manager.filter(id=account_id).first()
+        if not account:
+            return Response(
+                {'success': False, 'error': f'账户不存在: {account_id}'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        if not _can_manage_account(request.user, account):
+            return Response(
+                {'success': False, 'error': '无权删除该账户'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        summary = _delete_account_with_summary(account)
+        return Response({
+            'success': True,
+            **summary,
+            'message': f"账户 {summary['account_name']} 已删除",
+        })
+
+
+class AccountBatchDeleteAPIView(APIView):
+    """账户批量删除 API"""
+
+    @extend_schema(
+        summary="批量删除账户",
+        description="批量删除当前用户拥有的账户，并返回逐项失败原因。",
+        request=AccountBatchDeleteRequestSerializer,
+        responses={200: AccountBatchDeleteResponseSerializer},
+    )
+    def post(self, request):
+        if not request.user or not request.user.is_authenticated:
+            return Response(
+                {'success': False, 'error': '请先登录后再执行删除操作'},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        serializer = AccountBatchDeleteRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        deleted_account_ids = []
+        deleted_account_names = []
+        failed = []
+
+        for account_id in serializer.validated_data['account_ids']:
+            account = SimulatedAccountModel._default_manager.filter(id=account_id).first()
+            if not account:
+                failed.append({'account_id': account_id, 'error': '账户不存在'})
+                continue
+            if not _can_manage_account(request.user, account):
+                failed.append({'account_id': account_id, 'error': '无权删除该账户'})
+                continue
+
+            summary = _delete_account_with_summary(account)
+            deleted_account_ids.append(summary['account_id'])
+            deleted_account_names.append(summary['account_name'])
+
+        return Response({
+            'success': True,
+            'requested_count': len(serializer.validated_data['account_ids']),
+            'deleted_count': len(deleted_account_ids),
+            'deleted_account_ids': deleted_account_ids,
+            'deleted_account_names': deleted_account_names,
+            'failed': failed,
+            'message': f'已删除 {len(deleted_account_ids)} 个账户',
         })
 
 

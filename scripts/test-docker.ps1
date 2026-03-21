@@ -4,15 +4,15 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-Write-Host "[INFO] Testing Docker image: agomsaaf-web:$ImageTag" -ForegroundColor Cyan
+Write-Host "[INFO] Testing Docker image: agomtradepro-web:$ImageTag" -ForegroundColor Cyan
 
 # 检查镜像是否存在
 Write-Host "`n[1/4] Checking if image exists..."
-$images = docker images --format "{{.Repository}}:{{.Tag}}" | Select-String "agomsaaf-web:$ImageTag"
+$images = docker images --format "{{.Repository}}:{{.Tag}}" | Select-String "agomtradepro-web:$ImageTag"
 if (-not $images) {
-    Write-Host "[ERROR] Image not found: agomsaaf-web:$ImageTag" -ForegroundColor Red
+    Write-Host "[ERROR] Image not found: agomtradepro-web:$ImageTag" -ForegroundColor Red
     Write-Host "Available images:" -ForegroundColor Yellow
-    docker images | Select-String "agomsaaf"
+    docker images | Select-String "agomtradepro"
     exit 1
 }
 Write-Host "[OK] Image found" -ForegroundColor Green
@@ -39,7 +39,7 @@ docker run -d `
     -e DJANGO_SECRET_KEY='test-key-for-local-testing-only' `
     -e DATABASE_URL='sqlite:///db.sqlite3' `
     -e DEBUG='True' `
-    agomsaaf-web:$ImageTag
+    agomtradepro-web:$ImageTag
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] Failed to start container" -ForegroundColor Red

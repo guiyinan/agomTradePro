@@ -1,5 +1,5 @@
 """
-Django production settings for AgomSAAF project.
+Django production settings for AgomTradePro project.
 """
 
 import logging
@@ -141,10 +141,10 @@ handlers = {
 django_handlers = ['console', 'in_memory']
 
 if LOG_TO_FILE:
-    os.makedirs('/var/log/agomsaaf', exist_ok=True)
+    os.makedirs('/var/log/agomtradepro', exist_ok=True)
     handlers['file'] = {
         'class': 'logging.handlers.RotatingFileHandler',
-        'filename': '/var/log/agomsaaf/django.log',
+        'filename': '/var/log/agomtradepro/django.log',
         'maxBytes': 1024 * 1024 * 100,
         'backupCount': 10,
         'formatter': 'structured',
@@ -152,7 +152,7 @@ if LOG_TO_FILE:
     }
     handlers['file_json'] = {
         'class': 'logging.handlers.RotatingFileHandler',
-        'filename': '/var/log/agomsaaf/django.json.log',
+        'filename': '/var/log/agomtradepro/django.json.log',
         'maxBytes': 1024 * 1024 * 100,
         'backupCount': 10,
         'formatter': 'structured',

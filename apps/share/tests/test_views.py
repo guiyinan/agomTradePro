@@ -1,6 +1,7 @@
 import pytest
 from decimal import Decimal
 
+from django.contrib.auth.hashers import check_password
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -78,7 +79,7 @@ def test_public_share_page_renders_position_details_without_duplicate_risk_notic
     assert "政策回暖后试仓" in content
     assert "跌破 9.80 重新评估" in content
     assert "本分享由" not in content
-    assert "数据来源: AgomSAAF 宏观环境准入系统" not in content
+    assert "数据来源: AgomTradePro 宏观环境准入系统" not in content
 
 
 @pytest.mark.django_db
@@ -234,6 +235,67 @@ def test_share_manage_edit_updates_theme(client, test_user, active_share_link):
 
 
 @pytest.mark.django_db
+def test_share_manage_edit_can_clear_password_with_explicit_toggle(
+    client,
+    test_user,
+    password_protected_share_link,
+):
+    client.force_login(test_user)
+
+    response = client.post(
+        f"/share/manage/{password_protected_share_link.id}/edit/",
+        {
+            "share_link_id": password_protected_share_link.id,
+            "account_id": password_protected_share_link.account_id,
+            "title": password_protected_share_link.title,
+            "subtitle": password_protected_share_link.subtitle or "",
+            "theme": password_protected_share_link.theme,
+            "share_level": password_protected_share_link.share_level,
+            "show_positions": "on",
+            "show_transactions": "on",
+            "show_decision_summary": "on",
+            "show_amounts": "on",
+        },
+    )
+
+    assert response.status_code == 302
+    password_protected_share_link.refresh_from_db()
+    assert password_protected_share_link.password_hash is None
+
+
+@pytest.mark.django_db
+def test_share_manage_edit_can_replace_password_when_enabled(
+    client,
+    test_user,
+    password_protected_share_link,
+):
+    client.force_login(test_user)
+
+    response = client.post(
+        f"/share/manage/{password_protected_share_link.id}/edit/",
+        {
+            "share_link_id": password_protected_share_link.id,
+            "account_id": password_protected_share_link.account_id,
+            "title": password_protected_share_link.title,
+            "subtitle": password_protected_share_link.subtitle or "",
+            "theme": password_protected_share_link.theme,
+            "share_level": password_protected_share_link.share_level,
+            "password_enabled": "on",
+            "password": "newpass123",
+            "show_positions": "on",
+            "show_transactions": "on",
+            "show_decision_summary": "on",
+            "show_amounts": "on",
+        },
+    )
+
+    assert response.status_code == 302
+    password_protected_share_link.refresh_from_db()
+    assert password_protected_share_link.password_hash is not None
+    assert check_password("newpass123", password_protected_share_link.password_hash) is True
+
+
+@pytest.mark.django_db
 def test_public_snapshot_is_built_live_when_missing(active_share_link):
     client = APIClient()
 
@@ -284,6 +346,21 @@ def test_public_snapshot_includes_asset_allocation(active_share_link, test_accou
     allocation = response.data["positions"]["summary"]["asset_allocation"]
     labels = {item["label"] for item in allocation}
     assert {"股票", "基金", "现金"} <= labels
+
+
+@pytest.mark.django_db
+def test_public_share_page_preserves_ratio_metrics_when_amounts_hidden(active_share_link, client):
+    active_share_link.show_amounts = False
+    active_share_link.save(update_fields=["show_amounts", "updated_at"])
+
+    response = client.get(f"/share/{active_share_link.short_code}/")
+
+    assert response.status_code == 200
+    content = response.content.decode("utf-8")
+    assert "10.50%" in content
+    assert "胜率" in content
+    assert "总资产" in content
+    assert "--" in content
 
 
 @pytest.mark.django_db

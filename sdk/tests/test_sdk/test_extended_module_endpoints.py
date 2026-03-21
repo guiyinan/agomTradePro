@@ -4,12 +4,12 @@ from unittest.mock import ANY, patch
 
 import pytest
 
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 
 
 @pytest.fixture
 def client():
-    return AgomSAAFClient(base_url="http://test.com", api_token="test_token")
+    return AgomTradeProClient(base_url="http://test.com", api_token="test_token")
 
 
 @pytest.mark.parametrize(
@@ -216,6 +216,13 @@ def client():
             "POST",
             "/api/rotation/account-configs/5/apply-template/",
             {"json": {"template_key": "moderate"}},
+        ),
+        (lambda c: c.simulated_trading.delete_account(5), "DELETE", "/api/simulated-trading/accounts/5/"),
+        (
+            lambda c: c.simulated_trading.batch_delete_accounts([5, 6]),
+            "POST",
+            "/api/simulated-trading/accounts/batch-delete/",
+            {"json": {"account_ids": [5, 6]}},
         ),
     ],
 )

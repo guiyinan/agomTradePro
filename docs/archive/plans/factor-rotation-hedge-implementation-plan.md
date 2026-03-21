@@ -579,7 +579,7 @@ class UnifiedSignalModel(models.Model):
 ### 4.1 SDK 新增模块
 
 ```
-sdk/agomsaaf/modules/
+sdk/agomtradepro/modules/
 ├── factor.py              # 因子选股模块
 │   └── FactorModule
 ├── rotation.py            # 资产轮动模块
@@ -591,7 +591,7 @@ sdk/agomsaaf/modules/
 ### 4.2 MCP 新增工具
 
 ```
-sdk/agomsaaf_mcp/tools/
+sdk/agomtradepro_mcp/tools/
 ├── factor_tools.py        # get_factor_top_stocks, explain_factor_stock
 ├── rotation_tools.py      # get_rotation_signal, compare_asset_momentum
 └── hedge_tools.py         # get_correlation_matrix, check_hedge_effectiveness
@@ -632,7 +632,7 @@ sdk/agomsaaf_mcp/tools/
 **关键文件**:
 - `apps/rotation/domain/services.py` - 轮动策略实现
 - `apps/rotation/application/use_cases.py` - 用例编排
-- `sdk/agomsaaf_mcp/tools/rotation_tools.py`
+- `sdk/agomtradepro_mcp/tools/rotation_tools.py`
 
 ### Phase 3: 因子选股（3 周）
 
@@ -716,12 +716,12 @@ apps/hedge/
 ├── (同样结构)
 └── management/commands/init_hedge.py
 
-sdk/agomsaaf/modules/
+sdk/agomtradepro/modules/
 ├── factor.py
 ├── rotation.py
 └── hedge.py
 
-sdk/agomsaaf_mcp/tools/
+sdk/agomtradepro_mcp/tools/
 ├── factor_tools.py
 ├── rotation_tools.py
 └── hedge_tools.py
@@ -739,11 +739,11 @@ apps/signal/
 ├── infrastructure/models.py  # 新增 UnifiedSignalModel
 └── domain/entities.py        # 扩展 Signal 实体
 
-sdk/agomsaaf/
+sdk/agomtradepro/
 ├── __init__.py                # 注册新模块
 └── client.py                  # 添加模块属性
 
-sdk/agomsaaf_mcp/
+sdk/agomtradepro_mcp/
 └── server.py                  # 注册新工具
 
 core/

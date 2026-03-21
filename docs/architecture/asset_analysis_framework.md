@@ -1436,7 +1436,7 @@ def test_fund_multidim_screen_api():
 
 - [RSS 政策事件集成文档](../integration/rss_policy_integration.md)
 - [投资信号与持仓关系说明](../business/signal_and_position.md)
-- [AgomSAAF_V3.4 架构文档](../business/AgomSAAF_V3.4.md)
+- [AgomTradePro_V3.4 架构文档](../business/AgomTradePro_V3.4.md)
 - [API 参考文档](../testing/api/API_REFERENCE.md)
 
 ---

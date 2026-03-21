@@ -7,8 +7,8 @@ $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
 $pythonExe = ""
-$venvPython = Join-Path $root "agomsaaf\\Scripts\\python.exe"
-if ($env:CONDA_DEFAULT_ENV -eq "agomsaaf") {
+$venvPython = Join-Path $root "agomtradepro\\Scripts\\python.exe"
+if ($env:CONDA_DEFAULT_ENV -eq "agomtradepro") {
     $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
     if ($pythonCmd) {
         $pythonExe = $pythonCmd.Source
@@ -19,13 +19,13 @@ if ([string]::IsNullOrWhiteSpace($pythonExe) -and (Test-Path $venvPython)) {
 }
 if ([string]::IsNullOrWhiteSpace($pythonExe)) {
     Write-Host "[ERROR] Python runtime not found." -ForegroundColor Red
-    Write-Host "Use conda env 'agomsaaf' or create venv at agomsaaf\\Scripts\\python.exe" -ForegroundColor Yellow
+    Write-Host "Use conda env 'agomtradepro' or create venv at agomtradepro\\Scripts\\python.exe" -ForegroundColor Yellow
     exit 1
 }
 
 Write-Host ""
 Write-Host "===================================="
-Write-Host " AgomSAAF Dev + URL/API Scan"
+Write-Host " AgomTradePro Dev + URL/API Scan"
 Write-Host "===================================="
 Write-Host ""
 
@@ -37,7 +37,7 @@ Write-Host "[1.5/4] Checking required Django modules..."
 & $pythonExe -c "import corsheaders; print('corsheaders: OK')" | Out-Host
 if ($LASTEXITCODE -ne 0) {
     Write-Host "[ERROR] Missing dependency: django-cors-headers" -ForegroundColor Red
-    Write-Host "Run: agomsaaf\\Scripts\\python.exe -m pip install django-cors-headers" -ForegroundColor Yellow
+    Write-Host "Run: agomtradepro\\Scripts\\python.exe -m pip install django-cors-headers" -ForegroundColor Yellow
     exit 1
 }
 

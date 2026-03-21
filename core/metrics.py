@@ -1,5 +1,5 @@
 """
-AgomSAAF Prometheus Metrics
+AgomTradePro Prometheus Metrics
 
 统一的 Prometheus 指标定义，涵盖：
 - API 请求指标（延迟、错误率、请求量）

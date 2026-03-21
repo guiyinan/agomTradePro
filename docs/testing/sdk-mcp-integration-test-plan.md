@@ -1,4 +1,4 @@
-# AgomSAAF SDK & MCP 集成测试计划
+# AgomTradePro SDK & MCP 集成测试计划
 
 > **版本**: 2.0
 > **更新日期**: 2026-02-05
@@ -9,7 +9,7 @@
 ## 1. 测试目标
 
 ### 1.1 功能性目标
-测试 AgomSAAF 系统 SDK 和 MCP (Model Context Protocol) 集成，验证：
+测试 AgomTradePro 系统 SDK 和 MCP (Model Context Protocol) 集成，验证：
 - 系统服务器能正常启动（Django + PostgreSQL + Redis + Celery）
 - SDK 能正确连接并调用 API
 - MCP 服务器能正常工作并提供工具
@@ -47,13 +47,13 @@
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                   MCP Server (stdio_server)                  │
-│  Location: sdk/agomsaaf_mcp/server.py                       │
+│  Location: sdk/agomtradepro_mcp/server.py                       │
 └────────────────────────┬────────────────────────────────────┘
                          │ 调用 SDK
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                  Python SDK (AgomSAAFClient)                 │
-│  Location: sdk/agomsaaf/client.py                           │
+│                  Python SDK (AgomTradeProClient)                 │
+│  Location: sdk/agomtradepro/client.py                           │
 │  - Retry Strategy                                          │
 │  - Error Propagation                                       │
 │  - Authentication (Bearer Token)                           │
@@ -61,7 +61,7 @@
                          │ HTTP REST API
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              AgomSAAF Django Application                     │
+│              AgomTradePro Django Application                     │
 │              http://localhost:8000/api/                      │
 │  - DRF ViewSets                                            │
 │  - Authentication Middleware                               │
@@ -95,7 +95,7 @@ AI Agent → MCP Server → SDK Client → HTTP Request → Django API → Busin
 | 层级 | 错误类型 | 处理方式 | 传播方向 |
 |------|----------|----------|----------|
 | MCP Server | SDK 异常 | 捕获并转换为 MCP 错误响应 | → AI Agent |
-| SDK Client | HTTP 错误 | 重试 → 抛出 AgomSAAFAPIError | → MCP Server |
+| SDK Client | HTTP 错误 | 重试 → 抛出 AgomTradeProAPIError | → MCP Server |
 | SDK Client | 网络超时 | 重试（最多3次）→ TimeoutError | → MCP Server |
 | Django API | 业务异常 | HTTP 400/404/500 + 错误详情 | → SDK Client |
 | Django API | 认证失败 | HTTP 401/403 | → SDK Client |
@@ -104,11 +104,11 @@ AI Agent → MCP Server → SDK Client → HTTP Request → Django API → Busin
 
 ```
 1. 环境变量配置
-   AGOMSAAF_BASE_URL=http://localhost:8000
-   AGOMSAAF_API_TOKEN=<token>
+   AGOMTRADEPRO_BASE_URL=http://localhost:8000
+   AGOMTRADEPRO_API_TOKEN=<token>
 
 2. SDK Client 初始化
-   client = AgomSAAFClient()
+   client = AgomTradeProClient()
    ↓ 读取环境变量
    ↓ 构建请求头: Authorization: Bearer <token>
 
@@ -161,13 +161,13 @@ AI Agent → MCP Server → SDK Client → HTTP Request → Django API → Busin
 
 ```powershell
 # 检查虚拟环境是否存在
-Test-Path agomsaaf\Scripts\python.exe
+Test-Path agomtradepro\Scripts\python.exe
 
 # 如果不存在，创建虚拟环境
-python -m venv agomsaaf
+python -m venv agomtradepro
 
 # 激活虚拟环境
-agomsaaf\Scripts\Activate.ps1
+agomtradepro\Scripts\Activate.ps1
 ```
 
 ### 4.2 安装依赖
@@ -197,7 +197,7 @@ cd ..
 ```bash
 # 必需配置 - **生产环境必须更换这些值**
 SECRET_KEY=your-secret-key-here  # ⚠️ 必须更换为强随机字符串
-DATABASE_URL=postgresql://agomsaaf:changeme@localhost:5433/agomsaaf  # ⚠️ 更换密码
+DATABASE_URL=postgresql://agomtradepro:changeme@localhost:5433/agomtradepro  # ⚠️ 更换密码
 REDIS_URL=redis://localhost:6379/0
 
 # API 密钥（用于数据获取）
@@ -240,33 +240,33 @@ docker-compose -f docker-compose-dev.yml up -d
 docker ps
 
 # 验证 PostgreSQL
-docker exec agomsaaf_postgres_dev pg_isready -U agomsaaf -d agomsaaf
+docker exec agomtradepro_postgres_dev pg_isready -U agomtradepro -d agomtradepro
 
 # 验证 Redis
-docker exec agomsaaf_redis_dev redis-cli ping
+docker exec agomtradepro_redis_dev redis-cli ping
 ```
 
 **步骤 2：运行数据库迁移**
 ```powershell
-agomsaaf\Scripts\Activate.ps1
+agomtradepro\Scripts\Activate.ps1
 python manage.py migrate
 ```
 
 **步骤 3：启动 Celery Worker（新终端）**
 ```powershell
-agomsaaf\Scripts\Activate.ps1
+agomtradepro\Scripts\Activate.ps1
 python -m celery -A core worker -l info --pool=solo
 ```
 
 **步骤 4：启动 Celery Beat（新终端）**
 ```powershell
-agomsaaf\Scripts\Activate.ps1
+agomtradepro\Scripts\Activate.ps1
 python -m celery -A core beat -l info
 ```
 
 **步骤 5：启动 Django 服务器**
 ```powershell
-agomsaaf\Scripts\Activate.ps1
+agomtradepro\Scripts\Activate.ps1
 python manage.py runserver 8000
 ```
 
@@ -277,8 +277,8 @@ python manage.py runserver 8000
 | Django Web | http://127.0.0.1:8000/ | 显示首页 | ☐ |
 | Admin Panel | http://127.0.0.1:8000/admin/ | 可登录 | ☐ |
 | API Docs | http://127.0.0.1:8000/api/docs/ | 显示文档 | ☐ |
-| PostgreSQL | `docker exec agomsaaf_postgres_dev pg_isready` | 返回 accepting connections | ☐ |
-| Redis | `docker exec agomsaaf_redis_dev redis-cli ping` | 返回 PONG | ☐ |
+| PostgreSQL | `docker exec agomtradepro_postgres_dev pg_isready` | 返回 accepting connections | ☐ |
+| Redis | `docker exec agomtradepro_redis_dev redis-cli ping` | 返回 PONG | ☐ |
 | Celery Worker | 查看终端输出 | 显示 ready | ☐ |
 | Celery Beat | 查看终端输出 | 显示 Scheduler | ☐ |
 
@@ -295,10 +295,10 @@ cd sdk
 pip install -e .
 
 # 验证安装
-pip show agomsaaf-sdk
+pip show agomtradepro-sdk
 
 # 测试导入
-python -c "from agomsaaf import AgomSAAFClient; print('SDK imported successfully')"
+python -c "from agomtradepro import AgomTradeProClient; print('SDK imported successfully')"
 ```
 
 ### 6.2 SDK 基础连接测试
@@ -371,12 +371,12 @@ python test_mcp_server.py
 ```json
 {
   "mcpServers": {
-    "agomsaaf": {
+    "agomtradepro": {
       "command": "python",
-      "args": ["-m", "agomsaaf_mcp.server"],
-      "cwd": "D:/githv/agomSAAF/sdk",
+      "args": ["-m", "agomtradepro_mcp.server"],
+      "cwd": "D:/githv/agomTradePro/sdk",
       "env": {
-        "AGOMSAAF_BASE_URL": "http://localhost:8000"
+        "AGOMTRADEPRO_BASE_URL": "http://localhost:8000"
       }
     }
   }
@@ -389,7 +389,7 @@ python test_mcp_server.py
 cd sdk
 
 # 测试 MCP 服务器启动
-python -m agomsaaf_mcp.server
+python -m agomtradepro_mcp.server
 
 # 预期输出：服务器启动，等待 stdio 输入
 ```
@@ -417,8 +417,8 @@ python -m agomsaaf_mcp.server
 
 | 资源 URI | 测试方式 | 预期结果 | 状态 |
 |----------|----------|----------|------|
-| `agomsaaf://regime/current` | 通过 Claude Code 读取 | 返回当前象限文本 | ☐ |
-| `agomsaaf://policy/status` | 通过 Claude Code 读取 | 返回政策状态文本 | ☐ |
+| `agomtradepro://regime/current` | 通过 Claude Code 读取 | 返回当前象限文本 | ☐ |
+| `agomtradepro://policy/status` | 通过 Claude Code 读取 | 返回政策状态文本 | ☐ |
 
 ### 7.4 MCP Prompts 测试
 
@@ -488,17 +488,17 @@ pytest tests/integration/test_backtesting_flow.py -v
 
 **运行方式：**
 ```powershell
-set AGOMSAAF_RUN_LIVE_REALTIME_TESTS=1
+set AGOMTRADEPRO_RUN_LIVE_REALTIME_TESTS=1
 python tests/integration/test_realtime_monitoring_flow.py
 # 或
-set AGOMSAAF_RUN_LIVE_REALTIME_TESTS=1
+set AGOMTRADEPRO_RUN_LIVE_REALTIME_TESTS=1
 pytest tests/integration/test_realtime_monitoring_flow.py -v
 ```
 
 **运行前提：**
 - 该测试依赖 `http://localhost:8000` 上的可用服务。
 - 该测试依赖真实实时行情数据。
-- 未设置 `AGOMSAAF_RUN_LIVE_REALTIME_TESTS=1` 时应默认跳过，避免 CI 因环境或行情缺失失败。
+- 未设置 `AGOMTRADEPRO_RUN_LIVE_REALTIME_TESTS=1` 时应默认跳过，避免 CI 因环境或行情缺失失败。
 
 **测试步骤：**
 
@@ -548,8 +548,8 @@ pytest tests/integration/test_realtime_monitoring_flow.py -v
 | 故障场景 | 测试方法 | 预期行为 |
 |----------|----------|----------|
 | Django 服务宕机 | 停止 Django 进程后调用 | SDK 返回 ConnectionError，重试 3 次 |
-| PostgreSQL 连接断开 | `docker stop agomsaaf_postgres_dev` | 返回明确错误，无崩溃 |
-| Redis 连接断开 | `docker stop agomsaaf_redis_dev` | Celery 任务排队，缓存失效 |
+| PostgreSQL 连接断开 | `docker stop agomtradepro_postgres_dev` | 返回明确错误，无崩溃 |
+| Redis 连接断开 | `docker stop agomtradepro_redis_dev` | Celery 任务排队，缓存失效 |
 | 网络超时 | 模拟网络延迟 30 秒 | SDK 重试后返回 TimeoutError |
 | API Token 失效 | 使用过期 Token | 返回 401，明确提示 |
 
@@ -642,7 +642,7 @@ addopts = --reuse-db --nomigrations
 | 测试模式 | 数据库 | 隔离方式 |
 |----------|--------|----------|
 | SQLite | 内存数据库 `:memory:` | 每个进程独立 |
-| PostgreSQL | `agomsaaf_test` | Schema 隔离 |
+| PostgreSQL | `agomtradepro_test` | Schema 隔离 |
 | Docker | 独立容器 | 完全隔离 |
 
 ---
@@ -655,8 +655,8 @@ addopts = --reuse-db --nomigrations
 |------|----------|----------|
 | 服务器无法启动 | 检查端口占用 | 更改端口或关闭占用进程 |
 | PostgreSQL 连接失败 | `docker ps` 检查容器 | 重启 Docker 服务 |
-| Redis 连接失败 | `docker exec agomsaaf_redis_dev redis-cli ping` | 检查 Redis 容器状态 |
-| SDK 连接超时 | 检查 `AGOMSAAF_BASE_URL` | 确认 URL 正确 |
+| Redis 连接失败 | `docker exec agomtradepro_redis_dev redis-cli ping` | 检查 Redis 容器状态 |
+| SDK 连接超时 | 检查 `AGOMTRADEPRO_BASE_URL` | 确认 URL 正确 |
 
 ### 11.2 认证问题
 
@@ -786,8 +786,8 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_DB: agomsaaf_test
-          POSTGRES_USER: agomsaaf
+          POSTGRES_DB: agomtradepro_test
+          POSTGRES_USER: agomtradepro
           POSTGRES_PASSWORD: test_password
         options: >-
           --health-cmd pg_isready
@@ -818,7 +818,7 @@ jobs:
       - name: Run full tests
         run: ./run_all_tests.ps1 -TestMode full
         env:
-          DATABASE_URL: postgresql://agomsaaf:test_password@localhost:5433/agomsaaf_test
+          DATABASE_URL: postgresql://agomtradepro:test_password@localhost:5433/agomtradepro_test
           REDIS_URL: redis://localhost:6379/0
 ```
 
@@ -919,7 +919,7 @@ python tests/integration/test_complete_investment_flow.py
 python tests/integration/test_backtesting_flow.py
 
 # 实时监控集成测试
-set AGOMSAAF_RUN_LIVE_REALTIME_TESTS=1
+set AGOMTRADEPRO_RUN_LIVE_REALTIME_TESTS=1
 python tests/integration/test_realtime_monitoring_flow.py
 ```
 
@@ -982,19 +982,19 @@ python tests/integration/test_realtime_monitoring_flow.py
 | **集成测试** | |
 | 投资流程测试 | `tests/integration/test_complete_investment_flow.py` |
 | 回测流程测试 | `tests/integration/test_backtesting_flow.py` |
-| 实时监控测试 | `tests/integration/test_realtime_monitoring_flow.py`（需设置 `AGOMSAAF_RUN_LIVE_REALTIME_TESTS=1`） |
+| 实时监控测试 | `tests/integration/test_realtime_monitoring_flow.py`（需设置 `AGOMTRADEPRO_RUN_LIVE_REALTIME_TESTS=1`） |
 | **性能测试** | |
 | 性能基准测试 | `tests/performance/` (待创建) |
 | **测试数据** | |
 | Fixtures | `tests/fixtures/` |
 | 工厂类 | `tests/factories/` |
 | **SDK 源码** | |
-| SDK 客户端 | `sdk/agomsaaf/client.py` |
-| SDK 配置 | `sdk/agomsaaf/config.py` |
-| SDK 异常 | `sdk/agomsaaf/exceptions.py` |
+| SDK 客户端 | `sdk/agomtradepro/client.py` |
+| SDK 配置 | `sdk/agomtradepro/config.py` |
+| SDK 异常 | `sdk/agomtradepro/exceptions.py` |
 | **MCP 源码** | |
-| MCP 服务器 | `sdk/agomsaaf_mcp/server.py` |
-| MCP 工具目录 | `sdk/agomsaaf_mcp/tools/` |
+| MCP 服务器 | `sdk/agomtradepro_mcp/server.py` |
+| MCP 工具目录 | `sdk/agomtradepro_mcp/tools/` |
 | **配置文件** | |
 | 环境配置 | `.env` |
 | 环境配置示例 | `.env.example` |

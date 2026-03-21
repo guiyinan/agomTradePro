@@ -1,12 +1,12 @@
 """
-Unit tests for AgomSAAF SDK Backtest Module
+Unit tests for AgomTradePro SDK Backtest Module
 """
 
 import pytest
 from datetime import date
 from unittest.mock import patch
 
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 
 
 class TestBacktestModule:
@@ -14,7 +14,7 @@ class TestBacktestModule:
 
     @pytest.fixture
     def client(self):
-        return AgomSAAFClient(
+        return AgomTradeProClient(
             base_url="http://test.com",
             api_token="test_token",
         )

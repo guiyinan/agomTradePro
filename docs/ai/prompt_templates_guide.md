@@ -1,10 +1,10 @@
 # Prompt 模板系统使用指南
 
-> AgomSAAF 内置可复用的 AI 分析模板系统
+> AgomTradePro 内置可复用的 AI 分析模板系统
 
 ## 一、系统概述
 
-Prompt 模板系统是 AgomSAAF 的核心 AI 能力层，提供：
+Prompt 模板系统是 AgomTradePro 的核心 AI 能力层，提供：
 - **预置分析模板**：开箱即用的专业分析模板
 - **占位符自动解析**：自动获取宏观数据、Regime状态
 - **链式编排能力**：支持串行、并行、工具调用等复杂流程
@@ -270,7 +270,7 @@ A: 模板存储在数据库中，使用 Django 的 dumpdata 命令备份
 
 - [AI Prompt 系统设计文档](ai_prompt_system.md)
 - [项目结构文档](../architecture/project_structure.md)
-- [Regime 判定模块](../business/AgomSAAF_V3.4.md)
+- [Regime 判定模块](../business/AgomTradePro_V3.4.md)
 
 ---
 

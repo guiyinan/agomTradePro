@@ -1,4 +1,4 @@
-# AgomSAAF API 参考文档
+# AgomTradePro API 参考文档
 
 > **版本**: v1.0
 > **更新**: 2026-03-05
@@ -8,7 +8,7 @@
 
 ## 概述
 
-AgomSAAF 提供完整的 RESTful API，支持宏观环境准入系统的全部功能，包括：
+AgomTradePro 提供完整的 RESTful API，支持宏观环境准入系统的全部功能，包括：
 - 宏观数据采集与 Regime 判定
 - 政策事件管理与投资信号验证
 - 个股/板块/基金分析
@@ -432,7 +432,7 @@ POST /api/backtest/api/run/
 
 补充文档：
 
-- [Shared Web Chat API 文档](/D:/githv/agomSAAF/docs/api/web-chat-api.md)
+- [Shared Web Chat API 文档](/D:/githv/agomTradePro/docs/api/web-chat-api.md)
 
 #### 请求示例
 

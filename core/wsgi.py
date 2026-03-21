@@ -1,5 +1,5 @@
 """
-WSGI config for AgomSAAF project.
+WSGI config for AgomTradePro project.
 """
 
 import os

@@ -3,7 +3,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.qlib-train
-    container_name: agomsaaf_qlib_train_worker
+    container_name: agomtradepro_qlib_train_worker
     restart: unless-stopped
     working_dir: /app
     environment:

@@ -6,13 +6,13 @@
 
 ---
 
-# AgomSAAF 决策平面改造
+# AgomTradePro 决策平面改造
 
 ## PRD + 技术设计文档（TDD）
 
 > **文档版本**：v1.0
 > **状态**：READY FOR IMPLEMENTATION
-> **适用系统**：AgomSAAF V3.4+
+> **适用系统**：AgomTradePro V3.4+
 > **设计目标关键词**：
 > **Hard Beta Gate / Discrete Alpha / Sparse Decision**
 
@@ -22,7 +22,7 @@
 
 ### 1.1 背景
 
-AgomSAAF 当前已具备：
+AgomTradePro 当前已具备：
 
 * 严格的 **Regime + Policy** 宏观过滤
 * PIT 数据、防后视偏差、完整回测与风控

@@ -1,4 +1,4 @@
-# AgomSAAF 前端设计指南
+# AgomTradePro 前端设计指南
 
 > **设计理念**: 简洁、淡雅、专业 - 参考 Wikipedia 风格
 > **目标**: 最大化数据可读性，最小化视觉干扰
@@ -589,12 +589,12 @@ const regimeQuadrants = {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgomSAAF</title>
+    <title>AgomTradePro</title>
     <link rel="stylesheet" href="/static/css/main.css">
 </head>
 <body>
     <header class="header">
-        <div class="header-logo">AgomSAAF</div>
+        <div class="header-logo">AgomTradePro</div>
         <nav class="header-nav">
             <a href="/regime/">Regime</a>
             <a href="/signals/">Signals</a>
@@ -1096,5 +1096,5 @@ document.body.addEventListener('htmx:afterRequest', function(evt) {
 ---
 
 **文档版本**: V2.0 (Phase 1 更新)
-**维护**: AgomSAAF Team
+**维护**: AgomTradePro Team
 **更新日期**: 2026-01-04

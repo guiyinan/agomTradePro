@@ -41,10 +41,10 @@ fi
 
 python manage.py migrate --noinput
 if [ "$is_web_command" = "1" ]; then
-  if [ "${AGOMSAAF_BOOTSTRAP_ON_START:-1}" = "1" ]; then
+  if [ "${AGOMTRADEPRO_BOOTSTRAP_ON_START:-1}" = "1" ]; then
     bootstrap_args=""
-    if [ "${AGOMSAAF_BOOTSTRAP_ALPHA_ON_START:-1}" = "1" ]; then
-      bootstrap_args="$bootstrap_args --with-alpha --alpha-universes ${AGOMSAAF_BOOTSTRAP_ALPHA_UNIVERSES:-csi300} --alpha-top-n ${AGOMSAAF_BOOTSTRAP_ALPHA_TOP_N:-30}"
+    if [ "${AGOMTRADEPRO_BOOTSTRAP_ALPHA_ON_START:-1}" = "1" ]; then
+      bootstrap_args="$bootstrap_args --with-alpha --alpha-universes ${AGOMTRADEPRO_BOOTSTRAP_ALPHA_UNIVERSES:-csi300} --alpha-top-n ${AGOMTRADEPRO_BOOTSTRAP_ALPHA_TOP_N:-30}"
     fi
     python manage.py bootstrap_cold_start $bootstrap_args
   fi

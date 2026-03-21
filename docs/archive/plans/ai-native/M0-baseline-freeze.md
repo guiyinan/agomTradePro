@@ -32,9 +32,9 @@ This milestone exists to prevent:
 
 ## Required Inputs
 
-- [AI-native blueprint](/abs/path/D:/githv/agomSAAF/docs/plans/AI-native-blueprint-260315.md)
-- [AI-native implementation plan](/abs/path/D:/githv/agomSAAF/docs/plans/AI-Native-upgrade-implement-plan-260315.md)
-- [API/MCP/SDK alignment](/abs/path/D:/githv/agomSAAF/docs/development/api-mcp-sdk-alignment-2026-03-14.md)
+- [AI-native blueprint](/abs/path/D:/githv/agomTradePro/docs/plans/AI-native-blueprint-260315.md)
+- [AI-native implementation plan](/abs/path/D:/githv/agomTradePro/docs/plans/AI-Native-upgrade-implement-plan-260315.md)
+- [API/MCP/SDK alignment](/abs/path/D:/githv/agomTradePro/docs/development/api-mcp-sdk-alignment-2026-03-14.md)
 
 ## Work Packages
 
@@ -63,9 +63,9 @@ Freeze the implementation ownership map:
 
 - `apps/agent_runtime/` for runtime entities, state machine, proposal lifecycle
 - existing domain apps remain source of business truth
-- `sdk/agomsaaf/modules/agent_runtime.py` for task/proposal SDK
-- `sdk/agomsaaf/modules/agent_context.py` for context SDK
-- `sdk/agomsaaf_mcp/tools/agent_task_tools.py` for task-oriented tools
+- `sdk/agomtradepro/modules/agent_runtime.py` for task/proposal SDK
+- `sdk/agomtradepro/modules/agent_context.py` for context SDK
+- `sdk/agomtradepro_mcp/tools/agent_task_tools.py` for task-oriented tools
 
 Deliverable:
 

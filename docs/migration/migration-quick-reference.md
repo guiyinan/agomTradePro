@@ -45,7 +45,7 @@
 **无需修改代码**，升级 SDK 即可：
 
 ```bash
-pip install --upgrade agomsaaf-sdk
+pip install --upgrade agomtradepro-sdk
 ```
 
 ## 直接 API 调用

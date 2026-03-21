@@ -1,15 +1,15 @@
-"""Entry page for AgomSAAF Streamlit dashboard."""
+"""Entry page for AgomTradePro Streamlit dashboard."""
 
 import streamlit as st
 
 
 st.set_page_config(
-    page_title="AgomSAAF Dashboard",
+    page_title="AgomTradePro Dashboard",
     page_icon="AG",
     layout="wide",
 )
 
-st.title("AgomSAAF Streamlit Dashboard")
+st.title("AgomTradePro Streamlit Dashboard")
 st.caption("Interactive dashboard for Regime, Equity Curve, and Signal Status.")
 
 st.markdown(

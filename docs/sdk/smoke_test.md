@@ -1,4 +1,4 @@
-# AgomSAAF SDK/MCP Smoke Test
+# AgomTradePro SDK/MCP Smoke Test
 
 This checklist verifies that the local backend, SDK, and MCP server work end-to-end.
 
@@ -27,8 +27,8 @@ Set env vars:
 #### Windows PowerShell
 
 ```powershell
-$env:AGOMSAAF_BASE_URL="http://127.0.0.1:8000"
-$env:AGOMSAAF_API_TOKEN="<paste_token_here>"
+$env:AGOMTRADEPRO_BASE_URL="http://127.0.0.1:8000"
+$env:AGOMTRADEPRO_API_TOKEN="<paste_token_here>"
 $env:NO_PROXY="127.0.0.1,localhost"
 $env:no_proxy="127.0.0.1,localhost"
 ```
@@ -36,8 +36,8 @@ $env:no_proxy="127.0.0.1,localhost"
 #### Linux/macOS (bash)
 
 ```bash
-export AGOMSAAF_BASE_URL="http://127.0.0.1:8000"
-export AGOMSAAF_API_TOKEN="<paste_token_here>"
+export AGOMTRADEPRO_BASE_URL="http://127.0.0.1:8000"
+export AGOMTRADEPRO_API_TOKEN="<paste_token_here>"
 export NO_PROXY="127.0.0.1,localhost"
 export no_proxy="127.0.0.1,localhost"
 ```
@@ -55,7 +55,7 @@ Expected: `200`
 ## 4. SDK Smoke
 
 ```bash
-python -c "from agomsaaf import AgomSAAFClient; c=AgomSAAFClient(); print(type(c.regime.get_current()).__name__); print(type(c.policy.get_status()).__name__); print(len(c.signal.list(limit=5)))"
+python -c "from agomtradepro import AgomTradeProClient; c=AgomTradeProClient(); print(type(c.regime.get_current()).__name__); print(type(c.policy.get_status()).__name__); print(len(c.signal.list(limit=5)))"
 ```
 
 Expected:
@@ -66,7 +66,7 @@ Expected:
 ## 5. MCP Smoke
 
 ```bash
-python -c "import asyncio; from agomsaaf_mcp.server import server; async def main(): print(len(await server.list_tools())); print(type(await server.call_tool('get_current_regime', {})).__name__); print(type(await server.call_tool('list_signals', {})).__name__); asyncio.run(main())"
+python -c "import asyncio; from agomtradepro_mcp.server import server; async def main(): print(len(await server.list_tools())); print(type(await server.call_tool('get_current_regime', {})).__name__); print(type(await server.call_tool('list_signals', {})).__name__); asyncio.run(main())"
 ```
 
 Expected:

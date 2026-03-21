@@ -2,7 +2,7 @@
   "dependencies": {
     "playwright": "^1.57.0"
   },
-  "name": "agomsaaf",
+  "name": "agomtradepro",
   "version": "1.0.0",
   "main": "index.js",
   "directories": {
@@ -14,14 +14,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/guiyinan/agomSAAF.git"
+    "url": "git+https://github.com/guiyinan/agomTradePro.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/guiyinan/agomSAAF/issues"
+    "url": "https://github.com/guiyinan/agomTradePro/issues"
   },
-  "homepage": "https://github.com/guiyinan/agomSAAF#readme",
-  "description": ""
+  "homepage": "https://github.com/guiyinan/agomTradePro#readme",
+  "description": "AgomTradePro web and automation workspace"
 }

@@ -1,16 +1,16 @@
 """
-AgomSAAF SDK - Data Analysis with Pandas
+AgomTradePro SDK - Data Analysis with Pandas
 
 This file demonstrates how to use the SDK with pandas for data analysis.
 Requires: pip install pandas
 """
 
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 from datetime import date
 import pandas as pd
 
 # Initialize client
-client = AgomSAAFClient(
+client = AgomTradeProClient(
     base_url="http://localhost:8000",
     api_token="your_token_here"
 )

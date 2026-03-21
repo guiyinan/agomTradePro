@@ -1,5 +1,5 @@
 /**
- * AgomSAAF Floating Widget System
+ * AgomTradePro Floating Widget System
  * 浮动小组件系统 - 提供页面级别的功能介绍和计算逻辑说明
  *
  * @class AgomFloatingWidget

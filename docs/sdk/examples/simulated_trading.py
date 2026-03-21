@@ -1,15 +1,15 @@
 """
-AgomSAAF SDK - Simulated Trading Example
+AgomTradePro SDK - Simulated Trading Example
 
-This file demonstrates simulated trading using the AgomSAAF SDK.
+This file demonstrates simulated trading using the AgomTradePro SDK.
 """
 
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 from datetime import date, datetime
 import time
 
 # Initialize client
-client = AgomSAAFClient(
+client = AgomTradeProClient(
     base_url="http://localhost:8000",
     api_token="your_token_here"
 )

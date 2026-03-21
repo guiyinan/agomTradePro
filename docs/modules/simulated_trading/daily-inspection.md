@@ -48,7 +48,7 @@
 - `GET/POST /simulated-trading/my-accounts/{account_id}/inspection-notify/`
 
 环境变量：
-- `DEFAULT_FROM_EMAIL`（默认 `noreply@agomsaaf.com`）
+- `DEFAULT_FROM_EMAIL`（默认 `noreply@agomtradepro.com`）
 - `DAILY_INSPECTION_EMAIL_ENABLED`（全局开关，默认 `true`）
 
 ## 后端 API
@@ -61,13 +61,13 @@
 
 ## SDK
 
-`sdk/agomsaaf/modules/simulated_trading.py` 新增：
+`sdk/agomtradepro/modules/simulated_trading.py` 新增：
 - `run_daily_inspection(account_id, strategy_id=None, inspection_date=None)`
 - `list_daily_inspections(account_id, limit=20, inspection_date=None)`
 
 ## MCP Tools
 
-`sdk/agomsaaf_mcp/tools/simulated_trading_tools.py` 新增：
+`sdk/agomtradepro_mcp/tools/simulated_trading_tools.py` 新增：
 - `run_simulated_daily_inspection(account_id, strategy_id=None, inspection_date=None)`
 - `list_simulated_daily_inspections(account_id, limit=20, inspection_date=None)`
 

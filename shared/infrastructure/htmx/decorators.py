@@ -1,5 +1,5 @@
 """
-AgomSAAF - 视图装饰器
+AgomTradePro - 视图装饰器
 
 提供权限验证、HTMX 检测等装饰器。
 """

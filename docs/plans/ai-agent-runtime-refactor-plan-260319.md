@@ -1,4 +1,4 @@
-# AgomSAAF AI 中台 Agent Runtime 重构实施方案
+# AgomTradePro AI 中台 Agent Runtime 重构实施方案
 
 ## Summary
 
@@ -177,9 +177,9 @@
 
 仓库已经有内置 MCP，且目录结构完整：
 
-- `sdk/agomsaaf_mcp/tools`
-- `sdk/agomsaaf_mcp/resources`
-- `sdk/agomsaaf_mcp/prompts`
+- `sdk/agomtradepro_mcp/tools`
+- `sdk/agomtradepro_mcp/resources`
+- `sdk/agomtradepro_mcp/prompts`
 
 因此本次重构不应把 Runtime 和 MCP 拆成两套能力，而应采用：
 
@@ -660,9 +660,9 @@ terminal 接到用户自然语言问题后：
 
 MCP/SDK 相关重点位置：
 
-- `sdk/agomsaaf_mcp/tools`
-- `sdk/agomsaaf_mcp/resources`
-- `sdk/agomsaaf_mcp/prompts`
+- `sdk/agomtradepro_mcp/tools`
+- `sdk/agomtradepro_mcp/resources`
+- `sdk/agomtradepro_mcp/prompts`
 
 接入方改造重点：
 

@@ -2,7 +2,7 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
   external_labels:
-    cluster: 'agomsaaf'
+    cluster: 'agomtradepro'
     environment: 'production'
 
 alerting:
@@ -15,7 +15,7 @@ rule_files:
 
 scrape_configs:
   # Django 应用指标
-  - job_name: 'agomsaaf'
+  - job_name: 'agomtradepro'
     static_configs:
       - targets: ['localhost:8000']
     metrics_path: '/metrics'

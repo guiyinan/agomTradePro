@@ -1,9 +1,9 @@
-# AgomSAAF UAT & E2E Test Report
+# AgomTradePro UAT & E2E Test Report
 
 **Test Date:** 2026-02-21
 **Test Environment:** Windows 10, Python 3.13.5, Django 5.2.10
 **Test Tool:** Playwright (Headless Browser) + Requests
-**System Version:** AgomSAAF V3.4
+**System Version:** AgomTradePro V3.4
 **Report Revision:** 2.0 (Baseline Corrected)
 
 ---
@@ -264,7 +264,7 @@ Priority areas for improvement:
 
 ### Server Startup
 ```
-[OK] Python runtime ready: agomsaaf\Scripts\python.exe
+[OK] Python runtime ready: agomtradepro\Scripts\python.exe
 [OK] Database ready (migrations applied)
 [OK] Macro periodic tasks configured
 [OK] Django server running on http://127.0.0.1:8000

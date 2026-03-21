@@ -1,4 +1,4 @@
-# AgomSAAF 易用性改进规划
+# AgomTradePro 易用性改进规划
 ## 让用户快速上手，真正用起来
 
 > **制定时间**：2026-01-21
@@ -322,7 +322,7 @@ STATIC_FALLBACK = [
 **摘要示例**：
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 AgomSAAF 每日投资摘要
+📊 AgomTradePro 每日投资摘要
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📅 2026-01-21 星期二
 
@@ -348,12 +348,12 @@ STATIC_FALLBACK = [
 3. ⚠️ 持仓中000001.SZ与当前环境严重不匹配
 
 【快捷操作】
-👉 查看详细配置建议: https://agomsaaf.com/dashboard/
-👉 一键调仓: https://agomsaaf.com/signal/quick-adjust/
-👉 查看Regime历史: https://agomsaaf.com/regime/history/
+👉 查看详细配置建议: https://agomtradepro.com/dashboard/
+👉 一键调仓: https://agomtradepro.com/signal/quick-adjust/
+👉 查看Regime历史: https://agomtradepro.com/regime/history/
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-本邮件由 AgomSAAF 自动生成
+本邮件由 AgomTradePro 自动生成
 取消订阅 | 调整推送时间 | 反馈建议
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
@@ -370,7 +370,7 @@ STATIC_FALLBACK = [
 
            # 发送邮件
            send_mail(
-               subject=f'AgomSAAF 每日投资摘要 - {date.today()}',
+               subject=f'AgomTradePro 每日投资摘要 - {date.today()}',
                message=summary,
                from_email=settings.EMAIL_FROM,
                recipient_list=[user.email]
@@ -434,7 +434,7 @@ STATIC_FALLBACK = [
 
 **通知示例**：
 ```
-【AgomSAAF 风险告警】🚨
+【AgomTradePro 风险告警】🚨
 
 Regime重大变化：Recovery → Stagflation
 
@@ -451,7 +451,7 @@ Regime重大变化：Recovery → Stagflation
   2. 考虑减仓成长股（000001.SZ等）
   3. 增配防御性资产（债券、黄金）
 
-👉 查看详情: https://agomsaaf.com/dashboard/
+👉 查看详情: https://agomtradepro.com/dashboard/
 ```
 
 **实施步骤**：
@@ -667,7 +667,7 @@ EMAIL_SMTP_HOST=smtp.gmail.com
 EMAIL_SMTP_PORT=587
 EMAIL_USERNAME=your-email@gmail.com
 EMAIL_PASSWORD=your-app-password
-EMAIL_FROM=agomsaaf@example.com
+EMAIL_FROM=agomtradepro@example.com
 EMAIL_TO=user1@example.com,user2@example.com
 
 # 3. 初始化增强规则

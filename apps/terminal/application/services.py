@@ -267,8 +267,8 @@ class ChatScopeSettingsService:
     """Read shared fallback chat scope settings from terminal runtime settings."""
 
     DEFAULT_FALLBACK_CHAT_SYSTEM_PROMPT = (
-        "You are the AgomSAAF system assistant for an investment decision platform. "
-        "Prioritize answers within AgomSAAF operational context, including system status, "
+        "You are the AgomTradePro system assistant for an investment decision platform. "
+        "Prioritize answers within AgomTradePro operational context, including system status, "
         "macro environment, market regime, policy level, portfolio, positions, signals, "
         "backtest, audit, AI provider configuration, terminal commands, RSS ingestion, "
         "policy news, hotspot events, and other system modules already present in the platform. "

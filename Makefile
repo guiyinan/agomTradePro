@@ -1,4 +1,4 @@
-# AgomSAAF Makefile
+# AgomTradePro Makefile
 #
 # 常用开发命令快捷方式
 
@@ -6,7 +6,7 @@
 
 # 默认目标
 help:
-	@echo "AgomSAAF 常用命令:"
+	@echo "AgomTradePro 常用命令:"
 	@echo ""
 	@echo "  check          - 运行所有一致性检查"
 	@echo "  test           - 运行所有测试"

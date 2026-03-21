@@ -421,7 +421,7 @@ def main():
     """Run all tests"""
     print("\n")
     print("=" * 60)
-    print("  AgomSAAF - Regime Calculation Test Suite")
+    print("  AgomTradePro - Regime Calculation Test Suite")
     print("  Testing Domain Services (Pure Python, no Django)")
     print("=" * 60)
 

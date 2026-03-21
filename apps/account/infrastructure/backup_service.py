@@ -61,7 +61,7 @@ def generate_backup_archive(config: SystemSettingsModel) -> GeneratedBackup:
     encrypted = _encrypt_backup_bytes(compressed, config.get_backup_password())
     timestamp = timezone.now().strftime("%Y%m%d%H%M%S")
     db_engine = connections["default"].settings_dict.get("ENGINE", "unknown").rsplit(".", 1)[-1]
-    filename = f"agomsaaf-db-backup-{db_engine}-{timestamp}.agbk"
+    filename = f"agomtradepro-db-backup-{db_engine}-{timestamp}.agbk"
     return GeneratedBackup(
         filename=filename,
         content=encrypted,

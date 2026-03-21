@@ -1,22 +1,22 @@
 @echo off
-REM AgomSAAF Virtual Environment Activation Script
+REM AgomTradePro Virtual Environment Activation Script
 
 echo ====================================
-echo AgomSAAF Virtual Environment
+echo AgomTradePro Virtual Environment
 echo ====================================
 echo.
 
 REM Check if virtual environment exists
-if not exist "agomsaaf\Scripts\activate.bat" (
+if not exist "agomtradepro\Scripts\activate.bat" (
     echo [ERROR] Virtual environment not found!
-    echo Please run: python -m venv agomsaaf
+    echo Please run: python -m venv agomtradepro
     pause
     exit /b 1
 )
 
 REM Activate virtual environment
 echo [INFO] Activating virtual environment...
-call agomsaaf\Scripts\activate.bat
+call agomtradepro\Scripts\activate.bat
 
 echo.
 echo ====================================

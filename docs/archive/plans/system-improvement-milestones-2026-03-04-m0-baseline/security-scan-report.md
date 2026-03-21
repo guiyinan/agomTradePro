@@ -13,7 +13,7 @@
 
 **Overall Security Status**: **MEDIUM RISK**
 
-The AgomSAAF project demonstrates **strong security practices** in several areas:
+The AgomTradePro project demonstrates **strong security practices** in several areas:
 - Environment-based configuration (no hardcoded secrets)
 - Proper secrets management via `shared/config/secrets.py`
 - Field-level encryption for API keys
@@ -146,7 +146,7 @@ The project uses `exec()` and `eval()` to execute user-defined code for trading 
 - Database fallback for API keys
 - Field-level encryption for AI provider keys (`apps/ai_provider/`)
 
-**Encryption**: `AGOMSAAF_ENCRYPTION_KEY` properly required for new API keys
+**Encryption**: `AGOMTRADEPRO_ENCRYPTION_KEY` properly required for new API keys
 
 ---
 
@@ -322,7 +322,7 @@ safety check --json > docs/plan/m0-baseline/safety-report.json
 
 ## Conclusion
 
-AgomSAAF demonstrates **strong security practices** overall. The main areas of concern are:
+AgomTradePro demonstrates **strong security practices** overall. The main areas of concern are:
 
 1. **Pickle deserialization** for ML models - should add signature verification
 2. **Lack of automated dependency scanning** - should add to CI/CD

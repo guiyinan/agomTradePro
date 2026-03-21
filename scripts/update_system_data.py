@@ -1,5 +1,5 @@
 """
-AgomSAAF 数据更新脚本
+AgomTradePro 数据更新脚本
 
 独立脚本，用于从 AKShare 获取最新宏观数据并更新系统。
 不依赖 Django，可直接运行。
@@ -270,7 +270,7 @@ def load_from_json(filename: str) -> Optional[Dict]:
 def main():
     """主程序"""
     print("=" * 60)
-    print("AgomSAAF 数据更新工具")
+    print("AgomTradePro 数据更新工具")
     print("=" * 60)
 
     # 初始化数据获取器

@@ -1,4 +1,4 @@
-# AgomSAAF 系统改进方案
+# AgomTradePro 系统改进方案
 ## 从"不顺手"到"自动化决策助手"
 
 > **制定时间**：2026-01-21
@@ -279,7 +279,7 @@ def generate_performance_data(portfolio_id, days=30):
 
 **摘要内容**：
 ```
-【AgomSAAF 每日投资摘要】- 2026-01-21
+【AgomTradePro 每日投资摘要】- 2026-01-21
 
 宏观环境：
   - Regime: Stagflation（概率45%）
@@ -297,7 +297,7 @@ def generate_performance_data(portfolio_id, days=30):
   2. 考虑增加防御性资产配置（债券、黄金）
   3. 持仓中000001.SH与当前环境不匹配
 
-查看详情: https://agomsaaf.com/dashboard/
+查看详情: https://agomtradepro.com/dashboard/
 ```
 
 **Celery配置**：
@@ -364,7 +364,7 @@ CELERY_BEAT_SCHEDULE = {
 ```powershell
 # start_celery.ps1
 cd .
-.\agomsaaf\Scripts\activate
+.\agomtradepro\Scripts\activate
 celery -A core worker -l info --pool=solo
 ```
 
@@ -561,5 +561,5 @@ python manage.py showmigrations
 
 ---
 
-**总结**：本改进方案将AgomSAAF从"需手动查看、响应慢、无指引"转变为"自动推送、秒级响应、直接给出配置建议"的自动化决策助手，核心聚焦用户痛点，分阶段实施，风险可控。
+**总结**：本改进方案将AgomTradePro从"需手动查看、响应慢、无指引"转变为"自动推送、秒级响应、直接给出配置建议"的自动化决策助手，核心聚焦用户痛点，分阶段实施，风险可控。
 

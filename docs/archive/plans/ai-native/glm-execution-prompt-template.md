@@ -1,4 +1,4 @@
-# GLM Execution Prompt Template For AgomSAAF AI-Native Delivery
+# GLM Execution Prompt Template For AgomTradePro AI-Native Delivery
 
 ## Purpose
 
@@ -32,7 +32,7 @@ If you want GLM to work task by task, also provide:
 ## Prompt Template
 
 ```text
-You are the implementation agent for the AgomSAAF AI-native upgrade program.
+You are the implementation agent for the AgomTradePro AI-native upgrade program.
 
 You must implement strictly against the repository documentation and must not make product or architecture decisions on your own.
 

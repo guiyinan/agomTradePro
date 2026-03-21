@@ -66,7 +66,7 @@ def main() -> int:
     ap.add_argument("--port", type=int, default=int(os.environ.get("AGOM_VPS_PORT", "22")))
     ap.add_argument("--user", default=os.environ.get("AGOM_VPS_USER", "").strip() or None)
     ap.add_argument("--password-file", default=os.environ.get("AGOM_VPS_PASS_FILE", "").strip() or None)
-    ap.add_argument("--remote-env", default=os.environ.get("AGOM_VPS_REMOTE_ENV", "/opt/agomsaaf/current/deploy/.env"))
+    ap.add_argument("--remote-env", default=os.environ.get("AGOM_VPS_REMOTE_ENV", "/opt/agomtradepro/current/deploy/.env"))
     ap.add_argument("--output-dir", default=os.environ.get("AGOM_VPS_SECRET_BACKUP_DIR", "backups/vps-secrets"))
     ap.add_argument("--timeout", type=int, default=int(os.environ.get("AGOM_VPS_TIMEOUT", "60")))
     args = ap.parse_args()
@@ -92,7 +92,7 @@ def main() -> int:
             f"p = Path({args.remote_env!r})\n"
             "if not p.exists():\n"
             "    raise SystemExit('REMOTE_ENV_MISSING')\n"
-            "wanted = {'SECRET_KEY', 'AGOMSAAF_ENCRYPTION_KEY'}\n"
+            "wanted = {'SECRET_KEY', 'AGOMTRADEPRO_ENCRYPTION_KEY'}\n"
             "for line in p.read_text(encoding='utf-8').splitlines():\n"
             "    if '=' not in line or line.lstrip().startswith('#'):\n"
             "        continue\n"
@@ -112,8 +112,8 @@ def main() -> int:
             key, value = line.split("=", 1)
             values[key.strip()] = value.strip()
 
-        if "SECRET_KEY" not in values or "AGOMSAAF_ENCRYPTION_KEY" not in values:
-            _die("Remote env did not return both SECRET_KEY and AGOMSAAF_ENCRYPTION_KEY")
+        if "SECRET_KEY" not in values or "AGOMTRADEPRO_ENCRYPTION_KEY" not in values:
+            _die("Remote env did not return both SECRET_KEY and AGOMTRADEPRO_ENCRYPTION_KEY")
 
         output_dir = Path(args.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -125,7 +125,7 @@ def main() -> int:
             f"# Remote env: {args.remote_env}",
             f"# Generated at: {time.strftime('%Y-%m-%d %H:%M:%S')}",
             f"SECRET_KEY={values['SECRET_KEY']}",
-            f"AGOMSAAF_ENCRYPTION_KEY={values['AGOMSAAF_ENCRYPTION_KEY']}",
+            f"AGOMTRADEPRO_ENCRYPTION_KEY={values['AGOMTRADEPRO_ENCRYPTION_KEY']}",
             "",
         ]
         output_path.write_text("\n".join(content), encoding="utf-8")

@@ -110,7 +110,7 @@ class SlackAlertChannel(AlertChannel):
                         "color": colors.get(level, "#36a64f"),
                         "title": title,
                         "text": message,
-                        "footer": "AgomSAAF Policy Alert",
+                        "footer": "AgomTradePro Policy Alert",
                         "ts": int(__import__("time").time())
                     }
                 ]

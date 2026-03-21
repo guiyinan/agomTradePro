@@ -6,18 +6,18 @@
 按优先级分三阶段推进：先止血，再去存量，最后建防线。整改完成后的成功标准是：生产/准生产路径在缺少真实数据源时只能显式报错或返回“数据不可用”，不能再生成合成结果、零收益率结果或看似正常的 mock 指标。
 
 ## P0 立即整改
-- 移除运行时假结果生成，重点处理 [apps/alpha/application/tasks.py](/D:/githv/agomSAAF/apps/alpha/application/tasks.py#L787)、[apps/alpha/management/commands/train_qlib_model.py](/D:/githv/agomSAAF/apps/alpha/management/commands/train_qlib_model.py#L341)、[apps/dashboard/application/queries.py](/D:/githv/agomSAAF/apps/dashboard/application/queries.py#L237)、[apps/rotation/infrastructure/adapters/price_adapter.py](/D:/githv/agomSAAF/apps/rotation/infrastructure/adapters/price_adapter.py#L191)。
+- 移除运行时假结果生成，重点处理 [apps/alpha/application/tasks.py](/D:/githv/agomTradePro/apps/alpha/application/tasks.py#L787)、[apps/alpha/management/commands/train_qlib_model.py](/D:/githv/agomTradePro/apps/alpha/management/commands/train_qlib_model.py#L341)、[apps/dashboard/application/queries.py](/D:/githv/agomTradePro/apps/dashboard/application/queries.py#L237)、[apps/rotation/infrastructure/adapters/price_adapter.py](/D:/githv/agomTradePro/apps/rotation/infrastructure/adapters/price_adapter.py#L191)。
 - 处理原则统一为：业务路径禁止返回 synthetic/mock/random 数据；缺依赖或缺数据时返回明确错误、空态或降级状态对象，但不能伪造正常值。
-- 收紧“隐性伪数据回退”，重点处理 [apps/sector/application/use_cases.py](/D:/githv/agomSAAF/apps/sector/application/use_cases.py#L237) 的零收益率 fallback。零值序列要改成显式 unavailable 状态，并把调用方页面/API 改成展示“数据不足”。
+- 收紧“隐性伪数据回退”，重点处理 [apps/sector/application/use_cases.py](/D:/githv/agomTradePro/apps/sector/application/use_cases.py#L237) 的零收益率 fallback。零值序列要改成显式 unavailable 状态，并把调用方页面/API 改成展示“数据不足”。
 - 为上述高风险路径补日志和状态码规范。所有降级必须带统一标识，例如 `data_source=fallback`、`status=degraded`，禁止默认混入正常成功响应。
 
 ## P1 存量清理
-- 清理和隔离冷启动 seed：重点梳理 [apps/account/management/commands/bootstrap_mcp_cold_start.py](/D:/githv/agomSAAF/apps/account/management/commands/bootstrap_mcp_cold_start.py#L1) 里的 `MCP_TEST_IND`、固定股票池、冷启动组合。
+- 清理和隔离冷启动 seed：重点梳理 [apps/account/management/commands/bootstrap_mcp_cold_start.py](/D:/githv/agomTradePro/apps/account/management/commands/bootstrap_mcp_cold_start.py#L1) 里的 `MCP_TEST_IND`、固定股票池、冷启动组合。
 - 规则调整为：这类命令只能在本地/dev/test 环境运行；命令名、文档、日志要明确标注 `dev-only`；禁止被生产初始化流程或运维脚本误调用。
-- 清理硬编码默认配置，重点处理 [shared/infrastructure/config_loader.py](/D:/githv/agomSAAF/shared/infrastructure/config_loader.py#L14)。配置不存在时，不再静默使用业务默认 ticker/threshold，而是区分：
+- 清理硬编码默认配置，重点处理 [shared/infrastructure/config_loader.py](/D:/githv/agomTradePro/shared/infrastructure/config_loader.py#L14)。配置不存在时，不再静默使用业务默认 ticker/threshold，而是区分：
   - 确属产品默认值的，迁移到受管配置表并在初始化时显式写入。
   - 仅用于历史兼容的，保留但打出高优先级告警，并限定不可用于生产。
-- 复核 Regime 的 stale fallback 逻辑 [apps/regime/application/use_cases.py](/D:/githv/agomSAAF/apps/regime/application/use_cases.py#L791)。这类“复用上次真实结果”的降级可以保留，但要补前提约束、最大连续次数、前端可见标识，避免与 mock 混淆。
+- 复核 Regime 的 stale fallback 逻辑 [apps/regime/application/use_cases.py](/D:/githv/agomTradePro/apps/regime/application/use_cases.py#L791)。这类“复用上次真实结果”的降级可以保留，但要补前提约束、最大连续次数、前端可见标识，避免与 mock 混淆。
 
 ## P2 防回归建设
 - 建一套“伪数据扫描规则”，纳入 CI。至少拦截这些模式进入业务代码：`MockModel`、`SYNTH`、`np.random.seed`、`random.seed`、`uniform(`、`gauss(`、`MCP_TEST_IND`、`Using mock data`。

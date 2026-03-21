@@ -2,7 +2,7 @@
 """
 UAT Browser Test - User Acceptance Testing with Headless Browser
 
-This script performs end-to-end testing of the AgomSAAF system using
+This script performs end-to-end testing of the AgomTradePro system using
 Playwright's headless browser to verify UI functionality.
 
 Usage:
@@ -358,7 +358,7 @@ class UATTester:
     async def run_all_tests(self):
         """Run all UAT tests"""
         print("=" * 60)
-        print("AgomSAAF UAT Browser Testing")
+        print("AgomTradePro UAT Browser Testing")
         print("=" * 60)
         print(f"Base URL: {self.base_url}")
         print(f"Time: {self.report.timestamp}")

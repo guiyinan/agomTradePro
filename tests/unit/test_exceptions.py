@@ -2,7 +2,7 @@
 Unit tests for core/exceptions.py
 
 Tests for:
-- AgomSAAFException base class
+- AgomTradeProException base class
 - Exception subclasses
 - custom_exception_handler for DRF
 """
@@ -14,7 +14,7 @@ from rest_framework import status
 from django.http import Http404
 
 from core.exceptions import (
-    AgomSAAFException,
+    AgomTradeProException,
     ValidationError,
     InvalidInputError,
     MissingRequiredFieldError,
@@ -40,12 +40,12 @@ from core.exceptions import (
 )
 
 
-class TestAgomSAAFException:
-    """Tests for the base AgomSAAFException class."""
+class TestAgomTradeProException:
+    """Tests for the base AgomTradeProException class."""
 
     def test_default_values(self):
         """Test that default values are applied correctly."""
-        exc = AgomSAAFException()
+        exc = AgomTradeProException()
         assert exc.message == "An error occurred"
         assert exc.code == "INTERNAL_ERROR"
         assert exc.status_code == 500
@@ -53,7 +53,7 @@ class TestAgomSAAFException:
 
     def test_custom_values(self):
         """Test that custom values override defaults."""
-        exc = AgomSAAFException(
+        exc = AgomTradeProException(
             message="Custom error",
             code="CUSTOM_ERROR",
             status_code=400,
@@ -66,13 +66,13 @@ class TestAgomSAAFException:
 
     def test_to_dict_without_details(self):
         """Test to_dict without details."""
-        exc = AgomSAAFException(message="Error", code="ERR")
+        exc = AgomTradeProException(message="Error", code="ERR")
         result = exc.to_dict()
         assert result == {"error": "Error", "code": "ERR"}
 
     def test_to_dict_with_details(self):
         """Test to_dict with details."""
-        exc = AgomSAAFException(
+        exc = AgomTradeProException(
             message="Error",
             code="ERR",
             details={"key": "value"}
@@ -156,8 +156,8 @@ class TestCustomExceptionHandler:
         request.user.id = 1
         return {"view": view, "request": request}
 
-    def test_handles_agomsaaf_exception(self):
-        """Test that AgomSAAFException is handled correctly."""
+    def test_handles_agomtradepro_exception(self):
+        """Test that AgomTradeProException is handled correctly."""
         exc = ValidationError(
             message="Invalid data",
             code="VALIDATION_ERROR",
@@ -245,23 +245,23 @@ class TestExceptionInheritance:
         """Test InvalidInputError inherits from ValidationError."""
         exc = InvalidInputError()
         assert isinstance(exc, ValidationError)
-        assert isinstance(exc, AgomSAAFException)
+        assert isinstance(exc, AgomTradeProException)
 
     def test_regime_error_inherits_business(self):
         """Test RegimeNotDeterminedError inherits from BusinessLogicError."""
         exc = RegimeNotDeterminedError()
         assert isinstance(exc, BusinessLogicError)
-        assert isinstance(exc, AgomSAAFException)
+        assert isinstance(exc, AgomTradeProException)
 
     def test_tushare_error_inherits_data_fetch(self):
         """Test TushareError inherits from DataFetchError."""
         exc = TushareError()
         assert isinstance(exc, DataFetchError)
         assert isinstance(exc, ExternalServiceError)
-        assert isinstance(exc, AgomSAAFException)
+        assert isinstance(exc, AgomTradeProException)
 
     def test_missing_config_inherits_configuration(self):
         """Test MissingConfigError inherits from ConfigurationError."""
         exc = MissingConfigError()
         assert isinstance(exc, ConfigurationError)
-        assert isinstance(exc, AgomSAAFException)
+        assert isinstance(exc, AgomTradeProException)

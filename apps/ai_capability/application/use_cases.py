@@ -141,7 +141,7 @@ def _load_mcp_env_from_repo_config() -> None:
         logger.exception("Failed to load MCP config from %s", _MCP_CONFIG_PATH)
         return
 
-    server_conf = (payload.get("mcpServers") or {}).get("agomsaaf_local") or {}
+    server_conf = (payload.get("mcpServers") or {}).get("agomtradepro_local") or {}
     for key, value in (server_conf.get("env") or {}).items():
         if value is not None:
             os.environ.setdefault(str(key), str(value))
@@ -149,7 +149,7 @@ def _load_mcp_env_from_repo_config() -> None:
 
 def _list_sdk_mcp_tools() -> list[Any]:
     _ensure_sdk_on_path()
-    from agomsaaf_mcp.server import server
+    from agomtradepro_mcp.server import server
 
     return asyncio.run(server.list_tools())
 
@@ -157,14 +157,14 @@ def _list_sdk_mcp_tools() -> list[Any]:
 def _call_sdk_mcp_tool(tool_name: str, params: dict[str, Any]) -> Any:
     _ensure_sdk_on_path()
     _load_mcp_env_from_repo_config()
-    from agomsaaf_mcp.server import server
+    from agomtradepro_mcp.server import server
 
     return asyncio.run(server.call_tool(tool_name, params))
 
 
 _DEFAULT_FALLBACK_CHAT_SYSTEM_PROMPT = (
-    "You are the AgomSAAF system assistant for an investment decision platform. "
-    "Prioritize answers within AgomSAAF operational context, including system status, "
+    "You are the AgomTradePro system assistant for an investment decision platform. "
+    "Prioritize answers within AgomTradePro operational context, including system status, "
     "macro environment, market regime, policy level, portfolio, positions, signals, "
     "backtest, audit, AI provider configuration, terminal commands, RSS ingestion, "
     "policy news, hotspot events, and other system modules already present in the platform. "

@@ -1,4 +1,4 @@
-# Generated manually for AgomSAAF
+# Generated manually for AgomTradePro
 
 from django.db import migrations, models
 

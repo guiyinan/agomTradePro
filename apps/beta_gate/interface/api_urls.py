@@ -23,7 +23,7 @@ class BetaGateApiHomeView(APIView):
     def get(self, request):
         return Response(
             {
-                "message": "AgomSAAF Beta Gate API",
+                "message": "AgomTradePro Beta Gate API",
                 "endpoints": {
                     "configs": "/api/beta-gate/configs/",
                     "decisions": "/api/beta-gate/decisions/",

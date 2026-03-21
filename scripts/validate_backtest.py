@@ -419,7 +419,7 @@ def generate_html_report(
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>AgomSAAF 回测验证报告</title>
+    <title>AgomTradePro 回测验证报告</title>
     <style>
         body {{ font-family: Arial, sans-serif; margin: 40px; }}
         h1 {{ color: #333; }}
@@ -436,7 +436,7 @@ def generate_html_report(
     </style>
 </head>
 <body>
-    <h1>🎯 AgomSAAF 回测验证报告</h1>
+    <h1>🎯 AgomTradePro 回测验证报告</h1>
     <p>生成时间: {date.today().strftime('%Y-%m-%d %H:%M:%S')}</p>
 
     <h2>📊 Regime 准确率验证</h2>
@@ -495,7 +495,7 @@ def generate_html_report(
     html += """    </table>
 
     <h2>📝 结论</h2>
-    <p>根据回测验证结果，AgomSAAF 准入过滤策略在风险调整后收益方面表现优异。
+    <p>根据回测验证结果，AgomTradePro 准入过滤策略在风险调整后收益方面表现优异。
     通过 Regime 判定和资产准入规则，有效规避了不利市场环境，降低了组合波动。</p>
 </body>
 </html>"""

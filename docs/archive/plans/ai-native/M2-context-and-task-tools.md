@@ -91,8 +91,8 @@ Acceptance:
 
 Add SDK modules:
 
-- `sdk/agomsaaf/modules/agent_runtime.py`
-- `sdk/agomsaaf/modules/agent_context.py`
+- `sdk/agomtradepro/modules/agent_runtime.py`
+- `sdk/agomtradepro/modules/agent_context.py`
 
 Public methods:
 
@@ -113,7 +113,7 @@ Acceptance:
 
 Add MCP tool file:
 
-- `sdk/agomsaaf_mcp/tools/agent_task_tools.py`
+- `sdk/agomtradepro_mcp/tools/agent_task_tools.py`
 
 Must provide:
 
@@ -140,11 +140,11 @@ Acceptance:
 
 Add resources:
 
-- `agomsaaf://context/research/current`
-- `agomsaaf://context/monitoring/current`
-- `agomsaaf://context/decision/current`
-- `agomsaaf://context/execution/current`
-- `agomsaaf://context/ops/current`
+- `agomtradepro://context/research/current`
+- `agomtradepro://context/monitoring/current`
+- `agomtradepro://context/decision/current`
+- `agomtradepro://context/execution/current`
+- `agomtradepro://context/ops/current`
 
 Behavior rules:
 

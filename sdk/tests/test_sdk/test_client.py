@@ -1,24 +1,24 @@
 """
-Unit tests for AgomSAAF SDK Client
+Unit tests for AgomTradePro SDK Client
 """
 
 import pytest
 from unittest.mock import Mock, patch
 
-from agomsaaf import AgomSAAFClient
-from agomsaaf.exceptions import (
+from agomtradepro import AgomTradeProClient
+from agomtradepro.exceptions import (
     AuthenticationError,
     ConfigurationError,
     ValidationError,
 )
 
 
-class TestAgomSAAFClient:
-    """测试 AgomSAAFClient 主客户端"""
+class TestAgomTradeProClient:
+    """测试 AgomTradeProClient 主客户端"""
 
     def test_init_with_params(self):
         """测试使用参数初始化客户端"""
-        client = AgomSAAFClient(
+        client = AgomTradeProClient(
             base_url="http://test.example.com",
             api_token="test_token",
         )
@@ -27,21 +27,21 @@ class TestAgomSAAFClient:
 
     def test_init_with_env_vars(self, monkeypatch):
         """测试使用环境变量初始化客户端"""
-        monkeypatch.setenv("AGOMSAAF_BASE_URL", "http://env.example.com")
-        monkeypatch.setenv("AGOMSAAF_API_TOKEN", "env_token")
+        monkeypatch.setenv("AGOMTRADEPRO_BASE_URL", "http://env.example.com")
+        monkeypatch.setenv("AGOMTRADEPRO_API_TOKEN", "env_token")
 
-        client = AgomSAAFClient()
+        client = AgomTradeProClient()
         assert client._config.base_url == "http://env.example.com"
         assert client._config.auth.api_token == "env_token"
 
     def test_init_without_auth_raises_error(self):
         """测试没有认证信息时抛出异常"""
         with pytest.raises(ConfigurationError):
-            AgomSAAFClient(base_url="http://test.com")
+            AgomTradeProClient(base_url="http://test.com")
 
     def test_headers_include_auth_token(self):
         """测试请求头包含认证 token"""
-        client = AgomSAAFClient(
+        client = AgomTradeProClient(
             base_url="http://test.com",
             api_token="secret_token",
         )
@@ -50,7 +50,7 @@ class TestAgomSAAFClient:
 
     def test_regime_module_property(self):
         """测试 regime 模块属性"""
-        client = AgomSAAFClient(
+        client = AgomTradeProClient(
             base_url="http://test.com",
             api_token="test_token",
         )
@@ -60,7 +60,7 @@ class TestAgomSAAFClient:
 
     def test_signal_module_property(self):
         """测试 signal 模块属性"""
-        client = AgomSAAFClient(
+        client = AgomTradeProClient(
             base_url="http://test.com",
             api_token="test_token",
         )
@@ -68,7 +68,7 @@ class TestAgomSAAFClient:
 
     def test_macro_module_property(self):
         """测试 macro 模块属性"""
-        client = AgomSAAFClient(
+        client = AgomTradeProClient(
             base_url="http://test.com",
             api_token="test_token",
         )
@@ -76,7 +76,7 @@ class TestAgomSAAFClient:
 
     def test_policy_module_property(self):
         """测试 policy 模块属性"""
-        client = AgomSAAFClient(
+        client = AgomTradeProClient(
             base_url="http://test.com",
             api_token="test_token",
         )
@@ -84,7 +84,7 @@ class TestAgomSAAFClient:
 
     def test_backtest_module_property(self):
         """测试 backtest 模块属性"""
-        client = AgomSAAFClient(
+        client = AgomTradeProClient(
             base_url="http://test.com",
             api_token="test_token",
         )
@@ -92,19 +92,19 @@ class TestAgomSAAFClient:
 
     def test_account_module_property(self):
         """测试 account 模块属性"""
-        client = AgomSAAFClient(
+        client = AgomTradeProClient(
             base_url="http://test.com",
             api_token="test_token",
         )
         assert client.account is not None
 
 
-class TestAgomSAAFClientRequests:
+class TestAgomTradeProClientRequests:
     """测试 HTTP 请求方法"""
 
     @pytest.fixture
     def client(self):
-        return AgomSAAFClient(
+        return AgomTradeProClient(
             base_url="http://test.com",
             api_token="test_token",
         )
@@ -158,7 +158,7 @@ class TestAgomSAAFClientRequests:
 
     def test_close_context_manager(self):
         """测试 with 语句关闭会话"""
-        with AgomSAAFClient(
+        with AgomTradeProClient(
             base_url="http://test.com",
             api_token="test_token",
         ) as client:

@@ -301,7 +301,7 @@ class InvalidationCheckService:
 
             # 构建通知内容
             status_text = "已证伪" if signal.status == SignalStatus.INVALIDATED else "已拒绝"
-            subject = f"[AgomSAAF] 信号{status_text}: {signal.asset_code}"
+            subject = f"[AgomTradePro] 信号{status_text}: {signal.asset_code}"
 
             # 构建详情
             condition_details = []
@@ -396,7 +396,7 @@ class InvalidationCheckService:
 
                 <div style="text-align: center; padding: 20px; color: #6c757d;">
                     <p>请登录系统查看详情并处理相关持仓。</p>
-                    <p>AgomSAAF - 自动发送，请勿回复</p>
+                    <p>AgomTradePro - 自动发送，请勿回复</p>
                 </div>
             </body>
             </html>

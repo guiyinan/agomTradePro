@@ -1,5 +1,5 @@
 """
-AgomSAAF 资本市场数据连接测试脚本
+AgomTradePro 资本市场数据连接测试脚本
 
 测试股票、基金、板块等资本市场数据的接入能力。
 """
@@ -416,7 +416,7 @@ def test_database_operations():
 def run_all_tests():
     """运行所有测试"""
     print("\n" + "="*70)
-    print("🚀 AgomSAAF 资本市场数据连接综合测试")
+    print("🚀 AgomTradePro 资本市场数据连接综合测试")
     print("="*70)
     print(f"测试时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 

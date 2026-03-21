@@ -368,8 +368,8 @@ class PolicyLogAdmin(admin.ModelAdmin):
 class PolicyLogAdminSite(admin.AdminSite):
     """自定义 Admin 站点（可选）"""
 
-    site_header = 'AgomSAAF 政策管理'
-    site_title = 'AgomSAAF'
+    site_header = 'AgomTradePro 政策管理'
+    site_title = 'AgomTradePro'
     index_title = '政策事件管理'
 
     def get_app_list(self, request):

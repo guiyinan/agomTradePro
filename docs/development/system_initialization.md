@@ -1,4 +1,4 @@
-# AgomSAAF 系统初始化指南
+# AgomTradePro 系统初始化指南
 
 > **最后更新**: 2026-02-02
 > **版本**: V3.4
@@ -11,7 +11,7 @@
 
 ```bash
 # 1. 激活虚拟环境
-agomsaaf\Scripts\activate
+agomtradepro\Scripts\activate
 
 # 2. 数据库迁移
 python manage.py migrate
@@ -254,7 +254,7 @@ DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
 
 # Database (默认使用 SQLite)
-# DATABASE_URL=postgresql://user:password@localhost:5432/agomsaaf
+# DATABASE_URL=postgresql://user:password@localhost:5432/agomtradepro
 
 # Redis (Celery)
 # REDIS_URL=redis://localhost:6379/0
@@ -358,7 +358,7 @@ python manage.py init_prompt_templates --force
 
 ```bat
 @echo off
-echo AgomSAAF Development Reset...
+echo AgomTradePro Development Reset...
 echo.
 
 echo Step 1: Delete database...
@@ -399,7 +399,7 @@ pause
 ## 附录：文件结构
 
 ```
-AgomSAAF/
+AgomTradePro/
 ├── apps/
 │   ├── account/management/commands/
 │   │   ├── init_classification.py    # 资产分类和币种
@@ -426,5 +426,5 @@ AgomSAAF/
 ## 更多帮助
 
 - Django 管理命令: https://docs.djangoproject.com/en/5.2/howto/custom-management-commands/
-- 项目主页: `docs/business/AgomSAAF_V3.4.md`
+- 项目主页: `docs/business/AgomTradePro_V3.4.md`
 - API 文档: 访问 `/api/docs/` 查看

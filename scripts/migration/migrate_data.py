@@ -16,7 +16,7 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': 'D:/githv/agomSAAF/db.sqlite3',
+        'NAME': 'D:/githv/agomTradePro/db.sqlite3',
     }
 }
 CORS_ALLOW_ALL_ORIGINS = True

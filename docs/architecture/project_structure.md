@@ -1,4 +1,4 @@
-# AgomSAAF 项目结构说明
+# AgomTradePro 项目结构说明
 
 > 生成时间: 2025-12-30
 > 更新时间: 2026-02-20
@@ -7,7 +7,7 @@
 
 ## 1. 项目概述
 
-AgomSAAF (Agom Strategic Asset Allocation Framework) 是一个宏观环境准入系统，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
+AgomTradePro (Agom Strategic Asset Allocation Framework) 是一个宏观环境准入系统，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
 
 **系统状态**: 生产就绪
 **测试覆盖**: 1,395个测试用例，100%通过率
@@ -63,7 +63,7 @@ AgomSAAF (Agom Strategic Asset Allocation Framework) 是一个宏观环境准入
 ## 4. 目录结构
 
 ```
-AgomSAAF/
+AgomTradePro/
 ├── apps/                        # 应用程序目录
 │   ├── ai_provider/             # AI服务提供商管理
 │   │   ├── domain/              #   领域层：实体和业务规则
@@ -311,7 +311,7 @@ AgomSAAF/
 │   │   ├── strategy_system_design.md
 │   │   └── frontend_design_guide.md
 │   ├── business/                #   业务文档
-│   │   ├── AgomSAAF_V3.5.md    #     业务需求
+│   │   ├── AgomTradePro_V3.5.md    #     业务需求
 │   │   ├── signal_and_position.md
 │   │   └── equity-valuation-logic.md
 │   ├── development/             #   开发文档
@@ -712,17 +712,17 @@ tushare>=1.4
 
 ```bash
 # 启动开发服务器
-agomsaaf/Scripts/python manage.py runserver
+agomtradepro/Scripts/python manage.py runserver
 
 # 数据库迁移
-agomsaaf/Scripts/python manage.py makemigrations
-agomsaaf/Scripts/python manage.py migrate
+agomtradepro/Scripts/python manage.py makemigrations
+agomtradepro/Scripts/python manage.py migrate
 
 # 创建超级用户
-agomsaaf/Scripts/python manage.py createsuperuser
+agomtradepro/Scripts/python manage.py createsuperuser
 
 # 同步宏观数据
-agomsaaf/Scripts/python manage.py sync_macro_data
+agomtradepro/Scripts/python manage.py sync_macro_data
 ```
 
 ### 9.2 Celery 命令
@@ -739,23 +739,23 @@ celery -A core beat -l info
 
 ```bash
 # 运行所有测试
-agomsaaf/Scripts/python -m pytest
+agomtradepro/Scripts/python -m pytest
 
 # 运行特定测试
-agomsaaf/Scripts/python -m pytest tests/unit/test_regime_services.py
+agomtradepro/Scripts/python -m pytest tests/unit/test_regime_services.py
 
 # 查看覆盖率
-agomsaaf/Scripts/python -m pytest --cov=apps
+agomtradepro/Scripts/python -m pytest --cov=apps
 ```
 
 ### 9.4 回测脚本
 
 ```bash
 # 运行回测
-agomsaaf/Scripts/python scripts/run_backtest.py --start 2020-01-01 --end 2024-12-31
+agomtradepro/Scripts/python scripts/run_backtest.py --start 2020-01-01 --end 2024-12-31
 
 # 验证回测结果
-agomsaaf/Scripts/python scripts/validate_backtest.py --compare --report report.html
+agomtradepro/Scripts/python scripts/validate_backtest.py --compare --report report.html
 ```
 
 ### 9.5 代码质量检查
@@ -784,14 +784,14 @@ python manage.py collectstatic --clear --noinput
 
 ## 10. 虚拟环境
 
-项目使用 `agomsaaf` 作为 Python 虚拟环境名称：
+项目使用 `agomtradepro` 作为 Python 虚拟环境名称：
 
 ```bash
 # 激活虚拟环境
-agomsaaf/Scripts/activate
+agomtradepro/Scripts/activate
 
 # 安装依赖
-agomsaaf/Scripts/pip install -r requirements.txt
+agomtradepro/Scripts/pip install -r requirements.txt
 ```
 
 ## 11. 重构记录
@@ -889,7 +889,7 @@ rg -n "from .*infrastructure\\." apps/*/interface -S
 
 ## 14. 相关文档
 
-- [业务需求文档](../business/AgomSAAF_V3.5.md)
+- [业务需求文档](../business/AgomTradePro_V3.5.md)
 - [前端设计指南](frontend_design_guide.md)
 - [项目开发规则](../../CLAUDE.md)
 - [AI Prompt系统使用文档](../ai/ai_prompt_system.md)

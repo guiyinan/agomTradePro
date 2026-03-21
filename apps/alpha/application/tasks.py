@@ -20,6 +20,23 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 
+def _normalize_qlib_region(region_value):
+    """Normalize runtime region values for qlib.init()."""
+    try:
+        from qlib.constant import REG_CN, REG_US
+    except Exception:
+        REG_CN = "cn"
+        REG_US = "us"
+
+    value = str(region_value or "").strip()
+    lowered = value.lower()
+    if lowered in {"", "cn", "reg_cn", "china"}:
+        return REG_CN
+    if lowered in {"us", "reg_us"}:
+        return REG_US
+    return region_value
+
+
 @shared_task(
     bind=True,
     max_retries=3,
@@ -453,7 +470,7 @@ def _execute_qlib_prediction(
         from qlib.contrib.data.handler import Alpha360
         from qlib.contrib.model.gbdt import LGBModel
         from qlib.contrib.evaluate import risk_analysis
-        from qlib.constant import REG_CN
+        from qlib.data.dataset import DatasetH
         import pandas as pd
 
         # 获取 Qlib 配置（优先从数据库读取）
@@ -465,7 +482,7 @@ def _execute_qlib_prediction(
             return None
             
         provider_uri = qlib_config.get('provider_uri', '~/.qlib/qlib_data/cn_data')
-        region = qlib_config.get('region', 'CN')
+        region = _normalize_qlib_region(qlib_config.get('region', 'CN'))
 
         # 初始化 Qlib（仅初始化一次）
         if not hasattr(_execute_qlib_prediction, '_qlib_initialized'):
@@ -494,29 +511,36 @@ def _execute_qlib_prediction(
         # 准备预测数据
         # 使用 Alpha360 handler 准备数据
         handler_config = {
-            "start_time": (trade_date.year - 1, 1, 1),  # 使用过去一年的数据
-            "end_time": (trade_date.year, trade_date.month, trade_date.day),
-            "fit_start_time": (trade_date.year - 1, 1, 1),
-            "fit_end_time": (trade_date.year, trade_date.month, trade_date.day),
+            "start_time": f"{trade_date.year - 1}-01-01",  # 使用过去一年的数据
+            "end_time": trade_date.isoformat(),
+            "fit_start_time": f"{trade_date.year - 1}-01-01",
+            "fit_end_time": trade_date.isoformat(),
             "instruments": stock_list,
         }
 
         try:
-            # 创建数据处理器
+            # 当前 qlib 版本要求通过 DatasetH 进行预测，而不是直接将 handler 传给模型。
             handler = Alpha360(**handler_config)
-
-            # 执行预测
-            prediction = model.predict(handler)
+            dataset = DatasetH(
+                handler=handler,
+                segments={"test": (pd.Timestamp(trade_date), pd.Timestamp(trade_date))},
+            )
+            prediction = model.predict(dataset)
 
             # 处理预测结果
             if isinstance(prediction, pd.DataFrame):
-                # Qlib 返回 DataFrame，格式为 instrument -> score
                 if prediction.empty:
                     logger.warning(f"预测结果为空: {universe_id}@{trade_date}")
                     raise RuntimeError(f"预测结果为空: {universe_id}@{trade_date}")
-
-                # 获取最后一行的预测分数
-                scores_series = prediction.iloc[-1]
+                if isinstance(prediction.index, pd.MultiIndex):
+                    latest_date = prediction.index.get_level_values(0).max()
+                    latest_prediction = prediction.xs(latest_date, level=0)
+                    if isinstance(latest_prediction, pd.DataFrame):
+                        scores_series = latest_prediction.iloc[:, 0]
+                    else:
+                        scores_series = latest_prediction
+                else:
+                    scores_series = prediction.iloc[:, 0] if prediction.shape[1] else prediction.iloc[-1]
             elif isinstance(prediction, pd.Series):
                 scores_series = prediction
             elif isinstance(prediction, dict):
@@ -690,7 +714,7 @@ def _train_qlib_model(
             raise ValueError("Qlib 未启用，请先在系统配置中启用 Qlib")
             
         provider_uri = qlib_config.get('provider_uri', '~/.qlib/qlib_data/cn_data')
-        region = qlib_config.get('region', 'CN')
+        region = _normalize_qlib_region(qlib_config.get('region', 'CN'))
 
         # 初始化 Qlib（仅初始化一次）
         if not hasattr(_train_qlib_model, '_qlib_initialized'):

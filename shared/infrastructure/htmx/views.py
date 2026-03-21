@@ -1,5 +1,5 @@
 """
-AgomSAAF - HTMX 视图基类
+AgomTradePro - HTMX 视图基类
 
 提供基于 HTMX 的视图基类，简化 HTMX 请求处理。
 """

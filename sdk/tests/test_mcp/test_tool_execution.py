@@ -73,6 +73,20 @@ class _FakeClient:
             positions=lambda: {"positions": []},
             allocation=lambda: {"allocation": []},
         )
+        self.simulated_trading = SimpleNamespace(
+            list_accounts=lambda status=None, limit=20: [{"id": 1, "status": status, "limit": limit}],
+            get_account=lambda account_id: {"id": account_id},
+            delete_account=lambda account_id: {"success": True, "account_id": account_id},
+            batch_delete_accounts=lambda account_ids: {"success": True, "deleted_account_ids": account_ids},
+            create_account=lambda name, initial_capital, start_date: {"id": 2, "name": name, "initial_capital": initial_capital, "start_date": str(start_date)},
+            execute_trade=lambda account_id, asset_code, side, quantity, price=None: {"account_id": account_id, "asset_code": asset_code, "side": side, "quantity": quantity, "price": price},
+            get_positions=lambda account_id: [{"account_id": account_id}],
+            get_performance=lambda account_id: {"account_id": account_id},
+            reset_account=lambda account_id, new_initial_capital=None: {"account_id": account_id, "new_initial_capital": new_initial_capital},
+            close_position=lambda account_id, asset_code: {"account_id": account_id, "asset_code": asset_code},
+            run_daily_inspection=lambda account_id, strategy_id=None, inspection_date=None: {"account_id": account_id, "strategy_id": strategy_id, "inspection_date": inspection_date},
+            list_daily_inspections=lambda account_id, limit=20, inspection_date=None: {"account_id": account_id, "limit": limit, "inspection_date": inspection_date},
+        )
         self.account = SimpleNamespace(
             get_trading_cost_configs=lambda limit=100: [{"id": 1, "portfolio": 1, "limit": limit}],
         )
@@ -151,28 +165,29 @@ class _FakeClient:
 
 def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
     module_names = [
-        "agomsaaf_mcp.tools.ai_provider_tools",
-        "agomsaaf_mcp.tools.prompt_tools",
-        "agomsaaf_mcp.tools.audit_tools",
-        "agomsaaf_mcp.tools.events_tools",
-        "agomsaaf_mcp.tools.decision_rhythm_tools",
-        "agomsaaf_mcp.tools.decision_workflow_tools",
-        "agomsaaf_mcp.tools.beta_gate_tools",
-        "agomsaaf_mcp.tools.alpha_trigger_tools",
-        "agomsaaf_mcp.tools.dashboard_tools",
-        "agomsaaf_mcp.tools.account_tools",
-        "agomsaaf_mcp.tools.asset_analysis_tools",
-        "agomsaaf_mcp.tools.sentiment_tools",
-        "agomsaaf_mcp.tools.task_monitor_tools",
-        "agomsaaf_mcp.tools.filter_tools",
-        "agomsaaf_mcp.tools.rotation_tools",
-        "agomsaaf_mcp.tools.alpha_tools",
+        "agomtradepro_mcp.tools.ai_provider_tools",
+        "agomtradepro_mcp.tools.prompt_tools",
+        "agomtradepro_mcp.tools.audit_tools",
+        "agomtradepro_mcp.tools.events_tools",
+        "agomtradepro_mcp.tools.decision_rhythm_tools",
+        "agomtradepro_mcp.tools.decision_workflow_tools",
+        "agomtradepro_mcp.tools.beta_gate_tools",
+        "agomtradepro_mcp.tools.alpha_trigger_tools",
+        "agomtradepro_mcp.tools.dashboard_tools",
+        "agomtradepro_mcp.tools.simulated_trading_tools",
+        "agomtradepro_mcp.tools.account_tools",
+        "agomtradepro_mcp.tools.asset_analysis_tools",
+        "agomtradepro_mcp.tools.sentiment_tools",
+        "agomtradepro_mcp.tools.task_monitor_tools",
+        "agomtradepro_mcp.tools.filter_tools",
+        "agomtradepro_mcp.tools.rotation_tools",
+        "agomtradepro_mcp.tools.alpha_tools",
     ]
     for module_name in module_names:
         mod = importlib.import_module(module_name)
-        monkeypatch.setattr(mod, "AgomSAAFClient", _FakeClient)
+        monkeypatch.setattr(mod, "AgomTradeProClient", _FakeClient)
 
-    audit_mod = importlib.import_module("agomsaaf_mcp.audit")
+    audit_mod = importlib.import_module("agomtradepro_mcp.audit")
     monkeypatch.setattr(
         audit_mod,
         "get_audit_logger",
@@ -229,6 +244,18 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
         ("get_dashboard_signal_status_v1", {}),
         ("get_dashboard_positions", {}),
         ("get_dashboard_allocation", {}),
+        ("list_simulated_accounts", {"status": "active", "limit": 5}),
+        ("get_simulated_account", {"account_id": 7}),
+        ("delete_simulated_account", {"account_id": 7}),
+        ("batch_delete_simulated_accounts", {"account_ids": [7, 8]}),
+        ("create_simulated_account", {"name": "测试账户", "initial_capital": 100000.0, "start_date": "2026-03-21"}),
+        ("execute_simulated_trade", {"account_id": 7, "asset_code": "510300", "side": "buy", "quantity": 100.0, "price": 4.2}),
+        ("get_simulated_positions", {"account_id": 7}),
+        ("get_simulated_performance", {"account_id": 7}),
+        ("reset_simulated_account", {"account_id": 7, "new_initial_capital": 200000.0}),
+        ("close_simulated_position", {"account_id": 7, "asset_code": "510300"}),
+        ("run_simulated_daily_inspection", {"account_id": 7, "strategy_id": 2, "inspection_date": "2026-03-21"}),
+        ("list_simulated_daily_inspections", {"account_id": 7, "limit": 5, "inspection_date": "2026-03-21"}),
         ("asset_multidim_screen", {"payload": {"asset_type": "equity"}}),
         ("get_trading_cost_configs", {"portfolio_id": 1}),
         ("get_asset_current_weight", {}),
@@ -266,7 +293,7 @@ def _patch_extended_tool_modules(monkeypatch: pytest.MonkeyPatch) -> None:
 )
 def test_extended_mcp_tools_can_execute(monkeypatch: pytest.MonkeyPatch, tool_name: str, arguments: dict):
     try:
-        from agomsaaf_mcp.server import server
+        from agomtradepro_mcp.server import server
     except ModuleNotFoundError as exc:
         if "mcp" in str(exc):
             pytest.skip("mcp package not installed in current test environment")

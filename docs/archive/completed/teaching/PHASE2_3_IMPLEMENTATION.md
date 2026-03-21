@@ -1,4 +1,4 @@
-# AgomSAAF 教学模块 Phase 2/3 实施文档
+# AgomTradePro 教学模块 Phase 2/3 实施文档
 
 > **实施日期**: 2026-02-01
 > **实施内容**: Phase 2 & 3 功能增强

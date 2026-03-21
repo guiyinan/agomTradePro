@@ -3,7 +3,7 @@ import sys
 import os
 
 # Add SDK to path
-sys.path.insert(0, r"D:\githv\agomSAAF\sdk")
+sys.path.insert(0, r"D:\githv\agomTradePro\sdk")
 
 # Now run pytest
 import pytest

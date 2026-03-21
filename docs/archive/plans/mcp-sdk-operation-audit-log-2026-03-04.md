@@ -3,7 +3,7 @@
 ## Context（背景与需求）
 
 ### 问题陈述
-AgomSAAF 通过 MCP (Model Context Protocol) 和 SDK 对外暴露了 65+ 个工具，覆盖信号管理、政策事件、回测执行、模拟交易等核心功能。但当前缺乏统一的操作审计追踪，导致：
+AgomTradePro 通过 MCP (Model Context Protocol) 和 SDK 对外暴露了 65+ 个工具，覆盖信号管理、政策事件、回测执行、模拟交易等核心功能。但当前缺乏统一的操作审计追踪，导致：
 
 1. 无法追溯：不知道谁在什么时候调用了什么工具。
 2. 无法复盘：AI 决策链路不透明，难以事后分析。
@@ -160,11 +160,11 @@ class OperationLogModel(models.Model):
 
 ### Phase 4: MCP/SDK 集成（写入链路）
 
-**修改**: `sdk/agomsaaf_mcp/server.py`
+**修改**: `sdk/agomtradepro_mcp/server.py`
 - 在 `apply_tool_rbac_guards()` 中将包装器升级为 `RBAC + Audit`。
 - 记录成功、权限拒绝、业务异常三类状态。
 
-**新增**: `sdk/agomsaaf_mcp/audit.py`
+**新增**: `sdk/agomtradepro_mcp/audit.py`
 - `AuditLogger` 调用后端内部写入端点：
   - `POST /audit/api/internal/operation-logs/`
 - 使用服务间鉴权（`X-Audit-Signature` 或内部 API key）。
@@ -314,14 +314,14 @@ class OperationLogModel(models.Model):
 | `apps/audit/interface/permissions.py` | `IsAuditAdmin` 等权限类 |
 | `apps/audit/interface/views.py` | 查询/导出/统计/internal ingest 视图 |
 | `apps/audit/management/commands/cleanup_operation_logs.py` | 清理命令 |
-| `sdk/agomsaaf_mcp/audit.py` | MCP 审计客户端 |
+| `sdk/agomtradepro_mcp/audit.py` | MCP 审计客户端 |
 | `frontend/.../audit-admin/*` | 管理员审计台页面与组件 |
 | `frontend/.../my-operation-logs/*` | 用户自查页面与组件 |
 
 ### 修改文件
 | 文件路径 | 修改内容 |
 |---------|----------|
-| `sdk/agomsaaf_mcp/server.py` | RBAC 包装器增加审计钩子 |
+| `sdk/agomtradepro_mcp/server.py` | RBAC 包装器增加审计钩子 |
 | `apps/audit/interface/urls.py` | 注册查询/导出/统计/internal 路由 |
 | `core/settings/base.py` | 审计配置（保留天数、导出上限、签名密钥） |
 | `frontend` 路由配置文件 | 增加两个页面路由与权限守卫 |

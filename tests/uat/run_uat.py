@@ -226,7 +226,7 @@ class UATRunner:
             Complete UAT results
         """
         print("=" * 60)
-        print("AgomSAAF UAT Execution")
+        print("AgomTradePro UAT Execution")
         print("=" * 60)
         print()
 
@@ -303,7 +303,7 @@ class UATRunner:
 
 def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(description="Run UAT tests for AgomSAAF")
+    parser = argparse.ArgumentParser(description="Run UAT tests for AgomTradePro")
     parser.add_argument(
         "--journeys",
         type=str,

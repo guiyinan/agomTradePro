@@ -1,4 +1,4 @@
-"""Headless browser test script for AgomSAAF development server."""
+"""Headless browser test script for AgomTradePro development server."""
 import subprocess
 import sys
 import time

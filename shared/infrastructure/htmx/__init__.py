@@ -1,5 +1,5 @@
 """
-AgomSAAF - HTMX Utilities
+AgomTradePro - HTMX Utilities
 
 Provides HTMX-related views, mixins, and decorators for building dynamic interfaces.
 

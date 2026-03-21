@@ -1,8 +1,8 @@
 
 
-D:/githv/agomSAAF/docs/development/data链条断点测试报告.md
+D:/githv/agomTradePro/docs/development/data链条断点测试报告.md
 ---
-## AgomSAAF 数据链条断点测试报告
+## AgomTradePro 数据链条断点测试报告
 
 **测试日期**: 2026-03-13
 
@@ -47,7 +47,7 @@ Signal 模块的健康检查端点在 `/signal/health/` 下，需要添加 `/api
 
 会使用 MCP 工具进行数据链条测试。并形成报告。。
 
-然后,Sdk/agomsaaf_mcp` 模块的 `register_alpha_tools` 称修改一下 `alpha/health` 緑命名为 `alpha_health`，在 `/api/alpha/health/` 儿，调用。 The `mcp__agomsaaf__check_alpha_health()`` 函数来检查健康状态。
+然后，`sdk/agomtradepro_mcp` 模块的 `register_alpha_tools` 需要把 `alpha/health` 工具命名调整为 `alpha_health`，并通过 `/api/alpha/health/` 调用。对应使用 `mcp__agomtradepro__check_alpha_health()` 函数来检查健康状态。
 
 async def check_alpha_health():
     try:

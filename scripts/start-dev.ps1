@@ -1,4 +1,4 @@
-# AgomSAAF Development Environment Startup Script
+# AgomTradePro Development Environment Startup Script
 # Version: 3.5
 # Updated: 2026-02-01
 
@@ -20,11 +20,11 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$PythonExe = "agomsaaf\Scripts\python.exe"
+$PythonExe = "agomtradepro\Scripts\python.exe"
 
 # Header
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host " AgomSAAF Development Environment" -ForegroundColor Cyan
+Write-Host " AgomTradePro Development Environment" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -32,7 +32,7 @@ Write-Host ""
 function Test-VirtualEnvironment {
     if (-not (Test-Path $PythonExe)) {
         Write-Host "[ERROR] Virtual environment not found!" -ForegroundColor Red
-        Write-Host "Please run: python -m venv agomsaaf" -ForegroundColor Yellow
+        Write-Host "Please run: python -m venv agomtradepro" -ForegroundColor Yellow
         exit 1
     }
     Write-Host "[OK] Virtual environment found" -ForegroundColor Green
@@ -82,7 +82,7 @@ function Start-DockerServices {
     Write-Host "[INFO] Waiting for PostgreSQL to be ready..." -ForegroundColor Yellow
     $maxAttempts = 30
     for ($i = 0; $i -lt $maxAttempts; $i++) {
-        $result = docker exec agomsaaf_postgres_dev pg_isready -U agomsaaf -d agomsaaf 2>&1
+        $result = docker exec agomtradepro_postgres_dev pg_isready -U agomtradepro -d agomtradepro 2>&1
         if ($LASTEXITCODE -eq 0) {
             Write-Host "[OK] PostgreSQL ready" -ForegroundColor Green
             break
@@ -93,7 +93,7 @@ function Start-DockerServices {
     # Wait for Redis
     Write-Host "[INFO] Waiting for Redis to be ready..." -ForegroundColor Yellow
     for ($i = 0; $i -lt $maxAttempts; $i++) {
-        $result = docker exec agomsaaf_redis_dev redis-cli ping 2>&1
+        $result = docker exec agomtradepro_redis_dev redis-cli ping 2>&1
         if ($result -eq "PONG") {
             Write-Host "[OK] Redis ready" -ForegroundColor Green
             break
@@ -112,7 +112,7 @@ function Start-CeleryWorker {
     Write-Host "[INFO] Starting Celery Worker..." -ForegroundColor Yellow
     $workerScript = "@echo off
 title Celery Worker
-call agomsaaf\Scripts\activate.bat
+call agomtradepro\Scripts\activate.bat
 python -m celery -A core worker -l info --pool=solo
 pause"
 
@@ -129,7 +129,7 @@ function Start-CeleryBeat {
     Write-Host "[INFO] Starting Celery Beat..." -ForegroundColor Yellow
     $beatScript = "@echo off
 title Celery Beat
-call agomsaaf\Scripts\activate.bat
+call agomtradepro\Scripts\activate.bat
 python -m celery -A core beat -l info
 pause"
 

@@ -450,7 +450,7 @@ def create_investment_account_view(request):
 python manage.py migrate simulated_trading <迁移前的版本号>
 
 # 2. 如果数据丢失，从备份恢复
-psql -U postgres -d agomsaaf < backup_20260104.sql
+psql -U postgres -d agomtradepro < backup_20260104.sql
 ```
 
 ### 5.2 代码回滚

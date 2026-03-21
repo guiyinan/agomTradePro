@@ -1,15 +1,15 @@
 """
-AgomSAAF SDK - Real-time Monitoring and Strategy Example
+AgomTradePro SDK - Real-time Monitoring and Strategy Example
 
 This file demonstrates real-time price monitoring and strategy management.
 """
 
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 from datetime import date, datetime
 import time
 
 # Initialize client
-client = AgomSAAFClient(
+client = AgomTradeProClient(
     base_url="http://localhost:8000",
     api_token="your_token_here"
 )

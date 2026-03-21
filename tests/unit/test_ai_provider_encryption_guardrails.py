@@ -7,10 +7,10 @@ from shared.infrastructure.crypto import FieldEncryptionService
 
 @pytest.mark.django_db
 def test_repository_rejects_api_key_write_without_encryption_key(settings):
-    settings.AGOMSAAF_ENCRYPTION_KEY = ""
+    settings.AGOMTRADEPRO_ENCRYPTION_KEY = ""
     repo = AIProviderRepository()
 
-    with pytest.raises(ValueError, match="AGOMSAAF_ENCRYPTION_KEY"):
+    with pytest.raises(ValueError, match="AGOMTRADEPRO_ENCRYPTION_KEY"):
         repo.create(
             name="guardrail-no-key",
             provider_type="custom",
@@ -25,7 +25,7 @@ def test_repository_rejects_api_key_write_without_encryption_key(settings):
 @pytest.mark.django_db
 def test_serializer_masks_only_last_four_characters(settings):
     key = FieldEncryptionService.generate_key()
-    settings.AGOMSAAF_ENCRYPTION_KEY = key
+    settings.AGOMTRADEPRO_ENCRYPTION_KEY = key
     repo = AIProviderRepository()
 
     provider = repo.create(

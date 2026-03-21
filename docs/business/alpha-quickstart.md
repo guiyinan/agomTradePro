@@ -1,4 +1,4 @@
-# AgomSAAF Alpha 模块快速开始指南
+# AgomTradePro Alpha 模块快速开始指南
 
 > **版本**: 1.1
 > **更新日期**: 2026-02-06
@@ -111,9 +111,9 @@ curl "http://localhost:8000/api/alpha/providers/status/"
 ### 基础使用
 
 ```python
-from agomsaaf import AgomSAAFClient
+from agomtradepro import AgomTradeProClient
 
-client = AgomSAAFClient()
+client = AgomTradeProClient()
 
 # 获取股票评分
 result = client.alpha.get_stock_scores("csi300", top_n=10)
@@ -232,7 +232,7 @@ if result['staleness_days']:
 
 ## 📚 更多信息
 
-- [完整实施方案](../plans/agomsaaf-qlib-integration-plan-v1.1.md)
+- [完整实施方案](../plans/agomtradepro-qlib-integration-plan-v1.1.md)
 - [实施进度总结](../plans/implementation-progress-summary.md)
 - [项目规则](../../CLAUDE.md)
 - [Alpha 模块指南](../modules/alpha/alpha-guide.md)

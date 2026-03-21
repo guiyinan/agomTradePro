@@ -1,11 +1,11 @@
 # Monitoring Configuration
 
-AgomSAAF Prometheus monitoring and alerting configuration.
+AgomTradePro Prometheus monitoring and alerting configuration.
 
 ## Files
 
 - `prometheus.yml` - Prometheus server configuration
-- `alerts.yml` - Alert rules for AgomSAAF
+- `alerts.yml` - Alert rules for AgomTradePro
 - `README.md` - This file
 
 ## Alert Rules
@@ -43,7 +43,7 @@ cd prometheus-2.45.0.linux-amd64
 ### 2. Start Prometheus
 
 ```bash
-./prometheus --config.file=/path/to/agomSAAF/monitoring/prometheus.yml
+./prometheus --config.file=/path/to/agomTradePro/monitoring/prometheus.yml
 ```
 
 ### 3. Access UI
