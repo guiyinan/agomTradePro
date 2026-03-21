@@ -10,7 +10,7 @@ Base path: `/api/simulated-trading`
 
 ### Delete one account
 
-`DELETE /api/simulated-trading/accounts/{account_id}/`
+`DELETE /api/simulated-trading/accounts/<int:account_id>/`
 
 Response:
 

@@ -421,7 +421,7 @@ POST /api/backtest/api/run/
 
 | 端点 | 方法 | 描述 |
 |------|------|------|
-| `/chat/web/` | POST | 网页端统一聊天接口，供首页与 `AgomChatWidget` 复用 |
+| `/api/chat/web/` | POST | 网页端统一聊天接口，供首页与 `AgomChatWidget` 复用 |
 | `/prompt/chat/` | POST | AI 对话 |
 | `/prompt/providers/` | GET | 获取 AI 提供商列表 |
 | `/prompt/models/` | GET | 获取 AI 模型列表 |
