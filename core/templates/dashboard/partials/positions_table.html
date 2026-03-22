@@ -4,19 +4,21 @@
         <tr>
             <th class="sortable" data-sort="code">代码</th>
             <th class="sortable" data-sort="name">名称</th>
+            {% if show_account %}<th>账户</th>{% endif %}
             <th class="sortable" data-sort="market_value">市值</th>
             <th class="sortable" data-sort="pnl">盈亏</th>
             <th class="sortable" data-sort="pnl_pct">收益率</th>
         </tr>
     </thead>
     <tbody id="positionTableBody">
-        {% for pos in positions|slice:":5" %}
+        {% for pos in positions|slice:":10" %}
         <tr class="position-row" data-asset-code="{{ pos.asset_code }}"
-            hx-get="{% url 'dashboard:position_detail' pos.asset_code %}"
+            hx-get="/api/dashboard/position/{{ pos.asset_code }}/"
             hx-target="#positionDetailModal" hx-swap="innerHTML"
             style="cursor: pointer;">
             <td><strong>{{ pos.asset_code }}</strong></td>
             <td>{{ pos.asset_name|default:"-" }}</td>
+            {% if show_account %}<td class="text-muted">{{ pos.account_name|default:"-" }}</td>{% endif %}
             <td>¥{{ pos.market_value|floatformat:0 }}</td>
             <td class="{% if pos.unrealized_pnl >= 0 %}positive{% else %}negative{% endif %}">
                 ¥{{ pos.unrealized_pnl|floatformat:0 }}

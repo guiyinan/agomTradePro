@@ -55,16 +55,19 @@ def _build_dashboard_data(user_id: int):
     return use_case.execute(user_id)
 
 
-def _load_simulated_positions_fallback(user_id: int) -> list[dict]:
-    """Read holdings directly from the current simulated-account tables."""
+def _load_simulated_positions_fallback(user_id: int, account_id: int | None = None) -> list[dict]:
+    """Read holdings directly from the current simulated-account tables.
+
+    Args:
+        user_id: The user whose positions to load.
+        account_id: Optional account ID to filter positions by a specific account.
+    """
     from apps.simulated_trading.infrastructure.models import PositionModel
 
-    positions = (
-        PositionModel._default_manager
-        .filter(account__user_id=user_id)
-        .select_related("account")
-        .order_by("-market_value", "asset_code")
-    )
+    qs = PositionModel._default_manager.filter(account__user_id=user_id)
+    if account_id:
+        qs = qs.filter(account_id=account_id)
+    positions = qs.select_related("account").order_by("-market_value", "asset_code")
     return [
         {
             "id": pos.id,
@@ -81,6 +84,8 @@ def _load_simulated_positions_fallback(user_id: int) -> list[dict]:
             "unrealized_pnl": float(pos.unrealized_pnl),
             "unrealized_pnl_pct": pos.unrealized_pnl_pct,
             "opened_at": pos.first_buy_date.strftime("%Y-%m-%d") if pos.first_buy_date else "",
+            "account_id": pos.account_id,
+            "account_name": pos.account.account_name if pos.account else "",
         }
         for pos in positions
     ]
@@ -424,16 +429,25 @@ def positions_list_htmx(request):
     """
     HTMX 持仓列表视图
 
-    支持排序和筛选的持仓列表，用于动态更新。
+    支持排序、筛选和按账户过滤的持仓列表，用于动态更新。
     """
     # If not accessed via HTMX, redirect to main dashboard
     if 'HX-Request' not in request.headers:
         from django.shortcuts import redirect
         return redirect('dashboard:index')
 
-    data = _build_dashboard_data(request.user.id)
-    data = _ensure_dashboard_positions(data, request.user.id)
-    positions = list(data.positions)
+    # 账户过滤
+    account_id_str = request.GET.get('account_id', '')
+    account_id = int(account_id_str) if account_id_str else None
+
+    # 直接从模拟账户加载持仓（避免构建完整 Dashboard 数据）
+    positions = _load_simulated_positions_fallback(request.user.id, account_id=account_id)
+
+    # 若无模拟持仓且未指定账户，回退到组合快照
+    if not positions and not account_id:
+        data = _build_dashboard_data(request.user.id)
+        data = _ensure_dashboard_positions(data, request.user.id)
+        positions = list(data.positions)
 
     # 获取排序参数
     sort_by = request.GET.get('sort', 'market_value')
@@ -454,9 +468,19 @@ def positions_list_htmx(request):
 
     context = {
         'positions': positions,
+        'show_account': not account_id,
     }
 
     return render(request, 'dashboard/partials/positions_table.html', context)
+
+
+def _generate_allocation_from_positions(positions: list[dict]) -> dict:
+    """Generate allocation chart data from position dicts, grouped by asset class."""
+    allocation: dict[str, float] = {}
+    for pos in positions:
+        asset_class = pos.get("asset_class_display") or pos.get("asset_class", "其他")
+        allocation[asset_class] = allocation.get(asset_class, 0) + pos.get("market_value", 0)
+    return allocation
 
 
 @login_required(login_url="/account/login/")
@@ -465,10 +489,17 @@ def allocation_chart_htmx(request):
     HTMX 资产配置图表数据
 
     返回 JSON 格式的资产配置数据，用于前端图表更新。
+    支持 account_id 参数按账户过滤。
     """
-    data = _build_dashboard_data(request.user.id)
+    account_id_str = request.GET.get('account_id', '')
+    account_id = int(account_id_str) if account_id_str else None
 
-    allocation_data = data.allocation_data if hasattr(data, 'allocation_data') else {}
+    if account_id:
+        positions = _load_simulated_positions_fallback(request.user.id, account_id=account_id)
+        allocation_data = _generate_allocation_from_positions(positions)
+    else:
+        data = _build_dashboard_data(request.user.id)
+        allocation_data = data.allocation_data if hasattr(data, 'allocation_data') else {}
 
     return JsonResponse({
         'success': True,

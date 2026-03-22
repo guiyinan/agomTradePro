@@ -154,16 +154,6 @@
                 <p class="home-subtitle">AgomTradePro 战略资产配置框架 - 投资指挥中心</p>
             </div>
             <div class="header-actions">
-                <div class="header-stat">
-                    <span class="stat-label">总资产</span>
-                    <span class="stat-value">¥{{ total_assets|floatformat:0 }}</span>
-                </div>
-                <div class="header-stat">
-                    <span class="stat-label">收益率</span>
-                    <span class="stat-value {% if total_return_pct >= 0 %}positive{% else %}negative{% endif %}">
-                        {{ total_return_pct|floatformat:2 }}%
-                    </span>
-                </div>
             </div>
         </header>
 
@@ -288,14 +278,6 @@
                         <a href="{% url 'beta_gate:config' %}" class="decision-link">详情 →</a>
                     </div>
                     <div class="decision-card-body">
-                        <div class="decision-status">
-                            <span class="status-label">当前 Regime</span>
-                            <span class="status-value regime-{{ current_regime|default:"unknown"|lower }}">{{ current_regime|default:"Unknown" }}</span>
-                        </div>
-                        <div class="decision-status">
-                            <span class="status-label">政策档位</span>
-                            <span class="status-value policy-{{ policy_level|default:"P0"|lower }}">{{ policy_level|default:"P0" }}</span>
-                        </div>
                         <div class="decision-status">
                             <span class="status-label">可见资产类别</span>
                             <span class="status-value">{{ beta_gate_visible_classes|default:"-" }}</span>
@@ -609,8 +591,19 @@
                 <div class="section-header">
                     <h2 class="section-title">当前持仓</h2>
                     <div class="header-actions">
-                        <select id="positionSort" class="sort-select" hx-get="/api/dashboard/positions/"
-                                hx-trigger="change" hx-target="#positionList" hx-include="#positionSort">
+                        <select id="positionAccountFilter" name="account_id" class="sort-select"
+                                hx-get="/api/dashboard/positions/"
+                                hx-trigger="change" hx-target="#positionList" hx-swap="innerHTML"
+                                hx-include="#positionSort">
+                            <option value="">全部账户</option>
+                            {% for account in investment_accounts %}
+                            <option value="{{ account.id }}">{{ account.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <select id="positionSort" name="sort" class="sort-select"
+                                hx-get="/api/dashboard/positions/"
+                                hx-trigger="change" hx-target="#positionList" hx-swap="innerHTML"
+                                hx-include="#positionAccountFilter">
                             <option value="market_value">按市值</option>
                             <option value="pnl_pct">按收益率</option>
                             <option value="code">按代码</option>
@@ -619,42 +612,7 @@
                     </div>
                 </div>
                 <div class="card-body" id="positionList">
-                    {% if positions %}
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th class="sortable" data-sort="code">代码</th>
-                                <th class="sortable" data-sort="name">名称</th>
-                                <th class="sortable" data-sort="market_value">市值</th>
-                                <th class="sortable" data-sort="pnl">盈亏</th>
-                                <th class="sortable" data-sort="pnl_pct">收益率</th>
-                            </tr>
-                        </thead>
-                        <tbody id="positionTableBody">
-                            {% for pos in positions|slice:":5" %}
-                            <tr class="position-row" data-asset-code="{{ pos.asset_code }}"
-                                hx-get="/api/dashboard/position/{{ pos.asset_code }}/"
-                                hx-target="#positionDetailModal" hx-swap="innerHTML"
-                                style="cursor: pointer;">
-                                <td><strong>{{ pos.asset_code }}</strong></td>
-                                <td>{{ pos.asset_name|default:"-" }}</td>
-                                <td>¥{{ pos.market_value|floatformat:0 }}</td>
-                                <td class="{% if pos.unrealized_pnl >= 0 %}positive{% else %}negative{% endif %}">
-                                    ¥{{ pos.unrealized_pnl|floatformat:0 }}
-                                </td>
-                                <td class="{% if pos.unrealized_pnl_pct >= 0 %}positive{% else %}negative{% endif %}">
-                                    {{ pos.unrealized_pnl_pct|floatformat:2 }}%
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                    {% else %}
-                    <div class="empty-state">
-                        <div class="empty-icon">📭</div>
-                        <p>暂无持仓记录</p>
-                    </div>
-                    {% endif %}
+                    {% include 'dashboard/partials/positions_table.html' with positions=positions show_account=True %}
                 </div>
             </section>
 
@@ -693,6 +651,7 @@
             <section class="content-card half">
                 <div class="section-header">
                     <h2 class="section-title">资产配置</h2>
+                    <span class="chart-account-label" id="allocationAccountLabel">全部账户</span>
                 </div>
                 <div class="card-body">
                     <canvas id="allocationChart" width="400" height="300"></canvas>
@@ -702,6 +661,7 @@
             <section class="content-card half">
                 <div class="section-header">
                     <h2 class="section-title">收益趋势</h2>
+                    <span class="chart-account-label">全部账户</span>
                 </div>
                 <div class="card-body">
                     <canvas id="performanceChart" width="400" height="300"></canvas>
@@ -1153,16 +1113,21 @@ document.addEventListener('DOMContentLoaded', checkQlibStatus);
 // ========================================
 
 // 资产配置饼图
+let allocationChartInstance = null;
 const allocationCtx = document.getElementById('allocationChart');
-if (allocationCtx) {
-    const allocationData = {{ allocation_data|safe }};
-    const dataKeys = Object.keys(allocationData);
-    const dataValues = Object.values(allocationData);
+
+function renderAllocationChart(chartData) {
+    if (!allocationCtx) return;
+    const dataKeys = Object.keys(chartData);
+    const dataValues = Object.values(chartData);
     const hasData = dataValues.some(v => v > 0);
 
     if (hasData) {
-        const allocationChart = echarts.init(allocationCtx);
-        allocationChart.setOption({
+        if (!allocationChartInstance) {
+            allocationChartInstance = echarts.init(allocationCtx);
+            window.addEventListener('resize', () => allocationChartInstance.resize());
+        }
+        allocationChartInstance.setOption({
             tooltip: {
                 trigger: 'item',
                 formatter: '{b}: ¥{c} ({d}%)'
@@ -1184,12 +1149,20 @@ if (allocationCtx) {
                     formatter: '{b}\n{d}%'
                 }
             }]
-        });
-        window.addEventListener('resize', () => allocationChart.resize());
+        }, true);
     } else {
+        if (allocationChartInstance) {
+            allocationChartInstance.dispose();
+            allocationChartInstance = null;
+        }
+        allocationCtx.parentElement.querySelector('canvas') ||
+            (allocationCtx.parentElement.innerHTML = '<canvas id="allocationChart" width="400" height="300"></canvas>');
         allocationCtx.parentElement.innerHTML = '<p class="text-muted">暂无资产配置数据</p>';
     }
 }
+
+// 初始渲染
+renderAllocationChart({{ allocation_data|safe }});
 
 // 收益趋势图
 const performanceCtx = document.getElementById('performanceChart');
@@ -1363,6 +1336,33 @@ if (icTrendsCtx) {
     } else {
         icTrendsCtx.parentElement.innerHTML = '<p class="text-muted" style="font-size: 12px;">暂无 IC 数据</p>';
     }
+}
+
+// ========================================
+// 账户切换同步（持仓 + 资产配置图表）
+// ========================================
+
+const positionAccountFilter = document.getElementById('positionAccountFilter');
+if (positionAccountFilter) {
+    positionAccountFilter.addEventListener('change', function() {
+        const accountId = this.value;
+        const selectedText = this.options[this.selectedIndex].text;
+
+        // 更新资产配置图表标签
+        const label = document.getElementById('allocationAccountLabel');
+        if (label) label.textContent = selectedText;
+
+        // 刷新资产配置图表数据
+        const url = '/api/dashboard/allocation/' + (accountId ? '?account_id=' + accountId : '');
+        fetch(url, { credentials: 'same-origin' })
+            .then(r => r.json())
+            .then(response => {
+                if (response.success && response.data) {
+                    renderAllocationChart(response.data);
+                }
+            })
+            .catch(err => console.warn('Failed to refresh allocation chart:', err));
+    });
 }
 
 // ========================================
