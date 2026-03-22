@@ -248,12 +248,13 @@
 
 {% block header_actions %}
 <a href="{% url 'audit:reports' %}" class="btn btn-outline">归因报告</a>
-<a href="/api/audit/" class="btn btn-secondary">审计 API</a>
+<a href="/api/docs/" class="btn btn-secondary">接口文档</a>
 {% endblock %}
 
 {% block audit_content %}
 <section class="hero">
     <div class="hero-panel">
+        <div class="badge badge-info" style="margin-bottom: 12px;">审计复核工作台</div>
         <h2 class="hero-title">审计复盘中心</h2>
         <p class="hero-text">
             这里聚合归因报告、阈值验证和操作审计入口。日常使用直接从页面进入，只有需要系统集成或自动化时再走 API。
@@ -281,9 +282,9 @@
         </div>
         <div class="meta-card">
             <div class="meta-label">最近归因报告</div>
-            <div class="meta-value">{{ recent_reports|length }}</div>
+            <div class="meta-value">{{ report_total_count|default:recent_reports|length }}</div>
             <div class="meta-note">
-                最近 5 条归因报告会直接展示在本页，适合快速复盘和跳转详情。
+                当前已生成 {{ report_total_count|default:recent_reports|length }} 份报告，最近 5 条会直接展示在本页。
             </div>
         </div>
     </div>
@@ -352,6 +353,34 @@
         {% endif %}
     </div>
 </section>
+
+{% if pending_backtests %}
+<section class="section">
+    <div class="section-header">
+        <h2 class="section-title">待复盘回测</h2>
+    </div>
+    <div class="recent-reports">
+        {% for backtest in pending_backtests %}
+        <div class="report-card">
+            <div class="report-info">
+                <h3>{{ backtest.name }}</h3>
+                <div class="report-meta">
+                    区间：{{ backtest.start_date|date:"Y-m-d" }} - {{ backtest.end_date|date:"Y-m-d" }}<br>
+                    状态：已完成回测，尚未看到对应归因报告
+                </div>
+            </div>
+            <div class="report-stats">
+                <div class="report-stat">
+                    <div class="report-stat-value">{{ completed_backtest_count }}</div>
+                    <div class="report-stat-label">已完成回测</div>
+                </div>
+            </div>
+            <a href="{% url 'backtest:detail' backtest.id %}" class="btn btn-outline btn-sm">查看回测</a>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
 
 {% if latest_validation %}
 <section class="section">
@@ -439,8 +468,8 @@
             只有脚本集成、外部系统调用或自动化任务才建议访问 API。
         </p>
         <div class="api-hint">
-            常用接口保留在 <code>/api/audit/</code>。
-            页面路由保留在 <code>/audit/review/</code>、<code>/audit/reports/</code>、<code>/audit/threshold-validation/</code>。
+            需要对接接口时，统一从接口文档进入即可。
+            浏览器侧常用入口保留在 <code>/audit/review/</code>、<code>/audit/reports/</code>、<code>/audit/threshold-validation/</code>。
         </div>
     </div>
 </section>

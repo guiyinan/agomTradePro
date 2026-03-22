@@ -1,10 +1,10 @@
 # Module Ledger
 
-> Rules version: `2026-03-18.v2`
-> Generated at: `2026-03-18`
+> Rules version: `2026-03-22.v1`
+> Generated at: `2026-03-22`
 > Boundary rules: `4`
 > Violations: `0`
-> Business Modules: `32`
+> Business Modules: `33`
 
 ## Boundary Baseline
 
@@ -52,6 +52,7 @@
 | `market_data` |  | 1 | 1 |  | out: realtime; in: realtime; Unified market data interface |
 | `share` |  | 2 | 0 |  | out: decision_rhythm, simulated_trading; Decision sharing module |
 | `terminal` |  | 1 | 0 |  | out: prompt; Terminal CLI, AI interaction interface |
+| `ai_capability` |  | 1 | 0 |  | out: terminal; AI Capability Catalog, unified routing |
 
 ## Violations
 

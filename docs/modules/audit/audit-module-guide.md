@@ -133,6 +133,31 @@ IndicatorThresholdConfig {
 
 ### Attribution Endpoints
 
+#### GET /audit/reports/
+Get unified report list page with template filters (V3.6 新增).
+
+**Query Parameters:**
+- `backtest_id` (int): Filter by backtest ID
+- `status` (string): Filter by report status
+- `page` (int): Page number
+
+**Response:**
+```json
+{
+  "count": 10,
+  "results": [
+    {
+      "id": 1,
+      "backtest_id": 1,
+      "total_pnl": 0.10,
+      "regime_timing_pnl": 0.03,
+      "asset_selection_pnl": 0.05,
+      "created_at": "2026-03-22T10:00:00Z"
+    }
+  ]
+}
+```
+
 #### POST /api/audit/reports/generate/
 Generate attribution report for a backtest.
 

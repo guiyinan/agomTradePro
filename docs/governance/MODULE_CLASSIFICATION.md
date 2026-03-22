@@ -1,7 +1,7 @@
 # AgomTradePro 模块分级表
 
-> **版本**: V1.0
-> **基线日期**: 2026-03-18
+> **版本**: V1.1
+> **基线日期**: 2026-03-22
 > **文档性质**: 模块治理规范
 > **依赖来源**: `docs/architecture/MODULE_DEPENDENCIES.md`
 
@@ -108,7 +108,7 @@ account, audit, filter, prompt
 
 **定义**: 新增或持续优化中，允许较大改动
 
-**数量**: 8 个
+**数量**: 9 个
 
 **变更规则**:
 - ✅ 允许大规模重构
@@ -126,6 +126,7 @@ account, audit, filter, prompt
 | **agent_runtime** | Agent 运行时 | 🟢 新增 | Terminal AI 后端 |
 | **task_monitor** | 任务监控 | 🟢 新增 | Celery 监控 |
 | **filter** | HP/Kalman 滤波 | 🟢 迭代中 | 算法优化 |
+| **ai_capability** | AI 能力目录 | 🟢 新增 | 统一路由（V3.6） |
 
 **说明**:
 - 这些模块功能尚在演进，接口可能变化
@@ -152,8 +153,8 @@ account, audit, filter, prompt
 └─────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────┐
-│  Tier 3: 试验模块 (8个)                                  │
-│  alpha, factor, hedge, rotation, ...                    │
+│  Tier 3: 试验模块 (9个)                                  │
+│  alpha, factor, hedge, rotation, ai_capability, ...     │
 │  🟢 允许迭代                                             │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -266,10 +267,11 @@ account, audit, filter, prompt
 
 | 日期 | 版本 | 变更内容 |
 |------|------|----------|
+| 2026-03-22 | V1.1 | 新增 ai_capability 模块（Tier 3），更新模块数量(8→9) |
 | 2026-03-18 | V1.0 | 初始版本，建立三级分类体系 |
 
 ---
 
 **维护者**: AgomTradePro Team
-**最后更新**: 2026-03-18
+**最后更新**: 2026-03-22
 **参考文档**: `docs/architecture/MODULE_DEPENDENCIES.md`

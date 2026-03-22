@@ -1,6 +1,6 @@
 # Hedge 模块指南
 
-> **最后更新**: 2026-02-06
+> **最后更新**: 2026-03-22
 
 ## 概述
 
@@ -20,11 +20,17 @@ apps/hedge/
 
 | 端点 | 说明 |
 |------|------|
-| `GET /hedge/api/pairs/` | 对冲配对 |
-| `GET /hedge/api/correlations/` | 相关性分析 |
-| `GET /hedge/api/snapshots/` | 对冲快照 |
-| `GET /hedge/api/alerts/` | 对冲告警 |
-| `POST /hedge/api/` | 执行操作 |
+| `GET /api/hedge/pairs/` | 对冲配对 |
+| `GET /api/hedge/correlations/` | 相关性分析 |
+| `GET /api/hedge/snapshots/` | 对冲快照 |
+| `GET /api/hedge/alerts/` | 对冲告警 |
+| `POST /api/hedge/` | 执行操作 |
+
+## 数据模型
+
+### HedgePortfolioSnapshot
+- 对冲组合快照，记录每日对冲状态
+- 字段：trade_date, portfolio_value, hedge_ratio, delta, gamma 等
 
 ## 管理命令
 

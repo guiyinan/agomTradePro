@@ -1,9 +1,9 @@
 # AgomTradePro 项目结构说明
 
 > 生成时间: 2025-12-30
-> 更新时间: 2026-02-20
-> 项目版本: 1.2
-> 模块数量: 32个业务模块
+> 更新时间: 2026-03-22
+> 项目版本: 1.3
+> 模块数量: 33个业务模块
 
 ## 1. 项目概述
 
@@ -236,6 +236,72 @@ AgomTradePro/
 │   │   │   └── models.py        #     ORM 模型
 │   │   └── interface/           #   接口层
 │   │       └── views.py
+│
+│   ├── alpha/                   # ⭐ AI 选股信号（Qlib 集成）
+│   │   ├── domain/              #   实体：StockScore, AlphaResult
+│   │   ├── application/         #   应用层：AlphaService
+│   │   ├── infrastructure/      #   基础设施层
+│   │   │   ├── models.py        #     ORM 模型
+│   │   │   └── adapters/        #     Provider 适配器
+│   │   └── interface/           #   接口层
+│   │       └── views.py
+│
+│   ├── alpha_trigger/           # ⭐ Alpha 离散触发
+│   │   ├── domain/
+│   │   ├── application/
+│   │   └── infrastructure/
+│
+│   ├── beta_gate/               # ⭐ Beta 闸门
+│   │   ├── domain/
+│   │   ├── application/
+│   │   └── infrastructure/
+│
+│   ├── decision_rhythm/         # ⭐ 决策频率约束
+│   │   ├── domain/
+│   │   ├── application/
+│   │   └── infrastructure/
+│
+│   ├── factor/                  # ⭐ 因子管理
+│   │   ├── domain/
+│   │   ├── application/
+│   │   └── infrastructure/
+│
+│   ├── rotation/                # ⭐ 板块轮动
+│   │   ├── domain/
+│   │   ├── application/
+│   │   └── infrastructure/
+│
+│   ├── hedge/                   # ⭐ 对冲策略
+│   │   ├── domain/
+│   │   ├── application/
+│   │   └── infrastructure/
+│
+│   ├── terminal/                # ⭐ 终端 CLI（AI 交互界面）
+│   │   ├── domain/
+│   │   ├── application/
+│   │   ├── infrastructure/
+│   │   └── interface/
+│
+│   ├── agent_runtime/           # ⭐ Agent 运行时（Terminal AI 后端）
+│   │   ├── domain/
+│   │   ├── application/
+│   │   └── infrastructure/
+│
+│   ├── ai_capability/           # ⭐ AI 能力目录（统一路由）
+│   │   ├── domain/
+│   │   ├── application/
+│   │   ├── infrastructure/
+│   │   └── interface/
+│
+│   ├── share/                   # ⭐ 分享功能
+│   │   ├── domain/
+│   │   ├── application/
+│   │   └── infrastructure/
+│
+│   ├── task_monitor/            # ⭐ 任务监控
+│   │   ├── domain/
+│   │   ├── application/
+│   │   └── infrastructure/
 │
 │   ├── dashboard/               # 仪表盘
 │   │   ├── application/         #   应用层：仪表盘数据聚合

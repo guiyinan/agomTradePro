@@ -1,6 +1,6 @@
 # Rotation 模块指南
 
-> **最后更新**: 2026-02-06
+> **最后更新**: 2026-03-22
 
 ## 概述
 
@@ -20,10 +20,13 @@ apps/rotation/
 
 | 端点 | 说明 |
 |------|------|
-| `GET /rotation/api/assets/` | 资产类别 |
-| `GET /rotation/api/configs/` | 配置 |
-| `GET /rotation/api/signals/` | 轮动信号 |
-| `POST /rotation/api/` | 执行操作 |
+| `GET /api/rotation/assets/` | 资产类别 |
+| `GET /api/rotation/configs/` | 配置 |
+| `GET /api/rotation/signals/` | 轮动信号 |
+| `GET /api/rotation/account-configs/` | 账户配置列表 |
+| `POST /api/rotation/account-configs/` | 创建账户配置 |
+| `POST /api/rotation/account-configs/{id}/apply-template/` | 应用预设模板 |
+| `POST /api/rotation/` | 执行操作 |
 
 ## 管理命令
 
@@ -39,3 +42,15 @@ python manage.py init_rotation
 - 滞胀 → 能源、公用事业
 - 衰退下行 → 债券、防御
 - 复苏上行 → 成长、消费
+
+## 新增功能 (V3.6)
+
+### 账户配置管理
+- 支持为每个账户单独配置轮动参数
+- 账户级风险容忍度设置
+- 预设模板快速应用
+
+### MCP 工具
+- `rotation_get_assets` - 获取资产类别
+- `rotation_get_configs` - 获取配置
+- `rotation_get_account_configs` - 获取账户配置

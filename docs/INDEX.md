@@ -1,7 +1,7 @@
 # AgomTradePro 文档索引
 
-> **AgomTradePro V3.5** - 宏观环境准入系统
-> **最后更新**: 2026-03-18
+> **AgomTradePro V3.6** - 宏观环境准入系统
+> **最后更新**: 2026-03-22
 > **项目状态**: 生产就绪
 
 ---
@@ -230,9 +230,9 @@
 
 **业务模块**: 33个
 
-**完成度**: 持续迭代（请以里程碑文档与代码状态为准）
+**测试覆盖**: 1,600+ 个测试用例
 
-**测试覆盖**: 使用 `pytest` + `coverage` 持续验证（覆盖率以最新 CI/本地执行结果为准）
+**完成度**: 持续迭代（请以里程碑文档与代码状态为准）
 
 ### SDK/MCP 口径（2026-02-26）
 
@@ -249,7 +249,7 @@
 - 页面导航规范：业务页面链接使用 Django `{% url %}`，禁止硬编码业务路径
 - 页面与 API 边界：页面导航不得直连业务 API（`/api/*`），仅 `/api/docs/` 例外
 
-### 完整四层架构模块 (32个)
+### 完整四层架构模块 (33个)
 
 #### 核心引擎模块 (5个)
 - `macro` - 宏观数据采集
@@ -266,8 +266,6 @@
 - `sentiment` - 舆情情感分析
 
 #### AI 智能模块 (8个)
-- `ai_provider` - AI 服务商管理
-- `prompt` - AI Prompt 模板
 - `alpha` - Alpha AI 选股信号（Qlib 集成）
 - `alpha_trigger` - Alpha 离散触发
 - `beta_gate` - Beta 闸门
@@ -275,16 +273,7 @@
 - `factor` - 因子管理
 - `rotation` - 板块轮动
 - `hedge` - 对冲策略
-- `terminal` - 终端 CLI（AI 交互界面）
-- `agent_runtime` - Agent 运行时（Terminal AI 后端）
-+ `ai_capability` - **系统级 AI 能力目录与统一路由** ✅ 2026-03-19 新增
-
-- `share` - 分享功能
-- `task_monitor` - 任务监控
-- `dashboard` - 仪表盘
-    - `events` - 事件总线
-    - `rotation` - 板块轮动
-- - `hedge` - 对冲策略
+- `ai_capability` - **系统级 AI 能力目录与统一路由** ✅ 2026-03-19 新增
 
 #### 风控与账户模块 (5个)
 - `account` - 账户与持仓管理
@@ -303,12 +292,11 @@
 - `backtest` - 回测引擎
 - `events` - 事件系统
 - `task_monitor` - 定时任务监控
-- `terminal` - 终端 CLI（AI 交互界面）
+- `share` - 分享功能
 
-#### 新增模块 (3个)
+#### 新增模块 (2个)
+- `terminal` - 终端 CLI（AI 交互界面）
 - `agent_runtime` - Agent 运行时（Terminal AI 后端，支持任务编排和 Facade 模式）
-- `share` - 分享功能模块，支持决策分享
-- `terminal` - 终端 CLI（AI 交互界面）（注：从工具模块移至此分类）
 
 ---
 
@@ -361,7 +349,14 @@
 
 ---
 
-## 最近更新 (2026-02-20 ~ 2026-03-19)
+## 最近更新 (2026-02-20 ~ 2026-03-22)
+
+### 2026-03-22
+- ✅ **文档系统化对齐**
+  - 更新所有文档版本号到 V3.6
+  - 更新模块数量 (32 → 33)，新增 ai_capability 模块
+  - 修复 INDEX.md 模块分类列表重复问题
+  - 更新 SYSTEM_BASELINE.md、SYSTEM_SPECIFICATION.md、CLAUDE.md
 
 ### 2026-03-19
 - ✅ **AI Capability Catalog 模块（V3.6）**
@@ -468,4 +463,4 @@
 ---
 
 **文档维护**: AgomTradePro Team
-**最后更新**: 2026-03-17
+**最后更新**: 2026-03-22
