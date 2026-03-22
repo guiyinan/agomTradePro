@@ -4,6 +4,7 @@
 {% block title %}决策配额管理 - AgomTradePro{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/decision-rhythm.css' %}">
 <style>
 /* ========================================
    配额管理页面样式
@@ -466,6 +467,23 @@
         </a>
     </div>
 
+    <!-- 账户选择器 -->
+    <div class="account-selector-bar">
+        <div class="account-selector-label">
+            <i class="bi bi-wallet2"></i> 选择账户
+        </div>
+        <select id="accountSelector" class="account-selector" onchange="onAccountChange()">
+            {% for acc in accounts %}
+            <option value="{{ acc.id }}" {% if current_account_id == acc.id|stringformat:"s" %}selected{% endif %}>
+                {{ acc.account_name }}（{% if acc.account_type == "real" %}实仓{% else %}模拟仓{% endif %}）
+            </option>
+            {% empty %}
+            <option value="default">默认账户</option>
+            {% endfor %}
+        </select>
+        <span class="account-selector-hint">不同账户配额独立计算</span>
+    </div>
+
     {% if error %}
     <div class="alert alert-danger">
         <i class="bi bi-exclamation-triangle"></i> {{ error }}
@@ -603,6 +621,14 @@
 </div>
 
 <script>
+// 账户切换
+function onAccountChange() {
+    const accountId = document.getElementById('accountSelector').value;
+    const url = new URL(window.location.href);
+    url.searchParams.set('account_id', accountId);
+    window.location.href = url.toString();
+}
+
 function showRequestDetail(requestId, assetCode, direction, status, priority) {
     // 使用 SweetAlert2 显示请求详情
     Swal.fire({

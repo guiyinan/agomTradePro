@@ -58,18 +58,23 @@ class QuotaRepository:
         """初始化仓储"""
         self.model = DecisionQuotaModel
 
-    def get_quota(self, period: QuotaPeriod) -> Optional[DecisionQuota]:
+    def get_quota(
+        self, period: QuotaPeriod, account_id: str = "default"
+    ) -> Optional[DecisionQuota]:
         """
         获取配额
 
         Args:
             period: 配额周期
+            account_id: 账户 ID
 
         Returns:
             DecisionQuota 实体或 None
         """
         try:
-            model = self.model.objects.filter(period=period.value).first()
+            model = self.model.objects.filter(
+                account_id=account_id, period=period.value
+            ).first()
 
             if model:
                 return model.to_domain()
@@ -78,22 +83,30 @@ class QuotaRepository:
         except ObjectDoesNotExist:
             return None
 
-    def get_all_quotas(self, period: Optional[QuotaPeriod] = None) -> List[DecisionQuota]:
+    def get_all_quotas(
+        self,
+        period: Optional[QuotaPeriod] = None,
+        account_id: Optional[str] = None,
+    ) -> List[DecisionQuota]:
         """
         获取所有配额
 
         Args:
             period: 配额周期过滤（可选）
+            account_id: 账户 ID 过滤（可选）
 
         Returns:
             DecisionQuota 实体列表
         """
         queryset = self.model.objects.all()
 
+        if account_id:
+            queryset = queryset.filter(account_id=account_id)
+
         if period:
             queryset = queryset.filter(period=period.value)
 
-        models = queryset.order_by("period")
+        models = queryset.order_by("account_id", "period")
 
         return [m.to_domain() for m in models]
 
@@ -107,8 +120,11 @@ class QuotaRepository:
         Returns:
             保存后的 DecisionQuota 实体
         """
-        # 检查是否已存在
-        existing = self.model.objects.filter(period=quota.period.value).first()
+        account_id = quota.account_id or "default"
+        # 按 (account_id, period) 唯一查找
+        existing = self.model.objects.filter(
+            account_id=account_id, period=quota.period.value
+        ).first()
 
         if existing:
             # 更新
@@ -135,12 +151,15 @@ class QuotaRepository:
 
             return model.to_domain()
 
-    def reset_quota(self, period: QuotaPeriod) -> bool:
+    def reset_quota(
+        self, period: QuotaPeriod, account_id: str = "default"
+    ) -> bool:
         """
         重置配额
 
         Args:
             period: 配额周期
+            account_id: 账户 ID
 
         Returns:
             是否重置成功
@@ -148,14 +167,16 @@ class QuotaRepository:
         try:
             updated = (
                 self.model.objects
-                .filter(period=period.value)
+                .filter(account_id=account_id, period=period.value)
                 .update(
                     used_decisions=0,
                     used_executions=0,
                 )
             )
 
-            logger.info(f"Reset {updated} quotas for period {period.value}")
+            logger.info(
+                f"Reset {updated} quotas for account={account_id}, period={period.value}"
+            )
 
             return updated > 0
 

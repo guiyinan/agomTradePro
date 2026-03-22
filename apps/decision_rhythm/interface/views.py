@@ -818,36 +818,33 @@ class ResetQuotaView(APIView):
 
         POST /api/decision-rhythm/reset-quota/
         {
-            "period": "WEEKLY"  // 可选，空表示重置所有
+            "period": "WEEKLY",  // 可选，空表示重置所有
+            "account_id": "1"    // 可选，默认 "default"
         }
         """
         try:
-            serializer = ResetQuotaRequestSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
+            period_str = request.data.get("period")
+            account_id = request.data.get("account_id", "default")
 
-            period_str = serializer.validated_data.get("period", None)
-
-            period = None
             if period_str:
                 period = QuotaPeriod(period_str)
+                success = self.quota_repository.reset_quota(period, account_id=account_id)
+            else:
+                # 重置该账户所有周期
+                success = True
+                for p in QuotaPeriod:
+                    self.quota_repository.reset_quota(p, account_id=account_id)
 
-            # 创建用例
-            quota_manager = QuotaManager()
-            use_case = ResetQuotaUseCase(quota_manager)
-
-            # 执行
-            response = use_case.execute(ResetQuotaRequest(period))
-
-            if response.success:
+            if success:
                 return Response(
                     {
                         "success": True,
-                        "message": response.message,
+                        "message": f"配额已重置 (account={account_id})",
                     }
                 )
             else:
                 return Response(
-                    {"success": False, "error": response.error},
+                    {"success": False, "error": "未找到对应配额"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -894,6 +891,7 @@ class TrendDataView(APIView):
             from django.utils import timezone
 
             days = int(request.query_params.get("days", 7))
+            account_id = request.query_params.get("account_id", "default")
             if days not in [7, 30]:
                 days = 7
 
@@ -904,7 +902,9 @@ class TrendDataView(APIView):
             # 获取每日配额限制
             daily_quota = 10  # 默认值
             try:
-                quota = self.quota_repository.get_quota(QuotaPeriod.DAILY)
+                quota = self.quota_repository.get_quota(
+                    QuotaPeriod.DAILY, account_id=account_id
+                )
                 if quota:
                     daily_quota = quota.max_decisions
             except Exception:
@@ -969,6 +969,7 @@ def decision_rhythm_quota_view(request):
     决策配额管理页面
 
     显示当前配额状态、冷却期和决策请求历史。
+    支持按账户查看配额。
     """
     try:
         from ..infrastructure.models import (
@@ -976,20 +977,35 @@ def decision_rhythm_quota_view(request):
             CooldownPeriodModel,
             DecisionRequestModel,
         )
+        from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
-        # 直接查询 ORM 模型
-        try:
-            current_quota = (
-                DecisionQuotaModel._default_manager.filter(is_active=True)
-                .order_by("-period_start")
-                .first()
+        # 获取用户的投资账户列表
+        accounts = []
+        if request.user.is_authenticated:
+            accounts = list(
+                SimulatedAccountModel.objects.filter(user=request.user)
+                .values("id", "account_name", "account_type")
+                .order_by("account_type", "account_name")
             )
+
+        # 获取当前选中的账户
+        account_id = request.GET.get("account_id", "")
+        if not account_id and accounts:
+            account_id = str(accounts[0]["id"])
+
+        # 查询该账户的当前配额
+        try:
+            quota_qs = DecisionQuotaModel._default_manager.all()
+            if account_id:
+                quota_qs = quota_qs.filter(account_id=account_id)
+            else:
+                quota_qs = quota_qs.filter(account_id="default")
+            current_quota = quota_qs.order_by("-period_start").first()
         except Exception as e:
             logger.warning(f"Failed to query current quota: {e}")
             current_quota = None
 
         try:
-            # CooldownPeriodModel 没有 status 字段，查询所有记录
             active_cooldowns = list(
                 CooldownPeriodModel._default_manager.all().order_by("-created_at")[:10]
             )
@@ -1011,8 +1027,8 @@ def decision_rhythm_quota_view(request):
         asset_codes = [r.asset_code for r in recent_requests if r.asset_code]
         asset_codes += [c.asset_code for c in active_cooldowns if c.asset_code]
         asset_name_map = resolve_asset_names(asset_codes)
-        for request in recent_requests:
-            request.asset_name = asset_name_map.get(request.asset_code, request.asset_code)
+        for req in recent_requests:
+            req.asset_name = asset_name_map.get(req.asset_code, req.asset_code)
         for cooldown in active_cooldowns:
             cooldown.asset_name = asset_name_map.get(cooldown.asset_code, cooldown.asset_code)
 
@@ -1030,6 +1046,8 @@ def decision_rhythm_quota_view(request):
             "current_quota": current_quota,
             "active_cooldowns": active_cooldowns,
             "recent_requests": recent_requests,
+            "accounts": accounts,
+            "current_account_id": account_id,
             "quota_used": quota_used,
             "quota_remaining": max(0, quota_remaining),
             "quota_total": quota_total,
@@ -1056,25 +1074,39 @@ def decision_rhythm_config_view(request):
     决策配额配置页面
 
     管理员可以配置不同周期的配额参数。
+    支持按账户查看和配置配额。
     """
     try:
         from ..infrastructure.models import DecisionQuotaModel
-        from django.utils import timezone
+        from apps.simulated_trading.infrastructure.models import SimulatedAccountModel
 
-        # 获取所有配额
-        quotas = list(DecisionQuotaModel._default_manager.all().order_by("period"))
+        # 获取用户的投资账户列表
+        accounts = []
+        if request.user.is_authenticated:
+            accounts = list(
+                SimulatedAccountModel.objects.filter(user=request.user)
+                .values("id", "account_name", "account_type")
+                .order_by("account_type", "account_name")
+            )
 
-        # 按周期分组
-        quota_by_period = {}
-        for quota in quotas:
-            period = quota.period
-            if period not in quota_by_period:
-                quota_by_period[period] = []
-            quota_by_period[period].append(quota)
+        # 获取当前选中的账户
+        account_id = request.GET.get("account_id", "")
+        if not account_id and accounts:
+            account_id = str(accounts[0]["id"])
+
+        # 获取该账户的配额
+        queryset = DecisionQuotaModel._default_manager.all().order_by("period")
+        if account_id:
+            queryset = queryset.filter(account_id=account_id)
+        else:
+            queryset = queryset.filter(account_id="default")
+
+        quotas = list(queryset)
 
         context = {
             "quotas": quotas,
-            "quota_by_period": quota_by_period,
+            "accounts": accounts,
+            "current_account_id": account_id,
             "period_choices": DecisionQuotaModel.PERIOD_CHOICES,
             "page_title": "决策配额配置",
             "page_description": "配置和管理决策配额",
@@ -1439,6 +1471,7 @@ class UpdateQuotaConfigView(APIView):
 
         POST /api/decision-rhythm/quota/update/
         {
+            "account_id": "1",
             "period": "WEEKLY",
             "max_decisions": 10,
             "max_executions": 5
@@ -1450,6 +1483,7 @@ class UpdateQuotaConfigView(APIView):
 
             data = request.data
 
+            account_id = data.get("account_id", "default")
             period_str = data.get("period")
             max_decisions = int(data.get("max_decisions", 10))
             max_executions = int(data.get("max_executions", 5))
@@ -1460,8 +1494,9 @@ class UpdateQuotaConfigView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # 查找或创建配额
+            # 按 (account_id, period) 查找或创建配额
             quota, created = DecisionQuotaModel._default_manager.update_or_create(
+                account_id=account_id,
                 period=period_str,
                 defaults={
                     "quota_id": f"quota_{uuid.uuid4().hex[:12]}",
@@ -1479,6 +1514,7 @@ class UpdateQuotaConfigView(APIView):
                 {
                     "success": True,
                     "quota_id": quota.quota_id,
+                    "account_id": quota.account_id,
                     "period": quota.period,
                     "max_decisions": quota.max_decisions,
                     "max_executions": quota.max_execution_count,

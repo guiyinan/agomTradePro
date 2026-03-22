@@ -226,6 +226,7 @@ class DecisionQuota:
     period_start: Optional[datetime] = None
     period_end: Optional[datetime] = None
     quota_id: Optional[str] = None
+    account_id: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     # Backward compatibility fields
@@ -303,6 +304,7 @@ class DecisionQuota:
             period_start=self.period_start,
             period_end=self.period_end,
             quota_id=self.quota_id,
+            account_id=self.account_id,
             created_at=self.created_at,
             updated_at=datetime.now(timezone.utc),
         )
@@ -318,6 +320,7 @@ class DecisionQuota:
             period_start=self.period_start,
             period_end=self.period_end,
             quota_id=self.quota_id,
+            account_id=self.account_id,
             created_at=self.created_at,
             updated_at=datetime.now(timezone.utc),
         )
@@ -333,6 +336,7 @@ class DecisionQuota:
             period_start=datetime.now(timezone.utc),
             period_end=self._calculate_period_end(),
             quota_id=self.quota_id,
+            account_id=self.account_id,
             created_at=self.created_at,
             updated_at=datetime.now(timezone.utc),
         )

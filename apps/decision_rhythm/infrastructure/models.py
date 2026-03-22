@@ -75,6 +75,13 @@ class DecisionQuotaModel(models.Model):
         help_text="配额唯一标识符"
     )
 
+    account_id = models.CharField(
+        max_length=64,
+        db_index=True,
+        default="default",
+        help_text="关联账户 ID，不同账户独立配额"
+    )
+
     period = models.CharField(
         max_length=16,
         choices=PERIOD_CHOICES,
@@ -130,14 +137,20 @@ class DecisionQuotaModel(models.Model):
         db_table = "decision_quota"
         verbose_name = "决策配额"
         verbose_name_plural = "决策配额"
-        ordering = ["period"]
+        ordering = ["account_id", "period"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["account_id", "period"],
+                name="uq_quota_account_period",
+            ),
+        ]
         indexes = [
-            models.Index(fields=["period"]),
+            models.Index(fields=["account_id", "period"]),
             models.Index(fields=["period_end"]),
         ]
 
     def __str__(self):
-        return f"DecisionQuota({self.period}, {self.used_decisions}/{self.max_decisions})"
+        return f"DecisionQuota({self.account_id}/{self.period}, {self.used_decisions}/{self.max_decisions})"
 
     def clean(self):
         """验证模型"""
@@ -170,6 +183,7 @@ class DecisionQuotaModel(models.Model):
             used_executions=self.used_executions,
             period_start=self.period_start,
             period_end=self.period_end,
+            account_id=self.account_id,
             created_at=self.created_at,
             updated_at=self.updated_at,
         )
@@ -187,6 +201,7 @@ class DecisionQuotaModel(models.Model):
         """
         return cls(
             quota_id=quota.quota_id,
+            account_id=quota.account_id or "default",
             period=quota.period.value,
             max_decisions=quota.max_decisions,
             max_execution_count=quota.max_execution_count,
