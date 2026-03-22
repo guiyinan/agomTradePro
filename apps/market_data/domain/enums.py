@@ -18,6 +18,7 @@ class DataCapability(Enum):
     CAPITAL_FLOW = "capital_flow"
     STOCK_NEWS = "stock_news"
     TECHNICAL_FACTORS = "technical_factors"
+    HISTORICAL_PRICE = "historical_price"
 
 
 class ProviderHealth(Enum):

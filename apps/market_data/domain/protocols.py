@@ -11,6 +11,7 @@ from typing import List, Optional
 from apps.market_data.domain.enums import DataCapability
 from apps.market_data.domain.entities import (
     CapitalFlowSnapshot,
+    HistoricalPriceBar,
     QuoteSnapshot,
     StockNewsItem,
     TechnicalSnapshot,
@@ -65,3 +66,23 @@ class MarketDataProviderProtocol(ABC):
     ) -> Optional[TechnicalSnapshot]:
         """获取个股技术指标快照"""
         return None
+
+    def get_historical_prices(
+        self,
+        asset_code: str,
+        start_date: str,
+        end_date: str,
+    ) -> List[HistoricalPriceBar]:
+        """获取历史 K 线数据
+
+        支持股票、ETF、指数等各类资产。
+
+        Args:
+            asset_code: 资产代码（纯数字如 510300，或 Tushare 格式如 000001.SH）
+            start_date: 开始日期（YYYYMMDD 格式）
+            end_date: 结束日期（YYYYMMDD 格式）
+
+        Returns:
+            按日期升序排列的 K 线列表
+        """
+        return []

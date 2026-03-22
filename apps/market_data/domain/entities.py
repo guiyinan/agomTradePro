@@ -198,6 +198,44 @@ class TechnicalSnapshot:
 
 
 @dataclass(frozen=True)
+class HistoricalPriceBar:
+    """历史价格 K 线
+
+    标准化的 OHLCV 数据，适用于股票、ETF、指数等各类资产。
+    """
+
+    asset_code: str
+    trade_date: date
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: Optional[int] = None
+    amount: Optional[float] = None
+    source: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.asset_code:
+            raise ValueError("asset_code 不能为空")
+        if self.close < 0:
+            raise ValueError(f"close 不能为负数: {self.close}")
+
+    def to_dict(self) -> dict:
+        """转换为字典"""
+        return {
+            "asset_code": self.asset_code,
+            "trade_date": self.trade_date.isoformat(),
+            "open": self.open,
+            "high": self.high,
+            "low": self.low,
+            "close": self.close,
+            "volume": self.volume,
+            "amount": self.amount,
+            "source": self.source,
+        }
+
+
+@dataclass(frozen=True)
 class ProviderStatus:
     """Provider 状态快照
 

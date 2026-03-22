@@ -6,8 +6,10 @@ AKShare 东方财富 Gateway
 而不需要修改 parser 和业务逻辑。
 """
 
+import os
 import logging
 import time
+from contextlib import contextmanager
 from decimal import Decimal, InvalidOperation
 from typing import List, Optional
 
@@ -15,6 +17,7 @@ import requests
 
 from apps.market_data.domain.entities import (
     CapitalFlowSnapshot,
+    HistoricalPriceBar,
     QuoteSnapshot,
     StockNewsItem,
     TechnicalSnapshot,
@@ -36,6 +39,10 @@ _QUOTE_FIELDS = (
     "f167,f168,f169,f170,f171,f532,f600,f601"
 )
 _EASTMONEY_QUOTE_URL = "https://push2.eastmoney.com/api/qt/stock/get"
+_EASTMONEY_NO_PROXY_HOSTS = (
+    "eastmoney.com",
+    ".eastmoney.com",
+)
 
 # 支持的能力集合
 _SUPPORTED_CAPABILITIES = {
@@ -43,6 +50,7 @@ _SUPPORTED_CAPABILITIES = {
     DataCapability.CAPITAL_FLOW,
     DataCapability.STOCK_NEWS,
     DataCapability.TECHNICAL_FACTORS,
+    DataCapability.HISTORICAL_PRICE,
 }
 
 
@@ -154,6 +162,7 @@ class AKShareEastMoneyGateway(MarketDataProviderProtocol):
         self._throttle()
         results: List[QuoteSnapshot] = []
         with requests.Session() as session:
+            session.trust_env = False
             session.headers.update(
                 {
                     "User-Agent": (
@@ -191,9 +200,10 @@ class AKShareEastMoneyGateway(MarketDataProviderProtocol):
             import akshare as ak
 
             ak_code = _to_akshare_code(stock_code)
-            df = ak.stock_individual_fund_flow(
-                stock=ak_code, market=_to_market_arg(stock_code)
-            )
+            with _eastmoney_direct_network():
+                df = ak.stock_individual_fund_flow(
+                    stock=ak_code, market=_to_market_arg(stock_code)
+                )
             if df is None or df.empty:
                 logger.warning("AKShare 资金流向返回空数据: %s", stock_code)
                 return []
@@ -231,7 +241,8 @@ class AKShareEastMoneyGateway(MarketDataProviderProtocol):
             import akshare as ak
 
             ak_code = _to_akshare_code(stock_code)
-            df = ak.stock_news_em(symbol=ak_code)
+            with _eastmoney_direct_network():
+                df = ak.stock_news_em(symbol=ak_code)
             return parse_akshare_news_rows(df, stock_code, limit=limit)
 
         except Exception:
@@ -265,6 +276,146 @@ class AKShareEastMoneyGateway(MarketDataProviderProtocol):
             volume_ratio=quote.volume_ratio,
             source="eastmoney",
         )
+
+    # ------------------------------------------------------------------
+    # HISTORICAL_PRICE
+    # ------------------------------------------------------------------
+
+    def get_historical_prices(
+        self,
+        asset_code: str,
+        start_date: str,
+        end_date: str,
+    ) -> List[HistoricalPriceBar]:
+        """获取历史 K 线（东方财富源）
+
+        使用 *_em 系列接口，避免 *_sina 接口依赖 py_mini_racer。
+
+        支持：
+        - ETF: 51xxxx, 15xxxx, 56xxxx, 58xxxx
+        - 指数: 000xxx, 399xxx
+        - 股票: 6xxxxx (SH), 0xxxxx/3xxxxx (SZ)
+        """
+        self._throttle()
+        try:
+            import akshare as ak
+            import pandas as pd
+
+            code = _to_akshare_code(asset_code)
+            df = None
+            source_tag = "eastmoney"
+
+            # ETF
+            if code.startswith(("51", "15", "56", "58")):
+                with _eastmoney_direct_network():
+                    df = ak.fund_etf_hist_em(
+                        symbol=code,
+                        start_date=start_date,
+                        end_date=end_date,
+                        adjust="qfq",
+                    )
+                if df is not None and not df.empty:
+                    return self._parse_em_cn_bars(df, code, source_tag)
+
+            # 指数
+            elif code.startswith(("000", "399")):
+                prefix = "sh" if code.startswith("000") else "sz"
+                with _eastmoney_direct_network():
+                    df = ak.stock_zh_index_daily(symbol=f"{prefix}{code}")
+                if df is not None and not df.empty:
+                    return self._parse_en_bars(df, code, start_date, end_date, source_tag)
+
+            # 股票
+            else:
+                ts_code = _to_tushare_code(code)
+                market = "1" if ts_code.endswith(".SH") else "0"
+                with _eastmoney_direct_network():
+                    df = ak.stock_zh_a_hist(
+                        symbol=code,
+                        start_date=start_date,
+                        end_date=end_date,
+                        adjust="qfq",
+                    )
+                if df is not None and not df.empty:
+                    return self._parse_em_cn_bars(df, code, source_tag)
+
+            return []
+
+        except Exception:
+            logger.exception("东方财富历史 K 线获取失败: %s", asset_code)
+            return []
+
+    def _parse_em_cn_bars(
+        self,
+        df: "pd.DataFrame",
+        asset_code: str,
+        source: str,
+    ) -> List[HistoricalPriceBar]:
+        """解析东方财富中文列名 DataFrame（fund_etf_hist_em / stock_zh_a_hist）"""
+        import pandas as pd
+
+        date_col = "日期"
+        if date_col not in df.columns:
+            return []
+
+        df[date_col] = pd.to_datetime(df[date_col])
+        df = df.sort_values(date_col)
+
+        bars: List[HistoricalPriceBar] = []
+        for _, row in df.iterrows():
+            try:
+                bars.append(HistoricalPriceBar(
+                    asset_code=asset_code,
+                    trade_date=row[date_col].date(),
+                    open=float(row.get("开盘", 0)),
+                    high=float(row.get("最高", 0)),
+                    low=float(row.get("最低", 0)),
+                    close=float(row.get("收盘", 0)),
+                    volume=_safe_int(row.get("成交量")),
+                    amount=_safe_float(row.get("成交额")),
+                    source=source,
+                ))
+            except (ValueError, TypeError):
+                continue
+        return bars
+
+    def _parse_en_bars(
+        self,
+        df: "pd.DataFrame",
+        asset_code: str,
+        start_date: str,
+        end_date: str,
+        source: str,
+    ) -> List[HistoricalPriceBar]:
+        """解析英文列名 DataFrame（stock_zh_index_daily）"""
+        import pandas as pd
+
+        date_col = "date"
+        if date_col not in df.columns:
+            return []
+
+        df[date_col] = pd.to_datetime(df[date_col])
+        start_dt = pd.Timestamp(start_date)
+        end_dt = pd.Timestamp(end_date)
+        df = df[(df[date_col] >= start_dt) & (df[date_col] <= end_dt)]
+        df = df.sort_values(date_col)
+
+        bars: List[HistoricalPriceBar] = []
+        for _, row in df.iterrows():
+            try:
+                bars.append(HistoricalPriceBar(
+                    asset_code=asset_code,
+                    trade_date=row[date_col].date(),
+                    open=float(row.get("open", 0)),
+                    high=float(row.get("high", 0)),
+                    low=float(row.get("low", 0)),
+                    close=float(row.get("close", 0)),
+                    volume=_safe_int(row.get("volume")),
+                    source=source,
+                ))
+            except (ValueError, TypeError):
+                continue
+        return bars
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -333,3 +484,55 @@ class AKShareEastMoneyGateway(MarketDataProviderProtocol):
             except ValueError:
                 return None
         return None
+
+
+@contextmanager
+def _eastmoney_direct_network():
+    """Temporarily bypass local proxy settings for Eastmoney requests."""
+    proxy_keys = (
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+    )
+    original_values = {key: os.environ.get(key) for key in proxy_keys}
+    original_no_proxy = os.environ.get("NO_PROXY")
+    original_no_proxy_lower = os.environ.get("no_proxy")
+
+    try:
+        for key in proxy_keys:
+            os.environ.pop(key, None)
+
+        no_proxy_values = [
+            value.strip()
+            for value in (
+                (original_no_proxy or "").split(",")
+                + (original_no_proxy_lower or "").split(",")
+            )
+            if value.strip()
+        ]
+        for host in _EASTMONEY_NO_PROXY_HOSTS:
+            if host not in no_proxy_values:
+                no_proxy_values.append(host)
+        no_proxy = ",".join(no_proxy_values)
+        os.environ["NO_PROXY"] = no_proxy
+        os.environ["no_proxy"] = no_proxy
+        yield
+    finally:
+        for key, value in original_values.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+        if original_no_proxy is None:
+            os.environ.pop("NO_PROXY", None)
+        else:
+            os.environ["NO_PROXY"] = original_no_proxy
+
+        if original_no_proxy_lower is None:
+            os.environ.pop("no_proxy", None)
+        else:
+            os.environ["no_proxy"] = original_no_proxy_lower
