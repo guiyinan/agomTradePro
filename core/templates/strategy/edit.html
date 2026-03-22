@@ -304,13 +304,14 @@ async function updateStrategy() {
     }
 
     try {
-        const res = await fetch(`/api/strategy/strategies/{{ strategy.id }}/`, {
-            method: 'PUT',  // 或 'PATCH'
+        const res = await fetch('{% url "strategy:edit" strategy.id %}', {
+            method: 'POST',
+            headers: {'X-CSRFToken': getCookie('csrftoken')},
             body: formData
         });
         const data = await res.json();
 
-        if (res.ok) {
+        if (data.success) {
             showToast('策略更新成功');
             setTimeout(() => location.href = `/strategy/{{ strategy.id }}/`, 1500);
         } else {

@@ -533,6 +533,7 @@ class StrategyExecutionLogViewSet(viewsets.ReadOnlyModelViewSet):
 # ========================================================================
 
 @login_required
+@login_required
 def strategy_list(request):
     """策略列表页面"""
     # 获取当前用户的策略

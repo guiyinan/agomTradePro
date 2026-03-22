@@ -597,7 +597,7 @@ async function runExecutionEvaluate() {
 }
 
 async function toggleStatus() {
-    const isActive = {{ 'true' if strategy.is_active else 'false' }};
+    const isActive = {% if strategy.is_active %}true{% else %}false{% endif %};
     const action = isActive ? '停用' : '激活';
     if (!confirm(`确认${action}此策略？`)) return;
 
@@ -607,6 +607,7 @@ async function toggleStatus() {
     try {
         const res = await fetch(`/strategy/{{ strategy.id }}/toggle-status/`, {
             method: 'POST',
+            headers: {'X-CSRFToken': getCookie('csrftoken')},
             body: formData
         });
         const data = await res.json();
@@ -628,7 +629,8 @@ async function executeStrategy(id) {
     try {
         showToast('正在执行策略...', 'info');
         const res = await fetch(`/strategy/${id}/execute/`, {
-            method: 'POST'
+            method: 'POST',
+            headers: {'X-CSRFToken': getCookie('csrftoken')}
         });
         const data = await res.json();
 
@@ -663,6 +665,7 @@ async function runStrategyTest() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
             },
             body: JSON.stringify({
                 portfolio_id: parseInt(accountId),

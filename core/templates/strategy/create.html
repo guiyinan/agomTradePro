@@ -257,8 +257,9 @@ async function createStrategy() {
     }
 
     try {
-        const res = await fetch('/api/strategy/strategies/', {
+        const res = await fetch('{% url "strategy:create" %}', {
             method: 'POST',
+            headers: {'X-CSRFToken': getCookie('csrftoken')},
             body: formData
         });
         const data = await res.json();

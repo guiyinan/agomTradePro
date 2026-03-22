@@ -252,6 +252,194 @@
     margin-bottom: var(--spacing-md);
 }
 
+/* Card Layout (used by list.html) */
+.strategy-card .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--spacing-md);
+}
+
+.strategy-card .card-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--color-text-primary, #1e293b);
+}
+
+.strategy-card .card-meta {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.strategy-card .card-body {
+    margin-bottom: var(--spacing-md);
+}
+
+.strategy-card .card-desc {
+    font-size: 13px;
+    color: var(--color-text-secondary, #64748b);
+    margin-bottom: var(--spacing-md);
+    line-height: 1.5;
+}
+
+.strategy-card .card-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: var(--color-surface, #f8fafc);
+    border-radius: var(--radius-md, 8px);
+}
+
+.strategy-card .card-stat {
+    text-align: center;
+}
+
+.strategy-card .card-stat-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-primary, #3b82f6);
+}
+
+.strategy-card .card-stat-label {
+    font-size: 12px;
+    color: var(--color-text-muted, #94a3b8);
+    margin-top: 2px;
+}
+
+.strategy-card .card-rules {
+    font-size: 13px;
+    color: var(--color-text-secondary, #64748b);
+}
+
+.strategy-card .card-rules strong {
+    margin-right: 4px;
+}
+
+.strategy-card .rule-item {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--color-surface, #f1f5f9);
+    border-radius: var(--radius-sm, 4px);
+    font-size: 12px;
+    margin: 2px 4px 2px 0;
+}
+
+.strategy-card .card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--color-border, #e2e8f0);
+}
+
+.strategy-card .card-date {
+    font-size: 12px;
+    color: var(--color-text-muted, #94a3b8);
+}
+
+.strategy-card .card-actions {
+    display: flex;
+    gap: 6px;
+}
+
+/* Badges */
+.badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.badge-type {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.badge-type.script_based {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.badge-type.hybrid {
+    background: #ede9fe;
+    color: #5b21b6;
+}
+
+.badge-type.ai_driven {
+    background: #fce7f3;
+    color: #9d174d;
+}
+
+.badge-version {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.badge-status {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.badge-status.inactive {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* Action Buttons */
+.btn-action {
+    padding: 5px 12px;
+    background: var(--color-surface, #f8fafc);
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: var(--radius-md, 6px);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--color-text-secondary, #64748b);
+}
+
+.btn-action:hover {
+    background: var(--color-primary, #3b82f6);
+    border-color: var(--color-primary, #3b82f6);
+    color: white;
+}
+
+.btn-action.danger:hover {
+    background: var(--color-error, #ef4444);
+    border-color: var(--color-error, #ef4444);
+    color: white;
+}
+
+/* Filter Select */
+.filter-select {
+    padding: 8px 12px;
+    border: 1px solid var(--color-border, #e2e8f0);
+    border-radius: var(--radius-md, 6px);
+    font-size: 14px;
+    background: white;
+    color: var(--color-text-primary, #1e293b);
+    outline: none;
+}
+
+.filter-select:focus {
+    border-color: var(--color-primary, #3b82f6);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+/* Empty hint */
+.empty-hint {
+    font-size: 13px;
+    color: var(--color-text-muted, #94a3b8);
+}
+
+/* Script stat card color */
+.stat-card.script .stat-value { color: var(--color-warning, #f59e0b); }
+
 /* Responsive */
 @media (max-width: 1024px) {
     .stats-grid {

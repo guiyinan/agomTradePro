@@ -3,17 +3,18 @@
 
 {% block title %}策略管理 - AgomTradePro{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/strategy.css' %}">
+{% endblock %}
+
 {% block content %}
 <div class="strategy-container">
     <!-- 头部 -->
-    <div class="strategy-header" id="execution-evaluate-guide">
+    <div class=”strategy-header”>
         <h1>📊 策略管理</h1>
-        <button class="btn-create" onclick="location.href='{% url 'strategy:create' %}'">
-            <i class="bi bi-plus-lg"></i> 创建新策略
+        <button class=”btn-create” onclick=”location.href='{% url 'strategy:create' %}'”>
+            <i class=”bi bi-plus-lg”></i> 创建新策略
         </button>
-    </div>
-    <div style="margin: 12px 0 20px; padding: 10px 14px; border: 1px solid #dbeafe; background: #eff6ff; border-radius: 8px; color: #1e3a8a; font-size: 13px;">
-        执行评估入口：进入任一策略详情页后，切换到“执行测试”页签，使用“执行评估（M3）”面板。
     </div>
 
     <!-- 统计卡片 -->
@@ -176,6 +177,7 @@ async function toggleStatus(id, activate) {
     try {
         const res = await fetch(`/strategy/${id}/toggle-status/`, {
             method: 'POST',
+            headers: {'X-CSRFToken': getCookie('csrftoken')},
             body: formData
         });
         const data = await res.json();
@@ -197,7 +199,8 @@ async function deleteStrategy(id, name) {
 
     try {
         const res = await fetch(`/api/strategy/strategies/${id}/`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: {'X-CSRFToken': getCookie('csrftoken')}
         });
         if (res.ok) {
             showToast('删除成功');
