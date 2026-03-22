@@ -613,31 +613,62 @@ class ThresholdValidationDataView(APIView):
 
 # ============ HTML Page Views ============
 
+def _build_audit_overview_context() -> dict[str, object]:
+    """Build shared overview context for audit HTML pages."""
+    context: dict[str, object] = {
+        'latest_validation': None,
+        'recent_reports': [],
+        'pending_backtests': [],
+        'report_total_count': 0,
+        'completed_backtest_count': 0,
+    }
+
+    try:
+        latest_validation = ValidationSummaryModel._default_manager.filter(
+            is_shadow_mode=False
+        ).order_by('-run_date').first()
+        recent_reports = list(
+            AttributionReport._default_manager.select_related('backtest').order_by('-created_at')[:5]
+        )
+        report_backtest_ids = set(
+            AttributionReport._default_manager.values_list('backtest_id', flat=True)
+        )
+        completed_backtests = list(
+            BacktestResultModel._default_manager.filter(status='completed').order_by('-end_date')[:50]
+        )
+
+        context['latest_validation'] = latest_validation
+        context['recent_reports'] = recent_reports
+        context['pending_backtests'] = [
+            backtest for backtest in completed_backtests if backtest.id not in report_backtest_ids
+        ][:5]
+        context['report_total_count'] = AttributionReport._default_manager.count()
+        context['completed_backtest_count'] = len(completed_backtests)
+    except Exception as e:
+        logger.error(f"获取审计概览数据失败: {e}")
+
+    return context
+
 class AuditPageView(LoginRequiredMixin, TemplateView):
     """审计模块主页 - HTML 视图"""
-    template_name = 'audit/audit_page.html'
+    # Use a unique template name to avoid being shadowed by core/templates/audit/audit_page.html.
+    template_name = 'audit/review_page.html'
     login_url = '/account/login/'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # 获取最新验证摘要
-        try:
-            latest_validation = ValidationSummaryModel._default_manager.filter(
-                is_shadow_mode=False
-            ).order_by('-run_date').first()
+        context.update(_build_audit_overview_context())
+        return context
 
-            # 获取最近的归因报告
-            recent_reports = AttributionReport._default_manager.select_related(
-                'backtest'
-            ).order_by('-created_at')[:5]
 
-            context['latest_validation'] = latest_validation
-            context['recent_reports'] = recent_reports
-        except Exception as e:
-            logger.error(f"获取审计数据失败: {e}")
-            context['latest_validation'] = None
-            context['recent_reports'] = []
+class AuditReviewPageView(LoginRequiredMixin, TemplateView):
+    """审计复核工作台 - HTML 视图"""
+    template_name = 'audit/review_page.html'
+    login_url = '/account/login/'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(_build_audit_overview_context())
         return context
 
 

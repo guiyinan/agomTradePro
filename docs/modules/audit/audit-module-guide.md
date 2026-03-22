@@ -218,9 +218,18 @@ Update indicator threshold configuration.
 ### Main Pages
 
 1. **/audit/page/** - Dashboard with quick actions and latest reports
-2. **/audit/reports/<report_id>/** - Detailed attribution report view
-3. **/audit/indicator-performance/** - Indicator evaluation dashboard
-4. **/audit/threshold-validation/** - Interactive threshold editor
+2. **/audit/review/** - User-facing review workspace for pending audit tasks, latest reports, and latest validation status
+3. **/audit/reports/<report_id>/** - Detailed attribution report view
+4. **/audit/indicator-performance/** - Indicator evaluation dashboard
+5. **/audit/threshold-validation/** - Interactive threshold editor
+
+### Review Workspace
+
+`/audit/review/` is intended to be the operator entry point rather than an API index. The page should help users answer three questions quickly:
+
+1. Which completed backtests still need attribution reports
+2. What are the latest attribution outputs worth reviewing
+3. What is the most recent threshold validation result and recommended next action
 
 ### Chart Visualizations
 

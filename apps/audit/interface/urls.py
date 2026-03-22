@@ -24,7 +24,7 @@ urlpatterns = [
     path('reports/<int:report_id>/', views.AttributionDetailView.as_view(), name='report_detail'),
     path('indicator-performance/', views.IndicatorPerformancePageView.as_view(), name='indicator_performance'),
     path('threshold-validation/', views.ThresholdValidationPageView.as_view(), name='threshold_validation'),
-    path('review/', views.AuditPageView.as_view(), name='review'),
+    path('review/', views.AuditReviewPageView.as_view(), name='review'),
 
     # HTML page routes - Operation Logs
     path('operation-logs/', views.OperationLogsAdminPageView.as_view(), name='operation_logs_admin'),
