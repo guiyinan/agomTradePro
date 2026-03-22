@@ -146,6 +146,89 @@ class RotationModule:
         """
         return self._client.get("/api/rotation/assets/with_prices/")
 
+    def list_assets(self) -> list[dict[str, Any]]:
+        """
+        获取轮动资产主数据列表
+
+        Returns:
+            资产主数据列表
+        """
+        result = self._client.get("/api/rotation/assets/")
+        return result.get("results", result) if isinstance(result, dict) else result
+
+    def get_asset(self, asset_code: str) -> dict[str, Any]:
+        """
+        获取单个轮动资产主数据
+
+        Args:
+            asset_code: 资产代码
+
+        Returns:
+            资产详情
+        """
+        return self._client.get(f"/api/rotation/assets/{asset_code}/")
+
+    def create_asset(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """
+        创建轮动资产
+
+        Args:
+            payload: 资产字段载荷
+
+        Returns:
+            创建后的资产详情
+        """
+        return self._client.post("/api/rotation/assets/", json=payload)
+
+    def update_asset(self, asset_code: str, payload: dict[str, Any], partial: bool = False) -> dict[str, Any]:
+        """
+        更新轮动资产
+
+        Args:
+            asset_code: 资产代码
+            payload: 更新内容
+            partial: 是否使用 PATCH
+
+        Returns:
+            更新后的资产详情
+        """
+        if partial:
+            return self._client.patch(f"/api/rotation/assets/{asset_code}/", json=payload)
+        return self._client.put(f"/api/rotation/assets/{asset_code}/", json=payload)
+
+    def delete_asset(self, asset_code: str) -> dict[str, Any]:
+        """
+        删除轮动资产（默认软删除）
+
+        Args:
+            asset_code: 资产代码
+
+        Returns:
+            删除响应
+        """
+        return self._client.delete(f"/api/rotation/assets/{asset_code}/")
+
+    def import_default_assets(self) -> dict[str, Any]:
+        """
+        导入或恢复默认轮动资产池
+
+        Returns:
+            导入结果
+        """
+        return self._client.post("/api/rotation/assets/import-defaults/", json={})
+
+    def export_assets(self, export_format: str = "json") -> Any:
+        """
+        导出当前轮动资产池
+
+        Args:
+            export_format: json 或 csv
+
+        Returns:
+            导出结果
+        """
+        return self._client.get("/api/rotation/assets/export/", params={"format": export_format})
+
     def get_asset_info(self, asset_code: str) -> Optional[dict[str, Any]]:
         """
         获取资产详情

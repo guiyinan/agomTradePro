@@ -166,8 +166,8 @@ class GetAssetsForViewUseCase:
         Returns:
             AssetsViewResponse with assets, categories, and momentum scores
         """
-        # Get all assets with price information
-        assets = self.service.get_all_assets()
+        # Maintenance page should not block on historical-price fetches.
+        assets = self.service.get_asset_master(include_inactive=True)
 
         # Get momentum scores for each asset
         momentum_scores = {}
@@ -209,6 +209,11 @@ class GetAssetsForViewUseCase:
             categories=categories,
             momentum_scores=momentum_scores,
             latest_calc_date=latest_calc_date,
+            maintenance_notice=(
+                "资产维护页默认展示资产主数据与最近一次已落库的动量结果，"
+                "不会同步拉取实时/历史行情；若外部行情链路异常，页面仍可维护，"
+                "但价格与动量可能存在延迟。"
+            ),
         )
 
 
@@ -255,6 +260,9 @@ class GetRotationConfigsForViewUseCase:
                 'rebalance_frequency': model.rebalance_frequency,
                 'min_weight': model.min_weight,
                 'max_weight': model.max_weight,
+                'max_turnover': model.max_turnover,
+                'lookback_period': model.lookback_period,
+                'top_n': model.top_n,
                 'is_active': model.is_active,
                 'created_at': model.created_at,
                 'updated_at': model.updated_at,

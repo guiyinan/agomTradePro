@@ -22,7 +22,6 @@ from apps.rotation.domain.services import (
 )
 from apps.rotation.infrastructure.adapters.price_adapter import (
     RotationPriceDataService,
-    PriceDataCache,
 )
 from apps.rotation.infrastructure.repositories import (
     AssetClassRepository,
@@ -319,6 +318,26 @@ class RotationIntegrationService:
                 result.append(info)
 
         return result
+
+    def get_asset_master(self, include_inactive: bool = True) -> List[Dict]:
+        """Get asset master data without blocking on market-data lookups."""
+        assets = self.asset_repo.get_all() if include_inactive else self.asset_repo.get_all_active()
+
+        return [
+            {
+                'code': asset.code,
+                'name': asset.name,
+                'category': asset.category.value,
+                'description': asset.description,
+                'underlying_index': asset.underlying_index,
+                'currency': asset.currency,
+                'is_active': asset.is_active,
+                'current_price': None,
+                'change_20d': None,
+                'has_price_data': False,
+            }
+            for asset in assets
+        ]
 
     def _get_current_regime(self) -> Optional[str]:
         """

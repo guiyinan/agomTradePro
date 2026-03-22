@@ -10,6 +10,7 @@ Usage:
 
 from django.core.management.base import BaseCommand
 from apps.rotation.infrastructure.models import AssetClassModel, RotationConfigModel, RotationTemplateModel
+from apps.rotation.infrastructure.default_assets import DEFAULT_ROTATION_ASSETS
 
 
 class Command(BaseCommand):
@@ -45,153 +46,7 @@ class Command(BaseCommand):
 
     def init_asset_classes(self):
         """Initialize asset classes (ETFs)"""
-        assets = [
-            # Equity ETFs
-            {
-                'code': '510300',
-                'name': '沪深300ETF',
-                'category': 'equity',
-                'description': '跟踪沪深300指数，代表A股核心资产',
-                'underlying_index': '000300.SH',
-                'currency': 'CNY',
-            },
-            {
-                'code': '510500',
-                'name': '中证500ETF',
-                'category': 'equity',
-                'description': '跟踪中证500指数，代表中盘成长股',
-                'underlying_index': '000905.SH',
-                'currency': 'CNY',
-            },
-            {
-                'code': '159915',
-                'name': '创业板ETF',
-                'category': 'equity',
-                'description': '跟踪创业板指数，代表新兴成长股',
-                'underlying_index': '399006.SZ',
-                'currency': 'CNY',
-            },
-            {
-                'code': '512100',
-                'name': '中证1000ETF',
-                'category': 'equity',
-                'description': '跟踪中证1000指数，代表小盘股',
-                'underlying_index': '000852.SH',
-                'currency': 'CNY',
-            },
-            {
-                'code': '588000',
-                'name': '科创50ETF',
-                'category': 'equity',
-                'description': '跟踪科创50指数，代表科技创新企业',
-                'underlying_index': '000688.SH',
-                'currency': 'CNY',
-            },
-            {
-                'code': '512690',
-                'name': '白酒ETF',
-                'category': 'equity',
-                'description': '跟踪中证白酒指数',
-                'underlying_index': '399997.SZ',
-                'currency': 'CNY',
-            },
-            {
-                'code': '515030',
-                'name': '新能源ETF',
-                'category': 'equity',
-                'description': '跟踪中证新能源指数',
-                'underlying_index': '931151.CSI',
-                'currency': 'CNY',
-            },
-            {
-                'code': '515180',
-                'name': '红利ETF',
-                'category': 'equity',
-                'description': '跟踪上证红利指数',
-                'underlying_index': '000022.SH',
-                'currency': 'CNY',
-            },
-
-            # Bond ETFs
-            {
-                'code': '511260',
-                'name': '十年国债ETF',
-                'category': 'bond',
-                'description': '跟踪10年期国债指数',
-                'underlying_index': '净价10年国债',
-                'currency': 'CNY',
-            },
-            {
-                'code': '511010',
-                'name': '国债ETF',
-                'category': 'bond',
-                'description': '跟踪国债指数',
-                'underlying_index': '上证国债',
-                'currency': 'CNY',
-            },
-            {
-                'code': '511270',
-                'name': '十年地方债ETF',
-                'category': 'bond',
-                'description': '跟踪10年期地方债指数',
-                'currency': 'CNY',
-            },
-            {
-                'code': '511280',
-                'name': '可转债ETF',
-                'category': 'bond',
-                'description': '跟踪可转债指数',
-                'underlying_index': '中信可转债',
-                'currency': 'CNY',
-            },
-
-            # Commodity ETFs
-            {
-                'code': '159985',
-                'name': '豆粕ETF',
-                'category': 'commodity',
-                'description': '跟踪大商所豆粕期货价格',
-                'currency': 'CNY',
-            },
-            {
-                'code': '159980',
-                'name': '黄金ETF',
-                'category': 'commodity',
-                'description': '跟踪上海黄金现货价格',
-                'underlying_index': 'Au99.99',
-                'currency': 'CNY',
-            },
-            {
-                'code': '159930',
-                'name': '能源化工ETF',
-                'category': 'commodity',
-                'description': '跟踪能源化工期货指数',
-                'currency': 'CNY',
-            },
-
-            # Currency/Money Market
-            {
-                'code': '511880',
-                'name': '银华日利',
-                'category': 'currency',
-                'description': '货币市场基金，短期现金管理工具',
-                'currency': 'CNY',
-            },
-            {
-                'code': '511990',
-                'name': '华宝添益',
-                'category': 'currency',
-                'description': '货币市场基金，短期现金管理工具',
-                'currency': 'CNY',
-            },
-            {
-                'code': '511660',
-                'name': '建信添益',
-                'category': 'currency',
-                'description': '货币市场基金，短期现金管理工具',
-                'currency': 'CNY',
-            },
-        ]
+        assets = DEFAULT_ROTATION_ASSETS
 
         for asset_data in assets:
             asset, created = AssetClassModel._default_manager.get_or_create(
@@ -460,4 +315,3 @@ class Command(BaseCommand):
             self.stdout.write(f'[{action_label}] 模板: {template.name}')
 
         self.stdout.write(f'已初始化 {len(templates_spec)} 个风险偏好模板')
-

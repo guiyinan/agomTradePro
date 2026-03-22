@@ -67,6 +67,7 @@ class AssetsViewResponse:
     categories: Dict[str, Dict]
     momentum_scores: Dict[str, AssetMomentumScore]
     latest_calc_date: Optional[date]
+    maintenance_notice: str = ""
 
 
 @dataclass

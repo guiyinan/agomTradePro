@@ -5,10 +5,11 @@ DRF ViewSets and page views for the rotation module.
 """
 
 from datetime import date, datetime
+import csv
 import json
 
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
@@ -25,6 +26,7 @@ from apps.rotation.infrastructure.models import (
     PortfolioRotationConfigModel,
 )
 from apps.rotation.infrastructure.services import RotationIntegrationService
+from apps.rotation.infrastructure.default_assets import DEFAULT_ROTATION_ASSETS
 from apps.rotation.interface.serializers import (
     AssetClassSerializer,
     RotationConfigSerializer,
@@ -45,13 +47,14 @@ from apps.rotation.application.dtos import (
 )
 
 
-class AssetClassViewSet(viewsets.ReadOnlyModelViewSet):
+class AssetClassViewSet(viewsets.ModelViewSet):
     """ViewSet for AssetClass model"""
-    queryset = AssetClassModel._default_manager.filter(is_active=True)
+    queryset = AssetClassModel._default_manager.all()
     serializer_class = AssetClassSerializer
     filterset_fields = ['category', 'is_active']
     search_fields = ['code', 'name', 'description']
     ordering_fields = ['category', 'code']
+    lookup_field = 'code'
 
     @action(detail=False, methods=['get'])
     def with_prices(self, request):
@@ -59,6 +62,68 @@ class AssetClassViewSet(viewsets.ReadOnlyModelViewSet):
         service = RotationIntegrationService()
         assets = service.get_all_assets()
         return Response(assets)
+
+    @action(detail=False, methods=['post'], url_path='import-defaults')
+    def import_defaults(self, request):
+        """Import or reactivate default rotation assets."""
+        created = 0
+        reactivated = 0
+        existing = 0
+
+        for asset_data in DEFAULT_ROTATION_ASSETS:
+            asset, was_created = AssetClassModel._default_manager.get_or_create(
+                code=asset_data['code'],
+                defaults=asset_data,
+            )
+            if was_created:
+                created += 1
+                continue
+
+            should_update = False
+            for field, value in asset_data.items():
+                if getattr(asset, field) != value:
+                    setattr(asset, field, value)
+                    should_update = True
+            if not asset.is_active:
+                asset.is_active = True
+                reactivated += 1
+                should_update = True
+            else:
+                existing += 1
+
+            if should_update:
+                asset.save()
+
+        return Response({
+            'created': created,
+            'reactivated': reactivated,
+            'existing': existing,
+            'total_defaults': len(DEFAULT_ROTATION_ASSETS),
+        })
+
+    @action(detail=False, methods=['get'], url_path='export')
+    def export_assets(self, request):
+        """Export current rotation asset pool as JSON or CSV."""
+        export_format = request.query_params.get('format', 'json').lower()
+        queryset = self.get_queryset().order_by('category', 'code')
+        fields = ['code', 'name', 'category', 'description', 'underlying_index', 'currency', 'is_active']
+        rows = list(queryset.values(*fields))
+
+        if export_format == 'csv':
+            response = HttpResponse(content_type='text/csv; charset=utf-8')
+            response['Content-Disposition'] = 'attachment; filename="rotation-assets.csv"'
+            writer = csv.DictWriter(response, fieldnames=fields)
+            writer.writeheader()
+            for row in rows:
+                writer.writerow(row)
+            return response
+
+        response = HttpResponse(
+            json.dumps(rows, ensure_ascii=False, indent=2),
+            content_type='application/json; charset=utf-8',
+        )
+        response['Content-Disposition'] = 'attachment; filename="rotation-assets.json"'
+        return response
 
     @action(detail=True, methods=['get'])
     def detail(self, request, pk=None):
@@ -73,6 +138,19 @@ class AssetClassViewSet(viewsets.ReadOnlyModelViewSet):
             {'error': f'Asset not found: {asset_code}'},
             status=status.HTTP_404_NOT_FOUND
         )
+
+    def destroy(self, request, *args, **kwargs):
+        """Soft delete by default; use ?hard=true for physical delete."""
+        instance = self.get_object()
+        if request.query_params.get('hard', '').lower() == 'true':
+            return super().destroy(request, *args, **kwargs)
+
+        if not instance.is_active:
+            return Response({'status': 'already_inactive', 'code': instance.code})
+
+        instance.is_active = False
+        instance.save(update_fields=['is_active', 'updated_at'])
+        return Response({'status': 'soft_deleted', 'code': instance.code, 'is_active': False})
 
 
 class RotationConfigViewSet(viewsets.ModelViewSet):
@@ -258,7 +336,9 @@ def rotation_assets_view(request):
         'categories': response.categories,
         'momentum_scores': momentum_scores_dict,
         'latest_calc_date': response.latest_calc_date,
+        'maintenance_notice': response.maintenance_notice,
         'current_date': date.today(),
+        'asset_category_choices': AssetClassModel._meta.get_field('category').choices,
     }
 
     return render(request, 'rotation/assets.html', context)

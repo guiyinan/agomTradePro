@@ -8,33 +8,111 @@
         {% if latest_calc_date %}
         <span class="meta-item">📊 动量计算: {{ latest_calc_date }}</span>
         {% endif %}
+        <button type="button" class="btn-primary" onclick="showCreateAssetModal()">+ 新建资产</button>
     </div>
 </div>
 
-<!-- Stats Summary -->
+{% if maintenance_notice %}
+<div class="maintenance-notice">
+    <strong>提示：</strong>{{ maintenance_notice }}
+</div>
+{% endif %}
+
 <div class="stats-row">
     <div class="stat-card">
         <div class="stat-value">{{ assets|length }}</div>
         <div class="stat-label">资产总数</div>
     </div>
+    {% if categories.equity.assets %}
+    <a class="stat-card stat-card-link" href="#category-equity">
+        <div class="stat-value">{{ categories.equity.assets|length }}</div>
+        <div class="stat-label">股票</div>
+    </a>
+    {% else %}
     <div class="stat-card">
         <div class="stat-value">{{ categories.equity.assets|length }}</div>
         <div class="stat-label">股票</div>
     </div>
+    {% endif %}
+    {% if categories.bond.assets %}
+    <a class="stat-card stat-card-link" href="#category-bond">
+        <div class="stat-value">{{ categories.bond.assets|length }}</div>
+        <div class="stat-label">债券</div>
+    </a>
+    {% else %}
     <div class="stat-card">
         <div class="stat-value">{{ categories.bond.assets|length }}</div>
         <div class="stat-label">债券</div>
     </div>
+    {% endif %}
+    {% if categories.commodity.assets %}
+    <a class="stat-card stat-card-link" href="#category-commodity">
+        <div class="stat-value">{{ categories.commodity.assets|length }}</div>
+        <div class="stat-label">商品</div>
+    </a>
+    {% else %}
     <div class="stat-card">
         <div class="stat-value">{{ categories.commodity.assets|length }}</div>
         <div class="stat-label">商品</div>
     </div>
+    {% endif %}
+    {% if categories.currency.assets %}
+    <a class="stat-card stat-card-link" href="#category-currency">
+        <div class="stat-value">{{ categories.currency.assets|length }}</div>
+        <div class="stat-label">货币</div>
+    </a>
+    {% else %}
+    <div class="stat-card">
+        <div class="stat-value">{{ categories.currency.assets|length }}</div>
+        <div class="stat-label">货币</div>
+    </div>
+    {% endif %}
+    {% if categories.alternative.assets %}
+    <a class="stat-card stat-card-link" href="#category-alternative">
+        <div class="stat-value">{{ categories.alternative.assets|length }}</div>
+        <div class="stat-label">另类</div>
+    </a>
+    {% else %}
+    <div class="stat-card">
+        <div class="stat-value">{{ categories.alternative.assets|length }}</div>
+        <div class="stat-label">另类</div>
+    </div>
+    {% endif %}
 </div>
 
-<!-- Asset Categories -->
+<div class="asset-toolbar">
+    <div class="asset-toolbar-filters">
+        <div class="asset-view-switch" id="assetViewSwitch">
+            <button type="button" class="asset-view-btn active" data-view="all">全部</button>
+            <button type="button" class="asset-view-btn" data-view="active">启用中</button>
+            <button type="button" class="asset-view-btn" data-view="archived">已归档</button>
+        </div>
+        <input type="text" id="assetSearchInput" class="form-input" placeholder="搜索代码、简称、描述">
+        <select id="assetCategoryFilter" class="form-select">
+            <option value="all">全部类别</option>
+            {% for value, label in asset_category_choices %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+        </select>
+        <select id="assetStatusFilter" class="form-select">
+            <option value="all">全部状态</option>
+            <option value="active">仅启用</option>
+            <option value="inactive">仅停用</option>
+        </select>
+    </div>
+    <div class="asset-toolbar-actions">
+        <span id="selectedAssetSummary" class="selected-summary">未选择资产</span>
+        <button type="button" class="btn-secondary" id="importDefaultsBtn">导入默认资产</button>
+        <a class="btn-secondary asset-export-link" href="/api/rotation/assets/export/?format=json">导出 JSON</a>
+        <a class="btn-secondary asset-export-link" href="/api/rotation/assets/export/?format=csv">导出 CSV</a>
+        <button type="button" class="btn-secondary" id="bulkEnableBtn" disabled>批量启用</button>
+        <button type="button" class="btn-secondary" id="bulkDisableBtn" disabled>批量停用</button>
+    </div>
+</div>
+
 {% for category_key, category_info in categories.items %}
 {% if category_info.assets %}
-<div class="asset-category">
+<div class="asset-category" id="category-{{ category_key }}">
     <div class="category-header">
         <h2>{{ category_info.name }}</h2>
         <span class="category-count">{{ category_info.assets|length }} 个资产</span>
@@ -42,10 +120,37 @@
 
     <div class="asset-grid">
         {% for asset in category_info.assets %}
-        <div class="asset-card" data-code="{{ asset.code }}">
+        <div
+            class="asset-card"
+            data-code="{{ asset.code }}"
+            data-name="{{ asset.name|escape }}"
+            data-category="{{ asset.category }}"
+            data-category-label="{{ category_info.name }}"
+            data-description="{{ asset.description|default:''|escape }}"
+            data-underlying-index="{{ asset.underlying_index|default:''|escape }}"
+            data-currency="{{ asset.currency|default:'CNY' }}"
+            data-is-active="{{ asset.is_active|yesno:'true,false' }}"
+        >
+            <div class="asset-card-toolbar">
+                <div class="asset-card-select">
+                    <input type="checkbox" class="asset-select-checkbox" data-role="select">
+                    <span class="asset-category-pill">{{ category_info.name }}</span>
+                </div>
+                <div class="asset-card-actions">
+                    <button type="button" class="asset-action-btn" data-role="edit">编辑</button>
+                    <button type="button" class="asset-action-btn" data-role="toggle-active"></button>
+                    <button type="button" class="asset-action-btn danger" data-role="delete">归档</button>
+                </div>
+            </div>
+
             <div class="asset-header">
-                <span class="asset-code">{{ asset.code }}</span>
-                <span class="asset-name">{{ asset.name }}</span>
+                <div class="asset-title-group">
+                    <div class="asset-name">{{ asset.name }}</div>
+                    <div class="asset-code">代码 {{ asset.code }}</div>
+                </div>
+                <span class="asset-status-badge {% if asset.is_active %}active{% else %}inactive{% endif %}">
+                    {% if asset.is_active %}启用{% else %}停用{% endif %}
+                </span>
             </div>
 
             <div class="asset-details">
@@ -68,16 +173,16 @@
             {% if asset.code in momentum_scores %}
             <div class="momentum-info">
                 <div class="momentum-score">
-                    <span class="score-label">综合得分:</span>
-                    <span class="score-value">{{ momentum_scores.asset.code.composite_score|default:"-" }}</span>
+                    <span class="score-label">综合得分</span>
+                    <span class="score-value">-</span>
                 </div>
                 <div class="momentum-rank">
-                    <span class="rank-label">排名:</span>
-                    <span class="rank-value">#{{ momentum_scores.asset.code.rank|default:"-" }}</span>
+                    <span class="rank-label">排名</span>
+                    <span class="rank-value">-</span>
                 </div>
                 <div class="momentum-trend">
-                    <span class="trend-label">趋势强度:</span>
-                    <span class="trend-value">{{ momentum_scores.asset.code.trend_strength|default:"-" }}</span>
+                    <span class="trend-label">趋势强度</span>
+                    <span class="trend-value">-</span>
                 </div>
             </div>
             {% endif %}
@@ -100,15 +205,75 @@
 <div class="empty-state">
     <div class="empty-icon">📊</div>
     <p>暂无资产类别数据</p>
-    <p class="empty-hint">请先在数据库中添加资产类别</p>
+    <p class="empty-hint">请先创建轮动资产</p>
 </div>
 {% endif %}
 
-<script>
-// Momentum scores data for JavaScript access
-const momentumScoresData = {{ momentum_scores|safe }};
+<div id="assetModal" class="modal" hidden>
+    <div class="modal-content asset-modal-content">
+        <div class="modal-header">
+            <h3 id="assetModalTitle">新建资产</h3>
+            <button type="button" class="modal-close" onclick="closeAssetModal()">&times;</button>
+        </div>
+        <form id="assetForm" class="modal-body">
+            <input type="hidden" id="assetOriginalCode">
 
-// Get momentum score for an asset
+            <div class="form-row">
+                <div class="form-group">
+                    <label>资产代码 *</label>
+                    <input type="text" id="assetCode" class="form-input" required maxlength="20" placeholder="例如 510300">
+                </div>
+                <div class="form-group">
+                    <label>资产简称 *</label>
+                    <input type="text" id="assetName" class="form-input" required maxlength="100" placeholder="例如 沪深300ETF">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>资产类别 *</label>
+                    <select id="assetCategory" class="form-select" required>
+                        {% for value, label in asset_category_choices %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>计价货币</label>
+                    <input type="text" id="assetCurrency" class="form-input" value="CNY" maxlength="10">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>标的指数</label>
+                <input type="text" id="assetUnderlyingIndex" class="form-input" maxlength="50" placeholder="例如 000300.SH">
+            </div>
+
+            <div class="form-group">
+                <label>资产描述</label>
+                <textarea id="assetDescription" class="form-textarea" rows="3" placeholder="补充资产用途、跟踪标的等"></textarea>
+            </div>
+
+            <label class="checkbox-line">
+                <input type="checkbox" id="assetIsActive" checked>
+                <span>启用该资产</span>
+            </label>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeAssetModal()">取消</button>
+                <button type="submit" class="btn-primary">保存资产</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const momentumScoresData = {{ momentum_scores|safe }};
+const assetModal = document.getElementById('assetModal');
+const assetForm = document.getElementById('assetForm');
+const assetSelection = new Set();
+let currentAssetView = 'all';
+
 function getMomentumScore(assetCode, field) {
     if (momentumScoresData && momentumScoresData[assetCode]) {
         const value = momentumScoresData[assetCode][field];
@@ -117,13 +282,218 @@ function getMomentumScore(assetCode, field) {
     return '-';
 }
 
-// Update momentum display in cards
+async function saveAssetRequest(code, payload, method) {
+    const res = await fetch(code ? `/api/rotation/assets/${code}/` : '/api/rotation/assets/', {
+        method,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': window.csrfToken,
+        },
+        body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const message = Object.values(errorData).flat().join(' ') || `HTTP ${res.status}`;
+        throw new Error(message);
+    }
+
+    return res;
+}
+
+function openAssetModal() {
+    assetModal.hidden = false;
+    document.body.classList.add('modal-open');
+}
+
+function closeAssetModal() {
+    assetModal.hidden = true;
+    document.body.classList.remove('modal-open');
+}
+
+function populateAssetForm(data = {}) {
+    document.getElementById('assetOriginalCode').value = data.code || '';
+    document.getElementById('assetCode').value = data.code || '';
+    document.getElementById('assetName').value = data.name || '';
+    document.getElementById('assetCategory').value = data.category || 'equity';
+    document.getElementById('assetCurrency').value = data.currency || 'CNY';
+    document.getElementById('assetUnderlyingIndex').value = data.underlying_index || '';
+    document.getElementById('assetDescription').value = data.description || '';
+    document.getElementById('assetIsActive').checked = data.is_active !== false;
+}
+
+function extractAssetPayload(card, nextState = null) {
+    return {
+        code: card.dataset.code,
+        name: card.dataset.name,
+        category: card.dataset.category,
+        description: card.dataset.description || '',
+        underlying_index: card.dataset.underlyingIndex || '',
+        currency: card.dataset.currency || 'CNY',
+        is_active: nextState === null ? card.dataset.isActive === 'true' : nextState,
+    };
+}
+
+function showCreateAssetModal() {
+    assetForm.reset();
+    populateAssetForm({ category: 'equity', currency: 'CNY', is_active: true });
+    document.getElementById('assetModalTitle').textContent = '新建资产';
+    openAssetModal();
+}
+
+function showEditAssetModal(card) {
+    populateAssetForm(extractAssetPayload(card));
+    document.getElementById('assetModalTitle').textContent = '编辑资产';
+    openAssetModal();
+}
+
+async function deleteAsset(code, name) {
+    if (!await confirmAction(`确认归档资产 "${name}" (${code})？归档后资产会停用，不会物理删除。`, { confirmText: '归档', tone: 'danger' })) {
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/rotation/assets/${code}/`, {
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': window.csrfToken }
+        });
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+        }
+        showToast('资产已归档并停用', 'success');
+        location.reload();
+    } catch (error) {
+        showToast(`归档失败: ${error.message}`, 'error');
+    }
+}
+
+async function importDefaultAssets() {
+    if (!await confirmAction('确认导入默认轮动资产？已存在的默认资产会自动补齐并恢复启用。')) {
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/rotation/assets/import-defaults/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken,
+            },
+            body: JSON.stringify({}),
+        });
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        showToast(`导入完成：新增${data.created}，恢复${data.reactivated}`, 'success');
+        location.reload();
+    } catch (error) {
+        showToast(`导入失败: ${error.message}`, 'error');
+    }
+}
+
+async function toggleAssetActive(card) {
+    const nextState = card.dataset.isActive !== 'true';
+    const actionLabel = nextState ? '启用' : '停用';
+    try {
+        await saveAssetRequest(card.dataset.code, extractAssetPayload(card, nextState), 'PUT');
+        showToast(`资产已${actionLabel}`, 'success');
+        location.reload();
+    } catch (error) {
+        showToast(`${actionLabel}失败: ${error.message}`, 'error');
+    }
+}
+
+function refreshBulkSelectionState() {
+    const selectedCount = assetSelection.size;
+    document.getElementById('selectedAssetSummary').textContent = selectedCount ? `已选择 ${selectedCount} 个资产` : '未选择资产';
+    document.getElementById('bulkEnableBtn').disabled = selectedCount === 0;
+    document.getElementById('bulkDisableBtn').disabled = selectedCount === 0;
+}
+
+async function applyBulkActiveState(nextState) {
+    const selectedCards = Array.from(document.querySelectorAll('.asset-card')).filter((card) => assetSelection.has(card.dataset.code));
+    if (!selectedCards.length) {
+        return;
+    }
+
+    const actionLabel = nextState ? '启用' : '停用';
+    if (!await confirmAction(`确认批量${actionLabel} ${selectedCards.length} 个资产？`)) {
+        return;
+    }
+
+    try {
+        for (const card of selectedCards) {
+            await saveAssetRequest(card.dataset.code, extractAssetPayload(card, nextState), 'PUT');
+        }
+        showToast(`已批量${actionLabel}${selectedCards.length}个资产`, 'success');
+        location.reload();
+    } catch (error) {
+        showToast(`批量${actionLabel}失败: ${error.message}`, 'error');
+    }
+}
+
+function applyAssetFilters() {
+    const keyword = (document.getElementById('assetSearchInput').value || '').trim().toLowerCase();
+    const category = document.getElementById('assetCategoryFilter').value;
+    const status = document.getElementById('assetStatusFilter').value;
+
+    document.querySelectorAll('.asset-card').forEach((card) => {
+        const haystack = `${card.dataset.code} ${card.dataset.name} ${card.dataset.description} ${card.dataset.categoryLabel}`.toLowerCase();
+        const keywordMatch = !keyword || haystack.includes(keyword);
+        const categoryMatch = category === 'all' || card.dataset.category === category;
+        const statusMatch = status === 'all' || (status === 'active' ? card.dataset.isActive === 'true' : card.dataset.isActive === 'false');
+        const viewMatch = currentAssetView === 'all'
+            || (currentAssetView === 'active' && card.dataset.isActive === 'true')
+            || (currentAssetView === 'archived' && card.dataset.isActive === 'false');
+        card.hidden = !(keywordMatch && categoryMatch && statusMatch && viewMatch);
+    });
+
+    document.querySelectorAll('.asset-category').forEach((section) => {
+        section.hidden = section.querySelectorAll('.asset-card:not([hidden])').length === 0;
+    });
+}
+
+function setAssetView(view) {
+    currentAssetView = view;
+    document.querySelectorAll('.asset-view-btn').forEach((button) => {
+        button.classList.toggle('active', button.dataset.view === view);
+    });
+    document.getElementById('assetStatusFilter').value = view === 'archived' ? 'inactive' : (view === 'active' ? 'active' : 'all');
+    applyAssetFilters();
+}
+
+assetForm.addEventListener('submit', async function(event) {
+    event.preventDefault();
+
+    const originalCode = document.getElementById('assetOriginalCode').value.trim();
+    const payload = {
+        code: document.getElementById('assetCode').value.trim(),
+        name: document.getElementById('assetName').value.trim(),
+        category: document.getElementById('assetCategory').value,
+        description: document.getElementById('assetDescription').value.trim(),
+        underlying_index: document.getElementById('assetUnderlyingIndex').value.trim(),
+        currency: document.getElementById('assetCurrency').value.trim() || 'CNY',
+        is_active: document.getElementById('assetIsActive').checked,
+    };
+
+    try {
+        await saveAssetRequest(originalCode || null, payload, originalCode ? 'PUT' : 'POST');
+        showToast(originalCode ? '资产已更新' : '资产已创建', 'success');
+        closeAssetModal();
+        location.reload();
+    } catch (error) {
+        showToast(`保存失败: ${error.message}`, 'error');
+    }
+});
+
 document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.asset-card').forEach(card => {
-        const code = card.getAttribute('data-code');
+    document.querySelectorAll('.asset-card').forEach((card) => {
+        const code = card.dataset.code;
         const scoreValue = card.querySelector('.score-value');
         const rankValue = card.querySelector('.rank-value');
         const trendValue = card.querySelector('.trend-value');
+        const toggleButton = card.querySelector('[data-role="toggle-active"]');
 
         if (scoreValue) {
             const score = getMomentumScore(code, 'composite_score');
@@ -131,19 +501,59 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (rankValue) {
             const rank = getMomentumScore(code, 'rank');
-            rankValue.textContent = rank !== '-' ? '#' + rank : rank;
+            rankValue.textContent = rank !== '-' ? `#${rank}` : rank;
         }
         if (trendValue) {
             const trend = getMomentumScore(code, 'trend_strength');
             trendValue.textContent = typeof trend === 'number' ? trend.toFixed(3) : trend;
         }
+        if (toggleButton) {
+            toggleButton.textContent = card.dataset.isActive === 'true' ? '停用' : '恢复';
+        }
 
-        // Add click handler
-        card.addEventListener('click', function() {
-            console.log('Asset clicked:', code);
-            // Could navigate to detail page or show modal
+        card.addEventListener('click', function(event) {
+            const action = event.target.closest('[data-role]');
+            if (!action) {
+                return;
+            }
+            if (action.dataset.role === 'select') {
+                if (action.checked) {
+                    assetSelection.add(card.dataset.code);
+                } else {
+                    assetSelection.delete(card.dataset.code);
+                }
+                refreshBulkSelectionState();
+                return;
+            }
+            if (action.dataset.role === 'edit') {
+                showEditAssetModal(card);
+            }
+            if (action.dataset.role === 'toggle-active') {
+                toggleAssetActive(card);
+            }
+            if (action.dataset.role === 'delete') {
+                deleteAsset(card.dataset.code, card.dataset.name);
+            }
         });
     });
+
+    document.getElementById('assetSearchInput').addEventListener('input', applyAssetFilters);
+    document.getElementById('assetCategoryFilter').addEventListener('change', applyAssetFilters);
+    document.getElementById('assetStatusFilter').addEventListener('change', applyAssetFilters);
+    document.getElementById('importDefaultsBtn').addEventListener('click', importDefaultAssets);
+    document.getElementById('bulkEnableBtn').addEventListener('click', () => applyBulkActiveState(true));
+    document.getElementById('bulkDisableBtn').addEventListener('click', () => applyBulkActiveState(false));
+    document.querySelectorAll('.asset-view-btn').forEach((button) => {
+        button.addEventListener('click', () => setAssetView(button.dataset.view));
+    });
+    refreshBulkSelectionState();
+    applyAssetFilters();
+});
+
+window.addEventListener('click', function(event) {
+    if (event.target === assetModal) {
+        closeAssetModal();
+    }
 });
 </script>
 {% endblock %}

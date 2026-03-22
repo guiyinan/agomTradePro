@@ -32,6 +32,11 @@ from apps.rotation.domain.entities import (
 class AssetClassRepository:
     """Repository for AssetClass entities"""
 
+    def get_all(self) -> List[AssetClass]:
+        """Get all asset classes, including inactive ones."""
+        models = AssetClassModel._default_manager.all()
+        return [m.to_domain() for m in models]
+
     def get_all_active(self) -> List[AssetClass]:
         """Get all active asset classes"""
         models = AssetClassModel._default_manager.filter(is_active=True)
@@ -204,11 +209,18 @@ class MomentumScoreRepository:
         )
         return model
 
-    def get_latest_scores(self, limit: int = 50) -> List[MomentumScoreModel]:
-        """Get latest momentum scores"""
-        return MomentumScoreModel._default_manager.filter(
+    def get_latest_scores(
+        self,
+        asset_code: Optional[str] = None,
+        limit: int = 50
+    ) -> List[MomentumScoreModel]:
+        """Get latest momentum scores, optionally filtered by asset code."""
+        queryset = MomentumScoreModel._default_manager.filter(
             calc_date__gte=date.today() - timedelta(days=7)
-        ).order_by('-calc_date', '-composite_score')[:limit]
+        )
+        if asset_code:
+            queryset = queryset.filter(asset_code=asset_code)
+        return queryset.order_by('-calc_date', '-composite_score')[:limit]
 
     def get_scores_by_date(self, calc_date: date) -> List[MomentumScoreModel]:
         """Get all momentum scores for a specific date"""

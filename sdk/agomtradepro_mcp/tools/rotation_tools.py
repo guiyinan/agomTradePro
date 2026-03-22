@@ -366,6 +366,68 @@ def register_rotation_tools(server: FastMCP) -> None:
         return all_assets
 
     @server.tool()
+    def list_rotation_asset_master() -> list[dict[str, Any]]:
+        """列出轮动资产主数据（CRUD 维护对象）。"""
+        client = AgomTradeProClient()
+        return client.rotation.list_assets()
+
+    @server.tool()
+    def get_rotation_asset(asset_code: str) -> dict[str, Any]:
+        """获取单个轮动资产主数据。"""
+        client = AgomTradeProClient()
+        return client.rotation.get_asset(asset_code)
+
+    @server.tool()
+    def create_rotation_asset(
+        code: str,
+        name: str,
+        category: str,
+        description: str = "",
+        underlying_index: str = "",
+        currency: str = "CNY",
+        is_active: bool = True,
+    ) -> dict[str, Any]:
+        """创建轮动资产。"""
+        client = AgomTradeProClient()
+        return client.rotation.create_asset({
+            "code": code,
+            "name": name,
+            "category": category,
+            "description": description,
+            "underlying_index": underlying_index,
+            "currency": currency,
+            "is_active": is_active,
+        })
+
+    @server.tool()
+    def update_rotation_asset(
+        asset_code: str,
+        payload: dict[str, Any],
+        partial: bool = False,
+    ) -> dict[str, Any]:
+        """更新轮动资产。"""
+        client = AgomTradeProClient()
+        return client.rotation.update_asset(asset_code, payload, partial=partial)
+
+    @server.tool()
+    def delete_rotation_asset(asset_code: str) -> dict[str, Any]:
+        """删除轮动资产。"""
+        client = AgomTradeProClient()
+        return client.rotation.delete_asset(asset_code)
+
+    @server.tool()
+    def import_default_rotation_assets() -> dict[str, Any]:
+        """导入或恢复默认轮动资产池。"""
+        client = AgomTradeProClient()
+        return client.rotation.import_default_assets()
+
+    @server.tool()
+    def export_rotation_assets(export_format: str = "json") -> Any:
+        """导出当前轮动资产池。"""
+        client = AgomTradeProClient()
+        return client.rotation.export_assets(export_format)
+
+    @server.tool()
     def explain_rotation_strategy(strategy_type: str) -> str:
         """
         解释轮动策略

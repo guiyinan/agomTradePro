@@ -68,7 +68,22 @@
                 <button class="action-btn activate" onclick="toggleConfig({{ config.id }}, true)" title="启用">▶</button>
                 {% endif %}
                 <button class="action-btn generate" onclick="generateSignal({{ config.id }}, '{{ config.name }}')" title="生成信号">🔄</button>
-                <button class="action-btn edit" onclick="editConfig({{ config.id }})" title="编辑">✏️</button>
+                <button
+                    class="action-btn edit"
+                    onclick="editConfig(this)"
+                    title="编辑"
+                    data-config-id="{{ config.id }}"
+                    data-name="{{ config.name|escape }}"
+                    data-description="{{ config.description|default:''|escape }}"
+                    data-strategy-type="{{ config.strategy_type }}"
+                    data-asset-universe="{{ config.asset_universe|join:',' }}"
+                    data-rebalance-frequency="{{ config.rebalance_frequency }}"
+                    data-top-n="{{ config.top_n|default:3 }}"
+                    data-min-weight="{{ config.min_weight|default:0 }}"
+                    data-max-weight="{{ config.max_weight|default:1 }}"
+                    data-max-turnover="{{ config.max_turnover|default:1 }}"
+                    data-lookback-period="{{ config.lookback_period|default:252 }}"
+                >✏️</button>
             </div>
         </div>
 
@@ -165,7 +180,7 @@
 {% endif %}
 
 <!-- Create/Edit Config Modal -->
-<div id="configModal" class="modal" style="display: none;">
+<div id="configModal" class="modal" hidden>
     <div class="modal-content">
         <div class="modal-header">
             <h3 id="modalTitle">新建策略配置</h3>
@@ -194,8 +209,41 @@
             </div>
 
             <div class="form-group">
-                <label>资产池 (逗号分隔)</label>
-                <input type="text" name="asset_universe" id="assetUniverse" class="form-input" placeholder="000001.SH, 000300.SH, ...">
+                <label>资产池 *</label>
+                <input type="hidden" name="asset_universe" id="assetUniverse">
+                <div class="asset-picker">
+                    <div id="selectedAssets" class="selected-assets"></div>
+                    <button type="button" id="assetPickerToggle" class="asset-picker-toggle">
+                        搜索并选择资产
+                    </button>
+                    <div class="asset-picker-help">资产池来自轮动资产维护页，不接受手填代码。</div>
+                    <div id="assetPickerPanel" class="asset-picker-panel" hidden>
+                        <input
+                            type="text"
+                            id="assetSearch"
+                            class="form-input"
+                            placeholder="搜索资产代码或简称，例如 510300 / 沪深300ETF"
+                            autocomplete="off"
+                        >
+                        <div id="assetOptions" class="asset-options">
+                            {% for asset in assets %}
+                            <label
+                                class="asset-option"
+                                data-code="{{ asset.code }}"
+                                data-name="{{ asset.name }}"
+                                data-category="{{ asset.get_category_display }}"
+                            >
+                                <input type="checkbox" class="asset-option-checkbox" value="{{ asset.code }}">
+                                <span class="asset-option-main">
+                                    <span class="asset-option-name">{{ asset.name }}</span>
+                                    <span class="asset-option-code">{{ asset.code }}</span>
+                                </span>
+                                <span class="asset-option-category">{{ asset.get_category_display }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="form-row">
@@ -296,38 +344,126 @@ async function generateSignal(configId, configName) {
     }
 }
 
+const configModal = document.getElementById('configModal');
+const configForm = document.getElementById('configForm');
+const assetUniverseInput = document.getElementById('assetUniverse');
+const assetSearchInput = document.getElementById('assetSearch');
+const assetPickerToggle = document.getElementById('assetPickerToggle');
+const assetPickerPanel = document.getElementById('assetPickerPanel');
+const selectedAssetsContainer = document.getElementById('selectedAssets');
+const assetOptionNodes = Array.from(document.querySelectorAll('.asset-option'));
+const assetSelection = new Set();
+const assetCatalog = new Map(
+    assetOptionNodes.map((node) => [
+        node.dataset.code,
+        {
+            code: node.dataset.code,
+            name: node.dataset.name,
+            category: node.dataset.category,
+        }
+    ])
+);
+
+function openConfigModal() {
+    configModal.hidden = false;
+    document.body.classList.add('modal-open');
+}
+
+function setAssetPickerOpen(open) {
+    assetPickerPanel.hidden = !open;
+    assetPickerToggle.classList.toggle('active', open);
+    if (open) {
+        assetSearchInput.focus();
+    }
+}
+
+function setSelectedAssets(assetCodes) {
+    assetSelection.clear();
+    assetCodes.filter(Boolean).forEach((code) => assetSelection.add(code));
+    syncAssetSelectionUI();
+}
+
+function syncAssetSelectionUI() {
+    assetUniverseInput.value = Array.from(assetSelection).join(',');
+
+    assetOptionNodes.forEach((node) => {
+        const checkbox = node.querySelector('.asset-option-checkbox');
+        const selected = assetSelection.has(node.dataset.code);
+        checkbox.checked = selected;
+        node.classList.toggle('selected', selected);
+    });
+
+    const selectedCodes = Array.from(assetSelection);
+    if (!selectedCodes.length) {
+        selectedAssetsContainer.innerHTML = '<span class="selected-assets-empty">未选择资产</span>';
+        assetPickerToggle.textContent = '搜索并选择资产';
+        return;
+    }
+
+    assetPickerToggle.textContent = `已选择 ${selectedCodes.length} 个资产`;
+
+    selectedAssetsContainer.innerHTML = selectedCodes
+        .map((code) => {
+            const asset = assetCatalog.get(code) || { code, name: code };
+            return `
+                <button type="button" class="selected-asset-chip" data-remove-code="${code}">
+                    <span>${asset.name}</span>
+                    <span class="selected-asset-chip-code">${code}</span>
+                    <span class="selected-asset-chip-remove">&times;</span>
+                </button>
+            `;
+        })
+        .join('');
+}
+
+function filterAssetOptions(keyword) {
+    const normalized = (keyword || '').trim().toLowerCase();
+    assetOptionNodes.forEach((node) => {
+        const haystack = `${node.dataset.code} ${node.dataset.name} ${node.dataset.category}`.toLowerCase();
+        node.hidden = normalized && !haystack.includes(normalized);
+    });
+}
+
 // Edit config
-function editConfig(configId) {
-    // Find config data and populate form
-    const configCard = document.querySelector(`.config-card:has(button[onclick*="${configId}"])`);
-    if (!configCard) return;
-
-    const name = configCard.querySelector('.config-name').textContent;
-    const description = configCard.querySelector('.config-description')?.textContent || '';
-
-    document.getElementById('configId').value = configId;
-    document.getElementById('configName').value = name;
-    document.getElementById('configDescription').value = description;
+function editConfig(button) {
+    document.getElementById('configId').value = button.dataset.configId;
+    document.getElementById('configName').value = button.dataset.name || '';
+    document.getElementById('configDescription').value = button.dataset.description || '';
+    document.getElementById('strategyType').value = button.dataset.strategyType || 'momentum';
+    document.getElementById('rebalanceFreq').value = button.dataset.rebalanceFrequency || 'monthly';
+    document.getElementById('topN').value = button.dataset.topN || 3;
+    document.getElementById('minWeight').value = button.dataset.minWeight || 0;
+    document.getElementById('maxWeight').value = button.dataset.maxWeight || 1;
+    document.getElementById('maxTurnover').value = button.dataset.maxTurnover || 1;
+    document.getElementById('lookbackPeriod').value = button.dataset.lookbackPeriod || 252;
+    setSelectedAssets((button.dataset.assetUniverse || '').split(',').map((item) => item.trim()).filter(Boolean));
+    assetSearchInput.value = '';
+    filterAssetOptions('');
+    setAssetPickerOpen(false);
     document.getElementById('modalTitle').textContent = '编辑策略配置';
-
-    document.getElementById('configModal').style.display = 'block';
+    openConfigModal();
 }
 
 // Show create modal
 function showCreateConfigModal() {
-    document.getElementById('configForm').reset();
+    configForm.reset();
     document.getElementById('configId').value = '';
     document.getElementById('modalTitle').textContent = '新建策略配置';
-    document.getElementById('configModal').style.display = 'block';
+    setSelectedAssets([]);
+    assetSearchInput.value = '';
+    filterAssetOptions('');
+    setAssetPickerOpen(false);
+    openConfigModal();
 }
 
 // Close modal
 function closeConfigModal() {
-    document.getElementById('configModal').style.display = 'none';
+    configModal.hidden = true;
+    document.body.classList.remove('modal-open');
 }
 
 // Form submit
-document.getElementById('configForm').addEventListener('submit', async function(e) {
+configForm.addEventListener('submit', async function(e) {
     e.preventDefault();
 
     const formData = new FormData(this);
@@ -337,7 +473,7 @@ document.getElementById('configForm').addEventListener('submit', async function(
         name: formData.get('name'),
         description: formData.get('description'),
         strategy_type: formData.get('strategy_type'),
-        asset_universe: formData.get('asset_universe').split(',').map(s => s.trim()).filter(s => s),
+        asset_universe: Array.from(assetSelection),
         rebalance_frequency: formData.get('rebalance_frequency'),
         top_n: parseInt(formData.get('top_n')) || 3,
         min_weight: parseFloat(formData.get('min_weight')) || 0,
@@ -354,6 +490,11 @@ document.getElementById('configForm').addEventListener('submit', async function(
     const method = configId ? 'PUT' : 'POST';
 
     try {
+        if (!assetSelection.size) {
+            showToast('请至少选择一个资产加入资产池', 'error');
+            return;
+        }
+
         const res = await fetch(url, {
             method: method,
             headers: {
@@ -376,13 +517,46 @@ document.getElementById('configForm').addEventListener('submit', async function(
     }
 });
 
+assetSearchInput.addEventListener('input', function() {
+    filterAssetOptions(this.value);
+});
+
+assetPickerToggle.addEventListener('click', function() {
+    setAssetPickerOpen(assetPickerPanel.hidden);
+});
+
+assetOptionNodes.forEach((node) => {
+    node.querySelector('.asset-option-checkbox').addEventListener('change', (event) => {
+        if (event.target.checked) {
+            assetSelection.add(event.target.value);
+        } else {
+            assetSelection.delete(event.target.value);
+        }
+        syncAssetSelectionUI();
+    });
+});
+
+selectedAssetsContainer.addEventListener('click', (event) => {
+    const removeButton = event.target.closest('[data-remove-code]');
+    if (!removeButton) {
+        return;
+    }
+    assetSelection.delete(removeButton.dataset.removeCode);
+    syncAssetSelectionUI();
+});
+
 // Close modal on outside click
 window.addEventListener('click', function(e) {
-    const modal = document.getElementById('configModal');
-    if (e.target === modal) {
+    if (e.target === configModal) {
         closeConfigModal();
+        return;
+    }
+    if (!assetPickerPanel.hidden && !e.target.closest('.asset-picker')) {
+        setAssetPickerOpen(false);
     }
 });
+
+syncAssetSelectionUI();
 </script>
 
 <style>
@@ -471,24 +645,26 @@ window.addEventListener('click', function(e) {
 
 #configModal {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    inset: 0;
     background: rgba(0,0,0,0.5);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
+    padding: 24px;
+}
+
+#configModal[hidden] {
+    display: none !important;
 }
 
 #configModal .modal-content {
     background: white;
     border-radius: 12px;
-    width: 90%;
-    max-width: 600px;
+    width: min(760px, 100%);
     max-height: 90vh;
     overflow-y: auto;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
 }
 
 #configModal .modal-header {
@@ -542,6 +718,135 @@ window.addEventListener('click', function(e) {
     gap: 12px;
 }
 
+.asset-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+}
+
+.asset-picker-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 10px 14px;
+    border: 1px dashed #93c5fd;
+    border-radius: 10px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.asset-picker-toggle.active {
+    border-style: solid;
+}
+
+.asset-picker-help {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.asset-picker-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid #dbeafe;
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+}
+
+.asset-options {
+    display: grid;
+    gap: 10px;
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 4px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #f9fafb;
+}
+
+.asset-option {
+    display: grid;
+    grid-template-columns: 18px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: white;
+    cursor: pointer;
+}
+
+.asset-option.selected {
+    border-color: #2563eb;
+    background: #eff6ff;
+}
+
+.asset-option-main {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.asset-option-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.asset-option-code {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.asset-option-category {
+    font-size: 11px;
+    color: #1d4ed8;
+    background: #dbeafe;
+    border-radius: 999px;
+    padding: 4px 8px;
+}
+
+.selected-assets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 24px;
+}
+
+.selected-assets-empty {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.selected-asset-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid #bfdbfe;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1e3a8a;
+    cursor: pointer;
+}
+
+.selected-asset-chip-code {
+    font-size: 12px;
+    color: #475569;
+}
+
+.selected-asset-chip-remove {
+    font-size: 16px;
+    line-height: 1;
+}
+
 .btn-primary, .btn-secondary, .btn-small {
     padding: 10px 20px;
     border-radius: 6px;
@@ -565,6 +870,24 @@ window.addEventListener('click', function(e) {
     font-size: 12px;
     background: #3b82f6;
     color: white;
+}
+
+@media (max-width: 768px) {
+    #configModal {
+        padding: 12px;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .asset-option {
+        grid-template-columns: 18px 1fr;
+    }
+
+    .asset-option-category {
+        justify-self: start;
+    }
 }
 </style>
 {% endblock %}

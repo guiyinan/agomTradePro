@@ -1,220 +1,17 @@
 """
 Rotation Module Infrastructure Layer - Price Data Adapter
 
-Fetches price data for ETFs and other assets.
-Implements failover between data sources.
+通过 market_data 数据中台获取历史价格数据。
+不再直连 Tushare/AkShare，统一走 SourceRegistry failover + 熔断机制。
 """
 
 from datetime import date, datetime, timedelta
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
 import logging
 
 from django.utils import timezone
 
-from shared.config.secrets import get_secrets
-
 logger = logging.getLogger(__name__)
-
-
-class PriceDataSource:
-    """Price data source adapter"""
-
-    def get_prices(
-        self,
-        asset_code: str,
-        end_date: date,
-        days_back: int
-    ) -> Optional[List[float]]:
-        """
-        Get historical prices for an asset.
-
-        Args:
-            asset_code: Asset code (e.g., "510300" for ETF)
-            end_date: End date for price data
-            days_back: Number of days of history to fetch
-
-        Returns:
-            List of closing prices (oldest to newest) or None if unavailable
-        """
-        raise NotImplementedError
-
-
-class TusharePriceAdapter(PriceDataSource):
-    """Tushare price data adapter for ETFs and indices"""
-
-    def __init__(self):
-        self._pro = None
-        self._connected = False
-
-    def _connect(self):
-        """Connect to Tushare"""
-        if self._connected:
-            return
-
-        try:
-            import tushare as ts
-            secrets = get_secrets()
-            token = secrets.data_sources.tushare_token
-            self._pro = ts.pro_api(token)
-            self._connected = True
-        except Exception as e:
-            logger.warning(f"Failed to connect to Tushare: {e}")
-            self._connected = False
-
-    def get_prices(
-        self,
-        asset_code: str,
-        end_date: date,
-        days_back: int
-    ) -> Optional[List[float]]:
-        """Get prices from Tushare"""
-        self._connect()
-
-        if not self._connected or not self._pro:
-            return None
-
-        try:
-            # Convert ETF code to Tushare format
-            ts_code = self._convert_to_tushare_code(asset_code)
-
-            # Calculate start date
-            start_date = end_date - timedelta(days=days_back + 30)  # Add buffer for non-trading days
-
-            # Fetch data
-            df = self._pro.fund_daily(
-                ts_code=ts_code,
-                start_date=start_date.strftime('%Y%m%d'),
-                end_date=end_date.strftime('%Y%m%d')
-            )
-
-            if df is None or df.empty:
-                # Try as index
-                df = self._pro.index_daily(
-                    ts_code=ts_code,
-                    start_date=start_date.strftime('%Y%m%d'),
-                    end_date=end_date.strftime('%Y%m%d')
-                )
-
-            if df is None or df.empty:
-                return None
-
-            # Sort by date and get close prices
-            df = df.sort_values('trade_date')
-            prices = df['close'].tolist()
-
-            # Return last `days_back` prices
-            return prices[-days_back:] if len(prices) > days_back else prices
-
-        except Exception as e:
-            logger.warning(f"Failed to fetch prices for {asset_code} from Tushare: {e}")
-            return None
-
-    def _convert_to_tushare_code(self, asset_code: str) -> str:
-        """Convert asset code to Tushare format"""
-        # ETF codes in China: 5xxxxx.SH or 15xxxx.SZ
-        if asset_code.startswith('51') or asset_code.startswith('15'):
-            if asset_code.startswith('56') or asset_code.startswith('58'):
-                # Shanghai ETF
-                return f"{asset_code}.SH"
-            else:
-                # Shenzhen ETF
-                return f"{asset_code}.SZ"
-        return asset_code
-
-
-class AksharePriceAdapter(PriceDataSource):
-    """Akshare price data adapter (backup source)"""
-
-    def get_prices(
-        self,
-        asset_code: str,
-        end_date: date,
-        days_back: int
-    ) -> Optional[List[float]]:
-        """Get prices from Akshare"""
-        try:
-            import akshare as ak
-
-            # Calculate start date
-            start_date = end_date - timedelta(days=days_back + 30)
-
-            # Determine asset type and fetch accordingly
-            if asset_code.startswith('51') or asset_code.startswith('15'):
-                # ETF
-                df = ak.fund_etf_hist_sina(symbol=asset_code)
-            elif asset_code.startswith('00') or asset_code.startswith('30'):
-                # Stock index
-                df = ak.stock_zh_index_daily(symbol=f"sh{asset_code}")
-            else:
-                return None
-
-            if df is None or df.empty:
-                return None
-
-            # Filter by date range and get close prices
-            try:
-                import pandas as pd
-                df['date'] = pd.to_datetime(df['date'])
-                df = df[(df['date'] >= start_date) & (df['date'] <= end_date)]
-                df = df.sort_values('date')
-
-                prices = df['close'].tolist()
-
-                return prices[-days_back:] if len(prices) > days_back else prices
-            except ImportError:
-                # Fallback without pandas
-                dates = df['date'].tolist()
-                closes = df['close'].tolist()
-
-                # Simple filter
-                filtered = [
-                    close for date_val, close in zip(dates, closes)
-                    if start_date <= date_val <= end_date
-                ]
-
-                return filtered[-days_back:] if len(filtered) > days_back else filtered
-
-        except Exception as e:
-            logger.warning(f"Failed to fetch prices for {asset_code} from Akshare: {e}")
-            return None
-
-
-class FailoverPriceAdapter(PriceDataSource):
-    """
-    Failover price adapter with multiple data sources.
-
-    Tries primary source first, falls back to secondary sources on failure.
-    """
-
-    def __init__(
-        self,
-        primary_adapter: Optional[PriceDataSource] = None,
-        secondary_adapters: Optional[List[PriceDataSource]] = None,
-    ):
-        self.primary_adapter = primary_adapter or TusharePriceAdapter()
-        self.secondary_adapters = secondary_adapters or [AksharePriceAdapter()]
-
-    def get_prices(
-        self,
-        asset_code: str,
-        end_date: date,
-        days_back: int
-    ) -> Optional[List[float]]:
-        """Get prices with failover"""
-        # Try primary adapter
-        prices = self.primary_adapter.get_prices(asset_code, end_date, days_back)
-        if prices:
-            return prices
-
-        # Try secondary adapters
-        for adapter in self.secondary_adapters:
-            prices = adapter.get_prices(asset_code, end_date, days_back)
-            if prices:
-                logger.info(f"Using secondary data source for {asset_code}")
-                return prices
-
-        logger.warning(f"Price data unavailable for {asset_code} after exhausting all sources")
-        return None
 
 
 class PriceDataCache:
@@ -237,7 +34,6 @@ class PriceDataCache:
             if timezone.now() - cached_at < self._ttl:
                 return prices
             else:
-                # Expired, remove from cache
                 del self._cache[cache_key]
 
         return None
@@ -247,29 +43,28 @@ class PriceDataCache:
         asset_code: str,
         end_date: date,
         prices: List[float]
-    ):
+    ) -> None:
         """Cache prices"""
         cache_key = f"{asset_code}_{end_date}"
         self._cache[cache_key] = (prices, timezone.now())
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear all cached data"""
         self._cache.clear()
 
 
 class RotationPriceDataService:
     """
-    Service for fetching price data for rotation module.
+    Rotation 模块价格数据服务。
 
-    Uses failover adapter and caching.
+    通过 market_data 数据中台的 SourceRegistry 获取历史价格，
+    自动享受 failover、熔断、多源切换能力。
     """
 
     def __init__(
         self,
-        adapter: Optional[PriceDataSource] = None,
         cache: Optional[PriceDataCache] = None,
     ):
-        self.adapter = adapter or FailoverPriceAdapter()
         self.cache = cache or PriceDataCache()
 
     def get_prices(
@@ -279,26 +74,25 @@ class RotationPriceDataService:
         days_back: int = 252
     ) -> Optional[List[float]]:
         """
-        Get price data for an asset.
+        获取资产历史收盘价。
 
         Args:
-            asset_code: Asset code (e.g., "510300" for ETF)
-            end_date: End date for price data
-            days_back: Number of days of history to fetch
+            asset_code: 资产代码（如 "510300"、"000300"）
+            end_date: 截止日期
+            days_back: 向前取多少个交易日
 
         Returns:
-            List of closing prices (oldest to newest) or None if unavailable
+            收盘价列表（从旧到新），或 None
         """
-        # Check cache first
+        # 优先查缓存
         cached_prices = self.cache.get(asset_code, end_date)
         if cached_prices and len(cached_prices) >= days_back:
             return cached_prices[-days_back:]
 
-        # Fetch from adapter
-        prices = self.adapter.get_prices(asset_code, end_date, days_back)
+        # 通过 market_data 数据中台获取
+        prices = self._fetch_from_market_data(asset_code, end_date, days_back)
 
         if prices:
-            # Cache the results
             self.cache.set(asset_code, end_date, prices)
 
         return prices
@@ -309,17 +103,7 @@ class RotationPriceDataService:
         end_date: date,
         days_back: int = 252
     ) -> Dict[str, List[float]]:
-        """
-        Get price data for multiple assets.
-
-        Args:
-            asset_codes: List of asset codes
-            end_date: End date for price data
-            days_back: Number of days of history to fetch
-
-        Returns:
-            Dictionary mapping asset codes to price lists
-        """
+        """批量获取多个资产的历史价格。"""
         result = {}
 
         for asset_code in asset_codes:
@@ -329,6 +113,47 @@ class RotationPriceDataService:
 
         return result
 
-    def clear_cache(self):
-        """Clear the price cache"""
+    def clear_cache(self) -> None:
+        """清除价格缓存"""
         self.cache.clear()
+
+    @staticmethod
+    def _fetch_from_market_data(
+        asset_code: str,
+        end_date: date,
+        days_back: int,
+    ) -> Optional[List[float]]:
+        """通过 market_data SourceRegistry 获取历史价格"""
+        try:
+            from apps.market_data.application.registry_factory import get_registry
+            from apps.market_data.domain.enums import DataCapability
+
+            registry = get_registry()
+
+            # 加缓冲天数，应对非交易日
+            start_date = end_date - timedelta(days=days_back + 30)
+            start_str = start_date.strftime("%Y%m%d")
+            end_str = end_date.strftime("%Y%m%d")
+
+            bars = registry.call_with_failover(
+                DataCapability.HISTORICAL_PRICE,
+                lambda provider: provider.get_historical_prices(
+                    asset_code, start_str, end_str
+                ),
+            )
+
+            if not bars:
+                logger.warning(
+                    "market_data 数据中台无法获取 %s 的历史价格", asset_code
+                )
+                return None
+
+            # 提取收盘价，按日期升序
+            prices = [bar.close for bar in bars]
+            return prices[-days_back:] if len(prices) > days_back else prices
+
+        except Exception:
+            logger.exception(
+                "通过 market_data 获取 %s 历史价格失败", asset_code
+            )
+            return None
