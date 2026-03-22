@@ -91,7 +91,7 @@ python .\scripts\backup-vps-secrets.py
 Non-interactive example:
 
 ```powershell
-python .\scripts\backup-vps-secrets.py --host 141.11.211.21 --port 22 --user root
+python .\scripts\backup-vps-secrets.py --host your-vps-ip --port 22 --user root
 ```
 
 Output directory:
@@ -128,7 +128,7 @@ What it does:
 Non-interactive example:
 
 ```powershell
-python .\scripts\remote_build_deploy_vps.py --host 141.11.211.21 --port 22 --user root --include-sqlite --wipe-docker --action fresh
+python .\scripts\remote_build_deploy_vps.py --host your-vps-ip --port 22 --user root --include-sqlite --wipe-docker --action fresh
 ```
 
 Notes:

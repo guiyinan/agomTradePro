@@ -13,7 +13,7 @@
       --input scores.json \\
       --universe csi300 \\
       --date 2026-03-08 \\
-      --base-url http://141.11.211.21:8000 \\
+      --base-url $AGOMTRADEPRO_VPS_URL \\
       --token YOUR_TOKEN
 
   # admin 上传全局评分
@@ -21,7 +21,7 @@
       --input scores.json \\
       --universe csi300 \\
       --date 2026-03-08 \\
-      --base-url http://141.11.211.21:8000 \\
+      --base-url $AGOMTRADEPRO_VPS_URL \\
       --token ADMIN_TOKEN \\
       --scope system
 
@@ -30,7 +30,7 @@
       --model-path ./models/alpha_v1 \\
       --universe csi300 \\
       --date 2026-03-08 \\
-      --base-url http://141.11.211.21:8000 \\
+      --base-url $AGOMTRADEPRO_VPS_URL \\
       --token YOUR_TOKEN
 
 JSON 评分文件格式（scores.json）：
@@ -257,8 +257,8 @@ def parse_args() -> argparse.Namespace:
     # 连接参数
     parser.add_argument(
         "--base-url",
-        default="http://141.11.211.21:8000",
-        help="VPS 地址（默认 http://141.11.211.21:8000）",
+        default=os.environ.get("AGOMTRADEPRO_VPS_URL", "http://127.0.0.1:8000"),
+        help="服务地址（默认读取 AGOMTRADEPRO_VPS_URL 环境变量）",
     )
     parser.add_argument(
         "--token",

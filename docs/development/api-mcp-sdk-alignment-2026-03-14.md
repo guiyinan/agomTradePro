@@ -107,7 +107,7 @@ Rotation、Sector 等依赖当前 regime 的模块，统一使用：
 客户端全局配置建议保留两套：
 
 - `agomtradepro_local -> http://127.0.0.1:8000`
-- `agomtradepro_prod -> http://141.11.211.21:8000`
+- `agomtradepro_prod -> https://your-production-domain.com`
 
 必须同时配置：
 

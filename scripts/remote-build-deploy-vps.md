@@ -22,7 +22,7 @@ Typical usage:
 
 ```powershell
 pwsh ./scripts/remote-build-deploy-vps.ps1 `
-  -Host 141.11.211.21 `
+  -Host your-vps-ip `
   -User root `
   -PasswordFile "$HOME\.agomtradepro\vps.pass" `
   -Action upgrade `
@@ -42,7 +42,7 @@ First-time deploy with local SQLite and full Docker cleanup:
 
 ```powershell
 pwsh ./scripts/remote-build-deploy-vps.ps1 `
-  -Host 141.11.211.21 `
+  -Host your-vps-ip `
   -User root `
   -PasswordFile "$HOME\.agomtradepro\vps.pass" `
   -Action fresh `
@@ -55,7 +55,7 @@ Build and download only, do not deploy:
 
 ```powershell
 pwsh ./scripts/remote-build-deploy-vps.ps1 `
-  -Host 141.11.211.21 `
+  -Host your-vps-ip `
   -User root `
   -PasswordFile "$HOME\.agomtradepro\vps.pass" `
   -SkipDeployAfterBuild

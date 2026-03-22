@@ -1,6 +1,6 @@
 ---
 name: vps-deploy-agomtradepro
-description: "Use when deploying this Django Docker stack to VPS 141.11.211.21, including full Docker cleanup, fresh/upgrade rollout, and both deployment modes: with local SQLite database restore or code-only without local DB."
+description: "Use when deploying this Django Docker stack to VPS your-vps-ip, including full Docker cleanup, fresh/upgrade rollout, and both deployment modes: with local SQLite database restore or code-only without local DB."
 ---
 
 # Vps Deploy AgomTradePro
@@ -23,7 +23,7 @@ Support two release modes:
 
 ## Inputs
 
-- `host`: `141.11.211.21`
+- `host`: `your-vps-ip`
 - `user`: `root`
 - `password`: provided by user at runtime (do not hardcode into files)
 - `action`: `fresh` (full replacement) or `upgrade` (rolling update)
@@ -104,7 +104,7 @@ mkdir -p /opt/agomtradepro/releases
 $passFile = Join-Path $env:TEMP 'agomtradepro_vps_pass.txt'
 Set-Content -Path $passFile -Value '<PASSWORD>' -NoNewline
 python ./scripts/deploy-bundle-to-vps.py `
-  --host 141.11.211.21 `
+  --host your-vps-ip `
   --user root `
   --action fresh `
   --bundle ./dist/agomtradepro-vps-bundle-$tag.tar.gz `
@@ -124,7 +124,7 @@ Minimum checks:
 ```bash
 docker compose -p agomtradepro -f docker/docker-compose.vps.yml --env-file deploy/.env ps
 curl -fsS http://127.0.0.1:8000/api/health/
-curl -fsS http://141.11.211.21:8000/api/health/
+curl -fsS http://your-vps-ip:8000/api/health/
 ```
 
 DB presence check (inside `web` container):

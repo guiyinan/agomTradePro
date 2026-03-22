@@ -107,7 +107,7 @@ bash /opt/agomtradepro/current/scripts/vps-backup.sh \
 
 ```powershell
 python ./scripts/deploy-bundle-to-vps.py `
-  --host 141.11.211.21 `
+  --host your-vps-ip `
   --user root `
   --action upgrade `
   --password-file "$HOME\\.agomtradepro\\vps.pass"
@@ -130,7 +130,7 @@ bash /opt/agomtradepro/current/scripts/deploy-on-vps.sh \
 
 1. 健康检查
 ```bash
-curl -fsS http://141.11.211.21:8000/api/health/
+curl -fsS https://your-production-domain.com/api/health/
 ```
 
 2. 服务检查
@@ -204,5 +204,5 @@ Notes:
 
 - 本地自动巡检入口：`start.bat` 选 `6`
 - URL/API 报告目录：`reports/url_scan/`
-- 默认生产入口：`http://141.11.211.21:8000`
+- 默认生产入口：`https://your-production-domain.com`
 - 生产部署根目录：`/opt/agomtradepro/current`
