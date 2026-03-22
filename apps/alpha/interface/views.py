@@ -42,6 +42,7 @@ def get_stock_scores(request: Request) -> Response:
         universe: 股票池标识（默认 csi300）
         trade_date: 交易日期（ISO 格式，默认今天）
         top_n: 返回前 N 只（默认 30，最大 500）
+        provider: 强制使用指定 Provider（qlib/cache/simple/etf），留空则自动降级
 
     Returns:
         {
@@ -60,6 +61,7 @@ def get_stock_scores(request: Request) -> Response:
         universe = params.validated_data.get("universe", "csi300")
         trade_date = params.validated_data.get("trade_date", date.today())
         top_n = params.validated_data.get("top_n", 30)
+        provider_filter = params.validated_data.get("provider", "")
         requested_user = request.user
         requested_user_id = params.validated_data.get("user_id")
 
@@ -88,9 +90,15 @@ def get_stock_scores(request: Request) -> Response:
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-        # 获取评分（传入 user 实现用户隔离）
+        # 获取评分（传入 user 实现用户隔离，provider_filter 实现强制指定 Provider）
         service = AlphaService()
-        result = service.get_stock_scores(universe, trade_date, top_n, user=requested_user)
+        result = service.get_stock_scores(
+            universe,
+            trade_date,
+            top_n,
+            user=requested_user,
+            provider_filter=provider_filter if provider_filter else None,
+        )
 
         # 序列化响应
         serializer = AlphaResultSerializer(result)
@@ -106,13 +114,13 @@ def get_stock_scores(request: Request) -> Response:
                 "status": "error",
                 "stocks": [],
             },
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-@cached_api(key_prefix='alpha_provider_status', ttl_seconds=60, method='GET')
+@cached_api(key_prefix="alpha_provider_status", ttl_seconds=60, method="GET")
 def get_provider_status(request: Request) -> Response:
     """
     获取 Alpha Provider 状态
@@ -151,15 +159,12 @@ def get_provider_status(request: Request) -> Response:
 
     except Exception as e:
         logger.error(f"获取 Provider 状态失败: {e}", exc_info=True)
-        return Response(
-            {"error": str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-@cached_api(key_prefix='alpha_universes', ttl_seconds=3600, method='GET')
+@cached_api(key_prefix="alpha_universes", ttl_seconds=3600, method="GET")
 def get_available_universes(request: Request) -> Response:
     """
     获取支持的股票池列表
@@ -175,22 +180,16 @@ def get_available_universes(request: Request) -> Response:
         service = AlphaService()
         universes = service.get_available_universes()
 
-        return Response(
-            {"universes": universes},
-            status=status.HTTP_200_OK
-        )
+        return Response({"universes": universes}, status=status.HTTP_200_OK)
 
     except Exception as e:
         logger.error(f"获取股票池列表失败: {e}", exc_info=True)
-        return Response(
-            {"error": str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-@cached_api(key_prefix='alpha_health', ttl_seconds=30, method='GET')
+@cached_api(key_prefix="alpha_health", ttl_seconds=30, method="GET")
 def health_check(request: Request) -> Response:
     """
     Alpha 服务健康检查
@@ -214,8 +213,7 @@ def health_check(request: Request) -> Response:
         # 统计状态
         total = len(providers_status)
         available = sum(
-            1 for s in providers_status.values()
-            if s.get("status") in ["available", "degraded"]
+            1 for s in providers_status.values() if s.get("status") in ["available", "degraded"]
         )
 
         health_status = "healthy" if available > 0 else "unhealthy"
@@ -229,7 +227,9 @@ def health_check(request: Request) -> Response:
                     "total": total,
                 },
             },
-            status=status.HTTP_200_OK if health_status == "healthy" else status.HTTP_503_SERVICE_UNAVAILABLE
+            status=status.HTTP_200_OK
+            if health_status == "healthy"
+            else status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
     except Exception as e:
@@ -239,7 +239,7 @@ def health_check(request: Request) -> Response:
                 "status": "error",
                 "error": str(e),
             },
-            status=status.HTTP_503_SERVICE_UNAVAILABLE
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
 

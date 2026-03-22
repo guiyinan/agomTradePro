@@ -47,8 +47,8 @@ class QlibAlphaProvider(BaseAlphaProvider):
 
     def __init__(
         self,
-        provider_uri: str = "~/.qlib/qlib_data/cn_data",
-        model_path: str = "/models/qlib",
+        provider_uri: str = "",
+        model_path: str = "",
         region: str = "CN"
     ):
         """
@@ -60,6 +60,11 @@ class QlibAlphaProvider(BaseAlphaProvider):
             region: 区域配置
         """
         super().__init__()
+        if not provider_uri or not model_path:
+            from django.conf import settings
+            qlib_settings = settings.QLIB_SETTINGS
+            provider_uri = provider_uri or qlib_settings.get("provider_uri", "")
+            model_path = model_path or qlib_settings.get("model_path", "")
         self._data_path = Path(provider_uri).expanduser()
         self._model_path = Path(model_path)
         self._region = region

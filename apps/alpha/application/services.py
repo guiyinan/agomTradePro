@@ -6,7 +6,7 @@ Alpha 服务层，实现 Provider 注册中心和 AlphaService。
 
 import logging
 import time
-from datetime import date
+from datetime import date, timezone
 from typing import Dict, List, Optional
 
 from ..domain.entities import AlphaResult
@@ -27,6 +27,7 @@ def get_alpha_metrics():
     global _alpha_metrics_instance
     if _alpha_metrics_instance is None:
         from shared.infrastructure.metrics import get_alpha_metrics as _get_metrics
+
         _alpha_metrics_instance = _get_metrics()
     return _alpha_metrics_instance
 
@@ -150,6 +151,7 @@ class AlphaProviderRegistry:
         intended_trade_date: date,
         top_n: int = 30,
         user=None,
+        provider_filter: str = None,
     ) -> AlphaResult:
         """
         带降级的评分获取
@@ -167,14 +169,49 @@ class AlphaProviderRegistry:
             universe_id: 股票池标识
             intended_trade_date: 计划交易日期
             top_n: 返回前 N 只
+            user: 当前用户（用于 Cache Provider）
+            provider_filter: 强制使用指定 Provider（禁用降级）
 
         Returns:
             AlphaResult
         """
+        # 记录请求详情
+        logger.info(
+            f"[AlphaRequest] universe={universe_id}, date={intended_trade_date}, "
+            f"top_n={top_n}, provider_filter={provider_filter}"
+        )
+
         active_providers = self.get_active_providers()
 
+        # 检查是否配置了固定 Provider
+        try:
+            from apps.account.infrastructure.models import SystemSettingsModel
+
+            fixed_provider = SystemSettingsModel.get_runtime_alpha_fixed_provider()
+            if fixed_provider and not provider_filter:
+                logger.info(f"[AlphaConfig] 系统配置固定使用 Provider: {fixed_provider}")
+                provider_filter = fixed_provider
+        except Exception as e:
+            logger.debug(f"获取固定 Provider 配置失败: {e}")
+
+        # 如果指定了 provider_filter，只使用该 Provider
+        if provider_filter:
+            filtered_providers = [p for p in active_providers if p.name == provider_filter]
+            if not filtered_providers:
+                logger.warning(f"指定的 Provider '{provider_filter}' 不存在或不可用")
+                return AlphaResult(
+                    success=False,
+                    scores=[],
+                    source=provider_filter,
+                    timestamp=date.today().isoformat(),
+                    status="unavailable",
+                    error_message=f"指定的 Provider '{provider_filter}' 不存在或不可用",
+                )
+            logger.info(f"[AlphaFilter] 仅使用 Provider: {provider_filter}")
+            active_providers = filtered_providers
+
         if not active_providers:
-            logger.warning("没有可用的 Provider")
+            logger.warning("[AlphaRequest] 没有可用的 Provider")
 
             # 记录失败指标
             try:
@@ -193,24 +230,28 @@ class AlphaProviderRegistry:
             )
 
         # 遍历 Provider
+        attempted_providers = []
         for i, provider in enumerate(active_providers):
             provider_start_time = time.time()
             cache_hit = False
 
             try:
                 logger.info(
-                    f"尝试 Provider: {provider.name} "
-                    f"(priority={provider.priority}, {i+1}/{len(active_providers)})"
+                    f"[AlphaProvider] 尝试 Provider: {provider.name} "
+                    f"(priority={provider.priority}, {i + 1}/{len(active_providers)})"
                 )
+                attempted_providers.append(provider.name)
 
                 # 检查是否支持该 universe
                 if not provider.supports(universe_id):
-                    logger.debug(f"Provider {provider.name} 不支持 {universe_id}")
+                    logger.debug(f"[AlphaProvider] Provider {provider.name} 不支持 {universe_id}")
                     continue
 
                 # 获取评分（Cache Provider 支持 user 参数）
                 if provider.name == "cache":
-                    result = provider.get_stock_scores(universe_id, intended_trade_date, top_n, user=user)
+                    result = provider.get_stock_scores(
+                        universe_id, intended_trade_date, top_n, user=user
+                    )
                 else:
                     result = provider.get_stock_scores(universe_id, intended_trade_date, top_n)
 
@@ -219,18 +260,18 @@ class AlphaProviderRegistry:
                 result.latency_ms = int(latency_ms)
 
                 # 检查是否缓存命中（Cache Provider）
-                cache_hit = (provider.name == "cache" and result.success)
+                cache_hit = provider.name == "cache" and result.success
 
                 if not result.success:
-                    logger.debug(f"Provider {provider.name} 返回失败: {result.error_message}")
+                    logger.warning(
+                        f"[AlphaProvider] Provider {provider.name} 返回失败: {result.error_message}"
+                    )
 
                     # 记录失败指标
                     try:
                         metrics = get_alpha_metrics()
                         metrics.record_provider_call(
-                            provider.name,
-                            success=False,
-                            latency_ms=latency_ms
+                            provider.name, success=False, latency_ms=latency_ms
                         )
                     except Exception:
                         pass
@@ -241,7 +282,7 @@ class AlphaProviderRegistry:
                 staleness_ok = True
                 if result.staleness_days and result.staleness_days > provider.max_staleness_days:
                     logger.warning(
-                        f"Provider {provider.name} 数据过期: {result.staleness_days} 天 "
+                        f"[AlphaProvider] Provider {provider.name} 数据过期: {result.staleness_days} 天 "
                         f"(最大允许 {provider.max_staleness_days} 天)"
                     )
 
@@ -251,7 +292,16 @@ class AlphaProviderRegistry:
 
                     # 如果这是最后一个 provider，返回 degraded 结果
                     if i == len(active_providers) - 1:
-                        logger.warning(f"所有 Provider 数据过期，使用 {provider.name} 的降级结果")
+                        logger.warning(
+                            f"[AlphaProvider] 所有 Provider 数据过期，使用 {provider.name} 的降级结果"
+                        )
+
+                        # 创建告警
+                        self._create_fallback_alert(
+                            provider.name,
+                            attempted_providers,
+                            f"所有 Provider 数据过期，使用 {provider.name} 的降级结果",
+                        )
 
                         # 记录指标
                         try:
@@ -260,7 +310,7 @@ class AlphaProviderRegistry:
                                 provider.name,
                                 success=True,
                                 latency_ms=latency_ms,
-                                staleness_days=result.staleness_days
+                                staleness_days=result.staleness_days,
                             )
                             if result.scores:
                                 metrics.record_coverage(len(result.scores), 300)
@@ -273,10 +323,25 @@ class AlphaProviderRegistry:
                     continue
 
                 # 成功获取新鲜数据
-                logger.info(
-                    f"成功从 {provider.name} 获取 {len(result.scores)} 只股票评分 "
-                    f"(latency={latency_ms:.0f}ms)"
-                )
+                # 检查是否发生了降级
+                if i > 0:
+                    fallback_from = attempted_providers[0]
+                    logger.warning(
+                        f"[AlphaFallback] 从 {fallback_from} 降级到 {provider.name} "
+                        f"(尝试了 {i} 个 Provider)"
+                    )
+
+                    # 创建降级告警
+                    self._create_fallback_alert(
+                        provider.name,
+                        attempted_providers,
+                        f"从 {fallback_from} 降级到 {provider.name}（原因：前序 Provider 不可用）",
+                    )
+                else:
+                    logger.info(
+                        f"[AlphaSuccess] 成功从 {provider.name} 获取 {len(result.scores)} 只股票评分 "
+                        f"(latency={latency_ms:.0f}ms, staleness={result.staleness_days}天)"
+                    )
 
                 # 记录成功指标
                 try:
@@ -285,7 +350,7 @@ class AlphaProviderRegistry:
                         provider.name,
                         success=True,
                         latency_ms=latency_ms,
-                        staleness_days=result.staleness_days
+                        staleness_days=result.staleness_days,
                     )
                     if cache_hit:
                         metrics.record_cache_hit(True)
@@ -298,15 +363,15 @@ class AlphaProviderRegistry:
 
             except Exception as e:
                 latency_ms = (time.time() - provider_start_time) * 1000
-                logger.error(f"Provider {provider.name} 调用失败: {e}", exc_info=True)
+                logger.error(
+                    f"[AlphaProvider] Provider {provider.name} 调用失败: {e}", exc_info=True
+                )
 
                 # 记录异常指标
                 try:
                     metrics = get_alpha_metrics()
                     metrics.record_provider_call(
-                        provider.name,
-                        success=False,
-                        latency_ms=latency_ms
+                        provider.name, success=False, latency_ms=latency_ms
                     )
                 except Exception:
                     pass
@@ -314,6 +379,26 @@ class AlphaProviderRegistry:
                 continue
 
         # 所有 provider 都失败
+        logger.error(f"[AlphaFailed] 所有 Provider 失败，尝试顺序: {attempted_providers}")
+
+        # 创建严重告警
+        try:
+            from ..infrastructure.models import AlphaAlertModel
+
+            AlphaAlertModel.objects.create(
+                alert_type=AlphaAlertModel.ALERT_PROVIDER_UNAVAILABLE,
+                severity=AlphaAlertModel.SEVERITY_ERROR,
+                title="所有 Alpha Provider 不可用",
+                message=f"尝试顺序: {', '.join(attempted_providers)}",
+                metadata={
+                    "universe_id": universe_id,
+                    "intended_trade_date": intended_trade_date.isoformat(),
+                    "attempted_providers": attempted_providers,
+                },
+            )
+        except Exception as e:
+            logger.debug(f"创建告警失败: {e}")
+
         return AlphaResult(
             success=False,
             scores=[],
@@ -322,6 +407,50 @@ class AlphaProviderRegistry:
             status="unavailable",
             error_message="所有 Alpha Provider 失败或数据过期",
         )
+
+    def _create_fallback_alert(
+        self, current_provider: str, attempted_providers: list, reason: str
+    ) -> None:
+        """
+        创建 Provider 降级告警
+
+        Args:
+            current_provider: 当前使用的 Provider
+            attempted_providers: 尝试过的 Provider 列表
+            reason: 降级原因
+        """
+        try:
+            from ..infrastructure.models import AlphaAlertModel
+
+            # 检查是否已有相同告警（避免重复）
+            recent_alert = AlphaAlertModel.objects.filter(
+                alert_type=AlphaAlertModel.ALERT_MODEL_DEGRADED, is_resolved=False
+            ).first()
+
+            # 如果有未解决的降级告警，更新它；否则创建新的
+            if recent_alert:
+                recent_alert.message = reason
+                recent_alert.metadata = {
+                    "current_provider": current_provider,
+                    "attempted_providers": attempted_providers,
+                    "alert_updated_at": timezone.now().isoformat(),
+                }
+                recent_alert.save()
+                logger.info(f"[AlphaAlert] 更新降级告警: {reason}")
+            else:
+                AlphaAlertModel.objects.create(
+                    alert_type=AlphaAlertModel.ALERT_MODEL_DEGRADED,
+                    severity=AlphaAlertModel.SEVERITY_WARNING,
+                    title="Alpha Provider 降级",
+                    message=reason,
+                    metadata={
+                        "current_provider": current_provider,
+                        "attempted_providers": attempted_providers,
+                    },
+                )
+                logger.warning(f"[AlphaAlert] 创建降级告警: {reason}")
+        except Exception as e:
+            logger.debug(f"创建降级告警失败: {e}")
 
 
 class AlphaService:
@@ -378,13 +507,13 @@ class AlphaService:
         try:
             from ..infrastructure.adapters.qlib_adapter import QlibAlphaProvider
             from apps.account.infrastructure.models import SystemSettingsModel
-            
+
             qlib_config = SystemSettingsModel.get_runtime_qlib_config()
-            if qlib_config.get('enabled'):
+            if qlib_config.get("enabled"):
                 qlib_provider = QlibAlphaProvider(
-                    provider_uri=qlib_config.get('provider_uri', '~/.qlib/qlib_data/cn_data'),
-                    model_path=qlib_config.get('model_path', '/models/qlib'),
-                    region=qlib_config.get('region', 'CN')
+                    provider_uri=qlib_config.get("provider_uri", "~/.qlib/qlib_data/cn_data"),
+                    model_path=qlib_config.get("model_path", "/models/qlib"),
+                    region=qlib_config.get("region", "CN"),
                 )
                 self._registry.register(qlib_provider)
                 logger.info(f"Qlib Provider 已注册: {qlib_config.get('provider_uri')}")
@@ -420,6 +549,7 @@ class AlphaService:
         intended_trade_date: Optional[date] = None,
         top_n: int = 30,
         user=None,
+        provider_filter: Optional[str] = None,
     ) -> AlphaResult:
         """
         获取股票评分（带自动降级）
@@ -430,6 +560,8 @@ class AlphaService:
             universe_id: 股票池标识（默认 csi300）
             intended_trade_date: 计划交易日期（默认今天）
             top_n: 返回前 N 只（默认 30）
+            user: 当前用户（用于 Cache Provider）
+            provider_filter: 强制使用指定 Provider（禁用降级），如 "qlib"/"cache"/"simple"/"etf"
 
         Returns:
             AlphaResult 包含评分列表和元数据
@@ -444,7 +576,7 @@ class AlphaService:
 
         logger.info(
             f"获取股票评分: universe={universe_id}, "
-            f"date={intended_trade_date}, top_n={top_n}"
+            f"date={intended_trade_date}, top_n={top_n}, provider_filter={provider_filter}"
         )
 
         result = self._registry.get_scores_with_fallback(
@@ -452,6 +584,7 @@ class AlphaService:
             intended_trade_date,
             top_n,
             user=user,
+            provider_filter=provider_filter,
         )
 
         logger.info(
@@ -487,7 +620,7 @@ class AlphaService:
                     "max_staleness_days": provider.max_staleness_days,
                 }
                 # 添加健康检查消息（用于显示降级原因）
-                if hasattr(provider, '_last_health_message') and provider._last_health_message:
+                if hasattr(provider, "_last_health_message") and provider._last_health_message:
                     provider_info["message"] = provider._last_health_message
                 status[provider.name] = provider_info
             except Exception as e:

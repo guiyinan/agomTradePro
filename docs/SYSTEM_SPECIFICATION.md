@@ -2,8 +2,8 @@
 
 > **版本**: V3.5
 > **生成日期**: 2026-03-05
-> **更新日期**: 2026-03-18
-> **项目状态**: 生产就绪（RC2 阶段）
+> **更新日期**: 2026-03-22
+> **项目状态**: 生产就绪
 > **文档性质**: 技术与功能完整说明
 
 ---
@@ -616,6 +616,23 @@ class StockScore:
     asof_date: date             # 日期
 ```
 
+**可比性保障机制**：
+- **API 响应增强**：返回完整的 `source`、`status`、`staleness_days`、`latency_ms` 元数据
+- **Provider 切换告警**：检测降级自动创建告警（`AlphaAlertModel`）
+- **数据过滤工具**：支持 `provider` 参数强制使用指定 Provider（`qlib`/`cache`/`simple`/`etf`）
+- **评分日志增强**：详细日志标识降级过程（`[AlphaFallback]`、`[AlphaSuccess]`）
+- **配置选项**：`SystemSettingsModel.alpha_fixed_provider` 支持全局固定 Provider
+
+**系统配置**（`SystemSettingsModel`）：
+- `alpha_fixed_provider`: 固定使用指定 Provider（`qlib`/`cache`/`simple`/`etf`/留空=自动降级）
+
+**风险缓解**：
+| 风险 | 解决方案 |
+|------|----------|
+| 前后不可比 | 使用 `provider` 参数固定单一 Provider 或配置 `alpha_fixed_provider` |
+| 横向不可比 | 单次查询保证所有股票来自同一 Provider |
+| 数据污染 | 按 `provider_source` 字段过滤查询 |
+
 #### 3.4.2 Factor 模块 - 因子管理
 
 **功能**：因子定义、计算与评估
@@ -1157,6 +1174,49 @@ def check_invalidation(
 | `/api/alpha/scores/` | GET | 获取股票评分 | 需要 |
 | `/api/alpha/providers/status/` | GET | Provider 状态 | 需要 |
 
+**Query Parameters**:
+| 参数 | 类型 | 说明 | 默认值 |
+|------|------|------|--------|
+| universe | string | 股票池标识 | csi300 |
+| trade_date | date | 交易日期（ISO 格式） | 今天 |
+| top_n | integer | 返回前 N 只 | 30 |
+| provider | string | 强制 Provider（qlib/cache/simple/etf） | 自动降级 |
+
+**响应示例**：
+```json
+{
+    "success": true,
+    "source": "cache",
+    "status": "available",
+    "timestamp": "2026-03-22T10:00:00Z",
+    "latency_ms": 150,
+    "staleness_days": 1,
+    "stocks": [
+        {
+            "code": "000001.SZ",
+            "name": "平安银行",
+            "score": 0.85,
+            "rank": 1,
+            "factors": {
+                "momentum": 0.82,
+                "value": 0.78,
+                "quality": 0.91
+            },
+            "confidence": 0.88,
+            "source": "cache",
+            "asof_date": "2026-03-22",
+            "intended_trade_date": "2026-03-22",
+            "universe_id": "csi300"
+        }
+    ],
+    "metadata": {
+        "cache_date": "2026-03-22",
+        "asof_date": "2026-03-22",
+        "provider_source": "cache"
+    }
+}
+```
+
 **响应示例**：
 ```json
 {
@@ -1669,6 +1729,7 @@ tools = [
 
 | 日期 | 版本 | 更新内容 |
 |------|------|----------|
+| 2026-03-22 | V3.5 | Alpha Provider 可比性改进（5 个方案）：API 响应增强、Provider 切换告警、数据过滤工具、评分日志增强、配置选项 |
 | 2026-03-05 | V1.0 | 初始版本 |
 | 2026-02-26 | V3.4 | 估值定价引擎 Phase 1 |
 | 2026-02-27 | V3.4 | Policy 工作台一体化 |
@@ -1677,5 +1738,5 @@ tools = [
 ---
 
 **文档维护**: AgomTradePro Team
-**最后更新**: 2026-03-18
-**文档版本**: V1.1
+**最后更新**: 2026-03-22
+**文档版本**: V1.2
