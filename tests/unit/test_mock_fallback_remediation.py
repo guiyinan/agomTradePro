@@ -13,7 +13,7 @@ from django.core.management.base import CommandError
 
 from apps.account.management.commands.bootstrap_mcp_cold_start import Command as BootstrapMcpColdStartCommand
 from apps.dashboard.application.queries import AlphaVisualizationQuery
-from apps.rotation.infrastructure.adapters.price_adapter import FailoverPriceAdapter, PriceDataSource
+from apps.rotation.infrastructure.adapters.price_adapter import RotationPriceDataService
 from apps.sector.application.use_cases import (
     AnalyzeSectorRotationRequest,
     AnalyzeSectorRotationUseCase,
@@ -21,11 +21,6 @@ from apps.sector.application.use_cases import (
 from apps.sector.domain.entities import SectorIndex, SectorInfo
 from shared.infrastructure.config_loader import get_asset_ticker, get_indicator_config
 from shared.infrastructure.models import SectorPreferenceConfigModel
-
-
-class _UnavailablePriceSource(PriceDataSource):
-    def get_prices(self, asset_code: str, end_date: date, days_back: int):
-        return None
 
 
 class _FakeSectorRepo:
@@ -80,13 +75,15 @@ def test_alpha_visualization_query_returns_unavailable_ic_trends_without_live_mo
     assert data.ic_trends_meta["warning_message"] == "ic_trends_unavailable"
 
 
-def test_failover_price_adapter_returns_none_when_all_sources_unavailable():
-    adapter = FailoverPriceAdapter(
-        primary_adapter=_UnavailablePriceSource(),
-        secondary_adapters=[_UnavailablePriceSource()],
+def test_rotation_price_service_returns_none_when_market_data_unavailable(monkeypatch):
+    """RotationPriceDataService 在 market_data 数据中台全部失败时返回 None"""
+    monkeypatch.setattr(
+        RotationPriceDataService,
+        "_fetch_from_market_data",
+        staticmethod(lambda asset_code, end_date, days_back: None),
     )
-
-    result = adapter.get_prices("510300", date.today(), 5)
+    service = RotationPriceDataService()
+    result = service.get_prices("510300", date.today(), 5)
 
     assert result is None
 

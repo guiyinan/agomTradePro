@@ -26,6 +26,13 @@ from apps.ai_capability.domain.entities import (
 logger = logging.getLogger(__name__)
 
 
+def _clean_pattern_str(raw: str) -> str:
+    """Strip regex anchors (^, $) and collapse duplicate slashes from URL pattern strings."""
+    cleaned = raw.lstrip("^").rstrip("$")
+    cleaned = re.sub(r"/+", "/", cleaned)
+    return cleaned
+
+
 class ApiCapabilityCollector:
     """Collects internal API endpoints as capabilities."""
 
@@ -69,12 +76,12 @@ class ApiCapabilityCollector:
         from django.urls.resolvers import URLPattern, URLResolver
 
         if isinstance(pattern, URLResolver):
-            new_prefix = prefix + str(pattern.pattern)
+            new_prefix = prefix + _clean_pattern_str(str(pattern.pattern))
             for sub_pattern in pattern.url_patterns:
                 self._collect_from_pattern(sub_pattern, capabilities, new_prefix)
 
         elif isinstance(pattern, URLPattern):
-            path = prefix + str(pattern.pattern)
+            path = prefix + _clean_pattern_str(str(pattern.pattern))
             callback = pattern.callback
 
             if not path.startswith("api/"):

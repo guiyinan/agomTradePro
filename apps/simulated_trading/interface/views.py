@@ -297,9 +297,10 @@ def my_trades_page(request, account_id):
         user=request.user
     )
 
-    trades = account.trades.all()[:100]  # 最近100条交易
-    buy_count = trades.filter(action="buy").count()
-    sell_count = trades.filter(action="sell").count()
+    trades_qs = account.trades.all()
+    buy_count = trades_qs.filter(action="buy").count()
+    sell_count = trades_qs.filter(action="sell").count()
+    trades = trades_qs[:100]  # 最近100条交易
     total_realized_pnl = sum(float(trade.realized_pnl or 0) for trade in trades)
 
     context = {
