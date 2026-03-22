@@ -33,6 +33,7 @@ from apps.audit.infrastructure.models import (
     ValidationSummaryModel,
     IndicatorPerformanceModel,
 )
+from apps.backtest.infrastructure.models import BacktestResultModel
 from apps.backtest.infrastructure.repositories import DjangoBacktestRepository
 from .serializers import (
     AttributionReportSerializer,
@@ -640,6 +641,48 @@ class AuditPageView(LoginRequiredMixin, TemplateView):
         return context
 
 
+class ReportListView(LoginRequiredMixin, TemplateView):
+    """归因报告列表页"""
+    template_name = 'audit/report_list.html'
+    login_url = '/account/login/'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        try:
+            method_filter = self.request.GET.get('method', '')
+            queryset = AttributionReport._default_manager.select_related(
+                'backtest'
+            ).order_by('-created_at')
+
+            if method_filter:
+                queryset = queryset.filter(attribution_method=method_filter)
+
+            context['reports'] = queryset[:50]
+            context['method_filter'] = method_filter
+            context['total_count'] = AttributionReport._default_manager.count()
+        except Exception as e:
+            logger.error(f"获取报告列表失败: {e}")
+            context['reports'] = []
+            context['total_count'] = 0
+
+        # 可用回测（已完成且未生成过报告的）
+        try:
+            existing_backtest_ids = set(
+                AttributionReport._default_manager.values_list('backtest_id', flat=True)
+            )
+            backtests = BacktestResultModel._default_manager.filter(
+                status='completed',
+            ).order_by('-end_date')[:50]
+            context['backtests'] = backtests
+            context['existing_backtest_ids'] = existing_backtest_ids
+        except Exception as e:
+            logger.error(f"获取回测列表失败: {e}")
+            context['backtests'] = []
+            context['existing_backtest_ids'] = set()
+
+        return context
+
+
 class AttributionDetailView(LoginRequiredMixin, TemplateView):
     """归因详情页 - HTML 视图"""
     template_name = 'audit/attribution_detail.html'
@@ -650,14 +693,16 @@ class AttributionDetailView(LoginRequiredMixin, TemplateView):
         report_id = kwargs.get('report_id')
 
         try:
-            audit_repo = DjangoAuditRepository()
-            report = audit_repo.get_attribution_report(report_id)
-
-            if report:
-                report['loss_analyses'] = audit_repo.get_loss_analyses(report_id)
-                report['experience_summaries'] = audit_repo.get_experience_summaries(report_id)
-
+            report = AttributionReport._default_manager.get(id=report_id)
             context['report'] = report
+            context['loss_analyses'] = LossAnalysis._default_manager.filter(
+                report_id=report_id
+            ).order_by('-impact')
+            context['experience_summaries'] = ExperienceSummary._default_manager.filter(
+                report_id=report_id
+            ).order_by('-priority', '-created_at')
+        except AttributionReport.DoesNotExist:
+            context['report'] = None
         except Exception as e:
             logger.error(f"获取归因详情失败: {e}")
             context['report'] = None

@@ -1,4 +1,5 @@
 {% extends "audit/base.html" %}
+{% load audit_filters %}
 
 {% block title %}审计模块首页 - AgomTradePro{% endblock %}
 
@@ -38,10 +39,10 @@
 {% block audit_content %}
 <!-- 快速操作 -->
 <div class="quick-actions">
-    <div class="action-card" onclick="location.href='{% url 'audit:generate_report' %}'">
+    <div class="action-card" onclick="location.href='{% url 'audit:reports' %}'">
         <div class="action-icon">📊</div>
-        <div class="action-title">生成归因报告</div>
-        <div class="action-description">分析回测收益来源</div>
+        <div class="action-title">归因报告</div>
+        <div class="action-description">查看和分析归因报告</div>
     </div>
     <div class="action-card" onclick="location.href='{% url 'audit:indicator_performance' %}'">
         <div class="action-icon">📈</div>
@@ -53,7 +54,7 @@
         <div class="action-title">阈值配置验证</div>
         <div class="action-description">优化指标阈值</div>
     </div>
-    <div class="action-card" onclick="location.href='{% url 'audit:brinson_analysis' %}'">
+    <div class="action-card" onclick="location.href='{% url 'audit:reports' %}?method=brinson'">
         <div class="action-icon">🎯</div>
         <div class="action-title">Brinson 归因</div>
         <div class="action-description">标准归因模型分析</div>
@@ -134,7 +135,7 @@
         <div class="empty-state">
             <div class="empty-icon">📊</div>
             <p>暂无归因报告</p>
-            <a href="{% url 'audit:generate_report' %}" class="btn btn-primary">生成第一份报告</a>
+            <a href="{% url 'audit:reports' %}" class="btn btn-primary">查看报告列表</a>
         </div>
         {% endfor %}
     </div>

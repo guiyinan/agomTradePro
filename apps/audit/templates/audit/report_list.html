@@ -1,0 +1,414 @@
+{% extends "audit/base.html" %}
+{% load audit_filters %}
+
+{% block title %}归因报告列表 - 审计模块{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+.report-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.filter-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.filter-btn {
+    padding: 6px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: white;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    color: #475569;
+}
+
+.filter-btn:hover { background: #f1f5f9; }
+.filter-btn.active { background: #667eea; color: white; border-color: #667eea; }
+
+.report-grid {
+    display: grid;
+    gap: 16px;
+}
+
+.report-card {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    padding: 20px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s;
+}
+
+.report-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+}
+
+.report-info h3 {
+    margin: 0 0 6px 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.report-meta {
+    font-size: 13px;
+    color: #64748b;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.method-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.method-tag.heuristic { background: #dbeafe; color: #1e40af; }
+.method-tag.brinson { background: #fce7f3; color: #9d174d; }
+
+.report-stats {
+    display: flex;
+    gap: 24px;
+}
+
+.report-stat {
+    text-align: center;
+    min-width: 80px;
+}
+
+.report-stat-value {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.report-stat-label {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.summary-bar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.summary-card {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    padding: 20px;
+    text-align: center;
+}
+
+.summary-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #667eea;
+}
+
+.summary-label {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+.modal-overlay.active { display: flex; }
+.modal-box {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    width: 480px;
+    max-width: 90vw;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+.modal-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+}
+.modal-desc {
+    font-size: 13px;
+    color: #64748b;
+    margin: 0 0 24px 0;
+}
+.modal-label {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: block;
+}
+.modal-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    margin-bottom: 24px;
+    background: white;
+}
+.modal-select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102,126,234,0.15);
+}
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+.modal-actions .btn { min-width: 100px; }
+.btn-cancel {
+    background: transparent;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+}
+.btn-cancel:hover { background: #f1f5f9; }
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.generate-status {
+    margin-bottom: 16px;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    display: none;
+}
+.generate-status.loading { display: block; background: #eff6ff; color: #1e40af; }
+.generate-status.success { display: block; background: #d1fae5; color: #065f46; }
+.generate-status.error { display: block; background: #fee2e2; color: #991b1b; }
+.backtest-hint {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-left: 4px;
+}
+</style>
+{% endblock %}
+
+{% block page_subtitle %}
+<p class="page-subtitle">归因分析报告列表</p>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'audit:audit-page' %}" class="btn btn-outline btn-sm">返回首页</a>
+<button class="btn btn-primary btn-sm" onclick="openGenerateModal()">生成归因报告</button>
+{% endblock %}
+
+{% block audit_content %}
+<!-- 统计摘要 -->
+<div class="summary-bar">
+    <div class="summary-card">
+        <div class="summary-value">{{ total_count }}</div>
+        <div class="summary-label">报告总数</div>
+    </div>
+    <div class="summary-card">
+        <div class="summary-value">{{ reports|length }}</div>
+        <div class="summary-label">当前显示</div>
+    </div>
+    <div class="summary-card">
+        <div class="summary-value">
+            {% if reports %}
+                {{ reports.0.created_at|date:"m/d" }}
+            {% else %}
+                -
+            {% endif %}
+        </div>
+        <div class="summary-label">最近生成</div>
+    </div>
+</div>
+
+<!-- 过滤与操作 -->
+<div class="report-toolbar">
+    <div class="filter-group">
+        <span style="font-size: 13px; color: #64748b;">归因方法:</span>
+        <a href="{% url 'audit:reports' %}" class="filter-btn {% if not method_filter %}active{% endif %}">全部</a>
+        <a href="{% url 'audit:reports' %}?method=heuristic" class="filter-btn {% if method_filter == 'heuristic' %}active{% endif %}">启发式</a>
+        <a href="{% url 'audit:reports' %}?method=brinson" class="filter-btn {% if method_filter == 'brinson' %}active{% endif %}">Brinson</a>
+    </div>
+</div>
+
+<!-- 报告列表 -->
+<div class="report-grid">
+    {% for report in reports %}
+    <div class="report-card">
+        <div class="report-info">
+            <h3>
+                {{ report.backtest.name|default:report.backtest_id }}
+                <span class="method-tag {{ report.attribution_method }}">
+                    {{ report.get_attribution_method_display }}
+                </span>
+            </h3>
+            <div class="report-meta">
+                <span>{{ report.period_start|date:"Y-m-d" }} ~ {{ report.period_end|date:"Y-m-d" }}</span>
+                <span>生成于 {{ report.created_at|date:"Y-m-d H:i" }}</span>
+            </div>
+        </div>
+        <div class="report-stats">
+            <div class="report-stat">
+                <div class="report-stat-value {% if report.total_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    {{ report.total_pnl|percentage:2 }}
+                </div>
+                <div class="report-stat-label">总收益</div>
+            </div>
+            <div class="report-stat">
+                <div class="report-stat-value {% if report.regime_timing_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    {{ report.regime_timing_pnl|percentage:2 }}
+                </div>
+                <div class="report-stat-label">择时贡献</div>
+            </div>
+            <div class="report-stat">
+                <div class="report-stat-value text-info">
+                    {{ report.regime_accuracy|floatformat:1 }}%
+                </div>
+                <div class="report-stat-label">准确率</div>
+            </div>
+        </div>
+        <a href="{% url 'audit:report_detail' report.id %}" class="btn btn-primary btn-sm">
+            查看详情
+        </a>
+    </div>
+    {% empty %}
+    <div class="empty-state">
+        <div class="empty-icon">📊</div>
+        <p>暂无归因报告</p>
+        <button class="btn btn-primary" onclick="openGenerateModal()">生成第一份报告</button>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- 生成报告弹窗 -->
+{% csrf_token %}
+<div class="modal-overlay" id="generateModal">
+    <div class="modal-box">
+        <h2 class="modal-title">生成归因报告</h2>
+        <p class="modal-desc">选择一个已完成的回测，系统将自动进行归因分析</p>
+
+        <div class="generate-status" id="generateStatus"></div>
+
+        <label class="modal-label">选择回测</label>
+        <select class="modal-select" id="backtestSelect">
+            <option value="">-- 请选择回测 --</option>
+            {% for bt in backtests %}
+            <option value="{{ bt.id }}"
+                {% if bt.id in existing_backtest_ids %}disabled{% endif %}>
+                {{ bt.name }} ({{ bt.start_date|date:"Y-m-d" }} ~ {{ bt.end_date|date:"Y-m-d" }})
+                {% if bt.id in existing_backtest_ids %} [已生成]{% endif %}
+            </option>
+            {% endfor %}
+        </select>
+
+        {% if not backtests %}
+        <p style="color: #64748b; font-size: 13px; text-align: center;">暂无已完成的回测，请先运行回测</p>
+        {% endif %}
+
+        <div class="modal-actions">
+            <button class="btn btn-cancel" onclick="closeGenerateModal()">取消</button>
+            <button class="btn btn-primary" id="btnGenerate" onclick="generateReport()" {% if not backtests %}disabled{% endif %}>
+                生成报告
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block audit_js %}
+<script>
+function getCsrfToken() {
+    const el = document.querySelector('[name=csrfmiddlewaretoken]');
+    return el ? el.value : '';
+}
+
+function openGenerateModal() {
+    document.getElementById('generateModal').classList.add('active');
+    const statusEl = document.getElementById('generateStatus');
+    statusEl.className = 'generate-status';
+    statusEl.textContent = '';
+}
+
+function closeGenerateModal() {
+    document.getElementById('generateModal').classList.remove('active');
+}
+
+// 点击遮罩关闭
+document.getElementById('generateModal').addEventListener('click', function(e) {
+    if (e.target === this) closeGenerateModal();
+});
+
+function generateReport() {
+    const select = document.getElementById('backtestSelect');
+    const backtestId = select.value;
+    if (!backtestId) {
+        showStatus('error', '请选择一个回测');
+        return;
+    }
+
+    const btn = document.getElementById('btnGenerate');
+    btn.disabled = true;
+    btn.textContent = '生成中...';
+    showStatus('loading', '正在生成归因报告，请稍候...');
+
+    fetch('/api/audit/reports/generate/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken(),
+        },
+        body: JSON.stringify({ backtest_id: parseInt(backtestId) }),
+    })
+    .then(function(resp) {
+        return resp.json().then(function(data) {
+            return { ok: resp.ok, data: data };
+        });
+    })
+    .then(function(result) {
+        if (result.ok) {
+            showStatus('success', '报告生成成功，正在刷新...');
+            setTimeout(function() { location.reload(); }, 1000);
+        } else {
+            showStatus('error', result.data.error || '生成失败');
+            btn.disabled = false;
+            btn.textContent = '生成报告';
+        }
+    })
+    .catch(function(err) {
+        showStatus('error', '请求失败: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = '生成报告';
+    });
+}
+
+function showStatus(type, msg) {
+    const el = document.getElementById('generateStatus');
+    el.className = 'generate-status ' + type;
+    el.textContent = msg;
+}
+</script>
+{% endblock %}

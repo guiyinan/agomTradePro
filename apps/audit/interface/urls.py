@@ -20,7 +20,7 @@ urlpatterns = [
 
     # HTML page routes
     path('page/', views.AuditPageView.as_view(), name='audit-page'),
-    path('reports/', views.AuditPageView.as_view(), name='reports'),
+    path('reports/', views.ReportListView.as_view(), name='reports'),
     path('reports/<int:report_id>/', views.AttributionDetailView.as_view(), name='report_detail'),
     path('indicator-performance/', views.IndicatorPerformancePageView.as_view(), name='indicator_performance'),
     path('threshold-validation/', views.ThresholdValidationPageView.as_view(), name='threshold_validation'),
