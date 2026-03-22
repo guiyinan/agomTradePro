@@ -119,6 +119,59 @@ a {
     gap: var(--spacing-sm);
 }
 
+/* Terminal 入口按钮 - Geek 风格 */
+.terminal-entry-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 14px;
+    background: #0a0a0a;
+    color: #00ff41;
+    font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    border: 1px solid #00ff41;
+    border-radius: 4px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 0 8px rgba(0, 255, 65, 0.15);
+    position: relative;
+    overflow: hidden;
+}
+
+.terminal-entry-btn:hover {
+    background: #00ff41;
+    color: #0a0a0a;
+    box-shadow: 0 0 16px rgba(0, 255, 65, 0.4);
+    text-decoration: none;
+}
+
+.terminal-entry-icon {
+    display: inline-block;
+}
+
+.terminal-entry-btn::after {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 14px;
+    background: #00ff41;
+    margin-left: 2px;
+    animation: terminal-blink 1s step-end infinite;
+    vertical-align: middle;
+}
+
+.terminal-entry-btn:hover::after {
+    background: #0a0a0a;
+}
+
+@keyframes terminal-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
 .top-nav-item {
     position: relative;
     padding: var(--spacing-sm) var(--spacing-md);

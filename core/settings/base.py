@@ -679,9 +679,9 @@ CELERY_BEAT_SCHEDULE = {
 
 # ========== Qlib 配置 ==========
 QLIB_SETTINGS = {
-    "provider_uri": env("QLIB_PROVIDER_URI", default="~/.qlib/qlib_data/cn_data"),
+    "provider_uri": env("QLIB_PROVIDER_URI", default=str(BASE_DIR / "data" / "qlib" / "cn_data")),
     "region": env("QLIB_REGION", default="CN"),
-    "model_path": env("QLIB_MODEL_PATH", default="/models/qlib"),
+    "model_path": env("QLIB_MODEL_PATH", default=str(BASE_DIR / "models" / "qlib")),
 }
 
 # Celery 队列路由配置（Qlib 任务专用队列）

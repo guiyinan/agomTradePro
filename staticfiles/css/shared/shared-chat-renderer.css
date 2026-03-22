@@ -1,0 +1,293 @@
+/**
+ * Agom Shared Chat Renderer Styles
+ * 
+ * These styles are designed to be reusable across different chat interfaces:
+ * - Homepage chat
+ * - AgomChatWidget
+ * - Any other web chat implementation
+ */
+
+.agom-chat-code-block {
+    background: var(--agom-code-bg, #1e1e1e);
+    border: 1px solid var(--agom-border-color, #333);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin: 8px 0;
+    overflow-x: auto;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.agom-chat-inline-code {
+    background: var(--agom-code-bg, rgba(0, 0, 0, 0.1));
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 0.9em;
+}
+
+.agom-chat-mermaid-wrap {
+    margin: 12px 0;
+    border: 1px solid var(--agom-border-color, #e0e0e0);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.agom-chat-mermaid-label {
+    background: var(--agom-mermaid-label-bg, #f5f5f5);
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--agom-text-muted, #666);
+    border-bottom: 1px solid var(--agom-border-color, #e0e0e0);
+}
+
+.agom-chat-mermaid-diagram {
+    padding: 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100px;
+}
+
+.agom-chat-mermaid-diagram svg {
+    max-width: 100%;
+    height: auto;
+}
+
+.agom-chat-mermaid-error {
+    padding: 8px 12px;
+    background: var(--agom-error-bg, #fff3f3);
+    color: var(--agom-error-color, #c00);
+    font-size: 12px;
+}
+
+.agom-chat-answer-chain {
+    margin-top: 12px;
+    border: 1px solid var(--agom-border-color, #e0e0e0);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.agom-chat-answer-chain-toggle {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--agom-answer-chain-toggle-bg, #f8f9fa);
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    font-size: 13px;
+    color: var(--agom-primary-color, #0066cc);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.2s;
+}
+
+.agom-chat-answer-chain-toggle:hover {
+    background: var(--agom-answer-chain-toggle-hover-bg, #f0f0f0);
+}
+
+.agom-chat-answer-chain-toggle::before {
+    content: '▶';
+    font-size: 10px;
+    transition: transform 0.2s;
+}
+
+.agom-chat-answer-chain-toggle.expanded::before {
+    transform: rotate(90deg);
+}
+
+.agom-chat-answer-chain-panel {
+    padding: 12px 14px;
+    background: var(--agom-answer-chain-panel-bg, #fafafa);
+    border-top: 1px solid var(--agom-border-color, #e0e0e0);
+}
+
+.agom-chat-answer-chain-panel[hidden] {
+    display: none;
+}
+
+.agom-chat-answer-chain-step {
+    display: flex;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px dashed var(--agom-border-color, #e0e0e0);
+}
+
+.agom-chat-answer-chain-step:last-child {
+    border-bottom: none;
+}
+
+.agom-chat-answer-chain-stepno {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--agom-primary-color, #0066cc);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.agom-chat-answer-chain-stepbody {
+    flex: 1;
+    min-width: 0;
+}
+
+.agom-chat-answer-chain-title {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--agom-text-color, #333);
+    margin-bottom: 4px;
+}
+
+.agom-chat-answer-chain-summary {
+    font-size: 12px;
+    color: var(--agom-text-muted, #666);
+    margin-bottom: 4px;
+}
+
+.agom-chat-answer-chain-source {
+    font-size: 11px;
+    color: var(--agom-text-dim, #999);
+}
+
+.agom-chat-answer-chain-tech {
+    margin-top: 8px;
+    padding: 8px;
+    background: var(--agom-code-bg, #1e1e1e);
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 11px;
+    overflow-x: auto;
+}
+
+.agom-chat-answer-chain-tech code {
+    display: block;
+    color: var(--agom-tech-code-color, #9cdcfe);
+    margin: 2px 0;
+}
+
+.agom-chat-message-metadata {
+    font-size: 11px;
+    color: var(--agom-text-dim, #999);
+    margin-top: 6px;
+    padding-left: 4px;
+}
+
+.agom-chat-suggestion-card {
+    margin-top: 12px;
+    border: 1px solid var(--agom-suggestion-border, #ffc107);
+    border-radius: 8px;
+    background: var(--agom-suggestion-bg, #fffbeb);
+    overflow: hidden;
+}
+
+.agom-chat-suggestion-header {
+    padding: 10px 14px;
+    background: var(--agom-suggestion-header-bg, #fff8e1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--agom-suggestion-border, #ffc107);
+}
+
+.agom-chat-suggestion-icon {
+    font-size: 16px;
+}
+
+.agom-chat-suggestion-label {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--agom-suggestion-text, #856404);
+}
+
+.agom-chat-suggestion-desc {
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--agom-text-muted, #666);
+}
+
+.agom-chat-suggestion-command {
+    padding: 0 14px 10px;
+}
+
+.agom-chat-suggestion-command code {
+    background: var(--agom-code-bg, rgba(0, 0, 0, 0.05));
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+.agom-chat-suggestion-actions {
+    padding: 10px 14px;
+    display: flex;
+    gap: 10px;
+    border-top: 1px solid var(--agom-suggestion-border, #ffc107);
+}
+
+.agom-chat-suggestion-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.agom-chat-suggestion-execute {
+    background: var(--agom-primary-color, #0066cc);
+    color: white;
+}
+
+.agom-chat-suggestion-execute:hover {
+    background: var(--agom-primary-hover, #0052a3);
+}
+
+.agom-chat-suggestion-cancel {
+    background: var(--agom-cancel-bg, #f0f0f0);
+    color: var(--agom-text-muted, #666);
+}
+
+.agom-chat-suggestion-cancel:hover {
+    background: var(--agom-cancel-hover, #e0e0e0);
+}
+
+.agom-chat-typing {
+    display: flex;
+    gap: 4px;
+    padding: 12px 16px;
+}
+
+.agom-chat-typing-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--agom-text-muted, #999);
+    animation: agom-chat-typing-bounce 1.4s infinite ease-in-out both;
+}
+
+.agom-chat-typing-dot:nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.agom-chat-typing-dot:nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+@keyframes agom-chat-typing-bounce {
+    0%, 80%, 100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+    }
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}

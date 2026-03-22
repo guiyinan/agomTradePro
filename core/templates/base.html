@@ -107,9 +107,6 @@
                         <a href="{% url 'strategy:list' %}" class="dropdown-item">
                             <i class="bi bi-diagram-3"></i> 策略管理
                         </a>
-                        <a href="{% url 'strategy:list' %}#execution-evaluate-guide" class="dropdown-item">
-                            <i class="bi bi-speedometer2"></i> 执行评估
-                        </a>
                         <a href="{% url 'backtest:list' %}" class="dropdown-item">
                             <i class="bi bi-flask"></i> 回测引擎
                         </a>
@@ -246,6 +243,11 @@
             </nav>
 
             <div class="header-actions">
+                {% if user.is_staff %}
+                <a href="{% url 'terminal' %}" target="_blank" class="terminal-entry-btn" title="AI Terminal">
+                    <span class="terminal-entry-icon">>&lowbar;Cli</span>
+                </a>
+                {% endif %}
                 {% if user.is_authenticated %}
                 <div class="dropdown">
                     <button type="button" class="top-nav-item dropdown-trigger" aria-haspopup="true" aria-expanded="false">
