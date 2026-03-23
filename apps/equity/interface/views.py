@@ -1010,6 +1010,37 @@ class EquityViewSet(viewsets.ViewSet):
         return Response({"success": False, "error": response.error}, status=status.HTTP_400_BAD_REQUEST)
 
     @extend_schema(
+        summary="同步财务数据",
+        description="同步指定股票的财务数据（ROE、营收、利润等）",
+        request={
+            'type': 'object',
+            'properties': {
+                'stock_codes': {'type': 'array', 'items': {'type': 'string'}, 'description': '股票代码列表'},
+                'periods': {'type': 'integer', 'default': 8, 'description': '获取最近几个报告期'},
+                'source': {'type': 'string', 'default': 'akshare', 'description': '数据源'},
+            },
+        },
+        responses={200: {'type': 'object', 'properties': {'success': {'type': 'boolean'}}}},
+    )
+    @action(detail=False, methods=['post'], url_path='financial-data/sync')
+    def sync_financial_data(self, request):
+        """同步财务数据"""
+        from apps.equity.application.tasks_valuation_sync import sync_financial_data_task
+        
+        stock_codes = request.data.get('stock_codes')
+        periods = request.data.get('periods', 8)
+        source = request.data.get('source', 'akshare')
+        
+        # 异步执行同步任务
+        result = sync_financial_data_task(
+            source=source,
+            periods=periods,
+            stock_codes=stock_codes,
+        )
+        
+        return Response(result, status=status.HTTP_200_OK)
+
+    @extend_schema(
         summary="列出估值修复快照",
         description="列出估值修复快照（不触发实时重算）",
         request=ListValuationRepairsRequestSerializer,

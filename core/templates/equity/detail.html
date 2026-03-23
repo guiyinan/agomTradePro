@@ -82,6 +82,15 @@
                     </svg>
                     数据更新于: --
                 </span>
+                <button id="refreshDataBtn" onclick="refreshStockData()" class="btn btn-secondary" style="font-size: 12px; padding: 4px 10px;" title="手动刷新数据">
+                    <svg id="refreshIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                        <path d="M21 2v6h-6"/>
+                        <path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
+                        <path d="M3 22v-6h6"/>
+                        <path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
+                    </svg>
+                    <span id="refreshBtnText">刷新</span>
+                </button>
                 <a id="eastmoneyLink" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="font-size: 12px; padding: 4px 10px;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
                         <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
@@ -650,12 +659,90 @@ async function loadStockNews() {
     }
 }
 
+// 手动刷新数据
+let isRefreshing = false;
+
+async function refreshStockData() {
+    if (isRefreshing) return;
+    
+    const btn = document.getElementById('refreshDataBtn');
+    const icon = document.getElementById('refreshIcon');
+    const text = document.getElementById('refreshBtnText');
+    
+    // 设置加载状态
+    isRefreshing = true;
+    btn.disabled = true;
+    icon.style.animation = 'spin 1s linear infinite';
+    text.textContent = '刷新中...';
+    
+    try {
+        // 1. 同步估值数据
+        const syncResp = await fetch('/api/equity/valuation-data/sync/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                stock_codes: [stockCode],
+                days_back: 7,
+                primary_source: 'akshare'
+            })
+        });
+        const syncResult = await syncResp.json();
+        
+        if (!syncResult.success && !syncResult.synced_count) {
+            throw new Error(syncResult.error || '同步失败');
+        }
+        
+        // 2. 同步财务数据（后台任务，不等待）
+        fetch('/api/equity/financial-data/sync/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                stock_codes: [stockCode],
+                periods: 8,
+                source: 'akshare'
+            })
+        }).catch(e => console.warn('财务数据同步请求发送失败:', e));
+        
+        // 3. 重新加载数据
+        await loadStockDetail();
+        await loadCapitalFlow();
+        
+        // 4. 更新时间显示
+        updateDataTime(new Date().toISOString());
+        
+        // 显示成功提示
+        text.textContent = '已刷新';
+        setTimeout(() => {
+            text.textContent = '刷新';
+        }, 2000);
+        
+    } catch (e) {
+        console.error('刷新数据失败:', e);
+        text.textContent = '失败';
+        setTimeout(() => {
+            text.textContent = '刷新';
+        }, 2000);
+        alert('刷新数据失败: ' + e.message);
+    } finally {
+        isRefreshing = false;
+        btn.disabled = false;
+        icon.style.animation = '';
+    }
+}
+
 // 页面加载时执行
 setExternalLinks();
 loadStockDetail();
 loadCapitalFlow();
 loadStockNews();
 </script>
+
+<style>
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>
 
 <!-- Floating Widget Config -->
 <script>
