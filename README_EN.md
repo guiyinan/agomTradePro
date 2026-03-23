@@ -6,7 +6,7 @@
 
 ### Stop Trading Against the Macro. Start Trading With Discipline.
 
-**An AI-native personal research foundation that brings macro judgment, strategy discipline, agent capabilities, and execution workflows into one system.**
+**An AI-native personal research foundation that gives AI a data foundation and decision framework, bringing macro judgment, strategy discipline, agent capabilities, and execution workflows into one system.**
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
@@ -43,11 +43,18 @@ If what you want is not “another dashboard” but “a base for building your 
 ## Project Status
 
 > This project is already runnable and demo-ready, but it is **still under active development**.  
-> Public releases will continue improving production hardening, observability, docs, and UI polish. At this stage, treat it as a **working investment infrastructure system**, not a frozen SaaS product.
+> The current repository's **frontend presentation and parts of the operational flow are still being revised**.  
+> The more accurate way to read it right now is as a system that is gradually becoming a **data foundation and decision framework for AI**, rather than a frozen SaaS product; public updates will continue refining the UI, interaction flow, monitoring, and documentation.
 
 - Core macro admission flow is already usable: Regime / Policy / Signal / approval / execution / audit
 - AI-native surfaces are already in place: **native MCP, Terminal CLI, Agent Runtime, Capability Catalog**
 - Still being improved: scheduled task monitoring, more public demo paths, documentation polish, deployment experience
+
+---
+
+## Contact
+
+If you want to discuss the project's direction or follow-up iterations, you can reach me on WeChat: `Uncleliou`
 
 ---
 
