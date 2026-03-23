@@ -1,8 +1,9 @@
 # AgomTradePro 文档索引
 
-> **AgomTradePro V3.7** - 宏观环境准入系统
+> **AgomTradePro 0.7.0** - 宏观环境准入系统
 > **最后更新**: 2026-03-23
 > **项目状态**: 生产就绪
+> **版本管理**: [VERSION.md](VERSION.md)
 
 ---
 
@@ -226,11 +227,13 @@
 
 ## 项目状态
 
-**系统版本**: AgomTradePro V3.7
+**系统版本**: AgomTradePro 0.7.0
 
 **业务模块**: 34个
 
 **测试覆盖**: 1,600+ 个测试用例
+
+**版本管理**: 参见 [VERSION.md](VERSION.md)
 
 **完成度**: 持续迭代（请以里程碑文档与代码状态为准）
 
@@ -352,44 +355,43 @@
 
 ## 最近更新 (2026-02-20 ~ 2026-03-23)
 
-### 2026-03-23
-- ✅ **Setup Wizard 模块（V3.7）**
+### 0.7.0 (2026-03-23)
+- ✅ **Setup Wizard 模块**
   - 新增 `apps/setup_wizard/` 模块（系统初始化向导）
   - 四层架构完整实现（Domain/Application/Infrastructure/Interface）
   - 首次安装引导：管理员密码 → AI Provider → 数据源
   - 已初始化系统需密码验证才能进入向导
   - 密码强度实时检查、进度条、步骤导航
   - 访问路径：`/setup/`
-
-### 2026-03-22
+- ✅ **版本号规范化**
+  - 统一版本号为 `0.7.0-build.20260323` 格式
+  - 新增 `docs/VERSION.md` 版本管理规范
+  - 新增 `core/version.py` 版本常量定义
 
 ### 2026-03-22
 - ✅ **文档系统化对齐**
-  - 更新所有文档版本号到 V3.6
-  - 更新模块数量 (32 → 33)，新增 ai_capability 模块
-  - 修复 INDEX.md 模块分类列表重复问题
-  - 更新 SYSTEM_BASELINE.md、SYSTEM_SPECIFICATION.md、CLAUDE.md
+  - 更新模块数量 (32 → 34)，新增 ai_capability、setup_wizard 模块
+  - 修复模块分类列表问题
+  - 更新系统基线文档
 
 ### 2026-03-19
-- ✅ **AI Capability Catalog 模块（V3.6）**
+- ✅ **AI Capability Catalog 模块**
   - 新增独立 `apps/ai_capability/` 模块（系统级 AI 能力目录）
   - 四层架构完整实现（Domain/Application/Infrastructure/Interface）
   - 支持四种能力来源：builtin/terminal_command/mcp_tool/api
   - 统一路由 API：POST /api/ai-capability/route/
   - 自动采集全站 API 并进行安全分层（read_api/write_api/unsafe_api）
-  - 三阶段路由：Retrieval → Decision → Dispatch
   - 完整 Admin 管理、审计日志、同步命令
-  - 新增架构评估文档
 
 ### 2026-03-18
-- ✅ **P1 真相对齐完成**
+- ✅ **治理文档体系建立**
   - 新增 `docs/governance/` 治理文档目录（3个文件）
   - 删除冗余文档 5 个（SYSTEM_OVERVIEW.md 等）
   - 归档过程性文档 ~40 个到 `archive/`
   - 更新文档索引，建立三层文档体系
 
 ### 2026-03-17
-- ✅ **Terminal CLI 模块（V3.5）**
+- ✅ **Terminal CLI 模块**
   - 新增独立 `apps/terminal/` 模块（完整四层架构）
   - 支持两种命令类型：Prompt 模板调用、API 端点调用
   - 可配置命令系统（参数定义、JQ 过滤、输出格式）

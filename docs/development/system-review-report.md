@@ -1,8 +1,9 @@
-# AgomTradePro V3.6 系统全面审视报告
+# AgomTradePro 0.7.0 系统审视报告
 
-> **生成日期**: 2026-03-22
-> **系统版本**: AgomTradePro V3.6
+> **生成日期**: 2026-03-23
+> **系统版本**: AgomTradePro 0.7.0
 > **审视范围**: 代码架构、文档一致性、API端点、页面功能
+> **版本管理**: [../VERSION.md](../VERSION.md)
 
 ---
 

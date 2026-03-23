@@ -126,7 +126,8 @@ account, audit, filter, prompt
 | **agent_runtime** | Agent 运行时 | 🟢 新增 | Terminal AI 后端 |
 | **task_monitor** | 任务监控 | 🟢 新增 | Celery 监控 |
 | **filter** | HP/Kalman 滤波 | 🟢 迭代中 | 算法优化 |
-| **ai_capability** | AI 能力目录 | 🟢 新增 | 统一路由（V3.6） |
+| **ai_capability** | AI 能力目录 | 🟢 新增 | 统一路由 |
+| **setup_wizard** | 系统初始化向导 | 🟢 新增 | 首次安装引导 |
 
 **说明**:
 - 这些模块功能尚在演进，接口可能变化

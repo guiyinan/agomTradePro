@@ -6,19 +6,20 @@
 ## 项目概述
 
 > **最后更新**: 2026-03-23
-> **系统版本**: AgomTradePro V3.6
+> **系统版本**: AgomTradePro 0.7.0
 > **项目状态**: 生产就绪
 > **业务模块**: 34个
 > **测试覆盖**: 1,600+ 个测试用例
 
 AgomTradePro (Agom Strategic Asset Allocation Framework) 是一个宏观环境准入系统，通过 Regime（增长/通胀象限）和 Policy（政策档位）过滤，确保投资者不在错误的宏观环境中下注。
 
-**最新完成**:
-- V3.7 新增 Setup Wizard 模块（系统初始化向导）
-- V3.6 新增 AI Capability Catalog 模块（系统级 AI 能力目录与统一路由）
-- V3.5 新增 Terminal CLI 模块（终端风格 AI 交互界面）
-- 支持可配置命令系统（Prompt/API 两种执行类型）
+**最新完成** (0.7.0):
+- 新增 Setup Wizard 模块（系统初始化向导）
+- 新增 AI Capability Catalog 模块（系统级 AI 能力目录与统一路由）
+- 新增 Terminal CLI 模块（终端风格 AI 交互界面）
 - 完整的 DDD 四层架构实现
+
+**版本管理**: 参见 [docs/VERSION.md](docs/VERSION.md)
 
 ## 技术栈
 
@@ -511,8 +512,8 @@ ak.macro_china_money_supply()
 - `hedge/` - 对冲策略模块，支持期货对冲计算和管理
 - `terminal/` - 终端 CLI 模块，提供终端风格的 AI 交互界面，支持可配置命令系统
 - `agent_runtime/` - Agent 运行时模块，Terminal AI 后端，支持任务编排和 Facade 模式
-- `ai_capability/` - AI 能力目录模块，系统级 AI 能力目录与统一路由（V3.6 新增）
+- `ai_capability/` - AI 能力目录模块，系统级 AI 能力目录与统一路由
 - `market_data/` - 市场数据统一接口，整合多数据源
 - `share/` - 分享功能模块，支持决策分享
 - `task_monitor/` - 任务监控模块，Celery 任务状态追踪
-- `setup_wizard/` - 系统初始化向导模块，首次安装引导配置管理员密码、AI API、数据源（V3.7 新增）
+- `setup_wizard/` - 系统初始化向导模块，首次安装引导配置管理员密码、AI API、数据源
