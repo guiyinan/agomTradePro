@@ -6,22 +6,58 @@
 
 ### Stop Trading Against the Macro. Start Trading With Discipline.
 
-**A macro-first investment admission system that prevents you from betting in the wrong economic environment — even when your logic feels right.**
+**An AI-native personal research foundation that brings macro judgment, strategy discipline, agent capabilities, and execution workflows into one system.**
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Django 5.x](https://img.shields.io/badge/django-5.x-green.svg)](https://www.djangoproject.com/)
 [![Tests](https://img.shields.io/badge/tests-1%2C600+-brightgreen.svg)](#testing)
 [![Modules](https://img.shields.io/badge/business_modules-32-purple.svg)](#architecture)
 [![MCP Tools](https://img.shields.io/badge/MCP_tools-65+-orange.svg)](#ai-native-integration)
+[![Status](https://img.shields.io/badge/status-active_development-yellow.svg)](#project-status)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-[Quick Start](#quick-start) · [Why This Exists](#why-this-exists) · [Features](#features) · [AI Integration](#ai-native-integration) · [Screenshots](#screenshots) · [Docs](docs/INDEX.md)
+[Quick Start](#quick-start) · [Why This Exists](#why-this-exists) · [Why Fork / Star](#why-fork--star) · [Architecture](#architecture) · [AI Integration](#ai-native-integration) · [Screenshots](#screenshots) · [Docs](docs/INDEX.md)
 
 </div>
 
 ---
 
+> **Disclaimer**  
+> This project is for **personal research and system experimentation only**. It does not represent the investment views of any institution and **does not constitute investment advice**.
+
+---
+
+## The Core Difference
+
+AgomTradePro is not trying to be just another quant dashboard, AI stock demo, or market data UI. It is built as a way to **construct your own AI-native research foundation**.
+
+- **AI-native, not AI-added-later**: MCP, Terminal CLI, Agent Runtime, and Capability Catalog are built into the system
+- **Not a single-purpose tool, but a research and decision substrate**: macro, policy, signal, approval, execution, and audit are connected end to end
+- **Designed to be extended**: you can fork it into your own macro lab, agent-driven research platform, or strategy infrastructure
+- **Built with agentic coding workflows**: a meaningful part of the project was shaped using **Claude Code and Codex** as part of the actual development loop
+
+If what you want is not “another dashboard” but “a base for building your own AI research stack,” this project is aimed at that problem.
+
+---
+
+## Project Status
+
+> This project is already runnable and demo-ready, but it is **still under active development**.  
+> Public releases will continue improving production hardening, observability, docs, and UI polish. At this stage, treat it as a **working investment infrastructure system**, not a frozen SaaS product.
+
+- Core macro admission flow is already usable: Regime / Policy / Signal / approval / execution / audit
+- AI-native surfaces are already in place: **native MCP, Terminal CLI, Agent Runtime, Capability Catalog**
+- Still being improved: scheduled task monitoring, more public demo paths, documentation polish, deployment experience
+
+---
+
 ## Why This Exists
+
+Financial markets have been moving hard. What becomes exhausting is not just volatility itself, but the feeling that **you keep reading more, thinking more, and still become more confused**.
+
+This project did not start from “let's build a platform.” It started from a simpler question:
+
+> **If I am the confused participant in a noisy market, can I build a system that explains the environment to myself before I act?**
 
 Most retail investors lose money not because their stock picks are bad, but because they trade at the wrong time.
 
@@ -36,6 +72,24 @@ AgomTradePro is built on one principle:
 > **"Don't bet in the wrong macroeconomic world, even with correct logic."**
 
 It acts as a **macro gatekeeper** — filtering every investment decision through regime analysis (growth × inflation quadrants) and policy state before you can act. It doesn't predict prices. It prevents mistakes.
+
+---
+
+## Why Fork / Star
+
+If you're looking for more than "yet another stock dashboard" and want a **base that can keep growing into strategy logic, agent tooling, and execution workflows**, this repo is worth following.
+
+- **It is not just a demo UI**: login, setup, analysis, decision flow, approval, execution, and audit are already connected
+- **It is not an AI wrapper**: native MCP, Terminal CLI, Agent Runtime, and Capability Catalog are built into the system
+- **It is not a one-off script pile**: 34 business modules with explicit DDD boundaries make it suitable for long-term extension
+- **It is forkable**: the codebase is modular enough for private strategy kernels, internal research platforms, or custom agent workflows
+- **It already has product shape**: Setup Wizard, Dashboard, CLI, and MCP console make the system legible at a glance
+
+For most people, the best way to use this repo is:
+
+1. `Star` it to follow the roadmap
+2. `Fork` it as your own macro / strategy / agent infrastructure base
+3. Extend the modules around your own trading logic or research workflow
 
 ---
 
@@ -85,29 +139,38 @@ Your AI agent can check the macro regime, evaluate signals, and propose trades �
 ## Screenshots
 
 <details>
-<summary><b>Investment Command Center (Dashboard)</b></summary>
+<summary><b>Logged-in Dashboard</b></summary>
 
-![Dashboard](output/playwright/dashboard.png)
+![Dashboard](docs/images/readme/dashboard_logged_in.png)
 
-*Unified view: accounts, holdings, regime status, active signals, and performance at a glance.*
-
-</details>
-
-<details>
-<summary><b>Regime Analysis</b></summary>
-
-![Regime Dashboard](output/playwright/regime_dashboard.png)
-
-*Four-quadrant regime visualization with momentum trends, confidence metrics, and historical tracking.*
+*The first screen after login shows the system as an operating console: accounts, macro state, decision plane, AI stock analysis, and workflow status in one place.*
 
 </details>
 
 <details>
-<summary><b>Macro Data Intelligence</b></summary>
+<summary><b>Setup Wizard</b></summary>
 
-![Macro Data](output/playwright/macro_data.png)
+![Setup Wizard](docs/images/readme/setup_wizard.png)
 
-*Real-time macro indicator tracking with multi-source sync, AI-powered chat for data exploration.*
+*A clearer first impression for public visitors: admin bootstrap, AI provider setup, and data source onboarding in one flow.*
+
+</details>
+
+<details>
+<summary><b>Terminal CLI</b></summary>
+
+![Terminal CLI](docs/images/readme/terminal_cli.png)
+
+*Not just a chat box. This is an operations-oriented CLI surface with commands, context, session state, and AI interaction built into the product.*
+
+</details>
+
+<details>
+<summary><b>Native MCP Tools Console</b></summary>
+
+![MCP Tools](docs/images/readme/mcp_tools.png)
+
+*Built-in MCP catalog, schema inspection, and terminal/routing switches. This makes the MCP story feel native rather than bolted on.*
 
 </details>
 
@@ -152,7 +215,27 @@ Your AI agent can check the macro regime, evaluate signals, and propose trades �
 
 ## Architecture
 
-Strict **Domain-Driven Design** with four-layer enforcement:
+AgomTradePro is not a bundle of pages and APIs. It is designed more like an **investment operating system**:
+
+```
+Data sources → Macro judgment → Policy filter → Signal generation → Decision constraints → Approval/execution → Audit/review
+                ↓                ↓                ↓                  ↓
+             Regime           Policy           Signal          Workflow / Audit
+```
+
+That matters because when you fork it, you do not need to rewrite the whole thing. You can keep the existing seams and grow from there.
+
+### 1. Business Architecture
+
+- **Macro layer**: `macro`, `regime`, `policy` answer "what environment are we in?"
+- **Decision layer**: `signal`, `beta_gate`, `alpha_trigger`, `decision_rhythm` answer "should we act now?"
+- **Execution layer**: `strategy`, `simulated_trading`, `realtime` answer "how do we execute and monitor it?"
+- **Analysis layer**: `backtest`, `audit`, `factor`, `rotation`, `hedge` answer "why did it work, and what failed?"
+- **AI layer**: `terminal`, `agent_runtime`, `ai_capability`, `prompt`, `ai_provider` answer "how do real agents plug into the system?"
+
+### 2. Technical Architecture
+
+Core business logic follows strict **Domain-Driven Design** with four explicit layers:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -167,9 +250,27 @@ Strict **Domain-Driven Design** with four-layer enforcement:
 └─────────────────────────────────────────────────────────┘
 ```
 
-**Why this matters:** Domain logic is framework-independent, fully testable, and portable. Financial rules live where they belong — in pure Python with zero external dependencies.
+**Why this is useful when forking:**
 
-**32 business modules**, each with complete four-layer implementation. No shortcuts.
+- you can swap data sources without rewriting domain rules
+- you can rebuild the UI without rewriting the investment core
+- you can plug in your own agents without removing approval and audit controls
+- you can extract individual modules instead of dragging the whole app everywhere
+
+### 3. AI Architecture
+
+- **MCP Server** exposes system capabilities directly to Claude, Cursor, Codex, and other agentic tools
+- **Terminal CLI** provides an operations-oriented AI interface instead of a generic chat widget
+- **Capability Catalog** manages tool routing, schema, switches, and discoverability
+- **Agent Runtime** turns proposal → pre-check → approval → execution into a real system path
+
+This is one of the strongest reasons to fork the project: the AI layer is native to the product, not stapled onto the side.
+
+### 4. Current State
+
+- **Core structure is stable enough** to keep extending confidently
+- **Product surfaces are mature enough** to show that this is not a toy project
+- **Plenty is still evolving**, which makes this a good time to watch, fork, and build on top of it
 
 ---
 
@@ -238,7 +339,7 @@ Claude: [calls get_current_regime] → Stagflation (growth ↓, inflation ↑)
          look at hedge positions instead."
 ```
 
-**65+ MCP tools** across all modules — regime, signals, macro data, backtesting, trading, portfolio management, and more.
+**65+ MCP tools** do not just expose a few query endpoints. They span macro, policy, signals, backtesting, accounts, portfolios, trading flows, AI capability routing, terminal commands, runtime orchestration, and system-level operations.
 
 ### Decision Workflow via AI
 
