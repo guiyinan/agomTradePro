@@ -69,6 +69,10 @@ echo [OK] Docker found
 echo.
 
 REM ========== 3. Start Docker Services ==========
+
+REM Auto-cleanup stale containers before starting
+call :cleanup_stale_containers
+
 if %SQLITE_MODE%==1 (
     echo [3/5] Starting Docker services - Redis only, SQLite mode...
     docker-compose -f docker-compose-dev.yml up -d redis
@@ -93,18 +97,40 @@ if %SQLITE_MODE%==1 (
 )
 
 if %SQLITE_MODE%==0 (
-    REM Wait for PostgreSQL
+    REM Wait for PostgreSQL (max 30 seconds)
     echo [INFO] Waiting for PostgreSQL to be ready...
     call :wait_postgres_ready
+    if errorlevel 1 (
+        echo [ERROR] PostgreSQL failed to start after 30 seconds!
+        pause
+        exit /b 1
+    )
     echo [OK] PostgreSQL ready
 )
 
-REM Wait for Redis
+REM Wait for Redis (auto-recover on failure)
 echo [INFO] Waiting for Redis to be ready...
+set REDIS_ATTEMPT=0
+:wait_redis_outer
+set /a REDIS_ATTEMPT+=1
+if %REDIS_ATTEMPT% GTR 2 (
+    echo [ERROR] Redis failed after 2 recovery attempts!
+    pause
+    exit /b 1
+)
+set REDIS_RETRIES=0
 :wait_redis
 timeout /t 1 >nul
 docker exec agomtradepro_redis_dev redis-cli ping >nul 2>&1
-if errorlevel 1 goto :wait_redis
+if not errorlevel 1 goto redis_ready
+set /a REDIS_RETRIES+=1
+if %REDIS_RETRIES% GEQ 15 (
+    echo [WARN] Redis not responding, auto-recovering...
+    call :recover_redis
+    goto wait_redis_outer
+)
+goto :wait_redis
+:redis_ready
 echo [OK] Redis ready
 echo.
 
@@ -186,9 +212,45 @@ pause
 goto :eof
 
 :wait_postgres_ready
+set PG_RETRIES=0
+:wait_pg_loop
 timeout /t 2 >nul
 docker exec agomtradepro_postgres_dev pg_isready -U agomtradepro -d agomtradepro >nul 2>&1
-if errorlevel 1 goto :wait_postgres_ready
+if not errorlevel 1 exit /b 0
+set /a PG_RETRIES+=1
+if %PG_RETRIES% GEQ 15 (
+    echo [WARN] PostgreSQL not responding, attempting recovery...
+    docker rm -f agomtradepro_postgres_dev >nul 2>&1
+    docker-compose -f docker-compose-dev.yml up -d postgres
+    set PG_RETRIES=0
+    set /a PG_RECOVER+=1
+    if !PG_RECOVER! GEQ 2 exit /b 1
+)
+goto :wait_pg_loop
+
+:cleanup_stale_containers
+REM Remove containers stuck in Created/Exited state to free ports
+for %%C in (agomtradepro_redis_dev agomtradepro_postgres_dev) do (
+    for /f "tokens=*" %%S in ('docker inspect -f "{{.State.Status}}" %%C 2^>nul') do (
+        if "%%S"=="created" (
+            echo [INFO] Removing stale container %%C ^(status: created^)
+            docker rm -f %%C >nul 2>&1
+        )
+        if "%%S"=="exited" (
+            echo [INFO] Removing exited container %%C
+            docker rm -f %%C >nul 2>&1
+        )
+    )
+)
+exit /b 0
+
+:recover_redis
+echo [INFO] Stopping and removing Redis container...
+docker rm -f agomtradepro_redis_dev >nul 2>&1
+timeout /t 2 >nul
+echo [INFO] Restarting Redis container...
+docker-compose -f docker-compose-dev.yml up -d redis
+timeout /t 2 >nul
 exit /b 0
 
 :kill_existing_celery_worker
