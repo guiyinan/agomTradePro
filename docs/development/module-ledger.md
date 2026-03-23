@@ -1,10 +1,10 @@
 # Module Ledger
 
-> Rules version: `2026-03-22.v1`
-> Generated at: `2026-03-22`
+> Rules version: `2026-03-23.v1`
+> Generated at: `2026-03-23`
 > Boundary rules: `4`
 > Violations: `0`
-> Business Modules: `33`
+> Business Modules: `34`
 
 ## Boundary Baseline
 
@@ -53,6 +53,7 @@
 | `share` |  | 2 | 0 |  | out: decision_rhythm, simulated_trading; Decision sharing module |
 | `terminal` |  | 1 | 0 |  | out: prompt; Terminal CLI, AI interaction interface |
 | `ai_capability` |  | 1 | 0 |  | out: terminal; AI Capability Catalog, unified routing |
+| `setup_wizard` |  | 0 | 0 |  | System initialization wizard, first-time setup guide |
 
 ## Violations
 

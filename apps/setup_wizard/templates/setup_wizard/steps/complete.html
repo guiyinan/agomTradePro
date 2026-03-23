@@ -1,0 +1,79 @@
+<div class="setup-header">
+    <div class="setup-icon">✅</div>
+    <h1 class="setup-title">安装完成！</h1>
+    <p class="setup-subtitle">系统已准备就绪，可以开始使用</p>
+</div>
+
+<div class="feature-list">
+    <div class="feature-item">
+        <div class="feature-icon">✓</div>
+        <div class="feature-text">管理员账户已创建</div>
+    </div>
+    {% if state.ai_provider_configured %}
+    <div class="feature-item">
+        <div class="feature-icon">✓</div>
+        <div class="feature-text">AI 服务已配置</div>
+    </div>
+    {% else %}
+    <div class="feature-item">
+        <div class="feature-icon">○</div>
+        <div class="feature-text">AI 服务（可在设置中配置）</div>
+    </div>
+    {% endif %}
+    {% if state.data_source_configured %}
+    <div class="feature-item">
+        <div class="feature-icon">✓</div>
+        <div class="feature-text">数据源已配置</div>
+    </div>
+    {% else %}
+    <div class="feature-item">
+        <div class="feature-icon">○</div>
+        <div class="feature-text">数据源（可在设置中配置）</div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="alert alert-success">
+    <strong>🎉 欢迎使用 AgomTradePro！</strong><br>
+    系统已完成初始化，您可以开始探索宏观环境准入系统的强大功能。
+</div>
+
+<div class="complete-actions">
+    <a href="/" class="btn btn-primary">前往首页</a>
+    <a href="/dashboard/" class="btn btn-secondary">进入仪表盘</a>
+    <a href="/admin/" class="btn btn-secondary">管理后台</a>
+</div>
+
+<div class="next-steps">
+    <h3>下一步建议</h3>
+    <ol>
+        <li>访问 <a href="/regime/">Regime 仪表盘</a> 了解当前宏观环境</li>
+        <li>查看 <a href="/policy/workbench/">政策工作台</a> 获取最新政策动态</li>
+        <li>在 <a href="/admin/">管理后台</a> 完善系统配置</li>
+    </ol>
+</div>
+
+<style>
+.next-steps {
+    margin-top: 24px;
+    padding: 20px;
+    background: #f9fafb;
+    border-radius: 8px;
+}
+.next-steps h3 {
+    margin-bottom: 12px;
+    font-size: 16px;
+    color: #374151;
+}
+.next-steps ol {
+    margin: 0;
+    padding-left: 20px;
+    color: #6b7280;
+}
+.next-steps li {
+    margin-bottom: 8px;
+}
+.next-steps a {
+    color: #667eea;
+}
+</style>

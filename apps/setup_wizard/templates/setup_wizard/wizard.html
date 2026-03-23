@@ -1,0 +1,545 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}系统初始化向导 - AgomTradePro{% endblock %}
+
+{% block extra_css %}
+<style>
+.setup-page {
+    min-height: calc(100vh - 56px);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+}
+
+.setup-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.setup-progress {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    padding: 20px 30px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.progress-steps {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+}
+
+.progress-steps::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 40px;
+    right: 40px;
+    height: 2px;
+    background: #e5e7eb;
+    z-index: 0;
+}
+
+.progress-line {
+    position: absolute;
+    top: 20px;
+    left: 40px;
+    height: 2px;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    z-index: 1;
+    transition: width 0.3s ease;
+}
+
+.step-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 2;
+}
+
+.step-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: #6b7280;
+    transition: all 0.3s ease;
+}
+
+.step-indicator.active .step-circle {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.step-indicator.completed .step-circle {
+    background: #10b981;
+    color: white;
+}
+
+.step-label {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #6b7280;
+    text-align: center;
+}
+
+.step-indicator.active .step-label {
+    color: #374151;
+    font-weight: 500;
+}
+
+.setup-card {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 16px;
+    padding: 40px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+.setup-header {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.setup-title {
+    font-size: 28px;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 8px;
+}
+
+.setup-subtitle {
+    color: #6b7280;
+    font-size: 16px;
+}
+
+.setup-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.form-group .hint {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 4px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-secondary {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.btn-secondary:hover {
+    background: #e5e7eb;
+}
+
+.btn-skip {
+    background: transparent;
+    color: #6b7280;
+    text-decoration: underline;
+}
+
+.btn-skip:hover {
+    color: #374151;
+}
+
+.btn-group {
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    margin-top: 32px;
+}
+
+.btn-group-right {
+    display: flex;
+    gap: 12px;
+}
+
+.alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+.alert-error { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+.alert-success { background: #d1fae5; color: #059669; border: 1px solid #a7f3d0; }
+.alert-warning { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
+.alert-info { background: #dbeafe; color: #2563eb; border: 1px solid #bfdbfe; }
+
+.password-strength {
+    margin-top: 8px;
+}
+
+.strength-bar {
+    height: 4px;
+    background: #e5e7eb;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+
+.strength-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.strength-text {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.strength-weak { background: #ef4444; }
+.strength-medium { background: #f59e0b; }
+.strength-strong { background: #10b981; }
+
+.feature-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin: 24px 0;
+}
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: #f9fafb;
+    border-radius: 8px;
+}
+
+.feature-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.feature-text {
+    font-size: 14px;
+    color: #374151;
+}
+
+.complete-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.complete-actions .btn {
+    width: 100%;
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+}
+
+.provider-presets {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.provider-preset {
+    padding: 12px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.provider-preset:hover {
+    border-color: #667eea;
+    background: #f9fafb;
+}
+
+.provider-preset.selected {
+    border-color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+}
+
+.provider-preset-icon {
+    font-size: 24px;
+    margin-bottom: 4px;
+}
+
+.provider-preset-name {
+    font-size: 12px;
+    color: #374151;
+}
+
+.optional-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background: #e5e7eb;
+    border-radius: 4px;
+    font-size: 11px;
+    color: #6b7280;
+    margin-left: 8px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="setup-page">
+    <div class="setup-container">
+        <div class="setup-progress">
+            <div class="progress-steps">
+                <div class="progress-line" style="width: {{ progress_percentage }}%"></div>
+                
+                <div class="step-indicator {% if current_step == 'welcome' %}active{% endif %} {% if current_step in 'admin_password,ai_provider,data_source,complete' %}completed{% endif %}">
+                    <div class="step-circle">1</div>
+                    <span class="step-label">欢迎</span>
+                </div>
+                
+                <div class="step-indicator {% if current_step == 'admin_password' %}active{% endif %} {% if current_step in 'ai_provider,data_source,complete' %}completed{% endif %}">
+                    <div class="step-circle">2</div>
+                    <span class="step-label">管理员</span>
+                </div>
+                
+                <div class="step-indicator {% if current_step == 'ai_provider' %}active{% endif %} {% if current_step in 'data_source,complete' %}completed{% endif %}">
+                    <div class="step-circle">3</div>
+                    <span class="step-label">AI 配置</span>
+                </div>
+                
+                <div class="step-indicator {% if current_step == 'data_source' %}active{% endif %} {% if current_step == 'complete' %}completed{% endif %}">
+                    <div class="step-circle">4</div>
+                    <span class="step-label">数据源</span>
+                </div>
+                
+                <div class="step-indicator {% if current_step == 'complete' %}active{% endif %}">
+                    <div class="step-circle">5</div>
+                    <span class="step-label">完成</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="setup-card">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+
+            {% if current_step == 'welcome' %}
+                {% include "setup_wizard/steps/welcome.html" %}
+            {% elif current_step == 'admin_password' %}
+                {% include "setup_wizard/steps/admin_password.html" %}
+            {% elif current_step == 'ai_provider' %}
+                {% include "setup_wizard/steps/ai_provider.html" %}
+            {% elif current_step == 'data_source' %}
+                {% include "setup_wizard/steps/data_source.html" %}
+            {% elif current_step == 'complete' %}
+                {% include "setup_wizard/steps/complete.html" %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initPasswordStrengthChecker();
+    initProviderPresets();
+});
+
+function initPasswordStrengthChecker() {
+    const passwordInput = document.getElementById('password');
+    if (!passwordInput) return;
+
+    passwordInput.addEventListener('input', function() {
+        checkPasswordStrength(this.value);
+    });
+}
+
+function checkPasswordStrength(password) {
+    fetch(`/setup/api/password-strength/?password=${encodeURIComponent(password)}`)
+        .then(response => response.json())
+        .then(data => {
+            const strengthBar = document.querySelector('.strength-fill');
+            const strengthText = document.querySelector('.strength-text');
+            
+            if (strengthBar && strengthText) {
+                strengthBar.style.width = data.score + '%';
+                
+                strengthBar.className = 'strength-fill';
+                if (data.score >= 80) {
+                    strengthBar.classList.add('strength-strong');
+                } else if (data.score >= 40) {
+                    strengthBar.classList.add('strength-medium');
+                } else {
+                    strengthBar.classList.add('strength-weak');
+                }
+                
+                strengthText.textContent = '密码强度: ' + data.level;
+                
+                if (data.suggestions.length > 0 && data.score < 80) {
+                    strengthText.textContent += ' - ' + data.suggestions[0];
+                }
+            }
+        });
+}
+
+function initProviderPresets() {
+    const presets = document.querySelectorAll('.provider-preset');
+    const providerTypeInput = document.getElementById('provider_type');
+    const baseUrlInput = document.getElementById('base_url');
+    const defaultModelInput = document.getElementById('default_model');
+    
+    const presetConfig = {
+        'openai': {
+            base_url: 'https://api.openai.com/v1',
+            default_model: 'gpt-4o-mini'
+        },
+        'deepseek': {
+            base_url: 'https://api.deepseek.com/v1',
+            default_model: 'deepseek-chat'
+        },
+        'qwen': {
+            base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+            default_model: 'qwen-turbo'
+        }
+    };
+
+    presets.forEach(preset => {
+        preset.addEventListener('click', function() {
+            presets.forEach(p => p.classList.remove('selected'));
+            this.classList.add('selected');
+            
+            const providerType = this.dataset.provider;
+            if (providerTypeInput) providerTypeInput.value = providerType;
+            
+            const config = presetConfig[providerType];
+            if (config) {
+                if (baseUrlInput) baseUrlInput.value = config.base_url;
+                if (defaultModelInput) defaultModelInput.value = config.default_model;
+            }
+        });
+    });
+}
+
+function skipStep(step) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/setup/step/${step}/`;
+    
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfToken) {
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken.value;
+        form.appendChild(csrfInput);
+    }
+    
+    const skipInput = document.createElement('input');
+    skipInput.type = 'hidden';
+    skipInput.name = 'skip';
+    skipInput.value = 'true';
+    form.appendChild(skipInput);
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function validatePasswordMatch() {
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirm_password').value;
+    
+    if (password !== confirmPassword) {
+        alert('两次输入的密码不一致');
+        return false;
+    }
+    
+    return true;
+}
+</script>
+{% endblock %}

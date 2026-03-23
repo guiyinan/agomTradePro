@@ -1,0 +1,79 @@
+<div class="setup-header">
+    <div class="setup-icon">🤖</div>
+    <h1 class="setup-title">配置 AI 服务 <span class="optional-badge">可选</span></h1>
+    <p class="setup-subtitle">配置 AI 服务商以启用智能选股和信号分析功能</p>
+</div>
+
+<div class="provider-presets">
+    <div class="provider-preset" data-provider="openai" onclick="selectProvider(this)">
+        <div class="provider-preset-icon">🟢</div>
+        <div class="provider-preset-name">OpenAI</div>
+    </div>
+    <div class="provider-preset" data-provider="deepseek" onclick="selectProvider(this)">
+        <div class="provider-preset-icon">🔵</div>
+        <div class="provider-preset-name">DeepSeek</div>
+    </div>
+    <div class="provider-preset" data-provider="qwen" onclick="selectProvider(this)">
+        <div class="provider-preset-icon">🟡</div>
+        <div class="provider-preset-name">通义千问</div>
+    </div>
+</div>
+
+<form method="post" action="{% url 'setup_wizard:step' step='ai_provider' %}" id="ai-form">
+    {% csrf_token %}
+    
+    <input type="hidden" name="provider_type" id="provider_type" value="openai">
+    <input type="hidden" name="name" id="provider_name" value="openai">
+    
+    <div class="form-group">
+        <label for="base_url">API Base URL *</label>
+        <input type="url" 
+               id="base_url" 
+               name="base_url" 
+               class="form-control" 
+               value="https://api.openai.com/v1"
+               placeholder="https://api.openai.com/v1"
+               required>
+        <div class="hint">OpenAI 兼容的 API 端点</div>
+    </div>
+
+    <div class="form-group">
+        <label for="api_key">API Key *</label>
+        <input type="password" 
+               id="api_key" 
+               name="api_key" 
+               class="form-control" 
+               placeholder="sk-..."
+               required>
+        <div class="hint">您的 API 密钥，    </div>
+
+    <div class="form-group">
+        <label for="default_model">默认模型</label>
+        <input type="text" 
+               id="default_model" 
+               name="default_model" 
+               class="form-control" 
+               value="gpt-4o-mini"
+               placeholder="gpt-4o-mini">
+    </div>
+
+    <div class="btn-group">
+        <div class="btn-group-right">
+            <button type="button" class="btn btn-skip" onclick="skipStep('ai_provider')">跳过此步骤</button>
+            <button type="submit" class="btn btn-primary">保存并继续 →</button>
+        </div>
+    </div>
+</form>
+
+<script>
+function selectProvider(element) {
+    document.querySelectorAll('.provider-preset').forEach(p => p.classList.remove('selected'));
+    element.classList.add('selected');
+    
+    const provider = element.dataset.provider;
+    document.getElementById('provider_type').value = provider;
+    document.getElementById('provider_name').value = provider;
+}
+
+document.querySelector('.provider-preset[data-provider="openai"]').click();
+</script>

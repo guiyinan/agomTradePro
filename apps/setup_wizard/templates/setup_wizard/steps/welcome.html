@@ -1,0 +1,44 @@
+<div class="setup-header">
+    <div class="setup-icon">🚀</div>
+    <h1 class="setup-title">欢迎使用 AgomTradePro</h1>
+    <p class="setup-subtitle">宏观环境准入系统 - 别在错误的宏观环境里下注</p>
+</div>
+
+<div class="feature-list">
+    <div class="feature-item">
+        <div class="feature-icon">📊</div>
+        <div class="feature-text">Regime 判定引擎</div>
+    </div>
+    <div class="feature-item">
+        <div class="feature-icon">🎯</div>
+        <div class="feature-text">政策闸门过滤</div>
+    </div>
+    <div class="feature-item">
+        <div class="feature-icon">🤖</div>
+        <div class="feature-text">AI 选股信号</div>
+    </div>
+    <div class="feature-item">
+        <div class="feature-icon">📈</div>
+        <div class="feature-text">模拟盘交易</div>
+    </div>
+</div>
+
+<div class="alert alert-info">
+    <strong>首次安装向导</strong><br>
+    接下来将引导您完成以下配置：
+    <ol style="margin: 8px 0 0 20px; padding: 0;">
+        <li>设置管理员账户</li>
+        <li>配置 AI 服务商（可选）</li>
+        <li>配置数据源（可选）</li>
+    </ol>
+</div>
+
+<form method="post" action="{% url 'setup_wizard:step' step='welcome' %}">
+    {% csrf_token %}
+    <div class="btn-group">
+        <div></div>
+        <div class="btn-group-right">
+            <button type="submit" class="btn btn-primary">开始配置 →</button>
+        </div>
+    </div>
+</form>

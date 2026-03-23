@@ -158,6 +158,8 @@ INSTALLED_APPS = [
     "apps.ai_capability",  # 系统级 AI 能力目录与统一路由（新增）
     # ========== Prometheus 指标 ==========
     "django_prometheus",  # Prometheus 指标导出（新增）
+    # ========== 新模块：安装向导 ==========
+    "apps.setup_wizard",  # 系统初始化向导（新增）
 ]
 
 MIDDLEWARE = [

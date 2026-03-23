@@ -1,0 +1,52 @@
+<div class="setup-header">
+    <div class="setup-icon">📊</div>
+    <h1 class="setup-title">配置数据源 <span class="optional-badge">可选</span></h1>
+    <p class="setup-subtitle">配置宏观数据和市场数据源以获取实时行情和指标</p>
+</div>
+
+<form method="post" action="{% url 'setup_wizard:step' step='data_source' %}">
+    {% csrf_token %}
+    
+    <div class="form-group">
+        <label for="tushare_token">Tushare Token</label>
+        <input type="text" 
+               id="tushare_token" 
+               name="tushare_token" 
+               class="form-control" 
+               placeholder="在 tushare.pro 获取">
+        <div class="hint">获取 A 股行情和财务数据，            <a href="https://tushare.pro/" target="_blank">注册获取 Token</a>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="fred_api_key">FRED API Key</label>
+        <input type="text" 
+               id="fred_api_key" 
+               name="fred_api_key" 
+               class="form-control" 
+               placeholder="可选，获取美国宏观经济数据">
+        <div class="hint">获取美国宏观经济数据
+            <a href="https://fred.stlouisfed.org/docs/api/api_key/" target="_blank">注册获取 Key</a>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div class="checkbox-group">
+            <input type="checkbox" id="akshare_enabled" name="akshare_enabled" checked>
+            <label for="akshare_enabled">启用 AKShare（免费，无需 Token）</label>
+        </div>
+        <div class="hint">获取 A 股实时行情和宏观数据，        </div>
+    </div>
+
+    <div class="alert alert-info">
+        <strong>提示</strong><br>
+        数据源可以稍后在系统中配置。AKShare 是免费的，但数据可能不如 Tushare 完整。
+    </div>
+
+    <div class="btn-group">
+        <div class="btn-group-right">
+            <button type="button" class="btn btn-skip" onclick="skipStep('data_source')">跳过此步骤</button>
+            <button type="submit" class="btn btn-primary">保存并完成 →</button>
+        </div>
+    </div>
+</form>
