@@ -32,7 +32,10 @@ from apps.account.infrastructure.repositories import (
     PositionRepository,
     AssetMetadataRepository,
 )
-from apps.account.application.use_cases import CreatePositionFromBacktestUseCase, CreatePositionFromBacktestInput
+from apps.account.application.use_cases import (
+    CreatePositionFromBacktestUseCase,
+    CreatePositionFromBacktestInput,
+)
 from apps.account.application.rbac import ROLE_CHOICES, is_system_admin
 from apps.account.interface.serializers import TradingCostConfigCreateSerializer
 
@@ -89,47 +92,68 @@ def register_view(request):
         # 验证
         if not username or not password:
             messages.error(request, "用户名和密码不能为空")
-            return render(request, "account/register.html", {
-                "system_settings": system_settings,
-            })
+            return render(
+                request,
+                "account/register.html",
+                {
+                    "system_settings": system_settings,
+                },
+            )
 
         if password != password_confirm:
             messages.error(request, "两次输入的密码不一致")
-            return render(request, "account/register.html", {
-                "system_settings": system_settings,
-            })
+            return render(
+                request,
+                "account/register.html",
+                {
+                    "system_settings": system_settings,
+                },
+            )
 
         if User._default_manager.filter(username=username).exists():
             messages.error(request, "用户名已存在")
-            return render(request, "account/register.html", {
-                "system_settings": system_settings,
-            })
+            return render(
+                request,
+                "account/register.html",
+                {
+                    "system_settings": system_settings,
+                },
+            )
 
         # 验证用户协议和风险提示
         if not user_agreement:
             messages.error(request, "请阅读并同意用户协议")
-            return render(request, "account/register.html", {
-                "system_settings": system_settings,
-            })
+            return render(
+                request,
+                "account/register.html",
+                {
+                    "system_settings": system_settings,
+                },
+            )
 
         if not risk_warning:
             messages.error(request, "请确认已阅读风险提示")
-            return render(request, "account/register.html", {
-                "system_settings": system_settings,
-            })
+            return render(
+                request,
+                "account/register.html",
+                {
+                    "system_settings": system_settings,
+                },
+            )
 
         # 创建用户
         try:
             user = User._default_manager.create_user(
-                username=username,
-                email=email,
-                password=password
+                username=username, email=email, password=password
             )
             user.is_active = False  # 初始设为未激活，等待审批（或自动批准）
 
             # 确定审批状态
             from django.db.models import Q
-            has_admin = User._default_manager.filter(Q(is_superuser=True) | Q(is_staff=True)).exists()
+
+            has_admin = User._default_manager.filter(
+                Q(is_superuser=True) | Q(is_staff=True)
+            ).exists()
 
             if not system_settings.require_user_approval:
                 # 审批已关闭，自动批准
@@ -169,17 +193,12 @@ def register_view(request):
             )
 
             # 创建默认投资组合
-            PortfolioModel._default_manager.create(
-                user=user,
-                name="默认组合",
-                is_active=True
-            )
+            PortfolioModel._default_manager.create(user=user, name="默认组合", is_active=True)
 
             # 根据审批状态显示不同消息
             if approval_status == "pending":
                 messages.info(
-                    request,
-                    f"注册成功！您的账户正在等待管理员审批，审批通过后即可登录。"
+                    request, f"注册成功！您的账户正在等待管理员审批，审批通过后即可登录。"
                 )
                 return redirect("/account/login/")
             else:
@@ -192,22 +211,30 @@ def register_view(request):
 
         except Exception as e:
             messages.error(request, f"注册失败：{str(e)}")
-            return render(request, "account/register.html", {
-                "system_settings": system_settings,
-            })
+            return render(
+                request,
+                "account/register.html",
+                {
+                    "system_settings": system_settings,
+                },
+            )
 
-    return render(request, "account/register.html", {
-        "system_settings": system_settings,
-    })
+    return render(
+        request,
+        "account/register.html",
+        {
+            "system_settings": system_settings,
+        },
+    )
 
 
 def get_client_ip(request):
     """获取客户端IP地址"""
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
     if x_forwarded_for:
-        ip = x_forwarded_for.split(',')[0]
+        ip = x_forwarded_for.split(",")[0]
     else:
-        ip = request.META.get('REMOTE_ADDR')
+        ip = request.META.get("REMOTE_ADDR")
     return ip
 
 
@@ -220,6 +247,12 @@ def login_view(request):
     GET: 显示登录表单
     POST: 处理登录请求
     """
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
+
+    has_admin = User.objects.filter(is_superuser=True).exists()
+
     if request.method == "POST":
         username = request.POST.get("username")
         password = request.POST.get("password")
@@ -230,13 +263,18 @@ def login_view(request):
             login(request, user)
             messages.success(request, f"欢迎回来，{user.username}！")
 
-            # 重定向到之前访问的页面或首页
             next_page = request.GET.get("next", "/dashboard/")
             return redirect(next_page)
         else:
             messages.error(request, "用户名或密码错误")
 
-    return render(request, "account/login.html")
+    return render(
+        request,
+        "account/login.html",
+        {
+            "has_admin": has_admin,
+        },
+    )
 
 
 @login_required
@@ -260,9 +298,7 @@ def profile_view(request):
     portfolios = request.user.portfolios.all()
 
     # ⭐ 重构：直接从 SimulatedAccountModel 获取用户的投资组合
-    investment_accounts = SimulatedAccountModel._default_manager.filter(
-        user=request.user
-    )
+    investment_accounts = SimulatedAccountModel._default_manager.filter(user=request.user)
 
     # 计算当前总资产（优先从投资组合获取）
     total_assets = 0.0
@@ -274,6 +310,7 @@ def profile_view(request):
     else:
         # 如果没有投资组合，使用Portfolio系统（向后兼容）
         from apps.account.infrastructure.repositories import PortfolioRepository
+
         portfolio_repo = PortfolioRepository()
         for portfolio in portfolios.filter(is_active=True):
             snapshot = portfolio_repo.get_portfolio_snapshot(portfolio.id)
@@ -355,24 +392,24 @@ def settings_view(request):
 
     # 计算资金流水汇总
     if portfolio:
-        capital_flows = CapitalFlowModel._default_manager.filter(
-            portfolio=portfolio
-        ).order_by('-flow_date', '-created_at')
+        capital_flows = CapitalFlowModel._default_manager.filter(portfolio=portfolio).order_by(
+            "-flow_date", "-created_at"
+        )
 
-        total_deposit = capital_flows.filter(flow_type='deposit').aggregate(
-            total=models.Sum('amount')
-        )['total'] or Decimal('0')
+        total_deposit = capital_flows.filter(flow_type="deposit").aggregate(
+            total=models.Sum("amount")
+        )["total"] or Decimal("0")
 
-        total_withdraw = capital_flows.filter(flow_type='withdraw').aggregate(
-            total=models.Sum('amount')
-        )['total'] or Decimal('0')
+        total_withdraw = capital_flows.filter(flow_type="withdraw").aggregate(
+            total=models.Sum("amount")
+        )["total"] or Decimal("0")
 
         net_capital = total_deposit - total_withdraw
     else:
         capital_flows = []
-        total_deposit = Decimal('0')
-        total_withdraw = Decimal('0')
-        net_capital = Decimal('0')
+        total_deposit = Decimal("0")
+        total_withdraw = Decimal("0")
+        net_capital = Decimal("0")
 
     # 交易费率配置
     trading_cost_config = None
@@ -423,7 +460,9 @@ def create_self_token_view(request):
             request.session["self_new_token_payload"] = payload
             messages.success(request, f"已创建 Token：{token.name}")
         else:
-            messages.success(request, f"已创建 Token：{token.name}。当前系统禁止查看明文，请自行妥善管理。")
+            messages.success(
+                request, f"已创建 Token：{token.name}。当前系统禁止查看明文，请自行妥善管理。"
+            )
     except Exception as e:
         messages.error(request, f"创建 Token 失败：{str(e)}")
 
@@ -467,7 +506,7 @@ def capital_flow_view(request):
         notes = request.POST.get("notes", "")
 
         # 验证
-        if flow_type not in ['deposit', 'withdraw']:
+        if flow_type not in ["deposit", "withdraw"]:
             messages.error(request, "无效的流水类型")
             return redirect("/account/settings/")
 
@@ -490,9 +529,7 @@ def capital_flow_view(request):
         portfolio = request.user.portfolios.filter(is_active=True).first()
         if not portfolio:
             portfolio = PortfolioModel._default_manager.create(
-                user=request.user,
-                name="默认组合",
-                is_active=True
+                user=request.user, name="默认组合", is_active=True
             )
 
         # 创建资金流水记录
@@ -502,7 +539,7 @@ def capital_flow_view(request):
             flow_type=flow_type,
             amount=amount,
             flow_date=flow_date,
-            notes=notes
+            notes=notes,
         )
 
         action_text = "入金" if flow_type == "deposit" else "出金"
@@ -529,28 +566,21 @@ def apply_backtest_results_view(request, backtest_id):
     try:
         # 获取参数
         data = json.loads(request.body) if request.body else {}
-        scale_factor = float(data.get('scale_factor', 1.0))
+        scale_factor = float(data.get("scale_factor", 1.0))
 
         # 验证回测归属
         try:
             backtest = BacktestResultModel._default_manager.get(id=backtest_id)
         except BacktestResultModel.DoesNotExist:
-            return JsonResponse({
-                'success': False,
-                'error': '回测不存在'
-            }, status=404)
+            return JsonResponse({"success": False, "error": "回测不存在"}, status=404)
 
         if backtest.user_id != request.user.id:
-            return JsonResponse({
-                'success': False,
-                'error': '无权限访问此回测'
-            }, status=403)
+            return JsonResponse({"success": False, "error": "无权限访问此回测"}, status=403)
 
-        if backtest.status != 'completed':
-            return JsonResponse({
-                'success': False,
-                'error': f'回测状态为 {backtest.status}，无法应用'
-            }, status=400)
+        if backtest.status != "completed":
+            return JsonResponse(
+                {"success": False, "error": f"回测状态为 {backtest.status}，无法应用"}, status=400
+            )
 
         # 创建用例并执行
         use_case = CreatePositionFromBacktestUseCase(
@@ -567,26 +597,22 @@ def apply_backtest_results_view(request, backtest_id):
 
         result = use_case.execute(input_dto)
 
-        return JsonResponse({
-            'success': True,
-            'message': f'成功应用回测结果「{result.backtest_name}」',
-            'data': {
-                'total_positions': result.total_positions,
-                'total_value': result.total_value,
-                'backtest_name': result.backtest_name,
+        return JsonResponse(
+            {
+                "success": True,
+                "message": f"成功应用回测结果「{result.backtest_name}」",
+                "data": {
+                    "total_positions": result.total_positions,
+                    "total_value": result.total_value,
+                    "backtest_name": result.backtest_name,
+                },
             }
-        })
+        )
 
     except ValueError as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=400)
+        return JsonResponse({"success": False, "error": str(e)}, status=400)
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': f'应用失败：{str(e)}'
-        }, status=500)
+        return JsonResponse({"success": False, "error": f"应用失败：{str(e)}"}, status=500)
 
 
 @login_required
@@ -604,10 +630,7 @@ def portfolio_volatility_api_view(request):
         portfolio = request.user.portfolios.filter(is_active=True).first()
 
         if not portfolio:
-            return JsonResponse({
-                'success': False,
-                'error': '暂无投资组合'
-            }, status=404)
+            return JsonResponse({"success": False, "error": "暂无投资组合"}, status=404)
 
         # 执行波动率分析
         use_case = VolatilityAnalysisUseCase()
@@ -619,47 +642,50 @@ def portfolio_volatility_api_view(request):
         # 转换历史数据为图表格式
         history_data = []
         for metric in analysis.volatility_history:
-            history_data.append({
-                'date': metric.date.strftime('%Y-%m-%d') if metric.date else None,
-                'daily_volatility': metric.daily_volatility,
-                'rolling_volatility_30d': metric.rolling_volatility_30d,
-                'annualized_volatility': metric.annualized_volatility,
-            })
+            history_data.append(
+                {
+                    "date": metric.date.strftime("%Y-%m-%d") if metric.date else None,
+                    "daily_volatility": metric.daily_volatility,
+                    "rolling_volatility_30d": metric.rolling_volatility_30d,
+                    "annualized_volatility": metric.annualized_volatility,
+                }
+            )
 
-        return JsonResponse({
-            'success': True,
-            'data': {
-                'portfolio_id': analysis.portfolio_id,
-                'current': {
-                    'volatility_30d': analysis.current_volatility_30d,
-                    'volatility_60d': analysis.current_volatility_60d,
-                    'volatility_90d': analysis.current_volatility_90d,
-                    'target': analysis.target_volatility,
+        return JsonResponse(
+            {
+                "success": True,
+                "data": {
+                    "portfolio_id": analysis.portfolio_id,
+                    "current": {
+                        "volatility_30d": analysis.current_volatility_30d,
+                        "volatility_60d": analysis.current_volatility_60d,
+                        "volatility_90d": analysis.current_volatility_90d,
+                        "target": analysis.target_volatility,
+                    },
+                    "adjustment": {
+                        "should_reduce": analysis.adjustment_result.should_reduce,
+                        "reduction_reason": analysis.adjustment_result.reduction_reason,
+                        "suggested_multiplier": analysis.adjustment_result.suggested_position_multiplier,
+                    }
+                    if analysis.adjustment_result
+                    else None,
+                    "history": history_data,
                 },
-                'adjustment': {
-                    'should_reduce': analysis.adjustment_result.should_reduce,
-                    'reduction_reason': analysis.adjustment_result.reduction_reason,
-                    'suggested_multiplier': analysis.adjustment_result.suggested_position_multiplier,
-                } if analysis.adjustment_result else None,
-                'history': history_data,
             }
-        })
+        )
 
     except ValueError as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=400)
+        return JsonResponse({"success": False, "error": str(e)}, status=400)
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': f'获取波动率数据失败：{str(e)}'
-        }, status=500)
+        return JsonResponse(
+            {"success": False, "error": f"获取波动率数据失败：{str(e)}"}, status=500
+        )
 
 
 # ============================================================
 # 用户管理视图（仅管理员）
 # ============================================================
+
 
 @login_required
 @user_passes_test(is_admin_user)
@@ -677,26 +703,26 @@ def user_management_view(request):
     search_query = request.GET.get("q", "")
 
     # 构建查询
-    profiles = AccountProfileModel._default_manager.select_related('user', 'approved_by').all()
+    profiles = AccountProfileModel._default_manager.select_related("user", "approved_by").all()
 
     if status_filter:
         profiles = profiles.filter(approval_status=status_filter)
 
     if search_query:
         profiles = profiles.filter(
-            models.Q(user__username__icontains=search_query) |
-            models.Q(user__email__icontains=search_query) |
-            models.Q(display_name__icontains=search_query)
+            models.Q(user__username__icontains=search_query)
+            | models.Q(user__email__icontains=search_query)
+            | models.Q(display_name__icontains=search_query)
         )
 
     # 排序
-    profiles = profiles.order_by('-created_at')
+    profiles = profiles.order_by("-created_at")
 
     # 统计信息
     total_count = profiles.count()
-    pending_count = profiles.filter(approval_status='pending').count()
-    approved_count = profiles.filter(approval_status__in=['approved', 'auto_approved']).count()
-    rejected_count = profiles.filter(approval_status='rejected').count()
+    pending_count = profiles.filter(approval_status="pending").count()
+    approved_count = profiles.filter(approval_status__in=["approved", "auto_approved"]).count()
+    rejected_count = profiles.filter(approval_status="rejected").count()
 
     context = {
         "profiles": profiles,
@@ -728,13 +754,14 @@ def token_management_view(request):
     users = User._default_manager.select_related("account_profile").all().order_by("-date_joined")
     if search_query:
         users = users.filter(
-            models.Q(username__icontains=search_query) |
-            models.Q(email__icontains=search_query)
+            models.Q(username__icontains=search_query) | models.Q(email__icontains=search_query)
         )
 
-    tokens = UserAccessTokenModel._default_manager.select_related("created_by").filter(
-        is_active=True
-    ).order_by("-created_at")
+    tokens = (
+        UserAccessTokenModel._default_manager.select_related("created_by")
+        .filter(is_active=True)
+        .order_by("-created_at")
+    )
     token_map = {}
     for token in tokens:
         token_map.setdefault(token.user_id, []).append(token)
@@ -745,13 +772,15 @@ def token_management_view(request):
         if only_without_token and user_tokens:
             continue
 
-        rows.append({
-            "user": user,
-            "profile": getattr(user, "account_profile", None),
-            "tokens": user_tokens,
-            "has_token": bool(user_tokens),
-            "token_count": len(user_tokens),
-        })
+        rows.append(
+            {
+                "user": user,
+                "profile": getattr(user, "account_profile", None),
+                "tokens": user_tokens,
+                "has_token": bool(user_tokens),
+                "token_count": len(user_tokens),
+            }
+        )
 
     new_token_payload = request.session.pop("new_token_payload", None)
 
@@ -797,7 +826,10 @@ def rotate_user_token_view(request, user_id):
             request.session["new_token_payload"] = payload
             messages.success(request, f"已为用户 {target_user.username} 创建 Token：{token.name}")
         else:
-            messages.success(request, f"已为用户 {target_user.username} 创建 Token：{token.name}。当前系统禁止查看明文。")
+            messages.success(
+                request,
+                f"已为用户 {target_user.username} 创建 Token：{token.name}。当前系统禁止查看明文。",
+            )
         logger.info(
             "admin_action=create_token actor=%s target=%s token_name=%s result=success",
             request.user.username,
@@ -826,7 +858,9 @@ def revoke_user_token_view(request, user_id):
     """
     try:
         target_user = User._default_manager.get(id=user_id)
-        active_tokens = list(UserAccessTokenModel._default_manager.filter(user=target_user, is_active=True))
+        active_tokens = list(
+            UserAccessTokenModel._default_manager.filter(user=target_user, is_active=True)
+        )
         for token in active_tokens:
             token.revoke()
         deleted_count = len(active_tokens)
@@ -859,7 +893,9 @@ def revoke_user_token_view(request, user_id):
 def revoke_access_token_view(request, token_id):
     """撤销单个 Token。"""
     try:
-        token = UserAccessTokenModel._default_manager.select_related("user").get(id=token_id, is_active=True)
+        token = UserAccessTokenModel._default_manager.select_related("user").get(
+            id=token_id, is_active=True
+        )
         token.revoke()
         messages.success(request, f"已撤销 {token.user.username} 的 Token：{token.name}")
     except UserAccessTokenModel.DoesNotExist:
@@ -887,13 +923,15 @@ def toggle_user_mcp_view(request, user_id):
         profile.save(update_fields=["mcp_enabled", "updated_at"])
 
         if not profile.mcp_enabled:
-            for token in UserAccessTokenModel._default_manager.filter(user=target_user, is_active=True):
+            for token in UserAccessTokenModel._default_manager.filter(
+                user=target_user, is_active=True
+            ):
                 token.revoke()
 
         state = "开启" if profile.mcp_enabled else "关闭"
         messages.success(
             request,
-            f"已{state}用户 {target_user.username} 的 MCP/SDK 权限（系统默认：{'开启' if settings_obj.default_mcp_enabled else '关闭'}）"
+            f"已{state}用户 {target_user.username} 的 MCP/SDK 权限（系统默认：{'开启' if settings_obj.default_mcp_enabled else '关闭'}）",
         )
     except User.DoesNotExist:
         messages.error(request, "用户不存在")
@@ -914,11 +952,11 @@ def approve_user_view(request, user_id):
             target_user = User._default_manager.get(id=user_id)
             profile = target_user.account_profile
 
-            if profile.approval_status == 'approved':
+            if profile.approval_status == "approved":
                 messages.warning(request, f"用户 {target_user.username} 已经被批准过了")
-            elif profile.approval_status == 'rejected':
+            elif profile.approval_status == "rejected":
                 messages.error(request, f"用户 {target_user.username} 已被拒绝，请先取消拒绝状态")
-            elif profile.approval_status != 'pending':
+            elif profile.approval_status != "pending":
                 messages.error(request, f"用户 {target_user.username} 当前状态不允许批准")
             else:
                 # 激活用户
@@ -926,12 +964,21 @@ def approve_user_view(request, user_id):
                 target_user.save(update_fields=["is_active"])
 
                 # 更新审批状态
-                profile.approval_status = 'approved'
+                profile.approval_status = "approved"
                 profile.approved_at = timezone.now()
                 profile.approved_by = request.user
                 profile.mcp_enabled = SystemSettingsModel.get_settings().default_mcp_enabled
                 profile.rejection_reason = ""
-                profile.save(update_fields=["approval_status", "approved_at", "approved_by", "mcp_enabled", "rejection_reason", "updated_at"])
+                profile.save(
+                    update_fields=[
+                        "approval_status",
+                        "approved_at",
+                        "approved_by",
+                        "mcp_enabled",
+                        "rejection_reason",
+                        "updated_at",
+                    ]
+                )
 
                 messages.success(request, f"已批准用户 {target_user.username}")
                 logger.info(
@@ -977,15 +1024,25 @@ def reject_user_view(request, user_id):
             rejection_reason = request.POST.get("rejection_reason", "")
 
             # 更新审批状态并强制停用/撤销Token
-            profile.approval_status = 'rejected'
+            profile.approval_status = "rejected"
             profile.rejection_reason = rejection_reason
             profile.approved_at = None
             profile.approved_by = None
-            profile.save(update_fields=["approval_status", "rejection_reason", "approved_at", "approved_by", "updated_at"])
+            profile.save(
+                update_fields=[
+                    "approval_status",
+                    "rejection_reason",
+                    "approved_at",
+                    "approved_by",
+                    "updated_at",
+                ]
+            )
 
             target_user.is_active = False
             target_user.save(update_fields=["is_active"])
-            for token in UserAccessTokenModel._default_manager.filter(user=target_user, is_active=True):
+            for token in UserAccessTokenModel._default_manager.filter(
+                user=target_user, is_active=True
+            ):
                 token.revoke()
 
             messages.success(request, f"已拒绝用户 {target_user.username}")
@@ -1059,17 +1116,27 @@ def reset_user_status_view(request, user_id):
                 return redirect("/account/admin/users/")
 
             # 重置审批状态
-            profile.approval_status = 'pending'
+            profile.approval_status = "pending"
             profile.approved_at = None
             profile.approved_by = None
             profile.rejection_reason = ""
-            profile.save(update_fields=["approval_status", "approved_at", "approved_by", "rejection_reason", "updated_at"])
+            profile.save(
+                update_fields=[
+                    "approval_status",
+                    "approved_at",
+                    "approved_by",
+                    "rejection_reason",
+                    "updated_at",
+                ]
+            )
 
             # 停用用户
             target_user.is_active = False
             target_user.save(update_fields=["is_active"])
 
-            for token in UserAccessTokenModel._default_manager.filter(user=target_user, is_active=True):
+            for token in UserAccessTokenModel._default_manager.filter(
+                user=target_user, is_active=True
+            ):
                 token.revoke()
 
             messages.success(request, f"已重置用户 {target_user.username} 的状态")
@@ -1109,7 +1176,9 @@ def system_settings_view(request):
                 key for key, _ in SystemSettingsModel.MARKET_COLOR_CONVENTION_CHOICES
             }
             benchmark_code_map = json.loads(request.POST.get("benchmark_code_map", "{}") or "{}")
-            asset_proxy_code_map = json.loads(request.POST.get("asset_proxy_code_map", "{}") or "{}")
+            asset_proxy_code_map = json.loads(
+                request.POST.get("asset_proxy_code_map", "{}") or "{}"
+            )
             macro_index_catalog = json.loads(request.POST.get("macro_index_catalog", "[]") or "[]")
             market_color_convention = request.POST.get(
                 "market_color_convention", system_settings.market_color_convention
@@ -1124,10 +1193,16 @@ def system_settings_view(request):
             if market_color_convention not in market_color_choices:
                 raise ValueError("市场颜色约定不合法")
 
-            system_settings.require_user_approval = request.POST.get("require_user_approval") == "on"
-            system_settings.auto_approve_first_admin = request.POST.get("auto_approve_first_admin") == "on"
+            system_settings.require_user_approval = (
+                request.POST.get("require_user_approval") == "on"
+            )
+            system_settings.auto_approve_first_admin = (
+                request.POST.get("auto_approve_first_admin") == "on"
+            )
             system_settings.default_mcp_enabled = request.POST.get("default_mcp_enabled") == "on"
-            system_settings.allow_token_plaintext_view = request.POST.get("allow_token_plaintext_view") == "on"
+            system_settings.allow_token_plaintext_view = (
+                request.POST.get("allow_token_plaintext_view") == "on"
+            )
             system_settings.market_color_convention = market_color_convention
             system_settings.user_agreement_content = request.POST.get("user_agreement_content", "")
             system_settings.risk_warning_content = request.POST.get("risk_warning_content", "")
@@ -1146,9 +1221,15 @@ def system_settings_view(request):
         "system_settings": system_settings,
         "market_color_choices": SystemSettingsModel.MARKET_COLOR_CONVENTION_CHOICES,
         "market_visuals": system_settings.get_market_visual_tokens(),
-        "benchmark_code_map_json": json.dumps(system_settings.benchmark_code_map or {}, ensure_ascii=False, indent=2),
-        "asset_proxy_code_map_json": json.dumps(system_settings.asset_proxy_code_map or {}, ensure_ascii=False, indent=2),
-        "macro_index_catalog_json": json.dumps(system_settings.macro_index_catalog or [], ensure_ascii=False, indent=2),
+        "benchmark_code_map_json": json.dumps(
+            system_settings.benchmark_code_map or {}, ensure_ascii=False, indent=2
+        ),
+        "asset_proxy_code_map_json": json.dumps(
+            system_settings.asset_proxy_code_map or {}, ensure_ascii=False, indent=2
+        ),
+        "macro_index_catalog_json": json.dumps(
+            system_settings.macro_index_catalog or [], ensure_ascii=False, indent=2
+        ),
     }
     return render(request, "account/system_settings.html", context)
 
@@ -1156,6 +1237,7 @@ def system_settings_view(request):
 # ============================================================
 # 账户协作视图
 # ============================================================
+
 
 @login_required
 @require_http_methods(["GET"])
@@ -1169,8 +1251,7 @@ def collaboration_view(request):
 
     # 获取当前用户的授权统计
     grant_count = PortfolioObserverGrantModel._default_manager.filter(
-        owner_user_id=request.user,
-        status='active'
+        owner_user_id=request.user, status="active"
     ).count()
 
     context = {
@@ -1193,8 +1274,7 @@ def observer_portal_view(request):
 
     # 获取当前用户作为观察员的授权数量
     observable_count = PortfolioObserverGrantModel._default_manager.filter(
-        observer_user_id=request.user,
-        status='active'
+        observer_user_id=request.user, status="active"
     ).count()
 
     context = {

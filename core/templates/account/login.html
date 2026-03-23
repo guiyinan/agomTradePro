@@ -19,6 +19,18 @@
             {% endfor %}
         {% endif %}
 
+        {% if not has_admin %}
+        <div class="setup-wizard-banner">
+            <div class="setup-icon">🚀</div>
+            <h2>欢迎使用 AgomTradePro</h2>
+            <p>检测到这是首次启动，请先完成系统初始化配置</p>
+            <a href="/setup/" class="btn btn-setup">开始系统初始化</a>
+        </div>
+        <div class="setup-divider">
+            <span>已有账号</span>
+        </div>
+        {% endif %}
+
         <form method="post" class="login-form" id="loginForm">
             {% csrf_token %}
             <div class="form-group">
@@ -152,6 +164,78 @@
 
 .login-footer a:hover {
     text-decoration: underline;
+}
+
+.setup-wizard-banner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: var(--radius-md);
+    padding: 24px;
+    text-align: center;
+    margin-bottom: 24px;
+    color: white;
+}
+
+.setup-wizard-banner h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 12px 0 8px;
+}
+
+.setup-wizard-banner p {
+    font-size: 14px;
+    opacity: 0.9;
+    margin-bottom: 16px;
+}
+
+.setup-icon {
+    font-size: 40px;
+}
+
+.btn-setup {
+    display: inline-block;
+    background: white;
+    color: #667eea;
+    padding: 12px 32px;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.btn-setup:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.setup-divider {
+    text-align: center;
+    margin: 20px 0;
+    position: relative;
+}
+
+.setup-divider::before,
+.setup-divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 40%;
+    height: 1px;
+    background: var(--color-border);
+}
+
+.setup-divider::before {
+    left: 0;
+}
+
+.setup-divider::after {
+    right: 0;
+}
+
+.setup-divider span {
+    background: var(--color-bg);
+    padding: 0 12px;
+    color: var(--color-text-secondary);
+    font-size: 14px;
 }
 </style>
 
