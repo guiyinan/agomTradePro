@@ -1513,6 +1513,26 @@ class RecommendationStatus(Enum):
     """冲突：同证券 BUY/SELL 冲突"""
 
 
+class UserDecisionAction(Enum):
+    """
+    用户决策动作枚举
+
+    独立于 RecommendationStatus，用于表示用户对系统推荐的主观决策。
+    """
+
+    PENDING = "PENDING"
+    """待决策：系统已生成，用户尚未表态"""
+
+    WATCHING = "WATCHING"
+    """观察中：用户加入观察名单"""
+
+    ADOPTED = "ADOPTED"
+    """已采纳：用户接受推荐，后续可进入审批/执行"""
+
+    IGNORED = "IGNORED"
+    """已忽略：用户明确忽略该推荐"""
+
+
 class DecisionFeatureSnapshot:
     """
     决策特征快照
@@ -1637,6 +1657,9 @@ class UnifiedRecommendation:
         feature_snapshot_id: 特征快照 ID
         # 状态
         status: 推荐状态
+        user_action: 用户决策动作
+        user_action_note: 用户备注
+        user_action_at: 用户动作时间
         created_at: 创建时间
         updated_at: 更新时间
     """
@@ -1677,6 +1700,9 @@ class UnifiedRecommendation:
     feature_snapshot_id: str
     # 状态
     status: RecommendationStatus
+    user_action: UserDecisionAction
+    user_action_note: str
+    user_action_at: Optional[datetime]
     created_at: datetime
     updated_at: datetime
 
@@ -1712,6 +1738,9 @@ class UnifiedRecommendation:
         source_candidate_ids: Optional[List[str]] = None,
         feature_snapshot_id: str = "",
         status: RecommendationStatus = RecommendationStatus.NEW,
+        user_action: UserDecisionAction = UserDecisionAction.PENDING,
+        user_action_note: str = "",
+        user_action_at: Optional[datetime] = None,
         created_at: Optional[datetime] = None,
         updated_at: Optional[datetime] = None,
     ):
@@ -1751,6 +1780,9 @@ class UnifiedRecommendation:
         self.feature_snapshot_id = feature_snapshot_id
         # 状态
         self.status = status
+        self.user_action = user_action
+        self.user_action_note = user_action_note
+        self.user_action_at = user_action_at
         self.created_at = created_at or datetime.now(timezone.utc)
         self.updated_at = updated_at or datetime.now(timezone.utc)
 
@@ -1758,7 +1790,8 @@ class UnifiedRecommendation:
         return (
             f"UnifiedRecommendation({self.recommendation_id}, "
             f"{self.account_id}/{self.security_code}/{self.side}, "
-            f"composite={self.composite_score:.2f}, status={self.status.value})"
+            f"composite={self.composite_score:.2f}, "
+            f"status={self.status.value}, user_action={self.user_action.value})"
         )
 
     def get_aggregation_key(self) -> str:

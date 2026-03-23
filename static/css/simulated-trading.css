@@ -246,11 +246,11 @@
 }
 
 .position-profit.positive {
-    color: var(--color-success);
+    color: var(--color-rise);
 }
 
 .position-profit.negative {
-    color: var(--color-error);
+    color: var(--color-fall);
 }
 
 /* Account Detail */

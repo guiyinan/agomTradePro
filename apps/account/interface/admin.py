@@ -328,7 +328,7 @@ class SystemSettingsModelAdmin(admin.ModelAdmin):
         """禁止删除配置"""
         return False
 
-    list_display = ['require_user_approval', 'auto_approve_first_admin', 'default_mcp_enabled', 'allow_token_plaintext_view', 'backup_enabled', 'backup_email', 'backup_last_sent_at']
+    list_display = ['require_user_approval', 'auto_approve_first_admin', 'default_mcp_enabled', 'market_color_convention', 'allow_token_plaintext_view', 'backup_enabled', 'backup_email', 'backup_last_sent_at']
 
     fieldsets = (
         ('用户审批', {
@@ -338,6 +338,9 @@ class SystemSettingsModelAdmin(admin.ModelAdmin):
                 'default_mcp_enabled',
                 'allow_token_plaintext_view',
             )
+        }),
+        ('视觉约定', {
+            'fields': ('market_color_convention',)
         }),
         ('数据库备份邮件', {
             'fields': (

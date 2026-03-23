@@ -100,8 +100,17 @@
                             <option value="REVIEWING">审核中</option>
                             <option value="APPROVED">已批准</option>
                         </select>
+                        <select id="decision-filter" class="form-select form-select-sm" onchange="loadRecommendations()">
+                            <option value="">全部用户动作</option>
+                            <option value="PENDING">待决策</option>
+                            <option value="WATCHING">观察中</option>
+                            <option value="ADOPTED">已采纳</option>
+                            <option value="IGNORED">已忽略</option>
+                        </select>
                     </div>
                 </div>
+
+                <div id="recommendation-bridge-banner" class="bridge-banner" style="display: none;"></div>
 
                 <div id="recommendations-list" class="recommendations-list">
                     <div class="app-loading-state app-loading-state--compact">
@@ -450,6 +459,14 @@ let currentTab = 'recommendations';
 let currentRecommendation = null;
 let approvalRequestId = null;
 let userAccounts = [];
+const workspaceParams = new URLSearchParams(window.location.search);
+const workspaceBridge = {
+    source: workspaceParams.get('source') || '',
+    securityCode: workspaceParams.get('security_code') || '',
+    action: workspaceParams.get('action') || '',
+    handled: false,
+    highlightedRecommendationId: '',
+};
 
 function formatRepairPercent(value) {
     if (value === null || value === undefined || value === '') return '-';
@@ -466,10 +483,109 @@ function formatRepairEta(value) {
     return `${value}d`;
 }
 
+function showBridgeBanner(message, tone = 'info') {
+    const banner = document.getElementById('recommendation-bridge-banner');
+    if (!banner) return;
+    banner.className = `bridge-banner bridge-banner-${tone}`;
+    banner.textContent = message;
+    banner.style.display = 'block';
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+}
+
+function getUserActionText(action) {
+    return {
+        PENDING: '待决策',
+        WATCHING: '观察中',
+        ADOPTED: '已采纳',
+        IGNORED: '已忽略',
+    }[action] || action || '待决策';
+}
+
+async function bootstrapWorkspaceBridge() {
+    if (!workspaceBridge.securityCode || workspaceBridge.handled) {
+        return;
+    }
+
+    const accountId = document.getElementById('account-selector')?.value || 'default';
+    showBridgeBanner(`正在将 ${workspaceBridge.securityCode} 同步到决策工作台...`);
+
+    try {
+        const refreshRes = await fetch('/api/decision/workspace/recommendations/refresh/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken,
+            },
+            body: JSON.stringify({
+                account_id: accountId,
+                security_codes: [workspaceBridge.securityCode],
+                force: false,
+            }),
+        });
+        const refreshData = await refreshRes.json();
+        if (!refreshData.success) {
+            throw new Error(refreshData.error || '刷新失败');
+        }
+
+        let listUrl = `/api/decision/workspace/recommendations/?account_id=${encodeURIComponent(accountId)}&security_code=${encodeURIComponent(workspaceBridge.securityCode)}&include_ignored=true`;
+        const listRes = await fetch(listUrl, {
+            headers: { 'X-CSRFToken': window.csrfToken }
+        });
+        const listData = await listRes.json();
+        const targetRecommendation = listData?.data?.recommendations?.[0];
+
+        if (!targetRecommendation) {
+            showBridgeBanner(`已触发 ${workspaceBridge.securityCode} 推荐同步，但工作台尚未返回可用推荐。`, 'warning');
+            workspaceBridge.handled = true;
+            return;
+        }
+
+        workspaceBridge.highlightedRecommendationId = targetRecommendation.recommendation_id;
+
+        if (workspaceBridge.action) {
+            const actionRes = await fetch('/api/decision/workspace/recommendations/action/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': window.csrfToken,
+                },
+                body: JSON.stringify({
+                    recommendation_id: targetRecommendation.recommendation_id,
+                    account_id: accountId,
+                    action: workspaceBridge.action,
+                    note: workspaceBridge.source ? `source=${workspaceBridge.source}` : '',
+                }),
+            });
+            const actionData = await actionRes.json();
+            if (!actionData.success) {
+                throw new Error(actionData.error || '用户动作写入失败');
+            }
+            showBridgeBanner(`${workspaceBridge.securityCode} 已同步到工作台，并标记为${getUserActionText(actionData.data.recommendation.user_action)}。`, 'success');
+        } else {
+            showBridgeBanner(`${workspaceBridge.securityCode} 已同步到工作台，可继续执行加入观察、采纳或审批。`, 'success');
+        }
+
+        workspaceBridge.handled = true;
+    } catch (error) {
+        console.error('bootstrapWorkspaceBridge failed:', error);
+        showBridgeBanner(`同步 ${workspaceBridge.securityCode} 到工作台失败: ${error.message}`, 'danger');
+        workspaceBridge.handled = true;
+    }
+}
+
 // ===== 初始化 =====
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // 加载账户列表
-    loadUserAccounts();
+    await loadUserAccounts();
+    await bootstrapWorkspaceBridge();
     // 加载推荐数据
     loadRecommendations();
     // 加载审批数据
@@ -552,6 +668,7 @@ async function loadRecommendations() {
     const container = document.getElementById('recommendations-list');
     const accountId = document.getElementById('account-selector')?.value || '';
     const statusFilter = document.getElementById('status-filter')?.value || '';
+    const decisionFilter = document.getElementById('decision-filter')?.value || '';
 
     container.innerHTML = `
         <div class="app-loading-state app-loading-state--compact">
@@ -565,6 +682,9 @@ async function loadRecommendations() {
         const params = new URLSearchParams();
         params.append('account_id', accountId || 'default');
         if (statusFilter) params.append('status', statusFilter);
+        if (decisionFilter) params.append('user_action', decisionFilter);
+        if (decisionFilter === 'IGNORED') params.append('include_ignored', 'true');
+        if (workspaceBridge.securityCode) params.append('security_code', workspaceBridge.securityCode);
         if (params.toString()) url += '?' + params.toString();
 
         const res = await fetch(url, {
@@ -607,11 +727,12 @@ function renderRecommendations(recommendations, totalCount) {
     }
 
     container.innerHTML = recommendations.map(rec => `
-        <div class="recommendation-card" data-recommendation-id="${rec.recommendation_id}">
+        <div class="recommendation-card ${workspaceBridge.highlightedRecommendationId === rec.recommendation_id ? 'recommendation-card-highlight' : ''}" data-recommendation-id="${rec.recommendation_id}">
             <div class="rec-header">
                 <div class="rec-asset">
                     <strong>${rec.security_code}</strong>
                     <span class="rec-side rec-side-${rec.side.toLowerCase()}">${rec.side}</span>
+                    <span class="rec-user-action rec-user-action-${String(rec.user_action || 'PENDING').toLowerCase()}">${getUserActionText(rec.user_action)}</span>
                 </div>
                 <div class="rec-confidence">
                     置信度: <strong>${(rec.confidence * 100).toFixed(1)}%</strong>
@@ -659,36 +780,50 @@ function renderRecommendations(recommendations, totalCount) {
                 </div>
             </div>
             <div class="rec-footer">
-                <div class="rec-status status-${rec.status.toLowerCase()}">${getStatusText(rec.status)}</div>
-                <button class="btn btn-sm btn-primary"
-                        onclick="openApprovalModal('${rec.recommendation_id}')"
-                        data-recommendation-id="${rec.recommendation_id}"
-                        data-security-code="${rec.security_code}"
-                        data-side="${rec.side}"
-                        data-confidence="${rec.confidence}"
-                        data-composite-score="${rec.composite_score}"
-                        data-fair-value="${rec.fair_value}"
-                        data-entry-low="${rec.entry_price_low}"
-                        data-entry-high="${rec.entry_price_high}"
-                        data-target-low="${rec.target_price_low}"
-                        data-target-high="${rec.target_price_high}"
-                        data-stop-loss="${rec.stop_loss_price}"
-                        data-position-pct="${rec.position_pct}"
-                        data-suggested-qty="${rec.suggested_quantity}"
-                        data-max-capital="${rec.max_capital}"
-                        data-regime="${rec.regime}"
-                        data-regime-confidence="${rec.regime_confidence}"
-                        data-policy-level="${rec.policy_level}"
-                        data-beta-gate="${rec.beta_gate_passed}"
-                        data-alpha-score="${rec.alpha_model_score}"
-                        data-sentiment-score="${rec.sentiment_score}"
-                        data-flow-score="${rec.flow_score}"
-                        data-technical-score="${rec.technical_score}"
-                        data-fundamental-score="${rec.fundamental_score}"
-                        data-reason-codes='${JSON.stringify(rec.reason_codes)}'
-                        data-rationale="${rec.human_rationale}">
-                    去执行
-                </button>
+                <div class="rec-footer-meta">
+                    <div class="rec-status status-${rec.status.toLowerCase()}">${getStatusText(rec.status)}</div>
+                    ${rec.user_action_note ? `<div class="rec-user-note">${escapeHtml(rec.user_action_note)}</div>` : ''}
+                </div>
+                <div class="rec-actions">
+                    <button class="btn btn-sm btn-outline" onclick="applyRecommendationAction('${rec.recommendation_id}', 'watch')">
+                        加入观察
+                    </button>
+                    <button class="btn btn-sm btn-secondary" onclick="applyRecommendationAction('${rec.recommendation_id}', 'adopt')">
+                        采纳
+                    </button>
+                    <button class="btn btn-sm btn-outline" onclick="applyRecommendationAction('${rec.recommendation_id}', 'ignore')">
+                        忽略
+                    </button>
+                    <button class="btn btn-sm btn-primary"
+                            onclick="openApprovalModal('${rec.recommendation_id}')"
+                            data-recommendation-id="${rec.recommendation_id}"
+                            data-security-code="${rec.security_code}"
+                            data-side="${rec.side}"
+                            data-confidence="${rec.confidence}"
+                            data-composite-score="${rec.composite_score}"
+                            data-fair-value="${rec.fair_value}"
+                            data-entry-low="${rec.entry_price_low}"
+                            data-entry-high="${rec.entry_price_high}"
+                            data-target-low="${rec.target_price_low}"
+                            data-target-high="${rec.target_price_high}"
+                            data-stop-loss="${rec.stop_loss_price}"
+                            data-position-pct="${rec.position_pct}"
+                            data-suggested-qty="${rec.suggested_quantity}"
+                            data-max-capital="${rec.max_capital}"
+                            data-regime="${rec.regime}"
+                            data-regime-confidence="${rec.regime_confidence}"
+                            data-policy-level="${rec.policy_level}"
+                            data-beta-gate="${rec.beta_gate_passed}"
+                            data-alpha-score="${rec.alpha_model_score}"
+                            data-sentiment-score="${rec.sentiment_score}"
+                            data-flow-score="${rec.flow_score}"
+                            data-technical-score="${rec.technical_score}"
+                            data-fundamental-score="${rec.fundamental_score}"
+                            data-reason-codes='${JSON.stringify(rec.reason_codes)}'
+                            data-rationale="${rec.human_rationale}">
+                        去执行
+                    </button>
+                </div>
             </div>
         </div>
     `).join('');
@@ -718,6 +853,40 @@ function renderValuationRepairSummary(repair) {
             </div>
         </div>
     `;
+}
+
+async function applyRecommendationAction(recommendationId, action) {
+    const accountId = document.getElementById('account-selector')?.value || 'default';
+
+    try {
+        const res = await fetch('/api/decision/workspace/recommendations/action/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': window.csrfToken,
+            },
+            body: JSON.stringify({
+                recommendation_id: recommendationId,
+                account_id: accountId,
+                action: action,
+            }),
+        });
+        const data = await res.json();
+
+        if (!data.success) {
+            throw new Error(data.error || '写入用户动作失败');
+        }
+
+        const updated = data.data?.recommendation;
+        if (updated?.security_code) {
+            workspaceBridge.securityCode = updated.security_code;
+            workspaceBridge.highlightedRecommendationId = updated.recommendation_id;
+        }
+        showBridgeBanner(data.data?.message || `已更新为${getUserActionText(updated?.user_action)}`, 'success');
+        loadRecommendations();
+    } catch (error) {
+        showBridgeBanner(`更新用户动作失败: ${error.message}`, 'danger');
+    }
 }
 
 // ===== 加载审批列表 =====
@@ -1517,6 +1686,11 @@ function getStatusText(status) {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+.recommendation-card-highlight {
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
 .rec-header {
     display: flex;
     justify-content: space-between;
@@ -1544,17 +1718,44 @@ function getStatusText(status) {
 }
 
 .rec-side-buy {
-    background: #dcfce7;
-    color: #16a34a;
+    background: var(--color-rise-soft);
+    color: var(--color-rise-strong);
 }
 
 .rec-side-sell {
-    background: #fee2e2;
-    color: #dc2626;
+    background: var(--color-fall-soft);
+    color: var(--color-fall-strong);
 }
 
 .rec-confidence {
     font-size: 14px;
+    color: #64748b;
+}
+
+.rec-user-action {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.rec-user-action-pending {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.rec-user-action-watching {
+    background: #ecfeff;
+    color: #0f766e;
+}
+
+.rec-user-action-adopted {
+    background: #ecfdf3;
+    color: #15803d;
+}
+
+.rec-user-action-ignored {
+    background: #f1f5f9;
     color: #64748b;
 }
 
@@ -1646,10 +1847,56 @@ function getStatusText(status) {
     font-weight: 600;
 }
 
+.rec-footer-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.rec-user-note {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.rec-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
 .status-new { background: #e0f2fe; color: #0284c7; }
 .status-reviewing { background: #fef3c7; color: #d97706; }
 .status-approved { background: #dcfce7; color: #16a34a; }
 .status-rejected { background: #fee2e2; color: #dc2626; }
+
+.bridge-banner {
+    margin-bottom: 12px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.bridge-banner-info {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.bridge-banner-success {
+    background: #ecfdf3;
+    color: #15803d;
+}
+
+.bridge-banner-warning {
+    background: #fffbeb;
+    color: #b45309;
+}
+
+.bridge-banner-danger {
+    background: #fef2f2;
+    color: #b91c1c;
+}
 
 /* 审批卡片 */
 .approval-card {
@@ -1675,13 +1922,13 @@ function getStatusText(status) {
 }
 
 .approval-side-buy {
-    background: #dcfce7;
-    color: #16a34a;
+    background: var(--color-rise-soft);
+    color: var(--color-rise-strong);
 }
 
 .approval-side-sell {
-    background: #fee2e2;
-    color: #dc2626;
+    background: var(--color-fall-soft);
+    color: var(--color-fall-strong);
 }
 
 .approval-body {
@@ -1741,11 +1988,11 @@ function getStatusText(status) {
 }
 
 .conflict-buy {
-    background: #dcfce7;
+    background: var(--color-rise-soft);
 }
 
 .conflict-sell {
-    background: #fee2e2;
+    background: var(--color-fall-soft);
 }
 
 .side-label {
@@ -1908,8 +2155,8 @@ function getStatusText(status) {
     font-weight: 700;
 }
 
-.info-value.direction-buy { color: #16a34a; }
-.info-value.direction-sell { color: #dc2626; }
+.info-value.direction-buy { color: var(--color-rise); }
+.info-value.direction-sell { color: var(--color-fall); }
 
 .price-grid {
     display: grid;

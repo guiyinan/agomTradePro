@@ -53,6 +53,7 @@ urlpatterns = [
 
     # 统一推荐 API（Top-down + Bottom-up 融合）
     path("api/decision/workspace/recommendations/", decision_rhythm_api_views.UnifiedRecommendationsView.as_view(), name="unified-recommendations"),
+    path("api/decision/workspace/recommendations/action/", decision_rhythm_api_views.RecommendationUserActionView.as_view(), name="recommendation-user-action"),
     path("api/decision/workspace/recommendations/refresh/", decision_rhythm_api_views.RefreshRecommendationsView.as_view(), name="refresh-recommendations"),
     path("api/decision/workspace/conflicts/", decision_rhythm_api_views.ConflictsView.as_view(), name="recommendation-conflicts"),
     path("api/decision/workspace/params/", decision_rhythm_api_views.ModelParamsView.as_view(), name="model-params"),

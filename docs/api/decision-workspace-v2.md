@@ -1,7 +1,7 @@
 # Decision Workspace V2 API（M1 草稿）
 
-- 版本: v0.1-draft
-- 日期: 2026-03-02
+- 版本: v0.2
+- 日期: 2026-03-22
 - 状态: Draft（用于外包 M1 里程碑验收）
 
 ## 1. 概述
@@ -10,8 +10,9 @@
 
 1. 推荐列表查询
 2. 推荐刷新触发
-3. 冲突列表查询
-4. 模型参数查询与更新
+3. 推荐用户动作写入
+4. 冲突列表查询
+5. 模型参数查询与更新
 
 ## 2. 统一推荐列表
 
@@ -20,6 +21,10 @@
 - Query:
   - `account_id`（必填）
   - `status`（可选）
+  - `user_action`（可选，支持 `PENDING` / `WATCHING` / `ADOPTED` / `IGNORED`）
+  - `security_code`（可选）
+  - `recommendation_id`（可选）
+  - `include_ignored`（可选，默认 false）
   - `page`（可选，默认 1）
   - `page_size`（可选，默认 20，范围 1..200）
 
@@ -37,7 +42,10 @@
         "side": "BUY",
         "composite_score": 0.82,
         "confidence": 0.74,
-        "status": "NEW"
+        "status": "NEW",
+        "user_action": "WATCHING",
+        "user_action_note": "source=dashboard-alpha",
+        "user_action_at": "2026-03-22T10:30:00+08:00"
       }
     ],
     "total_count": 1,
@@ -82,14 +90,41 @@
 }
 ```
 
-## 4. 冲突列表
+## 4. 推荐用户动作
+
+- 方法: `POST`
+- 路径: `/api/decision/workspace/recommendations/action/`
+- Body:
+  - `recommendation_id`（必填）
+  - `action`（必填，支持 `watch` / `adopt` / `ignore` / `pending`）
+  - `account_id`（可选）
+  - `note`（可选）
+
+响应示例：
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "已更新为观察中",
+    "recommendation": {
+      "recommendation_id": "urec_xxx",
+      "security_code": "000001.SZ",
+      "status": "NEW",
+      "user_action": "WATCHING"
+    }
+  }
+}
+```
+
+## 5. 冲突列表
 
 - 方法: `GET`
 - 路径: `/api/decision/workspace/conflicts/`
 - Query:
   - `account_id`（必填）
 
-## 5. 模型参数
+## 6. 模型参数
 
 ### 5.1 查询参数
 
@@ -109,7 +144,16 @@
   - `env`（可选，默认 `dev`）
   - `updated_reason`（建议必填）
 
-## 6. 默认参数初始化
+## 7. 首页推荐到工作台的闭环
+
+- 首页 Alpha 推荐和个股筛选页可以通过 `security_code + action + source` 深链进入 `/decision/workspace/`
+- 工作台收到深链后会：
+  1. 调用 `/api/decision/workspace/recommendations/refresh/` 按证券同步统一推荐
+  2. 调用 `/api/decision/workspace/recommendations/` 拉回对应推荐
+  3. 可选调用 `/api/decision/workspace/recommendations/action/` 写入用户动作
+- 这使得链路统一为：`系统推荐 -> 推荐解释 -> 用户动作 -> 执行审批`
+
+## 8. 默认参数初始化
 
 - 命令: `python manage.py init_decision_model_params --env dev`
 - 可选:
@@ -130,4 +174,3 @@
 - `default_position_pct`
 - `max_position_pct`
 - `max_capital_per_trade`
-

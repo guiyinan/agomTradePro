@@ -9,6 +9,7 @@
             <th>置信度</th>
             <th>数据源</th>
             <th>信号日期</th>
+            <th>决策</th>
         </tr>
     </thead>
     <tbody>
@@ -26,10 +27,22 @@
                 </span>
             </td>
             <td>
-                <strong>{{ stock.code }}</strong>
+                <a
+                    href="{% url 'equity:detail' stock.code %}"
+                    class="alpha-stock-link"
+                    onclick="event.stopPropagation();"
+                >
+                    <strong>{{ stock.code }}</strong>
+                </a>
             </td>
             <td>
-                {{ stock.name|default:"-" }}
+                <a
+                    href="{% url 'equity:detail' stock.code %}"
+                    class="alpha-stock-link alpha-stock-link-name"
+                    onclick="event.stopPropagation();"
+                >
+                    {{ stock.name|default:"-" }}
+                </a>
             </td>
             <td>
                 <div class="score-bar-container">
@@ -53,6 +66,31 @@
             </td>
             <td>
                 <span class="date-badge">{{ stock.asof_date|default:"-" }}</span>
+            </td>
+            <td>
+                <div class="alpha-actions">
+                    <a
+                        href="/decision/workspace/?source=dashboard-alpha&security_code={{ stock.code|urlencode }}&action=watch"
+                        class="alpha-action-link alpha-action-link-watch"
+                        onclick="event.stopPropagation();"
+                    >
+                        加入观察
+                    </a>
+                    <a
+                        href="/decision/workspace/?source=dashboard-alpha&security_code={{ stock.code|urlencode }}&action=adopt"
+                        class="alpha-action-link alpha-action-link-adopt"
+                        onclick="event.stopPropagation();"
+                    >
+                        采纳
+                    </a>
+                    <a
+                        href="/decision/workspace/?source=dashboard-alpha&security_code={{ stock.code|urlencode }}"
+                        class="alpha-action-link"
+                        onclick="event.stopPropagation();"
+                    >
+                        工作台
+                    </a>
+                </div>
             </td>
         </tr>
         {% endfor %}
@@ -200,6 +238,47 @@
 .alpha-empty {
     padding: 40px 20px;
     text-align: center;
+}
+
+.alpha-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.alpha-stock-link {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.alpha-action-link {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #4338ca;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.alpha-action-link-watch {
+    background: #ecfeff;
+    color: #0f766e;
+}
+
+.alpha-action-link-adopt {
+    background: #ecfdf3;
+    color: #15803d;
+}
+
+.alpha-stock-link:hover {
+    text-decoration: underline;
+}
+
+.alpha-stock-link-name {
+    color: var(--text-primary);
 }
 
 .empty-hint {

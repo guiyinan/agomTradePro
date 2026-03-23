@@ -37,6 +37,7 @@ class ScreenStocksResponseSerializer(serializers.Serializer):
     success = serializers.BooleanField()
     regime = serializers.CharField()
     stock_codes = serializers.ListField(child=serializers.CharField())
+    items = serializers.ListField(child=serializers.DictField(), required=False)
     screening_criteria = serializers.DictField()
     error = serializers.CharField(allow_null=True, required=False)
 

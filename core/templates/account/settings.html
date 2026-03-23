@@ -400,8 +400,8 @@
     font-weight: 600;
 }
 
-.summary-deposit { color: #14866D; }
-.summary-withdraw { color: #D33; }
+.summary-deposit { color: var(--color-capital-inflow); }
+.summary-withdraw { color: var(--color-capital-outflow); }
 .summary-net { color: #202122; }
 
 .flow-actions {
@@ -439,16 +439,16 @@
 .tag-deposit {
     padding: 2px 8px;
     border-radius: 2px;
-    background: #D5FBDD;
-    color: #14866D;
+    background: var(--color-rise-soft);
+    color: var(--color-rise-strong);
     font-size: 12px;
 }
 
 .tag-withdraw {
     padding: 2px 8px;
     border-radius: 2px;
-    background: #FEE7E7;
-    color: #D33;
+    background: var(--color-fall-soft);
+    color: var(--color-fall-strong);
     font-size: 12px;
 }
 
@@ -536,8 +536,8 @@
     border-bottom: 1px solid #E0E0E0;
 }
 
-.positive { color: #14866D; }
-.negative { color: #D33; }
+.positive { color: var(--color-rise); }
+.negative { color: var(--color-fall); }
 
 /* 弹窗 */
 #flowModal {

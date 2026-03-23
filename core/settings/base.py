@@ -235,6 +235,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 # Global alerts for decision platform
                 "core.context_processors.get_alerts",
+                "core.context_processors.get_market_visuals",
             ],
         },
     },

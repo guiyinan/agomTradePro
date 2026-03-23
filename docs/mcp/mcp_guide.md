@@ -291,6 +291,22 @@ update_alpha_candidate_status(candidate_id, status)
 
 `status` supports: `WATCH`, `CANDIDATE`, `ACTIONABLE`, `EXECUTED`, `CANCELLED`.
 
+### Decision Workflow Tools
+
+```
+decision_workflow_precheck(candidate_id)
+decision_workflow_list_recommendations(account_id, status, user_action, security_code, recommendation_id, include_ignored, page, page_size)
+decision_workflow_refresh_recommendations(account_id, security_codes, force, async_mode)
+decision_workflow_apply_recommendation_action(recommendation_id, action, account_id, note)
+```
+
+Notes:
+
+- `decision_workflow_list_recommendations` returns unified recommendation objects from the decision workspace.
+- `decision_workflow_refresh_recommendations` is the bridge from homepage/equity recommendations into the decision workspace.
+- `decision_workflow_apply_recommendation_action` records the user's explicit choice on a recommendation.
+- `action` supports: `watch`, `adopt`, `ignore`, `pending`.
+
 ### Simulated Trading Inspection Tools
 
 ```

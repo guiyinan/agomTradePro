@@ -21,6 +21,7 @@ from apps.decision_rhythm.infrastructure.models import (
 )
 from apps.decision_rhythm.domain.entities import (
     RecommendationStatus,
+    UserDecisionAction,
     DecisionPriority,
     ExecutionTarget,
     ExecutionStatus,
@@ -150,6 +151,7 @@ class TestUnifiedRecommendationModel:
         assert "ALPHA_HIGH" in recommendation.reason_codes
         assert recommendation.fair_value == Decimal("15.50")
         assert recommendation.status == RecommendationStatus.NEW.value
+        assert recommendation.user_action == UserDecisionAction.PENDING.value
 
     def test_auto_generate_recommendation_id(self):
         """测试自动生成推荐 ID"""
@@ -198,6 +200,7 @@ class TestUnifiedRecommendationModel:
         assert domain.side == "BUY"
         assert domain.composite_score == 0.82
         assert domain.status == RecommendationStatus.NEW
+        assert domain.user_action == UserDecisionAction.PENDING
 
     def test_from_domain(self, unified_recommendation_data):
         """测试从 Domain 实体创建"""

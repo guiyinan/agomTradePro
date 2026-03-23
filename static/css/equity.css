@@ -66,11 +66,11 @@
 }
 
 .stat-value.positive {
-    color: var(--color-success);
+    color: var(--color-rise);
 }
 
 .stat-value.negative {
-    color: var(--color-error);
+    color: var(--color-fall);
 }
 
 /* Sections */
@@ -377,11 +377,11 @@ table tr:hover {
 
 /* Text Colors */
 .text-green {
-    color: var(--color-success);
+    color: var(--color-rise);
 }
 
 .text-red {
-    color: var(--color-error);
+    color: var(--color-fall);
 }
 
 .text-muted {

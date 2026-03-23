@@ -23,6 +23,7 @@ from apps.decision_rhythm.application.dtos import (
 from apps.decision_rhythm.domain.entities import (
     UnifiedRecommendation,
     RecommendationStatus,
+    UserDecisionAction,
 )
 
 
@@ -79,6 +80,9 @@ class TestUnifiedRecommendationDTO:
             source_candidate_ids=["cand_001"],
             feature_snapshot_id="fsn_001",
             status=RecommendationStatus.NEW,
+            user_action=UserDecisionAction.WATCHING,
+            user_action_note="来自首页 Alpha 推荐",
+            user_action_at=datetime.now(timezone.utc),
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc),
         )
@@ -96,6 +100,8 @@ class TestUnifiedRecommendationDTO:
         assert dto.confidence == 0.85
         assert "ALPHA_HIGH" in dto.reason_codes
         assert dto.status == "NEW"
+        assert dto.user_action == "WATCHING"
+        assert dto.user_action_note == "来自首页 Alpha 推荐"
 
     def test_to_dict(self):
         """测试转换为字典"""
@@ -118,6 +124,7 @@ class TestUnifiedRecommendationDTO:
         assert result["fair_value"] == "15.50"
         assert result["entry_price_low"] == "14.80"
         assert result["created_at"] == "2026-03-02T12:00:00+00:00"
+        assert result["user_action"] == "PENDING"
 
 
 class TestRefreshRecommendationsRequestDTO:

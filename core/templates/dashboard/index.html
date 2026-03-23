@@ -421,7 +421,10 @@
                 <div class="alpha-content-card alpha-stocks-card">
                     <div class="card-header">
                         <h3>Top 10 选股结果</h3>
-                        <span class="card-badge">{{ alpha_stock_scores|length }} 只股票</span>
+                        <div class="alpha-card-actions">
+                            <a href="{% url 'equity:screen' %}?source=dashboard-alpha" class="alpha-section-link">进入个股筛选</a>
+                            <span class="card-badge">{{ alpha_stock_scores|length }} 只股票</span>
+                        </div>
                     </div>
                     <div class="card-body" id="alphaStocksTable">
                         {% include 'dashboard/partials/alpha_stocks_table.html' with alpha_stocks=alpha_stock_scores %}
@@ -647,13 +650,22 @@
         </div>
 
         <!-- 资产配置图表 -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <span style="font-size:13px;color:#666;">图表账户:</span>
+            <select id="chartAccountFilter" class="sort-select">
+                <option value="">全部账户</option>
+                {% for account in investment_accounts %}
+                <option value="{{ account.id }}">{{ account.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
         <div class="content-row">
             <section class="content-card half">
                 <div class="section-header">
                     <h2 class="section-title">资产配置</h2>
                     <span class="chart-account-label" id="allocationAccountLabel">全部账户</span>
                 </div>
-                <div class="card-body">
+                <div class="card-body" id="allocationChartWrap">
                     <canvas id="allocationChart" width="400" height="300"></canvas>
                 </div>
             </section>
@@ -661,9 +673,9 @@
             <section class="content-card half">
                 <div class="section-header">
                     <h2 class="section-title">收益趋势</h2>
-                    <span class="chart-account-label">全部账户</span>
+                    <span class="chart-account-label" id="performanceAccountLabel">全部账户</span>
                 </div>
-                <div class="card-body">
+                <div class="card-body" id="performanceChartWrap">
                     <canvas id="performanceChart" width="400" height="300"></canvas>
                 </div>
             </section>
@@ -1114,18 +1126,26 @@ document.addEventListener('DOMContentLoaded', checkQlibStatus);
 
 // 资产配置饼图
 let allocationChartInstance = null;
-const allocationCtx = document.getElementById('allocationChart');
 
 function renderAllocationChart(chartData) {
-    if (!allocationCtx) return;
+    const container = document.getElementById('allocationChartWrap');
+    if (!container) return;
+    let canvas = document.getElementById('allocationChart');
+
+    // 如果 canvas 被替换成了提示文字，重新创建
+    if (!canvas) {
+        container.innerHTML = '<canvas id="allocationChart" width="400" height="300"></canvas>';
+        canvas = document.getElementById('allocationChart');
+    }
+
     const dataKeys = Object.keys(chartData);
     const dataValues = Object.values(chartData);
     const hasData = dataValues.some(v => v > 0);
 
     if (hasData) {
-        if (!allocationChartInstance) {
-            allocationChartInstance = echarts.init(allocationCtx);
-            window.addEventListener('resize', () => allocationChartInstance.resize());
+        if (!allocationChartInstance || allocationChartInstance.isDisposed()) {
+            allocationChartInstance = echarts.init(canvas);
+            window.addEventListener('resize', () => { if (allocationChartInstance && !allocationChartInstance.isDisposed()) allocationChartInstance.resize(); });
         }
         allocationChartInstance.setOption({
             tooltip: {
@@ -1151,13 +1171,11 @@ function renderAllocationChart(chartData) {
             }]
         }, true);
     } else {
-        if (allocationChartInstance) {
+        if (allocationChartInstance && !allocationChartInstance.isDisposed()) {
             allocationChartInstance.dispose();
             allocationChartInstance = null;
         }
-        allocationCtx.parentElement.querySelector('canvas') ||
-            (allocationCtx.parentElement.innerHTML = '<canvas id="allocationChart" width="400" height="300"></canvas>');
-        allocationCtx.parentElement.innerHTML = '<p class="text-muted">暂无资产配置数据</p>';
+        container.innerHTML = '<p class="text-muted">暂无资产配置数据</p>';
     }
 }
 
@@ -1165,12 +1183,27 @@ function renderAllocationChart(chartData) {
 renderAllocationChart({{ allocation_data|safe }});
 
 // 收益趋势图
-const performanceCtx = document.getElementById('performanceChart');
-if (performanceCtx) {
-    const performanceData = {{ performance_data|safe }};
-    if (performanceData && performanceData.length > 0) {
-        const performanceChart = echarts.init(performanceCtx);
-        performanceChart.setOption({
+let performanceChartInstance = null;
+
+function renderPerformanceChart(performanceData) {
+    const container = document.getElementById('performanceChartWrap');
+    if (!container) return;
+    let canvas = document.getElementById('performanceChart');
+
+    // 如果 canvas 被替换成了提示文字，重新创建
+    if (!canvas) {
+        container.innerHTML = '<canvas id="performanceChart" width="400" height="300"></canvas>';
+        canvas = document.getElementById('performanceChart');
+    }
+
+    const hasData = performanceData && performanceData.length > 0;
+
+    if (hasData) {
+        if (!performanceChartInstance || performanceChartInstance.isDisposed()) {
+            performanceChartInstance = echarts.init(canvas);
+            window.addEventListener('resize', () => { if (performanceChartInstance && !performanceChartInstance.isDisposed()) performanceChartInstance.resize(); });
+        }
+        performanceChartInstance.setOption({
             tooltip: {
                 trigger: 'axis',
                 formatter: '{b}<br/>收益率: {c}%'
@@ -1187,7 +1220,6 @@ if (performanceCtx) {
                     formatter: '{value}%'
                 },
                 axisLine: { lineStyle: { color: '#999' } },
-                axisLabel: { color: '#666' },
                 splitLine: { lineStyle: { color: '#eee' } }
             },
             series: [{
@@ -1219,12 +1251,18 @@ if (performanceCtx) {
                     ]
                 }
             }]
-        });
-        window.addEventListener('resize', () => performanceChart.resize());
+        }, true);
     } else {
-        performanceCtx.parentElement.innerHTML = '<p class="text-muted">暂无收益数据</p>';
+        if (performanceChartInstance && !performanceChartInstance.isDisposed()) {
+            performanceChartInstance.dispose();
+            performanceChartInstance = null;
+        }
+        container.innerHTML = '<p class="text-muted">暂无收益数据</p>';
     }
 }
+
+// 初始渲染
+renderPerformanceChart({{ performance_data|safe }});
 
 // IC/ICIR 趋势图（Alpha 可视化）
 const icTrendsCtx = document.getElementById('icTrendsChart');
@@ -1339,22 +1377,25 @@ if (icTrendsCtx) {
 }
 
 // ========================================
-// 账户切换同步（持仓 + 资产配置图表）
+// 图表账户切换（资产配置 + 收益趋势）
 // ========================================
 
-const positionAccountFilter = document.getElementById('positionAccountFilter');
-if (positionAccountFilter) {
-    positionAccountFilter.addEventListener('change', function() {
+const chartAccountFilter = document.getElementById('chartAccountFilter');
+if (chartAccountFilter) {
+    chartAccountFilter.addEventListener('change', function() {
         const accountId = this.value;
         const selectedText = this.options[this.selectedIndex].text;
 
-        // 更新资产配置图表标签
-        const label = document.getElementById('allocationAccountLabel');
-        if (label) label.textContent = selectedText;
+        // 更新图表标签
+        const allocLabel = document.getElementById('allocationAccountLabel');
+        if (allocLabel) allocLabel.textContent = selectedText;
+        const perfLabel = document.getElementById('performanceAccountLabel');
+        if (perfLabel) perfLabel.textContent = selectedText;
 
-        // 刷新资产配置图表数据
-        const url = '/api/dashboard/allocation/' + (accountId ? '?account_id=' + accountId : '');
-        fetch(url, { credentials: 'same-origin' })
+        const qs = accountId ? '?account_id=' + accountId : '';
+
+        // 刷新资产配置图表
+        fetch('/api/dashboard/allocation/' + qs, { credentials: 'same-origin' })
             .then(r => r.json())
             .then(response => {
                 if (response.success && response.data) {
@@ -1362,6 +1403,16 @@ if (positionAccountFilter) {
                 }
             })
             .catch(err => console.warn('Failed to refresh allocation chart:', err));
+
+        // 刷新收益趋势图表
+        fetch('/api/dashboard/performance/' + qs, { credentials: 'same-origin' })
+            .then(r => r.json())
+            .then(response => {
+                if (response.success && response.data) {
+                    renderPerformanceChart(response.data);
+                }
+            })
+            .catch(err => console.warn('Failed to refresh performance chart:', err));
     });
 }
 
@@ -1855,13 +1906,13 @@ chatSendBtn.onclick = async function() {
 }
 
 .badge-buy {
-    background: #E8F5E9;
-    color: #2E7D32;
+    background: var(--color-rise-soft);
+    color: var(--color-rise-strong);
 }
 
 .badge-sell {
-    background: #FFEBEE;
-    color: #C62828;
+    background: var(--color-fall-soft);
+    color: var(--color-fall-strong);
 }
 
 .action-details {
@@ -2220,6 +2271,23 @@ chatSendBtn.onclick = async function() {
     border-radius: 12px;
     font-size: 11px;
     font-weight: 600;
+}
+
+.alpha-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.alpha-section-link {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.alpha-section-link:hover {
+    text-decoration: underline;
 }
 
 .alpha-content-card .card-body {

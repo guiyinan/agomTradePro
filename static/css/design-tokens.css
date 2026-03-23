@@ -55,6 +55,16 @@
   --color-error-light: #FEE7E7;
   --color-error-dark: #AA2222;
 
+  /* Market Semantic Colors - 可由系统配置覆盖 */
+  --color-rise: var(--color-error);
+  --color-fall: var(--color-success);
+  --color-rise-soft: var(--color-error-light);
+  --color-fall-soft: var(--color-success-light);
+  --color-rise-strong: var(--color-error-dark);
+  --color-fall-strong: var(--color-success-dark);
+  --color-capital-inflow: var(--color-rise);
+  --color-capital-outflow: var(--color-fall);
+
   /* Info - 信息提示 */
   --color-info: #3366CC;
   --color-info-hover: #447FF5;
@@ -180,6 +190,42 @@
   --chart-series-4: #E8D5E2;
   --chart-series-5: #F5DEB3;
   --chart-series-6: #B8C8D8;
+}
+
+.text-rise {
+  color: var(--color-rise);
+}
+
+.text-fall {
+  color: var(--color-fall);
+}
+
+.text-inflow {
+  color: var(--color-capital-inflow);
+}
+
+.text-outflow {
+  color: var(--color-capital-outflow);
+}
+
+.positive {
+  color: var(--color-rise);
+}
+
+.negative {
+  color: var(--color-fall);
+}
+
+.badge-buy,
+.direction-buy {
+  background: var(--color-rise-soft);
+  color: var(--color-rise-strong);
+}
+
+.badge-sell,
+.direction-sell {
+  background: var(--color-fall-soft);
+  color: var(--color-fall-strong);
 }
 
 /* ============================================

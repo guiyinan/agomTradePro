@@ -1169,6 +1169,19 @@ class SystemSettingsModel(models.Model):
         help_text="新注册或新批准用户默认是否允许 MCP/SDK 访问，由管理员决定",
     )
 
+    MARKET_COLOR_CONVENTION_CHOICES = [
+        ("cn_a_share", "A股红涨绿跌"),
+        ("us_market", "美股绿涨红跌"),
+    ]
+
+    market_color_convention = models.CharField(
+        max_length=32,
+        default="cn_a_share",
+        choices=MARKET_COLOR_CONVENTION_CHOICES,
+        verbose_name="市场颜色约定",
+        help_text="统一控制涨跌、资金流入流出的语义颜色映射。",
+    )
+
     allow_token_plaintext_view = models.BooleanField(
         default=True,
         verbose_name="允许查看 Token 明文",
@@ -1453,6 +1466,36 @@ class SystemSettingsModel(models.Model):
         value = (self.benchmark_code_map or {}).get(key, default)
         return value if isinstance(value, str) else default
 
+    def get_market_visual_tokens(self) -> dict[str, str]:
+        """返回市场语义颜色 token 配置。"""
+        palettes = {
+            "cn_a_share": {
+                "rise": "var(--color-error)",
+                "fall": "var(--color-success)",
+                "rise_soft": "var(--color-error-light)",
+                "fall_soft": "var(--color-success-light)",
+                "rise_strong": "var(--color-error-dark)",
+                "fall_strong": "var(--color-success-dark)",
+                "inflow": "var(--color-error)",
+                "outflow": "var(--color-success)",
+                "convention": "cn_a_share",
+                "label": "A股红涨绿跌",
+            },
+            "us_market": {
+                "rise": "var(--color-success)",
+                "fall": "var(--color-error)",
+                "rise_soft": "var(--color-success-light)",
+                "fall_soft": "var(--color-error-light)",
+                "rise_strong": "var(--color-success-dark)",
+                "fall_strong": "var(--color-error-dark)",
+                "inflow": "var(--color-success)",
+                "outflow": "var(--color-error)",
+                "convention": "us_market",
+                "label": "美股绿涨红跌",
+            },
+        }
+        return palettes.get(self.market_color_convention, palettes["cn_a_share"]).copy()
+
     def get_asset_proxy_code(self, asset_class: str, default: str = "") -> str:
         """读取资产类别代理代码配置。"""
         value = (self.asset_proxy_code_map or {}).get(asset_class, default)
@@ -1498,6 +1541,10 @@ class SystemSettingsModel(models.Model):
     @classmethod
     def get_runtime_asset_proxy_code(cls, asset_class: str, default: str = "") -> str:
         return cls.get_settings().get_asset_proxy_code(asset_class, default)
+
+    @classmethod
+    def get_runtime_market_visual_tokens(cls) -> dict[str, str]:
+        return cls.get_settings().get_market_visual_tokens()
 
     @classmethod
     def get_runtime_asset_proxy_map(cls) -> dict:

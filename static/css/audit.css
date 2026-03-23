@@ -224,11 +224,11 @@
 }
 
 .metric-value.positive {
-    color: var(--color-success);
+    color: var(--color-rise);
 }
 
 .metric-value.negative {
-    color: var(--color-error);
+    color: var(--color-fall);
 }
 
 /* Chart Container */

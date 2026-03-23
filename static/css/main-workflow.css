@@ -156,13 +156,13 @@
 }
 
 .candidate-direction-badge.long {
-    background: var(--color-success-light);
-    color: var(--color-success-dark);
+    background: var(--color-rise-soft);
+    color: var(--color-rise-strong);
 }
 
 .candidate-direction-badge.short {
-    background: var(--color-error-light);
-    color: var(--color-error-dark);
+    background: var(--color-fall-soft);
+    color: var(--color-fall-strong);
 }
 
 .candidate-meta {

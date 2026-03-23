@@ -9,10 +9,16 @@ from typing import Any, Dict, Optional
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.utils import timezone
 
 from apps.regime.application.current_regime import resolve_current_regime
 
-from ..domain.entities import ApprovalStatus, QuotaPeriod, create_execution_approval_request
+from ..domain.entities import (
+    ApprovalStatus,
+    QuotaPeriod,
+    UserDecisionAction,
+    create_execution_approval_request,
+)
 from ..domain.services import (
     ApprovalStatusStateMachine,
     ExecutionApprovalService,
@@ -96,6 +102,15 @@ def _build_valuation_repair_map(security_codes: list[str]) -> Dict[str, Dict[str
     except Exception as exc:
         logger.warning(f"Failed to build valuation repair map for decision workspace: {exc}")
         return {}
+
+
+def _user_action_label(value: str) -> str:
+    return {
+        UserDecisionAction.PENDING.value: "待决策",
+        UserDecisionAction.WATCHING.value: "观察中",
+        UserDecisionAction.ADOPTED.value: "已采纳",
+        UserDecisionAction.IGNORED.value: "已忽略",
+    }.get(value, value)
 
 
 def _risk_checks(recommendation, market_price: Optional[Decimal]) -> Dict[str, Any]:
@@ -673,6 +688,9 @@ class UnifiedRecommendationsView(APIView):
             )
 
         status_filter = request.query_params.get("status")
+        user_action_filter = request.query_params.get("user_action")
+        security_code_filter = request.query_params.get("security_code")
+        include_ignored = str(request.query_params.get("include_ignored", "")).lower() in {"1", "true", "yes"}
         recommendation_id = request.query_params.get("recommendation_id")
         try:
             page = int(request.query_params.get("page", 1))
@@ -697,9 +715,18 @@ class UnifiedRecommendationsView(APIView):
             # 排除冲突
             queryset = queryset.exclude(status="CONFLICT")
 
+            if not include_ignored:
+                queryset = queryset.exclude(user_action=UserDecisionAction.IGNORED.value)
+
             # 状态过滤
             if status_filter:
                 queryset = queryset.filter(status=status_filter)
+
+            if user_action_filter:
+                queryset = queryset.filter(user_action=user_action_filter)
+
+            if security_code_filter:
+                queryset = queryset.filter(security_code=security_code_filter)
 
             if recommendation_id:
                 queryset = queryset.filter(recommendation_id=recommendation_id)
@@ -749,6 +776,9 @@ class UnifiedRecommendationsView(APIView):
                     feature_snapshot_id=model.feature_snapshot.snapshot_id if model.feature_snapshot else "",
                     valuation_repair=valuation_repair_map.get((model.security_code or "").upper()),
                     status=model.status,
+                    user_action=model.user_action,
+                    user_action_note=model.user_action_note,
+                    user_action_at=model.user_action_at,
                     created_at=model.created_at,
                     updated_at=model.updated_at,
                 )
@@ -773,6 +803,111 @@ class UnifiedRecommendationsView(APIView):
                 {"success": False, "error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class RecommendationUserActionView(APIView):
+    """
+    POST /api/decision/workspace/recommendations/action/
+
+    为统一推荐记录用户动作状态。
+    """
+
+    ACTION_MAPPING = {
+        "watch": UserDecisionAction.WATCHING,
+        "adopt": UserDecisionAction.ADOPTED,
+        "ignore": UserDecisionAction.IGNORED,
+        "pending": UserDecisionAction.PENDING,
+    }
+
+    def post(self, request) -> Response:
+        recommendation_id = (request.data or {}).get("recommendation_id")
+        action = str((request.data or {}).get("action") or "").strip().lower()
+        account_id = (request.data or {}).get("account_id")
+        note = str((request.data or {}).get("note") or "").strip()
+
+        if not recommendation_id:
+            return Response(
+                {"success": False, "error": "recommendation_id is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if action not in self.ACTION_MAPPING:
+            return Response(
+                {
+                    "success": False,
+                    "error": "action must be one of: watch, adopt, ignore, pending",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from ..application.dtos import UnifiedRecommendationDTO
+        from ..infrastructure.models import UnifiedRecommendationModel
+
+        queryset = UnifiedRecommendationModel.objects.filter(recommendation_id=recommendation_id)
+        if account_id:
+            queryset = queryset.filter(account_id=account_id)
+
+        recommendation = queryset.select_related("feature_snapshot").first()
+        if recommendation is None:
+            return Response(
+                {"success": False, "error": "Recommendation not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        user_action = self.ACTION_MAPPING[action]
+        recommendation.user_action = user_action.value
+        recommendation.user_action_note = note
+        recommendation.user_action_at = timezone.now()
+        recommendation.save(update_fields=["user_action", "user_action_note", "user_action_at", "updated_at"])
+
+        valuation_repair_map = _build_valuation_repair_map([recommendation.security_code])
+        dto = UnifiedRecommendationDTO(
+            recommendation_id=recommendation.recommendation_id,
+            account_id=recommendation.account_id,
+            security_code=recommendation.security_code,
+            side=recommendation.side,
+            regime=recommendation.regime,
+            regime_confidence=recommendation.regime_confidence,
+            policy_level=recommendation.policy_level,
+            beta_gate_passed=recommendation.beta_gate_passed,
+            sentiment_score=recommendation.sentiment_score,
+            flow_score=recommendation.flow_score,
+            technical_score=recommendation.technical_score,
+            fundamental_score=recommendation.fundamental_score,
+            alpha_model_score=recommendation.alpha_model_score,
+            composite_score=recommendation.composite_score,
+            confidence=recommendation.confidence,
+            reason_codes=recommendation.reason_codes or [],
+            human_rationale=recommendation.human_rationale,
+            fair_value=recommendation.fair_value,
+            entry_price_low=recommendation.entry_price_low,
+            entry_price_high=recommendation.entry_price_high,
+            target_price_low=recommendation.target_price_low,
+            target_price_high=recommendation.target_price_high,
+            stop_loss_price=recommendation.stop_loss_price,
+            position_pct=recommendation.position_pct,
+            suggested_quantity=recommendation.suggested_quantity,
+            max_capital=recommendation.max_capital,
+            source_signal_ids=recommendation.source_signal_ids or [],
+            source_candidate_ids=recommendation.source_candidate_ids or [],
+            feature_snapshot_id=recommendation.feature_snapshot.snapshot_id if recommendation.feature_snapshot else "",
+            valuation_repair=valuation_repair_map.get((recommendation.security_code or "").upper()),
+            status=recommendation.status,
+            user_action=recommendation.user_action,
+            user_action_note=recommendation.user_action_note,
+            user_action_at=recommendation.user_action_at,
+            created_at=recommendation.created_at,
+            updated_at=recommendation.updated_at,
+        )
+
+        return Response(
+            {
+                "success": True,
+                "data": {
+                    "recommendation": dto.to_dict(),
+                    "message": f"已更新为{_user_action_label(recommendation.user_action)}",
+                },
+            }
+        )
 
 
 class RefreshRecommendationsView(APIView):

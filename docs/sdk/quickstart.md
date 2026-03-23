@@ -153,6 +153,32 @@ decision = client.decision_rhythm.submit({
 print(decision.get("success", False))
 ```
 
+### 7. Bridge System Recommendation Into User Decision
+
+```python
+# 1) Refresh unified recommendations for one stock
+refresh = client.decision_workflow.refresh_recommendations(
+    account_id="default",
+    security_codes=["600519.SH"],
+)
+print(refresh["success"])
+
+# 2) Load the recommendation back from decision workspace
+recommendations = client.decision_workflow.list_recommendations(
+    account_id="default",
+    security_code="600519.SH",
+)
+recommendation = recommendations["data"]["recommendations"][0]
+
+# 3) Mark user's choice
+client.decision_workflow.apply_recommendation_action(
+    recommendation_id=recommendation["recommendation_id"],
+    action="watch",
+    account_id="default",
+    note="from dashboard alpha",
+)
+```
+
 ## Module Overview
 
 | Module | Description |

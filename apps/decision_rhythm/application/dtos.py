@@ -89,6 +89,9 @@ class UnifiedRecommendationDTO:
     valuation_repair: Optional[Dict[str, Any]] = None
     # 状态
     status: str = "NEW"
+    user_action: str = "PENDING"
+    user_action_note: str = ""
+    user_action_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -137,6 +140,9 @@ class UnifiedRecommendationDTO:
             source_candidate_ids=recommendation.source_candidate_ids,
             feature_snapshot_id=recommendation.feature_snapshot_id,
             status=recommendation.status.value,
+            user_action=recommendation.user_action.value,
+            user_action_note=recommendation.user_action_note,
+            user_action_at=recommendation.user_action_at,
             created_at=recommendation.created_at,
             updated_at=recommendation.updated_at,
         )
@@ -180,6 +186,9 @@ class UnifiedRecommendationDTO:
             "feature_snapshot_id": self.feature_snapshot_id,
             "valuation_repair": self.valuation_repair,
             "status": self.status,
+            "user_action": self.user_action,
+            "user_action_note": self.user_action_note,
+            "user_action_at": self.user_action_at.isoformat() if self.user_action_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

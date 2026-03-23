@@ -29,12 +29,29 @@
     <!-- Alpine.js (轻量级响应式框架, 本地) -->
     <script defer src="{% static 'vendor/js/alpine.min.js' %}"></script>
 
+    <style>
+        :root {
+            --color-rise: {{ market_visuals.rise|default:"var(--color-error)" }};
+            --color-fall: {{ market_visuals.fall|default:"var(--color-success)" }};
+            --color-rise-soft: {{ market_visuals.rise_soft|default:"var(--color-error-light)" }};
+            --color-fall-soft: {{ market_visuals.fall_soft|default:"var(--color-success-light)" }};
+            --color-rise-strong: {{ market_visuals.rise_strong|default:"var(--color-error-dark)" }};
+            --color-fall-strong: {{ market_visuals.fall_strong|default:"var(--color-success-dark)" }};
+            --color-capital-inflow: {{ market_visuals.inflow|default:"var(--color-error)" }};
+            --color-capital-outflow: {{ market_visuals.outflow|default:"var(--color-success)" }};
+        }
+    </style>
+
     {% block extra_css %}{% endblock %}
 
     <!-- Floating Widget CSS -->
     <link rel="stylesheet" href="{% static 'css/floating-widget.css' %}">
 </head>
-<body hx-ext="sse,remove-me,morph-swap" hx-indicator="#global-loader">
+<body
+    hx-ext="sse,remove-me,morph-swap"
+    hx-indicator="#global-loader"
+    data-market-color-convention="{{ market_visuals.convention|default:'cn_a_share' }}"
+>
     <!-- 全局加载指示器 -->
     <div id="global-loader" class="global-loader" style="display: none;">
         <div class="loader-spinner"></div>

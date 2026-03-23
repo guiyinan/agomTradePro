@@ -69,6 +69,52 @@ class TestUnifiedRecommendationsAPI:
         assert data["success"] is True
         assert data["data"]["total_count"] == 1
         assert len(data["data"]["recommendations"]) == 1
+        assert data["data"]["recommendations"][0]["user_action"] == "PENDING"
+
+    def test_recommendations_list_excludes_ignored_by_default(self, authenticated_client):
+        """测试默认不返回已忽略推荐"""
+        UnifiedRecommendationModel.objects.create(
+            recommendation_id="urec_ignored",
+            account_id="account_001",
+            security_code="000009.SZ",
+            side="BUY",
+            composite_score=0.6,
+            user_action="IGNORED",
+        )
+
+        response = authenticated_client.get("/api/decision/workspace/recommendations/?account_id=account_001")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["total_count"] == 0
+
+    def test_recommendations_list_can_filter_by_user_action(self, authenticated_client):
+        """测试可按用户动作过滤推荐"""
+        UnifiedRecommendationModel.objects.create(
+            recommendation_id="urec_watch",
+            account_id="account_001",
+            security_code="000010.SZ",
+            side="BUY",
+            composite_score=0.7,
+            user_action="WATCHING",
+        )
+        UnifiedRecommendationModel.objects.create(
+            recommendation_id="urec_adopt",
+            account_id="account_001",
+            security_code="000011.SZ",
+            side="BUY",
+            composite_score=0.8,
+            user_action="ADOPTED",
+        )
+
+        response = authenticated_client.get(
+            "/api/decision/workspace/recommendations/?account_id=account_001&user_action=WATCHING"
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["total_count"] == 1
+        assert data["data"]["recommendations"][0]["recommendation_id"] == "urec_watch"
 
     def test_recommendations_list_includes_valuation_repair_summary(self, authenticated_client):
         """测试推荐列表返回估值修复摘要"""
@@ -211,6 +257,38 @@ class TestRefreshRecommendationsAPI:
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
+
+
+@pytest.mark.django_db
+class TestRecommendationUserActionAPI:
+    """测试推荐用户动作 API"""
+
+    def test_apply_user_action_updates_recommendation(self, authenticated_client):
+        """测试用户动作可更新推荐"""
+        recommendation = UnifiedRecommendationModel.objects.create(
+            recommendation_id="urec_action_001",
+            account_id="account_001",
+            security_code="600519.SH",
+            side="BUY",
+            composite_score=0.88,
+        )
+
+        response = authenticated_client.post(
+            "/api/decision/workspace/recommendations/action/",
+            data={
+                "recommendation_id": recommendation.recommendation_id,
+                "account_id": "account_001",
+                "action": "watch",
+                "note": "来自首页",
+            },
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["recommendation"]["user_action"] == "WATCHING"
+        assert data["data"]["recommendation"]["user_action_note"] == "来自首页"
 
 
 @pytest.mark.django_db

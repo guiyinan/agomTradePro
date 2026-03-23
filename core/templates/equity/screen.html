@@ -5,9 +5,195 @@
 
 {% block content %}
 <div class="equity-container">
+    <style>
+        .screen-workflow {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .screen-workflow-step {
+            background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+            border: 1px solid #dbeafe;
+            border-radius: 14px;
+            padding: 16px;
+        }
+
+        .screen-workflow-step strong {
+            display: block;
+            margin-bottom: 6px;
+            color: #1e3a8a;
+        }
+
+        .screen-workflow-step p {
+            margin: 0;
+            color: #475569;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .screen-unified-layout {
+            display: grid;
+            grid-template-columns: 1.15fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .screen-source-card {
+            border: 1px solid #dbeafe;
+            background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+        }
+
+        .screen-source-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .screen-source-actions,
+        .screen-toolbar-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .auto-recommendation-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .auto-recommendation-item {
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 14px;
+            background: #fff;
+        }
+
+        .auto-recommendation-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .auto-recommendation-code {
+            color: #111827;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .auto-recommendation-name {
+            color: #475569;
+            font-size: 13px;
+            margin-top: 3px;
+        }
+
+        .auto-recommendation-score {
+            text-align: right;
+            color: #2563eb;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .auto-recommendation-meta {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .auto-meta-chip {
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 12px;
+        }
+
+        .auto-recommendation-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .screen-mode-banner {
+            display: none;
+            margin-bottom: 16px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            background: #ecfeff;
+            border: 1px solid #a5f3fc;
+            color: #155e75;
+            font-size: 14px;
+        }
+
+        .screen-summary-strip {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .screen-summary-card {
+            border-radius: 14px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            padding: 14px 16px;
+        }
+
+        .screen-summary-label {
+            color: #64748b;
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+
+        .screen-summary-value {
+            color: #0f172a;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        @media (max-width: 1100px) {
+            .screen-unified-layout,
+            .screen-workflow,
+            .screen-summary-strip,
+            .auto-recommendation-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
     <div class="equity-header">
         <h1>个股筛选</h1>
-        <p>基于 Regime + 财务指标 + 估值指标筛选优质个股</p>
+        <p>把系统自动推荐、手动筛选和用户决策接到同一个页面里，而不是分成两套入口。</p>
+    </div>
+
+    <div class="screen-workflow">
+        <div class="screen-workflow-step">
+            <strong>1. 系统自动</strong>
+            <p>首页 Alpha 推荐会同步到这里，导航栏进来也能看到同一批自动推荐。</p>
+        </div>
+        <div class="screen-workflow-step">
+            <strong>2. 用户加条件</strong>
+            <p>可以继续按 Regime、ROE、PE、PB、增长率和负债率二次筛选。</p>
+        </div>
+        <div class="screen-workflow-step">
+            <strong>3. 看解释</strong>
+            <p>同一张结果表里直接看标的、行业、指标，并跳详情页或首页来源。</p>
+        </div>
+        <div class="screen-workflow-step">
+            <strong>4. 去决策</strong>
+            <p>结果项直接支持加入观察、采纳，继续流向统一决策工作台。</p>
+        </div>
     </div>
 
     <div class="page-tabs">
@@ -15,11 +201,33 @@
         <button class="page-tab" onclick="window.location.href='/equity/pool/'">股票池</button>
     </div>
 
-    <!-- 筛选条件卡片 -->
-    <div class="card">
-        <h2 class="card-title">筛选条件</h2>
+    <div class="screen-unified-layout">
+        <div class="card screen-source-card" id="alphaSourceCard">
+            <div style="display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap;">
+                <div>
+                    <span class="screen-source-status" id="autoRecommendationStatus">系统自动推荐</span>
+                    <h2 class="card-title" style="margin: 10px 0 8px;">当前系统推荐流</h2>
+                    <p id="alphaSourceSummary" style="margin: 0; color: #6b7280;">
+                        正在加载系统自动推荐...
+                    </p>
+                </div>
+                <div class="screen-source-actions">
+                    <button class="btn btn-primary" type="button" onclick="loadDashboardAlphaRecommendations(true)">载入自动推荐</button>
+                    <a href="/decision/workspace/" class="btn btn-secondary" style="text-decoration: none;">决策工作台</a>
+                    <a href="/dashboard/" class="btn btn-secondary" style="text-decoration: none;">返回首页</a>
+                </div>
+            </div>
+            <div class="auto-recommendation-grid" id="autoRecommendationGrid"></div>
+        </div>
 
-        <div class="filter-group">
+        <!-- 筛选条件卡片 -->
+        <div class="card">
+            <h2 class="card-title">手动二次筛选</h2>
+            <p style="margin: 8px 0 0; color: #6b7280; font-size: 14px;">
+                不是另起一个工具页，而是在系统自动推荐之外，继续让用户表达自己的偏好。
+            </p>
+
+            <div class="filter-group">
             <div class="filter-item">
                 <label>Regime</label>
                 <select id="regimeSelect">
@@ -65,56 +273,64 @@
                 <label>返回数量</label>
                 <input type="number" id="maxCount" value="30" min="1" max="100" step="1">
             </div>
-        </div>
+            </div>
 
-        <div style="display: flex; gap: 12px; margin-top: 20px;">
-            <button class="btn btn-primary" onclick="runScreening()">
+            <div class="screen-toolbar-actions" style="margin-top: 20px;">
+                <button class="btn btn-primary" onclick="runScreening()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
                 </svg>
                 开始筛选
-            </button>
-            <button class="btn btn-secondary" onclick="resetFilters()">
+                </button>
+                <button class="btn btn-secondary" onclick="resetFilters()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
                     <path d="M3 3v5h5"/>
                 </svg>
                 重置条件
-            </button>
-            <button class="btn btn-success" onclick="exportResults()">
+                </button>
+                <button class="btn btn-success" onclick="exportResults()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                     <polyline points="7 10 12 15 17 10"/>
                     <line x1="12" y1="15" x2="12" y2="3"/>
                 </svg>
                 导出结果
-            </button>
+                </button>
+                <button class="btn btn-secondary" type="button" onclick="loadDashboardAlphaRecommendations(true)">切回系统推荐</button>
+            </div>
         </div>
     </div>
 
+    <div class="screen-mode-banner" id="screenModeBanner"></div>
+
     <!-- 当前 Regime 显示 -->
     <div class="card" id="regimeInfo" style="display: none;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 16px; flex-wrap: wrap;">
             <div>
-                <h2 class="card-title" style="margin: 0;">当前宏观环境</h2>
+                <h2 class="card-title" style="margin: 0;">当前结果上下文</h2>
                 <div style="margin-top: 8px;">
                     <span style="font-size: 24px; font-weight: 600; color: #2563eb;" id="currentRegime">-</span>
                     <span style="color: #6b7280; margin-left: 12px;" id="regimeDesc">-</span>
                 </div>
             </div>
-            <div class="metric-grid" style="grid-template-columns: repeat(3, 150px); gap: 24px;">
-                <div class="metric-card">
-                    <div class="metric-label">筛选时间</div>
-                    <div class="metric-value" style="font-size: 16px;" id="screenTime">-</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">筛选结果</div>
-                    <div class="metric-value" style="font-size: 16px;" id="screenCount">-</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">用时</div>
-                    <div class="metric-value" style="font-size: 16px;" id="screenDuration">-</div>
-                </div>
+        </div>
+        <div class="screen-summary-strip">
+            <div class="screen-summary-card">
+                <div class="screen-summary-label">来源模式</div>
+                <div class="screen-summary-value" id="screenModeValue">-</div>
+            </div>
+            <div class="screen-summary-card">
+                <div class="screen-summary-label">结果数量</div>
+                <div class="screen-summary-value" id="screenCount">-</div>
+            </div>
+            <div class="screen-summary-card">
+                <div class="screen-summary-label">筛选时间</div>
+                <div class="screen-summary-value" style="font-size: 16px;" id="screenTime">-</div>
+            </div>
+            <div class="screen-summary-card">
+                <div class="screen-summary-label">响应耗时</div>
+                <div class="screen-summary-value" style="font-size: 16px;" id="screenDuration">-</div>
             </div>
         </div>
     </div>
@@ -166,7 +382,12 @@
 </div>
 
 <script>
+const DASHBOARD_ALPHA_API_URL = '/dashboard/api/alpha/stocks/?format=json&top_n=10';
+const urlParams = new URLSearchParams(window.location.search);
 let screeningResults = [];
+let currentResults = [];
+let currentSourceLabel = '手动筛选';
+let autoRecommendationItems = [];
 
 function switchTab(tab) {
     // Tab 切换逻辑
@@ -181,6 +402,196 @@ function resetFilters() {
     document.getElementById('minProfitGrowth').value = 10;
     document.getElementById('maxDebtRatio').value = 70;
     document.getElementById('maxCount').value = 30;
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function formatMetric(value, digits = 2) {
+    if (value === null || value === undefined || value === '') {
+        return '-';
+    }
+
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? numericValue.toFixed(digits) : escapeHtml(value);
+}
+
+function toResultItems(result) {
+    if (Array.isArray(result.items) && result.items.length > 0) {
+        return result.items;
+    }
+
+    return (result.stock_codes || []).map((code, index) => ({
+        rank: index + 1,
+        code,
+        name: '待补充',
+        sector: '-',
+        roe: null,
+        pe: null,
+        pb: null,
+        revenue_growth: null,
+        profit_growth: null,
+        score: null,
+        source: result.source || 'screen',
+    }));
+}
+
+function renderAutoRecommendationGrid(items) {
+    const container = document.getElementById('autoRecommendationGrid');
+    if (!container) {
+        return;
+    }
+
+    if (!items || items.length === 0) {
+        container.innerHTML = `
+            <div class="auto-recommendation-item">
+                <div class="auto-recommendation-name">当前没有可展示的系统自动推荐，请稍后重试或直接使用手动筛选。</div>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = items.slice(0, 6).map((item, index) => {
+        const code = escapeHtml(item.code || '-');
+        const name = escapeHtml(item.name || '未命名');
+        const score = formatMetric(item.score, 3);
+        const confidence = formatMetric(item.confidence, 2);
+        const detailUrl = `/equity/detail/${encodeURIComponent(item.code || '')}/`;
+        const workspaceUrl = `/decision/workspace/?source=equity-screen&security_code=${encodeURIComponent(item.code || '')}`;
+
+        return `
+            <div class="auto-recommendation-item">
+                <div class="auto-recommendation-head">
+                    <div>
+                        <a href="${detailUrl}" class="auto-recommendation-code">${code}</a>
+                        <div class="auto-recommendation-name">${name}</div>
+                    </div>
+                    <div class="auto-recommendation-score">#${index + 1}<br>${score}</div>
+                </div>
+                <div class="auto-recommendation-meta">
+                    <span class="auto-meta-chip">置信度 ${confidence}</span>
+                    <span class="auto-meta-chip">${escapeHtml(item.source || 'alpha')}</span>
+                    <span class="auto-meta-chip">${escapeHtml(item.asof_date || '-')}</span>
+                </div>
+                <div class="auto-recommendation-actions">
+                    <a class="btn btn-primary" style="padding: 6px 12px; font-size: 13px; text-decoration: none;" href="${detailUrl}">解释</a>
+                    <a class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; text-decoration: none;" href="${workspaceUrl}&action=watch">观察</a>
+                    <a class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; text-decoration: none;" href="${workspaceUrl}&action=adopt">采纳</a>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function setModeBanner(message) {
+    const banner = document.getElementById('screenModeBanner');
+    banner.textContent = message;
+    banner.style.display = 'block';
+}
+
+function renderResultsTable(items) {
+    const tbody = document.getElementById('resultsTableBody');
+    tbody.innerHTML = '';
+
+    items.forEach((item, index) => {
+        const code = escapeHtml(item.code || '-');
+        const name = escapeHtml(item.name || '未命名');
+        const sector = escapeHtml(item.sector || item.industry || '-');
+        const detailUrl = `/equity/detail/${encodeURIComponent(item.code || '')}/`;
+        const workspaceUrl = `/decision/workspace/?source=equity-screen&security_code=${encodeURIComponent(item.code || '')}`;
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${escapeHtml(item.rank || index + 1)}</td>
+            <td><a href="${detailUrl}" class="stock-code">${code}</a></td>
+            <td>${name}</td>
+            <td>${sector}</td>
+            <td>${formatMetric(item.roe)}</td>
+            <td>${formatMetric(item.pe)}</td>
+            <td>${formatMetric(item.pb)}</td>
+            <td>${formatMetric(item.revenue_growth)}</td>
+            <td>${formatMetric(item.profit_growth)}</td>
+            <td>${formatMetric(item.score, 3)}</td>
+            <td>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <a class="btn btn-primary" style="padding: 6px 12px; font-size: 13px; text-decoration: none;" href="${detailUrl}">个股详情</a>
+                    <a class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; text-decoration: none;" href="${workspaceUrl}&action=watch">加入观察</a>
+                    <a class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; text-decoration: none;" href="${workspaceUrl}&action=adopt">采纳</a>
+                    <a class="btn btn-secondary" style="padding: 6px 12px; font-size: 13px; text-decoration: none;" href="/dashboard/">首页来源</a>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function updateSummary(result, duration, sourceLabel) {
+    const regimeNames = {
+        'Recovery': '复苏',
+        'Overheat': '过热',
+        'Stagflation': '滞胀',
+        'Deflation': '通缩'
+    };
+
+    const regime = result.regime ? (regimeNames[result.regime] || result.regime) : 'Alpha 推荐';
+    const criteria = result.screening_criteria || {};
+    const sectors = Array.isArray(criteria.sectors) && criteria.sectors.length > 0
+        ? `偏好行业: ${criteria.sectors.join(', ')}`
+        : `${sourceLabel}结果`;
+
+    document.getElementById('currentRegime').textContent = regime;
+    document.getElementById('regimeDesc').textContent = sectors;
+    document.getElementById('screenModeValue').textContent = sourceLabel;
+    document.getElementById('screenTime').textContent = new Date().toLocaleString('zh-CN');
+    document.getElementById('screenCount').textContent = `${currentResults.length} 只`;
+    document.getElementById('screenDuration').textContent = `${duration} 秒`;
+    document.getElementById('regimeInfo').style.display = 'block';
+}
+
+function showEmpty(message) {
+    document.getElementById('loadingCard').style.display = 'none';
+    document.getElementById('resultsCard').style.display = 'none';
+    document.getElementById('regimeInfo').style.display = 'none';
+    document.getElementById('emptyCard').style.display = 'block';
+    document.querySelector('#emptyCard p').textContent = message;
+}
+
+function displayResults(result, duration, sourceLabel = '手动筛选') {
+    currentSourceLabel = sourceLabel;
+    currentResults = toResultItems(result);
+    screeningResults = currentResults.map((item) => item.code).filter(Boolean);
+
+    if (currentResults.length === 0) {
+        showEmpty(`${sourceLabel}暂无结果`);
+        return;
+    }
+
+    updateSummary(result, duration, sourceLabel);
+    renderResultsTable(currentResults);
+    document.getElementById('loadingCard').style.display = 'none';
+    document.getElementById('emptyCard').style.display = 'none';
+    document.getElementById('resultsCard').style.display = 'block';
+    setModeBanner(`当前结果来自「${sourceLabel}」。你可以继续切回系统自动推荐，或修改条件做二次筛选。`);
 }
 
 async function runScreening() {
@@ -202,22 +613,6 @@ async function runScreening() {
     document.getElementById('regimeInfo').style.display = 'none';
 
     const startTime = Date.now();
-
-    // 获取 CSRF token
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
 
     const csrftoken = getCookie('csrftoken');
 
@@ -241,65 +636,72 @@ async function runScreening() {
         document.getElementById('loadingCard').style.display = 'none';
 
         if (result.success) {
-            screeningResults = result.stock_codes;
-            displayResults(result, duration);
+            displayResults(result, duration, '手动筛选');
         } else {
             alert('筛选失败: ' + result.error);
-            document.getElementById('emptyCard').style.display = 'block';
+            showEmpty('筛选失败，未返回推荐结果');
         }
     } catch (error) {
         document.getElementById('loadingCard').style.display = 'none';
         alert('请求失败: ' + error.message);
-        document.getElementById('emptyCard').style.display = 'block';
+        showEmpty('请求失败，请稍后重试');
     }
 }
 
-function displayResults(result, duration) {
-    // 显示 Regime 信息
-    const regimeNames = {
-        'Recovery': '复苏',
-        'Overheat': '过热',
-        'Stagflation': '滞胀',
-        'Deflation': '通缩'
-    };
+async function loadDashboardAlphaRecommendations(renderResults = true) {
+    document.getElementById('alphaSourceSummary').textContent = '正在同步系统自动推荐结果...';
+    document.getElementById('autoRecommendationStatus').textContent = '系统自动推荐加载中';
+    document.getElementById('loadingCard').style.display = 'block';
+    document.getElementById('emptyCard').style.display = 'none';
 
-    document.getElementById('currentRegime').textContent = regimeNames[result.regime] || result.regime;
-    document.getElementById('regimeDesc').textContent = result.screening_criteria.sectors ? '偏好行业: ' + result.screening_criteria.sectors.join(', ') : '';
-    document.getElementById('screenTime').textContent = new Date().toLocaleString('zh-CN');
-    document.getElementById('screenCount').textContent = result.stock_codes.length + ' 只';
-    document.getElementById('screenDuration').textContent = duration + ' 秒';
-    document.getElementById('regimeInfo').style.display = 'block';
+    const startTime = Date.now();
+    try {
+        const response = await fetch(DASHBOARD_ALPHA_API_URL, {
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
 
-    // 显示结果表格
-    const tbody = document.getElementById('resultsTableBody');
-    tbody.innerHTML = '';
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
 
-    // 模拟数据（实际需要从 API 获取详细信息）
-    result.stock_codes.forEach((code, index) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${index + 1}</td>
-            <td><span class="stock-code">${code}</span></td>
-            <td>股票名称</td>
-            <td>所属行业</td>
-            <td>-</td>
-            <td>-</td>
-            <td>-</td>
-            <td>-</td>
-            <td>-</td>
-            <td>-</td>
-            <td>
-                <button class="btn btn-primary" style="padding: 6px 12px; font-size: 13px;" onclick="viewDetail('${code}')">详情</button>
-            </td>
-        `;
-        tbody.appendChild(row);
-    });
+        const payload = await response.json();
+        const items = payload?.data?.items || [];
+        const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+        autoRecommendationItems = items;
+        renderAutoRecommendationGrid(items);
 
-    document.getElementById('resultsCard').style.display = 'block';
-}
+        if (urlParams.get('source') === 'dashboard-alpha') {
+            document.getElementById('autoRecommendationStatus').textContent = '来自首页 Alpha 推荐';
+            document.getElementById('alphaSourceSummary').textContent = `已从首页带入 ${items.length} 只 Alpha 推荐，当前页面与首页使用同一批系统推荐。`;
+        } else {
+            document.getElementById('autoRecommendationStatus').textContent = '系统自动推荐';
+            document.getElementById('alphaSourceSummary').textContent = `当前系统推荐共 ${items.length} 只股票。导航栏进入和首页进入看到的是同一批推荐，只是首页会直接把结果带到下方结果区。`;
+        }
 
-function viewDetail(stockCode) {
-    window.location.href = `/equity/detail/${stockCode}/`;
+        if (renderResults) {
+            displayResults(
+                {
+                    success: true,
+                    regime: null,
+                    items,
+                    stock_codes: items.map((item) => item.code),
+                    screening_criteria: {},
+                },
+                duration,
+                '系统自动推荐'
+            );
+        } else {
+            document.getElementById('loadingCard').style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Failed to load dashboard alpha recommendations:', error);
+        document.getElementById('autoRecommendationStatus').textContent = '系统自动推荐异常';
+        document.getElementById('alphaSourceSummary').textContent = '系统推荐同步失败，请稍后重试，或直接使用下方手动筛选。';
+        renderAutoRecommendationGrid([]);
+        showEmpty('首页推荐暂时无法加载，请改用手动筛选');
+    }
 }
 
 function exportResults() {
@@ -315,6 +717,10 @@ function exportResults() {
     link.download = `stock_screen_${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadDashboardAlphaRecommendations(true);
+});
 </script>
 
 <!-- Floating Widget Config -->

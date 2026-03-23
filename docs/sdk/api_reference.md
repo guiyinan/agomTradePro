@@ -254,6 +254,36 @@ client.decision_rhythm.summary(payload=None) -> dict
 client.decision_rhythm.reset_quota(payload) -> dict
 ```
 
+### Decision Workflow Module
+
+```python
+client.decision_workflow.precheck(candidate_id) -> dict
+client.decision_workflow.list_recommendations(
+    account_id,
+    status=None,
+    user_action=None,
+    security_code=None,
+    recommendation_id=None,
+    include_ignored=False,
+    page=1,
+    page_size=20,
+) -> dict
+client.decision_workflow.refresh_recommendations(
+    account_id=None,
+    security_codes=None,
+    force=False,
+    async_mode=True,
+) -> dict
+client.decision_workflow.apply_recommendation_action(
+    recommendation_id,
+    action,
+    account_id=None,
+    note=None,
+) -> dict
+```
+
+`action` 支持：`watch` / `adopt` / `ignore` / `pending`
+
 ## Realtime Module
 
 ```python

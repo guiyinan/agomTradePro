@@ -5,6 +5,19 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/equity.css' %}">
+<style>
+.valuation-chart-shell {
+    position: relative;
+    height: 220px;
+    width: 100%;
+}
+
+.valuation-chart-shell canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+}
+</style>
 {% endblock %}
 
 {% block extra_js %}
@@ -141,7 +154,9 @@
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
             <div>
                 <h3 style="font-size: 16px; margin: 0 0 12px 0;">PE 历史分位数</h3>
-                <canvas id="peChart" height="200"></canvas>
+                <div class="valuation-chart-shell">
+                    <canvas id="peChart"></canvas>
+                </div>
                 <div style="text-align: center; margin-top: 12px;">
                     <span style="font-size: 32px; font-weight: 600; color: #2563eb;" id="pePercentile">-</span>
                     <span style="color: #6b7280; margin-left: 8px;">%</span>
@@ -150,7 +165,9 @@
             </div>
             <div>
                 <h3 style="font-size: 16px; margin: 0 0 12px 0;">PB 历史分位数</h3>
-                <canvas id="pbChart" height="200"></canvas>
+                <div class="valuation-chart-shell">
+                    <canvas id="pbChart"></canvas>
+                </div>
                 <div style="text-align: center; margin-top: 12px;">
                     <span style="font-size: 32px; font-weight: 600; color: #2563eb;" id="pbPercentile">-</span>
                     <span style="color: #6b7280; margin-left: 8px;">%</span>
@@ -236,27 +253,27 @@
                 <tbody id="regimeTableBody">
                     <tr>
                         <td>复苏 (Recovery)</td>
-                        <td class="text-green">-</td>
+                        <td class="text-rise">-</td>
                         <td>-</td>
-                        <td class="text-red">-</td>
+                        <td class="text-fall">-</td>
                     </tr>
                     <tr>
                         <td>过热 (Overheat)</td>
-                        <td class="text-green">-</td>
+                        <td class="text-rise">-</td>
                         <td>-</td>
-                        <td class="text-red">-</td>
+                        <td class="text-fall">-</td>
                     </tr>
                     <tr>
                         <td>滞胀 (Stagflation)</td>
-                        <td class="text-green">-</td>
+                        <td class="text-rise">-</td>
                         <td>-</td>
-                        <td class="text-red">-</td>
+                        <td class="text-fall">-</td>
                     </tr>
                     <tr>
                         <td>通缩 (Deflation)</td>
-                        <td class="text-green">-</td>
+                        <td class="text-rise">-</td>
                         <td>-</td>
-                        <td class="text-red">-</td>
+                        <td class="text-fall">-</td>
                     </tr>
                 </tbody>
             </table>
@@ -266,6 +283,89 @@
 
 <script>
 const stockCode = '{{ stock_code }}';
+let peChartInstance = null;
+let pbChartInstance = null;
+
+function clampPercentile(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+        return null;
+    }
+    return Math.max(0, Math.min(100, numeric * 100));
+}
+
+function getValuationSnapshot(data) {
+    if (data.latest_valuation) {
+        return data.latest_valuation;
+    }
+    return {
+        pe: data.current_pe,
+        pb: data.current_pb,
+        pe_percentile: data.pe_percentile,
+        pb_percentile: data.pb_percentile,
+        price: data.current_price,
+    };
+}
+
+function getPercentileHint(percentile) {
+    if (percentile === null) {
+        return '暂无足够历史数据';
+    }
+    if (percentile < 30) {
+        return '历史低位，偏低估';
+    }
+    if (percentile > 70) {
+        return '历史高位，偏高估';
+    }
+    return '历史中位附近';
+}
+
+function createPercentileChart(canvasId, percentileValue, label, color) {
+    const chartPercentile = clampPercentile(percentileValue);
+    const ctx = document.getElementById(canvasId).getContext('2d');
+
+    if (canvasId === 'peChart' && peChartInstance) {
+        peChartInstance.destroy();
+    }
+    if (canvasId === 'pbChart' && pbChartInstance) {
+        pbChartInstance.destroy();
+    }
+
+    const instance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: [`${label} 当前分位`, '其余区间'],
+            datasets: [{
+                data: [chartPercentile ?? 0, Math.max(0, 100 - (chartPercentile ?? 0))],
+                backgroundColor: [color, '#e5e7eb'],
+                borderWidth: 0,
+                hoverOffset: 0,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            cutout: '76%',
+            rotation: -90,
+            circumference: 360,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => `${context.label}: ${Number(context.raw).toFixed(1)}%`,
+                    }
+                }
+            }
+        }
+    });
+
+    if (canvasId === 'peChart') {
+        peChartInstance = instance;
+    } else if (canvasId === 'pbChart') {
+        pbChartInstance = instance;
+    }
+}
 
 // 加载股票详情
 async function loadStockDetail() {
@@ -287,14 +387,14 @@ async function loadStockDetail() {
 }
 
 function updateBasicInfo(data) {
-    document.getElementById('stockName').textContent = data.name || '未知';
+    document.getElementById('stockName').textContent = data.name || data.stock_name || '未知';
     document.getElementById('detailSector').textContent = data.sector || '-';
     document.getElementById('detailMarket').textContent = data.market || '-';
     document.getElementById('detailListDate').textContent = data.list_date || '-';
 }
 
 function updateValuation(data) {
-    const latest = data.latest_valuation;
+    const latest = getValuationSnapshot(data);
     if (latest) {
         document.getElementById('detailPrice').textContent = latest.price || '-';
         document.getElementById('detailPe').textContent = latest.pe ? latest.pe.toFixed(2) : '-';
@@ -307,14 +407,14 @@ function updateValuation(data) {
 
         // 更新估值分位数
         if (latest.pe_percentile !== undefined) {
-            document.getElementById('pePercentile').textContent = (latest.pe_percentile * 100).toFixed(1);
-            const peHint = latest.pe_percentile < 0.3 ? '低估' : (latest.pe_percentile > 0.7 ? '高估' : '合理');
-            document.getElementById('peHint').textContent = peHint;
+            const pePercentile = clampPercentile(latest.pe_percentile);
+            document.getElementById('pePercentile').textContent = pePercentile !== null ? pePercentile.toFixed(1) : '-';
+            document.getElementById('peHint').textContent = getPercentileHint(pePercentile);
         }
         if (latest.pb_percentile !== undefined) {
-            document.getElementById('pbPercentile').textContent = (latest.pb_percentile * 100).toFixed(1);
-            const pbHint = latest.pb_percentile < 0.3 ? '低估' : (latest.pb_percentile > 0.7 ? '高估' : '合理');
-            document.getElementById('pbHint').textContent = pbHint;
+            const pbPercentile = clampPercentile(latest.pb_percentile);
+            document.getElementById('pbPercentile').textContent = pbPercentile !== null ? pbPercentile.toFixed(1) : '-';
+            document.getElementById('pbHint').textContent = getPercentileHint(pbPercentile);
         }
     }
 
@@ -325,7 +425,7 @@ function updateValuation(data) {
         document.getElementById('dcfCurrentPrice').textContent = '¥' + data.dcf_value.current_price.toFixed(2);
         const upside = (data.dcf_value.upside * 100).toFixed(1);
         document.getElementById('dcfUpside').textContent = upside + '%';
-        document.getElementById('dcfUpside').className = 'metric-value ' + (data.dcf_value.upside > 0 ? 'text-green' : 'text-red');
+        document.getElementById('dcfUpside').className = 'metric-value ' + (data.dcf_value.upside > 0 ? 'text-rise' : 'text-fall');
     }
 }
 
@@ -344,49 +444,9 @@ function updateFinancials(data) {
 }
 
 function createCharts(data) {
-    // PE 分位数图表
-    const peCtx = document.getElementById('peChart').getContext('2d');
-    new Chart(peCtx, {
-        type: 'bar',
-        data: {
-            labels: ['低', '中低', '中', '中高', '高'],
-            datasets: [{
-                data: [20, 20, 20, 20, 20],
-                backgroundColor: ['#10b981', '#34d399', '#fbbf24', '#f59e0b', '#ef4444']
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { display: false },
-                x: { grid: { display: false } }
-            }
-        }
-    });
-
-    // PB 分位数图表
-    const pbCtx = document.getElementById('pbChart').getContext('2d');
-    new Chart(pbCtx, {
-        type: 'bar',
-        data: {
-            labels: ['低', '中低', '中', '中高', '高'],
-            datasets: [{
-                data: [20, 20, 20, 20, 20],
-                backgroundColor: ['#10b981', '#34d399', '#fbbf24', '#f59e0b', '#ef4444']
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { display: false },
-                x: { grid: { display: false } }
-            }
-        }
-    });
+    const latest = getValuationSnapshot(data);
+    createPercentileChart('peChart', latest?.pe_percentile, 'PE', '#2563eb');
+    createPercentileChart('pbChart', latest?.pb_percentile, 'PB', '#0f766e');
 }
 
 function formatMoney(value) {
@@ -432,8 +492,9 @@ async function loadCapitalFlow() {
         }
         table.style.display = 'block';
         const tbody = document.getElementById('capitalFlowBody');
-        tbody.innerHTML = result.data.map(row => {
-            const cls = v => v >= 0 ? 'text-green' : 'text-red';
+        const sortedRows = [...result.data].sort((a, b) => String(b.trade_date || '').localeCompare(String(a.trade_date || '')));
+        tbody.innerHTML = sortedRows.map(row => {
+            const cls = v => v >= 0 ? 'text-inflow' : 'text-outflow';
             const fmt = v => {
                 const n = parseFloat(v);
                 if (isNaN(n)) return '-';
@@ -470,7 +531,12 @@ async function loadStockNews() {
             return;
         }
         list.style.display = 'block';
-        list.innerHTML = result.data.map(item => {
+        const sortedNews = [...result.data].sort((a, b) => {
+            const left = a.published_at ? new Date(a.published_at).getTime() : 0;
+            const right = b.published_at ? new Date(b.published_at).getTime() : 0;
+            return right - left;
+        });
+        list.innerHTML = sortedNews.map(item => {
             const time = item.published_at ? new Date(item.published_at).toLocaleString('zh-CN') : '';
             const safeTitle = escapeHtml(item.title);
             const safeContent = escapeHtml(item.content || '');

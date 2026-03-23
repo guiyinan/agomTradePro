@@ -32,6 +32,7 @@ from ..domain.entities import (
     ExecutionApprovalRequest,
     RecommendationStatus,
     UnifiedRecommendation,
+    UserDecisionAction,
     DecisionFeatureSnapshot,
     ModelParamConfig,
     ModelParamAuditLog,
@@ -1652,6 +1653,13 @@ class UnifiedRecommendationModel(models.Model):
         (RecommendationStatus.CONFLICT.value, "冲突"),
     ]
 
+    USER_ACTION_CHOICES = [
+        (UserDecisionAction.PENDING.value, "待决策"),
+        (UserDecisionAction.WATCHING.value, "观察中"),
+        (UserDecisionAction.ADOPTED.value, "已采纳"),
+        (UserDecisionAction.IGNORED.value, "已忽略"),
+    ]
+
     # Side Choices
     SIDE_CHOICES = [
         ("BUY", "买入"),
@@ -1845,6 +1853,25 @@ class UnifiedRecommendationModel(models.Model):
         help_text="推荐状态"
     )
 
+    user_action = models.CharField(
+        max_length=16,
+        choices=USER_ACTION_CHOICES,
+        default=UserDecisionAction.PENDING.value,
+        db_index=True,
+        help_text="用户决策动作"
+    )
+
+    user_action_note = models.TextField(
+        blank=True,
+        help_text="用户决策备注"
+    )
+
+    user_action_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="用户动作时间"
+    )
+
     created_at = models.DateTimeField(
         auto_now_add=True,
         db_index=True,
@@ -1868,6 +1895,7 @@ class UnifiedRecommendationModel(models.Model):
             models.Index(fields=["beta_gate_passed", "status"], name="idx_urec_gate_status"),
             # 复合索引：优化按账户+状态过滤 + 综合分排序的查询（M4 新增）
             models.Index(fields=["account_id", "status", "-composite_score"], name="idx_urec_acc_status_score"),
+            models.Index(fields=["account_id", "user_action", "-created_at"], name="idx_urec_acc_uaction_time"),
         ]
 
     def __str__(self):
@@ -1923,6 +1951,9 @@ class UnifiedRecommendationModel(models.Model):
             source_candidate_ids=self.source_candidate_ids or [],
             feature_snapshot_id=self.feature_snapshot.snapshot_id if self.feature_snapshot else "",
             status=RecommendationStatus(self.status),
+            user_action=UserDecisionAction(self.user_action),
+            user_action_note=self.user_action_note,
+            user_action_at=self.user_action_at,
             created_at=self.created_at,
             updated_at=self.updated_at,
         )
@@ -1961,6 +1992,9 @@ class UnifiedRecommendationModel(models.Model):
             source_candidate_ids=recommendation.source_candidate_ids,
             feature_snapshot=snapshot_model,
             status=recommendation.status.value,
+            user_action=recommendation.user_action.value,
+            user_action_note=recommendation.user_action_note,
+            user_action_at=recommendation.user_action_at,
         )
 
 

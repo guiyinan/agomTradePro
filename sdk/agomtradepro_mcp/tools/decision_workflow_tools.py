@@ -29,3 +29,82 @@ def register_decision_workflow_tools(server: FastMCP) -> None:
                 "candidate_id": candidate_id,
                 "error": str(exc),
             }
+
+    @server.tool()
+    def decision_workflow_list_recommendations(
+        account_id: str,
+        status: str = "",
+        user_action: str = "",
+        security_code: str = "",
+        recommendation_id: str = "",
+        include_ignored: bool = False,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict[str, Any]:
+        """获取决策工作台统一推荐列表。"""
+        client = AgomTradeProClient()
+        try:
+            return client.decision_workflow.list_recommendations(
+                account_id=account_id,
+                status=status or None,
+                user_action=user_action or None,
+                security_code=security_code or None,
+                recommendation_id=recommendation_id or None,
+                include_ignored=include_ignored,
+                page=page,
+                page_size=page_size,
+            )
+        except Exception as exc:
+            return {
+                "success": False,
+                "account_id": account_id,
+                "error": str(exc),
+            }
+
+    @server.tool()
+    def decision_workflow_refresh_recommendations(
+        account_id: str = "",
+        security_codes: list[str] | None = None,
+        force: bool = False,
+        async_mode: bool = True,
+    ) -> dict[str, Any]:
+        """刷新决策工作台推荐结果。"""
+        client = AgomTradeProClient()
+        try:
+            return client.decision_workflow.refresh_recommendations(
+                account_id=account_id or None,
+                security_codes=security_codes,
+                force=force,
+                async_mode=async_mode,
+            )
+        except Exception as exc:
+            return {
+                "success": False,
+                "account_id": account_id or None,
+                "security_codes": security_codes or [],
+                "error": str(exc),
+            }
+
+    @server.tool()
+    def decision_workflow_apply_recommendation_action(
+        recommendation_id: str,
+        action: str,
+        account_id: str = "",
+        note: str = "",
+    ) -> dict[str, Any]:
+        """记录用户对推荐的动作。action 支持 watch、adopt、ignore、pending。"""
+        client = AgomTradeProClient()
+        try:
+            return client.decision_workflow.apply_recommendation_action(
+                recommendation_id=recommendation_id,
+                action=action,
+                account_id=account_id or None,
+                note=note or None,
+            )
+        except Exception as exc:
+            return {
+                "success": False,
+                "recommendation_id": recommendation_id,
+                "action": action,
+                "error": str(exc),
+            }

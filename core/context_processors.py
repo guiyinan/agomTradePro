@@ -1,13 +1,41 @@
 """
 Core Context Processors
 
-提供全局上下文数据，包括告警信息。
+提供全局上下文数据，包括告警信息和视觉约定。
 """
 
 import logging
 from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
+
+
+def get_market_visuals(request) -> Dict[str, Dict[str, str]]:
+    """
+    获取全局市场语义颜色配置。
+
+    所有行情相关页面应消费 rise/fall/inflow/outflow 等语义 token，
+    而不是直接硬编码 red/green。
+    """
+    try:
+        from apps.account.infrastructure.models import SystemSettingsModel
+
+        visual_tokens = SystemSettingsModel.get_runtime_market_visual_tokens()
+    except Exception as exc:
+        logger.warning("Failed to load market visual tokens: %s", exc)
+        visual_tokens = {
+            "rise": "var(--color-error)",
+            "fall": "var(--color-success)",
+            "rise_soft": "var(--color-error-light)",
+            "fall_soft": "var(--color-success-light)",
+            "rise_strong": "var(--color-error-dark)",
+            "fall_strong": "var(--color-success-dark)",
+            "inflow": "var(--color-error)",
+            "outflow": "var(--color-success)",
+            "convention": "cn_a_share",
+            "label": "A股红涨绿跌",
+        }
+    return {"market_visuals": visual_tokens}
 
 
 def get_alerts(request) -> Dict[str, List[Dict[str, str]]]:
@@ -207,5 +235,3 @@ def get_alerts(request) -> Dict[str, List[Dict[str, str]]]:
         logger.error(f"Error getting alerts: {e}", exc_info=True)
 
     return {'global_alerts': alerts}
-
-

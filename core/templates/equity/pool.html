@@ -191,11 +191,11 @@ function displayPool() {
             <td><span class="stock-code">${stock.code}</span></td>
             <td>${stock.name || '-'}</td>
             <td>${stock.sector || '-'}</td>
-            <td class="${stock.roe >= 15 ? 'text-green' : ''}">${stock.roe !== undefined ? stock.roe.toFixed(2) : '-'}</td>
+            <td class="${stock.roe >= 15 ? 'text-rise' : ''}">${stock.roe !== undefined ? stock.roe.toFixed(2) : '-'}</td>
             <td>${stock.pe !== undefined ? stock.pe.toFixed(2) : '-'}</td>
             <td>${stock.pb !== undefined ? stock.pb.toFixed(2) : '-'}</td>
-            <td class="${stock.revenue_growth >= 10 ? 'text-green' : ''}">${stock.revenue_growth !== undefined ? stock.revenue_growth.toFixed(2) : '-'}</td>
-            <td class="${stock.profit_growth >= 10 ? 'text-green' : ''}">${stock.profit_growth !== undefined ? stock.profit_growth.toFixed(2) : '-'}</td>
+            <td class="${stock.revenue_growth >= 10 ? 'text-rise' : ''}">${stock.revenue_growth !== undefined ? stock.revenue_growth.toFixed(2) : '-'}</td>
+            <td class="${stock.profit_growth >= 10 ? 'text-rise' : ''}">${stock.profit_growth !== undefined ? stock.profit_growth.toFixed(2) : '-'}</td>
             <td><strong>${stock.score !== undefined ? stock.score.toFixed(1) : '-'}</strong></td>
             <td>
                 <button class="btn btn-primary" style="padding: 6px 12px; font-size: 13px;" onclick="viewDetail('${stock.code}')">详情</button>

@@ -191,11 +191,11 @@
 }
 
 .indicator-value.positive {
-    color: var(--color-success);
+    color: var(--color-rise);
 }
 
 .indicator-value.negative {
-    color: var(--color-error);
+    color: var(--color-fall);
 }
 
 .indicator-meta {

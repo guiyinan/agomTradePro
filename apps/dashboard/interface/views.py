@@ -489,17 +489,13 @@ def allocation_chart_htmx(request):
     HTMX 资产配置图表数据
 
     返回 JSON 格式的资产配置数据，用于前端图表更新。
-    支持 account_id 参数按账户过滤。
+    支持 account_id 参数按账户过滤，不传则返回全部账户汇总。
     """
     account_id_str = request.GET.get('account_id', '')
     account_id = int(account_id_str) if account_id_str else None
 
-    if account_id:
-        positions = _load_simulated_positions_fallback(request.user.id, account_id=account_id)
-        allocation_data = _generate_allocation_from_positions(positions)
-    else:
-        data = _build_dashboard_data(request.user.id)
-        allocation_data = data.allocation_data if hasattr(data, 'allocation_data') else {}
+    positions = _load_simulated_positions_fallback(request.user.id, account_id=account_id)
+    allocation_data = _generate_allocation_from_positions(positions)
 
     return JsonResponse({
         'success': True,
@@ -513,10 +509,18 @@ def performance_chart_htmx(request):
     HTMX 收益趋势图表数据
 
     返回 JSON 格式的收益历史数据。
+    支持 account_id 参数按账户过滤。
     """
-    data = _build_dashboard_data(request.user.id)
+    account_id_str = request.GET.get('account_id', '')
+    account_id = int(account_id_str) if account_id_str else None
 
-    performance_data = data.performance_data if hasattr(data, 'performance_data') else []
+    from apps.dashboard.application.use_cases import GetDashboardDataUseCase
+
+    use_case = GetDashboardDataUseCase()
+    performance_data = use_case._generate_performance_chart_data(
+        user_id=request.user.id,
+        account_id=account_id,
+    )
 
     return JsonResponse({
         'success': True,
@@ -808,12 +812,24 @@ def alpha_stocks_htmx(request):
 
     返回 Alpha 选股评分表格，支持动态刷新。
     """
+    top_n = int(request.GET.get('top_n', 10))
+    scores = _get_alpha_stock_scores(top_n=top_n)
+
+    if request.GET.get("format") == "json":
+        return JsonResponse(
+            {
+                "success": True,
+                "data": {
+                    "items": scores,
+                    "count": len(scores),
+                    "top_n": top_n,
+                },
+            }
+        )
+
     if 'HX-Request' not in request.headers:
         from django.shortcuts import redirect
         return redirect('dashboard:index')
-
-    top_n = int(request.GET.get('top_n', 10))
-    scores = _get_alpha_stock_scores(top_n=top_n)
 
     context = {
         'alpha_stocks': scores,

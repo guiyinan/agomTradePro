@@ -30,6 +30,7 @@ class ScreenStocksResponse:
     success: bool
     regime: str
     stock_codes: List[str]
+    items: List[dict]
     screening_criteria: dict
     error: Optional[str] = None
 
@@ -112,11 +113,43 @@ class ScreenStocksUseCase:
             screener = StockScreener(scoring_config=scoring_config)
             stock_codes = screener.screen(all_stocks, rule)
 
-            # 5. 返回结果
+            stock_lookup = {
+                stock_info.stock_code: (stock_info, financial, valuation)
+                for stock_info, financial, valuation in all_stocks
+            }
+            items: List[dict] = []
+            for rank, stock_code in enumerate(stock_codes, start=1):
+                stock_row = stock_lookup.get(stock_code)
+                if not stock_row:
+                    continue
+
+                stock_info, financial, valuation = stock_row
+                items.append(
+                    {
+                        "rank": rank,
+                        "code": stock_info.stock_code,
+                        "name": stock_info.name,
+                        "sector": stock_info.sector,
+                        "market": stock_info.market,
+                        "roe": financial.roe,
+                        "debt_ratio": financial.debt_ratio,
+                        "revenue_growth": financial.revenue_growth,
+                        "profit_growth": financial.net_profit_growth,
+                        "pe": valuation.pe,
+                        "pb": valuation.pb,
+                        "ps": valuation.ps,
+                        "dividend_yield": valuation.dividend_yield,
+                        "score": None,
+                        "source": "screen",
+                    }
+                )
+
+            # 6. 返回结果
             return ScreenStocksResponse(
                 success=True,
                 regime=regime,
                 stock_codes=stock_codes,
+                items=items,
                 screening_criteria={
                     'rule_name': rule.name,
                     'min_roe': rule.min_roe,
@@ -131,6 +164,7 @@ class ScreenStocksUseCase:
                 success=False,
                 regime='',
                 stock_codes=[],
+                items=[],
                 screening_criteria={},
                 error=str(e)
             )

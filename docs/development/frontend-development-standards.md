@@ -81,7 +81,7 @@ apps/<module>/templates/<module>/  # App 内部模板（仅该 App 使用时）
 
 ### 3.1 CSS 变量（Design Tokens）
 
-所有颜色、间距、圆角必须使用 CSS 变量，定义在 `core/static/css/main.css` 的 `:root` 中：
+所有颜色、间距、圆角必须使用 CSS 变量，定义在 `static/css/design-tokens.css` 的 `:root` 中：
 
 ```css
 /* ✅ 正确 */
@@ -94,6 +94,49 @@ color: #36C;
 padding: 16px;
 border-radius: 4px;
 ```
+
+### 3.1.1 市场语义颜色规范
+
+涉及行情、收益率、盈亏、涨跌幅、资金流向、买卖方向的前端样式，必须使用市场语义 token，不得直接写红绿，也不得继续新增 `text-red` / `text-green` 这类视觉类名。
+
+```css
+/* ✅ 正确：市场语义 token */
+color: var(--color-rise);
+color: var(--color-fall);
+background: var(--color-rise-soft);
+background: var(--color-fall-soft);
+
+/* ✅ 正确：语义类名 */
+.text-rise { }
+.text-fall { }
+.text-inflow { }
+.text-outflow { }
+.badge-buy { }
+.badge-sell { }
+
+/* ❌ 错误：直接写死市场红绿 */
+color: #10b981;
+color: #ef4444;
+background: #dcfce7;
+background: #fee2e2;
+```
+
+系统当前通过 `SystemSettingsModel.market_color_convention` 下发以下变量：
+
+- `--color-rise`
+- `--color-fall`
+- `--color-rise-soft`
+- `--color-fall-soft`
+- `--color-rise-strong`
+- `--color-fall-strong`
+- `--color-capital-inflow`
+- `--color-capital-outflow`
+
+约束：
+
+- 市场语义和通用成功/失败语义必须分开。保存成功、连接失败、校验报错继续使用 `success/error`。
+- 买入/卖出、做多/做空、盈亏/收益率、净流入/净流出统一映射到 `rise/fall/inflow/outflow`。
+- 新代码禁止再新增页面内联的 `#14866D`、`#D33`、`#10b981`、`#ef4444`、`#dcfce7`、`#fee2e2` 等市场色硬编码。
 
 ### 3.2 CSS 选择器优先级 ⚠️
 

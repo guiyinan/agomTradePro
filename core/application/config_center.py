@@ -191,6 +191,8 @@ def get_system_settings_summary() -> dict[str, Any]:
         "summary": {
             "default_mcp_enabled": settings_obj.default_mcp_enabled,
             "allow_token_plaintext_view": settings_obj.allow_token_plaintext_view,
+            "market_color_convention": settings_obj.market_color_convention,
+            "market_color_label": settings_obj.get_market_visual_tokens()["label"],
             "benchmark_map_size": len(settings_obj.benchmark_code_map or {}),
             "macro_index_catalog_size": len(settings_obj.macro_index_catalog or []),
             "updated_at": settings_obj.updated_at.isoformat() if getattr(settings_obj, "updated_at", None) else None,

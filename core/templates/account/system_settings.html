@@ -58,6 +58,38 @@
             </div>
         </div>
 
+        <div class="settings-section">
+            <h2>视觉约定</h2>
+            <div class="form-group">
+                <label for="market_color_convention">市场颜色约定</label>
+                <select id="market_color_convention" name="market_color_convention" class="form-control">
+                    {% for value, label in market_color_choices %}
+                    <option value="{{ value }}" {% if system_settings.market_color_convention == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <p class="help-text">统一控制全站涨跌和资金流向的颜色语义，保存后立即生效。</p>
+            </div>
+            <div class="visual-preview-grid">
+                <div class="visual-preview-card">
+                    <span class="visual-preview-label">上涨 / 正收益</span>
+                    <strong class="text-rise">+2.35%</strong>
+                </div>
+                <div class="visual-preview-card">
+                    <span class="visual-preview-label">下跌 / 回撤</span>
+                    <strong class="text-fall">-1.28%</strong>
+                </div>
+                <div class="visual-preview-card">
+                    <span class="visual-preview-label">资金净流入</span>
+                    <strong class="text-inflow">+3.6 亿</strong>
+                </div>
+                <div class="visual-preview-card">
+                    <span class="visual-preview-label">资金净流出</span>
+                    <strong class="text-outflow">-2.1 亿</strong>
+                </div>
+            </div>
+            <p class="help-text">当前生效：{{ market_visuals.label }}</p>
+        </div>
+
         <!-- 用户协议配置 -->
         <div class="settings-section">
             <h2>用户协议内容</h2>
@@ -256,6 +288,27 @@
     outline: none;
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px rgba(51, 102, 204, 0.1);
+}
+
+.visual-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.visual-preview-card {
+    padding: 14px 16px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+}
+
+.visual-preview-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 13px;
+    color: var(--color-text-secondary);
 }
 
 .code-editor {
