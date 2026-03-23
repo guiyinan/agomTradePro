@@ -219,8 +219,8 @@ class EquityViewSet(viewsets.ViewSet):
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(
-        summary="估值分析",
-        description="分析个股的估值水平和历史百分位",
+        summary="估值分析（个股详情）",
+        description="获取个股的完整估值分析数据，包括基本信息、估值指标、财务数据等",
         request=AnalyzeValuationRequestSerializer,
         responses={200: AnalyzeValuationResponseSerializer},
     )
@@ -229,18 +229,44 @@ class EquityViewSet(viewsets.ViewSet):
         """
         GET /api/equity/valuation/{stock_code}/
 
-        估值分析
+        估值分析（个股详情页完整数据）
 
         Response:
         {
             "success": true,
-            "stock_code": "600030.SH",
-            "stock_name": "中信证券",
-            "current_pe": 12.5,
-            "pe_percentile": 0.25,
-            "current_pb": 1.3,
-            "pb_percentile": 0.30,
-            "is_undervalued": true
+            "stock_code": "000001.SZ",
+            "stock_name": "平安银行",
+            "sector": "银行",
+            "market": "SZ",
+            "list_date": "1991-04-03",
+            "current_pe": 5.2,
+            "pe_percentile": 0.15,
+            "current_pb": 0.55,
+            "pb_percentile": 0.20,
+            "is_undervalued": true,
+            "latest_valuation": {
+                "pe": 5.2,
+                "pb": 0.55,
+                "ps": 1.2,
+                "pe_percentile": 0.15,
+                "pb_percentile": 0.20,
+                "total_mv": 250000000000,
+                "circ_mv": 250000000000,
+                "dividend_yield": 5.5,
+                "price": 12.5,
+                "trade_date": "2026-03-22"
+            },
+            "financial_data": {
+                "roe": 10.5,
+                "roa": 0.8,
+                "revenue": 100000000000,
+                "net_profit": 25000000000,
+                "revenue_growth": 8.5,
+                "net_profit_growth": 12.3,
+                "debt_ratio": 95.0,
+                "gross_margin": null,
+                "report_date": "2025-12-31"
+            }
         }
         """
         # 1. 验证请求

@@ -72,7 +72,26 @@
 
     <!-- 最新价格与估值 -->
     <div class="card">
-        <h2 class="card-title">最新价格与估值</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h2 class="card-title" style="margin: 0;">最新价格与估值</h2>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span id="dataUpdateTime" style="font-size: 12px; color: var(--color-text-muted);">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    数据更新于: --
+                </span>
+                <a id="eastmoneyLink" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="font-size: 12px; padding: 4px 10px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                        <polyline points="15 3 21 3 21 9"/>
+                        <line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                    东方财富
+                </a>
+            </div>
+        </div>
         <div class="metric-grid">
             <div class="metric-card">
                 <div class="metric-label">最新价</div>
@@ -286,6 +305,48 @@ const stockCode = '{{ stock_code }}';
 let peChartInstance = null;
 let pbChartInstance = null;
 
+// 生成东方财富链接
+function getEastmoneyUrl(code) {
+    if (!code) return '#';
+    const market = code.endsWith('.SH') ? 'sh' : 'sz';
+    const pureCode = code.replace(/\.(SH|SZ)$/, '');
+    return `https://quote.eastmoney.com/${market}${pureCode}.html`;
+}
+
+// 设置外部链接
+function setExternalLinks() {
+    document.getElementById('eastmoneyLink').href = getEastmoneyUrl(stockCode);
+}
+
+// 更新数据时间显示
+function updateDataTime(timestamp) {
+    const el = document.getElementById('dataUpdateTime');
+    if (timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const isToday = date.toDateString() === now.toDateString();
+        const timeStr = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        const dateStr = date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
+        el.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            数据更新于: ${isToday ? timeStr : dateStr + ' ' + timeStr}
+            <span style="color: #f59e0b; margin-left: 4px;" title="非实时数据，仅供参考">⚠️</span>
+        `;
+    } else {
+        el.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 4px;">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            数据更新于: -- 
+            <span style="color: #f59e0b; margin-left: 4px;" title="非实时数据，仅供参考">⚠️</span>
+        `;
+    }
+}
+
 function clampPercentile(value) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) {
@@ -378,11 +439,40 @@ async function loadStockDetail() {
             updateValuation(result);
             updateFinancials(result);
             createCharts(result);
+            // 获取实时价格覆盖
+            loadRealtimePrice();
         } else {
             alert('加载失败: ' + result.error);
         }
     } catch (error) {
         console.error('加载股票详情失败:', error);
+    }
+}
+
+// 获取实时价格
+async function loadRealtimePrice() {
+    try {
+        const resp = await fetch('/api/realtime/prices/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ asset_codes: [stockCode] })
+        });
+        const result = await resp.json();
+        if (result.prices && result.prices.length > 0) {
+            const price = result.prices[0];
+            const priceEl = document.getElementById('detailPrice');
+            if (price.price && price.price > 0) {
+                priceEl.textContent = price.price.toFixed(2);
+                // 添加实时标识
+                const changePct = price.change_pct;
+                if (changePct !== undefined && changePct !== null) {
+                    const changeClass = changePct >= 0 ? 'text-rise' : 'text-fall';
+                    priceEl.className = 'metric-value ' + changeClass;
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('获取实时价格失败:', e);
     }
 }
 
@@ -405,6 +495,9 @@ function updateValuation(data) {
         document.getElementById('detailDivYield').textContent = latest.dividend_yield ? latest.dividend_yield.toFixed(2) + '%' : '-';
         document.getElementById('detailTurnover').textContent = latest.turnover_rate ? latest.turnover_rate.toFixed(2) + '%' : '-';
 
+        // 更新数据时间
+        updateDataTime(latest.updated_at || latest.trade_date);
+
         // 更新估值分位数
         if (latest.pe_percentile !== undefined) {
             const pePercentile = clampPercentile(latest.pe_percentile);
@@ -416,6 +509,8 @@ function updateValuation(data) {
             document.getElementById('pbPercentile').textContent = pbPercentile !== null ? pbPercentile.toFixed(1) : '-';
             document.getElementById('pbHint').textContent = getPercentileHint(pbPercentile);
         }
+    } else {
+        updateDataTime(null);
     }
 
     // DCF 估值
@@ -556,6 +651,7 @@ async function loadStockNews() {
 }
 
 // 页面加载时执行
+setExternalLinks();
 loadStockDetail();
 loadCapitalFlow();
 loadStockNews();

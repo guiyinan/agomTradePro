@@ -17,6 +17,11 @@ from apps.equity.infrastructure.repositories import (
     DjangoValuationDataQualityRepository,
     DjangoValuationRepairRepository,
 )
+from apps.equity.infrastructure.financial_source_gateway import (
+    AKShareFinancialGateway,
+    TushareFinancialGateway,
+)
+from apps.equity.infrastructure.models import FinancialDataModel, StockInfoModel
 
 
 @shared_task(
@@ -131,4 +136,79 @@ def sync_validate_scan_equity_valuation_task(
             "phase_counts": scan_response.phase_counts,
             "error": scan_response.error,
         },
+    }
+
+
+@shared_task(
+    time_limit=getattr(settings, 'EQUITY_FINANCIAL_SYNC_TASK_TIMEOUT', 3600),
+    soft_time_limit=getattr(settings, 'EQUITY_FINANCIAL_SYNC_TASK_SOFT_TIMEOUT', 3500)
+)
+def sync_financial_data_task(
+    source: str = "akshare",
+    periods: int = 8,
+    stock_codes: list | None = None,
+) -> dict:
+    """
+    同步财务数据
+    
+    Args:
+        source: 数据源（akshare 或 tushare）
+        periods: 获取最近几个报告期
+        stock_codes: 指定股票代码列表（None 表示全部活跃股票）
+    """
+    # 获取要同步的股票列表
+    if stock_codes:
+        stocks = StockInfoModel.objects.filter(stock_code__in=stock_codes, is_active=True)
+    else:
+        stocks = StockInfoModel.objects.filter(is_active=True).order_by("stock_code")
+
+    if not stocks.exists():
+        return {"success": False, "error": "没有找到活跃股票"}
+
+    # 初始化网关
+    if source == "tushare":
+        tushare_token = getattr(settings, "TUSHARE_TOKEN", None) or getattr(settings, "TUSHARE_PRO_TOKEN", None)
+        if not tushare_token:
+            return {"success": False, "error": "TUSHARE_TOKEN 未配置"}
+        gateway = TushareFinancialGateway(token=tushare_token)
+    else:
+        gateway = AKShareFinancialGateway()
+
+    synced_count = 0
+    error_count = 0
+    errors = []
+
+    for stock in stocks:
+        try:
+            batch = gateway.fetch(stock.stock_code, periods=periods)
+            for record in batch.records:
+                FinancialDataModel.objects.update_or_create(
+                    stock_code=record.stock_code,
+                    report_date=record.report_date,
+                    report_type=record.report_type,
+                    defaults={
+                        "revenue": record.revenue,
+                        "net_profit": record.net_profit,
+                        "revenue_growth": record.revenue_growth,
+                        "net_profit_growth": record.net_profit_growth,
+                        "total_assets": record.total_assets,
+                        "total_liabilities": record.total_liabilities,
+                        "equity": record.equity,
+                        "roe": record.roe,
+                        "roa": record.roa,
+                        "debt_ratio": record.debt_ratio,
+                    }
+                )
+            synced_count += len(batch.records)
+        except Exception as e:
+            error_count += 1
+            if len(errors) < 10:  # 只记录前 10 个错误
+                errors.append(f"{stock.stock_code}: {str(e)}")
+
+    return {
+        "success": True,
+        "synced_count": synced_count,
+        "error_count": error_count,
+        "total_stocks": stocks.count(),
+        "errors": errors,
     }

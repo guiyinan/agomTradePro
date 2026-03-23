@@ -58,17 +58,54 @@ class AnalyzeValuationRequestSerializer(serializers.Serializer):
     )
 
 
+class LatestValuationSerializer(serializers.Serializer):
+    """最新估值数据序列化器"""
+    pe = serializers.FloatField(allow_null=True)
+    pb = serializers.FloatField(allow_null=True)
+    ps = serializers.FloatField(allow_null=True)
+    pe_percentile = serializers.FloatField()
+    pb_percentile = serializers.FloatField()
+    total_mv = serializers.FloatField(allow_null=True)
+    circ_mv = serializers.FloatField(allow_null=True)
+    dividend_yield = serializers.FloatField(allow_null=True)
+    price = serializers.FloatField(allow_null=True)
+    trade_date = serializers.CharField(allow_null=True)
+    updated_at = serializers.CharField(allow_null=True, required=False)
+
+
+class FinancialDataSerializer(serializers.Serializer):
+    """财务数据序列化器"""
+    roe = serializers.FloatField(allow_null=True)
+    roa = serializers.FloatField(allow_null=True)
+    revenue = serializers.FloatField(allow_null=True)
+    net_profit = serializers.FloatField(allow_null=True)
+    revenue_growth = serializers.FloatField(allow_null=True)
+    net_profit_growth = serializers.FloatField(allow_null=True)
+    debt_ratio = serializers.FloatField(allow_null=True)
+    gross_margin = serializers.FloatField(allow_null=True)
+    report_date = serializers.CharField(allow_null=True)
+
+
 class AnalyzeValuationResponseSerializer(serializers.Serializer):
-    """估值分析响应序列化器"""
+    """估值分析响应序列化器（个股详情页完整数据）"""
 
     success = serializers.BooleanField()
     stock_code = serializers.CharField()
     stock_name = serializers.CharField()
+    # 基本信息
+    sector = serializers.CharField()
+    market = serializers.CharField()
+    list_date = serializers.CharField(allow_null=True)
+    # 估值数据
     current_pe = serializers.FloatField()
     pe_percentile = serializers.FloatField()
     current_pb = serializers.FloatField()
     pb_percentile = serializers.FloatField()
     is_undervalued = serializers.BooleanField()
+    # 最新估值详情
+    latest_valuation = LatestValuationSerializer(allow_null=True)
+    # 财务数据
+    financial_data = FinancialDataSerializer(allow_null=True)
     error = serializers.CharField(allow_null=True, required=False)
 
 

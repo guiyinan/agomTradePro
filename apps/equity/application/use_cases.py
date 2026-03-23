@@ -208,15 +208,24 @@ class AnalyzeValuationRequest:
 
 @dataclass
 class AnalyzeValuationResponse:
-    """估值分析响应"""
+    """估值分析响应（个股详情页完整数据）"""
     success: bool
     stock_code: str
     stock_name: str
+    # 基本信息
+    sector: str
+    market: str
+    list_date: Optional[str]
+    # 估值数据
     current_pe: float
     pe_percentile: float
     current_pb: float
     pb_percentile: float
     is_undervalued: bool
+    # 最新估值详情
+    latest_valuation: Optional[Dict] = None
+    # 财务数据
+    financial_data: Optional[Dict] = None
     error: Optional[str] = None
 
 
@@ -241,7 +250,8 @@ class AnalyzeValuationUseCase:
         2. 获取历史估值数据
         3. 计算 PE/PB 百分位
         4. 判断是否低估
-        5. 返回结果
+        5. 获取财务数据
+        6. 返回完整结果
         """
         try:
             from apps.equity.domain.services import ValuationAnalyzer
@@ -279,16 +289,62 @@ class AnalyzeValuationUseCase:
             # 4. 判断是否低估
             is_undervalued = analyzer.is_undervalued(pe_percentile, pb_percentile)
 
-            # 5. 返回结果
+            # 5. 获取财务数据
+            financial = self.stock_repo.get_latest_financial_data(request.stock_code)
+
+            # 6. 获取日线数据（用于获取当前价格、换手率等）
+            daily_prices = self.stock_repo.get_daily_prices(
+                request.stock_code,
+                start_date=end_date - timedelta(days=7),
+                end_date=end_date
+            )
+            latest_daily = daily_prices[-1] if daily_prices else None
+
+            # 7. 构建最新估值详情字典
+            latest_valuation = {
+                'pe': latest.pe if latest.pe > 0 else None,
+                'pb': latest.pb if latest.pb > 0 else None,
+                'ps': latest.ps if latest.ps > 0 else None,
+                'pe_percentile': pe_percentile,
+                'pb_percentile': pb_percentile,
+                'total_mv': float(latest.total_mv) if latest.total_mv else None,
+                'circ_mv': float(latest.circ_mv) if latest.circ_mv else None,
+                'dividend_yield': latest.dividend_yield if latest.dividend_yield > 0 else None,
+                'price': float(latest_daily[1]) if latest_daily else None,
+                'trade_date': latest.trade_date.isoformat() if latest.trade_date else None,
+                'updated_at': latest.fetched_at.isoformat() if hasattr(latest, 'fetched_at') and latest.fetched_at else None,
+            }
+
+            # 8. 构建财务数据字典
+            financial_data = None
+            if financial:
+                financial_data = {
+                    'roe': financial.roe,
+                    'roa': financial.roa,
+                    'revenue': float(financial.revenue) if financial.revenue else None,
+                    'net_profit': float(financial.net_profit) if financial.net_profit else None,
+                    'revenue_growth': financial.revenue_growth,
+                    'net_profit_growth': financial.net_profit_growth,
+                    'debt_ratio': financial.debt_ratio,
+                    'gross_margin': None,  # 需要从其他地方获取
+                    'report_date': financial.report_date.isoformat() if financial.report_date else None,
+                }
+
+            # 9. 返回结果
             return AnalyzeValuationResponse(
                 success=True,
                 stock_code=request.stock_code,
                 stock_name=stock_info.name,
+                sector=stock_info.sector or '',
+                market=stock_info.market or '',
+                list_date=stock_info.list_date.isoformat() if stock_info.list_date else None,
                 current_pe=latest.pe,
                 pe_percentile=pe_percentile,
                 current_pb=latest.pb,
                 pb_percentile=pb_percentile,
-                is_undervalued=is_undervalued
+                is_undervalued=is_undervalued,
+                latest_valuation=latest_valuation,
+                financial_data=financial_data,
             )
 
         except Exception as e:
@@ -296,11 +352,16 @@ class AnalyzeValuationUseCase:
                 success=False,
                 stock_code=request.stock_code,
                 stock_name='',
+                sector='',
+                market='',
+                list_date=None,
                 current_pe=0.0,
                 pe_percentile=0.0,
                 current_pb=0.0,
                 pb_percentile=0.0,
                 is_undervalued=False,
+                latest_valuation=None,
+                financial_data=None,
                 error=str(e)
             )
 

@@ -258,20 +258,35 @@ class EquityModule(BaseModule):
         as_of_date: Optional[date] = None,
     ) -> dict[str, Any]:
         """
-        获取估值数据
+        获取股票估值详情（完整数据）
 
         Args:
             stock_code: 股票代码
             as_of_date: 估值日期（None 表示最新）
 
         Returns:
-            估值数据，包括 PE、PB、PS 等指标
+            完整估值数据，包括：
+            - success: 是否成功
+            - stock_code: 股票代码
+            - stock_name: 股票名称
+            - sector: 所属行业
+            - market: 交易市场
+            - list_date: 上市日期
+            - current_pe: 当前市盈率
+            - pe_percentile: PE历史分位数
+            - current_pb: 当前市净率
+            - pb_percentile: PB历史分位数
+            - is_undervalued: 是否低估
+            - latest_valuation: 最新估值详情（含PE/PB/PS、市值、股息率、价格等）
+            - financial_data: 财务数据（含ROE、营收、净利润、增长率等）
 
         Example:
             >>> client = AgomTradeProClient()
             >>> valuation = client.equity.get_valuation("000001.SZ")
-            >>> print(f"PE: {valuation['pe']}")
-            >>> print(f"PB: {valuation['pb']}")
+            >>> print(f"股票: {valuation['stock_name']}")
+            >>> print(f"行业: {valuation['sector']}")
+            >>> print(f"PE: {valuation['latest_valuation']['pe']}")
+            >>> print(f"ROE: {valuation['financial_data']['roe']}%")
         """
         params: dict[str, Any] = {}
         if as_of_date is not None:

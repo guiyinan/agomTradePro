@@ -97,7 +97,7 @@ class AKShareValuationGateway:
                 ValuationMetrics(
                     stock_code=stock_code,
                     trade_date=row.trade_date,
-                    pe=0.0,
+                    pe=pe_ttm or 0.0,
                     pb=pb or 0.0,
                     ps=0.0,
                     total_mv=Decimal(str(total_mv_raw * 100000000)),
@@ -113,7 +113,7 @@ class AKShareValuationGateway:
                 )
             )
             previous_pb = pb
-            previous_pe = None
+            previous_pe = pe_ttm
 
         return records
 

@@ -163,6 +163,68 @@ python -c "import asyncio; from agomtradepro_mcp.server import server; print(len
 
 ## Available Tools
 
+### Equity Tools
+
+```
+get_stock_score(stock_code, as_of_date)
+list_stocks(sector, min_score, limit)
+get_stock_detail(stock_code)
+get_stock_recommendations(regime, limit)
+analyze_stock(stock_code, as_of_date)
+get_stock_financials(stock_code, report_type, limit)
+get_stock_valuation(stock_code, as_of_date)  # 返回完整估值详情
+get_valuation_repair_status(stock_code, lookback_days)
+get_valuation_repair_history(stock_code, lookback_days)
+scan_valuation_repairs(universe, lookback_days, limit)
+list_valuation_repairs(universe, phase, limit)
+sync_valuation_data(days_back, stock_codes, start_date, end_date, primary_source, fallback_source)
+validate_valuation_data(as_of_date, primary_source)
+get_valuation_data_freshness()
+get_valuation_data_quality_latest()
+get_valuation_repair_config()
+list_valuation_repair_configs(limit)
+create_valuation_repair_config(...)
+activate_valuation_repair_config(config_id)
+rollback_valuation_repair_config(config_id)
+```
+
+Notes:
+
+- `get_stock_valuation` 现在返回完整的股票详情数据，包括基本信息、估值详情和财务数据：
+  ```json
+  {
+    "success": true,
+    "stock_code": "000001.SZ",
+    "stock_name": "平安银行",
+    "sector": "银行",
+    "market": "SZ",
+    "list_date": "1991-04-03",
+    "current_pe": 5.2,
+    "pe_percentile": 0.15,
+    "current_pb": 0.55,
+    "pb_percentile": 0.20,
+    "is_undervalued": true,
+    "latest_valuation": {
+      "pe": 5.2,
+      "pb": 0.55,
+      "ps": 1.2,
+      "total_mv": 250000000000,
+      "circ_mv": 250000000000,
+      "dividend_yield": 5.5,
+      "price": 12.5
+    },
+    "financial_data": {
+      "roe": 10.5,
+      "roa": 0.8,
+      "revenue": 100000000000,
+      "net_profit": 25000000000,
+      "revenue_growth": 8.5,
+      "net_profit_growth": 12.3,
+      "debt_ratio": 95.0
+    }
+  }
+  ```
+
 ### Macro Regime Tools
 
 ```
